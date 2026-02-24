@@ -10,17 +10,30 @@ export type ManualPreferences = {
 };
 
 export type EquipmentKey =
-  | "barbells"
+  | "squat_rack"
+  | "barbell"
+  | "plates"
+  | "bench"
+  | "trap_bar"
+  | "leg_press"
+  | "cable_machine"
+  | "lat_pulldown"
+  | "chest_press"
+  | "hamstring_curl"
+  | "leg_extension"
   | "dumbbells"
   | "kettlebells"
-  | "cable_machine"
-  | "pullup_bar"
-  | "squat_rack"
-  | "bench"
-  | "leg_press"
+  | "adjustable_bench"
+  | "treadmill"
+  | "assault_bike"
+  | "rower"
+  | "ski_erg"
+  | "stair_climber"
   | "bands"
-  | "cardio_machines"
-  | "hangboard"
+  | "trx"
+  | "pullup_bar"
+  | "plyo_box"
+  | "sled"
   | "bodyweight";
 
 export type ContraindicationKey =

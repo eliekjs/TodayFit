@@ -23,6 +23,7 @@ type AppStateContextValue = {
   workoutHistory: WorkoutHistoryItem[];
   setActiveGymProfile: (id: string) => void;
   addGymProfile: (profile: Omit<GymProfile, "id" | "isActive">) => void;
+  updateGymProfile: (id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => void;
   updateManualPreferences: (update: Partial<ManualPreferences>) => void;
   setGeneratedWorkout: (workout: GeneratedWorkout | null) => void;
   addCompletedWorkout: (summary: Omit<WorkoutHistoryItem, "id">) => void;
@@ -61,8 +62,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addGymProfile: (profile) => {
         setGymProfiles((profiles) => [
           ...profiles,
-          { id: `profile_${profiles.length + 1}`, ...profile },
+          { id: `profile_${Date.now()}`, ...profile, isActive: false },
         ]);
+      },
+      updateGymProfile: (id, update) => {
+        setGymProfiles((profiles) =>
+          profiles.map((p) => (p.id === id ? { ...p, ...update } : p))
+        );
       },
       updateManualPreferences: (update) => {
         setManualPreferences((prev) => ({ ...prev, ...update }));

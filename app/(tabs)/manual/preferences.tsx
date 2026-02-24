@@ -17,7 +17,6 @@ import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { generateWorkout } from "../../../lib/generator";
-import type { EquipmentKey } from "../../../lib/types";
 
 if (
   Platform.OS === "android" &&
@@ -70,21 +69,6 @@ const SUB_FOCUS = [
   "Grip strength",
 ];
 
-const EQUIPMENT_OPTIONS: { id: EquipmentKey; label: string }[] = [
-  { id: "barbells", label: "Barbells" },
-  { id: "dumbbells", label: "Dumbbells" },
-  { id: "kettlebells", label: "Kettlebells" },
-  { id: "cable_machine", label: "Cable Machine" },
-  { id: "pullup_bar", label: "Pull-up Bar" },
-  { id: "squat_rack", label: "Squat Rack" },
-  { id: "bench", label: "Bench" },
-  { id: "leg_press", label: "Leg Press" },
-  { id: "bands", label: "Bands" },
-  { id: "cardio_machines", label: "Cardio Machines" },
-  { id: "hangboard", label: "Climbing Hangboard" },
-  { id: "bodyweight", label: "Bodyweight" },
-];
-
 export default function ManualPreferencesScreen() {
   const {
     manualPreferences,
@@ -95,32 +79,12 @@ export default function ManualPreferencesScreen() {
     setActiveGymProfile,
   } = useAppState();
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [showGymModal, setShowGymModal] = useState(false);
   const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
   const router = useRouter();
   const theme = useTheme();
 
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
-
-  const [modalProfileId, setModalProfileId] = useState<string>(
-    () => activeProfile?.id ?? gymProfiles[0]?.id ?? ""
-  );
-  const [modalEquipment, setModalEquipment] = useState<EquipmentKey[]>(
-    () => activeProfile?.equipment ?? gymProfiles[0]?.equipment ?? []
-  );
-
-  const selectModalProfile = (id: string) => {
-    setModalProfileId(id);
-    const p = gymProfiles.find((g) => g.id === id);
-    setModalEquipment(p?.equipment ?? []);
-  };
-
-  const toggleModalEquipment = (key: EquipmentKey) => {
-    setModalEquipment((prev) =>
-      prev.includes(key) ? prev.filter((e) => e !== key) : [...prev, key]
-    );
-  };
 
   const toggleFromArray =
     (key: "primaryFocus" | "injuries" | "upcoming" | "subFocus") =>
@@ -136,19 +100,8 @@ export default function ManualPreferencesScreen() {
 
   const onGenerate = () => {
     const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-    setModalProfileId(profile?.id ?? "");
-    setModalEquipment(profile?.equipment ?? []);
-    setShowGymModal(true);
-  };
-
-  const onConfirmGenerate = () => {
-    const selectedProfile = gymProfiles.find((g) => g.id === modalProfileId);
-    const profileForWorkout = selectedProfile
-      ? { ...selectedProfile, equipment: modalEquipment }
-      : undefined;
-    const workout = generateWorkout(manualPreferences, profileForWorkout);
+    const workout = generateWorkout(manualPreferences, profile);
     setGeneratedWorkout(workout);
-    setShowGymModal(false);
     router.push("/manual/workout");
   };
 
@@ -236,7 +189,7 @@ export default function ManualPreferencesScreen() {
           <PrimaryButton
             label="Edit gym profile(s)"
             variant="ghost"
-            onPress={() => router.push("/profiles")}
+            onPress={() => router.push("/profiles?from=workout")}
             style={{ marginTop: 8 }}
           />
         </View>
@@ -312,101 +265,6 @@ export default function ManualPreferencesScreen() {
         </View>
       </ScrollView>
 
-      {/* Gym Profile & Equipment Modal */}
-      <Modal
-        transparent
-        visible={showGymModal}
-        animationType="slide"
-        onRequestClose={() => setShowGymModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={styles.modalDismiss}
-            onPress={() => setShowGymModal(false)}
-          />
-          <View
-            style={[styles.modalSheet, { backgroundColor: theme.card }]}
-          >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Choose your gym
-            </Text>
-            <Text style={[styles.modalSubtitle, { color: theme.textMuted }]}>
-              Select a profile, then fine-tune the equipment for this session.
-            </Text>
-
-            {/* Scrollable content */}
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingBottom: 8 }}
-            >
-              {/* Profile selector */}
-              <View style={styles.profileList}>
-                {gymProfiles.map((profile) => {
-                  const isSelected = profile.id === modalProfileId;
-                  return (
-                    <Pressable
-                      key={profile.id}
-                      onPress={() => selectModalProfile(profile.id)}
-                      style={[
-                        styles.profileRow,
-                        {
-                          borderColor: isSelected
-                            ? theme.primary
-                            : theme.border,
-                          backgroundColor: isSelected
-                            ? theme.primarySoft
-                            : "transparent",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.profileRowText,
-                          {
-                            color: theme.text,
-                            fontWeight: isSelected ? "700" : "500",
-                          },
-                        ]}
-                      >
-                        {profile.name}
-                      </Text>
-                      {isSelected && (
-                        <Text style={{ color: theme.primary, fontSize: 12 }}>
-                          Selected
-                        </Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {/* Equipment chips */}
-              <Text style={[styles.equipLabel, { color: theme.textMuted }]}>
-                Equipment for this workout
-              </Text>
-              <View style={styles.chipGroup}>
-                {EQUIPMENT_OPTIONS.map((option) => (
-                  <Chip
-                    key={option.id}
-                    label={option.label}
-                    selected={modalEquipment.includes(option.id)}
-                    onPress={() => toggleModalEquipment(option.id)}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-
-            {/* Button always visible at the bottom */}
-            <View style={styles.modalFooter}>
-              <PrimaryButton
-                label="Generate Workout"
-                onPress={onConfirmGenerate}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Change gym profile modal */}
       <Modal
         transparent
@@ -432,39 +290,50 @@ export default function ManualPreferencesScreen() {
               {gymProfiles.map((profile) => {
                 const isActive = profile.id === activeGymProfileId;
                 return (
-                  <Pressable
-                    key={profile.id}
-                    onPress={() => {
-                      setActiveGymProfile(profile.id);
-                      setShowChangeProfileModal(false);
-                    }}
-                    style={[
-                      styles.profileRow,
-                      {
-                        borderColor: isActive ? theme.primary : theme.border,
-                        backgroundColor: isActive
-                          ? theme.primarySoft
-                          : "transparent",
-                      },
-                    ]}
-                  >
-                    <Text
+                  <View key={profile.id} style={styles.profileRowWrap}>
+                    <Pressable
+                      onPress={() => {
+                        setActiveGymProfile(profile.id);
+                        setShowChangeProfileModal(false);
+                      }}
                       style={[
-                        styles.profileRowText,
+                        styles.profileRow,
                         {
-                          color: theme.text,
-                          fontWeight: isActive ? "700" : "500",
+                          borderColor: isActive ? theme.primary : theme.border,
+                          backgroundColor: isActive
+                            ? theme.primarySoft
+                            : "transparent",
+                          flex: 1,
                         },
                       ]}
                     >
-                      {profile.name}
-                    </Text>
-                    {isActive && (
-                      <Text style={{ color: theme.primary, fontSize: 12 }}>
-                        Active
+                      <Text
+                        style={[
+                          styles.profileRowText,
+                          {
+                            color: theme.text,
+                            fontWeight: isActive ? "700" : "500",
+                          },
+                        ]}
+                      >
+                        {profile.name}
                       </Text>
-                    )}
-                  </Pressable>
+                      {isActive && (
+                        <Text style={{ color: theme.primary, fontSize: 12 }}>
+                          Active
+                        </Text>
+                      )}
+                    </Pressable>
+                    <PrimaryButton
+                      label="Edit"
+                      variant="ghost"
+                      onPress={() => {
+                        setShowChangeProfileModal(false);
+                        router.push("/profiles?from=workout");
+                      }}
+                      style={styles.editProfileBtn}
+                    />
+                  </View>
                 );
               })}
             </View>
@@ -553,6 +422,11 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 20,
   },
+  profileRowWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   profileRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -564,6 +438,9 @@ const styles = StyleSheet.create({
   },
   profileRowText: {
     fontSize: 15,
+  },
+  editProfileBtn: {
+    minWidth: 60,
   },
   equipLabel: {
     fontSize: 13,

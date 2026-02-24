@@ -4,55 +4,92 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Pressable,
   TextInput,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { Card } from "../../../components/Card";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
+import {
+  EQUIPMENT_BY_CATEGORY,
+  getDefaultEquipmentForTemplate,
+  type GymProfile,
+  type GymProfileTemplate,
+} from "../../../data/gymProfiles";
 import type { EquipmentKey } from "../../../lib/types";
 
-const EQUIPMENT_OPTIONS: { id: EquipmentKey; label: string }[] = [
-  { id: "barbells", label: "Barbells" },
-  { id: "dumbbells", label: "Dumbbells" },
-  { id: "kettlebells", label: "Kettlebells" },
-  { id: "cable_machine", label: "Cable Machine" },
-  { id: "pullup_bar", label: "Pull-up Bar" },
-  { id: "squat_rack", label: "Squat Rack" },
-  { id: "bench", label: "Bench" },
-  { id: "leg_press", label: "Leg Press" },
-  { id: "bands", label: "Bands" },
-  { id: "cardio_machines", label: "Cardio Machines" },
-  { id: "hangboard", label: "Climbing Hangboard" },
-];
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental != null
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function GymProfilesScreen() {
   const theme = useTheme();
+  const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const {
     gymProfiles,
     activeGymProfileId,
     setActiveGymProfile,
     addGymProfile,
+    updateGymProfile,
   } = useAppState();
 
-  const [newName, setNewName] = useState("");
-  const [newEquipment, setNewEquipment] = useState<EquipmentKey[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [addMode, setAddMode] = useState<GymProfileTemplate | null>(null);
+  const [customName, setCustomName] = useState("");
 
-  const toggleEquipment = (key: EquipmentKey) => {
-    setNewEquipment((prev) =>
-      prev.includes(key) ? prev.filter((e) => e !== key) : [...prev, key]
-    );
+  const toggleExpand = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
-  const onAddProfile = () => {
-    if (newName.trim().length === 0) return;
-    addGymProfile({
-      name: newName.trim(),
-      equipment: newEquipment.length > 0 ? newEquipment : ["bodyweight"],
+  const toggleEquipment = (profileId: string, key: EquipmentKey) => {
+    const profile = gymProfiles.find((p) => p.id === profileId);
+    if (!profile) return;
+    const next = profile.equipment.includes(key)
+      ? profile.equipment.filter((e) => e !== key)
+      : [...profile.equipment, key];
+    updateGymProfile(profileId, { equipment: next });
+  };
+
+  const setDumbbellMax = (profileId: string, value: string) => {
+    const num = value === "" ? undefined : parseInt(value, 10);
+    updateGymProfile(profileId, {
+      dumbbellMaxWeight: num !== undefined && !isNaN(num) ? num : undefined,
     });
-    setNewName("");
-    setNewEquipment([]);
+  };
+
+  const onAddProfile = (template: GymProfileTemplate, name?: string) => {
+    const equipment = getDefaultEquipmentForTemplate(template);
+    const profileName =
+      name?.trim() ||
+      (template === "your_gym"
+        ? "Your Gym"
+        : template === "home_gym"
+          ? "Home Gym"
+          : template === "hotel_gym"
+            ? "Hotel Gym"
+            : "New Gym");
+    addGymProfile({
+      name: profileName,
+      equipment,
+      ...(template === "your_gym" || template === "custom" ? {} : {}),
+    });
+    setAddMode(null);
+    setCustomName("");
+  };
+
+  const goBackToWorkout = () => {
+    router.back();
   };
 
   return (
@@ -61,87 +98,204 @@ export default function GymProfilesScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {from === "workout" && (
+          <View style={styles.backToWorkout}>
+            <PrimaryButton
+              label="Back to workout you were creating"
+              variant="secondary"
+              onPress={goBackToWorkout}
+            />
+          </View>
+        )}
+
         <Card title="Gym Profiles">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Profiles let TodayFit understand what you actually have access to in
-            different contexts — home, commercial gym, or travel. Manual and
-            adaptive workouts can then respect those constraints.
+            Workouts use only equipment from your active profile. Select a
+            profile to edit its equipment, or add a new gym.
           </Text>
         </Card>
 
-        <View style={{ marginTop: 20, gap: 12 }}>
+        <View style={styles.profileList}>
           {gymProfiles.map((profile) => {
             const isActive = profile.id === activeGymProfileId;
-            const equipmentLabel =
-              profile.equipment != null && profile.equipment.length > 0
-                ? profile.equipment
-                    .map(
-                      (id) =>
-                        EQUIPMENT_OPTIONS.find((e) => e.id === id)?.label ?? id
-                    )
-                    .join(" • ")
-                : "Bodyweight only";
+            const isExpanded = expandedId === profile.id;
 
             return (
-              <Card
-                key={profile.id}
-                title={profile.name}
-                subtitle={equipmentLabel}
-                primaryActionLabel={isActive ? "Active" : "Set Active"}
-                onPrimaryAction={
-                  isActive ? undefined : () => setActiveGymProfile(profile.id)
-                }
-                style={{ opacity: isActive ? 1 : 0.9 }}
-              />
+              <View key={profile.id} style={styles.profileBlock}>
+                <Pressable
+                  onPress={() => toggleExpand(profile.id)}
+                  style={[
+                    styles.profileHeader,
+                    {
+                      borderColor: theme.border,
+                      backgroundColor: isActive ? theme.primarySoft : theme.card,
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.profileName,
+                        { color: theme.text },
+                      ]}
+                    >
+                      {profile.name}
+                    </Text>
+                    <Text
+                      style={[styles.profileMeta, { color: theme.textMuted }]}
+                    >
+                      {isActive ? "Active" : "Tap to edit"} •{" "}
+                      {profile.equipment.length} items
+                    </Text>
+                  </View>
+                  <Text style={{ color: theme.textMuted, fontSize: 18 }}>
+                    {isExpanded ? "−" : "+"}
+                  </Text>
+                </Pressable>
+
+                {isExpanded && (
+                  <View style={[styles.expandedContent, { borderColor: theme.border }]}>
+                    <View style={styles.setActiveRow}>
+                      {!isActive && (
+                        <PrimaryButton
+                          label="Set as active"
+                          variant="secondary"
+                          onPress={() => setActiveGymProfile(profile.id)}
+                        />
+                      )}
+                    </View>
+
+                    {EQUIPMENT_BY_CATEGORY.map((cat) => (
+                      <View key={cat.category} style={styles.categoryBlock}>
+                        <Text
+                          style={[
+                            styles.categoryTitle,
+                            { color: theme.textMuted },
+                          ]}
+                        >
+                          {cat.category}
+                        </Text>
+                        <View style={styles.chipRow}>
+                          {cat.options.map((opt) => (
+                            <View key={opt.id}>
+                              <Chip
+                                label={
+                                  opt.hasInput === "dumbbell_max"
+                                    ? "Dumbbells"
+                                    : opt.label
+                                }
+                                selected={profile.equipment.includes(opt.id)}
+                                onPress={() =>
+                                  toggleEquipment(profile.id, opt.id)
+                                }
+                              />
+                            </View>
+                          ))}
+                        </View>
+                        {cat.options.some(
+                          (o) => o.hasInput === "dumbbell_max"
+                        ) &&
+                          profile.equipment.includes("dumbbells") && (
+                            <View style={styles.dumbbellRow}>
+                              <Text
+                                style={[
+                                  styles.dumbbellLabel,
+                                  { color: theme.textMuted },
+                                ]}
+                              >
+                                Max weight (kg)
+                              </Text>
+                              <TextInput
+                                placeholder="e.g. 25"
+                                placeholderTextColor={theme.textMuted}
+                                keyboardType="number-pad"
+                                value={
+                                  profile.dumbbellMaxWeight != null
+                                    ? String(profile.dumbbellMaxWeight)
+                                    : ""
+                                }
+                                onChangeText={(t) =>
+                                  setDumbbellMax(profile.id, t)
+                                }
+                                style={[
+                                  styles.dumbbellInput,
+                                  {
+                                    borderColor: theme.border,
+                                    color: theme.text,
+                                  },
+                                ]}
+                              />
+                            </View>
+                          )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
             );
           })}
         </View>
 
-        <View style={styles.addSection}>
-          <Text
-            style={{
-              fontSize: 15,
-              fontWeight: "600",
-              marginBottom: 8,
-              color: theme.text,
-            }}
-          >
-            Add profile
-          </Text>
-          <TextInput
-            placeholder="Profile name (e.g., Hotel Gym)"
-            placeholderTextColor={theme.textMuted}
-            value={newName}
-            onChangeText={setNewName}
-            style={[
-              styles.input,
-              { borderColor: theme.border, color: theme.text },
-            ]}
-          />
-          <Text
-            style={{
-              fontSize: 13,
-              marginTop: 8,
-              marginBottom: 4,
-              color: theme.textMuted,
-            }}
-          >
-            Equipment available
-          </Text>
-          <View style={styles.chipGroup}>
-            {EQUIPMENT_OPTIONS.map((option) => (
-              <Chip
-                key={option.id}
-                label={option.label}
-                selected={newEquipment.includes(option.id)}
-                onPress={() => toggleEquipment(option.id)}
+        {addMode == null ? (
+          <View style={styles.addSection}>
+            <Text
+              style={[styles.addSectionTitle, { color: theme.text }]}
+            >
+              Add a gym
+            </Text>
+            <View style={styles.addButtons}>
+              <PrimaryButton
+                label="Home Gym"
+                variant="secondary"
+                onPress={() => onAddProfile("home_gym")}
               />
-            ))}
+              <PrimaryButton
+                label="Hotel Gym"
+                variant="secondary"
+                onPress={() => onAddProfile("hotel_gym")}
+                style={{ marginTop: 8 }}
+              />
+              <PrimaryButton
+                label="Custom (name your gym)"
+                variant="ghost"
+                onPress={() => setAddMode("custom")}
+                style={{ marginTop: 8 }}
+              />
+            </View>
           </View>
-          <View style={{ marginTop: 12 }}>
-            <PrimaryButton label="Add Profile" onPress={onAddProfile} />
+        ) : addMode === "custom" ? (
+          <View style={styles.addSection}>
+            <Text
+              style={[styles.addSectionTitle, { color: theme.text }]}
+            >
+              Name your gym
+            </Text>
+            <TextInput
+              placeholder="e.g. CrossFit Box"
+              placeholderTextColor={theme.textMuted}
+              value={customName}
+              onChangeText={setCustomName}
+              style={[
+                styles.input,
+                { borderColor: theme.border, color: theme.text },
+              ]}
+            />
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+              <PrimaryButton
+                label="Create"
+                onPress={() => onAddProfile("custom", customName || "My Gym")}
+              />
+              <PrimaryButton
+                label="Cancel"
+                variant="ghost"
+                onPress={() => {
+                  setAddMode(null);
+                  setCustomName("");
+                }}
+              />
+            </View>
           </View>
-        </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -154,15 +308,87 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingVertical: 16,
+    paddingBottom: 32,
   },
-  addSection: {
-    marginTop: 24,
-    marginBottom: 24,
+  backToWorkout: {
+    marginBottom: 16,
   },
-  chipGroup: {
+  profileList: {
+    marginTop: 20,
+    gap: 12,
+  },
+  profileBlock: {
+    gap: 0,
+  },
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  profileMeta: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  expandedContent: {
+    padding: 14,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    marginTop: -1,
+    gap: 16,
+  },
+  setActiveRow: {
+    marginBottom: 4,
+  },
+  categoryBlock: {
+    gap: 8,
+  },
+  categoryTitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  dumbbellInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 13,
+    minWidth: 70,
+  },
+  dumbbellRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+  },
+  dumbbellLabel: {
+    fontSize: 13,
+  },
+  addSection: {
+    marginTop: 28,
+  },
+  addSectionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  addButtons: {
+    gap: 0,
   },
   input: {
     borderWidth: 1,

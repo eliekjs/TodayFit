@@ -32,7 +32,7 @@ export default function HomeScreen() {
       >
         {activeProfile != null && (
           <Card
-            title="Active Gym Profile"
+            title="Current gym"
             subtitle={activeProfile.name}
             primaryActionLabel="Change"
             onPrimaryAction={() => setProfileModalVisible(true)}
@@ -77,40 +77,54 @@ export default function HomeScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Select active gym
+              Change gym profile
             </Text>
             <ScrollView
-              style={{ maxHeight: 280 }}
+              style={{ maxHeight: 320 }}
               contentContainerStyle={{ paddingBottom: 8 }}
             >
               {gymProfiles.map((profile) => {
                 const isActive = profile.id === activeGymProfileId;
                 return (
-                  <Pressable
+                  <View
                     key={profile.id}
-                    onPress={() => {
-                      setActiveGymProfile(profile.id);
-                      setProfileModalVisible(false);
-                    }}
-                    style={[
-                      styles.profileRow,
-                      {
-                        borderColor: theme.border,
-                        backgroundColor: isActive
-                          ? theme.primarySoft
-                          : "transparent",
-                      },
-                    ]}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}
                   >
-                    <Text style={{ color: theme.text, fontWeight: "600" }}>
-                      {profile.name}
-                    </Text>
-                    {isActive && (
-                      <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-                        Active
+                    <Pressable
+                      onPress={() => {
+                        setActiveGymProfile(profile.id);
+                        setProfileModalVisible(false);
+                      }}
+                      style={[
+                        styles.profileRow,
+                        {
+                          flex: 1,
+                          borderColor: theme.border,
+                          backgroundColor: isActive
+                            ? theme.primarySoft
+                            : "transparent",
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: theme.text, fontWeight: "600" }}>
+                        {profile.name}
                       </Text>
-                    )}
-                  </Pressable>
+                      {isActive && (
+                        <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                          Active
+                        </Text>
+                      )}
+                    </Pressable>
+                    <PrimaryButton
+                      label="Edit"
+                      variant="ghost"
+                      onPress={() => {
+                        setProfileModalVisible(false);
+                        router.push("/profiles");
+                      }}
+                      style={{ minWidth: 56 }}
+                    />
+                  </View>
                 );
               })}
             </ScrollView>
