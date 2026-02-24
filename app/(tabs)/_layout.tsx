@@ -1,7 +1,18 @@
 import React from "react";
-import { Tabs } from "expo-router";
+import { Pressable } from "react-native";
+import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../lib/theme";
+
+function HeaderBackButton() {
+  const router = useRouter();
+  const theme = useTheme();
+  return (
+    <Pressable onPress={() => router.back()} style={{ paddingLeft: 16 }}>
+      <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
 
 export default function TabsLayout() {
   const theme = useTheme();
@@ -18,7 +29,7 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
-      {/* Order: Profile | Home | History | Current Workout (Home in center) */}
+      {/* ── Visible tabs: Profile | Home | History | Workout ── */}
       <Tabs.Screen
         name="profiles"
         options={{
@@ -59,19 +70,60 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {/* Hidden from tab bar; still reachable via Build/Adaptive flows */}
+
+      {/* ── Flow screens – no tab button, back arrow in header ── */}
       <Tabs.Screen
-        name="build"
+        name="manual/preferences"
         options={{
           href: null,
+          title: "Workout Preferences",
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
       <Tabs.Screen
-        name="factors"
+        name="manual/workout"
         options={{
           href: null,
+          title: "Today's Workout",
+          headerLeft: () => <HeaderBackButton />,
         }}
       />
+      <Tabs.Screen
+        name="manual/execute"
+        options={{
+          href: null,
+          title: "Execute",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
+        name="adaptive/index"
+        options={{
+          href: null,
+          title: "Adaptive Mode",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
+        name="adaptive/recommendation"
+        options={{
+          href: null,
+          title: "Recommended Session",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
+        name="history/complete"
+        options={{
+          href: null,
+          title: "Workout Saved",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+
+      {/* ── Other hidden ── */}
+      <Tabs.Screen name="build" options={{ href: null }} />
+      <Tabs.Screen name="factors" options={{ href: null }} />
     </Tabs>
   );
 }
