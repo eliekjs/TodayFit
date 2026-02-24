@@ -15,7 +15,6 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
-import { ToggleRow } from "../../../components/ToggleRow";
 import { PrimaryButton } from "../../../components/Button";
 import { generateWorkout } from "../../../lib/generator";
 import type { EquipmentKey } from "../../../lib/types";
@@ -93,9 +92,11 @@ export default function ManualPreferencesScreen() {
     activeGymProfileId,
     gymProfiles,
     setGeneratedWorkout,
+    setActiveGymProfile,
   } = useAppState();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [showGymModal, setShowGymModal] = useState(false);
+  const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
   const router = useRouter();
   const theme = useTheme();
 
@@ -217,6 +218,29 @@ export default function ManualPreferencesScreen() {
           ))}
         </View>
 
+        <SectionHeader
+          title="Gym profile"
+          subtitle={
+            activeProfile != null
+              ? `Workouts use equipment from: ${activeProfile.name}`
+              : "No profile selected. Add one in Profile."
+          }
+          style={{ marginTop: 20 }}
+        />
+        <View style={styles.gymProfileActions}>
+          <PrimaryButton
+            label="Change gym profile"
+            variant="secondary"
+            onPress={() => setShowChangeProfileModal(true)}
+          />
+          <PrimaryButton
+            label="Edit gym profile(s)"
+            variant="ghost"
+            onPress={() => router.push("/profiles")}
+            style={{ marginTop: 8 }}
+          />
+        </View>
+
         <View style={styles.advancedHeader}>
           <Text
             style={[styles.advancedTitle, { color: theme.text }]}
@@ -280,23 +304,6 @@ export default function ManualPreferencesScreen() {
                 />
               ))}
             </View>
-
-            <SectionHeader
-              title="Equipment constraints"
-              subtitle={
-                activeProfile != null
-                  ? `Current profile: ${activeProfile.name}`
-                  : "No active profile selected."
-              }
-              style={{ marginTop: 20 }}
-            />
-            <ToggleRow
-              label="Use only what's in my gym profile"
-              value={manualPreferences.useGymEquipmentOnly}
-              onValueChange={(value) =>
-                updateManualPreferences({ useGymEquipmentOnly: value })
-              }
-            />
           </View>
         )}
 
@@ -399,6 +406,77 @@ export default function ManualPreferencesScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Change gym profile modal */}
+      <Modal
+        transparent
+        visible={showChangeProfileModal}
+        animationType="slide"
+        onRequestClose={() => setShowChangeProfileModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={styles.modalDismiss}
+            onPress={() => setShowChangeProfileModal(false)}
+          />
+          <View
+            style={[styles.modalSheet, { backgroundColor: theme.card }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Change gym profile
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: theme.textMuted }]}>
+              Workouts will use equipment from the selected profile.
+            </Text>
+            <View style={styles.profileList}>
+              {gymProfiles.map((profile) => {
+                const isActive = profile.id === activeGymProfileId;
+                return (
+                  <Pressable
+                    key={profile.id}
+                    onPress={() => {
+                      setActiveGymProfile(profile.id);
+                      setShowChangeProfileModal(false);
+                    }}
+                    style={[
+                      styles.profileRow,
+                      {
+                        borderColor: isActive ? theme.primary : theme.border,
+                        backgroundColor: isActive
+                          ? theme.primarySoft
+                          : "transparent",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.profileRowText,
+                        {
+                          color: theme.text,
+                          fontWeight: isActive ? "700" : "500",
+                        },
+                      ]}
+                    >
+                      {profile.name}
+                    </Text>
+                    {isActive && (
+                      <Text style={{ color: theme.primary, fontSize: 12 }}>
+                        Active
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.modalFooter}>
+              <PrimaryButton
+                label="Done"
+                onPress={() => setShowChangeProfileModal(false)}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -437,6 +515,9 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 24,
     marginBottom: 16,
+  },
+  gymProfileActions: {
+    marginTop: 8,
   },
   modalBackdrop: {
     flex: 1,

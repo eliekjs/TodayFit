@@ -56,10 +56,9 @@ function pickRandom<T>(items: T[], rng: () => number): T | null {
 
 function filterByGymProfile(
   exercises: ExerciseDefinition[],
-  profile: GymProfile | undefined,
-  useGymEquipmentOnly: boolean
+  profile: GymProfile | undefined
 ): ExerciseDefinition[] {
-  if (!useGymEquipmentOnly || !profile) return exercises;
+  if (!profile) return exercises;
   const allowed = new Set(profile.equipment);
   return exercises.filter((e) => e.equipment.some((eq) => allowed.has(eq)));
 }
@@ -102,7 +101,6 @@ export function generateWorkout(
     upcoming: preferences.upcoming,
     subFocus: preferences.subFocus,
     profile: gymProfile?.id,
-    useGymOnly: preferences.useGymEquipmentOnly,
     ...(seedExtra != null && { seedExtra }),
   });
   const rng = createRngFromString(seed);
@@ -114,7 +112,7 @@ export function generateWorkout(
   const counts = pickCountByDuration(preferences.durationMinutes);
 
   const eligible = filterByInjuries(
-    filterByGymProfile(EXERCISES, gymProfile, preferences.useGymEquipmentOnly),
+    filterByGymProfile(EXERCISES, gymProfile),
     preferences.injuries
   );
 
@@ -215,7 +213,7 @@ export function generateWorkout(
   if (preferences.subFocus.length) {
     notes.push(`Sub-focus: ${preferences.subFocus.join(", ")}`);
   }
-  if (preferences.useGymEquipmentOnly && gymProfile) {
+  if (gymProfile) {
     notes.push(`Using only equipment in ${gymProfile.name}`);
   }
 

@@ -7,7 +7,6 @@ export type ManualPreferences = {
   injuries: string[];
   upcoming: string[];
   subFocus: string[];
-  useGymEquipmentOnly: boolean;
 };
 
 export type EquipmentKey =

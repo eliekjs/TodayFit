@@ -13,7 +13,6 @@ const defaultPreferences: ManualPreferences = {
   injuries: [],
   upcoming: [],
   subFocus: [],
-  useGymEquipmentOnly: false,
 };
 
 type AppStateContextValue = {
