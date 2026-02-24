@@ -47,53 +47,15 @@ export default function AdaptiveModeScreen() {
 
   const onRecommend = () => {
     const primary = rankedGoals[0] ?? "strength";
-    const secondary = rankedGoals[1];
-
-    let sessionType = "Balanced Full-Body Strength";
-
-    if (primary === "strength" && recentLoad !== "Heavy") {
-      sessionType = "Upper Strength + Short Zone 2";
-    } else if (primary === "muscle") {
-      sessionType = "Hypertrophy Push/Pull Mix";
-    } else if (primary === "endurance") {
-      sessionType = "Lower Strength + Zone 2 Engine";
-    } else if (primary === "mobility") {
-      sessionType = "Strength Support + Mobility Focus";
-    } else if (primary === "conditioning") {
-      sessionType = "Power Intervals + Mixed Conditioning";
-    } else if (primary === "climbing") {
-      sessionType = "Pull Strength + Grip Density";
-    }
-
-    if (recentLoad === "Heavy" && secondary === "mobility") {
-      sessionType = "Easy Strength + Mobility Reset";
-    }
-
-    const focusForManual = (() => {
-      if (primary === "strength") return ["Build Strength"];
-      if (primary === "muscle") return ["Build Muscle (Hypertrophy)"];
-      if (primary === "endurance") return ["Improve Endurance"];
-      if (primary === "mobility") return ["Mobility & Joint Health"];
-      if (primary === "conditioning") return ["Sport Conditioning"];
-      if (primary === "climbing") return ["Athletic Performance", "Calisthenics"];
-      return ["Body Recomposition"];
-    })();
-
-    const duration = horizon === 4 ? 45 : horizon === 8 ? 60 : 75;
-    const energy =
-      recentLoad === "Light"
-        ? "high"
-        : recentLoad === "Heavy"
-          ? "low"
-          : "medium";
+    const secondary = rankedGoals[1] ?? null;
 
     router.push({
       pathname: "/adaptive/recommendation",
       params: {
-        sessionType,
-        focus: focusForManual.join(","),
-        duration: String(duration),
-        energy,
+        primary,
+        secondary: secondary ?? "",
+        horizon: String(horizon ?? 8),
+        recentLoad,
       },
     });
   };

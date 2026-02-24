@@ -1,18 +1,22 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { generateWorkout } from "../../../lib/generator";
+import {
+  getSessionTypeOptions,
+  type SessionTypeOption,
+} from "../../../lib/adaptiveSessionTypes";
 
 export default function AdaptiveRecommendationScreen() {
-  const { sessionType, focus, duration, energy } = useLocalSearchParams<{
-    sessionType?: string;
-    focus?: string;
-    duration?: string;
-    energy?: string;
+  const { primary, secondary, horizon, recentLoad } = useLocalSearchParams<{
+    primary?: string;
+    secondary?: string;
+    horizon?: string;
+    recentLoad?: string;
   }>();
   const theme = useTheme();
   const router = useRouter();
@@ -24,30 +28,24 @@ export default function AdaptiveRecommendationScreen() {
     setGeneratedWorkout,
   } = useAppState();
 
-  const primaryFocus =
-    typeof focus === "string" && focus.length > 0
-      ? focus.split(",").filter(Boolean)
-      : manualPreferences.primaryFocus;
+  const options = useMemo(() => {
+    const p = primary ?? "strength";
+    const s = secondary && secondary.length > 0 ? secondary : null;
+    const h = horizon ? parseInt(horizon, 10) : 8;
+    const load = recentLoad ?? "Normal";
+    return getSessionTypeOptions(p, s, h, load);
+  }, [primary, secondary, horizon, recentLoad]);
 
-  const durationMinutes =
-    typeof duration === "string" && duration.length > 0
-      ? Number.parseInt(duration, 10)
-      : manualPreferences.durationMinutes ?? 60;
-
-  const energyLevel: "low" | "medium" | "high" =
-    typeof energy === "string" && energy.length > 0
-      ? (energy as "low" | "medium" | "high")
-      : manualPreferences.energyLevel ?? "medium";
-
+  const [recommended, ...otherOptions] = options;
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
 
-  const onGenerateWorkout = (regenerate = false) => {
+  const onChooseSessionType = (option: SessionTypeOption) => {
     const mergedPreferences = {
       ...manualPreferences,
-      primaryFocus,
-      durationMinutes,
-      energyLevel,
+      primaryFocus: option.focus,
+      durationMinutes: option.durationMinutes,
+      energyLevel: option.energy,
     };
 
     updateManualPreferences({
@@ -56,14 +54,14 @@ export default function AdaptiveRecommendationScreen() {
       energyLevel: mergedPreferences.energyLevel,
     });
 
-    const workout = generateWorkout(
-      mergedPreferences,
-      activeProfile,
-      regenerate ? Date.now() : undefined
-    );
+    const workout = generateWorkout(mergedPreferences, activeProfile);
     setGeneratedWorkout(workout);
     router.push("/manual/workout");
   };
+
+  if (!recommended) {
+    return null;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -73,18 +71,21 @@ export default function AdaptiveRecommendationScreen() {
       >
         <Card
           title="Recommended session"
-          subtitle={
-            typeof sessionType === "string"
-              ? sessionType
-              : "Balanced Full-Body Strength"
-          }
+          subtitle={recommended.sessionType}
         >
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Focus: {primaryFocus.join(" • ") || "General training"} {"\n"}
-            Duration: {durationMinutes} min {"\n"}
+            Focus: {recommended.focus.join(" • ") || "General training"} {"\n"}
+            Duration: {recommended.durationMinutes} min {"\n"}
             Energy target:{" "}
-            {`${energyLevel}`.charAt(0).toUpperCase() + `${energyLevel}`.slice(1)}
+            {`${recommended.energy}`.charAt(0).toUpperCase() +
+              `${recommended.energy}`.slice(1)}
           </Text>
+          <View style={{ marginTop: 12 }}>
+            <PrimaryButton
+              label="Generate Workout"
+              onPress={() => onChooseSessionType(recommended)}
+            />
+          </View>
         </Card>
 
         <Card
@@ -100,17 +101,40 @@ export default function AdaptiveRecommendationScreen() {
           </Text>
         </Card>
 
-        <View style={styles.footer}>
-          <PrimaryButton
-            label="Generate Workout"
-            onPress={() => onGenerateWorkout(false)}
-          />
-          <PrimaryButton
-            label="Regenerate Workout"
-            variant="secondary"
-            onPress={() => onGenerateWorkout(true)}
-            style={{ marginTop: 8 }}
-          />
+        <Text style={[styles.otherSectionTitle, { color: theme.text }]}>
+          Other session type options
+        </Text>
+        <View style={styles.otherOptions}>
+          {otherOptions.map((option) => (
+            <Pressable
+              key={option.id}
+              onPress={() => onChooseSessionType(option)}
+              style={[
+                styles.optionRow,
+                {
+                  borderColor: theme.border,
+                  backgroundColor: theme.card,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.optionTitle, { color: theme.text }]}
+                numberOfLines={2}
+              >
+                {option.sessionType}
+              </Text>
+              <Text
+                style={[styles.optionMeta, { color: theme.textMuted }]}
+                numberOfLines={1}
+              >
+                {option.durationMinutes} min •{" "}
+                {option.focus.join(" • ") || "General"}
+              </Text>
+              <Text style={[styles.optionCta, { color: theme.primary }]}>
+                Generate workout →
+              </Text>
+            </Pressable>
+          ))}
         </View>
       </ScrollView>
     </View>
@@ -124,9 +148,33 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingVertical: 16,
+    paddingBottom: 32,
   },
-  footer: {
+  otherSectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
     marginTop: 24,
-    marginBottom: 24,
+    marginBottom: 12,
+  },
+  otherOptions: {
+    gap: 12,
+  },
+  optionRow: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  optionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  optionMeta: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  optionCta: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 8,
   },
 });
