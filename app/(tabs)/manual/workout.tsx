@@ -1,11 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { useAppState } from "../../context/AppStateContext";
-import { useTheme } from "../../lib/theme";
-import { Card } from "../../components/Card";
-import { PrimaryButton } from "../../components/Button";
-import { generateWorkout } from "../../lib/generator";
+import { useAppState } from "../../../context/AppStateContext";
+import { useTheme } from "../../../lib/theme";
+import { Card } from "../../../components/Card";
+import { PrimaryButton } from "../../../components/Button";
+import { generateWorkout } from "../../../lib/generator";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -30,15 +30,13 @@ export default function ManualWorkoutScreen() {
           <Text style={[styles.emptyTitle, { color: theme.text }]}>
             No workout yet
           </Text>
-          <Text
-            style={[styles.emptySubtitle, { color: theme.textMuted }]}
-          >
+          <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
             Set your preferences first and we'll build a session for you.
           </Text>
           <View style={{ marginTop: 16 }}>
             <PrimaryButton
               label="Go to Preferences"
-              onPress={() => router.replace("/manual/preferences")}
+              onPress={() => router.push("/manual/preferences")}
             />
           </View>
         </View>
@@ -55,9 +53,7 @@ export default function ManualWorkoutScreen() {
   }
   if (generatedWorkout.energyLevel != null) {
     const e = generatedWorkout.energyLevel;
-    summaryLines.push(
-      `${e.charAt(0).toUpperCase()}${e.slice(1)} energy`
-    );
+    summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
   }
 
   const onRegenerate = () => {
@@ -65,18 +61,8 @@ export default function ManualWorkoutScreen() {
     setGeneratedWorkout(next);
   };
 
-  const onEditPreferences = () => {
-    router.push("/manual/preferences");
-  };
-
-  const onStartExecute = () => {
-    router.push("/manual/execute");
-  };
-
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -87,9 +73,7 @@ export default function ManualWorkoutScreen() {
           style={styles.summaryCard}
         >
           {generatedWorkout.notes != null ? (
-            <Text
-              style={[styles.notes, { color: theme.textMuted }]}
-            >
+            <Text style={[styles.notes, { color: theme.textMuted }]}>
               {generatedWorkout.notes}
             </Text>
           ) : null}
@@ -100,12 +84,7 @@ export default function ManualWorkoutScreen() {
             {section.exercises.map((exercise) => (
               <View key={exercise.id} style={styles.exerciseRow}>
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.exerciseName,
-                      { color: theme.text },
-                    ]}
-                  >
+                  <Text style={[styles.exerciseName, { color: theme.text }]}>
                     {exercise.name}
                   </Text>
                   <Text
@@ -141,12 +120,12 @@ export default function ManualWorkoutScreen() {
           <PrimaryButton
             label="Edit Preferences"
             variant="ghost"
-            onPress={onEditPreferences}
+            onPress={() => router.push("/manual/preferences")}
             style={{ marginTop: 8 }}
           />
           <PrimaryButton
             label="Start Workout"
-            onPress={onStartExecute}
+            onPress={() => router.push("/manual/execute")}
             style={{ marginTop: 16 }}
           />
         </View>
@@ -169,6 +148,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+    marginTop: 80,
   },
   emptyTitle: {
     fontSize: 18,

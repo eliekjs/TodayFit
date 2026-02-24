@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { useTheme } from "../../lib/theme";
-import { useAppState } from "../../context/AppStateContext";
-import { PrimaryButton } from "../../components/Button";
+import { useTheme } from "../../../lib/theme";
+import { useAppState } from "../../../context/AppStateContext";
+import { PrimaryButton } from "../../../components/Button";
 
 export default function WorkoutCompleteScreen() {
   const theme = useTheme();
@@ -20,18 +20,12 @@ export default function WorkoutCompleteScreen() {
       : "Workout summary will appear here once you finish a session.";
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
-        <Text
-          style={[styles.title, { color: theme.text }]}
-        >
+        <Text style={[styles.title, { color: theme.text }]}>
           Workout Saved
         </Text>
-        <Text
-          style={[styles.summary, { color: theme.textMuted }]}
-        >
+        <Text style={[styles.summary, { color: theme.textMuted }]}>
           {summary}
         </Text>
         <View style={{ marginTop: 24 }}>

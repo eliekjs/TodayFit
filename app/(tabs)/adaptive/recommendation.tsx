@@ -1,11 +1,11 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useTheme } from "../../lib/theme";
-import { Card } from "../../components/Card";
-import { PrimaryButton } from "../../components/Button";
-import { useAppState } from "../../context/AppStateContext";
-import { generateWorkout } from "../../lib/generator";
+import { useTheme } from "../../../lib/theme";
+import { Card } from "../../../components/Card";
+import { PrimaryButton } from "../../../components/Button";
+import { useAppState } from "../../../context/AppStateContext";
+import { generateWorkout } from "../../../lib/generator";
 
 export default function AdaptiveRecommendationScreen() {
   const { sessionType, focus, duration, energy } = useLocalSearchParams<{
@@ -62,9 +62,7 @@ export default function AdaptiveRecommendationScreen() {
   };
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -77,12 +75,7 @@ export default function AdaptiveRecommendationScreen() {
               : "Balanced Full-Body Strength"
           }
         >
-          <Text
-            style={{
-              fontSize: 13,
-              color: theme.textMuted,
-            }}
-          >
+          <Text style={{ fontSize: 13, color: theme.textMuted }}>
             Focus: {primaryFocus.join(" • ") || "General training"} {"\n"}
             Duration: {durationMinutes} min {"\n"}
             Energy target:{" "}
@@ -95,13 +88,7 @@ export default function AdaptiveRecommendationScreen() {
           subtitle="Strategic explanation (placeholder)"
           style={{ marginTop: 16 }}
         >
-          <Text
-            style={{
-              fontSize: 13,
-              color: theme.textMuted,
-              marginBottom: 4,
-            }}
-          >
+          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 4 }}>
             • Balances your long-term goals with recent training load.{"\n"}
             • Keeps today's work specific without overloading any one pattern.
             {"\n"}

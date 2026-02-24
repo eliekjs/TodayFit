@@ -4,18 +4,21 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Modal,
+  Pressable,
   LayoutAnimation,
   Platform,
   UIManager,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useAppState } from "../../context/AppStateContext";
-import { useTheme } from "../../lib/theme";
-import { SectionHeader } from "../../components/SectionHeader";
-import { Chip } from "../../components/Chip";
-import { ToggleRow } from "../../components/ToggleRow";
-import { PrimaryButton } from "../../components/Button";
-import { generateWorkout } from "../../lib/generator";
+import { useAppState } from "../../../context/AppStateContext";
+import { useTheme } from "../../../lib/theme";
+import { SectionHeader } from "../../../components/SectionHeader";
+import { Chip } from "../../../components/Chip";
+import { ToggleRow } from "../../../components/ToggleRow";
+import { PrimaryButton } from "../../../components/Button";
+import { generateWorkout } from "../../../lib/generator";
+import type { EquipmentKey } from "../../../lib/types";
 
 if (
   Platform.OS === "android" &&
@@ -38,7 +41,6 @@ const PRIMARY_FOCUS_OPTIONS = [
 ];
 
 const DURATIONS = [20, 30, 45, 60, 75];
-
 const ENERGY_LEVELS = ["Low", "Medium", "High"] as const;
 
 const INJURIES = [
@@ -69,6 +71,21 @@ const SUB_FOCUS = [
   "Grip strength",
 ];
 
+const EQUIPMENT_OPTIONS: { id: EquipmentKey; label: string }[] = [
+  { id: "barbells", label: "Barbells" },
+  { id: "dumbbells", label: "Dumbbells" },
+  { id: "kettlebells", label: "Kettlebells" },
+  { id: "cable_machine", label: "Cable Machine" },
+  { id: "pullup_bar", label: "Pull-up Bar" },
+  { id: "squat_rack", label: "Squat Rack" },
+  { id: "bench", label: "Bench" },
+  { id: "leg_press", label: "Leg Press" },
+  { id: "bands", label: "Bands" },
+  { id: "cardio_machines", label: "Cardio Machines" },
+  { id: "hangboard", label: "Climbing Hangboard" },
+  { id: "bodyweight", label: "Bodyweight" },
+];
+
 export default function ManualPreferencesScreen() {
   const {
     manualPreferences,
@@ -78,11 +95,31 @@ export default function ManualPreferencesScreen() {
     setGeneratedWorkout,
   } = useAppState();
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [showGymModal, setShowGymModal] = useState(false);
   const router = useRouter();
   const theme = useTheme();
 
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+
+  const [modalProfileId, setModalProfileId] = useState<string>(
+    () => activeProfile?.id ?? gymProfiles[0]?.id ?? ""
+  );
+  const [modalEquipment, setModalEquipment] = useState<EquipmentKey[]>(
+    () => activeProfile?.equipment ?? gymProfiles[0]?.equipment ?? []
+  );
+
+  const selectModalProfile = (id: string) => {
+    setModalProfileId(id);
+    const p = gymProfiles.find((g) => g.id === id);
+    setModalEquipment(p?.equipment ?? []);
+  };
+
+  const toggleModalEquipment = (key: EquipmentKey) => {
+    setModalEquipment((prev) =>
+      prev.includes(key) ? prev.filter((e) => e !== key) : [...prev, key]
+    );
+  };
 
   const toggleFromArray =
     (key: "primaryFocus" | "injuries" | "upcoming" | "subFocus") =>
@@ -97,8 +134,20 @@ export default function ManualPreferencesScreen() {
     };
 
   const onGenerate = () => {
-    const workout = generateWorkout(manualPreferences, activeProfile);
+    const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
+    setModalProfileId(profile?.id ?? "");
+    setModalEquipment(profile?.equipment ?? []);
+    setShowGymModal(true);
+  };
+
+  const onConfirmGenerate = () => {
+    const selectedProfile = gymProfiles.find((g) => g.id === modalProfileId);
+    const profileForWorkout = selectedProfile
+      ? { ...selectedProfile, equipment: modalEquipment }
+      : undefined;
+    const workout = generateWorkout(manualPreferences, profileForWorkout);
     setGeneratedWorkout(workout);
+    setShowGymModal(false);
     router.push("/manual/workout");
   };
 
@@ -108,9 +157,7 @@ export default function ManualPreferencesScreen() {
   };
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -257,6 +304,96 @@ export default function ManualPreferencesScreen() {
           <PrimaryButton label="Generate Workout" onPress={onGenerate} />
         </View>
       </ScrollView>
+
+      {/* Gym Profile & Equipment Modal */}
+      <Modal
+        transparent
+        visible={showGymModal}
+        animationType="slide"
+        onRequestClose={() => setShowGymModal(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setShowGymModal(false)}
+        >
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: theme.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Choose your gym
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: theme.textMuted }]}>
+              Select a profile, then fine-tune the equipment for this session.
+            </Text>
+
+            {/* Profile selector */}
+            <View style={styles.profileList}>
+              {gymProfiles.map((profile) => {
+                const isSelected = profile.id === modalProfileId;
+                return (
+                  <Pressable
+                    key={profile.id}
+                    onPress={() => selectModalProfile(profile.id)}
+                    style={[
+                      styles.profileRow,
+                      {
+                        borderColor: isSelected
+                          ? theme.primary
+                          : theme.border,
+                        backgroundColor: isSelected
+                          ? theme.primarySoft
+                          : "transparent",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.profileRowText,
+                        {
+                          color: theme.text,
+                          fontWeight: isSelected ? "700" : "500",
+                        },
+                      ]}
+                    >
+                      {profile.name}
+                    </Text>
+                    {isSelected && (
+                      <Text style={{ color: theme.primary, fontSize: 12 }}>
+                        Selected
+                      </Text>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Equipment chips */}
+            <Text
+              style={[styles.equipLabel, { color: theme.textMuted }]}
+            >
+              Equipment for this workout
+            </Text>
+            <View style={styles.chipGroup}>
+              {EQUIPMENT_OPTIONS.map((option) => (
+                <Chip
+                  key={option.id}
+                  label={option.label}
+                  selected={modalEquipment.includes(option.id)}
+                  onPress={() => toggleModalEquipment(option.id)}
+                />
+              ))}
+            </View>
+
+            <View style={{ marginTop: 20 }}>
+              <PrimaryButton
+                label="Generate Workout"
+                onPress={onConfirmGenerate}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -295,5 +432,48 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 24,
     marginBottom: 16,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "85%",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+  profileList: {
+    gap: 8,
+    marginBottom: 20,
+  },
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  profileRowText: {
+    fontSize: 15,
+  },
+  equipLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    marginBottom: 8,
   },
 });

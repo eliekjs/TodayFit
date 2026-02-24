@@ -1,8 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { useTheme } from "../../lib/theme";
-import { useAppState } from "../../context/AppStateContext";
-import { Card } from "../../components/Card";
+import { useTheme } from "../../../lib/theme";
+import { useAppState } from "../../../context/AppStateContext";
+import { Card } from "../../../components/Card";
 
 export default function HistoryScreen() {
   const theme = useTheme();

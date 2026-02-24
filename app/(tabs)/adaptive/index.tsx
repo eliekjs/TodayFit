@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
-import { useTheme } from "../../lib/theme";
-import { Card } from "../../components/Card";
-import { SectionHeader } from "../../components/SectionHeader";
-import { Chip } from "../../components/Chip";
-import { PrimaryButton } from "../../components/Button";
+import { useTheme } from "../../../lib/theme";
+import { Card } from "../../../components/Card";
+import { SectionHeader } from "../../../components/SectionHeader";
+import { Chip } from "../../../components/Chip";
+import { PrimaryButton } from "../../../components/Button";
 
 const ADAPTIVE_GOALS = [
   { id: "strength", label: "Max strength foundation" },
@@ -17,7 +17,6 @@ const ADAPTIVE_GOALS = [
 ];
 
 const TIME_HORIZONS = [4, 8, 12];
-
 const LOAD_OPTIONS = ["Light", "Normal", "Heavy"] as const;
 
 export default function AdaptiveModeScreen() {
@@ -76,8 +75,7 @@ export default function AdaptiveModeScreen() {
       if (primary === "endurance") return ["Improve Endurance"];
       if (primary === "mobility") return ["Mobility & Joint Health"];
       if (primary === "conditioning") return ["Sport Conditioning"];
-      if (primary === "climbing")
-        return ["Athletic Performance", "Calisthenics"];
+      if (primary === "climbing") return ["Athletic Performance", "Calisthenics"];
       return ["Body Recomposition"];
     })();
 
@@ -101,20 +99,13 @@ export default function AdaptiveModeScreen() {
   };
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <Card title="How Adaptive Mode works">
-          <Text
-            style={{
-              fontSize: 13,
-              color: theme.textMuted,
-            }}
-          >
+          <Text style={{ fontSize: 13, color: theme.textMuted }}>
             Rank your long-term goals, tell TodayFit how your last few days felt,
             and we'll pick the most useful session type for today. Later, this
             will plug into a full strategic engine.

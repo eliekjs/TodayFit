@@ -6,12 +6,12 @@ import {
   ScrollView,
   TextInput,
 } from "react-native";
-import { useTheme } from "../../lib/theme";
-import { useAppState } from "../../context/AppStateContext";
-import { Card } from "../../components/Card";
-import { Chip } from "../../components/Chip";
-import { PrimaryButton } from "../../components/Button";
-import type { EquipmentKey } from "../../lib/types";
+import { useTheme } from "../../../lib/theme";
+import { useAppState } from "../../../context/AppStateContext";
+import { Card } from "../../../components/Card";
+import { Chip } from "../../../components/Chip";
+import { PrimaryButton } from "../../../components/Button";
+import type { EquipmentKey } from "../../../lib/types";
 
 const EQUIPMENT_OPTIONS: { id: EquipmentKey; label: string }[] = [
   { id: "barbells", label: "Barbells" },

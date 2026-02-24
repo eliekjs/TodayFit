@@ -7,10 +7,10 @@ import {
   Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useAppState } from "../../context/AppStateContext";
-import { useTheme } from "../../lib/theme";
-import { Card } from "../../components/Card";
-import { PrimaryButton } from "../../components/Button";
+import { useAppState } from "../../../context/AppStateContext";
+import { useTheme } from "../../../lib/theme";
+import { Card } from "../../../components/Card";
+import { PrimaryButton } from "../../../components/Button";
 
 type ExerciseProgress = {
   completed: boolean;
@@ -71,7 +71,6 @@ export default function ExecuteScreen() {
       router.replace("/manual/preferences");
       return;
     }
-
     addCompletedWorkout({
       date: new Date().toISOString(),
       focus: generatedWorkout.focus,
@@ -82,9 +81,7 @@ export default function ExecuteScreen() {
 
   if (generatedWorkout == null) {
     return (
-      <View
-        style={[styles.container, { backgroundColor: theme.background }]}
-      >
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.centered}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
             No workout loaded. Generate one first.
@@ -101,20 +98,13 @@ export default function ExecuteScreen() {
   }
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <Card title="Session Timer">
-          <Text
-            style={{
-              color: theme.textMuted,
-              fontSize: 13,
-            }}
-          >
+          <Text style={{ color: theme.textMuted, fontSize: 13 }}>
             Timer placeholder — you'll see elapsed time here later.
           </Text>
         </Card>
@@ -155,16 +145,11 @@ export default function ExecuteScreen() {
                   )}
                 </Pressable>
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={[styles.exerciseName, { color: theme.text }]}
-                  >
+                  <Text style={[styles.exerciseName, { color: theme.text }]}>
                     {exercise.name}
                   </Text>
                   <Text
-                    style={[
-                      styles.exerciseMeta,
-                      { color: theme.textMuted },
-                    ]}
+                    style={[styles.exerciseMeta, { color: theme.textMuted }]}
                   >
                     {exercise.prescription} • {exercise.sectionTitle}
                   </Text>
@@ -173,9 +158,7 @@ export default function ExecuteScreen() {
                   onPress={() => incrementSets(exercise.id)}
                   style={[styles.logButton, { borderColor: theme.border }]}
                 >
-                  <Text
-                    style={[styles.logButtonText, { color: theme.text }]}
-                  >
+                  <Text style={[styles.logButtonText, { color: theme.text }]}>
                     + Set ({state.setsCompleted})
                   </Text>
                 </Pressable>
@@ -205,6 +188,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+    marginTop: 80,
   },
   emptyText: {
     fontSize: 16,
