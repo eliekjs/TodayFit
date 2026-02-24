@@ -8,11 +8,11 @@ import type {
 import type { GymProfile } from "../data/gymProfiles";
 
 function pickCountByDuration(durationMinutes: number | null) {
-  if (!durationMinutes) return { warmup: 2, main: 4, accessory: 2, cooldown: 2 };
-  if (durationMinutes <= 25) return { warmup: 2, main: 4, accessory: 1, cooldown: 1 };
-  if (durationMinutes <= 40) return { warmup: 3, main: 4, accessory: 2, cooldown: 2 };
-  if (durationMinutes <= 60) return { warmup: 3, main: 5, accessory: 2, cooldown: 2 };
-  return { warmup: 3, main: 6, accessory: 3, cooldown: 2 };
+  if (!durationMinutes) return { warmup: 2, mainSupersetPairs: 2, accessory: 2, cooldown: 2 };
+  if (durationMinutes <= 25) return { warmup: 2, mainSupersetPairs: 1, accessory: 1, cooldown: 1 };
+  if (durationMinutes <= 40) return { warmup: 3, mainSupersetPairs: 2, accessory: 2, cooldown: 2 };
+  if (durationMinutes <= 60) return { warmup: 3, mainSupersetPairs: 3, accessory: 2, cooldown: 2 };
+  return { warmup: 3, mainSupersetPairs: 4, accessory: 3, cooldown: 2 };
 }
 
 function prescriptionForExercise(
@@ -132,7 +132,7 @@ export function generateWorkout(
     title: string,
     pool: ExerciseDefinition[],
     count: number
-  ): { id: string; title: string; exercises: GeneratedExercise[] } => {
+  ): { id: string; title: string; exercises: GeneratedExercise[]; supersetPairs?: [GeneratedExercise, GeneratedExercise][] } => {
     const used = new Set<string>();
     const exercises: GeneratedExercise[] = [];
 
@@ -158,8 +158,48 @@ export function generateWorkout(
     };
   };
 
+  const buildMainSupersetSection = (
+    title: string,
+    pool: ExerciseDefinition[],
+    pairCount: number
+  ): { id: string; title: string; exercises: GeneratedExercise[]; supersetPairs: [GeneratedExercise, GeneratedExercise][] } => {
+    const used = new Set<string>();
+    const poolToUse = pool.length ? pool : eligible;
+    const pairs: [GeneratedExercise, GeneratedExercise][] = [];
+
+    const toGen = (e: ExerciseDefinition): GeneratedExercise => ({
+      id: e.id,
+      name: e.name,
+      prescription: prescriptionForExercise(e, preferences.energyLevel),
+      tags: e.tags,
+    });
+
+    for (let p = 0; p < pairCount; p += 1) {
+      const available = poolToUse.filter((e) => !used.has(e.id));
+      if (available.length < 2) break;
+
+      const first = pickRandom(available, rng);
+      if (!first) break;
+      used.add(first.id);
+
+      const availableSecond = poolToUse.filter((e) => !used.has(e.id));
+      const second = pickRandom(availableSecond, rng);
+      if (!second) break;
+      used.add(second.id);
+
+      pairs.push([toGen(first), toGen(second)]);
+    }
+
+    return {
+      id: title.toLowerCase().replace(" ", "_"),
+      title,
+      exercises: pairs.flat(),
+      supersetPairs: pairs,
+    };
+  };
+
   const warmup = buildSection("Warm-up", warmupPool, counts.warmup);
-  const mainSets = buildSection("Main Sets", mainPool, counts.main);
+  const mainSets = buildMainSupersetSection("Main Sets", mainPool, counts.mainSupersetPairs);
   const accessory = buildSection("Accessory", accessoryPool, counts.accessory);
   const cooldown = buildSection("Cooldown", cooldownPool, counts.cooldown);
 

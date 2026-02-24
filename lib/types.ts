@@ -63,6 +63,8 @@ export type WorkoutSection = {
   id: string;
   title: string;
   exercises: GeneratedExercise[];
+  /** Main block only: 1–4 superset pairs. When set, UI shows "A ↔ B" per pair. */
+  supersetPairs?: [GeneratedExercise, GeneratedExercise][];
 };
 
 export type GeneratedWorkout = {

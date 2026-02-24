@@ -25,12 +25,20 @@ export default function ExecuteScreen() {
   const allExercises = useMemo(
     () =>
       generatedWorkout != null
-        ? generatedWorkout.sections.flatMap((section) =>
-            section.exercises.map((ex) => ({
+        ? generatedWorkout.sections.flatMap((section) => {
+            if (section.supersetPairs && section.supersetPairs.length > 0) {
+              return section.supersetPairs.flatMap((pair, idx) =>
+                pair.map((ex) => ({
+                  ...ex,
+                  sectionTitle: `${section.title} • Superset ${idx + 1}`,
+                }))
+              );
+            }
+            return section.exercises.map((ex) => ({
               ...ex,
               sectionTitle: section.title,
-            }))
-          )
+            }));
+          })
         : [],
     [generatedWorkout]
   );

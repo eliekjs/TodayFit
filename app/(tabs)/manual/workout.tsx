@@ -81,33 +81,70 @@ export default function ManualWorkoutScreen() {
 
         {generatedWorkout.sections.map((section) => (
           <Card key={section.id} title={section.title} style={styles.sectionCard}>
-            {section.exercises.map((exercise) => (
-              <View key={exercise.id} style={styles.exerciseRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.exerciseName, { color: theme.text }]}>
-                    {exercise.name}
+            {section.supersetPairs && section.supersetPairs.length > 0 ? (
+              section.supersetPairs.map((pair, idx) => (
+                <View key={`superset-${idx}`} style={[styles.supersetBlock, { borderLeftColor: theme.border }]}>
+                  <Text style={[styles.supersetLabel, { color: theme.textMuted }]}>
+                    Superset {idx + 1}
                   </Text>
-                  <Text
-                    style={[
-                      styles.exercisePrescription,
-                      { color: theme.textMuted },
-                    ]}
-                  >
-                    {exercise.prescription}
-                  </Text>
-                  <View style={styles.tagsRow}>
-                    {exercise.tags.slice(0, 3).map((tag) => (
-                      <Text
-                        key={tag}
-                        style={[styles.tag, { color: theme.textMuted }]}
-                      >
-                        {tag}
-                      </Text>
-                    ))}
+                  {pair.map((exercise) => (
+                    <View key={exercise.id} style={styles.exerciseRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.exerciseName, { color: theme.text }]}>
+                          {exercise.name}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.exercisePrescription,
+                            { color: theme.textMuted },
+                          ]}
+                        >
+                          {exercise.prescription}
+                        </Text>
+                        <View style={styles.tagsRow}>
+                          {exercise.tags.slice(0, 3).map((tag) => (
+                            <Text
+                              key={tag}
+                              style={[styles.tag, { color: theme.textMuted }]}
+                            >
+                              {tag}
+                            </Text>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ))
+            ) : (
+              section.exercises.map((exercise) => (
+                <View key={exercise.id} style={styles.exerciseRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.exerciseName, { color: theme.text }]}>
+                      {exercise.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.exercisePrescription,
+                        { color: theme.textMuted },
+                      ]}
+                    >
+                      {exercise.prescription}
+                    </Text>
+                    <View style={styles.tagsRow}>
+                      {exercise.tags.slice(0, 3).map((tag) => (
+                        <Text
+                          key={tag}
+                          style={[styles.tag, { color: theme.textMuted }]}
+                        >
+                          {tag}
+                        </Text>
+                      ))}
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
           </Card>
         ))}
 
@@ -167,6 +204,18 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     gap: 12,
+  },
+  supersetBlock: {
+    marginBottom: 12,
+    paddingLeft: 8,
+    borderLeftWidth: 3,
+  },
+  supersetLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   exerciseRow: {
     paddingVertical: 8,
