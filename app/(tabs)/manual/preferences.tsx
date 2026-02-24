@@ -312,13 +312,13 @@ export default function ManualPreferencesScreen() {
         animationType="slide"
         onRequestClose={() => setShowGymModal(false)}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setShowGymModal(false)}
-        >
+        <View style={styles.modalBackdrop}>
           <Pressable
+            style={styles.modalDismiss}
+            onPress={() => setShowGymModal(false)}
+          />
+          <View
             style={[styles.modalSheet, { backgroundColor: theme.card }]}
-            onPress={(e) => e.stopPropagation()}
           >
             <Text style={[styles.modalTitle, { color: theme.text }]}>
               Choose your gym
@@ -327,72 +327,77 @@ export default function ManualPreferencesScreen() {
               Select a profile, then fine-tune the equipment for this session.
             </Text>
 
-            {/* Profile selector */}
-            <View style={styles.profileList}>
-              {gymProfiles.map((profile) => {
-                const isSelected = profile.id === modalProfileId;
-                return (
-                  <Pressable
-                    key={profile.id}
-                    onPress={() => selectModalProfile(profile.id)}
-                    style={[
-                      styles.profileRow,
-                      {
-                        borderColor: isSelected
-                          ? theme.primary
-                          : theme.border,
-                        backgroundColor: isSelected
-                          ? theme.primarySoft
-                          : "transparent",
-                      },
-                    ]}
-                  >
-                    <Text
+            {/* Scrollable content */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 8 }}
+            >
+              {/* Profile selector */}
+              <View style={styles.profileList}>
+                {gymProfiles.map((profile) => {
+                  const isSelected = profile.id === modalProfileId;
+                  return (
+                    <Pressable
+                      key={profile.id}
+                      onPress={() => selectModalProfile(profile.id)}
                       style={[
-                        styles.profileRowText,
+                        styles.profileRow,
                         {
-                          color: theme.text,
-                          fontWeight: isSelected ? "700" : "500",
+                          borderColor: isSelected
+                            ? theme.primary
+                            : theme.border,
+                          backgroundColor: isSelected
+                            ? theme.primarySoft
+                            : "transparent",
                         },
                       ]}
                     >
-                      {profile.name}
-                    </Text>
-                    {isSelected && (
-                      <Text style={{ color: theme.primary, fontSize: 12 }}>
-                        Selected
+                      <Text
+                        style={[
+                          styles.profileRowText,
+                          {
+                            color: theme.text,
+                            fontWeight: isSelected ? "700" : "500",
+                          },
+                        ]}
+                      >
+                        {profile.name}
                       </Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
+                      {isSelected && (
+                        <Text style={{ color: theme.primary, fontSize: 12 }}>
+                          Selected
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
 
-            {/* Equipment chips */}
-            <Text
-              style={[styles.equipLabel, { color: theme.textMuted }]}
-            >
-              Equipment for this workout
-            </Text>
-            <View style={styles.chipGroup}>
-              {EQUIPMENT_OPTIONS.map((option) => (
-                <Chip
-                  key={option.id}
-                  label={option.label}
-                  selected={modalEquipment.includes(option.id)}
-                  onPress={() => toggleModalEquipment(option.id)}
-                />
-              ))}
-            </View>
+              {/* Equipment chips */}
+              <Text style={[styles.equipLabel, { color: theme.textMuted }]}>
+                Equipment for this workout
+              </Text>
+              <View style={styles.chipGroup}>
+                {EQUIPMENT_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.id}
+                    label={option.label}
+                    selected={modalEquipment.includes(option.id)}
+                    onPress={() => toggleModalEquipment(option.id)}
+                  />
+                ))}
+              </View>
+            </ScrollView>
 
-            <View style={{ marginTop: 20 }}>
+            {/* Button always visible at the bottom */}
+            <View style={styles.modalFooter}>
               <PrimaryButton
                 label="Generate Workout"
                 onPress={onConfirmGenerate}
               />
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -437,14 +442,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "flex-end",
+    flexDirection: "column",
+  },
+  modalDismiss: {
+    flex: 1,
   },
   modalSheet: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 32,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: "85%",
+    flexShrink: 1,
+  },
+  modalFooter: {
+    paddingTop: 12,
+    paddingBottom: 28,
   },
   modalTitle: {
     fontSize: 18,
