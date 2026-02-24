@@ -42,7 +42,7 @@ export default function AdaptiveRecommendationScreen() {
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
 
-  const onGenerateWorkout = () => {
+  const onGenerateWorkout = (regenerate = false) => {
     const mergedPreferences = {
       ...manualPreferences,
       primaryFocus,
@@ -56,7 +56,11 @@ export default function AdaptiveRecommendationScreen() {
       energyLevel: mergedPreferences.energyLevel,
     });
 
-    const workout = generateWorkout(mergedPreferences, activeProfile);
+    const workout = generateWorkout(
+      mergedPreferences,
+      activeProfile,
+      regenerate ? Date.now() : undefined
+    );
     setGeneratedWorkout(workout);
     router.push("/manual/workout");
   };
@@ -99,7 +103,13 @@ export default function AdaptiveRecommendationScreen() {
         <View style={styles.footer}>
           <PrimaryButton
             label="Generate Workout"
-            onPress={onGenerateWorkout}
+            onPress={() => onGenerateWorkout(false)}
+          />
+          <PrimaryButton
+            label="Regenerate Workout"
+            variant="secondary"
+            onPress={() => onGenerateWorkout(true)}
+            style={{ marginTop: 8 }}
           />
         </View>
       </ScrollView>

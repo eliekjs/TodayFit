@@ -91,7 +91,8 @@ function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
 
 export function generateWorkout(
   preferences: ManualPreferences,
-  gymProfile?: GymProfile
+  gymProfile?: GymProfile,
+  seedExtra?: string | number
 ): GeneratedWorkout {
   const seed = JSON.stringify({
     focus: preferences.primaryFocus,
@@ -102,6 +103,7 @@ export function generateWorkout(
     subFocus: preferences.subFocus,
     profile: gymProfile?.id,
     useGymOnly: preferences.useGymEquipmentOnly,
+    ...(seedExtra != null && { seedExtra }),
   });
   const rng = createRngFromString(seed);
 

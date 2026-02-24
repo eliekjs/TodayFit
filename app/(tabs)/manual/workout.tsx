@@ -57,7 +57,7 @@ export default function ManualWorkoutScreen() {
   }
 
   const onRegenerate = () => {
-    const next = generateWorkout(manualPreferences, activeProfile);
+    const next = generateWorkout(manualPreferences, activeProfile, Date.now());
     setGeneratedWorkout(next);
   };
 
