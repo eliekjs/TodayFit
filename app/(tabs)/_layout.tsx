@@ -18,23 +18,24 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
+      {/* Order: Profile | Home | History | Current Workout (Home in center) */}
       <Tabs.Screen
-        name="index"
+        name="profiles"
         options={{
-          title: "Today",
-          tabBarLabel: "Today",
+          title: "Profile",
+          tabBarLabel: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="build"
+        name="index"
         options={{
-          title: "Build",
-          tabBarLabel: "Build",
+          title: "Home",
+          tabBarLabel: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="barbell-outline" size={size} color={color} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
@@ -49,26 +50,28 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="factors"
+        name="workout"
         options={{
-          title: "Factors",
-          tabBarLabel: "Factors",
+          title: "Current Workout",
+          tabBarLabel: "Workout",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="leaf-outline" size={size} color={color} />
+            <Ionicons name="barbell-outline" size={size} color={color} />
           ),
         }}
       />
+      {/* Hidden from tab bar; still reachable via Build/Adaptive flows */}
       <Tabs.Screen
-        name="profiles"
+        name="build"
         options={{
-          title: "Profile",
-          tabBarLabel: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="factors"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
   );
 }
-
