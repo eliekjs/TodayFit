@@ -21,6 +21,23 @@ export default function HistoryScreen() {
     a.date.localeCompare(b.date)
   );
 
+  // Build display labels; append " (1)", " (2)" when multiple share same date + focus
+  const getItemKey = (item: (typeof items)[0]) =>
+    `${new Date(item.date).toLocaleDateString()} • ${item.focus.join(" • ") || "General training"}`;
+  const keyToIndices = items.reduce<Record<string, number[]>>((acc, item, i) => {
+    const key = getItemKey(item);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(i);
+    return acc;
+  }, {});
+  const getDisplayLabel = (item: (typeof items)[0], index: number) => {
+    const key = getItemKey(item);
+    const indices = keyToIndices[key] ?? [index];
+    if (indices.length <= 1) return key;
+    const which = indices.indexOf(index) + 1;
+    return `${key} (${which})`;
+  };
+
   const onResumeSaved = (saved: typeof savedWorkouts[0]) => {
     setGeneratedWorkout(saved.workout);
     setResumeProgress(saved.progress ?? null);
@@ -98,21 +115,20 @@ export default function HistoryScreen() {
               </Text>
             </View>
           ) : (
-            items.map((item) => {
-              const date = new Date(item.date);
-              const label = `${date.toLocaleDateString()} • ${
-                item.focus.join(" • ") || "General training"
-              }`;
+            items.map((item, index) => {
+              const label = getDisplayLabel(item, index);
               const canViewOrRepeat = item.workout != null;
+              const subtitleParts = [
+                item.durationMinutes != null ? `${item.durationMinutes} min` : null,
+                item.workout
+                  ? `${item.workout.sections.length} section${item.workout.sections.length !== 1 ? "s" : ""}`
+                  : null,
+              ].filter(Boolean);
               return (
                 <View key={item.id} style={{ marginBottom: 12 }}>
                   <Card
                     title={label}
-                    subtitle={
-                      item.durationMinutes != null
-                        ? `${item.durationMinutes} min`
-                        : undefined
-                    }
+                    subtitle={subtitleParts.length > 0 ? subtitleParts.join(" · ") : undefined}
                   />
                   {canViewOrRepeat && (
                     <View style={styles.completedActions}>

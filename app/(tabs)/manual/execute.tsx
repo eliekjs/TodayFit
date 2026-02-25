@@ -10,7 +10,6 @@ import {
 import { useRouter } from "expo-router";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
-import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 
 type ExerciseProgress = {
@@ -157,13 +156,7 @@ export default function ExecuteScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Card title="Session Timer">
-          <Text style={{ color: theme.textMuted, fontSize: 13 }}>
-            Timer placeholder — you'll see elapsed time here later.
-          </Text>
-        </Card>
-
-        <View style={{ marginTop: 16, gap: 12 }}>
+        <View style={{ gap: 12 }}>
           {allExercises.map((exercise) => {
             const state = progress[exercise.id] ?? {
               completed: false,

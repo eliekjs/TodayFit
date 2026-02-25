@@ -5,14 +5,16 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
+import { PrimaryButton } from "../../../components/Button";
 
 export default function ViewCompletedWorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { workoutHistory } = useAppState();
+  const router = useRouter();
+  const { workoutHistory, setGeneratedWorkout, setResumeProgress } = useAppState();
   const theme = useTheme();
 
   const item = id ? workoutHistory.find((h) => h.id === id) : null;
@@ -45,6 +47,21 @@ export default function ViewCompletedWorkoutScreen() {
   }
 
   const date = new Date(item.date);
+  const focusLabel = item.focus?.length ? item.focus.join(" • ") : "General training";
+  const exerciseCount = workout.sections.reduce(
+    (sum, s) =>
+      sum +
+      (s.supersetPairs
+        ? s.supersetPairs.flat().length
+        : s.exercises.length),
+    0
+  );
+
+  const onDoAgain = () => {
+    setGeneratedWorkout({ ...workout, id: `workout_${Date.now()}` });
+    setResumeProgress(null);
+    router.push("/manual/execute");
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -52,22 +69,34 @@ export default function ViewCompletedWorkoutScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <PrimaryButton
+          label="Back"
+          variant="secondary"
+          onPress={() => router.back()}
+          style={styles.backButton}
+        />
         <Card
-          title={date.toLocaleDateString(undefined, {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
+          title={focusLabel}
           subtitle={
             [
-              item.focus?.length ? item.focus.join(" • ") : null,
+              date.toLocaleDateString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
               item.durationMinutes != null ? `${item.durationMinutes} min` : null,
+              `${workout.sections.length} section${workout.sections.length !== 1 ? "s" : ""} · ${exerciseCount} exercise${exerciseCount !== 1 ? "s" : ""}`,
             ]
               .filter(Boolean)
-              .join(" · ") || undefined
+              .join(" · ")
           }
           style={{ marginBottom: 16 }}
+        />
+        <PrimaryButton
+          label="Do again"
+          onPress={onDoAgain}
+          style={{ marginBottom: 20 }}
         />
 
         {workout.sections.map((section) => {
@@ -159,6 +188,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 32,
+  },
+  backButton: {
+    marginBottom: 16,
   },
   centered: {
     flex: 1,
