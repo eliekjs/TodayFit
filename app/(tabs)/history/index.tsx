@@ -103,17 +103,41 @@ export default function HistoryScreen() {
               const label = `${date.toLocaleDateString()} • ${
                 item.focus.join(" • ") || "General training"
               }`;
+              const canViewOrRepeat = item.workout != null;
               return (
-                <Card
-                  key={item.id}
-                  title={label}
-                  subtitle={
-                    item.durationMinutes != null
-                      ? `${item.durationMinutes} min`
-                      : undefined
-                  }
-                  style={{ marginBottom: 12 }}
-                />
+                <View key={item.id} style={{ marginBottom: 12 }}>
+                  <Card
+                    title={label}
+                    subtitle={
+                      item.durationMinutes != null
+                        ? `${item.durationMinutes} min`
+                        : undefined
+                    }
+                  />
+                  {canViewOrRepeat && (
+                    <View style={styles.completedActions}>
+                      <PrimaryButton
+                        label="View"
+                        variant="secondary"
+                        onPress={() => router.push(`/history/${item.id}`)}
+                        style={{ flex: 1 }}
+                      />
+                      <PrimaryButton
+                        label="Do again"
+                        onPress={() => {
+                          if (!item.workout) return;
+                          setGeneratedWorkout({
+                            ...item.workout,
+                            id: `workout_${Date.now()}`,
+                          });
+                          setResumeProgress(null);
+                          router.push("/manual/execute");
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                    </View>
+                  )}
+                </View>
               );
             })
           )}
@@ -181,5 +205,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: "center",
+  },
+  completedActions: {
+    flexDirection: "row",
+    marginTop: 8,
+    gap: 8,
   },
 });

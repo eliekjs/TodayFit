@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAppState } from "../../../context/AppStateContext";
@@ -15,6 +16,7 @@ import { PrimaryButton } from "../../../components/Button";
 type ExerciseProgress = {
   completed: boolean;
   setsCompleted: number;
+  notes?: string;
 };
 
 export default function ExecuteScreen() {
@@ -25,6 +27,7 @@ export default function ExecuteScreen() {
     setGeneratedWorkout,
     setResumeProgress,
     resumeProgress,
+    removeSavedWorkoutByWorkoutId,
   } = useAppState();
   const router = useRouter();
   const theme = useTheme();
@@ -88,16 +91,33 @@ export default function ExecuteScreen() {
     }));
   };
 
+  const setNote = (id: string, notes: string) => {
+    setProgress((prev) => ({
+      ...prev,
+      [id]: {
+        ...(prev[id] ?? { completed: false, setsCompleted: 0 }),
+        notes,
+      },
+    }));
+  };
+
   const onFinish = () => {
     if (generatedWorkout == null) {
       router.replace("/manual/preferences");
       return;
     }
+    const exerciseNotes: Record<string, string> = {};
+    Object.entries(progress).forEach(([exId, p]) => {
+      if (p.notes?.trim()) exerciseNotes[exId] = p.notes.trim();
+    });
     addCompletedWorkout({
       date: new Date().toISOString(),
       focus: generatedWorkout.focus,
       durationMinutes: generatedWorkout.durationMinutes,
+      workout: generatedWorkout,
+      exerciseNotes: Object.keys(exerciseNotes).length > 0 ? exerciseNotes : undefined,
     });
+    removeSavedWorkoutByWorkoutId(generatedWorkout.id);
     router.replace("/history/complete");
   };
 
@@ -187,6 +207,21 @@ export default function ExecuteScreen() {
                   >
                     {exercise.prescription} • {exercise.sectionTitle}
                   </Text>
+                  <TextInput
+                    style={[
+                      styles.notesInput,
+                      {
+                        borderColor: theme.border,
+                        color: theme.text,
+                        backgroundColor: theme.background,
+                      },
+                    ]}
+                    placeholder="Notes (optional)"
+                    placeholderTextColor={theme.textMuted}
+                    value={state.notes ?? ""}
+                    onChangeText={(text) => setNote(exercise.id, text)}
+                    multiline
+                  />
                 </View>
                 <Pressable
                   onPress={() => incrementSets(exercise.id)}
@@ -273,6 +308,15 @@ const styles = StyleSheet.create({
   logButtonText: {
     fontSize: 12,
     fontWeight: "500",
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 8,
+    fontSize: 13,
+    minHeight: 36,
   },
   footer: {
     marginTop: 24,

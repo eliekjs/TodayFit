@@ -120,6 +120,14 @@ export default function TabsLayout() {
           headerLeft: () => <HeaderBackButton />,
         }}
       />
+      <Tabs.Screen
+        name="history/[id]"
+        options={{
+          href: null,
+          title: "Completed Workout",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
 
       {/* ── Other hidden ── */}
       <Tabs.Screen name="build" options={{ href: null }} />

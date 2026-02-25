@@ -34,6 +34,7 @@ type AppStateContextValue = {
   addCompletedWorkout: (summary: Omit<WorkoutHistoryItem, "id">) => void;
   addSavedWorkout: (item: Omit<SavedWorkout, "id">) => void;
   removeSavedWorkout: (id: string) => void;
+  removeSavedWorkoutByWorkoutId: (workoutId: string) => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(
@@ -89,7 +90,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addCompletedWorkout: (summary) => {
         setWorkoutHistory((prev) => [
           ...prev,
-          { id: String(prev.length + 1), ...summary },
+          { id: `hist_${Date.now()}`, ...summary },
         ]);
       },
       addSavedWorkout: (item) => {
@@ -100,6 +101,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       },
       removeSavedWorkout: (id) => {
         setSavedWorkouts((prev) => prev.filter((w) => w.id !== id));
+      },
+      removeSavedWorkoutByWorkoutId: (workoutId) => {
+        setSavedWorkouts((prev) =>
+          prev.filter((w) => w.workout.id !== workoutId)
+        );
       },
     }),
     [

@@ -93,11 +93,15 @@ export type WorkoutHistoryItem = {
   date: string;
   focus: string[];
   durationMinutes: number | null;
+  /** Full workout plan when completed from this app (for View / Do again). */
+  workout?: GeneratedWorkout;
+  /** Notes per exercise (exerciseId -> note) from execution. */
+  exerciseNotes?: Record<string, string>;
 };
 
 export type ExecutionProgress = Record<
   string,
-  { completed: boolean; setsCompleted: number }
+  { completed: boolean; setsCompleted: number; notes?: string }
 >;
 
 export type SavedWorkout = {

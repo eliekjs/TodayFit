@@ -89,7 +89,7 @@ export default function GymProfilesScreen() {
   };
 
   const goBackToWorkout = () => {
-    router.back();
+    router.push("/manual/preferences");
   };
 
   return (
@@ -101,7 +101,7 @@ export default function GymProfilesScreen() {
         {from === "workout" && (
           <View style={styles.backToWorkout}>
             <PrimaryButton
-              label="Back to workout you were creating"
+              label="Continue workout creation"
               variant="secondary"
               onPress={goBackToWorkout}
             />
