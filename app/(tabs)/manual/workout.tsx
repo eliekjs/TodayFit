@@ -14,6 +14,8 @@ export default function ManualWorkoutScreen() {
     activeGymProfileId,
     gymProfiles,
     setGeneratedWorkout,
+    addSavedWorkout,
+    savedWorkouts,
   } = useAppState();
   const router = useRouter();
   const theme = useTheme();
@@ -39,6 +41,14 @@ export default function ManualWorkoutScreen() {
               onPress={() => router.push("/manual/preferences")}
             />
           </View>
+          {savedWorkouts.length > 0 && (
+            <PrimaryButton
+              label="Resume a saved workout"
+              variant="secondary"
+              onPress={() => router.push("/history")}
+              style={{ marginTop: 12 }}
+            />
+          )}
         </View>
       </View>
     );
@@ -59,6 +69,15 @@ export default function ManualWorkoutScreen() {
   const onRegenerate = () => {
     const next = generateWorkout(manualPreferences, activeProfile, Date.now());
     setGeneratedWorkout(next);
+  };
+
+  const onSaveForLater = () => {
+    addSavedWorkout({
+      savedAt: new Date().toISOString(),
+      workout: generatedWorkout,
+    });
+    setGeneratedWorkout(null);
+    router.back();
   };
 
   return (
@@ -153,6 +172,12 @@ export default function ManualWorkoutScreen() {
             label="Regenerate"
             variant="secondary"
             onPress={onRegenerate}
+          />
+          <PrimaryButton
+            label="Save for later"
+            variant="secondary"
+            onPress={onSaveForLater}
+            style={{ marginTop: 8 }}
           />
           <PrimaryButton
             label="Edit Preferences"

@@ -131,16 +131,16 @@ export function generateWorkout(
   const buildSection = (
     title: string,
     pool: ExerciseDefinition[],
-    count: number
+    count: number,
+    used: Set<string>
   ): { id: string; title: string; exercises: GeneratedExercise[]; supersetPairs?: [GeneratedExercise, GeneratedExercise][] } => {
-    const used = new Set<string>();
     const exercises: GeneratedExercise[] = [];
 
     while (exercises.length < count) {
       const poolToUse = pool.length ? pool : eligible;
-      const picked = pickRandom(poolToUse, rng);
+      const available = poolToUse.filter((e) => !used.has(e.id));
+      const picked = pickRandom(available, rng);
       if (!picked) break;
-      if (used.has(picked.id)) continue;
       used.add(picked.id);
 
       exercises.push({
@@ -161,9 +161,9 @@ export function generateWorkout(
   const buildMainSupersetSection = (
     title: string,
     pool: ExerciseDefinition[],
-    pairCount: number
+    pairCount: number,
+    used: Set<string>
   ): { id: string; title: string; exercises: GeneratedExercise[]; supersetPairs: [GeneratedExercise, GeneratedExercise][] } => {
-    const used = new Set<string>();
     const poolToUse = pool.length ? pool : eligible;
     const pairs: [GeneratedExercise, GeneratedExercise][] = [];
 
@@ -198,10 +198,11 @@ export function generateWorkout(
     };
   };
 
-  const warmup = buildSection("Warm-up", warmupPool, counts.warmup);
-  const mainSets = buildMainSupersetSection("Main Sets", mainPool, counts.mainSupersetPairs);
-  const accessory = buildSection("Accessory", accessoryPool, counts.accessory);
-  const cooldown = buildSection("Cooldown", cooldownPool, counts.cooldown);
+  const usedExerciseIds = new Set<string>();
+  const warmup = buildSection("Warm-up", warmupPool, counts.warmup, usedExerciseIds);
+  const mainSets = buildMainSupersetSection("Main Sets", mainPool, counts.mainSupersetPairs, usedExerciseIds);
+  const accessory = buildSection("Accessory", accessoryPool, counts.accessory, usedExerciseIds);
+  const cooldown = buildSection("Cooldown", cooldownPool, counts.cooldown, usedExerciseIds);
 
   const notes: string[] = [];
   if (preferences.injuries.length) {

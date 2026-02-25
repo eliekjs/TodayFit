@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,14 @@ type ExerciseProgress = {
 };
 
 export default function ExecuteScreen() {
-  const { generatedWorkout, addCompletedWorkout } = useAppState();
+  const {
+    generatedWorkout,
+    addCompletedWorkout,
+    addSavedWorkout,
+    setGeneratedWorkout,
+    setResumeProgress,
+    resumeProgress,
+  } = useAppState();
   const router = useRouter();
   const theme = useTheme();
 
@@ -54,6 +61,13 @@ export default function ExecuteScreen() {
       )
   );
 
+  useEffect(() => {
+    if (resumeProgress != null && Object.keys(resumeProgress).length > 0) {
+      setProgress((prev) => ({ ...prev, ...resumeProgress }));
+      setResumeProgress(null);
+    }
+  }, [resumeProgress, setResumeProgress]);
+
   const toggleCompleted = (id: string) => {
     setProgress((prev) => ({
       ...prev,
@@ -85,6 +99,18 @@ export default function ExecuteScreen() {
       durationMinutes: generatedWorkout.durationMinutes,
     });
     router.replace("/history/complete");
+  };
+
+  const onSaveForLater = () => {
+    if (generatedWorkout == null) return;
+    addSavedWorkout({
+      savedAt: new Date().toISOString(),
+      workout: generatedWorkout,
+      progress,
+    });
+    setGeneratedWorkout(null);
+    setResumeProgress(null);
+    router.replace("/history");
   };
 
   if (generatedWorkout == null) {
@@ -176,7 +202,12 @@ export default function ExecuteScreen() {
         </View>
 
         <View style={styles.footer}>
-          <PrimaryButton label="Finish Workout" onPress={onFinish} />
+          <PrimaryButton
+            label="Save for later"
+            variant="secondary"
+            onPress={onSaveForLater}
+          />
+          <PrimaryButton label="Finish Workout" onPress={onFinish} style={{ marginTop: 12 }} />
         </View>
       </ScrollView>
     </View>

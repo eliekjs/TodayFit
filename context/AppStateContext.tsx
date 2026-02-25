@@ -4,6 +4,8 @@ import type {
   ManualPreferences,
   GeneratedWorkout,
   WorkoutHistoryItem,
+  SavedWorkout,
+  ExecutionProgress,
 } from "../lib/types";
 
 const defaultPreferences: ManualPreferences = {
@@ -21,12 +23,17 @@ type AppStateContextValue = {
   manualPreferences: ManualPreferences;
   generatedWorkout: GeneratedWorkout | null;
   workoutHistory: WorkoutHistoryItem[];
+  savedWorkouts: SavedWorkout[];
+  resumeProgress: ExecutionProgress | null;
   setActiveGymProfile: (id: string) => void;
   addGymProfile: (profile: Omit<GymProfile, "id" | "isActive">) => void;
   updateGymProfile: (id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => void;
   updateManualPreferences: (update: Partial<ManualPreferences>) => void;
   setGeneratedWorkout: (workout: GeneratedWorkout | null) => void;
+  setResumeProgress: (progress: ExecutionProgress | null) => void;
   addCompletedWorkout: (summary: Omit<WorkoutHistoryItem, "id">) => void;
+  addSavedWorkout: (item: Omit<SavedWorkout, "id">) => void;
+  removeSavedWorkout: (id: string) => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(
@@ -45,6 +52,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryItem[]>(
     []
   );
+  const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
+  const [resumeProgress, setResumeProgress] = useState<ExecutionProgress | null>(null);
 
   const value = useMemo<AppStateContextValue>(
     () => ({
@@ -53,6 +62,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       manualPreferences,
       generatedWorkout,
       workoutHistory,
+      savedWorkouts,
+      resumeProgress,
       setActiveGymProfile: (id) => {
         setActiveGymProfileId(id);
         setGymProfiles((profiles) =>
@@ -74,11 +85,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setManualPreferences((prev) => ({ ...prev, ...update }));
       },
       setGeneratedWorkout,
+      setResumeProgress,
       addCompletedWorkout: (summary) => {
         setWorkoutHistory((prev) => [
           ...prev,
           { id: String(prev.length + 1), ...summary },
         ]);
+      },
+      addSavedWorkout: (item) => {
+        setSavedWorkouts((prev) => [
+          ...prev,
+          { ...item, id: `saved_${Date.now()}` },
+        ]);
+      },
+      removeSavedWorkout: (id) => {
+        setSavedWorkouts((prev) => prev.filter((w) => w.id !== id));
       },
     }),
     [
@@ -87,6 +108,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       manualPreferences,
       generatedWorkout,
       workoutHistory,
+      savedWorkouts,
+      resumeProgress,
     ]
   );
 

@@ -94,3 +94,15 @@ export type WorkoutHistoryItem = {
   focus: string[];
   durationMinutes: number | null;
 };
+
+export type ExecutionProgress = Record<
+  string,
+  { completed: boolean; setsCompleted: number }
+>;
+
+export type SavedWorkout = {
+  id: string;
+  savedAt: string;
+  workout: GeneratedWorkout;
+  progress?: ExecutionProgress;
+};
