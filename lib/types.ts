@@ -7,6 +7,30 @@ export type BodyPartFocusKey =
   | "Push"
   | "Pull";
 
+export type SorenessInjuryKey =
+  | "Upper Body"
+  | "Lower Body"
+  | "Core"
+  | "Shoulders"
+  | "Elbows / Wrists"
+  | "Knees / Ankles"
+  | "Back"
+  | "Hips"
+  | "No Restrictions";
+
+export type WorkoutStyleKey =
+  | "Compound Strength"
+  | "Hypertrophy Bias"
+  | "Functional / Athletic"
+  | "Calisthenics Focus"
+  | "CrossFit-style / HIIT"
+  | "Cardio Emphasis"
+  | "Mixed Strength + Conditioning";
+
+export type UpcomingBodyRegion = "Lower" | "Upper" | "Full" | "Skill" | "None";
+export type UpcomingDemandType = "Strength" | "Endurance" | "Power" | "Mixed";
+export type UpcomingTimeBucket = "0–1" | "2–3" | "4–6" | "7+";
+
 export type ManualPreferences = {
   primaryFocus: string[];
   bodyPartFocus: BodyPartFocusKey[];
@@ -15,6 +39,14 @@ export type ManualPreferences = {
   injuries: string[];
   upcoming: string[];
   subFocus: string[];
+  /** Advanced: areas to avoid (soreness/injuries) */
+  sorenessInjuries: string[];
+  /** Advanced: workout style multi-select */
+  workoutStyle: string[];
+  /** Advanced: upcoming event filters */
+  upcomingEventBodyRegion: UpcomingBodyRegion | null;
+  upcomingEventDemandType: UpcomingDemandType | null;
+  upcomingEventTimeBucket: UpcomingTimeBucket | null;
 };
 
 export type EquipmentKey =

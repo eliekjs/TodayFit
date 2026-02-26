@@ -16,6 +16,11 @@ const defaultPreferences: ManualPreferences = {
   injuries: [],
   upcoming: [],
   subFocus: [],
+  sorenessInjuries: [],
+  workoutStyle: [],
+  upcomingEventBodyRegion: null,
+  upcomingEventDemandType: null,
+  upcomingEventTimeBucket: null,
 };
 
 type AppStateContextValue = {

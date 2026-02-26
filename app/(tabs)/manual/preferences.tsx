@@ -17,7 +17,14 @@ import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { generateWorkout } from "../../../lib/generator";
-import type { BodyPartFocusKey } from "../../../lib/types";
+import type {
+  BodyPartFocusKey,
+  SorenessInjuryKey,
+  WorkoutStyleKey,
+  UpcomingBodyRegion,
+  UpcomingDemandType,
+  UpcomingTimeBucket,
+} from "../../../lib/types";
 
 if (
   Platform.OS === "android" &&
@@ -78,6 +85,105 @@ const SUB_FOCUS = [
   "Grip strength",
 ];
 
+const SORENESS_INJURIES: SorenessInjuryKey[] = [
+  "Upper Body",
+  "Lower Body",
+  "Core",
+  "Shoulders",
+  "Elbows / Wrists",
+  "Knees / Ankles",
+  "Back",
+  "Hips",
+  "No Restrictions",
+];
+
+const WORKOUT_STYLE_OPTIONS: WorkoutStyleKey[] = [
+  "Compound Strength",
+  "Hypertrophy Bias",
+  "Functional / Athletic",
+  "Calisthenics Focus",
+  "CrossFit-style / HIIT",
+  "Cardio Emphasis",
+  "Mixed Strength + Conditioning",
+];
+
+const UPCOMING_BODY_REGIONS: UpcomingBodyRegion[] = [
+  "Lower",
+  "Upper",
+  "Full",
+  "Skill",
+  "None",
+];
+const UPCOMING_DEMAND_TYPES: UpcomingDemandType[] = [
+  "Strength",
+  "Endurance",
+  "Power",
+  "Mixed",
+];
+const UPCOMING_TIME_BUCKETS: UpcomingTimeBucket[] = [
+  "0–1",
+  "2–3",
+  "4–6",
+  "7+",
+];
+
+/** Sub-focus options shown only when the related primary focus is selected */
+const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
+  "Build Strength": [
+    "Max Strength",
+    "Relative Strength",
+    "Posterior Chain",
+    "Upper Push",
+    "Upper Pull",
+  ],
+  "Build Muscle (Hypertrophy)": [
+    "Glutes",
+    "Quads",
+    "Back",
+    "Arms",
+    "Shoulders",
+    "Chest",
+    "Balanced",
+  ],
+  "Sport Conditioning": [
+    "Uphill Endurance",
+    "Eccentric Quad Strength",
+    "Lactate Tolerance",
+    "Rotational Power",
+    "Change of Direction",
+  ],
+  "Improve Endurance": ["VO2 Max", "Zone 2", "Tempo", "Long Duration"],
+  "Mobility & Joint Health": [
+    "Ankle dorsiflexion",
+    "Hip internal rotation",
+    "Thoracic extension",
+    "Shoulder flexion",
+    "Shoulder stability",
+    "Wrist prep",
+    "Spinal mobility",
+    "Active mobility (strength through range)",
+  ],
+  "Athletic Performance": [
+    "Power output",
+    "Sprint speed",
+    "Vertical jump",
+    "Elasticity",
+    "Reactive strength",
+    "Acceleration",
+    "Coordination",
+    "Balance",
+  ],
+  Calisthenics: [
+    "Pull-up Capacity",
+    "Dips",
+    "Handstand",
+    "Front lever",
+    "Muscle-up progression",
+    "Core compression strength",
+    "Straight-arm strength",
+  ],
+};
+
 export default function ManualPreferencesScreen() {
   const {
     manualPreferences,
@@ -88,6 +194,8 @@ export default function ManualPreferencesScreen() {
     setActiveGymProfile,
   } = useAppState();
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedGoalRefinementOpen, setAdvancedGoalRefinementOpen] = useState(false);
+  const [subFocusExpanded, setSubFocusExpanded] = useState<Record<string, boolean>>({});
   const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
   const router = useRouter();
   const theme = useTheme();
@@ -96,9 +204,9 @@ export default function ManualPreferencesScreen() {
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
 
   const toggleFromArray =
-    (key: "primaryFocus" | "injuries" | "upcoming" | "subFocus") =>
+    (key: "primaryFocus" | "bodyPartFocus" | "injuries" | "upcoming" | "subFocus" | "sorenessInjuries" | "workoutStyle") =>
     (value: string) => {
-      const current = manualPreferences[key];
+      const current = manualPreferences[key] as string[];
       const exists = current.includes(value);
       updateManualPreferences({
         [key]: exists
@@ -106,6 +214,29 @@ export default function ManualPreferencesScreen() {
           : [...current, value],
       });
     };
+
+  const toggleBodyPartFocus = (option: BodyPartFocusKey) => {
+    const current = manualPreferences.bodyPartFocus;
+    const isSelected = current.includes(option);
+    if (isSelected) {
+      updateManualPreferences({
+        bodyPartFocus: current.filter((v) => v !== option),
+      });
+      return;
+    }
+    let next = [...current];
+    if (option === "Full body") {
+      next = next.filter((v) => v !== "Upper body" && v !== "Lower body");
+    } else if (option === "Upper body" || option === "Lower body") {
+      next = next.filter((v) => v !== "Full body");
+    } else if (option === "Push") {
+      next = next.filter((v) => v !== "Pull");
+    } else if (option === "Pull") {
+      next = next.filter((v) => v !== "Push");
+    }
+    next.push(option);
+    updateManualPreferences({ bodyPartFocus: next });
+  };
 
   const onGenerate = () => {
     const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
@@ -118,6 +249,22 @@ export default function ManualPreferencesScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setAdvancedOpen((v) => !v);
   };
+
+  const toggleAdvancedGoalRefinement = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setAdvancedGoalRefinementOpen((v) => !v);
+  };
+
+  const toggleSubFocusGroup = (groupKey: string) => {
+    setSubFocusExpanded((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
+  };
+
+  const hasPrimaryFocus = manualPreferences.primaryFocus.length > 0;
+  const contextualSubFocusGroups = hasPrimaryFocus
+    ? manualPreferences.primaryFocus
+        .filter((f) => SUB_FOCUS_BY_PRIMARY[f]?.length)
+        .map((focus) => ({ focus, options: SUB_FOCUS_BY_PRIMARY[focus]! }))
+    : [];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -146,14 +293,27 @@ export default function ManualPreferencesScreen() {
           style={{ marginTop: 20 }}
         />
         <View style={styles.chipGroup}>
-          {BODY_PART_FOCUS_OPTIONS.map((option) => (
-            <Chip
-              key={option}
-              label={option}
-              selected={manualPreferences.bodyPartFocus.includes(option)}
-              onPress={() => toggleFromArray("bodyPartFocus")(option)}
-            />
-          ))}
+          {BODY_PART_FOCUS_OPTIONS.map((option) => {
+            const selected = manualPreferences.bodyPartFocus.includes(option);
+            const disabled =
+              !selected &&
+              ((option === "Full body" &&
+                (manualPreferences.bodyPartFocus.includes("Upper body") ||
+                  manualPreferences.bodyPartFocus.includes("Lower body"))) ||
+              (option === "Upper body" && manualPreferences.bodyPartFocus.includes("Full body")) ||
+              (option === "Lower body" && manualPreferences.bodyPartFocus.includes("Full body")) ||
+              (option === "Push" && manualPreferences.bodyPartFocus.includes("Pull")) ||
+              (option === "Pull" && manualPreferences.bodyPartFocus.includes("Push"));
+            return (
+              <Chip
+                key={option}
+                label={option}
+                selected={selected}
+                onPress={() => !disabled && toggleBodyPartFocus(option)}
+                disabled={disabled}
+              />
+            );
+          })}
         </View>
 
         <SectionHeader
@@ -218,6 +378,162 @@ export default function ManualPreferencesScreen() {
             style={{ marginTop: 8 }}
           />
         </View>
+
+        {hasPrimaryFocus && (
+          <>
+            <View style={styles.advancedHeader}>
+              <Text
+                style={[styles.advancedTitle, { color: theme.text }]}
+                onPress={toggleAdvancedGoalRefinement}
+              >
+                Advanced Goal Refinement
+              </Text>
+              <Text
+                style={[styles.advancedToggle, { color: theme.textMuted }]}
+                onPress={toggleAdvancedGoalRefinement}
+              >
+                {advancedGoalRefinementOpen ? "Hide" : "Show"}
+              </Text>
+            </View>
+            {advancedGoalRefinementOpen && (
+              <View style={styles.advancedSection}>
+                <SectionHeader
+                  title="A) Soreness / Injuries"
+                  subtitle="Areas to avoid or protect."
+                  style={{ marginTop: 0 }}
+                />
+                <View style={styles.chipGroup}>
+                  {SORENESS_INJURIES.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={opt}
+                      selected={manualPreferences.sorenessInjuries.includes(opt)}
+                      onPress={() => toggleFromArray("sorenessInjuries")(opt)}
+                    />
+                  ))}
+                </View>
+
+                <SectionHeader
+                  title="B) Workout Style"
+                  subtitle="Multi-select."
+                  style={{ marginTop: 20 }}
+                />
+                <View style={styles.chipGroup}>
+                  {WORKOUT_STYLE_OPTIONS.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={opt}
+                      selected={manualPreferences.workoutStyle.includes(opt)}
+                      onPress={() => toggleFromArray("workoutStyle")(opt)}
+                    />
+                  ))}
+                </View>
+
+                <SectionHeader
+                  title="C) Upcoming Event"
+                  subtitle="Protect the next few days."
+                  style={{ marginTop: 20 }}
+                />
+                <Text style={[styles.advancedLabel, { color: theme.textMuted }]}>
+                  Body region
+                </Text>
+                <View style={styles.chipGroup}>
+                  {UPCOMING_BODY_REGIONS.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={opt}
+                      selected={manualPreferences.upcomingEventBodyRegion === opt}
+                      onPress={() =>
+                        updateManualPreferences({
+                          upcomingEventBodyRegion:
+                            manualPreferences.upcomingEventBodyRegion === opt
+                              ? null
+                              : opt,
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+                <Text style={[styles.advancedLabel, styles.advancedLabelMargin, { color: theme.textMuted }]}>
+                  Demand type
+                </Text>
+                <View style={styles.chipGroup}>
+                  {UPCOMING_DEMAND_TYPES.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={opt}
+                      selected={manualPreferences.upcomingEventDemandType === opt}
+                      onPress={() =>
+                        updateManualPreferences({
+                          upcomingEventDemandType:
+                            manualPreferences.upcomingEventDemandType === opt
+                              ? null
+                              : opt,
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+                <Text style={[styles.advancedLabel, styles.advancedLabelMargin, { color: theme.textMuted }]}>
+                  Time until event
+                </Text>
+                <View style={styles.chipGroup}>
+                  {UPCOMING_TIME_BUCKETS.map((opt) => (
+                    <Chip
+                      key={opt}
+                      label={`${opt} days`}
+                      selected={manualPreferences.upcomingEventTimeBucket === opt}
+                      onPress={() =>
+                        updateManualPreferences({
+                          upcomingEventTimeBucket:
+                            manualPreferences.upcomingEventTimeBucket === opt
+                              ? null
+                              : opt,
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+
+                <SectionHeader
+                  title="D) Sub-Focus"
+                  subtitle="Contextual to your primary focus. Tap to expand."
+                  style={{ marginTop: 20 }}
+                />
+                {contextualSubFocusGroups.map(({ focus, options }) => {
+                  const isExpanded = subFocusExpanded[focus];
+                  return (
+                    <View key={focus} style={styles.subFocusGroup}>
+                      <Pressable
+                        onPress={() => toggleSubFocusGroup(focus)}
+                        style={[styles.subFocusGroupHeader, { borderColor: theme.border }]}
+                      >
+                        <Text style={[styles.subFocusGroupTitle, { color: theme.text }]}>
+                          {focus}
+                        </Text>
+                        <Text style={[styles.advancedToggle, { color: theme.textMuted }]}>
+                          {isExpanded ? "▼" : "▶"}
+                        </Text>
+                      </Pressable>
+                      {isExpanded && (
+                        <View style={styles.chipGroup}>
+                          {options.map((opt) => (
+                            <Chip
+                              key={opt}
+                              label={opt}
+                              selected={manualPreferences.subFocus.includes(opt)}
+                              onPress={() => toggleFromArray("subFocus")(opt)}
+                            />
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        )}
 
         <View style={styles.advancedHeader}>
           <Text
@@ -403,8 +719,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
   },
+  advancedLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  advancedLabelMargin: {
+    marginTop: 12,
+  },
   advancedSection: {
     gap: 12,
+  },
+  subFocusGroup: {
+    marginTop: 12,
+  },
+  subFocusGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  subFocusGroupTitle: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   footer: {
     marginTop: 24,

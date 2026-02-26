@@ -5,11 +5,12 @@ import { useTheme } from "../lib/theme";
 type Props = {
   label: string;
   selected?: boolean;
+  disabled?: boolean;
   onPress?: () => void;
   style?: ViewStyle;
 };
 
-export function Chip({ label, selected = false, onPress, style }: Props) {
+export function Chip({ label, selected = false, disabled = false, onPress, style }: Props) {
   const theme = useTheme();
 
   const content = (
@@ -20,6 +21,7 @@ export function Chip({ label, selected = false, onPress, style }: Props) {
           backgroundColor: selected
             ? theme.chipSelectedBackground
             : theme.chipBackground,
+          opacity: disabled ? 0.5 : 1,
         },
         style,
       ]}
@@ -37,7 +39,7 @@ export function Chip({ label, selected = false, onPress, style }: Props) {
     </View>
   );
 
-  if (onPress == null) return content;
+  if (onPress == null || disabled) return content;
 
   return (
     <Pressable
