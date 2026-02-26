@@ -303,7 +303,7 @@ export default function ManualPreferencesScreen() {
               (option === "Upper body" && manualPreferences.bodyPartFocus.includes("Full body")) ||
               (option === "Lower body" && manualPreferences.bodyPartFocus.includes("Full body")) ||
               (option === "Push" && manualPreferences.bodyPartFocus.includes("Pull")) ||
-              (option === "Pull" && manualPreferences.bodyPartFocus.includes("Push"));
+              (option === "Pull" && manualPreferences.bodyPartFocus.includes("Push")));
             return (
               <Chip
                 key={option}
