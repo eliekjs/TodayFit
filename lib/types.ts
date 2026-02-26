@@ -1,7 +1,15 @@
 export type EnergyLevel = "low" | "medium" | "high";
 
+export type BodyPartFocusKey =
+  | "Upper body"
+  | "Lower body"
+  | "Full body"
+  | "Push"
+  | "Pull";
+
 export type ManualPreferences = {
   primaryFocus: string[];
+  bodyPartFocus: BodyPartFocusKey[];
   durationMinutes: number | null;
   energyLevel: EnergyLevel | null;
   injuries: string[];

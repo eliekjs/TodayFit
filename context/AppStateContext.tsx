@@ -10,6 +10,7 @@ import type {
 
 const defaultPreferences: ManualPreferences = {
   primaryFocus: [],
+  bodyPartFocus: [],
   durationMinutes: null,
   energyLevel: null,
   injuries: [],

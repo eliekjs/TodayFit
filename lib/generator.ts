@@ -77,6 +77,24 @@ function filterByInjuries(
   });
 }
 
+function filterByBodyPartFocus(
+  exercises: ExerciseDefinition[],
+  bodyPartFocus: string[]
+): ExerciseDefinition[] {
+  if (!bodyPartFocus.length) return exercises;
+  return exercises.filter((e) =>
+    bodyPartFocus.some((opt) => {
+      if (opt === "Upper body")
+        return e.muscles.some((m) => m === "push" || m === "pull" || m === "core");
+      if (opt === "Lower body") return e.muscles.includes("legs");
+      if (opt === "Full body") return true;
+      if (opt === "Push") return e.muscles.includes("push");
+      if (opt === "Pull") return e.muscles.includes("pull");
+      return false;
+    })
+  );
+}
+
 function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
   const id = focus.toLowerCase();
   if (id.includes("strength") || id.includes("power")) return ["strength", "power"];
@@ -95,6 +113,7 @@ export function generateWorkout(
 ): GeneratedWorkout {
   const seed = JSON.stringify({
     focus: preferences.primaryFocus,
+    bodyPartFocus: preferences.bodyPartFocus,
     duration: preferences.durationMinutes,
     energy: preferences.energyLevel,
     injuries: preferences.injuries,
@@ -111,9 +130,12 @@ export function generateWorkout(
 
   const counts = pickCountByDuration(preferences.durationMinutes);
 
-  const eligible = filterByInjuries(
-    filterByGymProfile(EXERCISES, gymProfile),
-    preferences.injuries
+  const eligible = filterByBodyPartFocus(
+    filterByInjuries(
+      filterByGymProfile(EXERCISES, gymProfile),
+      preferences.injuries
+    ),
+    preferences.bodyPartFocus
   );
 
   const warmupPool = eligible.filter(
@@ -205,6 +227,9 @@ export function generateWorkout(
   const cooldown = buildSection("Cooldown", cooldownPool, counts.cooldown, usedExerciseIds);
 
   const notes: string[] = [];
+  if (preferences.bodyPartFocus.length) {
+    notes.push(`Body focus: ${preferences.bodyPartFocus.join(", ")}`);
+  }
   if (preferences.injuries.length) {
     notes.push(`Injury-aware: avoiding ${preferences.injuries.join(", ")}`);
   }

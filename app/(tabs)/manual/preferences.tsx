@@ -17,6 +17,7 @@ import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { generateWorkout } from "../../../lib/generator";
+import type { BodyPartFocusKey } from "../../../lib/types";
 
 if (
   Platform.OS === "android" &&
@@ -36,6 +37,14 @@ const PRIMARY_FOCUS_OPTIONS = [
   "Calisthenics",
   "Power & Explosiveness",
   "Recovery",
+];
+
+const BODY_PART_FOCUS_OPTIONS: BodyPartFocusKey[] = [
+  "Upper body",
+  "Lower body",
+  "Full body",
+  "Push",
+  "Pull",
 ];
 
 const DURATIONS = [20, 30, 45, 60, 75];
@@ -127,6 +136,22 @@ export default function ManualPreferencesScreen() {
               label={option}
               selected={manualPreferences.primaryFocus.includes(option)}
               onPress={() => toggleFromArray("primaryFocus")(option)}
+            />
+          ))}
+        </View>
+
+        <SectionHeader
+          title="Body Part Focus (optional)"
+          subtitle="Filter by body region; you can select multiple."
+          style={{ marginTop: 20 }}
+        />
+        <View style={styles.chipGroup}>
+          {BODY_PART_FOCUS_OPTIONS.map((option) => (
+            <Chip
+              key={option}
+              label={option}
+              selected={manualPreferences.bodyPartFocus.includes(option)}
+              onPress={() => toggleFromArray("bodyPartFocus")(option)}
             />
           ))}
         </View>
