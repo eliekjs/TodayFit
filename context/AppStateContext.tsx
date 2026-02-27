@@ -8,19 +8,16 @@ import type {
   ExecutionProgress,
 } from "../lib/types";
 
-const defaultPreferences: ManualPreferences = {
+export const defaultManualPreferences: ManualPreferences = {
   primaryFocus: [],
-  bodyPartFocus: [],
+  targetBody: null,
+  targetModifier: [],
   durationMinutes: null,
   energyLevel: null,
   injuries: [],
   upcoming: [],
   subFocus: [],
-  sorenessInjuries: [],
   workoutStyle: [],
-  upcomingEventBodyRegion: null,
-  upcomingEventDemandType: null,
-  upcomingEventTimeBucket: null,
 };
 
 type AppStateContextValue = {
@@ -53,7 +50,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     initialGymProfiles[0]?.id ?? null
   );
   const [manualPreferences, setManualPreferences] =
-    useState<ManualPreferences>(defaultPreferences);
+    useState<ManualPreferences>(defaultManualPreferences);
   const [generatedWorkout, setGeneratedWorkout] =
     useState<GeneratedWorkout | null>(null);
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryItem[]>(

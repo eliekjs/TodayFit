@@ -1,22 +1,15 @@
 export type EnergyLevel = "low" | "medium" | "high";
 
+/** Single body target: Upper / Lower / Full. Modifiers (Push, Pull, Quad, Posterior) are separate. */
+export type TargetBody = "Upper" | "Lower" | "Full";
+
+/** Used by generator for filtering; derived from targetBody + targetModifier in UI. */
 export type BodyPartFocusKey =
   | "Upper body"
   | "Lower body"
   | "Full body"
   | "Push"
   | "Pull";
-
-export type SorenessInjuryKey =
-  | "Upper Body"
-  | "Lower Body"
-  | "Core"
-  | "Shoulders"
-  | "Elbows / Wrists"
-  | "Knees / Ankles"
-  | "Back"
-  | "Hips"
-  | "No Restrictions";
 
 export type WorkoutStyleKey =
   | "Compound Strength"
@@ -27,26 +20,20 @@ export type WorkoutStyleKey =
   | "Cardio Emphasis"
   | "Mixed Strength + Conditioning";
 
-export type UpcomingBodyRegion = "Lower" | "Upper" | "Full" | "Skill" | "None";
-export type UpcomingDemandType = "Strength" | "Endurance" | "Power" | "Mixed";
-export type UpcomingTimeBucket = "0–1" | "2–3" | "4–6" | "7+";
-
 export type ManualPreferences = {
   primaryFocus: string[];
-  bodyPartFocus: BodyPartFocusKey[];
+  /** Single target; when set, modifier chips (Push/Pull or Quad/Posterior) shown. */
+  targetBody: TargetBody | null;
+  /** e.g. Push, Pull for Upper; Quad, Posterior for Lower; empty for Full. */
+  targetModifier: string[];
   durationMinutes: number | null;
   energyLevel: EnergyLevel | null;
+  /** Single list: joints + "No restrictions" (mutually exclusive with others). */
   injuries: string[];
   upcoming: string[];
+  /** Muscle/emphasis (contextual) + micro-goals (global); feeds filtering. */
   subFocus: string[];
-  /** Advanced: areas to avoid (soreness/injuries) */
-  sorenessInjuries: string[];
-  /** Advanced: workout style multi-select */
   workoutStyle: string[];
-  /** Advanced: upcoming event filters */
-  upcomingEventBodyRegion: UpcomingBodyRegion | null;
-  upcomingEventDemandType: UpcomingDemandType | null;
-  upcomingEventTimeBucket: UpcomingTimeBucket | null;
 };
 
 export type EquipmentKey =

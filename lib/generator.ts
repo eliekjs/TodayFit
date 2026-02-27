@@ -1,4 +1,5 @@
 import { EXERCISES } from "../data/exercises";
+import { deriveBodyPartFocus } from "./preferencesConstants";
 import type {
   ExerciseDefinition,
   GeneratedExercise,
@@ -111,12 +112,21 @@ export function generateWorkout(
   gymProfile?: GymProfile,
   seedExtra?: string | number
 ): GeneratedWorkout {
+  const bodyPartFocus = deriveBodyPartFocus(
+    preferences.targetBody,
+    preferences.targetModifier
+  );
+  const injuryFilter =
+    preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
+      ? []
+      : preferences.injuries.filter((i) => i !== "No restrictions");
+
   const seed = JSON.stringify({
     focus: preferences.primaryFocus,
-    bodyPartFocus: preferences.bodyPartFocus,
+    bodyPartFocus,
     duration: preferences.durationMinutes,
     energy: preferences.energyLevel,
-    injuries: preferences.injuries,
+    injuries: injuryFilter,
     upcoming: preferences.upcoming,
     subFocus: preferences.subFocus,
     profile: gymProfile?.id,
@@ -133,9 +143,9 @@ export function generateWorkout(
   const eligible = filterByBodyPartFocus(
     filterByInjuries(
       filterByGymProfile(EXERCISES, gymProfile),
-      preferences.injuries
+      injuryFilter
     ),
-    preferences.bodyPartFocus
+    bodyPartFocus
   );
 
   const warmupPool = eligible.filter(
@@ -227,11 +237,11 @@ export function generateWorkout(
   const cooldown = buildSection("Cooldown", cooldownPool, counts.cooldown, usedExerciseIds);
 
   const notes: string[] = [];
-  if (preferences.bodyPartFocus.length) {
-    notes.push(`Body focus: ${preferences.bodyPartFocus.join(", ")}`);
+  if (bodyPartFocus.length) {
+    notes.push(`Body focus: ${bodyPartFocus.join(", ")}`);
   }
-  if (preferences.injuries.length) {
-    notes.push(`Injury-aware: avoiding ${preferences.injuries.join(", ")}`);
+  if (injuryFilter.length) {
+    notes.push(`Injury-aware: avoiding ${injuryFilter.join(", ")}`);
   }
   if (preferences.upcoming.length) {
     notes.push(`Upcoming: ${preferences.upcoming.join(", ")}`);

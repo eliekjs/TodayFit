@@ -1,0 +1,173 @@
+import type { BodyPartFocusKey, TargetBody, WorkoutStyleKey } from "./types";
+
+/** Core: primary focus options (multi-select, suggest up to 2). */
+export const PRIMARY_FOCUS_OPTIONS = [
+  "Build Strength",
+  "Build Muscle (Hypertrophy)",
+  "Body Recomposition",
+  "Sport Conditioning",
+  "Improve Endurance",
+  "Mobility & Joint Health",
+  "Athletic Performance",
+  "Calisthenics",
+  "Power & Explosiveness",
+  "Recovery",
+] as const;
+
+/** Core: duration in minutes (single select). */
+export const DURATIONS = [20, 30, 45, 60, 75] as const;
+
+/** Core: energy level (single select). */
+export const ENERGY_LEVELS = ["Low", "Medium", "High"] as const;
+
+/** Targets: body target (single select). */
+export const TARGET_OPTIONS: TargetBody[] = ["Upper", "Lower", "Full"];
+
+/** Targets: modifiers by target. Upper → Push/Pull; Lower → Quad/Posterior; Full → none. */
+export const MODIFIERS_BY_TARGET: Record<TargetBody, string[]> = {
+  Upper: ["Push", "Pull"],
+  Lower: ["Quad", "Posterior"],
+  Full: [],
+};
+
+/** Refinements – Constraints: single list; "No restrictions" is mutually exclusive with others. */
+export const CONSTRAINT_OPTIONS = [
+  "Shoulder",
+  "Elbow",
+  "Wrist",
+  "Lower Back",
+  "Hip",
+  "Knee",
+  "Ankle",
+  "No restrictions",
+] as const;
+
+/** Refinements – Style (optional multi-select). */
+export const WORKOUT_STYLE_OPTIONS: WorkoutStyleKey[] = [
+  "Compound Strength",
+  "Hypertrophy Bias",
+  "Functional / Athletic",
+  "Calisthenics Focus",
+  "CrossFit-style / HIIT",
+  "Cardio Emphasis",
+  "Mixed Strength + Conditioning",
+];
+
+/** Refinements – Upcoming 1–3 days (optional multi-select). */
+export const UPCOMING_OPTIONS = [
+  "Long Run",
+  "Big Hike",
+  "Ski Day",
+  "Climbing Day",
+  "Hard Leg Day",
+  "Hard Upper Day",
+] as const;
+
+/** Sub-focus: global micro-goals (shown with contextual emphasis list). */
+export const SUB_FOCUS_MICRO_GOALS = [
+  "Knee mobility",
+  "Uphill conditioning",
+  "Core stability",
+  "Posterior chain",
+  "Shoulder stability",
+  "Grip strength",
+] as const;
+
+/** Sub-focus: contextual muscle/emphasis per primary focus. */
+export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
+  "Build Strength": [
+    "Squat",
+    "Hinge",
+    "Press",
+    "Pull",
+    "Full-body",
+  ],
+  "Build Muscle (Hypertrophy)": [
+    "Glutes",
+    "Quads",
+    "Back",
+    "Arms",
+    "Shoulders",
+    "Chest",
+    "Balanced",
+  ],
+  "Body Recomposition": [
+    "Glutes",
+    "Quads",
+    "Back",
+    "Arms",
+    "Shoulders",
+    "Chest",
+    "Balanced",
+  ],
+  "Sport Conditioning": [
+    "Zone 2",
+    "Threshold",
+    "Intervals",
+    "Hills",
+  ],
+  "Improve Endurance": [
+    "Zone 2",
+    "Threshold",
+    "Intervals",
+    "Hills",
+  ],
+  "Mobility & Joint Health": [
+    "Hips",
+    "Ankles",
+    "T-spine",
+    "Shoulders",
+    "Full-body",
+  ],
+  "Athletic Performance": [
+    "Power output",
+    "Sprint speed",
+    "Vertical jump",
+    "Elasticity",
+    "Reactive strength",
+  ],
+  Calisthenics: [
+    "Pull-up Capacity",
+    "Dips",
+    "Handstand",
+    "Front lever",
+    "Core compression strength",
+  ],
+  "Power & Explosiveness": [
+    "Squat",
+    "Hinge",
+    "Press",
+    "Pull",
+    "Full-body",
+  ],
+  Recovery: [
+    "Hips",
+    "Ankles",
+    "T-spine",
+    "Shoulders",
+    "Full-body",
+  ],
+};
+
+/**
+ * Derives bodyPartFocus for the generator from targetBody + targetModifier.
+ * Do not store bodyPartFocus in state; compute at generate time.
+ */
+export function deriveBodyPartFocus(
+  targetBody: TargetBody | null,
+  targetModifier: string[]
+): BodyPartFocusKey[] {
+  if (!targetBody) return [];
+  if (targetBody === "Full") return ["Full body"];
+  if (targetBody === "Upper") {
+    const base: BodyPartFocusKey[] = ["Upper body"];
+    if (targetModifier.includes("Push")) base.push("Push");
+    if (targetModifier.includes("Pull")) base.push("Pull");
+    return base;
+  }
+  if (targetBody === "Lower") {
+    return ["Lower body"];
+    // Quad/Posterior can be passed as subFocus or used in future generator tag filter
+  }
+  return [];
+}
