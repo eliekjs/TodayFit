@@ -43,6 +43,7 @@ if (
 
 const MAX_GOALS = 3;
 const MAX_SUB_GOALS_PER_GOAL = 3;
+const MAX_UPCOMING = 3;
 
 function buildSelectionSummary(prefs: typeof defaultManualPreferences): string {
   const parts: string[] = [];
@@ -150,8 +151,21 @@ export default function ManualPreferencesScreen() {
     updateManualPreferences({ injuries: next });
   };
 
+  const toggleUpcoming = (option: string) => {
+    const current = manualPreferences.upcoming;
+    const exists = current.includes(option);
+    if (exists) {
+      updateManualPreferences({
+        upcoming: current.filter((v) => v !== option),
+      });
+    } else {
+      if (current.length >= MAX_UPCOMING) return;
+      updateManualPreferences({ upcoming: [...current, option] });
+    }
+  };
+
   const toggleFromArray =
-    (key: "upcoming" | "workoutStyle") =>
+    (key: "workoutStyle") =>
     (value: string) => {
       const current = manualPreferences[key] as string[];
       const exists = current.includes(value);
@@ -526,19 +540,66 @@ export default function ManualPreferencesScreen() {
               ))}
             </View>
 
-            {/* Upcoming 1–3 days */}
+            {/* Upcoming 1–3 days (ranked) */}
             <SectionHeader
               title="Upcoming (1–3 days)"
-              subtitle="Protect big days."
+              subtitle="Protect big days. Pick up to 3, ranked."
               style={{ marginTop: 20 }}
             />
+            {manualPreferences.upcoming.length > 0 && (
+              <View style={styles.chipGroup}>
+                {manualPreferences.upcoming.map((u, idx) => (
+                  <Pressable
+                    key={u}
+                    style={styles.rankedChipWrap}
+                    onPress={() => toggleUpcoming(u)}
+                  >
+                    <View
+                      style={[
+                        styles.rankBadge,
+                        { backgroundColor: theme.chipSelectedBackground },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.rankBadgeText,
+                          { color: theme.chipSelectedText },
+                        ]}
+                      >
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.rankedChipInner,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.rankedChipLabel,
+                          { color: theme.chipSelectedText },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {u}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            )}
             <View style={styles.chipGroup}>
-              {UPCOMING_OPTIONS.map((u) => (
+              {UPCOMING_OPTIONS.filter(
+                (u) => !manualPreferences.upcoming.includes(u)
+              ).map((u) => (
                 <Chip
                   key={u}
                   label={u}
-                  selected={manualPreferences.upcoming.includes(u)}
-                  onPress={() => toggleFromArray("upcoming")(u)}
+                  selected={false}
+                  onPress={() => toggleUpcoming(u)}
                 />
               ))}
             </View>
