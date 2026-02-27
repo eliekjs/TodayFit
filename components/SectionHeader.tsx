@@ -25,14 +25,15 @@ export function SectionHeader({ title, subtitle, style }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
   },
   subtitle: {
     fontSize: 13,
-    marginTop: 2,
+    fontWeight: "400",
+    marginTop: 4,
   },
 });

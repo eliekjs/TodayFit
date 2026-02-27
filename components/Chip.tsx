@@ -20,7 +20,9 @@ export function Chip({ label, selected = false, disabled = false, onPress, style
         {
           backgroundColor: selected
             ? theme.chipSelectedBackground
-            : theme.chipBackground,
+            : "transparent",
+          borderWidth: 1,
+          borderColor: selected ? theme.primary : theme.border,
           opacity: disabled ? 0.5 : 1,
         },
         style,
@@ -53,8 +55,8 @@ export function Chip({ label, selected = false, disabled = false, onPress, style
 
 const styles = StyleSheet.create({
   base: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 999,
   },
   label: {

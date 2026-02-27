@@ -214,8 +214,8 @@ export default function ManualPreferencesScreen() {
         {/* ——— Core: Ranked goals (up to 3) ——— */}
         <SectionHeader
           title="Primary Focus"
-          subtitle="Pick up to 3 goals, ranked (optional)."
-          style={{ marginTop: 16 }}
+          subtitle="Pick up to 3, ranked."
+          style={{ marginTop: 20 }}
         />
         {rankedGoals.length > 0 && (
           <View style={styles.chipGroup}>
@@ -228,7 +228,11 @@ export default function ManualPreferencesScreen() {
                 <View
                   style={[
                     styles.rankBadge,
-                    { backgroundColor: theme.chipSelectedBackground },
+                    {
+                      backgroundColor: theme.chipSelectedBackground,
+                      borderWidth: 1,
+                      borderColor: theme.primary,
+                    },
                   ]}
                 >
                   <Text
@@ -242,6 +246,8 @@ export default function ManualPreferencesScreen() {
                     styles.rankedChipInner,
                     {
                       backgroundColor: theme.chipSelectedBackground,
+                      borderWidth: 1,
+                      borderColor: theme.primary,
                     },
                   ]}
                 >
@@ -272,7 +278,7 @@ export default function ManualPreferencesScreen() {
         <SectionHeader
           title="Duration"
           subtitle="Approximate total session length."
-          style={{ marginTop: 20 }}
+          style={{ marginTop: 24 }}
         />
         <View style={styles.chipGroup}>
           {DURATIONS.map((minutes) => (
@@ -290,7 +296,7 @@ export default function ManualPreferencesScreen() {
         <SectionHeader
           title="Energy Level"
           subtitle="How much you have in the tank."
-          style={{ marginTop: 20 }}
+          style={{ marginTop: 24 }}
         />
         <View style={styles.chipGroup}>
           {ENERGY_LEVELS.map((level) => (
@@ -313,7 +319,7 @@ export default function ManualPreferencesScreen() {
         <SectionHeader
           title="Target"
           subtitle="Upper, Lower, or Full body (optional)."
-          style={{ marginTop: 20 }}
+          style={{ marginTop: 24 }}
         />
         <View style={styles.chipGroup}>
           {TARGET_OPTIONS.map((opt) => (
@@ -349,31 +355,43 @@ export default function ManualPreferencesScreen() {
           </>
         )}
 
-        {/* ——— Refinements (collapsible) ——— */}
-        <View style={styles.refinementsHeader}>
+        {/* ——— Advanced filters (collapsible) ——— */}
+        <Pressable
+          style={[
+            styles.advancedFiltersHeader,
+            { borderBottomColor: theme.border },
+          ]}
+          onPress={toggleRefinements}
+        >
           <Text
-            style={[styles.refinementsTitle, { color: theme.text }]}
-            onPress={toggleRefinements}
+            style={[styles.advancedFiltersTitle, { color: theme.textMuted }]}
           >
-            Refinements
+            Advanced filters
           </Text>
           <Text
-            style={[styles.refinementsToggle, { color: theme.textMuted }]}
-            onPress={toggleRefinements}
+            style={[styles.advancedFiltersChevron, { color: theme.textMuted }]}
           >
-            {refinementsOpen ? "Hide" : "Show"}
+            {refinementsOpen ? "▼" : "▶"}
           </Text>
-        </View>
+        </Pressable>
 
         {refinementsOpen && (
-          <View style={styles.refinementsSection}>
+          <View
+            style={[
+              styles.advancedFiltersSection,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.card,
+              },
+            ]}
+          >
             {/* Sub-goals per ranked goal */}
             {hasPrimaryFocus && (
               <>
                 <SectionHeader
                   title="Sub-goals"
-                  subtitle="Refine each goal (optional). Up to 3 per goal, ranked."
-                  style={{ marginTop: 12 }}
+                  subtitle="Up to 3 per goal, ranked."
+                  style={{ marginTop: 0 }}
                 />
                 {rankedGoals.map((goal, goalIdx) => {
                   const subOptions = SUB_FOCUS_BY_PRIMARY[goal] ?? [];
@@ -389,7 +407,11 @@ export default function ManualPreferencesScreen() {
                         <View
                           style={[
                             styles.rankBadgeSmall,
-                            { backgroundColor: theme.chipSelectedBackground },
+                            {
+                              backgroundColor: theme.chipSelectedBackground,
+                              borderWidth: 1,
+                              borderColor: theme.primary,
+                            },
                           ]}
                         >
                           <Text
@@ -446,6 +468,8 @@ export default function ManualPreferencesScreen() {
                                       {
                                         backgroundColor:
                                           theme.chipSelectedBackground,
+                                        borderWidth: 1,
+                                        borderColor: theme.primary,
                                       },
                                     ]}
                                   >
@@ -466,6 +490,8 @@ export default function ManualPreferencesScreen() {
                                       {
                                         backgroundColor:
                                           theme.chipSelectedBackground,
+                                        borderWidth: 1,
+                                        borderColor: theme.primary,
                                       },
                                     ]}
                                   >
@@ -557,7 +583,11 @@ export default function ManualPreferencesScreen() {
                     <View
                       style={[
                         styles.rankBadge,
-                        { backgroundColor: theme.chipSelectedBackground },
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
                       ]}
                     >
                       <Text
@@ -574,6 +604,8 @@ export default function ManualPreferencesScreen() {
                         styles.rankedChipInner,
                         {
                           backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
                         },
                       ]}
                     >
@@ -748,16 +780,16 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 24,
   },
   summary: {
     fontSize: 13,
-    marginTop: 4,
+    marginTop: 8,
   },
   chipGroup: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 12,
   },
   rankedChipWrap: {
     flexDirection: "row",
@@ -835,27 +867,33 @@ const styles = StyleSheet.create({
   },
   modifierLabel: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "500",
     marginTop: 12,
     marginBottom: 4,
-    textTransform: "uppercase",
   },
-  refinementsHeader: {
+  advancedFiltersHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 24,
+    marginTop: 32,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
   },
-  refinementsTitle: {
-    fontSize: 15,
+  advancedFiltersTitle: {
+    fontSize: 16,
     fontWeight: "600",
   },
-  refinementsToggle: {
-    fontSize: 13,
-    fontWeight: "500",
+  advancedFiltersChevron: {
+    fontSize: 14,
+    fontWeight: "600",
   },
-  refinementsSection: {
-    gap: 12,
+  advancedFiltersSection: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 20,
   },
   refinementsLabel: {
     fontSize: 12,

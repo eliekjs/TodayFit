@@ -11,8 +11,9 @@ const lightPalette = {
   secondary: "#111827",
   secondarySoft: "#E5E7EB",
   chipBackground: "#E5E7EB",
-  chipSelectedBackground: "#111827",
-  chipSelectedText: "#FFFFFF",
+  chipSelectedBackground: "#E0EAFF",
+  chipSelectedText: "#2563EB",
+  chipSelectedBorder: "#2563EB",
   danger: "#DC2626",
 };
 
@@ -27,8 +28,9 @@ const darkPalette = {
   secondary: "#F9FAFB",
   secondarySoft: "#111827",
   chipBackground: "#111827",
-  chipSelectedBackground: "#F9FAFB",
-  chipSelectedText: "#020617",
+  chipSelectedBackground: "#1E293B",
+  chipSelectedText: "#60A5FA",
+  chipSelectedBorder: "#60A5FA",
   danger: "#F87171",
 };
 
