@@ -16,7 +16,7 @@ export const defaultManualPreferences: ManualPreferences = {
   energyLevel: null,
   injuries: [],
   upcoming: [],
-  subFocus: [],
+  subFocusByGoal: {},
   workoutStyle: [],
 };
 

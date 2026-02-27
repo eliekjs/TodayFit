@@ -31,8 +31,8 @@ export type ManualPreferences = {
   /** Single list: joints + "No restrictions" (mutually exclusive with others). */
   injuries: string[];
   upcoming: string[];
-  /** Muscle/emphasis (contextual) + micro-goals (global); feeds filtering. */
-  subFocus: string[];
+  /** Sub-goals per goal: key = goal label, value = ordered sub-goal labels (max 3 per goal, order = rank). */
+  subFocusByGoal: Record<string, string[]>;
   workoutStyle: string[];
 };
 

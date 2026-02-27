@@ -1,5 +1,5 @@
 import { EXERCISES } from "../data/exercises";
-import { deriveBodyPartFocus } from "./preferencesConstants";
+import { deriveBodyPartFocus, deriveSubFocus } from "./preferencesConstants";
 import type {
   ExerciseDefinition,
   GeneratedExercise,
@@ -121,6 +121,11 @@ export function generateWorkout(
       ? []
       : preferences.injuries.filter((i) => i !== "No restrictions");
 
+  const subFocus = deriveSubFocus(
+    preferences.primaryFocus,
+    preferences.subFocusByGoal
+  );
+
   const seed = JSON.stringify({
     focus: preferences.primaryFocus,
     bodyPartFocus,
@@ -128,7 +133,7 @@ export function generateWorkout(
     energy: preferences.energyLevel,
     injuries: injuryFilter,
     upcoming: preferences.upcoming,
-    subFocus: preferences.subFocus,
+    subFocus,
     profile: gymProfile?.id,
     ...(seedExtra != null && { seedExtra }),
   });
@@ -246,8 +251,8 @@ export function generateWorkout(
   if (preferences.upcoming.length) {
     notes.push(`Upcoming: ${preferences.upcoming.join(", ")}`);
   }
-  if (preferences.subFocus.length) {
-    notes.push(`Sub-focus: ${preferences.subFocus.join(", ")}`);
+  if (subFocus.length) {
+    notes.push(`Sub-focus: ${subFocus.join(", ")}`);
   }
   if (gymProfile) {
     notes.push(`Using only equipment in ${gymProfile.name}`);

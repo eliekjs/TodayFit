@@ -63,17 +63,7 @@ export const UPCOMING_OPTIONS = [
   "Hard Upper Day",
 ] as const;
 
-/** Sub-focus: global micro-goals (shown with contextual emphasis list). */
-export const SUB_FOCUS_MICRO_GOALS = [
-  "Knee mobility",
-  "Uphill conditioning",
-  "Core stability",
-  "Posterior chain",
-  "Shoulder stability",
-  "Grip strength",
-] as const;
-
-/** Sub-focus: contextual muscle/emphasis per primary focus. */
+/** Sub-focus: contextual options per primary focus (sub-goals under each goal). */
 export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
   "Build Strength": [
     "Squat",
@@ -148,6 +138,16 @@ export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
     "Full-body",
   ],
 };
+
+/**
+ * Derives flat sub-focus list for the generator from subFocusByGoal (in primaryFocus order).
+ */
+export function deriveSubFocus(
+  primaryFocus: string[],
+  subFocusByGoal: Record<string, string[]>
+): string[] {
+  return primaryFocus.flatMap((goal) => subFocusByGoal[goal] ?? []);
+}
 
 /**
  * Derives bodyPartFocus for the generator from targetBody + targetModifier.

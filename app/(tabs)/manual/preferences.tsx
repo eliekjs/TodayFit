@@ -29,8 +29,8 @@ import {
   CONSTRAINT_OPTIONS,
   WORKOUT_STYLE_OPTIONS,
   UPCOMING_OPTIONS,
-  SUB_FOCUS_MICRO_GOALS,
   SUB_FOCUS_BY_PRIMARY,
+  deriveSubFocus,
 } from "../../../lib/preferencesConstants";
 import type { TargetBody } from "../../../lib/types";
 
@@ -41,7 +41,8 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const SUB_FOCUS_CAP = 3;
+const MAX_GOALS = 3;
+const MAX_SUB_GOALS_PER_GOAL = 3;
 
 function buildSelectionSummary(prefs: typeof defaultManualPreferences): string {
   const parts: string[] = [];
@@ -54,7 +55,8 @@ function buildSelectionSummary(prefs: typeof defaultManualPreferences): string {
       prefs.targetModifier.length > 0 ? ` (${prefs.targetModifier[0]})` : "";
     parts.push(`${prefs.targetBody}${mod}`);
   }
-  if (prefs.subFocus.length) parts.push(prefs.subFocus[0]);
+  const flatSub = deriveSubFocus(prefs.primaryFocus, prefs.subFocusByGoal);
+  if (flatSub.length) parts.push(flatSub[0]);
   return parts.join(" • ") || "Set your preferences below";
 }
 
@@ -69,29 +71,53 @@ export default function ManualPreferencesScreen() {
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
   const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
+  const [expandedSubGoalsForGoal, setExpandedSubGoalsForGoal] = useState<string | null>(null);
   const router = useRouter();
   const theme = useTheme();
 
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
-  const hasPrimaryFocus = manualPreferences.primaryFocus.length > 0;
-  const refineFocus =
-    hasPrimaryFocus ? manualPreferences.primaryFocus[0]! : null;
-  const contextualSubFocusOptions = refineFocus
-    ? SUB_FOCUS_BY_PRIMARY[refineFocus] ?? []
-    : [];
-  const subFocusCount =
-    manualPreferences.subFocus.length;
-  const canAddSubFocus = subFocusCount < SUB_FOCUS_CAP;
+  const rankedGoals = manualPreferences.primaryFocus;
+  const hasPrimaryFocus = rankedGoals.length > 0;
 
   const togglePrimaryFocus = (option: string) => {
     const current = manualPreferences.primaryFocus;
     const exists = current.includes(option);
-    updateManualPreferences({
-      primaryFocus: exists
-        ? current.filter((v) => v !== option)
-        : [...current, option],
-    });
+    if (exists) {
+      const nextFocus = current.filter((v) => v !== option);
+      const nextSub = { ...manualPreferences.subFocusByGoal };
+      delete nextSub[option];
+      updateManualPreferences({
+        primaryFocus: nextFocus,
+        subFocusByGoal: nextSub,
+      });
+      if (expandedSubGoalsForGoal === option) setExpandedSubGoalsForGoal(null);
+    } else {
+      if (current.length >= MAX_GOALS) return;
+      updateManualPreferences({ primaryFocus: [...current, option] });
+    }
+  };
+
+  const toggleSubGoal = (goal: string, subOpt: string) => {
+    const current = manualPreferences.subFocusByGoal[goal] ?? [];
+    const exists = current.includes(subOpt);
+    if (exists) {
+      const next = current.filter((v) => v !== subOpt);
+      updateManualPreferences({
+        subFocusByGoal: {
+          ...manualPreferences.subFocusByGoal,
+          [goal]: next,
+        },
+      });
+    } else {
+      if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
+      updateManualPreferences({
+        subFocusByGoal: {
+          ...manualPreferences.subFocusByGoal,
+          [goal]: [...current, subOpt],
+        },
+      });
+    }
   };
 
   const setTargetBody = (target: TargetBody | null) => {
@@ -122,17 +148,6 @@ export default function ManualPreferencesScreen() {
       ? withoutNoRestrictions.filter((v) => v !== opt)
       : [...withoutNoRestrictions, opt];
     updateManualPreferences({ injuries: next });
-  };
-
-  const toggleSubFocus = (opt: string) => {
-    const current = manualPreferences.subFocus;
-    const exists = current.includes(opt);
-    if (exists) {
-      updateManualPreferences({ subFocus: current.filter((v) => v !== opt) });
-      return;
-    }
-    if (subFocusCount >= SUB_FOCUS_CAP) return;
-    updateManualPreferences({ subFocus: [...current, opt] });
   };
 
   const toggleFromArray =
@@ -182,18 +197,59 @@ export default function ManualPreferencesScreen() {
           {buildSelectionSummary(manualPreferences)}
         </Text>
 
-        {/* ——— Core ——— */}
+        {/* ——— Core: Ranked goals (up to 3) ——— */}
         <SectionHeader
           title="Primary Focus"
-          subtitle="Pick up to 2 (optional)."
+          subtitle="Pick up to 3 goals, ranked (optional)."
           style={{ marginTop: 16 }}
         />
+        {rankedGoals.length > 0 && (
+          <View style={styles.chipGroup}>
+            {rankedGoals.map((goal, idx) => (
+              <Pressable
+                key={goal}
+                style={styles.rankedChipWrap}
+                onPress={() => togglePrimaryFocus(goal)}
+              >
+                <View
+                  style={[
+                    styles.rankBadge,
+                    { backgroundColor: theme.chipSelectedBackground },
+                  ]}
+                >
+                  <Text
+                    style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
+                  >
+                    {idx + 1}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.rankedChipInner,
+                    {
+                      backgroundColor: theme.chipSelectedBackground,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                    numberOfLines={1}
+                  >
+                    {goal}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
         <View style={styles.chipGroup}>
-          {PRIMARY_FOCUS_OPTIONS.map((option) => (
+          {PRIMARY_FOCUS_OPTIONS.filter(
+            (option) => !manualPreferences.primaryFocus.includes(option)
+          ).map((option) => (
             <Chip
               key={option}
               label={option}
-              selected={manualPreferences.primaryFocus.includes(option)}
+              selected={false}
               onPress={() => togglePrimaryFocus(option)}
             />
           ))}
@@ -297,60 +353,142 @@ export default function ManualPreferencesScreen() {
 
         {refinementsOpen && (
           <View style={styles.refinementsSection}>
-            {/* Sub-Focus: only when at least one Primary Focus */}
+            {/* Sub-goals per ranked goal */}
             {hasPrimaryFocus && (
               <>
                 <SectionHeader
-                  title="Sub-Focus"
-                  subtitle="Refine within your primary focus (optional)."
+                  title="Sub-goals"
+                  subtitle="Refine each goal (optional). Up to 3 per goal, ranked."
                   style={{ marginTop: 12 }}
                 />
-                {contextualSubFocusOptions.length > 0 && (
-                  <>
-                    <Text
-                      style={[styles.refinementsLabel, { color: theme.textMuted }]}
+                {rankedGoals.map((goal, goalIdx) => {
+                  const subOptions = SUB_FOCUS_BY_PRIMARY[goal] ?? [];
+                  const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
+                  const isExpanded = expandedSubGoalsForGoal === goal;
+                  const canAddSub = selectedSubs.length < MAX_SUB_GOALS_PER_GOAL;
+                  return (
+                    <View
+                      key={goal}
+                      style={[styles.goalRow, { borderColor: theme.border }]}
                     >
-                      Emphasis for {refineFocus}
-                    </Text>
-                    <View style={styles.chipGroup}>
-                      {contextualSubFocusOptions.map((opt) => (
-                        <Chip
-                          key={opt}
-                          label={opt}
-                          selected={manualPreferences.subFocus.includes(opt)}
-                          disabled={
-                            !manualPreferences.subFocus.includes(opt) &&
-                            !canAddSubFocus
+                      <View style={styles.goalRowHeader}>
+                        <View
+                          style={[
+                            styles.rankBadgeSmall,
+                            { backgroundColor: theme.chipSelectedBackground },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.rankBadgeTextSmall,
+                              { color: theme.chipSelectedText },
+                            ]}
+                          >
+                            {goalIdx + 1}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[styles.goalRowLabel, { color: theme.text }]}
+                          numberOfLines={1}
+                        >
+                          {goal}
+                        </Text>
+                        <Pressable
+                          onPress={() =>
+                            setExpandedSubGoalsForGoal(
+                              isExpanded ? null : goal
+                            )
                           }
-                          onPress={() => toggleSubFocus(opt)}
-                        />
-                      ))}
+                          style={styles.subGoalsControl}
+                        >
+                          <Text
+                            style={[
+                              styles.subGoalsControlText,
+                              { color: theme.primary },
+                            ]}
+                          >
+                            {isExpanded ? "− Sub-goals" : "+ Sub-goals"}
+                          </Text>
+                        </Pressable>
+                      </View>
+                      {isExpanded && subOptions.length > 0 && (
+                        <View
+                          style={[
+                            styles.subGoalsBlock,
+                            { borderTopColor: theme.border },
+                          ]}
+                        >
+                          {selectedSubs.length > 0 && (
+                            <View style={styles.chipGroup}>
+                              {selectedSubs.map((sub, subIdx) => (
+                                <Pressable
+                                  key={sub}
+                                  style={styles.rankedChipWrap}
+                                  onPress={() => toggleSubGoal(goal, sub)}
+                                >
+                                  <View
+                                    style={[
+                                      styles.rankBadgeSmall,
+                                      {
+                                        backgroundColor:
+                                          theme.chipSelectedBackground,
+                                      },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.rankBadgeTextSmall,
+                                        {
+                                          color: theme.chipSelectedText,
+                                        },
+                                      ]}
+                                    >
+                                      {subIdx + 1}
+                                    </Text>
+                                  </View>
+                                  <View
+                                    style={[
+                                      styles.rankedChipInner,
+                                      {
+                                        backgroundColor:
+                                          theme.chipSelectedBackground,
+                                      },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.rankedChipLabelSmall,
+                                        {
+                                          color: theme.chipSelectedText,
+                                        },
+                                      ]}
+                                      numberOfLines={1}
+                                    >
+                                      {sub}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              ))}
+                            </View>
+                          )}
+                          <View style={styles.chipGroup}>
+                            {subOptions
+                              .filter((opt) => !selectedSubs.includes(opt))
+                              .map((opt) => (
+                                <Chip
+                                  key={opt}
+                                  label={opt}
+                                  selected={false}
+                                  disabled={!canAddSub}
+                                  onPress={() => toggleSubGoal(goal, opt)}
+                                />
+                              ))}
+                          </View>
+                        </View>
+                      )}
                     </View>
-                  </>
-                )}
-                <Text
-                  style={[
-                    styles.refinementsLabel,
-                    styles.refinementsLabelMargin,
-                    { color: theme.textMuted },
-                  ]}
-                >
-                  Micro-goals
-                </Text>
-                <View style={styles.chipGroup}>
-                  {SUB_FOCUS_MICRO_GOALS.map((opt) => (
-                    <Chip
-                      key={opt}
-                      label={opt}
-                      selected={manualPreferences.subFocus.includes(opt)}
-                      disabled={
-                        !manualPreferences.subFocus.includes(opt) &&
-                        !canAddSubFocus
-                      }
-                      onPress={() => toggleSubFocus(opt)}
-                    />
-                  ))}
-                </View>
+                  );
+                })}
               </>
             )}
 
@@ -559,6 +697,80 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  rankedChipWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  rankBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 6,
+  },
+  rankBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  rankedChipInner: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    maxWidth: 220,
+  },
+  rankedChipLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  goalRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+  },
+  goalRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  rankBadgeSmall: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rankBadgeTextSmall: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  goalRowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1,
+    minWidth: 0,
+  },
+  subGoalsControl: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  subGoalsControlText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  subGoalsBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  rankedChipLabelSmall: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   modifierLabel: {
     fontSize: 12,
