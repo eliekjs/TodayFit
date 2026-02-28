@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAppState } from "../../../context/AppStateContext";
@@ -14,7 +15,12 @@ import { PrimaryButton } from "../../../components/Button";
 export default function ViewCompletedWorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { workoutHistory, setGeneratedWorkout, setResumeProgress } = useAppState();
+  const {
+    workoutHistory,
+    setGeneratedWorkout,
+    setResumeProgress,
+    updateWorkoutHistoryItem,
+  } = useAppState();
   const theme = useTheme();
 
   const item = id ? workoutHistory.find((h) => h.id === id) : null;
@@ -48,6 +54,7 @@ export default function ViewCompletedWorkoutScreen() {
 
   const date = new Date(item.date);
   const focusLabel = item.focus?.length ? item.focus.join(" • ") : "General training";
+  const displayTitle = item.name?.trim() || focusLabel;
   const exerciseCount = workout.sections.reduce(
     (sum, s) =>
       sum +
@@ -75,8 +82,25 @@ export default function ViewCompletedWorkoutScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         />
+        <View style={styles.nameSection}>
+          <Text style={[styles.nameLabel, { color: theme.textMuted }]}>
+            Workout name
+          </Text>
+          <TextInput
+            value={item.name ?? ""}
+            onChangeText={(name) =>
+              updateWorkoutHistoryItem(item.id, { name: name.trim() || undefined })
+            }
+            placeholder={focusLabel}
+            placeholderTextColor={theme.textMuted}
+            style={[
+              styles.nameInput,
+              { borderColor: theme.border, color: theme.text },
+            ]}
+          />
+        </View>
         <Card
-          title={focusLabel}
+          title={displayTitle}
           subtitle={
             [
               date.toLocaleDateString(undefined, {
@@ -199,6 +223,23 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginBottom: 16,
+  },
+  nameSection: {
+    marginBottom: 16,
+    gap: 6,
+  },
+  nameLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  nameInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
   },
   detailActions: {
     flexDirection: "row",

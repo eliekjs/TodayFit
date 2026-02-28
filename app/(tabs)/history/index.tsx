@@ -17,6 +17,9 @@ export default function HistoryScreen() {
     removeSavedWorkout,
   } = useAppState();
 
+  const getCompletedItemLabel = (item: (typeof items)[0], index: number) =>
+    item.name?.trim() || getDisplayLabel(item, index);
+
   const items = [...workoutHistory].sort((a, b) =>
     a.date.localeCompare(b.date)
   );
@@ -116,7 +119,7 @@ export default function HistoryScreen() {
             </View>
           ) : (
             items.map((item, index) => {
-              const label = getDisplayLabel(item, index);
+              const label = getCompletedItemLabel(item, index);
               const canViewOrRepeat = item.workout != null;
               const subtitleParts = [
                 item.durationMinutes != null ? `${item.durationMinutes} min` : null,

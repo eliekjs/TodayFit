@@ -6,6 +6,7 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  TextInput,
   LayoutAnimation,
   Platform,
   UIManager,
@@ -69,9 +70,12 @@ export default function ManualPreferencesScreen() {
     gymProfiles,
     setGeneratedWorkout,
     setActiveGymProfile,
+    addPreferencePreset,
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
   const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
+  const [showSavePresetModal, setShowSavePresetModal] = useState(false);
+  const [savePresetName, setSavePresetName] = useState("");
   const [expandedSubGoalsForGoal, setExpandedSubGoalsForGoal] = useState<string | null>(null);
   const router = useRouter();
   const theme = useTheme();
@@ -186,7 +190,20 @@ export default function ManualPreferencesScreen() {
   };
 
   const onSavePreset = () => {
-    // TODO: Save preset – persistence not built yet
+    setSavePresetName("");
+    setShowSavePresetModal(true);
+  };
+
+  const onConfirmSavePreset = () => {
+    const name = savePresetName.trim() || "My preset";
+    addPreferencePreset({
+      name,
+      savedAt: new Date().toISOString(),
+      preferences: { ...manualPreferences },
+    });
+    setShowSavePresetModal(false);
+    setSavePresetName("");
+    router.push("/profiles");
   };
 
   const toggleRefinements = () => {
@@ -641,24 +658,25 @@ export default function ManualPreferencesScreen() {
         {/* ——— Gym profile ——— */}
         <SectionHeader
           title="Gym profile"
+          style={{ marginTop: 24 }}
           subtitle={
             activeProfile != null
               ? `Workouts use equipment from: ${activeProfile.name}`
               : "No profile selected. Add one in Profile."
           }
-          style={{ marginTop: 24 }}
         />
-        <View style={styles.gymProfileActions}>
+        <View style={[styles.gymProfileActions, { marginBottom: 24 }]}>
           <PrimaryButton
             label="Change gym profile"
             variant="secondary"
             onPress={() => setShowChangeProfileModal(true)}
+            style={styles.gymProfileBtn}
           />
           <PrimaryButton
             label="Edit gym profiles"
-            variant="ghost"
+            variant="secondary"
             onPress={() => router.push("/profiles?from=workout")}
-            style={{ marginTop: 8 }}
+            style={styles.gymProfileBtn}
           />
         </View>
       </ScrollView>
@@ -765,6 +783,54 @@ export default function ManualPreferencesScreen() {
               <PrimaryButton
                 label="Done"
                 onPress={() => setShowChangeProfileModal(false)}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Save preset modal */}
+      <Modal
+        transparent
+        visible={showSavePresetModal}
+        animationType="fade"
+        onRequestClose={() => setShowSavePresetModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={styles.modalDismiss}
+            onPress={() => setShowSavePresetModal(false)}
+          />
+          <View
+            style={[styles.modalSheet, styles.savePresetModalSheet, { backgroundColor: theme.card }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Save preference preset
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: theme.textMuted }]}>
+              Name this preset to reuse your current workout preferences later.
+            </Text>
+            <TextInput
+              placeholder="e.g. Upper Push Day"
+              placeholderTextColor={theme.textMuted}
+              value={savePresetName}
+              onChangeText={setSavePresetName}
+              style={[
+                styles.savePresetInput,
+                { borderColor: theme.border, color: theme.text },
+              ]}
+            />
+            <View style={styles.modalFooter}>
+              <PrimaryButton
+                label="Cancel"
+                variant="ghost"
+                onPress={() => setShowSavePresetModal(false)}
+                style={styles.modalFooterBtn}
+              />
+              <PrimaryButton
+                label="Save"
+                onPress={onConfirmSavePreset}
+                style={styles.modalFooterBtn}
               />
             </View>
           </View>
@@ -905,7 +971,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   gymProfileActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
     marginTop: 8,
+  },
+  gymProfileBtn: {
+    flex: 1,
+    minWidth: 140,
   },
   bottomBar: {
     position: "absolute",
@@ -954,6 +1027,23 @@ const styles = StyleSheet.create({
   modalFooter: {
     paddingTop: 12,
     paddingBottom: 28,
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  modalFooterBtn: {
+    minWidth: 100,
+  },
+  savePresetModalSheet: {
+    paddingBottom: 24,
+  },
+  savePresetInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginTop: 16,
   },
   modalTitle: {
     fontSize: 18,

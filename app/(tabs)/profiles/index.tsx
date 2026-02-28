@@ -9,6 +9,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "../../../lib/theme";
@@ -42,6 +43,11 @@ export default function GymProfilesScreen() {
     setActiveGymProfile,
     addGymProfile,
     updateGymProfile,
+    removeGymProfile,
+    preferencePresets,
+    applyPreferencePreset,
+    updatePreferencePreset,
+    removePreferencePreset,
   } = useAppState();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -100,6 +106,11 @@ export default function GymProfilesScreen() {
     router.push("/manual/preferences");
   };
 
+  const onApplyPreset = (presetId: string) => {
+    applyPreferencePreset(presetId);
+    router.push("/manual/preferences");
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -116,13 +127,18 @@ export default function GymProfilesScreen() {
           </View>
         )}
 
-        <Card title="Gym Profiles">
+        <Card title="Profiles">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Workouts use only equipment from your active profile. Select a
-            profile to edit its equipment, or add a new gym.
+            Manage gym profiles (equipment) and preference presets (saved workout settings).
           </Text>
         </Card>
 
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          Gym profiles
+        </Text>
+        <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
+          Workouts use equipment from your active profile.
+        </Text>
         <View style={styles.profileList}>
           {gymProfiles.map((profile) => {
             const isActive = profile.id === activeGymProfileId;
@@ -163,6 +179,26 @@ export default function GymProfilesScreen() {
 
                 {isExpanded && (
                   <View style={[styles.expandedContent, { borderColor: theme.border }]}>
+                    <View style={styles.nameRow}>
+                      <Text style={[styles.nameLabel, { color: theme.textMuted }]}>
+                        Name
+                      </Text>
+                      <TextInput
+                        value={profile.name}
+                        onChangeText={(name) =>
+                          updateGymProfile(profile.id, { name: name.trim() || profile.name })
+                        }
+                        placeholder="Gym name"
+                        placeholderTextColor={theme.textMuted}
+                        style={[
+                          styles.nameInput,
+                          {
+                            borderColor: theme.border,
+                            color: theme.text,
+                          },
+                        ]}
+                      />
+                    </View>
                     <View style={styles.setActiveRow}>
                       {!isActive && (
                         <PrimaryButton
@@ -237,6 +273,43 @@ export default function GymProfilesScreen() {
                           )}
                       </View>
                     ))}
+
+                    <View
+                      style={[
+                        styles.deleteRow,
+                        { borderTopColor: theme.border },
+                      ]}
+                    >
+                      <PrimaryButton
+                        label="Delete gym"
+                        variant="ghost"
+                        onPress={() => {
+                          if (gymProfiles.length <= 1) {
+                            Alert.alert(
+                              "Can't delete",
+                              "You need at least one gym profile. Add another first if you want to remove this one."
+                            );
+                            return;
+                          }
+                          Alert.alert(
+                            "Delete gym?",
+                            `Remove "${profile.name}"? Workouts using this profile will no longer have it available.`,
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              {
+                                text: "Delete",
+                                style: "destructive",
+                                onPress: () => {
+                                  removeGymProfile(profile.id);
+                                  setExpandedId(null);
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                        style={styles.deleteButton}
+                      />
+                    </View>
                   </View>
                 )}
               </View>
@@ -346,6 +419,67 @@ export default function GymProfilesScreen() {
             </View>
           </View>
         ) : null}
+
+        <Text style={[styles.sectionTitle, styles.preferencePresetsTitle, { color: theme.text }]}>
+          Preference presets
+        </Text>
+        <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
+          Saved workout preference sets. Apply one to load it in Workout Preferences.
+        </Text>
+        {preferencePresets.length === 0 ? (
+          <Text style={[styles.emptyPresets, { color: theme.textMuted }]}>
+            No presets yet. Save your current preferences from Workout Preferences (Save preset).
+          </Text>
+        ) : (
+          <View style={styles.presetList}>
+            {preferencePresets.map((preset) => (
+              <View
+                key={preset.id}
+                style={[styles.presetRow, { borderColor: theme.border }]}
+              >
+                <TextInput
+                  value={preset.name}
+                  onChangeText={(name) =>
+                    updatePreferencePreset(preset.id, { name: name.trim() || preset.name })
+                  }
+                  placeholder="Preset name"
+                  placeholderTextColor={theme.textMuted}
+                  style={[
+                    styles.presetNameInput,
+                    { borderColor: theme.border, color: theme.text },
+                  ]}
+                />
+                <View style={styles.presetActions}>
+                  <PrimaryButton
+                    label="Apply"
+                    variant="secondary"
+                    onPress={() => onApplyPreset(preset.id)}
+                    style={styles.presetBtn}
+                  />
+                  <PrimaryButton
+                    label="Delete"
+                    variant="ghost"
+                    onPress={() => {
+                      Alert.alert(
+                        "Delete preset?",
+                        `Remove "${preset.name}"?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete",
+                            style: "destructive",
+                            onPress: () => removePreferencePreset(preset.id),
+                          },
+                        ]
+                      );
+                    }}
+                    style={styles.presetBtn}
+                  />
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -359,6 +493,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    marginTop: 24,
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  preferencePresetsTitle: {
+    marginTop: 32,
+  },
+  emptyPresets: {
+    fontSize: 13,
+    fontStyle: "italic",
+    marginBottom: 16,
+  },
+  presetList: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  presetRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+  },
+  presetNameInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  presetActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  presetBtn: {
+    flex: 1,
   },
   backToWorkout: {
     marginBottom: 16,
@@ -395,8 +571,32 @@ const styles = StyleSheet.create({
     marginTop: -1,
     gap: 16,
   },
+  nameRow: {
+    gap: 6,
+  },
+  nameLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  nameInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
   setActiveRow: {
     marginBottom: 4,
+  },
+  deleteRow: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  deleteButton: {
+    alignSelf: "flex-start",
   },
   categoryBlock: {
     gap: 8,

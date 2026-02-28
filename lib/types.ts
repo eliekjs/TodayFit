@@ -122,10 +122,20 @@ export type WorkoutHistoryItem = {
   date: string;
   focus: string[];
   durationMinutes: number | null;
+  /** Optional user-defined name for this completed workout. */
+  name?: string;
   /** Full workout plan when completed from this app (for View / Do again). */
   workout?: GeneratedWorkout;
   /** Notes per exercise (exerciseId -> note) from execution. */
   exerciseNotes?: Record<string, string>;
+};
+
+/** Saved workout preference preset (named snapshot of ManualPreferences). */
+export type PreferencePreset = {
+  id: string;
+  name: string;
+  savedAt: string;
+  preferences: ManualPreferences;
 };
 
 export type ExecutionProgress = Record<
