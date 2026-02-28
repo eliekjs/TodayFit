@@ -95,7 +95,34 @@ const HOTEL_GYM_DEFAULTS: EquipmentKey[] = [
   "bodyweight",
 ];
 
-export type GymProfileTemplate = "your_gym" | "home_gym" | "hotel_gym" | "custom";
+const SMALL_GYM_DEFAULTS: EquipmentKey[] = [
+  "barbell",
+  "plates",
+  "bench",
+  "dumbbells",
+  "kettlebells",
+  "pullup_bar",
+  "bodyweight",
+];
+
+export type GymProfileTemplate =
+  | "your_gym"
+  | "small_gym"
+  | "home_gym"
+  | "hotel_gym"
+  | "custom";
+
+/** Step 1 — Space type labels per spec (Full Commercial Gym, Small Gym, Home Setup, Hotel Gym, Bodyweight Only) */
+export const SPACE_TYPE_OPTIONS: {
+  template: GymProfileTemplate;
+  label: string;
+}[] = [
+  { template: "your_gym", label: "Full Commercial Gym" },
+  { template: "small_gym", label: "Small Gym" },
+  { template: "home_gym", label: "Home Setup" },
+  { template: "hotel_gym", label: "Hotel Gym" },
+  { template: "custom", label: "Bodyweight Only" },
+];
 
 export function getDefaultEquipmentForTemplate(
   template: GymProfileTemplate
@@ -103,6 +130,8 @@ export function getDefaultEquipmentForTemplate(
   switch (template) {
     case "your_gym":
       return [...YOUR_GYM_DEFAULTS];
+    case "small_gym":
+      return [...SMALL_GYM_DEFAULTS];
     case "home_gym":
       return [...HOME_GYM_DEFAULTS];
     case "hotel_gym":

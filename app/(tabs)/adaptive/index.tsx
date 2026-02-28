@@ -7,17 +7,48 @@ import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 
+/** Spec-aligned: Performance, Physique, Resilience, Energy System (representative set). */
 const ADAPTIVE_GOALS = [
-  { id: "strength", label: "Max strength foundation" },
-  { id: "muscle", label: "Build visible muscle" },
-  { id: "endurance", label: "Endurance engine" },
-  { id: "conditioning", label: "Sport-specific conditioning" },
-  { id: "mobility", label: "Mobility & joint health" },
-  { id: "climbing", label: "Climbing / grip performance" },
+  { id: "strength", label: "Max strength foundation", category: "Performance" },
+  { id: "muscle", label: "Build visible muscle", category: "Physique" },
+  { id: "endurance", label: "Endurance engine", category: "Energy System" },
+  { id: "conditioning", label: "Sport-specific conditioning", category: "Energy System" },
+  { id: "mobility", label: "Mobility & joint health", category: "Resilience" },
+  { id: "climbing", label: "Climbing / grip performance", category: "Performance" },
+  { id: "trail_running", label: "Trail running", category: "Performance" },
+  { id: "ski", label: "Ski / snow", category: "Performance" },
+  { id: "physique", label: "Physique / body comp", category: "Physique" },
+  { id: "resilience", label: "Resilience / recovery", category: "Resilience" },
 ];
 
-const TIME_HORIZONS = [4, 8, 12];
-const LOAD_OPTIONS = ["Light", "Normal", "Heavy"] as const;
+/** Spec: No Deadline, 1–3 Weeks, 4–8 Weeks, 2–4 Months, In-Season. */
+const TIME_HORIZON_OPTIONS = [
+  { id: "no_deadline", label: "No Deadline" },
+  { id: "1_3_weeks", label: "1–3 Weeks" },
+  { id: "4_8_weeks", label: "4–8 Weeks" },
+  { id: "2_4_months", label: "2–4 Months" },
+  { id: "in_season", label: "In-Season" },
+] as const;
+
+/** Spec: recent load (past 3–5 days). */
+const RECENT_LOAD_OPTIONS = [
+  "Heavy Lower",
+  "Heavy Upper",
+  "Long Run",
+  "Big Hike",
+  "Ski Day",
+  "Climbing Day",
+  "Light / Off",
+  "Normal / Mixed",
+] as const;
+
+const INJURY_STATUS_OPTIONS = [
+  "No Concerns",
+  "Managing",
+  "Rebuilding",
+] as const;
+
+const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
@@ -28,9 +59,13 @@ export default function AdaptiveModeScreen() {
     null,
     null,
   ]);
-  const [horizon, setHorizon] = useState<number | null>(8);
+  const [horizon, setHorizon] = useState<string>("4_8_weeks");
   const [recentLoad, setRecentLoad] =
-    useState<(typeof LOAD_OPTIONS)[number]>("Normal");
+    useState<(typeof RECENT_LOAD_OPTIONS)[number]>("Normal / Mixed");
+  const [injuryStatus, setInjuryStatus] =
+    useState<(typeof INJURY_STATUS_OPTIONS)[number]>("No Concerns");
+  const [fatigue, setFatigue] =
+    useState<(typeof FATIGUE_OPTIONS)[number]>("Moderate");
 
   const selectGoalForRank = (rankIndex: number, goalId: string) => {
     setRankedGoals((prev) => {
@@ -54,8 +89,10 @@ export default function AdaptiveModeScreen() {
       params: {
         primary,
         secondary: secondary ?? "",
-        horizon: String(horizon ?? 8),
+        horizon,
         recentLoad,
+        injuryStatus,
+        fatigue,
       },
     });
   };
@@ -111,23 +148,23 @@ export default function AdaptiveModeScreen() {
           style={{ marginTop: 12 }}
         />
         <View style={styles.chipGroup}>
-          {TIME_HORIZONS.map((weeks) => (
+          {TIME_HORIZON_OPTIONS.map((opt) => (
             <Chip
-              key={weeks}
-              label={`${weeks} weeks`}
-              selected={horizon === weeks}
-              onPress={() => setHorizon(weeks)}
+              key={opt.id}
+              label={opt.label}
+              selected={horizon === opt.id}
+              onPress={() => setHorizon(opt.id)}
             />
           ))}
         </View>
 
         <SectionHeader
           title="Recent load"
-          subtitle="How the last 2–3 days have felt."
+          subtitle="Past 3–5 days."
           style={{ marginTop: 20 }}
         />
         <View style={styles.chipGroup}>
-          {LOAD_OPTIONS.map((load) => (
+          {RECENT_LOAD_OPTIONS.map((load) => (
             <Chip
               key={load}
               label={load}
@@ -137,9 +174,41 @@ export default function AdaptiveModeScreen() {
           ))}
         </View>
 
+        <SectionHeader
+          title="Injury status"
+          subtitle="Rebuilding, managing, or no concerns."
+          style={{ marginTop: 20 }}
+        />
+        <View style={styles.chipGroup}>
+          {INJURY_STATUS_OPTIONS.map((opt) => (
+            <Chip
+              key={opt}
+              label={opt}
+              selected={injuryStatus === opt}
+              onPress={() => setInjuryStatus(opt)}
+            />
+          ))}
+        </View>
+
+        <SectionHeader
+          title="Fatigue"
+          subtitle="How you feel today."
+          style={{ marginTop: 20 }}
+        />
+        <View style={styles.chipGroup}>
+          {FATIGUE_OPTIONS.map((opt) => (
+            <Chip
+              key={opt}
+              label={opt}
+              selected={fatigue === opt}
+              onPress={() => setFatigue(opt)}
+            />
+          ))}
+        </View>
+
         <View style={styles.footer}>
           <PrimaryButton
-            label="Recommend Today's Session"
+            label="Generate Adaptive Session"
             onPress={onRecommend}
           />
         </View>

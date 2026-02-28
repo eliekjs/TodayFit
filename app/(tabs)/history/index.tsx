@@ -133,13 +133,13 @@ export default function HistoryScreen() {
                   {canViewOrRepeat && (
                     <View style={styles.completedActions}>
                       <PrimaryButton
-                        label="View"
+                        label="View details"
                         variant="secondary"
                         onPress={() => router.push(`/history/${item.id}`)}
                         style={{ flex: 1 }}
                       />
                       <PrimaryButton
-                        label="Do again"
+                        label="Repeat session"
                         onPress={() => {
                           if (!item.workout) return;
                           setGeneratedWorkout({
@@ -149,6 +149,12 @@ export default function HistoryScreen() {
                           setResumeProgress(null);
                           router.push("/manual/execute");
                         }}
+                        style={{ flex: 1 }}
+                      />
+                      <PrimaryButton
+                        label="Edit + re-run"
+                        variant="ghost"
+                        onPress={() => router.push("/manual/preferences")}
                         style={{ flex: 1 }}
                       />
                     </View>
@@ -224,6 +230,7 @@ const styles = StyleSheet.create({
   },
   completedActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: 8,
     gap: 8,
   },

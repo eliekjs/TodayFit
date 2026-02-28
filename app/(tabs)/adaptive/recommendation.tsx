@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
@@ -12,11 +12,12 @@ import {
 } from "../../../lib/adaptiveSessionTypes";
 
 export default function AdaptiveRecommendationScreen() {
-  const { primary, secondary, horizon, recentLoad } = useLocalSearchParams<{
+  const { primary, secondary, horizon, recentLoad, fatigue } = useLocalSearchParams<{
     primary?: string;
     secondary?: string;
     horizon?: string;
     recentLoad?: string;
+    fatigue?: string;
   }>();
   const theme = useTheme();
   const router = useRouter();
@@ -31,12 +32,14 @@ export default function AdaptiveRecommendationScreen() {
   const options = useMemo(() => {
     const p = primary ?? "strength";
     const s = secondary && secondary.length > 0 ? secondary : null;
-    const h = horizon ? parseInt(horizon, 10) : 8;
-    const load = recentLoad ?? "Normal";
-    return getSessionTypeOptions(p, s, h, load);
-  }, [primary, secondary, horizon, recentLoad]);
+    const h = horizon ?? "4_8_weeks";
+    const load = recentLoad ?? "Normal / Mixed";
+    return getSessionTypeOptions(p, s, h, load, fatigue ?? null);
+  }, [primary, secondary, horizon, recentLoad, fatigue]);
 
   const [recommended, ...otherOptions] = options;
+  const alternativesScrollRef = useRef<ScrollView>(null);
+  const [alternativesSectionY, setAlternativesSectionY] = useState(0);
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
 
@@ -66,24 +69,33 @@ export default function AdaptiveRecommendationScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
+        ref={alternativesScrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <Card
-          title="Recommended session"
-          subtitle={recommended.sessionType}
+          title={`Today's Optimal Session: ${recommended.sessionType} (${recommended.durationMinutes} min)`}
         >
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             Focus: {recommended.focus.join(" • ") || "General training"} {"\n"}
-            Duration: {recommended.durationMinutes} min {"\n"}
             Energy target:{" "}
             {`${recommended.energy}`.charAt(0).toUpperCase() +
               `${recommended.energy}`.slice(1)}
           </Text>
-          <View style={{ marginTop: 12 }}>
+          <View style={{ marginTop: 12, gap: 8 }}>
             <PrimaryButton
-              label="Generate Workout"
+              label="Accept & Build"
               onPress={() => onChooseSessionType(recommended)}
+            />
+            <PrimaryButton
+              label="See Alternatives"
+              variant="secondary"
+              onPress={() => alternativesScrollRef.current?.scrollTo({ y: alternativesSectionY, animated: true })}
+            />
+            <PrimaryButton
+              label="Switch Modes"
+              variant="ghost"
+              onPress={() => router.replace("/(tabs)")}
             />
           </View>
         </Card>
@@ -101,10 +113,14 @@ export default function AdaptiveRecommendationScreen() {
           </Text>
         </Card>
 
-        <Text style={[styles.otherSectionTitle, { color: theme.text }]}>
-          Other session type options
-        </Text>
-        <View style={styles.otherOptions}>
+        <View
+          onLayout={(e) => setAlternativesSectionY(e.nativeEvent.layout.y)}
+          style={{ marginTop: 24 }}
+        >
+          <Text style={[styles.otherSectionTitle, { color: theme.text }]}>
+            Other session type options
+          </Text>
+          <View style={styles.otherOptions}>
           {otherOptions.map((option) => (
             <Pressable
               key={option.id}
@@ -135,6 +151,7 @@ export default function AdaptiveRecommendationScreen() {
               </Text>
             </Pressable>
           ))}
+          </View>
         </View>
       </ScrollView>
     </View>

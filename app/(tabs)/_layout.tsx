@@ -1,8 +1,9 @@
 import React from "react";
-import { Pressable } from "react-native";
+import { Pressable, Text } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../lib/theme";
+import { useAppState } from "../../context/AppStateContext";
 
 function HeaderBackButton() {
   const router = useRouter();
@@ -10,6 +11,27 @@ function HeaderBackButton() {
   return (
     <Pressable onPress={() => router.back()} style={{ paddingLeft: 16 }}>
       <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
+
+function HeaderGymProfileButton() {
+  const theme = useTheme();
+  const router = useRouter();
+  const { gymProfiles, activeGymProfileId } = useAppState();
+  const activeProfile =
+    gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+  const label = activeProfile ? activeProfile.name : "Gym Profile";
+
+  return (
+    <Pressable
+      onPress={() => router.push("/profiles")}
+      style={{ flexDirection: "row", alignItems: "center", paddingRight: 16, gap: 4 }}
+    >
+      <Text style={{ fontSize: 14, color: theme.text, maxWidth: 120 }} numberOfLines={1}>
+        {label}
+      </Text>
+      <Text style={{ fontSize: 12, color: theme.textMuted }}>▾</Text>
     </Pressable>
   );
 }
@@ -48,6 +70,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
+          headerRight: () => <HeaderGymProfileButton />,
         }}
       />
       <Tabs.Screen

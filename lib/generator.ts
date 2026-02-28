@@ -169,8 +169,9 @@ export function generateWorkout(
     title: string,
     pool: ExerciseDefinition[],
     count: number,
-    used: Set<string>
-  ): { id: string; title: string; exercises: GeneratedExercise[]; supersetPairs?: [GeneratedExercise, GeneratedExercise][] } => {
+    used: Set<string>,
+    reasoning: string
+  ): { id: string; title: string; reasoning?: string; exercises: GeneratedExercise[]; supersetPairs?: [GeneratedExercise, GeneratedExercise][] } => {
     const exercises: GeneratedExercise[] = [];
 
     while (exercises.length < count) {
@@ -191,6 +192,7 @@ export function generateWorkout(
     return {
       id: title.toLowerCase().replace(" ", "_"),
       title,
+      reasoning,
       exercises,
     };
   };
@@ -199,8 +201,9 @@ export function generateWorkout(
     title: string,
     pool: ExerciseDefinition[],
     pairCount: number,
-    used: Set<string>
-  ): { id: string; title: string; exercises: GeneratedExercise[]; supersetPairs: [GeneratedExercise, GeneratedExercise][] } => {
+    used: Set<string>,
+    reasoning: string
+  ): { id: string; title: string; reasoning?: string; exercises: GeneratedExercise[]; supersetPairs: [GeneratedExercise, GeneratedExercise][] } => {
     const poolToUse = pool.length ? pool : eligible;
     const pairs: [GeneratedExercise, GeneratedExercise][] = [];
 
@@ -230,16 +233,41 @@ export function generateWorkout(
     return {
       id: title.toLowerCase().replace(" ", "_"),
       title,
+      reasoning,
       exercises: pairs.flat(),
       supersetPairs: pairs,
     };
   };
 
   const usedExerciseIds = new Set<string>();
-  const warmup = buildSection("Warm-up", warmupPool, counts.warmup, usedExerciseIds);
-  const mainSets = buildMainSupersetSection("Main Sets", mainPool, counts.mainSupersetPairs, usedExerciseIds);
-  const accessory = buildSection("Accessory", accessoryPool, counts.accessory, usedExerciseIds);
-  const cooldown = buildSection("Cooldown", cooldownPool, counts.cooldown, usedExerciseIds);
+  const warmup = buildSection(
+    "Warm-up",
+    warmupPool,
+    counts.warmup,
+    usedExerciseIds,
+    "Prepares your joints and elevates heart rate before the main work."
+  );
+  const mainSets = buildMainSupersetSection(
+    "Main Sets",
+    mainPool,
+    counts.mainSupersetPairs,
+    usedExerciseIds,
+    "Compound and focus-aligned movements in supersets to maximize time under tension."
+  );
+  const accessory = buildSection(
+    "Accessory",
+    accessoryPool,
+    counts.accessory,
+    usedExerciseIds,
+    "Targets supporting muscles and balance for your goals."
+  );
+  const cooldown = buildSection(
+    "Cooldown",
+    cooldownPool,
+    counts.cooldown,
+    usedExerciseIds,
+    "Mobility and breathing to support recovery."
+  );
 
   const notes: string[] = [];
   if (bodyPartFocus.length) {

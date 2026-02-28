@@ -93,11 +93,19 @@ export default function ViewCompletedWorkoutScreen() {
           }
           style={{ marginBottom: 16 }}
         />
-        <PrimaryButton
-          label="Do again"
-          onPress={onDoAgain}
-          style={{ marginBottom: 20 }}
-        />
+        <View style={styles.detailActions}>
+          <PrimaryButton
+            label="Repeat session"
+            onPress={onDoAgain}
+            style={{ flex: 1 }}
+          />
+          <PrimaryButton
+            label="Edit + re-run"
+            variant="secondary"
+            onPress={() => router.push("/manual/preferences")}
+            style={{ flex: 1 }}
+          />
+        </View>
 
         {workout.sections.map((section) => {
           if (section.supersetPairs && section.supersetPairs.length > 0) {
@@ -191,6 +199,11 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginBottom: 16,
+  },
+  detailActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 20,
   },
   centered: {
     flex: 1,

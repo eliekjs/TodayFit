@@ -101,6 +101,8 @@ export type GeneratedExercise = {
 export type WorkoutSection = {
   id: string;
   title: string;
+  /** Optional one-sentence reasoning for this section (from generator). */
+  reasoning?: string;
   exercises: GeneratedExercise[];
   /** Main block only: 1–4 superset pairs. When set, UI shows "A ↔ B" per pair. */
   supersetPairs?: [GeneratedExercise, GeneratedExercise][];

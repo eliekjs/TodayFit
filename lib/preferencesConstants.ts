@@ -30,7 +30,7 @@ export const MODIFIERS_BY_TARGET: Record<TargetBody, string[]> = {
   Full: [],
 };
 
-/** Refinements – Constraints: single list; "No restrictions" is mutually exclusive with others. */
+/** Refinements – Constraints: single list; "No restrictions" is mutually exclusive with others. Spec-aligned: body regions + Core. */
 export const CONSTRAINT_OPTIONS = [
   "Shoulder",
   "Elbow",
@@ -39,6 +39,7 @@ export const CONSTRAINT_OPTIONS = [
   "Hip",
   "Knee",
   "Ankle",
+  "Core",
   "No restrictions",
 ] as const;
 
@@ -63,9 +64,11 @@ export const UPCOMING_OPTIONS = [
   "Hard Upper Day",
 ] as const;
 
-/** Sub-focus: contextual options per primary focus (sub-goals under each goal). */
+/** Sub-focus: contextual options per primary focus (sub-goals under each goal). Spec-aligned where noted (e.g. Max Strength, Relative Strength). */
 export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
   "Build Strength": [
+    "Max Strength",
+    "Relative Strength",
     "Squat",
     "Hinge",
     "Press",

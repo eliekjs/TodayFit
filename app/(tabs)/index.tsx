@@ -60,30 +60,6 @@ export default function HomeScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.actionCard,
-            { backgroundColor: pastels.helpBg, opacity: pressed ? 0.9 : 1 },
-          ]}
-          onPress={() => router.push("/adaptive")}
-        >
-          <View style={styles.actionCardIcon}>
-            <Ionicons
-              name="sparkles-outline"
-              size={28}
-              color={pastels.helpText}
-            />
-          </View>
-          <Text style={[styles.actionCardTitle, { color: pastels.helpText }]}>
-            Help me decide what activity to do
-          </Text>
-          <Text
-            style={[styles.actionCardSubtitle, { color: pastels.helpSubtext }]}
-          >
-            Smart recommendations based on readiness & schedule.
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
             { backgroundColor: pastels.buildBg, opacity: pressed ? 0.9 : 1 },
           ]}
           onPress={() => router.push("/manual/preferences")}
@@ -96,12 +72,31 @@ export default function HomeScreen() {
             />
           </View>
           <Text style={[styles.actionCardTitle, { color: pastels.buildText }]}>
-            Build me a gym workout
+            Build My Workout
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.actionCard,
+            { backgroundColor: pastels.helpBg, opacity: pressed ? 0.9 : 1 },
+          ]}
+          onPress={() => router.push("/adaptive")}
+        >
+          <View style={styles.actionCardIcon}>
+            <Ionicons
+              name="sparkles-outline"
+              size={28}
+              color={pastels.helpText}
+            />
+          </View>
+          <Text style={[styles.actionCardTitle, { color: pastels.helpText }]}>
+            Adaptive Mode — Train Toward a Goal
           </Text>
           <Text
-            style={[styles.actionCardSubtitle, { color: pastels.buildSubtext }]}
+            style={[styles.actionCardSubtitle, { color: pastels.helpSubtext }]}
           >
-            Structured training session with your constraints.
+            Uses your goals, recovery, and upcoming sessions.
           </Text>
         </Pressable>
 

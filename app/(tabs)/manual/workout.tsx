@@ -100,6 +100,11 @@ export default function ManualWorkoutScreen() {
 
         {generatedWorkout.sections.map((section) => (
           <Card key={section.id} title={section.title} style={styles.sectionCard}>
+            {section.reasoning ? (
+              <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
+                {section.reasoning}
+              </Text>
+            ) : null}
             {section.supersetPairs && section.supersetPairs.length > 0 ? (
               section.supersetPairs.map((pair, idx) => (
                 <View key={`superset-${idx}`} style={[styles.supersetBlock, { borderLeftColor: theme.border }]}>
@@ -229,6 +234,11 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     gap: 12,
+  },
+  sectionReasoning: {
+    fontSize: 13,
+    fontStyle: "italic",
+    marginBottom: 4,
   },
   supersetBlock: {
     marginBottom: 12,

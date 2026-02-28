@@ -19,6 +19,7 @@ import { PrimaryButton } from "../../../components/Button";
 import {
   EQUIPMENT_BY_CATEGORY,
   getDefaultEquipmentForTemplate,
+  SPACE_TYPE_OPTIONS,
   type GymProfile,
   type GymProfileTemplate,
 } from "../../../data/gymProfiles";
@@ -44,8 +45,11 @@ export default function GymProfilesScreen() {
   } = useAppState();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [addMode, setAddMode] = useState<GymProfileTemplate | null>(null);
+  const [addMode, setAddMode] = useState<
+    null | "choose_type" | "custom" | { template: GymProfileTemplate; suggestedName: string }
+  >(null);
   const [customName, setCustomName] = useState("");
+  const [saveAsName, setSaveAsName] = useState("");
 
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -73,19 +77,23 @@ export default function GymProfilesScreen() {
     const profileName =
       name?.trim() ||
       (template === "your_gym"
-        ? "Your Gym"
-        : template === "home_gym"
-          ? "Home Gym"
-          : template === "hotel_gym"
-            ? "Hotel Gym"
-            : "New Gym");
+        ? "Full Commercial Gym"
+        : template === "small_gym"
+          ? "Small Gym"
+          : template === "home_gym"
+            ? "Home Setup"
+            : template === "hotel_gym"
+              ? "Hotel Gym"
+              : template === "custom"
+                ? "Bodyweight Only"
+                : "New Gym");
     addGymProfile({
       name: profileName,
       equipment,
-      ...(template === "your_gym" || template === "custom" ? {} : {}),
     });
     setAddMode(null);
     setCustomName("");
+    setSaveAsName("");
   };
 
   const goBackToWorkout = () => {
@@ -243,25 +251,33 @@ export default function GymProfilesScreen() {
             >
               Add a gym
             </Text>
-            <View style={styles.addButtons}>
-              <PrimaryButton
-                label="Home Gym"
-                variant="secondary"
-                onPress={() => onAddProfile("home_gym")}
-              />
-              <PrimaryButton
-                label="Hotel Gym"
-                variant="secondary"
-                onPress={() => onAddProfile("hotel_gym")}
-                style={{ marginTop: 8 }}
-              />
-              <PrimaryButton
-                label="Custom (name your gym)"
-                variant="ghost"
-                onPress={() => setAddMode("custom")}
-                style={{ marginTop: 8 }}
-              />
+            <Text
+              style={[styles.stepLabel, { color: theme.textMuted }]}
+            >
+              Step 1 — Space type
+            </Text>
+            <View style={styles.chipRow}>
+              {SPACE_TYPE_OPTIONS.map((opt) => (
+                <View key={opt.template}>
+                  <Chip
+                    label={opt.label}
+                    selected={false}
+                    onPress={() =>
+                      setAddMode({
+                        template: opt.template,
+                        suggestedName: opt.label,
+                      })
+                    }
+                  />
+                </View>
+              ))}
             </View>
+            <PrimaryButton
+              label="Custom (name your gym)"
+              variant="ghost"
+              onPress={() => setAddMode("custom")}
+              style={{ marginTop: 12 }}
+            />
           </View>
         ) : addMode === "custom" ? (
           <View style={styles.addSection}>
@@ -291,6 +307,40 @@ export default function GymProfilesScreen() {
                 onPress={() => {
                   setAddMode(null);
                   setCustomName("");
+                }}
+              />
+            </View>
+          </View>
+        ) : typeof addMode === "object" && "template" in addMode ? (
+          <View style={styles.addSection}>
+            <Text
+              style={[styles.addSectionTitle, { color: theme.text }]}
+            >
+              Save as
+            </Text>
+            <TextInput
+              placeholder={addMode.suggestedName}
+              placeholderTextColor={theme.textMuted}
+              value={saveAsName}
+              onChangeText={setSaveAsName}
+              style={[
+                styles.input,
+                { borderColor: theme.border, color: theme.text },
+              ]}
+            />
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+              <PrimaryButton
+                label="Create"
+                onPress={() =>
+                  onAddProfile(addMode.template, saveAsName.trim() || addMode.suggestedName)
+                }
+              />
+              <PrimaryButton
+                label="Cancel"
+                variant="ghost"
+                onPress={() => {
+                  setAddMode(null);
+                  setSaveAsName("");
                 }}
               />
             </View>
@@ -386,6 +436,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     marginBottom: 12,
+  },
+  stepLabel: {
+    fontSize: 13,
+    marginBottom: 8,
   },
   addButtons: {
     gap: 0,
