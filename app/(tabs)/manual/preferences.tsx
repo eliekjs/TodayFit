@@ -218,7 +218,7 @@ export default function ManualPreferencesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 160 }]}
         showsVerticalScrollIndicator={false}
       >
         <Text
@@ -665,7 +665,7 @@ export default function ManualPreferencesScreen() {
               : "No profile selected. Add one in Profile."
           }
         />
-        <View style={[styles.gymProfileActions, { marginBottom: 24 }]}>
+        <View style={[styles.gymProfileActions, { marginBottom: 32 }]}>
           <PrimaryButton
             label="Change gym profile"
             variant="secondary"
