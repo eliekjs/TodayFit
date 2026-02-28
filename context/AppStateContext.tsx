@@ -118,7 +118,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       },
       applyPreferencePreset: (id) => {
         const preset = preferencePresets.find((p) => p.id === id);
-        if (preset) updateManualPreferences(preset.preferences);
+        if (preset) setManualPreferences(preset.preferences);
       },
       updateManualPreferences: (update) => {
         setManualPreferences((prev) => ({ ...prev, ...update }));
