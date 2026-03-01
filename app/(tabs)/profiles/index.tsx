@@ -480,6 +480,17 @@ export default function GymProfilesScreen() {
             ))}
           </View>
         )}
+
+        {__DEV__ && (
+          <Pressable
+            onPress={() => router.push("/sport-dev")}
+            style={[styles.devLink, { borderColor: theme.border }]}
+          >
+            <Text style={[styles.devLinkText, { color: theme.textMuted }]}>
+              Sport DB (Dev)
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -650,5 +661,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
+  },
+  devLink: {
+    marginTop: 24,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  devLinkText: {
+    fontSize: 12,
   },
 });

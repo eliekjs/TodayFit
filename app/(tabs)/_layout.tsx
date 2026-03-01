@@ -155,6 +155,10 @@ export default function TabsLayout() {
       {/* ── Other hidden ── */}
       <Tabs.Screen name="build" options={{ href: null }} />
       <Tabs.Screen name="factors" options={{ href: null }} />
+      <Tabs.Screen
+        name="sport-dev"
+        options={{ href: null, title: "Sport DB (Dev)" }}
+      />
     </Tabs>
   );
 }
