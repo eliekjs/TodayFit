@@ -5,7 +5,7 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
-import { generateWorkout } from "../../../lib/generator";
+import { generateWorkoutAsync } from "../../../lib/generator";
 import {
   getSessionTypeOptions,
   type SessionTypeOption,
@@ -57,9 +57,10 @@ export default function AdaptiveRecommendationScreen() {
       energyLevel: mergedPreferences.energyLevel,
     });
 
-    const workout = generateWorkout(mergedPreferences, activeProfile);
-    setGeneratedWorkout(workout);
-    router.push("/manual/workout");
+    generateWorkoutAsync(mergedPreferences, activeProfile).then((workout) => {
+      setGeneratedWorkout(workout);
+      router.push("/manual/workout");
+    });
   };
 
   if (!recommended) {

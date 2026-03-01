@@ -42,49 +42,54 @@ To learn more about developing your project with Expo, look at the following res
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-## Sport Mode (Supabase)
+## Supabase (all app data)
 
-The app uses [Supabase](https://supabase.com) (Postgres) for the Sport Mode data layer: sports catalog, sport qualities, user sport profiles, and sport events.
+The app uses [Supabase](https://supabase.com) (Postgres + Supabase Auth) as the single backend for:
+
+- **Sport Mode**: sports catalog, sport qualities, user sport profiles, sport events
+- **Core app**: exercises & tags, gym profiles & equipment, workouts (generated + history + saved), user preferences & presets, user goals
+
+See **MIGRATION.md** for the migration plan, entity list, and verification checklist.
 
 ### Setup
 
-1. Create a Supabase project at [supabase.com](https://supabase.com) and get your project URL and anon (public) key.
-2. Add to your environment (e.g. `.env` or Expo config):
+1. Create a Supabase project at [supabase.com](https://supabase.com) and get your project URL and **anon (public)** key.
+2. Add to your environment (e.g. `.env` — see `.env.example`; **do not commit** `.env` or any **service_role** key):
    - `EXPO_PUBLIC_SUPABASE_URL` — your Supabase project URL
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY` — your project’s anon/public key
 
 ### Running migrations
 
-Apply the schema and seed using one of these options:
+Apply schema and seeds in order (Supabase Dashboard **SQL Editor** or CLI):
 
-**Option A — Supabase Dashboard**
-
-1. In the Supabase project, open **SQL Editor**.
-2. Run the contents of `supabase/migrations/20250301000000_sport_mode_schema.sql` (creates tables, indexes, RLS, triggers).
-3. Run the contents of `supabase/migrations/20250301000001_sport_mode_seed.sql` (idempotent seed for sports, qualities, and `sport_quality_map`).
+| Order | File | Description |
+|-------|------|-------------|
+| 1 | `supabase/migrations/20250301000000_sport_mode_schema.sql` | Sport Mode tables, RLS, triggers |
+| 2 | `supabase/migrations/20250301000001_sport_mode_seed.sql` | Sports, qualities, sport_quality_map |
+| 3 | `supabase/migrations/20250301000002_app_entities_schema.sql` | Exercises, tags, gym_profiles, workouts, user_preferences, etc. + RLS |
+| 4 | `supabase/migrations/20250301000003_app_entities_seed.sql` | Exercise tags, exercises, exercise_tag_map, exercise_contraindications |
 
 **Option B — Supabase CLI**
-
-From the project root:
 
 ```bash
 npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-If your migrations are already in `supabase/migrations/`, `db push` runs them in order. To run the seed separately (e.g. after reset), run the seed SQL file in the Dashboard SQL Editor as in Option A.
+Seeds are **idempotent** (upserts by slug / composite key). Re-run them safely if needed.
 
-### Seed
+### Auth
 
-The seed is **idempotent**: it uses `ON CONFLICT (slug) DO UPDATE` for `sports` and `sport_qualities`, and `ON CONFLICT (sport_id, quality_id) DO UPDATE` for `sport_quality_map`. You can run it multiple times without duplicating data.
+When no user is signed in, the app keeps using in-memory state (no persistence). Sign in with Supabase Auth to persist gym profiles, preferences, workout history, and saved workouts. The client uses only the **anon** key; never use or commit the **service_role** key in the app or repo.
+
+### One-time migration scripts
+
+If you need to migrate from another backend (e.g. Firebase), add one-off scripts under `/tools`. Use service credentials only in local env (not committed). See MIGRATION.md.
 
 ### Verification
 
-In development, open the **Profile** tab and tap **Sport DB (Dev)** to open the dev-only verification screen. It lets you:
-
-- Load sports and qualities (confirms catalog + RLS read access).
-- Save a test user sport profile and read it back (confirms write + read).
-- Check RLS (confirms you cannot read another user’s profile when signed in).
+- **Sport Mode**: Profile tab → **Sport DB (Dev)** (dev-only) to load sports/qualities and test profile save/RLS.
+- **Full checklist**: MIGRATION.md § Verification checklist.
 
 ## Join the community
 

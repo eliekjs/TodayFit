@@ -5,7 +5,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
-import { generateWorkout } from "../../../lib/generator";
+import { generateWorkoutAsync } from "../../../lib/generator";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -67,8 +67,9 @@ export default function ManualWorkoutScreen() {
   }
 
   const onRegenerate = () => {
-    const next = generateWorkout(manualPreferences, activeProfile, Date.now());
-    setGeneratedWorkout(next);
+    generateWorkoutAsync(manualPreferences, activeProfile, Date.now()).then(
+      setGeneratedWorkout
+    );
   };
 
   const onSaveForLater = () => {

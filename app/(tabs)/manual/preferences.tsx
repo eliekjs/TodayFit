@@ -20,7 +20,7 @@ import { useTheme } from "../../../lib/theme";
 import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
-import { generateWorkout } from "../../../lib/generator";
+import { generateWorkoutAsync } from "../../../lib/generator";
 import {
   PRIMARY_FOCUS_OPTIONS,
   DURATIONS,
@@ -180,9 +180,10 @@ export default function ManualPreferencesScreen() {
 
   const onGenerate = () => {
     const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-    const workout = generateWorkout(manualPreferences, profile);
-    setGeneratedWorkout(workout);
-    router.push("/manual/workout");
+    generateWorkoutAsync(manualPreferences, profile).then((workout) => {
+      setGeneratedWorkout(workout);
+      router.push("/manual/workout");
+    });
   };
 
   const onReset = () => {

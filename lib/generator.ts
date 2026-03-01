@@ -7,6 +7,8 @@ import type {
   ManualPreferences,
 } from "./types";
 import type { GymProfile } from "../data/gymProfiles";
+import { isDbConfigured } from "../lib/db";
+import { listExercises } from "../lib/db/exerciseRepository";
 
 function pickCountByDuration(durationMinutes: number | null) {
   if (!durationMinutes) return { warmup: 2, mainSupersetPairs: 2, accessory: 2, cooldown: 2 };
@@ -110,7 +112,8 @@ function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
 export function generateWorkout(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
-  seedExtra?: string | number
+  seedExtra?: string | number,
+  exercisesInput?: ExerciseDefinition[]
 ): GeneratedWorkout {
   const bodyPartFocus = deriveBodyPartFocus(
     preferences.targetBody,
@@ -145,9 +148,10 @@ export function generateWorkout(
 
   const counts = pickCountByDuration(preferences.durationMinutes);
 
+  const exercises = exercisesInput ?? EXERCISES;
   const eligible = filterByBodyPartFocus(
     filterByInjuries(
-      filterByGymProfile(EXERCISES, gymProfile),
+      filterByGymProfile(exercises, gymProfile),
       injuryFilter
     ),
     bodyPartFocus
@@ -294,4 +298,57 @@ export function generateWorkout(
     notes: notes.length ? notes.join(" • ") : undefined,
     sections: [warmup, mainSets, accessory, cooldown],
   };
+}
+
+/** Map UI body part focus to DB primary_muscles values. */
+function bodyPartFocusToMuscles(bodyPartFocus: string[]): string[] {
+  const out: string[] = [];
+  for (const opt of bodyPartFocus) {
+    if (opt === "Upper body") {
+      out.push("push", "pull", "core");
+    } else if (opt === "Lower body") {
+      out.push("legs");
+    } else if (opt === "Full body") {
+      return []; // no filter
+    } else if (opt === "Push") {
+      out.push("push");
+    } else if (opt === "Pull") {
+      out.push("pull");
+    }
+  }
+  return [...new Set(out)];
+}
+
+/**
+ * Async version: loads exercises from Supabase when configured, then generates.
+ * Use this from UI so exercises are loaded from DB when available.
+ */
+export async function generateWorkoutAsync(
+  preferences: ManualPreferences,
+  gymProfile?: GymProfile,
+  seedExtra?: string | number
+): Promise<GeneratedWorkout> {
+  let exercises: ExerciseDefinition[] | undefined;
+  if (isDbConfigured()) {
+    try {
+      const injuryFilter =
+        preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
+          ? []
+          : preferences.injuries.filter((i) => i !== "No restrictions");
+      const injurySlugs = injuryFilter.map((i) => i.toLowerCase().replace(/ /g, "_"));
+      const bodyPartFocus = deriveBodyPartFocus(
+        preferences.targetBody,
+        preferences.targetModifier
+      );
+      const primaryMuscles = bodyPartFocusToMuscles(bodyPartFocus);
+      exercises = await listExercises({
+        equipment: gymProfile?.equipment,
+        injuries: injurySlugs,
+        primaryMuscles: primaryMuscles.length ? primaryMuscles : undefined,
+      });
+    } catch {
+      exercises = undefined;
+    }
+  }
+  return generateWorkout(preferences, gymProfile, seedExtra, exercises);
 }
