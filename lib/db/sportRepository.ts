@@ -16,7 +16,7 @@ function requireClient() {
 }
 
 /**
- * Fetch all sport categories with their sports (sorted by category sort_order, then sport sort_order).
+ * Fetch all sport categories with their sports (legacy grouping; used by dev tools).
  */
 export async function getSportCategories(): Promise<SportCategory[]> {
   const supabase = requireClient();
@@ -54,13 +54,43 @@ export async function getSportCategories(): Promise<SportCategory[]> {
 }
 
 /**
+ * Sports Prep catalog query:
+ * - All active sports
+ * - Ordered by popularity_tier asc, then name asc
+ * - No hard limit (Supabase default is high; we can set an explicit safe cap)
+ * Includes console logging for diagnostics.
+ */
+export async function listSportsForPrep(): Promise<Sport[]> {
+  const supabase = requireClient();
+  const { data, error } = await supabase
+    .from("sports")
+    .select("id, slug, name, category, description, is_active, popularity_tier, sort_order", { count: "exact" })
+    .eq("is_active", true)
+    .order("popularity_tier", { ascending: true, nullsFirst: true })
+    .order("name", { ascending: true })
+    .limit(200);
+
+  if (error) {
+    // Basic logging to help debug missing sports in UI
+    // eslint-disable-next-line no-console
+    console.error("[SportsPrep] Error fetching sports:", error.message);
+    throw new Error(error.message);
+  }
+
+  const sports = (data ?? []) as Sport[];
+  // eslint-disable-next-line no-console
+  console.log("[SportsPrep] Fetched sports count:", sports.length);
+  return sports;
+}
+
+/**
  * Fetch sports in a given category.
  */
 export async function getSportsByCategory(category: string): Promise<Sport[]> {
   const supabase = requireClient();
   const { data, error } = await supabase
     .from("sports")
-    .select("id, slug, name, category, is_active, sort_order")
+    .select("id, slug, name, category, description, is_active, popularity_tier, sort_order")
     .eq("is_active", true)
     .eq("category", category)
     .order("sort_order", { ascending: true });

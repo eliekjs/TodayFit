@@ -9,6 +9,8 @@ export type Sport = {
   category: string;
   is_active: boolean;
   sort_order: number;
+  description?: string | null;
+  popularity_tier?: number;
 };
 
 export type SportQuality = {

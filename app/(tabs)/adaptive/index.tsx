@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -12,6 +12,8 @@ import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { EnergyLevel } from "../../../lib/types";
 import { DURATIONS } from "../../../lib/preferencesConstants";
+import { listSportsForPrep } from "../../../lib/db/sportRepository";
+import type { Sport } from "../../../lib/db/types";
 
 /** Spec-aligned: Performance, Physique, Resilience, Energy System (representative set). */
 const ADAPTIVE_GOALS = [
@@ -78,6 +80,25 @@ export default function AdaptiveModeScreen() {
   const [defaultDuration, setDefaultDuration] = useState<number>(45);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sports, setSports] = useState<Sport[]>([]);
+  const [sportsError, setSportsError] = useState<string | null>(null);
+  const [sportsSearch, setSportsSearch] = useState("");
+  const [selectedSportSlug, setSelectedSportSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSports = async () => {
+      if (!isDbConfigured()) return;
+      try {
+        setSportsError(null);
+        const all = await listSportsForPrep();
+        setSports(all);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setSportsError(msg);
+      }
+    };
+    loadSports();
+  }, []);
 
   const selectGoalForRank = (rankIndex: number, goalId: string) => {
     setRankedGoals((prev) => {
@@ -137,6 +158,29 @@ export default function AdaptiveModeScreen() {
     }
   };
 
+  const canonicalCategoryOrder = [
+    "Endurance",
+    "Strength/Power",
+    "Mountain/Snow/Board",
+    "Court/Field",
+    "Combat/Grappling",
+    "Water/Wind",
+    "Climbing",
+  ];
+
+  const filteredSportsByCategory = useMemo(() => {
+    if (!sports.length) return new Map<string, Sport[]>();
+    const q = sportsSearch.trim().toLowerCase();
+    const byCategory = new Map<string, Sport[]>();
+    for (const s of sports) {
+      if (q && !s.name.toLowerCase().includes(q)) continue;
+      const list = byCategory.get(s.category) ?? [];
+      list.push(s);
+      byCategory.set(s.category, list);
+    }
+    return byCategory;
+  }, [sports, sportsSearch]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -156,6 +200,98 @@ export default function AdaptiveModeScreen() {
             {error}
           </Text>
         ) : null}
+
+        <SectionHeader
+          title="Choose your sport"
+          subtitle="This anchors how we interpret your goals."
+          style={{ marginTop: 20 }}
+        />
+        <View style={styles.searchRow}>
+          <TextInput
+            placeholder="Search sports..."
+            placeholderTextColor={theme.textMuted}
+            value={sportsSearch}
+            onChangeText={setSportsSearch}
+            style={[
+              styles.searchInput,
+              { borderColor: theme.border, color: theme.text },
+            ]}
+          />
+        </View>
+        {sportsError ? (
+          <Text style={{ fontSize: 13, color: theme.danger, marginBottom: 8 }}>
+            {sportsError}
+          </Text>
+        ) : null}
+        {!sportsError && sports.length === 0 && (
+          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
+            No sports loaded yet. Confirm Supabase is configured and migrations/seeds have run.
+          </Text>
+        )}
+        {sports.length > 0 && Array.from(filteredSportsByCategory.keys()).length === 0 && (
+          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
+            No sports match “{sportsSearch}”.
+          </Text>
+        )}
+
+        {canonicalCategoryOrder.map((cat) => {
+          const list = filteredSportsByCategory.get(cat) ?? [];
+          if (!list.length) return null;
+          return (
+            <View key={cat} style={{ marginBottom: 12 }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  marginBottom: 4,
+                  color: theme.textMuted,
+                }}
+              >
+                {cat}
+              </Text>
+              {list.map((sport) => {
+                const selected = sport.slug === selectedSportSlug;
+                return (
+                  <Pressable
+                    key={sport.id}
+                    onPress={() =>
+                      setSelectedSportSlug(
+                        selected ? null : sport.slug
+                      )
+                    }
+                    style={[
+                      styles.sportRow,
+                      {
+                        borderColor: selected ? theme.primary : theme.border,
+                        backgroundColor: selected ? theme.primarySoft : "transparent",
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.sportName,
+                        { color: theme.text },
+                      ]}
+                    >
+                      {sport.name}
+                    </Text>
+                    {sport.description ? (
+                      <Text
+                        style={[
+                          styles.sportDescription,
+                          { color: theme.textMuted },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {sport.description}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          );
+        })}
 
         <SectionHeader
           title="Rank your goals"
@@ -318,10 +454,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  searchRow: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+  },
   chipGroup: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  sportRow: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  sportName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  sportDescription: {
+    fontSize: 12,
+    marginTop: 2,
   },
   footer: {
     marginTop: 24,
