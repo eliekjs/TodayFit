@@ -1,159 +1,307 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
-import { generateWorkoutAsync } from "../../../lib/generator";
-import {
-  getSessionTypeOptions,
-  type SessionTypeOption,
-} from "../../../lib/adaptiveSessionTypes";
+import { useAuth } from "../../../context/AuthContext";
+import type { GeneratedWorkout } from "../../../lib/types";
+import { regenerateDay } from "../../../services/sportPrepPlanner";
+import { getWorkout } from "../../../lib/db/workoutRepository";
 
-export default function AdaptiveRecommendationScreen() {
-  const { primary, secondary, horizon, recentLoad, fatigue } = useLocalSearchParams<{
-    primary?: string;
-    secondary?: string;
-    horizon?: string;
-    recentLoad?: string;
-    fatigue?: string;
-  }>();
+export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const {
-    manualPreferences,
-    updateManualPreferences,
-    activeGymProfileId,
-    gymProfiles,
-    setGeneratedWorkout,
-  } = useAppState();
+  const { userId } = useAuth();
+  const { sportPrepWeekPlan, setSportPrepWeekPlan } = useAppState();
 
-  const options = useMemo(() => {
-    const p = primary ?? "strength";
-    const s = secondary && secondary.length > 0 ? secondary : null;
-    const h = horizon ?? "4_8_weeks";
-    const load = recentLoad ?? "Normal / Mixed";
-    return getSessionTypeOptions(p, s, h, load, fatigue ?? null);
-  }, [primary, secondary, horizon, recentLoad, fatigue]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(
+    sportPrepWeekPlan?.today?.date ?? sportPrepWeekPlan?.days[0]?.date ?? null
+  );
+  const [selectedWorkout, setSelectedWorkout] = useState<GeneratedWorkout | null>(
+    sportPrepWeekPlan?.todayWorkout ?? null
+  );
+  const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [recommended, ...otherOptions] = options;
-  const alternativesScrollRef = useRef<ScrollView>(null);
-  const [alternativesSectionY, setAlternativesSectionY] = useState(0);
-  const activeProfile =
-    gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+  useEffect(() => {
+    if (!sportPrepWeekPlan) return;
+    if (!selectedDate) {
+      setSelectedDate(
+        sportPrepWeekPlan.today?.date ?? sportPrepWeekPlan.days[0]?.date ?? null
+      );
+    }
+  }, [sportPrepWeekPlan, selectedDate]);
 
-  const onChooseSessionType = (option: SessionTypeOption) => {
-    const mergedPreferences = {
-      ...manualPreferences,
-      primaryFocus: option.focus,
-      durationMinutes: option.durationMinutes,
-      energyLevel: option.energy,
+  useEffect(() => {
+    const loadWorkout = async () => {
+      if (!sportPrepWeekPlan || !userId || !selectedDate) return;
+      const day = sportPrepWeekPlan.days.find((d) => d.date === selectedDate);
+      if (!day || !day.generatedWorkoutId) {
+        setSelectedWorkout(null);
+        return;
+      }
+
+      // Reuse cached today workout when possible
+      if (
+        sportPrepWeekPlan.today &&
+        sportPrepWeekPlan.today.date === selectedDate &&
+        sportPrepWeekPlan.todayWorkout
+      ) {
+        setSelectedWorkout(sportPrepWeekPlan.todayWorkout);
+        return;
+      }
+
+      setIsLoadingWorkout(true);
+      try {
+        const workout = await getWorkout(userId, day.generatedWorkoutId);
+        setSelectedWorkout(workout);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setIsLoadingWorkout(false);
+      }
     };
 
-    updateManualPreferences({
-      primaryFocus: mergedPreferences.primaryFocus,
-      durationMinutes: mergedPreferences.durationMinutes,
-      energyLevel: mergedPreferences.energyLevel,
-    });
+    loadWorkout();
+  }, [sportPrepWeekPlan, selectedDate, userId]);
 
-    generateWorkoutAsync(mergedPreferences, activeProfile).then((workout) => {
-      setGeneratedWorkout(workout);
-      router.push("/manual/workout");
-    });
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  if (!sportPrepWeekPlan) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.centered}>
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>
+            No week plan yet
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
+            Set your training priorities first, then we’ll build a 7-day plan.
+          </Text>
+          <View style={{ marginTop: 16 }}>
+            <PrimaryButton
+              label="Set Training Priorities"
+              onPress={() => router.replace("/adaptive")}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const selectedDay =
+    sportPrepWeekPlan.days.find((d) => d.date === selectedDate) ??
+    sportPrepWeekPlan.days[0];
+
+  const onSelectDate = (date: string) => {
+    setSelectedDate(date);
   };
 
-  if (!recommended) {
-    return null;
+  const onRegenerate = async () => {
+    if (!sportPrepWeekPlan || !userId || !selectedDay) return;
+    setError(null);
+    setIsRegenerating(true);
+    try {
+      const result = await regenerateDay({
+        userId,
+        weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
+        date: selectedDay.date,
+      });
+
+      const updatedDays = sportPrepWeekPlan.days.map((d) =>
+        d.date === result.day.date ? result.day : d
+      );
+      const updatedPlan = {
+        ...sportPrepWeekPlan,
+        days: updatedDays,
+        today:
+          sportPrepWeekPlan.today &&
+          sportPrepWeekPlan.today.date === result.day.date
+            ? result.day
+            : sportPrepWeekPlan.today,
+        todayWorkout:
+          sportPrepWeekPlan.today &&
+          sportPrepWeekPlan.today.date === result.day.date
+            ? result.workout
+            : sportPrepWeekPlan.todayWorkout,
+      };
+      setSportPrepWeekPlan(updatedPlan);
+      setSelectedWorkout(result.workout);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const summaryLines: string[] = [];
+  if (selectedWorkout?.focus?.length) {
+    summaryLines.push(selectedWorkout.focus.join(" • "));
+  }
+  if (selectedWorkout?.durationMinutes != null) {
+    summaryLines.push(`${selectedWorkout.durationMinutes} min`);
+  }
+  if (selectedWorkout?.energyLevel) {
+    const e = selectedWorkout.energyLevel;
+    summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
   }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
-        ref={alternativesScrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         <Card
-          title={`Today's Optimal Session: ${recommended.sessionType} (${recommended.durationMinutes} min)`}
+          title="Your Week Plan"
+          subtitle={`Week starting ${sportPrepWeekPlan.weekStartDate}`}
         >
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Focus: {recommended.focus.join(" • ") || "General training"} {"\n"}
-            Energy target:{" "}
-            {`${recommended.energy}`.charAt(0).toUpperCase() +
-              `${recommended.energy}`.slice(1)}
+            Tap a day to view its session. Today is highlighted. You can
+            regenerate an individual day without changing the rest of the plan.
           </Text>
-          <View style={{ marginTop: 12, gap: 8 }}>
-            <PrimaryButton
-              label="Accept & Build"
-              onPress={() => onChooseSessionType(recommended)}
-            />
-            <PrimaryButton
-              label="See Alternatives"
-              variant="secondary"
-              onPress={() => alternativesScrollRef.current?.scrollTo({ y: alternativesSectionY, animated: true })}
-            />
-            <PrimaryButton
-              label="Switch Modes"
-              variant="ghost"
-              onPress={() => router.replace("/(tabs)")}
-            />
-          </View>
+        </Card>
+
+        {error ? (
+          <Text style={[styles.errorText, { color: theme.danger }]}>
+            {error}
+          </Text>
+        ) : null}
+
+        <Card title="Week overview" style={{ marginTop: 16 }}>
+          {sportPrepWeekPlan.days.map((day) => {
+            const isToday = day.date === todayIso;
+            const isSelected = day.date === selectedDay.date;
+            const dateObj = new Date(day.date);
+            const weekday = dateObj.toLocaleDateString(undefined, {
+              weekday: "short",
+            });
+            const label = day.intentLabel ?? "Rest / low-load day";
+            return (
+              <Pressable
+                key={day.id}
+                onPress={() => onSelectDate(day.date)}
+                style={[
+                  styles.dayRow,
+                  {
+                    borderColor: isSelected ? theme.primary : theme.border,
+                    backgroundColor: isSelected ? theme.primarySoft : "transparent",
+                  },
+                ]}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text
+                    style={[
+                      styles.dayWeekday,
+                      { color: theme.text, opacity: isToday ? 1 : 0.85 },
+                    ]}
+                  >
+                    {weekday}
+                  </Text>
+                  {isToday && (
+                    <Text
+                      style={[
+                        styles.todayBadge,
+                        { color: theme.primary, borderColor: theme.primary },
+                      ]}
+                    >
+                      Today
+                    </Text>
+                  )}
+                </View>
+                <Text
+                  style={[
+                    styles.dayLabel,
+                    { color: theme.textMuted },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </Card>
 
         <Card
-          title="Why this was chosen"
-          subtitle="Strategic explanation (placeholder)"
+          title={
+            selectedDay.date === todayIso
+              ? "Today's session"
+              : `Session for ${selectedDay.date}`
+          }
+          subtitle={summaryLines.join(" • ")}
           style={{ marginTop: 16 }}
         >
-          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 4 }}>
-            • Balances your long-term goals with recent training load.{"\n"}
-            • Keeps today's work specific without overloading any one pattern.
-            {"\n"}
-            • Leaves you fresh enough for the next 1–3 days of planned sessions.
-          </Text>
-        </Card>
+          {isLoadingWorkout && (
+            <Text style={{ fontSize: 13, color: theme.textMuted }}>
+              Loading workout…
+            </Text>
+          )}
+          {!isLoadingWorkout && !selectedWorkout && (
+            <Text style={{ fontSize: 13, color: theme.textMuted }}>
+              No workout generated for this day (rest / low-load day).
+            </Text>
+          )}
+          {!isLoadingWorkout &&
+            selectedWorkout &&
+            selectedWorkout.sections.map((section) => (
+              <View key={section.id} style={styles.sectionBlock}>
+                <Text
+                  style={[styles.sectionTitle, { color: theme.text }]}
+                >
+                  {section.title}
+                </Text>
+                {section.reasoning ? (
+                  <Text
+                    style={[
+                      styles.sectionReasoning,
+                      { color: theme.textMuted },
+                    ]}
+                  >
+                    {section.reasoning}
+                  </Text>
+                ) : null}
+                {section.exercises.map((exercise) => (
+                  <View key={exercise.id} style={styles.exerciseRow}>
+                    <Text
+                      style={[styles.exerciseName, { color: theme.text }]}
+                    >
+                      {exercise.name}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.exercisePrescription,
+                        { color: theme.textMuted },
+                      ]}
+                    >
+                      {exercise.prescription}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
 
-        <View
-          onLayout={(e) => setAlternativesSectionY(e.nativeEvent.layout.y)}
-          style={{ marginTop: 24 }}
-        >
-          <Text style={[styles.otherSectionTitle, { color: theme.text }]}>
-            Other session type options
-          </Text>
-          <View style={styles.otherOptions}>
-          {otherOptions.map((option) => (
-            <Pressable
-              key={option.id}
-              onPress={() => onChooseSessionType(option)}
-              style={[
-                styles.optionRow,
-                {
-                  borderColor: theme.border,
-                  backgroundColor: theme.card,
-                },
-              ]}
-            >
-              <Text
-                style={[styles.optionTitle, { color: theme.text }]}
-                numberOfLines={2}
-              >
-                {option.sessionType}
-              </Text>
-              <Text
-                style={[styles.optionMeta, { color: theme.textMuted }]}
-                numberOfLines={1}
-              >
-                {option.durationMinutes} min •{" "}
-                {option.focus.join(" • ") || "General"}
-              </Text>
-              <Text style={[styles.optionCta, { color: theme.primary }]}>
-                Generate workout →
-              </Text>
-            </Pressable>
-          ))}
+          <View style={styles.footer}>
+            <PrimaryButton
+              label={
+                isRegenerating
+                  ? "Regenerating…"
+                  : "Regenerate this day"
+              }
+              variant="secondary"
+              onPress={onRegenerate}
+              disabled={isRegenerating || !selectedDay.generatedWorkoutId}
+            />
+            <PrimaryButton
+              label="Back to Setup"
+              variant="ghost"
+              onPress={() => router.replace("/adaptive")}
+              style={{ marginTop: 8 }}
+            />
           </View>
-        </View>
+        </Card>
       </ScrollView>
     </View>
   );
@@ -167,32 +315,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 32,
+    gap: 16,
   },
-  otherSectionTitle: {
-    fontSize: 17,
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    fontSize: 18,
     fontWeight: "700",
-    marginTop: 24,
-    marginBottom: 12,
   },
-  otherOptions: {
-    gap: 12,
+  emptySubtitle: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
   },
-  optionRow: {
-    padding: 14,
-    borderRadius: 12,
+  errorText: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  dayRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  dayWeekday: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginRight: 8,
+  },
+  todayBadge: {
+    fontSize: 11,
+    fontWeight: "600",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
     borderWidth: 1,
   },
-  optionTitle: {
+  dayLabel: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  sectionBlock: {
+    marginTop: 12,
+  },
+  sectionTitle: {
     fontSize: 15,
     fontWeight: "600",
   },
-  optionMeta: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  optionCta: {
+  sectionReasoning: {
     fontSize: 13,
-    fontWeight: "600",
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  exerciseRow: {
     marginTop: 8,
+  },
+  exerciseName: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  exercisePrescription: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  footer: {
+    marginTop: 16,
   },
 });

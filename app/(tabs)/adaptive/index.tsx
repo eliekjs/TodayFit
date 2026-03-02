@@ -6,6 +6,12 @@ import { Card } from "../../../components/Card";
 import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
+import { useAppState } from "../../../context/AppStateContext";
+import { useAuth } from "../../../context/AuthContext";
+import { isDbConfigured } from "../../../lib/db";
+import { planWeek } from "../../../services/sportPrepPlanner";
+import type { EnergyLevel } from "../../../lib/types";
+import { DURATIONS } from "../../../lib/preferencesConstants";
 
 /** Spec-aligned: Performance, Physique, Resilience, Energy System (representative set). */
 const ADAPTIVE_GOALS = [
@@ -53,6 +59,8 @@ const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { activeGymProfileId, gymProfiles, setSportPrepWeekPlan } = useAppState();
+  const { userId } = useAuth();
 
   const [rankedGoals, setRankedGoals] = useState<(string | null)[]>([
     null,
@@ -66,6 +74,10 @@ export default function AdaptiveModeScreen() {
     useState<(typeof INJURY_STATUS_OPTIONS)[number]>("No Concerns");
   const [fatigue, setFatigue] =
     useState<(typeof FATIGUE_OPTIONS)[number]>("Moderate");
+  const [gymDaysPerWeek, setGymDaysPerWeek] = useState<number>(3);
+  const [defaultDuration, setDefaultDuration] = useState<number>(45);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const selectGoalForRank = (rankIndex: number, goalId: string) => {
     setRankedGoals((prev) => {
@@ -80,21 +92,49 @@ export default function AdaptiveModeScreen() {
     });
   };
 
-  const onRecommend = () => {
+  const energyFromFatigue = (level: (typeof FATIGUE_OPTIONS)[number]): EnergyLevel => {
+    if (level === "Fresh") return "high";
+    if (level === "Fatigued") return "low";
+    return "medium";
+  };
+
+  const onPlanWeek = async () => {
+    setError(null);
+    if (!isDbConfigured() || !userId) {
+      setError("Sign in and configure Supabase to use Adaptive Mode.");
+      return;
+    }
+
     const primary = rankedGoals[0] ?? "strength";
     const secondary = rankedGoals[1] ?? null;
+    const tertiary = rankedGoals[2] ?? null;
 
-    router.push({
-      pathname: "/adaptive/recommendation",
-      params: {
-        primary,
-        secondary: secondary ?? "",
-        horizon,
-        recentLoad,
-        injuryStatus,
-        fatigue,
-      },
-    });
+    const energyBaseline = energyFromFatigue(fatigue);
+    const activeProfile =
+      gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+
+    setIsSubmitting(true);
+    try {
+      const plan = await planWeek({
+        userId,
+        primaryGoalSlug: primary,
+        secondaryGoalSlug: secondary,
+        tertiaryGoalSlug: tertiary,
+        gymDaysPerWeek,
+        defaultSessionDuration: defaultDuration,
+        preferredTrainingDays: undefined,
+        energyBaseline,
+        injuries: [], // future: map from injuryStatus to concrete constraints
+        sportSessions: [],
+        gymProfile: activeProfile,
+      });
+      setSportPrepWeekPlan(plan);
+      router.push("/adaptive/recommendation");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -105,11 +145,17 @@ export default function AdaptiveModeScreen() {
       >
         <Card title="How Adaptive Mode works">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Rank your long-term goals, tell TodayFit how your last few days felt,
-            and we'll pick the most useful session type for today. Later, this
-            will plug into a full strategic engine.
+            Rank your long-term goals and set your weekly availability. TodayFit
+            will generate a 7-day plan with smart intents and a concrete workout
+            for each training day.
           </Text>
         </Card>
+
+        {error ? (
+          <Text style={{ fontSize: 13, color: theme.danger, marginTop: 8 }}>
+            {error}
+          </Text>
+        ) : null}
 
         <SectionHeader
           title="Rank your goals"
@@ -192,7 +238,7 @@ export default function AdaptiveModeScreen() {
 
         <SectionHeader
           title="Fatigue"
-          subtitle="How you feel today."
+          subtitle="How you generally feel heading into this week."
           style={{ marginTop: 20 }}
         />
         <View style={styles.chipGroup}>
@@ -206,10 +252,57 @@ export default function AdaptiveModeScreen() {
           ))}
         </View>
 
+        <SectionHeader
+          title="Week setup"
+          subtitle="How many gym days and typical duration."
+          style={{ marginTop: 24 }}
+        />
+        <Text
+          style={{
+            fontSize: 13,
+            marginBottom: 6,
+            color: theme.textMuted,
+          }}
+        >
+          Gym days per week
+        </Text>
+        <View style={styles.chipGroup}>
+          {[2, 3, 4, 5].map((d) => (
+            <Chip
+              key={d}
+              label={`${d} days`}
+              selected={gymDaysPerWeek === d}
+              onPress={() => setGymDaysPerWeek(d)}
+            />
+          ))}
+        </View>
+
+        <Text
+          style={{
+            fontSize: 13,
+            marginTop: 16,
+            marginBottom: 6,
+            color: theme.textMuted,
+          }}
+        >
+          Default session duration
+        </Text>
+        <View style={styles.chipGroup}>
+          {DURATIONS.map((minutes) => (
+            <Chip
+              key={minutes}
+              label={`${minutes} min`}
+              selected={defaultDuration === minutes}
+              onPress={() => setDefaultDuration(minutes)}
+            />
+          ))}
+        </View>
+
         <View style={styles.footer}>
           <PrimaryButton
-            label="Generate Adaptive Session"
-            onPress={onRecommend}
+            label={isSubmitting ? "Planning your week..." : "Generate Week Plan"}
+            onPress={onPlanWeek}
+            disabled={isSubmitting}
           />
         </View>
       </ScrollView>
