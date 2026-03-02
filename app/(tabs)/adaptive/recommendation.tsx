@@ -38,13 +38,18 @@ export default function AdaptiveWeekPlanScreen() {
 
   useEffect(() => {
     const loadWorkout = async () => {
-      if (!sportPrepWeekPlan || !userId || !selectedDate) return;
+      if (!sportPrepWeekPlan || !selectedDate) return;
       const day = sportPrepWeekPlan.days.find((d) => d.date === selectedDate);
-      if (!day || !day.generatedWorkoutId) {
+      if (!day) {
         setSelectedWorkout(null);
         return;
       }
 
+      // Guest mode: use in-memory workouts
+      if (sportPrepWeekPlan.guestWorkouts?.[selectedDate]) {
+        setSelectedWorkout(sportPrepWeekPlan.guestWorkouts[selectedDate]);
+        return;
+      }
       // Reuse cached today workout when possible
       if (
         sportPrepWeekPlan.today &&
@@ -52,6 +57,11 @@ export default function AdaptiveWeekPlanScreen() {
         sportPrepWeekPlan.todayWorkout
       ) {
         setSelectedWorkout(sportPrepWeekPlan.todayWorkout);
+        return;
+      }
+      // Persisted plan: fetch from DB
+      if (!userId || !day.generatedWorkoutId) {
+        setSelectedWorkout(null);
         return;
       }
 
@@ -101,21 +111,26 @@ export default function AdaptiveWeekPlanScreen() {
   };
 
   const onRegenerate = async () => {
-    if (!sportPrepWeekPlan || !userId || !selectedDay) return;
+    if (!sportPrepWeekPlan || !selectedDay) return;
     setError(null);
     setIsRegenerating(true);
     try {
       const result = await regenerateDay({
-        userId,
+        userId: userId ?? undefined,
         weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
         date: selectedDay.date,
         sportSlug: sportPrepWeekPlan.sportSlug ?? undefined,
         goalSlugs: sportPrepWeekPlan.goalSlugs,
+        intentLabel: selectedDay.intentLabel,
       });
 
       const updatedDays = sportPrepWeekPlan.days.map((d) =>
         d.date === result.day.date ? result.day : d
       );
+      const updatedGuestWorkouts =
+        sportPrepWeekPlan.guestWorkouts && result.workout
+          ? { ...sportPrepWeekPlan.guestWorkouts, [result.day.date]: result.workout }
+          : sportPrepWeekPlan.guestWorkouts;
       const updatedPlan = {
         ...sportPrepWeekPlan,
         days: updatedDays,
@@ -129,6 +144,7 @@ export default function AdaptiveWeekPlanScreen() {
           sportPrepWeekPlan.today.date === result.day.date
             ? result.workout
             : sportPrepWeekPlan.todayWorkout,
+        ...(updatedGuestWorkouts && { guestWorkouts: updatedGuestWorkouts }),
       };
       setSportPrepWeekPlan(updatedPlan);
       setSelectedWorkout(result.workout);
@@ -140,31 +156,41 @@ export default function AdaptiveWeekPlanScreen() {
   };
 
   const onUpdateDayStatus = async (status: "planned" | "completed" | "skipped") => {
-    if (!sportPrepWeekPlan || !userId || !selectedDay) return;
+    if (!sportPrepWeekPlan || !selectedDay) return;
     setError(null);
-    setIsUpdatingStatus(true);
-    try {
-      const updatedDay = await updateDayStatus({
-        userId,
-        weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
-        date: selectedDay.date,
-        status,
-      });
-      const updatedDays = sportPrepWeekPlan.days.map((d) =>
-        d.date === updatedDay.date ? updatedDay : d
-      );
-      setSportPrepWeekPlan({
-        ...sportPrepWeekPlan,
-        days: updatedDays,
-        today:
-          sportPrepWeekPlan.today && sportPrepWeekPlan.today.date === updatedDay.date
-            ? updatedDay
-            : sportPrepWeekPlan.today,
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIsUpdatingStatus(false);
+    const updatedDay: typeof selectedDay = { ...selectedDay, status };
+    const updatedDays = sportPrepWeekPlan.days.map((d) =>
+      d.date === updatedDay.date ? updatedDay : d
+    );
+    const nextPlan = {
+      ...sportPrepWeekPlan,
+      days: updatedDays,
+      today:
+        sportPrepWeekPlan.today && sportPrepWeekPlan.today.date === updatedDay.date
+          ? updatedDay
+          : sportPrepWeekPlan.today,
+    };
+    if (userId) {
+      setIsUpdatingStatus(true);
+      try {
+        const persisted = await updateDayStatus({
+          userId,
+          weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
+          date: selectedDay.date,
+          status,
+        });
+        setSportPrepWeekPlan({
+          ...nextPlan,
+          days: nextPlan.days.map((d) => (d.date === persisted.date ? persisted : d)),
+          today: nextPlan.today?.date === persisted.date ? persisted : nextPlan.today,
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setIsUpdatingStatus(false);
+      }
+    } else {
+      setSportPrepWeekPlan(nextPlan);
     }
   };
 
@@ -363,7 +389,11 @@ export default function AdaptiveWeekPlanScreen() {
               }
               variant="secondary"
               onPress={onRegenerate}
-              disabled={isRegenerating || !selectedDay.generatedWorkoutId}
+              disabled={
+                isRegenerating ||
+                (!selectedDay.generatedWorkoutId &&
+                  !sportPrepWeekPlan?.guestWorkouts?.[selectedDay.date])
+              }
               style={{ marginTop: 8 }}
             />
             <PrimaryButton

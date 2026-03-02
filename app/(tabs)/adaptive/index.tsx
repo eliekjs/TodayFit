@@ -121,8 +121,8 @@ export default function AdaptiveModeScreen() {
 
   const onPlanWeek = async () => {
     setError(null);
-    if (!isDbConfigured() || !userId) {
-      setError("Sign in and configure Supabase to use Adaptive Mode.");
+    if (!isDbConfigured()) {
+      setError("Configure Supabase (env vars) to use Adaptive Mode.");
       return;
     }
 
@@ -137,7 +137,7 @@ export default function AdaptiveModeScreen() {
     setIsSubmitting(true);
     try {
       const plan = await planWeek({
-        userId,
+        userId: userId ?? undefined,
         primaryGoalSlug: primary,
         secondaryGoalSlug: secondary,
         tertiaryGoalSlug: tertiary,

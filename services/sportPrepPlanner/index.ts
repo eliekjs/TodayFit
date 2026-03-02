@@ -7,7 +7,8 @@ import { saveGeneratedWorkout, getWorkout } from "../../lib/db/workoutRepository
 type IntentKey = "strength" | "power" | "aerobic" | "mobility" | "prehab" | "recovery";
 
 export type PlanWeekInput = {
-  userId: string;
+  /** When absent, plan is generated in memory only (no DB persist). */
+  userId?: string | null;
   weekStartDate?: string; // ISO date; defaults to current week (Monday)
   primaryGoalSlug: string;
   secondaryGoalSlug?: string | null;
@@ -38,16 +39,21 @@ export type PlanWeekResult = {
   todayWorkout: GeneratedWorkout | null;
   sportSlug?: string | null;
   goalSlugs?: string[];
+  /** When present, workouts are in-memory only (guest mode); key = date (YYYY-MM-DD). */
+  guestWorkouts?: Record<string, GeneratedWorkout>;
 };
 
 export type RegenerateDayInput = {
-  userId: string;
+  /** When absent, regenerated workout is returned in memory only (guest mode); pass intentLabel. */
+  userId?: string | null;
   weeklyPlanInstanceId: string;
   date: string; // ISO
   gymProfile?: GymProfile;
   energyOverride?: EnergyLevel;
   sportSlug?: string | null;
   goalSlugs?: string[];
+  /** Required for guest mode: current day intent label so we can rebuild without DB. */
+  intentLabel?: string | null;
 };
 
 export type RegenerateDayResult = {
@@ -260,9 +266,6 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   if (!supabase) {
     throw new Error("Supabase client is not available.");
   }
-  if (!input.userId) {
-    throw new Error("User must be signed in to use Sports Prep mode.");
-  }
 
   const today = new Date();
   const baseDate = input.weekStartDate ? new Date(input.weekStartDate) : today;
@@ -301,6 +304,69 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   }
 
   const trainingIndexSet = new Set(trainingIndices);
+  const goalSlugs = [
+    input.primaryGoalSlug,
+    input.secondaryGoalSlug ?? null,
+    input.tertiaryGoalSlug ?? null,
+  ].filter((s): s is string => Boolean(s));
+  const todayIso = toIsoDate(today);
+  const orderedIntents =
+    intentOrder.length > 0 ? intentOrder : (["strength"] as IntentKey[]);
+
+  // Guest mode: no DB writes; workouts kept in memory
+  if (!input.userId) {
+    const guestWorkouts: Record<string, GeneratedWorkout> = {};
+    const plannedDays: PlannedDay[] = [];
+    let trainingSlotIdx = 0;
+    for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
+      const date = weekDates[dayIdx];
+      const isTrainingDay = trainingIndexSet.has(dayIdx);
+      if (!isTrainingDay) {
+        plannedDays.push({
+          id: `guest-${date}`,
+          date,
+          intentLabel: null,
+          status: "planned",
+          generatedWorkoutId: null,
+        });
+        continue;
+      }
+      const key = orderedIntents[trainingSlotIdx % orderedIntents.length];
+      trainingSlotIdx += 1;
+      const sessionIntent = sessionIntentForKey(
+        key,
+        date,
+        input.defaultSessionDuration,
+        input.energyBaseline
+      );
+      const workout = await buildWorkoutForSessionIntent(
+        sessionIntent,
+        input.gymProfile,
+        date,
+        { sportSlug: input.sportSlug ?? null, goalSlugs }
+      );
+      guestWorkouts[date] = workout;
+      plannedDays.push({
+        id: `guest-${date}`,
+        date,
+        intentLabel: sessionIntent.label,
+        status: "planned",
+        generatedWorkoutId: null,
+      });
+    }
+    const todayDay = plannedDays.find((d) => d.date === todayIso) ?? null;
+    return {
+      weeklyPlanInstanceId: `guest-${weekStartIso}-${Date.now()}`,
+      weekStartDate: weekStartIso,
+      days: plannedDays,
+      today: todayDay,
+      todayWorkout: todayDay ? guestWorkouts[todayIso] ?? null : null,
+      sportSlug: input.sportSlug ?? null,
+      goalSlugs,
+      guestWorkouts,
+    };
+  }
+
   const rowsForDays: {
     weekly_plan_instance_id: string;
     date: string;
@@ -313,12 +379,6 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   }[] = [];
 
   // Create / persist user_training_plans row
-  const goalSlugs = [
-    input.primaryGoalSlug,
-    input.secondaryGoalSlug ?? null,
-    input.tertiaryGoalSlug ?? null,
-  ].filter((s): s is string => Boolean(s));
-
   const { data: goals, error: goalsError } = await supabase
     .from("goals")
     .select("id, slug")
@@ -378,11 +438,6 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const instanceId = instanceRow.id as string;
 
   const plannedDays: PlannedDay[] = [];
-  const todayIso = toIsoDate(today);
-
-  const orderedIntents =
-    intentOrder.length > 0 ? intentOrder : (["strength"] as IntentKey[]);
-
   let trainingSlotIdx = 0;
 
   for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
@@ -514,8 +569,31 @@ export async function regenerateDay(
   if (!supabase) {
     throw new Error("Supabase client is not available.");
   }
+
+  // Guest mode: regenerate in memory only using intentLabel
   if (!input.userId) {
-    throw new Error("User must be signed in to use Sports Prep mode.");
+    const key = intentKeyFromLabel(input.intentLabel ?? null);
+    const energy: EnergyLevel = input.energyOverride ?? "medium";
+    const sessionIntent = sessionIntentForKey(
+      key,
+      input.date,
+      60,
+      energy
+    );
+    const workout = await buildWorkoutForSessionIntent(
+      sessionIntent,
+      input.gymProfile,
+      `${input.date}_${Date.now()}`,
+      { sportSlug: input.sportSlug ?? null, goalSlugs: input.goalSlugs ?? [] }
+    );
+    const day: PlannedDay = {
+      id: `guest-${input.date}`,
+      date: input.date,
+      intentLabel: sessionIntent.label,
+      status: "planned",
+      generatedWorkoutId: null,
+    };
+    return { day, workout };
   }
 
   const { data: dayRow, error: dayError } = await supabase
