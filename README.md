@@ -73,6 +73,7 @@ Apply schema and seeds in order (Supabase Dashboard **SQL Editor** or CLI):
 | 7 | `supabase/migrations/20250301000006_sports_extended_schema.sql` | Adds description, popularity_tier to sports |
 | 8 | `supabase/migrations/20250301000007_sports_canonical_seed.sql` | Canonical sports list for Sports Prep |
 | 9 | `supabase/migrations/20250301000008_sports_tags_and_starter_exercises.sql` | sport_tag_profile, exercise_tag_taxonomy, starter_exercises, goal_exercise_relevance |
+| 10 | `supabase/migrations/20250302000000_anon_catalog_read.sql` | Anon read access for catalog data (sports, exercises, goals, etc.) so app works without sign-in |
 
 **Option B — Supabase CLI**
 
@@ -81,7 +82,7 @@ npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-After migrations 00–08 are applied, sign in and use **Generate Week Plan** on the Adaptive setup screen to verify the week view.
+After migrations 00–09 are applied, catalog data (sports, exercises, goals) loads without sign-in. Sign in to save week plans and use **Generate Week Plan** on the Adaptive setup screen to verify the week view.
 
 Seeds are **idempotent** (upserts by slug / composite key). Re-run them safely if needed.
 

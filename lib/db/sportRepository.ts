@@ -56,31 +56,61 @@ export async function getSportCategories(): Promise<SportCategory[]> {
 /**
  * Sports Prep catalog query:
  * - All active sports
- * - Ordered by popularity_tier asc, then name asc
- * - Selects description and popularity_tier when columns exist (migration 20250301000006).
+ * - Prefers extended schema (description, popularity_tier) when migration 06 is applied
+ * - Falls back to base columns (sort_order) when those columns don't exist yet
  * Includes console logging for diagnostics.
  */
 export async function listSportsForPrep(): Promise<Sport[]> {
   const supabase = requireClient();
-  const { data, error } = await supabase
-    .from("sports")
-    .select("id, slug, name, category, description, is_active, popularity_tier", { count: "exact" })
-    .eq("is_active", true)
-    .order("popularity_tier", { ascending: true, nullsFirst: true })
-    .order("name", { ascending: true })
-    .limit(200);
 
-  if (error) {
-    // Basic logging to help debug missing sports in UI
+  const extendedQuery = async (): Promise<Sport[]> => {
+    const { data, error } = await supabase
+      .from("sports")
+      .select("id, slug, name, category, description, is_active, popularity_tier", { count: "exact" })
+      .eq("is_active", true)
+      .order("popularity_tier", { ascending: true, nullsFirst: true })
+      .order("name", { ascending: true })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Sport[];
+  };
+
+  const fallbackQuery = async (): Promise<Sport[]> => {
+    const { data, error } = await supabase
+      .from("sports")
+      .select("id, slug, name, category, is_active, sort_order")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Sport[];
+  };
+
+  try {
+    const sports = await extendedQuery();
     // eslint-disable-next-line no-console
-    console.error("[SportsPrep] Error fetching sports:", error.message);
-    throw new Error(error.message);
+    console.log("[SportsPrep] Fetched sports count (extended):", sports.length);
+    return sports;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const missingColumn = /column.*(description|popularity_tier).*does not exist/i.test(msg);
+    if (missingColumn) {
+      try {
+        const sports = await fallbackQuery();
+        // eslint-disable-next-line no-console
+        console.log("[SportsPrep] Fetched sports count (fallback, run migration 06 for full catalog):", sports.length);
+        return sports;
+      } catch (fallbackErr) {
+        // eslint-disable-next-line no-console
+        console.error("[SportsPrep] Fallback sports query failed:", fallbackErr);
+        throw fallbackErr;
+      }
+    }
+    // eslint-disable-next-line no-console
+    console.error("[SportsPrep] Error fetching sports:", msg);
+    throw e;
   }
-
-  const sports = (data ?? []) as Sport[];
-  // eslint-disable-next-line no-console
-  console.log("[SportsPrep] Fetched sports count:", sports.length);
-  return sports;
 }
 
 /**

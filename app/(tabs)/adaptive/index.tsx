@@ -182,6 +182,14 @@ export default function AdaptiveModeScreen() {
     return byCategory;
   }, [sports, sportsSearch]);
 
+  const categoriesToShow = useMemo(() => {
+    const keys = Array.from(filteredSportsByCategory.keys());
+    if (!keys.length) return [];
+    const canonicalFirst = canonicalCategoryOrder.filter((c) => keys.includes(c));
+    const rest = keys.filter((k) => !canonicalCategoryOrder.includes(k)).sort();
+    return [...canonicalFirst, ...rest];
+  }, [filteredSportsByCategory]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -235,7 +243,7 @@ export default function AdaptiveModeScreen() {
           </Text>
         )}
 
-        {canonicalCategoryOrder.map((cat) => {
+        {categoriesToShow.map((cat) => {
           const list = filteredSportsByCategory.get(cat) ?? [];
           if (!list.length) return null;
           return (
