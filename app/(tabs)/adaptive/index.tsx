@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  Pressable,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -14,6 +24,13 @@ import type { EnergyLevel } from "../../../lib/types";
 import { DURATIONS } from "../../../lib/preferencesConstants";
 import { listSportsForPrep } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental != null
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 /** Spec-aligned: Performance, Physique, Resilience, Energy System (representative set). */
 const ADAPTIVE_GOALS = [
@@ -83,7 +100,12 @@ export default function AdaptiveModeScreen() {
   const [sports, setSports] = useState<Sport[]>([]);
   const [sportsError, setSportsError] = useState<string | null>(null);
   const [sportsSearch, setSportsSearch] = useState("");
-  const [selectedSportSlug, setSelectedSportSlug] = useState<string | null>(null);
+  /** [primary, secondary]; null means no sport at that rank. "No specific sport" = both null. */
+  const [rankedSportSlugs, setRankedSportSlugs] = useState<[string | null, string | null]>([
+    null,
+    null,
+  ]);
+  const [sportSectionExpanded, setSportSectionExpanded] = useState(true);
 
   useEffect(() => {
     const loadSports = async () => {
@@ -141,7 +163,7 @@ export default function AdaptiveModeScreen() {
         primaryGoalSlug: primary,
         secondaryGoalSlug: secondary,
         tertiaryGoalSlug: tertiary,
-        sportSlug: selectedSportSlug ?? null,
+        sportSlug: rankedSportSlugs[0] ?? null,
         gymDaysPerWeek,
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,
@@ -190,6 +212,45 @@ export default function AdaptiveModeScreen() {
     return [...canonicalFirst, ...rest];
   }, [filteredSportsByCategory]);
 
+  const hasNoSpecificSport = rankedSportSlugs[0] === null && rankedSportSlugs[1] === null;
+  const primarySlug = rankedSportSlugs[0];
+  const secondarySlug = rankedSportSlugs[1];
+  const primarySport = primarySlug ? sports.find((s) => s.slug === primarySlug) : null;
+  const secondarySport = secondarySlug ? sports.find((s) => s.slug === secondarySlug) : null;
+
+  const selectNoSpecificSport = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setRankedSportSlugs([null, null]);
+    setSportSectionExpanded(false);
+  };
+
+  const selectSportForRank = (rankIndex: 0 | 1, slug: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setRankedSportSlugs((prev) => {
+      const next: [string | null, string | null] = [...prev];
+      if (next[1 - rankIndex] === slug) next[1 - rankIndex] = null;
+      next[rankIndex] = slug;
+      return next;
+    });
+    setSportSectionExpanded(false);
+  };
+
+  const clearSportAtRank = (rankIndex: 0 | 1) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setRankedSportSlugs((prev) => {
+      const next: [string | null, string | null] = [...prev];
+      next[rankIndex] = null;
+      return next;
+    });
+  };
+
+  const sportSummaryText =
+    hasNoSpecificSport
+      ? "No specific sport"
+      : secondarySport
+        ? `${primarySport?.name ?? primarySlug} (1st), ${secondarySport.name} (2nd)`
+        : primarySport?.name ?? primarySlug ?? "Choose sport";
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -211,11 +272,50 @@ export default function AdaptiveModeScreen() {
         ) : null}
 
         <SectionHeader
-          title="Choose your sport"
-          subtitle="This anchors how we interpret your goals."
+          title="Choose your sport(s)"
+          subtitle="Optional: pick up to 2 and rank them. This anchors how we interpret your goals."
           style={{ marginTop: 20 }}
         />
-        <View style={styles.searchRow}>
+
+        {!sportSectionExpanded ? (
+          <Pressable
+            onPress={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setSportSectionExpanded(true);
+            }}
+            style={[
+              styles.sportRow,
+              { borderColor: theme.border, backgroundColor: theme.primarySoft },
+            ]}
+          >
+            <Text style={[styles.sportName, { color: theme.text }]}>
+              {sportSummaryText}
+            </Text>
+            <Text style={[styles.sportDescription, { color: theme.primary }]}>
+              Tap to change
+            </Text>
+          </Pressable>
+        ) : (
+          <>
+            <Pressable
+              onPress={selectNoSpecificSport}
+              style={[
+                styles.sportRow,
+                {
+                  borderColor: hasNoSpecificSport ? theme.primary : theme.border,
+                  backgroundColor: hasNoSpecificSport ? theme.primarySoft : "transparent",
+                },
+              ]}
+            >
+              <Text style={[styles.sportName, { color: theme.text }]}>
+                No specific sport
+              </Text>
+              <Text style={[styles.sportDescription, { color: theme.textMuted }]}>
+                General fitness, no sport focus
+              </Text>
+            </Pressable>
+
+            <View style={styles.searchRow}>
           <TextInput
             placeholder="Search sports..."
             placeholderTextColor={theme.textMuted}
@@ -243,11 +343,7 @@ export default function AdaptiveModeScreen() {
           </Text>
         )}
 
-        {categoriesToShow.map((cat) => {
-          const list = filteredSportsByCategory.get(cat) ?? [];
-          if (!list.length) return null;
-          return (
-            <View key={cat} style={{ marginBottom: 12 }}>
+        <View style={{ marginTop: 12, marginBottom: 8 }}>
               <Text
                 style={{
                   fontSize: 13,
@@ -256,51 +352,146 @@ export default function AdaptiveModeScreen() {
                   color: theme.textMuted,
                 }}
               >
-                {cat}
+                Primary sport
               </Text>
-              {list.map((sport) => {
-                const selected = sport.slug === selectedSportSlug;
-                return (
-                  <Pressable
-                    key={sport.id}
-                    onPress={() =>
-                      setSelectedSportSlug(
-                        selected ? null : sport.slug
-                      )
-                    }
+              {primarySport ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <View
                     style={[
                       styles.sportRow,
-                      {
-                        borderColor: selected ? theme.primary : theme.border,
-                        backgroundColor: selected ? theme.primarySoft : "transparent",
-                      },
+                      { flex: 1, minWidth: 120, borderColor: theme.primary, backgroundColor: theme.primarySoft },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.sportName,
-                        { color: theme.text },
-                      ]}
-                    >
-                      {sport.name}
-                    </Text>
-                    {sport.description ? (
-                      <Text
-                        style={[
-                          styles.sportDescription,
-                          { color: theme.textMuted },
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {sport.description}
-                      </Text>
-                    ) : null}
+                    <Text style={[styles.sportName, { color: theme.text }]}>{primarySport.name}</Text>
+                  </View>
+                  <Pressable onPress={() => clearSportAtRank(0)} style={{ paddingVertical: 6, paddingHorizontal: 10 }}>
+                    <Text style={{ fontSize: 13, color: theme.danger }}>Clear</Text>
                   </Pressable>
-                );
-              })}
+                </View>
+              ) : (
+                categoriesToShow.map((cat) => {
+                  const list = filteredSportsByCategory.get(cat) ?? [];
+                  if (!list.length) return null;
+                  return (
+                    <View key={cat} style={{ marginBottom: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "600",
+                          marginBottom: 4,
+                          color: theme.textMuted,
+                        }}
+                      >
+                        {cat}
+                      </Text>
+                      {list.map((sport) => {
+                        const selected = sport.slug === primarySlug;
+                        return (
+                          <Pressable
+                            key={sport.id}
+                            onPress={() => selectSportForRank(0, sport.slug)}
+                            style={[
+                              styles.sportRow,
+                              {
+                                borderColor: selected ? theme.primary : theme.border,
+                                backgroundColor: selected ? theme.primarySoft : "transparent",
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.sportName, { color: theme.text }]}>{sport.name}</Text>
+                            {sport.description ? (
+                              <Text
+                                style={[styles.sportDescription, { color: theme.textMuted }]}
+                                numberOfLines={2}
+                              >
+                                {sport.description}
+                              </Text>
+                            ) : null}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  );
+                })
+              )}
             </View>
-          );
-        })}
+
+            <View style={{ marginTop: 8, marginBottom: 12 }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  marginBottom: 4,
+                  color: theme.textMuted,
+                }}
+              >
+                Second sport (optional)
+              </Text>
+              {secondarySport ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <View
+                    style={[
+                      styles.sportRow,
+                      { flex: 1, minWidth: 120, borderColor: theme.primary, backgroundColor: theme.primarySoft },
+                    ]}
+                  >
+                    <Text style={[styles.sportName, { color: theme.text }]}>{secondarySport.name}</Text>
+                  </View>
+                  <Pressable onPress={() => clearSportAtRank(1)} style={{ paddingVertical: 6, paddingHorizontal: 10 }}>
+                    <Text style={{ fontSize: 13, color: theme.danger }}>Clear</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                categoriesToShow.map((cat) => {
+                  const list = (filteredSportsByCategory.get(cat) ?? []).filter(
+                    (s) => s.slug !== primarySlug
+                  );
+                  if (!list.length) return null;
+                  return (
+                    <View key={cat} style={{ marginBottom: 12 }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "600",
+                          marginBottom: 4,
+                          color: theme.textMuted,
+                        }}
+                      >
+                        {cat}
+                      </Text>
+                      {list.map((sport) => {
+                        const selected = sport.slug === secondarySlug;
+                        return (
+                          <Pressable
+                            key={sport.id}
+                            onPress={() => selectSportForRank(1, sport.slug)}
+                            style={[
+                              styles.sportRow,
+                              {
+                                borderColor: selected ? theme.primary : theme.border,
+                                backgroundColor: selected ? theme.primarySoft : "transparent",
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.sportName, { color: theme.text }]}>{sport.name}</Text>
+                            {sport.description ? (
+                              <Text
+                                style={[styles.sportDescription, { color: theme.textMuted }]}
+                                numberOfLines={2}
+                              >
+                                {sport.description}
+                              </Text>
+                            ) : null}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </>
+        )}
 
         <SectionHeader
           title="Rank your goals"
