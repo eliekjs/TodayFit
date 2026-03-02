@@ -113,7 +113,8 @@ export function generateWorkout(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
   seedExtra?: string | number,
-  exercisesInput?: ExerciseDefinition[]
+  exercisesInput?: ExerciseDefinition[],
+  preferredExerciseSlugs?: string[]
 ): GeneratedWorkout {
   const bodyPartFocus = deriveBodyPartFocus(
     preferences.targetBody,
@@ -169,6 +170,12 @@ export function generateWorkout(
   );
   const cooldownPool = eligible.filter((e) => e.modalities.includes("mobility"));
 
+  const prefer = preferredExerciseSlugs?.length
+    ? new Set(preferredExerciseSlugs)
+    : null;
+  const preferMatch = (e: ExerciseDefinition) =>
+    prefer !== null && (prefer.has(e.id) || prefer.has(e.name));
+
   const buildSection = (
     title: string,
     pool: ExerciseDefinition[],
@@ -181,7 +188,9 @@ export function generateWorkout(
     while (exercises.length < count) {
       const poolToUse = pool.length ? pool : eligible;
       const available = poolToUse.filter((e) => !used.has(e.id));
-      const picked = pickRandom(available, rng);
+      const preferred = prefer ? available.filter(preferMatch) : [];
+      const poolToPick = preferred.length ? preferred : available;
+      const picked = pickRandom(poolToPick, rng);
       if (!picked) break;
       used.add(picked.id);
 
@@ -221,13 +230,16 @@ export function generateWorkout(
     for (let p = 0; p < pairCount; p += 1) {
       const available = poolToUse.filter((e) => !used.has(e.id));
       if (available.length < 2) break;
-
-      const first = pickRandom(available, rng);
+      const preferred = prefer ? available.filter(preferMatch) : [];
+      const poolToPick = preferred.length ? preferred : available;
+      const first = pickRandom(poolToPick, rng);
       if (!first) break;
       used.add(first.id);
 
       const availableSecond = poolToUse.filter((e) => !used.has(e.id));
-      const second = pickRandom(availableSecond, rng);
+      const preferredSecond = prefer ? availableSecond.filter(preferMatch) : [];
+      const poolToPickSecond = preferredSecond.length ? preferredSecond : availableSecond;
+      const second = pickRandom(poolToPickSecond, rng);
       if (!second) break;
       used.add(second.id);
 
@@ -322,11 +334,13 @@ function bodyPartFocusToMuscles(bodyPartFocus: string[]): string[] {
 /**
  * Async version: loads exercises from Supabase when configured, then generates.
  * Use this from UI so exercises are loaded from DB when available.
+ * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when picking.
  */
 export async function generateWorkoutAsync(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
-  seedExtra?: string | number
+  seedExtra?: string | number,
+  preferredExerciseSlugsOrNames?: string[]
 ): Promise<GeneratedWorkout> {
   let exercises: ExerciseDefinition[] | undefined;
   if (isDbConfigured()) {
@@ -350,5 +364,5 @@ export async function generateWorkoutAsync(
       exercises = undefined;
     }
   }
-  return generateWorkout(preferences, gymProfile, seedExtra, exercises);
+  return generateWorkout(preferences, gymProfile, seedExtra, exercises, preferredExerciseSlugsOrNames);
 }

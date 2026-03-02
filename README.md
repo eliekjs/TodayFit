@@ -68,6 +68,11 @@ Apply schema and seeds in order (Supabase Dashboard **SQL Editor** or CLI):
 | 2 | `supabase/migrations/20250301000001_sport_mode_seed.sql` | Sports, qualities, sport_quality_map |
 | 3 | `supabase/migrations/20250301000002_app_entities_schema.sql` | Exercises, tags, gym_profiles, workouts, user_preferences, etc. + RLS |
 | 4 | `supabase/migrations/20250301000003_app_entities_seed.sql` | Exercise tags, exercises, exercise_tag_map, exercise_contraindications |
+| 5 | `supabase/migrations/20250301000004_sport_prep_plans_schema.sql` | Goals, goal_demand_profile, user_training_plans, weekly_plan_instances, weekly_plan_days |
+| 6 | `supabase/migrations/20250301000005_sport_prep_plans_seed.sql` | Goals + goal_demand_profile seed |
+| 7 | `supabase/migrations/20250301000006_sports_extended_schema.sql` | Adds description, popularity_tier to sports |
+| 8 | `supabase/migrations/20250301000007_sports_canonical_seed.sql` | Canonical sports list for Sports Prep |
+| 9 | `supabase/migrations/20250301000008_sports_tags_and_starter_exercises.sql` | sport_tag_profile, exercise_tag_taxonomy, starter_exercises, goal_exercise_relevance |
 
 **Option B — Supabase CLI**
 
@@ -75,6 +80,8 @@ Apply schema and seeds in order (Supabase Dashboard **SQL Editor** or CLI):
 npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
+
+After migrations 00–08 are applied, sign in and use **Generate Week Plan** on the Adaptive setup screen to verify the week view.
 
 Seeds are **idempotent** (upserts by slug / composite key). Re-run them safely if needed.
 

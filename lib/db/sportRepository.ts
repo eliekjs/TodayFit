@@ -57,14 +57,14 @@ export async function getSportCategories(): Promise<SportCategory[]> {
  * Sports Prep catalog query:
  * - All active sports
  * - Ordered by popularity_tier asc, then name asc
- * - No hard limit (Supabase default is high; we can set an explicit safe cap)
+ * - Selects description and popularity_tier when columns exist (migration 20250301000006).
  * Includes console logging for diagnostics.
  */
 export async function listSportsForPrep(): Promise<Sport[]> {
   const supabase = requireClient();
   const { data, error } = await supabase
     .from("sports")
-    .select("id, slug, name, category, description, is_active, popularity_tier, sort_order", { count: "exact" })
+    .select("id, slug, name, category, description, is_active, popularity_tier", { count: "exact" })
     .eq("is_active", true)
     .order("popularity_tier", { ascending: true, nullsFirst: true })
     .order("name", { ascending: true })

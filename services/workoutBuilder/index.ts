@@ -1,6 +1,8 @@
 import type { GeneratedWorkout, EnergyLevel, ManualPreferences } from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
 import { generateWorkoutAsync } from "../../lib/generator";
+import { isDbConfigured } from "../../lib/db";
+import { getPreferredExerciseNamesForSportAndGoals } from "../../lib/db/starterExerciseRepository";
 
 export type SessionIntent = {
   id: string;
@@ -14,14 +16,22 @@ export type SessionIntent = {
   notes?: string;
 };
 
+export type SportGoalOptions = {
+  sportSlug?: string | null;
+  goalSlugs?: string[];
+};
+
 /**
  * Shared workout builder that takes a high-level session intent and returns a concrete workout.
  * Both Manual mode and Sports Prep mode can route through this so exercise generation stays consistent.
+ * When options.sportSlug and options.goalSlugs are provided and DB is configured, exercises are
+ * preferred by goal_exercise_relevance and sport_tag_profile overlap.
  */
 export async function buildWorkoutForSessionIntent(
   intent: SessionIntent,
   gymProfile?: GymProfile,
-  seedExtra?: string | number
+  seedExtra?: string | number,
+  options?: SportGoalOptions
 ): Promise<GeneratedWorkout> {
   const basePreferences: ManualPreferences = {
     primaryFocus: intent.focus,
@@ -35,10 +45,23 @@ export async function buildWorkoutForSessionIntent(
     workoutStyle: [],
   };
 
+  let preferredNames: string[] | undefined;
+  if (isDbConfigured() && options?.goalSlugs?.length) {
+    try {
+      preferredNames = await getPreferredExerciseNamesForSportAndGoals(
+        options.sportSlug ?? null,
+        options.goalSlugs
+      );
+    } catch {
+      preferredNames = undefined;
+    }
+  }
+
   const workout = await generateWorkoutAsync(
     basePreferences,
     gymProfile,
-    seedExtra ?? intent.id
+    seedExtra ?? intent.id,
+    preferredNames
   );
 
   return {

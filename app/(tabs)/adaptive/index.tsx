@@ -141,6 +141,7 @@ export default function AdaptiveModeScreen() {
         primaryGoalSlug: primary,
         secondaryGoalSlug: secondary,
         tertiaryGoalSlug: tertiary,
+        sportSlug: selectedSportSlug ?? null,
         gymDaysPerWeek,
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,

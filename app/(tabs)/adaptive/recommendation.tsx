@@ -7,7 +7,7 @@ import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import type { GeneratedWorkout } from "../../../lib/types";
-import { regenerateDay } from "../../../services/sportPrepPlanner";
+import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 
 export default function AdaptiveWeekPlanScreen() {
@@ -24,6 +24,7 @@ export default function AdaptiveWeekPlanScreen() {
   );
   const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -108,6 +109,8 @@ export default function AdaptiveWeekPlanScreen() {
         userId,
         weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
         date: selectedDay.date,
+        sportSlug: sportPrepWeekPlan.sportSlug ?? undefined,
+        goalSlugs: sportPrepWeekPlan.goalSlugs,
       });
 
       const updatedDays = sportPrepWeekPlan.days.map((d) =>
@@ -133,6 +136,35 @@ export default function AdaptiveWeekPlanScreen() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsRegenerating(false);
+    }
+  };
+
+  const onUpdateDayStatus = async (status: "planned" | "completed" | "skipped") => {
+    if (!sportPrepWeekPlan || !userId || !selectedDay) return;
+    setError(null);
+    setIsUpdatingStatus(true);
+    try {
+      const updatedDay = await updateDayStatus({
+        userId,
+        weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
+        date: selectedDay.date,
+        status,
+      });
+      const updatedDays = sportPrepWeekPlan.days.map((d) =>
+        d.date === updatedDay.date ? updatedDay : d
+      );
+      setSportPrepWeekPlan({
+        ...sportPrepWeekPlan,
+        days: updatedDays,
+        today:
+          sportPrepWeekPlan.today && sportPrepWeekPlan.today.date === updatedDay.date
+            ? updatedDay
+            : sportPrepWeekPlan.today,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -179,6 +211,7 @@ export default function AdaptiveWeekPlanScreen() {
               weekday: "short",
             });
             const label = day.intentLabel ?? "Rest / low-load day";
+            const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
             return (
               <Pressable
                 key={day.id}
@@ -210,6 +243,20 @@ export default function AdaptiveWeekPlanScreen() {
                       Today
                     </Text>
                   )}
+                  {statusBadge ? (
+                    <Text
+                      style={[
+                        styles.todayBadge,
+                        {
+                          color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
+                          borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
+                          marginLeft: 8,
+                        },
+                      ]}
+                    >
+                      {statusBadge}
+                    </Text>
+                  ) : null}
                 </View>
                 <Text
                   style={[
@@ -284,6 +331,30 @@ export default function AdaptiveWeekPlanScreen() {
             ))}
 
           <View style={styles.footer}>
+            {selectedDay.status === "planned" ? (
+              <>
+                <PrimaryButton
+                  label={isUpdatingStatus ? "Updating…" : "Mark completed"}
+                  variant="secondary"
+                  onPress={() => onUpdateDayStatus("completed")}
+                  disabled={isUpdatingStatus}
+                />
+                <PrimaryButton
+                  label="Skip"
+                  variant="ghost"
+                  onPress={() => onUpdateDayStatus("skipped")}
+                  disabled={isUpdatingStatus}
+                  style={{ marginTop: 8 }}
+                />
+              </>
+            ) : (
+              <PrimaryButton
+                label={isUpdatingStatus ? "Updating…" : "Mark as planned"}
+                variant="ghost"
+                onPress={() => onUpdateDayStatus("planned")}
+                disabled={isUpdatingStatus}
+              />
+            )}
             <PrimaryButton
               label={
                 isRegenerating
@@ -293,6 +364,7 @@ export default function AdaptiveWeekPlanScreen() {
               variant="secondary"
               onPress={onRegenerate}
               disabled={isRegenerating || !selectedDay.generatedWorkoutId}
+              style={{ marginTop: 8 }}
             />
             <PrimaryButton
               label="Back to Setup"

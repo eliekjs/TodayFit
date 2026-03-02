@@ -12,6 +12,7 @@ export type PlanWeekInput = {
   primaryGoalSlug: string;
   secondaryGoalSlug?: string | null;
   tertiaryGoalSlug?: string | null;
+  sportSlug?: string | null;
   gymDaysPerWeek: number;
   preferredTrainingDays?: number[]; // 0 (Sun) - 6 (Sat) relative to weekStartDate
   defaultSessionDuration: number;
@@ -35,6 +36,8 @@ export type PlanWeekResult = {
   days: PlannedDay[];
   today: PlannedDay | null;
   todayWorkout: GeneratedWorkout | null;
+  sportSlug?: string | null;
+  goalSlugs?: string[];
 };
 
 export type RegenerateDayInput = {
@@ -43,6 +46,8 @@ export type RegenerateDayInput = {
   date: string; // ISO
   gymProfile?: GymProfile;
   energyOverride?: EnergyLevel;
+  sportSlug?: string | null;
+  goalSlugs?: string[];
 };
 
 export type RegenerateDayResult = {
@@ -418,7 +423,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     const workout = await buildWorkoutForSessionIntent(
       sessionIntent,
       input.gymProfile,
-      date
+      date,
+      { sportSlug: input.sportSlug ?? null, goalSlugs }
     );
     const workoutId = await saveGeneratedWorkout(input.userId, workout);
 
@@ -493,6 +499,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     days: finalDays,
     today: todayDay,
     todayWorkout,
+    sportSlug: input.sportSlug ?? null,
+    goalSlugs,
   };
 }
 
@@ -536,7 +544,8 @@ export async function regenerateDay(
   const workout = await buildWorkoutForSessionIntent(
     sessionIntent,
     input.gymProfile,
-    `${dayRow.date}_${Date.now()}`
+    `${dayRow.date}_${Date.now()}`,
+    { sportSlug: input.sportSlug ?? null, goalSlugs: input.goalSlugs ?? [] }
   );
   const workoutId = await saveGeneratedWorkout(input.userId, workout);
 
@@ -563,6 +572,59 @@ export async function regenerateDay(
   return {
     day,
     workout,
+  };
+}
+
+export type UpdateDayStatusInput = {
+  userId: string;
+  weeklyPlanInstanceId: string;
+  date: string;
+  status: "planned" | "completed" | "skipped";
+};
+
+/**
+ * Update a plan day's status (e.g. mark completed or skip).
+ * Returns the updated day for refreshing the week plan in context.
+ */
+export async function updateDayStatus(
+  input: UpdateDayStatusInput
+): Promise<PlannedDay> {
+  if (!isDbConfigured()) {
+    throw new Error("Supabase is not configured; Sports Prep mode requires a backend.");
+  }
+  const supabase = getSupabase();
+  if (!supabase) {
+    throw new Error("Supabase client is not available.");
+  }
+  if (!input.userId) {
+    throw new Error("User must be signed in to use Sports Prep mode.");
+  }
+
+  const { data: dayRow, error: dayError } = await supabase
+    .from("weekly_plan_days")
+    .select("id, date, intent_label, status, generated_workout_id")
+    .eq("weekly_plan_instance_id", input.weeklyPlanInstanceId)
+    .eq("date", input.date)
+    .maybeSingle();
+  if (dayError) throw new Error(dayError.message);
+  if (!dayRow) {
+    throw new Error("Plan day not found for given instance and date.");
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("weekly_plan_days")
+    .update({ status: input.status })
+    .eq("id", dayRow.id)
+    .select("id, date, intent_label, status, generated_workout_id")
+    .single();
+  if (updateError) throw new Error(updateError.message);
+
+  return {
+    id: updated.id as string,
+    date: updated.date as string,
+    intentLabel: (updated.intent_label as string) ?? null,
+    status: (updated.status as "planned" | "completed" | "skipped") ?? "planned",
+    generatedWorkoutId: (updated.generated_workout_id as string) ?? null,
   };
 }
 
