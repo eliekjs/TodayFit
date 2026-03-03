@@ -16,6 +16,37 @@ export type ExerciseFilters = {
   tagSlugs?: string[];
 };
 
+/** Params for tag-based ranked exercise search. Energy is soft (scoring only) unless energyIsHardFilter is true. */
+export type ExerciseByTagsRankedParams = {
+  selectedTagSlugs?: string[];
+  excludedTagSlugs?: string[];
+  userEnergy?: "low" | "medium" | "high";
+  energyIsHardFilter?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+/** Exercise row returned by get_exercises_by_tags_ranked RPC. */
+export type ExerciseRankedRow = {
+  id: string;
+  slug: string;
+  name: string;
+  primary_muscles: string[];
+  secondary_muscles: string[];
+  equipment: string[];
+  modalities: string[];
+  movement_pattern: string | null;
+  match_score: number;
+  matched_tag_count: number;
+};
+
+/** ExerciseDefinition plus ranking metadata from tag search. */
+export type ExerciseRankedResult = ExerciseDefinition & {
+  match_score: number;
+  matched_tag_count: number;
+  movement_pattern?: string | null;
+};
+
 /**
  * List exercises with optional filters. Returns ExerciseDefinition-compatible shape.
  */
@@ -134,17 +165,22 @@ export async function getExercise(idOrSlug: string): Promise<ExerciseDefinition 
 }
 
 /**
- * List all exercise tags (for filtering/display).
+ * List all exercise tags (for filtering/display). Includes optional weight for ranking.
  */
-export async function listTags(): Promise<{ slug: string; name: string; tag_group: string }[]> {
+export async function listTags(): Promise<{
+  slug: string;
+  name: string;
+  tag_group: string;
+  weight?: number;
+}[]> {
   const supabase = requireClient();
   const { data, error } = await supabase
     .from("exercise_tags")
-    .select("slug, name, tag_group")
+    .select("slug, name, tag_group, weight")
     .order("tag_group")
     .order("slug");
   if (error) throw new Error(error.message);
-  return (data ?? []) as { slug: string; name: string; tag_group: string }[];
+  return (data ?? []) as { slug: string; name: string; tag_group: string; weight?: number }[];
 }
 
 /**
@@ -152,4 +188,61 @@ export async function listTags(): Promise<{ slug: string; name: string; tag_grou
  */
 export async function listExercisesByTags(tagSlugs: string[]): Promise<ExerciseDefinition[]> {
   return listExercises({ tagSlugs });
+}
+
+/**
+ * Tag-based ranked exercise search (RPC get_exercises_by_tags_ranked).
+ * - More selected-tag matches = higher rank; tag weights apply when set.
+ * - Energy is a soft preference by default (scores compatible intensity higher); set energyIsHardFilter
+ *   to true to exclude exercises that don't match userEnergy.
+ * Returns exercises with match_score and matched_tag_count; for full tags/contraindications use getExercise(slug).
+ *
+ * @example
+ * // From Build flow: user selected squat + strength + legs, medium energy, no strict filter
+ * const results = await getExercisesByTagsRanked({
+ *   selectedTagSlugs: ['squat', 'strength', 'legs'],
+ *   excludedTagSlugs: ['contra_knee'],
+ *   userEnergy: 'medium',
+ *   energyIsHardFilter: false,
+ *   limit: 30,
+ *   offset: 0,
+ * });
+ */
+export async function getExercisesByTagsRanked(
+  params: ExerciseByTagsRankedParams
+): Promise<ExerciseRankedResult[]> {
+  const supabase = requireClient();
+  const {
+    selectedTagSlugs = [],
+    excludedTagSlugs = [],
+    userEnergy = null,
+    energyIsHardFilter = false,
+    limit = 50,
+    offset = 0,
+  } = params;
+
+  const { data: rows, error } = await supabase.rpc("get_exercises_by_tags_ranked", {
+    selected_tag_slugs: selectedTagSlugs,
+    excluded_tag_slugs: excludedTagSlugs,
+    user_energy: userEnergy ?? null,
+    energy_is_hard_filter: energyIsHardFilter,
+    result_limit: limit,
+    result_offset: offset,
+  });
+
+  if (error) throw new Error(error.message);
+  const list = (rows ?? []) as ExerciseRankedRow[];
+
+  return list.map((row) => ({
+    id: row.slug,
+    name: row.name,
+    muscles: row.primary_muscles as ExerciseDefinition["muscles"],
+    modalities: row.modalities as ExerciseDefinition["modalities"],
+    equipment: row.equipment as ExerciseDefinition["equipment"],
+    tags: [], // RPC does not return tag list; use getExercise(slug) for full details
+    contraindications: undefined,
+    match_score: row.match_score,
+    matched_tag_count: row.matched_tag_count,
+    movement_pattern: row.movement_pattern ?? undefined,
+  }));
 }

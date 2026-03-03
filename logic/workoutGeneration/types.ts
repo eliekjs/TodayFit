@@ -1,0 +1,176 @@
+/**
+ * Types for the Daily "Build My Workout" generation engine.
+ * Isolated from Sports Prep planner and existing lib/generator.
+ */
+
+// --- Movement & modality ---
+export type MovementPattern =
+  | "squat"
+  | "hinge"
+  | "push"
+  | "pull"
+  | "carry"
+  | "rotate"
+  | "locomotion";
+
+export type Modality =
+  | "strength"
+  | "hypertrophy"
+  | "conditioning"
+  | "mobility"
+  | "skill"
+  | "recovery";
+
+export type TimeCost = "low" | "medium" | "high";
+
+// --- Exercise tags (structured) ---
+export type ExerciseTags = {
+  goal_tags?: (
+    | "strength"
+    | "hypertrophy"
+    | "endurance"
+    | "power"
+    | "mobility"
+    | "calisthenics"
+    | "recovery"
+    | "athleticism"
+  )[];
+  sport_tags?: string[]; // climbing, skiing, surfing, hyrox, running, etc.
+  energy_fit?: ("low" | "medium" | "high")[];
+  joint_stress?: string[]; // shoulder_overhead, shoulder_extension, knee_flexion, lumbar_shear, etc.
+  contraindications?: string[]; // rotator_cuff_irritation, low_back_sensitive, knee_pain, etc.
+  stimulus?: (
+    | "eccentric"
+    | "isometric"
+    | "plyometric"
+    | "aerobic_zone2"
+    | "anaerobic"
+    | "grip"
+    | "scapular_control"
+    | "trunk_anti_rotation"
+    | "anti_flexion"
+  )[];
+};
+
+// --- Exercise (generator schema) ---
+export type Exercise = {
+  id: string;
+  name: string;
+  movement_pattern: MovementPattern;
+  muscle_groups: string[];
+  modality: Modality;
+  equipment_required: string[];
+  difficulty: number; // 1-5
+  time_cost: TimeCost;
+  estimated_minutes?: number;
+  tags: ExerciseTags;
+  progressions?: string[]; // exercise IDs
+  regressions?: string[];
+};
+
+// --- Input contract ---
+export type PrimaryGoal =
+  | "strength"
+  | "power"
+  | "hypertrophy"
+  | "body_recomp"
+  | "endurance"
+  | "conditioning"
+  | "mobility"
+  | "recovery"
+  | "athletic_performance";
+
+export type FocusBodyPart =
+  | "upper_push"
+  | "upper_pull"
+  | "lower"
+  | "core"
+  | "full_body";
+
+export type EnergyLevel = "low" | "medium" | "high";
+
+export type UserLevel = "beginner" | "intermediate" | "advanced";
+
+export type StylePrefs = {
+  wants_supersets?: boolean;
+  conditioning_minutes?: number;
+  avoid_tags?: string[];
+  user_level?: UserLevel;
+};
+
+export type RecentSessionSummary = {
+  exercise_ids: string[];
+  muscle_groups: string[];
+  modality: string;
+};
+
+export type GenerateWorkoutInput = {
+  duration_minutes: 20 | 30 | 45 | 60 | 75;
+  primary_goal: PrimaryGoal;
+  secondary_goals?: PrimaryGoal[];
+  focus_body_parts?: FocusBodyPart[];
+  energy_level: EnergyLevel;
+  available_equipment: string[];
+  injuries_or_constraints: string[];
+  recent_history?: RecentSessionSummary[];
+  style_prefs?: StylePrefs;
+  seed?: number;
+};
+
+// --- Output contract ---
+export type BlockType =
+  | "warmup"
+  | "main_strength"
+  | "main_hypertrophy"
+  | "conditioning"
+  | "skill"
+  | "cooldown";
+
+export type BlockFormat =
+  | "straight_sets"
+  | "superset"
+  | "circuit"
+  | "emom"
+  | "amrap";
+
+export type WorkoutItem = {
+  exercise_id: string;
+  exercise_name: string;
+  sets: number;
+  reps?: number;
+  time_seconds?: number;
+  rest_seconds: number;
+  coaching_cues: string;
+  reasoning_tags: string[];
+};
+
+export type WorkoutBlock = {
+  block_type: BlockType;
+  format: BlockFormat;
+  items: WorkoutItem[];
+  estimated_minutes?: number;
+};
+
+export type ScoringDebug = {
+  exercise_id: string;
+  total: number;
+  goal_alignment?: number;
+  body_part?: number;
+  energy_fit?: number;
+  variety_penalty?: number;
+  balance_bonus?: number;
+  duration_practicality?: number;
+};
+
+export type WorkoutSession = {
+  title: string;
+  estimated_duration_minutes: number;
+  blocks: WorkoutBlock[];
+  debug?: {
+    scoring_breakdown?: ScoringDebug[];
+    seed_used?: number;
+  };
+};
+
+// --- Regenerate ---
+export type RegenerateMode = "keep_structure_swap_exercises" | "new_structure";
