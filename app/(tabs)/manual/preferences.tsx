@@ -82,7 +82,6 @@ export default function ManualPreferencesScreen() {
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
   const [expandedSubGoalsForGoal, setExpandedSubGoalsForGoal] = useState<string | null>(null);
-  const [showGoalPctModal, setShowGoalPctModal] = useState(false);
   const router = useRouter();
   const theme = useTheme();
 
@@ -287,10 +286,7 @@ export default function ManualPreferencesScreen() {
                     : (manualPreferences.goalMatchTertiaryPct ?? 20);
               return (
                 <View key={goal} style={styles.rankedChipWrap}>
-                  <Pressable
-                    style={styles.rankedChipPressable}
-                    onPress={() => setShowGoalPctModal(true)}
-                  >
+                  <View style={styles.rankedChipPressable}>
                     <View
                       style={[
                         styles.rankBadge,
@@ -329,7 +325,7 @@ export default function ManualPreferencesScreen() {
                         {pct}%
                       </Text>
                     </View>
-                  </Pressable>
+                  </View>
                   <Pressable
                     hitSlop={8}
                     onPress={() => togglePrimaryFocus(goal)}
@@ -465,6 +461,124 @@ export default function ManualPreferencesScreen() {
                 />
               ))}
             </View>
+
+            {/* Goal match % — linked to the ranked goals shown above; edit here in Advanced */}
+            {hasPrimaryFocus && (
+              <>
+                <SectionHeader
+                  title="Goal match %"
+                  subtitle="What % of the workout should match each ranked goal. Sum = 100%."
+                  style={{ marginTop: 20 }}
+                />
+                <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
+                  {rankedGoals.slice(0, 3).map((goal, idx) => {
+                    const rank = idx + 1;
+                    const value =
+                      rank === 1
+                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                        : rank === 2
+                          ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                          : (manualPreferences.goalMatchTertiaryPct ?? 20);
+                    const setPct = (raw: number) => {
+                      const v = Math.max(0, Math.min(100, Math.round(raw)));
+                      const others =
+                        rank === 1
+                          ? {
+                              goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+                              goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+                            }
+                          : rank === 2
+                            ? {
+                                goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+                                goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+                              }
+                            : {
+                                goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+                                goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+                              };
+                      const otherSum =
+                        rank === 1
+                          ? (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct +
+                            (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
+                          : rank === 2
+                            ? (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
+                              (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
+                            : (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
+                              (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct;
+                      const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
+                      const s2 =
+                        rank === 1
+                          ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                          : rank === 2
+                            ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                            : (manualPreferences.goalMatchPrimaryPct ?? 50);
+                      const s3 =
+                        rank === 1
+                          ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                          : rank === 2
+                            ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                            : (manualPreferences.goalMatchSecondaryPct ?? 30);
+                      const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
+                      const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
+                      if (rank === 1) {
+                        updateManualPreferences({
+                          goalMatchPrimaryPct: v,
+                          goalMatchSecondaryPct: scaled2,
+                          goalMatchTertiaryPct: scaled3,
+                        });
+                      } else if (rank === 2) {
+                        updateManualPreferences({
+                          goalMatchSecondaryPct: v,
+                          goalMatchPrimaryPct: scaled2,
+                          goalMatchTertiaryPct: scaled3,
+                        });
+                      } else {
+                        updateManualPreferences({
+                          goalMatchTertiaryPct: v,
+                          goalMatchPrimaryPct: scaled2,
+                          goalMatchSecondaryPct: scaled3,
+                        });
+                      }
+                    };
+                    return (
+                      <View
+                        key={goal}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text
+                          style={[styles.modifierLabel, { color: theme.text }]}
+                          numberOfLines={1}
+                        >
+                          {goal}
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          <TextInput
+                            style={[
+                              styles.goalMatchInput,
+                              {
+                                color: theme.text,
+                                borderColor: theme.border,
+                              },
+                            ]}
+                            keyboardType="number-pad"
+                            value={String(value)}
+                            onChangeText={(t) => {
+                              const n = parseInt(t.replace(/\D/g, ""), 10);
+                              if (!Number.isNaN(n)) setPct(n);
+                            }}
+                          />
+                          <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>%</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
 
             {/* Sub-goals per ranked goal */}
             {hasPrimaryFocus && (
@@ -852,143 +966,6 @@ export default function ManualPreferencesScreen() {
               <PrimaryButton
                 label="Done"
                 onPress={() => setShowChangeProfileModal(false)}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Goal match % modal */}
-      <Modal
-        transparent
-        visible={showGoalPctModal}
-        animationType="fade"
-        onRequestClose={() => setShowGoalPctModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={styles.modalDismiss}
-            onPress={() => setShowGoalPctModal(false)}
-          />
-          <View
-            style={[styles.modalSheet, styles.savePresetModalSheet, { backgroundColor: theme.card }]}
-          >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Goal match %
-            </Text>
-            <Text style={[styles.modalSubtitle, { color: theme.textMuted }]}>
-              What % of the workout should match each goal. Sum = 100%.
-            </Text>
-            {rankedGoals.slice(0, 3).map((goal, idx) => {
-              const rank = idx + 1;
-              const value =
-                rank === 1
-                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                  : rank === 2
-                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
-              const setPct = (raw: number) => {
-                const v = Math.max(0, Math.min(100, Math.round(raw)));
-                const others =
-                  rank === 1
-                    ? {
-                        goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-                        goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-                      }
-                    : rank === 2
-                      ? {
-                          goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-                          goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-                        }
-                      : {
-                          goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-                          goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-                        };
-                const otherSum =
-                  rank === 1
-                    ? (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct +
-                      (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
-                    : rank === 2
-                      ? (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
-                        (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
-                      : (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
-                        (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct;
-                const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
-                const s2 =
-                  rank === 1
-                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                    : rank === 2
-                      ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                      : (manualPreferences.goalMatchPrimaryPct ?? 50);
-                const s3 =
-                  rank === 1
-                    ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                    : rank === 2
-                      ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                      : (manualPreferences.goalMatchSecondaryPct ?? 30);
-                const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
-                const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
-                if (rank === 1) {
-                  updateManualPreferences({
-                    goalMatchPrimaryPct: v,
-                    goalMatchSecondaryPct: scaled2,
-                    goalMatchTertiaryPct: scaled3,
-                  });
-                } else if (rank === 2) {
-                  updateManualPreferences({
-                    goalMatchSecondaryPct: v,
-                    goalMatchPrimaryPct: scaled2,
-                    goalMatchTertiaryPct: scaled3,
-                  });
-                } else {
-                  updateManualPreferences({
-                    goalMatchTertiaryPct: v,
-                    goalMatchPrimaryPct: scaled2,
-                    goalMatchSecondaryPct: scaled3,
-                  });
-                }
-              };
-              return (
-                <View
-                  key={goal}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginTop: 12,
-                  }}
-                >
-                  <Text
-                    style={[styles.modifierLabel, { color: theme.text }]}
-                    numberOfLines={1}
-                  >
-                    {goal}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <TextInput
-                      style={[
-                        styles.goalMatchInput,
-                        {
-                          color: theme.text,
-                          borderColor: theme.border,
-                        },
-                      ]}
-                      keyboardType="number-pad"
-                      value={String(value)}
-                      onChangeText={(t) => {
-                        const n = parseInt(t.replace(/\D/g, ""), 10);
-                        if (!Number.isNaN(n)) setPct(n);
-                      }}
-                    />
-                    <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>%</Text>
-                  </View>
-                </View>
-              );
-            })}
-            <View style={styles.modalFooter}>
-              <PrimaryButton
-                label="Done"
-                onPress={() => setShowGoalPctModal(false)}
               />
             </View>
           </View>

@@ -22,8 +22,9 @@ import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { EnergyLevel } from "../../../lib/types";
 import { DURATIONS, CONSTRAINT_OPTIONS } from "../../../lib/preferencesConstants";
-import { listSportsForPrep } from "../../../lib/db/sportRepository";
+import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
+import type { SportQuality } from "../../../lib/db/types";
 
 if (
   Platform.OS === "android" &&
@@ -111,12 +112,16 @@ export default function AdaptiveModeScreen() {
   const [sports, setSports] = useState<Sport[]>([]);
   const [sportsError, setSportsError] = useState<string | null>(null);
   const [sportsSearch, setSportsSearch] = useState("");
-  /** [primary, secondary]; null means no sport at that rank. "No specific sport" = both null. */
-  const [rankedSportSlugs, setRankedSportSlugs] = useState<[string | null, string | null]>([
-    null,
-    null,
-  ]);
+  /** Ranked sports (up to 2). Empty = no specific sport. */
+  const [rankedSportSlugs, setRankedSportSlugs] = useState<(string | null)[]>([null, null]);
   const [sportSectionExpanded, setSportSectionExpanded] = useState(true);
+  /** Sub-focus (qualities) per sport: sportSlug -> quality slugs (max 3 per sport). */
+  const [subFocusBySport, setSubFocusBySport] = useState<Record<string, string[]>>({});
+  /** Which sport's sub-goals row is expanded. */
+  const [expandedSportForSubFocus, setExpandedSportForSubFocus] = useState<string | null>(null);
+  /** Cached qualities per sport (loaded when sport is selected). */
+  const [qualitiesBySport, setQualitiesBySport] = useState<Record<string, SportQuality[]>>({});
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     const loadSports = async () => {
@@ -133,17 +138,68 @@ export default function AdaptiveModeScreen() {
     loadSports();
   }, []);
 
-  const selectGoalForRank = (rankIndex: number, goalId: string) => {
-    setRankedGoals((prev) => {
-      const next = [...prev];
-      for (let i = 0; i < next.length; i += 1) {
-        if (i !== rankIndex && next[i] === goalId) {
-          next[i] = null;
+  // Load qualities (sub-goals) for each selected sport when not yet cached
+  useEffect(() => {
+    const slugs = rankedSportSlugs.filter((s): s is string => s != null);
+    if (!isDbConfigured() || slugs.length === 0) return;
+    let cancelled = false;
+    slugs.forEach(async (slug) => {
+      if (qualitiesBySport[slug] != null) return;
+      try {
+        const list = await getQualitiesForSport(slug);
+        if (!cancelled) {
+          setQualitiesBySport((prev) => ({ ...prev, [slug]: list }));
         }
+      } catch {
+        // ignore; qualities optional
       }
-      next[rankIndex] = goalId;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [rankedSportSlugs.join(",")]);
+
+  const addSport = (slug: string) => {
+    const current = rankedSportSlugs.filter((s): s is string => s != null);
+    if (current.includes(slug) || current.length >= 2) return;
+    const next: (string | null)[] = [...rankedSportSlugs];
+    const idx = next.findIndex((s) => s == null);
+    if (idx >= 0) next[idx] = slug;
+    setRankedSportSlugs(next);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  };
+
+  const removeSport = (slug: string) => {
+    setRankedSportSlugs((prev) => {
+      const next = prev.map((s) => (s === slug ? null : s));
+      // compact: [a, null] -> [a, null], [a, b] remove a -> [b, null]
+      const filled = next.filter((s): s is string => s != null);
+      return [filled[0] ?? null, filled[1] ?? null];
+    });
+    setSubFocusBySport((prev) => {
+      const next = { ...prev };
+      delete next[slug];
       return next;
     });
+    if (expandedSportForSubFocus === slug) setExpandedSportForSubFocus(null);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  };
+
+  const toggleSportSubFocus = (sportSlug: string, qualitySlug: string) => {
+    const current = subFocusBySport[sportSlug] ?? [];
+    const has = current.includes(qualitySlug);
+    if (has) {
+      setSubFocusBySport((prev) => ({
+        ...prev,
+        [sportSlug]: current.filter((x) => x !== qualitySlug),
+      }));
+    } else {
+      if (current.length >= 3) return;
+      setSubFocusBySport((prev) => ({
+        ...prev,
+        [sportSlug]: [...current, qualitySlug],
+      }));
+    }
   };
 
   const energyFromFatigue = (level: (typeof FATIGUE_OPTIONS)[number]): EnergyLevel => {
@@ -175,6 +231,9 @@ export default function AdaptiveModeScreen() {
         secondaryGoalSlug: secondary,
         tertiaryGoalSlug: tertiary,
         sportSlug: rankedSportSlugs[0] ?? null,
+        sportQualitySlugs: rankedSportSlugs[0]
+          ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
+          : undefined,
         gymDaysPerWeek,
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,
@@ -229,44 +288,49 @@ export default function AdaptiveModeScreen() {
     return [...canonicalFirst, ...rest];
   }, [filteredSportsByCategory]);
 
-  const hasNoSpecificSport = rankedSportSlugs[0] === null && rankedSportSlugs[1] === null;
-  const primarySlug = rankedSportSlugs[0];
-  const secondarySlug = rankedSportSlugs[1];
+  const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
+  const hasNoSpecificSport = selectedSportSlugs.length === 0;
+  const primarySlug = rankedSportSlugs[0] ?? null;
+  const secondarySlug = rankedSportSlugs[1] ?? null;
   const primarySport = primarySlug ? sports.find((s) => s.slug === primarySlug) : null;
   const secondarySport = secondarySlug ? sports.find((s) => s.slug === secondarySlug) : null;
 
-  const selectNoSpecificSport = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  const clearAllSports = () => {
     setRankedSportSlugs([null, null]);
+    setSubFocusBySport({});
+    setExpandedSportForSubFocus(null);
     setSportSectionExpanded(false);
-  };
-
-  const selectSportForRank = (rankIndex: 0 | 1, slug: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setRankedSportSlugs((prev) => {
-      const next: [string | null, string | null] = [...prev];
-      if (next[1 - rankIndex] === slug) next[1 - rankIndex] = null;
-      next[rankIndex] = slug;
-      return next;
-    });
-    setSportSectionExpanded(false);
-  };
-
-  const clearSportAtRank = (rankIndex: 0 | 1) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setRankedSportSlugs((prev) => {
-      const next: [string | null, string | null] = [...prev];
-      next[rankIndex] = null;
-      return next;
-    });
   };
 
   const sportSummaryText =
     hasNoSpecificSport
       ? "No specific sport"
-      : secondarySport
-        ? `${primarySport?.name ?? primarySlug} (1st), ${secondarySport.name} (2nd)`
-        : primarySport?.name ?? primarySlug ?? "Choose sport";
+      : selectedSportSlugs
+        .map((slug, i) => {
+          const sport = sports.find((s) => s.slug === slug);
+          return `${sport?.name ?? slug}${selectedSportSlugs.length > 1 ? ` (${i + 1})` : ""}`;
+        })
+        .join(", ") || "Choose sport";
+
+  const addGoal = (goalId: string) => {
+    setRankedGoals((prev) => {
+      if (prev.includes(goalId)) return prev;
+      const next = [...prev];
+      const idx = next.findIndex((g) => g == null);
+      if (idx < 0) return prev;
+      next[idx] = goalId;
+      return next;
+    });
+  };
+
+  const removeGoal = (goalId: string) => {
+    setRankedGoals((prev) => {
+      const next = prev.map((g) => (g === goalId ? null : g));
+      const filled = next.filter((g): g is string => g != null);
+      return [filled[0] ?? null, filled[1] ?? null, filled[2] ?? null];
+    });
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -276,7 +340,8 @@ export default function AdaptiveModeScreen() {
       >
         <Card title="How Adaptive Mode works">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Rank your long-term goals and set your weekly availability. TodayFit
+            Pick at least one goal (and optionally a second to balance your plan),
+            choose your sport(s) if any, and set your weekly availability. TodayFit
             will generate a 7-day plan with smart intents and a concrete workout
             for each training day.
           </Text>
@@ -290,7 +355,7 @@ export default function AdaptiveModeScreen() {
 
         <SectionHeader
           title="Choose your sport(s)"
-          subtitle="Optional: pick up to 2 and rank them. This anchors how we interpret your goals."
+          subtitle="Pick up to 2, ranked. Optional: leave empty for general fitness."
           style={{ marginTop: 20 }}
         />
 
@@ -314,25 +379,65 @@ export default function AdaptiveModeScreen() {
           </Pressable>
         ) : (
           <>
-            <Pressable
-              onPress={selectNoSpecificSport}
-              style={[
-                styles.sportRow,
-                {
-                  borderColor: hasNoSpecificSport ? theme.primary : theme.border,
-                  backgroundColor: hasNoSpecificSport ? theme.primarySoft : "transparent",
-                },
-              ]}
-            >
-              <Text style={[styles.sportName, { color: theme.text }]}>
-                No specific sport
-              </Text>
-              <Text style={[styles.sportDescription, { color: theme.textMuted }]}>
-                General fitness, no sport focus
-              </Text>
-            </Pressable>
+            {selectedSportSlugs.length > 0 && (
+              <View style={styles.chipGroup}>
+                {selectedSportSlugs.map((slug, idx) => {
+                  const sport = sports.find((s) => s.slug === slug);
+                  return (
+                    <View key={slug} style={styles.rankedChipWrap}>
+                      <View
+                        style={[
+                          styles.rankBadge,
+                          {
+                            backgroundColor: theme.chipSelectedBackground,
+                            borderWidth: 1,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                          {idx + 1}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.rankedChipInner,
+                          {
+                            backgroundColor: theme.chipSelectedBackground,
+                            borderWidth: 1,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                          numberOfLines={1}
+                        >
+                          {sport?.name ?? slug}
+                        </Text>
+                      </View>
+                      <Pressable
+                        hitSlop={8}
+                        onPress={() => removeSport(slug)}
+                        style={styles.rankedChipRemove}
+                      >
+                        <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
-            <View style={styles.searchRow}>
+            <View style={styles.chipGroup}>
+              <Chip
+                label="No specific sport"
+                selected={hasNoSpecificSport}
+                onPress={clearAllSports}
+              />
+            </View>
+
+            <View style={[styles.searchRow, { marginTop: 12 }]}>
           <TextInput
             placeholder="Search sports..."
             placeholderTextColor={theme.textMuted}
@@ -360,279 +465,321 @@ export default function AdaptiveModeScreen() {
           </Text>
         )}
 
-        <View style={{ marginTop: 12, marginBottom: 8 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: "600",
-                  marginBottom: 4,
-                  color: theme.textMuted,
-                }}
-              >
-                Primary sport
+            <View style={{ marginTop: 8, marginBottom: 4 }}>
+              <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
+                Add a sport
               </Text>
-              {primarySport ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <View
-                    style={[
-                      styles.sportRow,
-                      { flex: 1, minWidth: 120, borderColor: theme.primary, backgroundColor: theme.primarySoft },
-                    ]}
-                  >
-                    <Text style={[styles.sportName, { color: theme.text }]}>{primarySport.name}</Text>
-                  </View>
-                  <Pressable onPress={() => clearSportAtRank(0)} style={{ paddingVertical: 6, paddingHorizontal: 10 }}>
-                    <Text style={{ fontSize: 13, color: theme.danger }}>Clear</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                categoriesToShow.map((cat) => {
-                  const list = filteredSportsByCategory.get(cat) ?? [];
-                  if (!list.length) return null;
-                  return (
-                    <View key={cat} style={{ marginBottom: 12 }}>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "600",
-                          marginBottom: 4,
-                          color: theme.textMuted,
-                        }}
-                      >
-                        {cat}
-                      </Text>
-                      {list.map((sport) => {
-                        const selected = sport.slug === primarySlug;
-                        return (
-                          <Pressable
-                            key={sport.id}
-                            onPress={() => selectSportForRank(0, sport.slug)}
-                            style={[
-                              styles.sportRow,
-                              {
-                                borderColor: selected ? theme.primary : theme.border,
-                                backgroundColor: selected ? theme.primarySoft : "transparent",
-                              },
-                            ]}
-                          >
-                            <Text style={[styles.sportName, { color: theme.text }]}>{sport.name}</Text>
-                            {sport.description ? (
-                              <Text
-                                style={[styles.sportDescription, { color: theme.textMuted }]}
-                                numberOfLines={2}
-                              >
-                                {sport.description}
-                              </Text>
-                            ) : null}
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  );
-                })
-              )}
+              <View style={styles.chipGroup}>
+                {categoriesToShow.flatMap((cat) =>
+                  (filteredSportsByCategory.get(cat) ?? []).filter(
+                    (s) => !selectedSportSlugs.includes(s.slug)
+                  )
+                ).map((sport) => (
+                  <Chip
+                    key={sport.id}
+                    label={sport.name}
+                    selected={false}
+                    onPress={() => addSport(sport.slug)}
+                  />
+                ))}
+              </View>
             </View>
 
-            <View style={{ marginTop: 8, marginBottom: 12 }}>
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: "600",
-                  marginBottom: 4,
-                  color: theme.textMuted,
-                }}
-              >
-                Second sport (optional)
-              </Text>
-              {secondarySport ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <View
-                    style={[
-                      styles.sportRow,
-                      { flex: 1, minWidth: 120, borderColor: theme.primary, backgroundColor: theme.primarySoft },
-                    ]}
-                  >
-                    <Text style={[styles.sportName, { color: theme.text }]}>{secondarySport.name}</Text>
-                  </View>
-                  <Pressable onPress={() => clearSportAtRank(1)} style={{ paddingVertical: 6, paddingHorizontal: 10 }}>
-                    <Text style={{ fontSize: 13, color: theme.danger }}>Clear</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                categoriesToShow.map((cat) => {
-                  const list = (filteredSportsByCategory.get(cat) ?? []).filter(
-                    (s) => s.slug !== primarySlug
-                  );
-                  if (!list.length) return null;
-                  return (
-                    <View key={cat} style={{ marginBottom: 12 }}>
-                      <Text
-                        style={{
-                          fontSize: 12,
-                          fontWeight: "600",
-                          marginBottom: 4,
-                          color: theme.textMuted,
-                        }}
-                      >
-                        {cat}
+            {selectedSportSlugs.map((slug) => {
+              const sport = sports.find((s) => s.slug === slug);
+              const qualities = qualitiesBySport[slug] ?? [];
+              const selectedQualities = subFocusBySport[slug] ?? [];
+              const isExpanded = expandedSportForSubFocus === slug;
+              const canAddSub = selectedQualities.length < 3;
+              return (
+                <View key={slug} style={[styles.goalRow, { borderColor: theme.border }]}>
+                  <View style={styles.goalRowHeader}>
+                    <Text style={[styles.goalRowLabel, { color: theme.text }]} numberOfLines={1}>
+                      {sport?.name ?? slug}
+                    </Text>
+                    <Pressable
+                      onPress={() =>
+                        setExpandedSportForSubFocus(isExpanded ? null : slug)
+                      }
+                      style={styles.subGoalsControl}
+                    >
+                      <Text style={[styles.subGoalsControlText, { color: theme.primary }]}>
+                        {isExpanded ? "− Sub-focus" : "+ Sub-focus"}
                       </Text>
-                      {list.map((sport) => {
-                        const selected = sport.slug === secondarySlug;
-                        return (
-                          <Pressable
-                            key={sport.id}
-                            onPress={() => selectSportForRank(1, sport.slug)}
-                            style={[
-                              styles.sportRow,
-                              {
-                                borderColor: selected ? theme.primary : theme.border,
-                                backgroundColor: selected ? theme.primarySoft : "transparent",
-                              },
-                            ]}
-                          >
-                            <Text style={[styles.sportName, { color: theme.text }]}>{sport.name}</Text>
-                            {sport.description ? (
-                              <Text
-                                style={[styles.sportDescription, { color: theme.textMuted }]}
-                                numberOfLines={2}
+                    </Pressable>
+                  </View>
+                  {isExpanded && qualities.length > 0 && (
+                    <View style={[styles.subGoalsBlock, { borderTopColor: theme.border }]}>
+                      {selectedQualities.length > 0 && (
+                        <View style={styles.chipGroup}>
+                          {selectedQualities.map((qSlug) => {
+                            const q = qualities.find((qu) => qu.slug === qSlug);
+                            return (
+                              <Pressable
+                                key={qSlug}
+                                style={styles.rankedChipWrap}
+                                onPress={() => toggleSportSubFocus(slug, qSlug)}
                               >
-                                {sport.description}
-                              </Text>
-                            ) : null}
-                          </Pressable>
-                        );
-                      })}
+                                <View
+                                  style={[
+                                    styles.rankBadgeSmall,
+                                    {
+                                      backgroundColor: theme.chipSelectedBackground,
+                                      borderWidth: 1,
+                                      borderColor: theme.primary,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                  >
+                                    {selectedQualities.indexOf(qSlug) + 1}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={[
+                                    styles.rankedChipInner,
+                                    {
+                                      backgroundColor: theme.chipSelectedBackground,
+                                      borderWidth: 1,
+                                      borderColor: theme.primary,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                                    numberOfLines={1}
+                                  >
+                                    {q?.name ?? qSlug}
+                                  </Text>
+                                </View>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      )}
+                      <View style={styles.chipGroup}>
+                        {qualities
+                          .filter((q) => !selectedQualities.includes(q.slug))
+                          .map((q) => (
+                            <Chip
+                              key={q.slug}
+                              label={q.name}
+                              selected={false}
+                              disabled={!canAddSub}
+                              onPress={() => toggleSportSubFocus(slug, q.slug)}
+                            />
+                          ))}
+                      </View>
                     </View>
-                  );
-                })
-              )}
-            </View>
+                  )}
+                </View>
+              );
+            })}
           </>
         )}
 
         <SectionHeader
           title="Rank your goals"
-          subtitle="Most important at the top."
+          subtitle="Pick at least one. You can add a second (optional) to balance your plan."
           style={{ marginTop: 20 }}
         />
 
-        {[0, 1, 2].map((rankIndex) => (
-          <View key={rankIndex} style={{ marginBottom: 12 }}>
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "500",
-                marginBottom: 6,
-                color: theme.textMuted,
-              }}
-            >
-              Rank {rankIndex + 1}
-            </Text>
-            <View style={styles.chipGroup}>
-              {ADAPTIVE_GOALS.map((goal) => (
-                <Chip
-                  key={`${goal.id}-${rankIndex}`}
-                  label={goal.label}
-                  selected={rankedGoals[rankIndex] === goal.id}
-                  onPress={() => selectGoalForRank(rankIndex, goal.id)}
-                />
-              ))}
+        {rankedGoals.filter((g): g is string => g != null).length > 0 && (
+          <View style={styles.chipGroup}>
+            {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
+              const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+              const pct =
+                idx === 0
+                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                  : idx === 1
+                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
+              return (
+                <View key={goalId} style={styles.rankedChipWrap}>
+                  <View
+                    style={[
+                      styles.rankBadge,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                      {idx + 1}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.rankedChipInner,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                      numberOfLines={1}
+                    >
+                      {goal?.label ?? goalId}
+                    </Text>
+                    <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
+                      {pct}%
+                    </Text>
+                  </View>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => removeGoal(goalId)}
+                    style={styles.rankedChipRemove}
+                  >
+                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        <View style={styles.chipGroup}>
+          {ADAPTIVE_GOALS.filter(
+            (g) => !rankedGoals.includes(g.id)
+          ).map((goal) => (
+            <Chip
+              key={goal.id}
+              label={goal.label}
+              selected={false}
+              onPress={() => addGoal(goal.id)}
+            />
+          ))}
+        </View>
+
+        <Pressable
+          style={[
+            styles.advancedFiltersHeader,
+            { borderBottomColor: theme.border, marginTop: 20 },
+          ]}
+          onPress={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setAdvancedOpen((v) => !v);
+          }}
+        >
+          <Text style={[styles.advancedFiltersTitle, { color: theme.textMuted }]}>
+            Advanced
+          </Text>
+          <Text style={[styles.advancedFiltersChevron, { color: theme.textMuted }]}>
+            {advancedOpen ? "▼" : "▶"}
+          </Text>
+        </Pressable>
+
+        {advancedOpen && (
+          <View
+            style={[
+              styles.advancedFiltersSection,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.card,
+                marginTop: 0,
+                marginBottom: 16,
+              },
+            ]}
+          >
+            <SectionHeader
+              title="Goal match %"
+              subtitle="What % of the workout should match each ranked goal. Sum = 100%."
+              style={{ marginTop: 0 }}
+            />
+            <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
+              {[1, 2, 3].map((rank) => {
+                const hasGoal = rankedGoals[rank - 1] != null;
+                const value =
+                  rank === 1
+                    ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                    : rank === 2
+                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                      : (manualPreferences.goalMatchTertiaryPct ?? 20);
+                const setPct = (raw: number) => {
+                  const v = Math.max(0, Math.min(100, Math.round(raw)));
+                  const s2 =
+                    rank === 1
+                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                      : rank === 2
+                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                        : (manualPreferences.goalMatchPrimaryPct ?? 50);
+                  const s3 =
+                    rank === 1
+                      ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                      : rank === 2
+                        ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                        : (manualPreferences.goalMatchSecondaryPct ?? 30);
+                  const otherSum = s2 + s3;
+                  const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
+                  const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
+                  const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
+                  if (rank === 1) {
+                    updateManualPreferences({
+                      goalMatchPrimaryPct: v,
+                      goalMatchSecondaryPct: scaled2,
+                      goalMatchTertiaryPct: scaled3,
+                    });
+                  } else if (rank === 2) {
+                    updateManualPreferences({
+                      goalMatchSecondaryPct: v,
+                      goalMatchPrimaryPct: scaled2,
+                      goalMatchTertiaryPct: scaled3,
+                    });
+                  } else {
+                    updateManualPreferences({
+                      goalMatchTertiaryPct: v,
+                      goalMatchPrimaryPct: scaled2,
+                      goalMatchSecondaryPct: scaled3,
+                    });
+                  }
+                };
+                return (
+                  <View
+                    key={rank}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      opacity: hasGoal ? 1 : 0.5,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: theme.textMuted }}>
+                      {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} goal
+                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <TextInput
+                        style={{
+                          width: 56,
+                          height: 40,
+                          borderWidth: 1,
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          fontSize: 15,
+                          textAlign: "center",
+                          color: theme.text,
+                          borderColor: theme.border,
+                        }}
+                        keyboardType="number-pad"
+                        value={String(value)}
+                        editable={hasGoal}
+                        onChangeText={(t) => {
+                          const n = parseInt(t.replace(/\D/g, ""), 10);
+                          if (!Number.isNaN(n)) setPct(n);
+                        }}
+                      />
+                      <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           </View>
-        ))}
-
-        <SectionHeader
-          title="Goal matching (advanced)"
-          subtitle="What % of the workout should match each ranked goal. Sum = 100%."
-          style={{ marginTop: 20 }}
-        />
-        <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
-          {[1, 2, 3].map((rank) => {
-            const hasGoal = rankedGoals[rank - 1] != null;
-            const value =
-              rank === 1
-                ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                : rank === 2
-                  ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                  : (manualPreferences.goalMatchTertiaryPct ?? 20);
-            const setPct = (raw: number) => {
-              const v = Math.max(0, Math.min(100, Math.round(raw)));
-              const s2 =
-                rank === 1
-                  ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                  : rank === 2
-                    ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                    : (manualPreferences.goalMatchPrimaryPct ?? 50);
-              const s3 =
-                rank === 1
-                  ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                  : rank === 2
-                    ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                    : (manualPreferences.goalMatchSecondaryPct ?? 30);
-              const otherSum = s2 + s3;
-              const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
-              const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
-              const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
-              if (rank === 1) {
-                updateManualPreferences({
-                  goalMatchPrimaryPct: v,
-                  goalMatchSecondaryPct: scaled2,
-                  goalMatchTertiaryPct: scaled3,
-                });
-              } else if (rank === 2) {
-                updateManualPreferences({
-                  goalMatchSecondaryPct: v,
-                  goalMatchPrimaryPct: scaled2,
-                  goalMatchTertiaryPct: scaled3,
-                });
-              } else {
-                updateManualPreferences({
-                  goalMatchTertiaryPct: v,
-                  goalMatchPrimaryPct: scaled2,
-                  goalMatchSecondaryPct: scaled3,
-                });
-              }
-            };
-            return (
-              <View
-                key={rank}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  opacity: hasGoal ? 1 : 0.5,
-                }}
-              >
-                <Text style={{ fontSize: 13, color: theme.textMuted }}>
-                  {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} goal
-                </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <TextInput
-                    style={{
-                      width: 56,
-                      height: 40,
-                      borderWidth: 1,
-                      borderRadius: 8,
-                      paddingHorizontal: 8,
-                      fontSize: 15,
-                      textAlign: "center",
-                      color: theme.text,
-                      borderColor: theme.border,
-                    }}
-                    keyboardType="number-pad"
-                    value={String(value)}
-                    editable={hasGoal}
-                    onChangeText={(t) => {
-                      const n = parseInt(t.replace(/\D/g, ""), 10);
-                      if (!Number.isNaN(n)) setPct(n);
-                    }}
-                  />
-                  <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
+        )}
 
         <SectionHeader
           title="Time horizon"
@@ -808,6 +955,125 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  rankedChipWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  rankBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 6,
+  },
+  rankBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  rankedChipInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    maxWidth: 220,
+  },
+  rankedChipLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  rankedChipPct: {
+    fontSize: 11,
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  rankedChipRemove: {
+    paddingLeft: 6,
+    paddingVertical: 4,
+    marginLeft: 2,
+  },
+  rankedChipRemoveText: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  modifierLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  goalRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+  },
+  goalRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  goalRowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1,
+    minWidth: 0,
+  },
+  subGoalsControl: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  subGoalsControlText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  subGoalsBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  rankBadgeSmall: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  rankBadgeTextSmall: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  rankedChipLabelSmall: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+  advancedFiltersHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  advancedFiltersTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  advancedFiltersChevron: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  advancedFiltersSection: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 12,
   },
   sportRow: {
     borderWidth: 1,

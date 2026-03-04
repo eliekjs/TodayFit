@@ -14,6 +14,8 @@ export type PlanWeekInput = {
   secondaryGoalSlug?: string | null;
   tertiaryGoalSlug?: string | null;
   sportSlug?: string | null;
+  /** Optional sub-focus quality slugs for primary sport (from sport_qualities). */
+  sportQualitySlugs?: string[];
   gymDaysPerWeek: number;
   preferredTrainingDays?: number[]; // 0 (Sun) - 6 (Sat) relative to weekStartDate
   defaultSessionDuration: number;
