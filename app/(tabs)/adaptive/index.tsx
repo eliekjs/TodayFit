@@ -21,7 +21,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { EnergyLevel } from "../../../lib/types";
-import { DURATIONS, CONSTRAINT_OPTIONS } from "../../../lib/preferencesConstants";
+import { DURATIONS, CONSTRAINT_OPTIONS, normalizeGoalMatchPct } from "../../../lib/preferencesConstants";
 import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
@@ -115,6 +115,8 @@ export default function AdaptiveModeScreen() {
   /** Ranked sports (up to 2). Empty = no specific sport. */
   const [rankedSportSlugs, setRankedSportSlugs] = useState<(string | null)[]>([null, null]);
   const [sportSectionExpanded, setSportSectionExpanded] = useState(true);
+  /** When true, show the search + full sport list. When user has 1 or 2 selected, this is toggled by "Add second sport" / "Change sports". */
+  const [showSportList, setShowSportList] = useState(true);
   /** Sub-focus (qualities) per sport: sportSlug -> quality slugs (max 3 per sport). */
   const [subFocusBySport, setSubFocusBySport] = useState<Record<string, string[]>>({});
   /** Which sport's sub-goals row is expanded. */
@@ -166,6 +168,10 @@ export default function AdaptiveModeScreen() {
     const idx = next.findIndex((s) => s == null);
     if (idx >= 0) next[idx] = slug;
     setRankedSportSlugs(next);
+    setShowSportList(false);
+    if (current.length >= 1) {
+      setSportSectionExpanded(false);
+    }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
@@ -182,6 +188,7 @@ export default function AdaptiveModeScreen() {
       return next;
     });
     if (expandedSportForSubFocus === slug) setExpandedSportForSubFocus(null);
+    if (selectedSportSlugs.length === 1) setShowSportList(true);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
@@ -314,22 +321,34 @@ export default function AdaptiveModeScreen() {
         .join(", ") || "Choose sport";
 
   const addGoal = (goalId: string) => {
+    const currentCount = rankedGoals.filter((g): g is string => g != null).length;
+    if (currentCount >= 3 || rankedGoals.includes(goalId)) return;
     setRankedGoals((prev) => {
-      if (prev.includes(goalId)) return prev;
       const next = [...prev];
       const idx = next.findIndex((g) => g == null);
       if (idx < 0) return prev;
       next[idx] = goalId;
       return next;
     });
+    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+    const norm = normalizeGoalMatchPct(p1, p2, p3, currentCount + 1);
+    updateManualPreferences(norm);
   };
 
   const removeGoal = (goalId: string) => {
+    const currentCount = rankedGoals.filter((g): g is string => g != null).length;
     setRankedGoals((prev) => {
       const next = prev.map((g) => (g === goalId ? null : g));
       const filled = next.filter((g): g is string => g != null);
       return [filled[0] ?? null, filled[1] ?? null, filled[2] ?? null];
     });
+    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+    const norm = normalizeGoalMatchPct(p1, p2, p3, Math.max(0, currentCount - 1));
+    updateManualPreferences(norm);
   };
 
   return (
@@ -437,6 +456,8 @@ export default function AdaptiveModeScreen() {
               />
             </View>
 
+            {(selectedSportSlugs.length === 0 || showSportList) ? (
+              <>
             <View style={[styles.searchRow, { marginTop: 12 }]}>
           <TextInput
             placeholder="Search sports..."
@@ -467,7 +488,7 @@ export default function AdaptiveModeScreen() {
 
             <View style={{ marginTop: 8, marginBottom: 4 }}>
               <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
-                Add a sport
+                {selectedSportSlugs.length === 0 ? "Add a sport" : selectedSportSlugs.length === 1 ? "Add second sport" : "Change sport"}
               </Text>
               <View style={styles.chipGroup}>
                 {categoriesToShow.flatMap((cat) =>
@@ -484,6 +505,25 @@ export default function AdaptiveModeScreen() {
                 ))}
               </View>
             </View>
+              </>
+            ) : (
+              <View style={{ marginTop: 12 }}>
+                <Pressable
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setShowSportList(true);
+                  }}
+                  style={[
+                    styles.sportRow,
+                    { borderColor: theme.border, backgroundColor: theme.primarySoft },
+                  ]}
+                >
+                  <Text style={[styles.sportName, { color: theme.primary }]}>
+                    {selectedSportSlugs.length === 1 ? "+ Add second sport" : "Change sports"}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
 
             {selectedSportSlugs.map((slug) => {
               const sport = sports.find((s) => s.slug === slug);
@@ -717,7 +757,7 @@ export default function AdaptiveModeScreen() {
                   const otherSum = s2 + s3;
                   const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
                   const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
-                  const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
+                  const scaled3 = 100 - v - scaled2; // ensure sum is always 100
                   if (rank === 1) {
                     updateManualPreferences({
                       goalMatchPrimaryPct: v,

@@ -35,6 +35,7 @@ import {
   UPCOMING_OPTIONS,
   SUB_FOCUS_BY_PRIMARY,
   deriveSubFocus,
+  normalizeGoalMatchPct,
 } from "../../../lib/preferencesConstants";
 import { isDbConfigured } from "../../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
@@ -93,18 +94,25 @@ export default function ManualPreferencesScreen() {
   const togglePrimaryFocus = (option: string) => {
     const current = manualPreferences.primaryFocus;
     const exists = current.includes(option);
+    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
     if (exists) {
       const nextFocus = current.filter((v) => v !== option);
       const nextSub = { ...manualPreferences.subFocusByGoal };
       delete nextSub[option];
+      const norm = normalizeGoalMatchPct(p1, p2, p3, nextFocus.length);
       updateManualPreferences({
         primaryFocus: nextFocus,
         subFocusByGoal: nextSub,
+        ...norm,
       });
       if (expandedSubGoalsForGoal === option) setExpandedSubGoalsForGoal(null);
     } else {
       if (current.length >= MAX_GOALS) return;
-      updateManualPreferences({ primaryFocus: [...current, option] });
+      const nextFocus = [...current, option];
+      const norm = normalizeGoalMatchPct(p1, p2, p3, nextFocus.length);
+      updateManualPreferences({ primaryFocus: nextFocus, ...norm });
     }
   };
 
@@ -277,65 +285,50 @@ export default function ManualPreferencesScreen() {
         />
         {rankedGoals.length > 0 && (
           <View style={styles.chipGroup}>
-            {rankedGoals.map((goal, idx) => {
-              const pct =
-                idx === 0
-                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                  : idx === 1
-                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
-              return (
-                <View key={goal} style={styles.rankedChipWrap}>
-                  <View style={styles.rankedChipPressable}>
-                    <View
-                      style={[
-                        styles.rankBadge,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.primary,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
-                      >
-                        {idx + 1}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.rankedChipInner,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.primary,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                        numberOfLines={1}
-                      >
-                        {goal}
-                      </Text>
-                      <Text
-                        style={[styles.rankedChipPct, { color: theme.textMuted }]}
-                      >
-                        {pct}%
-                      </Text>
-                    </View>
-                  </View>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => togglePrimaryFocus(goal)}
-                    style={styles.rankedChipRemove}
+            {rankedGoals.map((goal, idx) => (
+              <View key={goal} style={styles.rankedChipWrap}>
+                <View
+                  style={[
+                    styles.rankBadge,
+                    {
+                      backgroundColor: theme.chipSelectedBackground,
+                      borderWidth: 1,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
                   >
-                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
-                  </Pressable>
+                    {idx + 1}
+                  </Text>
                 </View>
-              );
-            })}
+                <View
+                  style={[
+                    styles.rankedChipInner,
+                    {
+                      backgroundColor: theme.chipSelectedBackground,
+                      borderWidth: 1,
+                      borderColor: theme.primary,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                    numberOfLines={1}
+                  >
+                    {goal}
+                  </Text>
+                </View>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => togglePrimaryFocus(goal)}
+                  style={styles.rankedChipRemove}
+                >
+                  <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                </Pressable>
+              </View>
+            ))}
           </View>
         )}
         <View style={styles.chipGroup}>
@@ -481,31 +474,6 @@ export default function ManualPreferencesScreen() {
                           : (manualPreferences.goalMatchTertiaryPct ?? 20);
                     const setPct = (raw: number) => {
                       const v = Math.max(0, Math.min(100, Math.round(raw)));
-                      const others =
-                        rank === 1
-                          ? {
-                              goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-                              goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-                            }
-                          : rank === 2
-                            ? {
-                                goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-                                goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-                              }
-                            : {
-                                goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-                                goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-                              };
-                      const otherSum =
-                        rank === 1
-                          ? (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct +
-                            (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
-                          : rank === 2
-                            ? (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
-                              (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
-                            : (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
-                              (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct;
-                      const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
                       const s2 =
                         rank === 1
                           ? (manualPreferences.goalMatchSecondaryPct ?? 30)
@@ -518,8 +486,10 @@ export default function ManualPreferencesScreen() {
                           : rank === 2
                             ? (manualPreferences.goalMatchTertiaryPct ?? 20)
                             : (manualPreferences.goalMatchSecondaryPct ?? 30);
+                      const otherSum = s2 + s3;
+                      const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
                       const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
-                      const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
+                      const scaled3 = 100 - v - scaled2; // ensure sum is always 100
                       if (rank === 1) {
                         updateManualPreferences({
                           goalMatchPrimaryPct: v,

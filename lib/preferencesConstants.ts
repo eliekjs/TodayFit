@@ -185,6 +185,32 @@ export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
 };
 
 /**
+ * Normalize goal match percentages so the first `goalCount` goals sum to 100.
+ * Returns { goalMatchPrimaryPct, goalMatchSecondaryPct, goalMatchTertiaryPct }.
+ */
+export function normalizeGoalMatchPct(
+  p1: number,
+  p2: number,
+  p3: number,
+  goalCount: number
+): { goalMatchPrimaryPct: number; goalMatchSecondaryPct: number; goalMatchTertiaryPct: number } {
+  if (goalCount <= 0) return { goalMatchPrimaryPct: 50, goalMatchSecondaryPct: 30, goalMatchTertiaryPct: 20 };
+  if (goalCount === 1) return { goalMatchPrimaryPct: 100, goalMatchSecondaryPct: 0, goalMatchTertiaryPct: 0 };
+  if (goalCount === 2) {
+    const sum = p1 + p2;
+    const np1 = sum > 0 ? Math.round((p1 / sum) * 100) : 50;
+    const np2 = 100 - np1;
+    return { goalMatchPrimaryPct: np1, goalMatchSecondaryPct: np2, goalMatchTertiaryPct: 0 };
+  }
+  const sum = p1 + p2 + p3;
+  if (sum <= 0) return { goalMatchPrimaryPct: 50, goalMatchSecondaryPct: 30, goalMatchTertiaryPct: 20 };
+  const np1 = Math.round((p1 / sum) * 100);
+  const np2 = Math.round((p2 / sum) * 100);
+  const np3 = 100 - np1 - np2;
+  return { goalMatchPrimaryPct: np1, goalMatchSecondaryPct: np2, goalMatchTertiaryPct: np3 };
+}
+
+/**
  * Derives flat sub-focus list for the generator from subFocusByGoal (in primaryFocus order).
  */
 export function deriveSubFocus(
