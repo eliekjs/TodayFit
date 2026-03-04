@@ -25,6 +25,9 @@ export const defaultManualPreferences: ManualPreferences = {
   upcoming: [],
   subFocusByGoal: {},
   workoutStyle: [],
+  goalMatchPrimaryPct: 50,
+  goalMatchSecondaryPct: 30,
+  goalMatchTertiaryPct: 20,
 };
 
 type AppStateContextValue = {

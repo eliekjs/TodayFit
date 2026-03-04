@@ -15,7 +15,7 @@ export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { userId } = useAuth();
-  const { sportPrepWeekPlan, setSportPrepWeekPlan } = useAppState();
+  const { sportPrepWeekPlan, setSportPrepWeekPlan, manualPreferences } = useAppState();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(
     sportPrepWeekPlan?.today?.date ?? sportPrepWeekPlan?.days[0]?.date ?? null
@@ -123,6 +123,11 @@ export default function AdaptiveWeekPlanScreen() {
         sportSlug: sportPrepWeekPlan.sportSlug ?? undefined,
         goalSlugs: sportPrepWeekPlan.goalSlugs,
         intentLabel: selectedDay.intentLabel,
+        goalWeightsPct: [
+          manualPreferences.goalMatchPrimaryPct ?? 50,
+          manualPreferences.goalMatchSecondaryPct ?? 30,
+          manualPreferences.goalMatchTertiaryPct ?? 20,
+        ],
       });
 
       const updatedDays = sportPrepWeekPlan.days.map((d) =>

@@ -23,6 +23,7 @@ import { PrimaryButton } from "../../../components/Button";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import {
   PRIMARY_FOCUS_OPTIONS,
+  PRIMARY_FOCUS_TO_GOAL_SLUG,
   DURATIONS,
   ENERGY_LEVELS,
   TARGET_OPTIONS,
@@ -33,6 +34,8 @@ import {
   SUB_FOCUS_BY_PRIMARY,
   deriveSubFocus,
 } from "../../../lib/preferencesConstants";
+import { isDbConfigured } from "../../../lib/db";
+import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import type { TargetBody } from "../../../lib/types";
 
 if (
@@ -178,12 +181,36 @@ export default function ManualPreferencesScreen() {
       });
     };
 
-  const onGenerate = () => {
+  const onGenerate = async () => {
     const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-    generateWorkoutAsync(manualPreferences, profile).then((workout) => {
-      setGeneratedWorkout(workout);
-      router.push("/manual/workout");
-    });
+    let preferredNames: string[] | undefined;
+    if (isDbConfigured() && manualPreferences.primaryFocus.length > 0) {
+      try {
+        const goalSlugs = manualPreferences.primaryFocus
+          .map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f])
+          .filter(Boolean);
+        const goalWeightsPct = [
+          manualPreferences.goalMatchPrimaryPct ?? 50,
+          manualPreferences.goalMatchSecondaryPct ?? 30,
+          manualPreferences.goalMatchTertiaryPct ?? 20,
+        ];
+        preferredNames = await getPreferredExerciseNamesForSportAndGoals(
+          null,
+          goalSlugs,
+          goalWeightsPct.slice(0, goalSlugs.length)
+        );
+      } catch {
+        preferredNames = undefined;
+      }
+    }
+    const workout = await generateWorkoutAsync(
+      manualPreferences,
+      profile,
+      undefined,
+      preferredNames
+    );
+    setGeneratedWorkout(workout);
+    router.push("/manual/workout");
   };
 
   const onReset = () => {
@@ -292,6 +319,123 @@ export default function ManualPreferencesScreen() {
             />
           ))}
         </View>
+
+        {rankedGoals.length >= 1 && (
+          <>
+            <SectionHeader
+              title="Goal matching (advanced)"
+              subtitle="What % of the workout should match each ranked goal. Sum = 100%."
+              style={{ marginTop: 24 }}
+            />
+            <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
+              {[1, 2, 3].map((rank) => {
+                const hasGoal = rankedGoals[rank - 1] != null;
+                const value =
+                  rank === 1
+                    ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                    : rank === 2
+                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                      : (manualPreferences.goalMatchTertiaryPct ?? 20);
+                const setPct = (raw: number) => {
+                  const v = Math.max(0, Math.min(100, Math.round(raw)));
+                  const others =
+                    rank === 1
+                      ? {
+                          goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+                          goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+                        }
+                      : rank === 2
+                        ? {
+                            goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+                            goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+                          }
+                        : {
+                            goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+                            goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+                          };
+                  const otherSum =
+                    rank === 1
+                      ? (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct +
+                        (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
+                      : rank === 2
+                        ? (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
+                          (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
+                        : (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
+                          (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct;
+                  const scale =
+                    otherSum > 0 ? (100 - v) / otherSum : 0;
+                  const s2 =
+                    rank === 1
+                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                      : rank === 2
+                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                        : (manualPreferences.goalMatchPrimaryPct ?? 50);
+                  const s3 =
+                    rank === 1
+                      ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                      : rank === 2
+                        ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                        : (manualPreferences.goalMatchSecondaryPct ?? 30);
+                  const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
+                  const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
+                  if (rank === 1) {
+                    updateManualPreferences({
+                      goalMatchPrimaryPct: v,
+                      goalMatchSecondaryPct: scaled2,
+                      goalMatchTertiaryPct: scaled3,
+                    });
+                  } else if (rank === 2) {
+                    updateManualPreferences({
+                      goalMatchSecondaryPct: v,
+                      goalMatchPrimaryPct: scaled2,
+                      goalMatchTertiaryPct: scaled3,
+                    });
+                  } else {
+                    updateManualPreferences({
+                      goalMatchTertiaryPct: v,
+                      goalMatchPrimaryPct: scaled2,
+                      goalMatchSecondaryPct: scaled3,
+                    });
+                  }
+                };
+                return (
+                  <View
+                    key={rank}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      opacity: hasGoal ? 1 : 0.5,
+                    }}
+                  >
+                    <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
+                      {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} goal
+                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <TextInput
+                        style={[
+                          styles.goalMatchInput,
+                          {
+                            color: theme.text,
+                            borderColor: theme.border,
+                          },
+                        ]}
+                        keyboardType="number-pad"
+                        value={String(value)}
+                        editable={hasGoal}
+                        onChangeText={(t) => {
+                          const n = parseInt(t.replace(/\D/g, ""), 10);
+                          if (!Number.isNaN(n)) setPct(n);
+                        }}
+                      />
+                      <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>%</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         <SectionHeader
           title="Duration"
@@ -937,6 +1081,15 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 12,
     marginBottom: 4,
+  },
+  goalMatchInput: {
+    width: 56,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    fontSize: 15,
+    textAlign: "center",
   },
   advancedFiltersHeader: {
     flexDirection: "row",

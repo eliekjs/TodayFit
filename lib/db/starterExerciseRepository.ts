@@ -84,22 +84,62 @@ export async function getStarterExercisesRankedByGoals(
 }
 
 /**
- * Preferred exercise names for sport- and goal-aware workout building.
- * Merges goal relevance (primary signal) with sport tag overlap (secondary).
- * Returns name list in preference order (no duplicates) for matching against public.exercises.name.
+ * Get public.exercises ranked by weighted goal match (goal_tag_profile + exercise_tag_map.relevance_weight).
+ * Returns slugs and names in preference order for the generator.
+ */
+export async function getExercisesByGoalsRanked(
+  goalSlugs: string[],
+  goalWeightsPct: number[],
+  limit: number = 100
+): Promise<{ slug: string; name: string }[]> {
+  if (!goalSlugs.length) return [];
+  const supabase = requireClient();
+  const weights =
+    goalWeightsPct.length >= goalSlugs.length
+      ? goalWeightsPct.slice(0, goalSlugs.length)
+      : [...goalWeightsPct, ...Array(goalSlugs.length - goalWeightsPct.length).fill(0)];
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const normalized = sum > 0 ? weights.map((w) => (w / sum) * 100) : weights.map(() => 100 / goalSlugs.length);
+  const { data: rows, error } = await supabase.rpc("get_exercises_by_goals_ranked", {
+    goal_slugs: goalSlugs,
+    goal_weights_pct: normalized,
+    result_limit: limit,
+  });
+  if (error) throw new Error(error.message);
+  return (rows ?? []).map((r: { slug: string; name: string }) => ({ slug: r.slug, name: r.name }));
+}
+
+/**
+ * Preferred exercise names (and slugs) for sport- and goal-aware workout building.
+ * Uses weighted goal ranking (get_exercises_by_goals_ranked) when goalSlugs and goalWeightsPct are provided;
+ * otherwise falls back to starter_exercises + goal_exercise_relevance. Optionally merges sport tag overlap.
  */
 export async function getPreferredExerciseNamesForSportAndGoals(
   sportSlug: string | null,
-  goalSlugs: string[]
+  goalSlugs: string[],
+  goalWeightsPct?: number[]
 ): Promise<string[]> {
-  const byGoal = await getStarterExercisesRankedByGoals(goalSlugs);
   const nameSet = new Set<string>();
   const ordered: string[] = [];
 
-  for (const row of byGoal) {
-    if (!nameSet.has(row.name)) {
-      nameSet.add(row.name);
-      ordered.push(row.name);
+  if (goalSlugs.length > 0) {
+    const weights = goalWeightsPct ?? [50, 30, 20].slice(0, goalSlugs.length);
+    try {
+      const byGoals = await getExercisesByGoalsRanked(goalSlugs, weights, 100);
+      for (const row of byGoals) {
+        if (!nameSet.has(row.name)) {
+          nameSet.add(row.name);
+          ordered.push(row.name);
+        }
+      }
+    } catch {
+      const byGoal = await getStarterExercisesRankedByGoals(goalSlugs);
+      for (const row of byGoal) {
+        if (!nameSet.has(row.name)) {
+          nameSet.add(row.name);
+          ordered.push(row.name);
+        }
+      }
     }
   }
 

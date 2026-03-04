@@ -81,7 +81,13 @@ const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { activeGymProfileId, gymProfiles, setSportPrepWeekPlan } = useAppState();
+  const {
+    activeGymProfileId,
+    gymProfiles,
+    manualPreferences,
+    updateManualPreferences,
+    setSportPrepWeekPlan,
+  } = useAppState();
   const { userId } = useAuth();
 
   const [rankedGoals, setRankedGoals] = useState<(string | null)[]>([
@@ -179,6 +185,9 @@ export default function AdaptiveModeScreen() {
             : injuryTypes.map((label) => label.toLowerCase().replace(/\s/g, "_")),
         sportSessions: [],
         gymProfile: activeProfile,
+        goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+        goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+        goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
       });
       setSportPrepWeekPlan(plan);
       router.push("/adaptive/recommendation");
@@ -531,6 +540,99 @@ export default function AdaptiveModeScreen() {
             </View>
           </View>
         ))}
+
+        <SectionHeader
+          title="Goal matching (advanced)"
+          subtitle="What % of the workout should match each ranked goal. Sum = 100%."
+          style={{ marginTop: 20 }}
+        />
+        <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
+          {[1, 2, 3].map((rank) => {
+            const hasGoal = rankedGoals[rank - 1] != null;
+            const value =
+              rank === 1
+                ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                : rank === 2
+                  ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                  : (manualPreferences.goalMatchTertiaryPct ?? 20);
+            const setPct = (raw: number) => {
+              const v = Math.max(0, Math.min(100, Math.round(raw)));
+              const s2 =
+                rank === 1
+                  ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                  : rank === 2
+                    ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                    : (manualPreferences.goalMatchPrimaryPct ?? 50);
+              const s3 =
+                rank === 1
+                  ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                  : rank === 2
+                    ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                    : (manualPreferences.goalMatchSecondaryPct ?? 30);
+              const otherSum = s2 + s3;
+              const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
+              const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
+              const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
+              if (rank === 1) {
+                updateManualPreferences({
+                  goalMatchPrimaryPct: v,
+                  goalMatchSecondaryPct: scaled2,
+                  goalMatchTertiaryPct: scaled3,
+                });
+              } else if (rank === 2) {
+                updateManualPreferences({
+                  goalMatchSecondaryPct: v,
+                  goalMatchPrimaryPct: scaled2,
+                  goalMatchTertiaryPct: scaled3,
+                });
+              } else {
+                updateManualPreferences({
+                  goalMatchTertiaryPct: v,
+                  goalMatchPrimaryPct: scaled2,
+                  goalMatchSecondaryPct: scaled3,
+                });
+              }
+            };
+            return (
+              <View
+                key={rank}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  opacity: hasGoal ? 1 : 0.5,
+                }}
+              >
+                <Text style={{ fontSize: 13, color: theme.textMuted }}>
+                  {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} goal
+                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TextInput
+                    style={{
+                      width: 56,
+                      height: 40,
+                      borderWidth: 1,
+                      borderRadius: 8,
+                      paddingHorizontal: 8,
+                      fontSize: 15,
+                      textAlign: "center",
+                      color: theme.text,
+                      borderColor: theme.border,
+                    }}
+                    keyboardType="number-pad"
+                    value={String(value)}
+                    editable={hasGoal}
+                    onChangeText={(t) => {
+                      const n = parseInt(t.replace(/\D/g, ""), 10);
+                      if (!Number.isNaN(n)) setPct(n);
+                    }}
+                  />
+                  <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
 
         <SectionHeader
           title="Time horizon"

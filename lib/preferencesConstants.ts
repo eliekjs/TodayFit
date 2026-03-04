@@ -14,6 +14,20 @@ export const PRIMARY_FOCUS_OPTIONS = [
   "Recovery",
 ] as const;
 
+/** Map Manual primary focus labels to DB goal slugs (for weighted exercise ranking). */
+export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
+  "Build Strength": "strength",
+  "Build Muscle (Hypertrophy)": "muscle",
+  "Body Recomposition": "physique",
+  "Sport Conditioning": "conditioning",
+  "Improve Endurance": "endurance",
+  "Mobility & Joint Health": "mobility",
+  "Athletic Performance": "strength",
+  "Calisthenics": "strength",
+  "Power & Explosiveness": "conditioning",
+  "Recovery": "resilience",
+};
+
 /** Core: duration in minutes (single select). */
 export const DURATIONS = [20, 30, 45, 60, 75] as const;
 

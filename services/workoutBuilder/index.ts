@@ -19,6 +19,8 @@ export type SessionIntent = {
 export type SportGoalOptions = {
   sportSlug?: string | null;
   goalSlugs?: string[];
+  /** Match % for 1st / 2nd / 3rd goal (e.g. [50, 30, 20]). Used with get_exercises_by_goals_ranked. */
+  goalWeightsPct?: number[];
 };
 
 /**
@@ -50,7 +52,8 @@ export async function buildWorkoutForSessionIntent(
     try {
       preferredNames = await getPreferredExerciseNamesForSportAndGoals(
         options.sportSlug ?? null,
-        options.goalSlugs
+        options.goalSlugs,
+        options.goalWeightsPct ?? [50, 30, 20]
       );
     } catch {
       preferredNames = undefined;

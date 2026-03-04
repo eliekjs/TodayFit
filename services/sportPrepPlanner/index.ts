@@ -21,6 +21,10 @@ export type PlanWeekInput = {
   injuries?: string[];
   sportSessions?: { date: string; goalSlug: string; sessionType?: string }[];
   gymProfile?: GymProfile;
+  /** Match % for 1st / 2nd / 3rd goal (defaults 50, 30, 20). */
+  goalMatchPrimaryPct?: number;
+  goalMatchSecondaryPct?: number;
+  goalMatchTertiaryPct?: number;
 };
 
 export type PlannedDay = {
@@ -54,6 +58,8 @@ export type RegenerateDayInput = {
   goalSlugs?: string[];
   /** Required for guest mode: current day intent label so we can rebuild without DB. */
   intentLabel?: string | null;
+  /** Match % for 1st / 2nd / 3rd goal. */
+  goalWeightsPct?: number[];
 };
 
 export type RegenerateDayResult = {
@@ -339,11 +345,16 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         input.defaultSessionDuration,
         input.energyBaseline
       );
+      const goalWeightsPct = [
+        input.goalMatchPrimaryPct ?? 50,
+        input.goalMatchSecondaryPct ?? 30,
+        input.goalMatchTertiaryPct ?? 20,
+      ];
       const workout = await buildWorkoutForSessionIntent(
         sessionIntent,
         input.gymProfile,
         date,
-        { sportSlug: input.sportSlug ?? null, goalSlugs }
+        { sportSlug: input.sportSlug ?? null, goalSlugs, goalWeightsPct }
       );
       guestWorkouts[date] = workout;
       plannedDays.push({
@@ -475,11 +486,16 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       input.energyBaseline
     );
 
+    const goalWeightsPct = [
+      input.goalMatchPrimaryPct ?? 50,
+      input.goalMatchSecondaryPct ?? 30,
+      input.goalMatchTertiaryPct ?? 20,
+    ];
     const workout = await buildWorkoutForSessionIntent(
       sessionIntent,
       input.gymProfile,
       date,
-      { sportSlug: input.sportSlug ?? null, goalSlugs }
+      { sportSlug: input.sportSlug ?? null, goalSlugs, goalWeightsPct }
     );
     const workoutId = await saveGeneratedWorkout(input.userId, workout);
 
@@ -584,7 +600,11 @@ export async function regenerateDay(
       sessionIntent,
       input.gymProfile,
       `${input.date}_${Date.now()}`,
-      { sportSlug: input.sportSlug ?? null, goalSlugs: input.goalSlugs ?? [] }
+      {
+        sportSlug: input.sportSlug ?? null,
+        goalSlugs: input.goalSlugs ?? [],
+        goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
+      }
     );
     const day: PlannedDay = {
       id: `guest-${input.date}`,
@@ -623,7 +643,11 @@ export async function regenerateDay(
     sessionIntent,
     input.gymProfile,
     `${dayRow.date}_${Date.now()}`,
-    { sportSlug: input.sportSlug ?? null, goalSlugs: input.goalSlugs ?? [] }
+    {
+      sportSlug: input.sportSlug ?? null,
+      goalSlugs: input.goalSlugs ?? [],
+      goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
+    }
   );
   const workoutId = await saveGeneratedWorkout(input.userId, workout);
 

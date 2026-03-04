@@ -26,6 +26,9 @@ export async function getPreferences(userId: string): Promise<ManualPreferences 
     ...prefs,
     durationMinutes: data.default_duration ?? (prefs.durationMinutes as number) ?? null,
     energyLevel: (data.default_energy as ManualPreferences["energyLevel"]) ?? (prefs.energyLevel as ManualPreferences["energyLevel"]) ?? null,
+    goalMatchPrimaryPct: (prefs.goalMatchPrimaryPct as number) ?? 50,
+    goalMatchSecondaryPct: (prefs.goalMatchSecondaryPct as number) ?? 30,
+    goalMatchTertiaryPct: (prefs.goalMatchTertiaryPct as number) ?? 20,
   } as ManualPreferences;
 }
 
