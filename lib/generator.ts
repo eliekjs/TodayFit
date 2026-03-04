@@ -1,14 +1,25 @@
 import { EXERCISES } from "../data/exercises";
 import { deriveBodyPartFocus, deriveBodyPartFocusFromSubFocus, deriveSubFocus } from "./preferencesConstants";
 import type {
+  BlockFormat,
+  BlockType,
   ExerciseDefinition,
-  GeneratedExercise,
   GeneratedWorkout,
   ManualPreferences,
+  WorkoutBlock,
+  WorkoutItem,
 } from "./types";
 import type { GymProfile } from "../data/gymProfiles";
 import { isDbConfigured } from "../lib/db";
 import { listExercises } from "../lib/db/exerciseRepository";
+import {
+  BODY_RECOMP_CARDIO_DURATION_MAX,
+  BODY_RECOMP_CARDIO_DURATION_MIN,
+  BODY_RECOMP_CUES,
+  BODY_RECOMP_REP_RANGE,
+  isWarmupEligibleEquipment,
+  WARMUP_CARDIO_POSITION,
+} from "./workoutRules";
 
 function pickCountByDuration(durationMinutes: number | null) {
   if (!durationMinutes) return { warmup: 2, mainSupersetPairs: 2, accessory: 2, cooldown: 2 };
@@ -18,26 +29,62 @@ function pickCountByDuration(durationMinutes: number | null) {
   return { warmup: 3, mainSupersetPairs: 4, accessory: 3, cooldown: 2 };
 }
 
+type StructuredPrescription = {
+  sets: number;
+  reps?: number;
+  time_seconds?: number;
+  rest_seconds: number;
+  coaching_cues: string;
+};
+
 function prescriptionForExercise(
   exercise: ExerciseDefinition,
-  energy: ManualPreferences["energyLevel"]
-): string {
+  energy: ManualPreferences["energyLevel"],
+  primaryFocus: string[]
+): StructuredPrescription {
   const baseSets = energy === "high" ? 4 : energy === "low" ? 2 : 3;
+  const isBodyRecomp = primaryFocus.includes("Body Recomposition");
 
   if (exercise.modalities.includes("conditioning")) {
+    if (isBodyRecomp) {
+      const timeSeconds = Math.round((BODY_RECOMP_CARDIO_DURATION_MIN + BODY_RECOMP_CARDIO_DURATION_MAX) / 2) * 60;
+      return { sets: 1, time_seconds: timeSeconds, rest_seconds: 0, coaching_cues: BODY_RECOMP_CUES.cardio };
+    }
     const minutes = energy === "high" ? 12 : energy === "low" ? 6 : 8;
-    return `${minutes} min`;
+    return { sets: 1, time_seconds: minutes * 60, rest_seconds: 0, coaching_cues: "Steady effort. Keep heart rate in target zone." };
   }
 
   if (exercise.modalities.includes("power")) {
-    return `${baseSets} x 3–5 reps`;
+    return { sets: baseSets, reps: 4, rest_seconds: 90, coaching_cues: "Explosive, controlled." };
   }
 
   if (exercise.modalities.includes("mobility")) {
-    return `${baseSets} x 8–10 slow reps`;
+    return { sets: baseSets, reps: 9, rest_seconds: 15, coaching_cues: "Controlled, full range of motion. Breathe steadily." };
   }
 
-  return `${baseSets} x 6–10 reps`;
+  if (isBodyRecomp) {
+    return {
+      sets: baseSets,
+      reps: Math.round((BODY_RECOMP_REP_RANGE.min + BODY_RECOMP_REP_RANGE.max) / 2),
+      rest_seconds: 60,
+      coaching_cues: BODY_RECOMP_CUES.strength,
+    };
+  }
+  return { sets: baseSets, reps: 8, rest_seconds: 60, coaching_cues: "Moderate load. Controlled tempo." };
+}
+
+function toWorkoutItem(e: ExerciseDefinition, p: StructuredPrescription, tags: string[]): WorkoutItem {
+  return {
+    exercise_id: e.id,
+    exercise_name: e.name,
+    sets: p.sets,
+    reps: p.reps,
+    time_seconds: p.time_seconds,
+    rest_seconds: p.rest_seconds,
+    coaching_cues: p.coaching_cues,
+    reasoning_tags: [],
+    tags,
+  };
 }
 
 function createRngFromString(seed: string): () => number {
@@ -158,9 +205,11 @@ export function generateWorkout(
     bodyPartFocus
   );
 
+  // Warm-up: bodyweight or bands only — activation, mobility, getting the body moving (no weights)
   const warmupPool = eligible.filter(
     (e) =>
-      e.modalities.includes("mobility") || e.modalities.includes("conditioning")
+      isWarmupEligibleEquipment(e.equipment) &&
+      (e.modalities.includes("mobility") || e.modalities.includes("conditioning"))
   );
   const mainPool = eligible.filter((e) =>
     e.modalities.some((m) => focusModalities.includes(m))
@@ -176,56 +225,48 @@ export function generateWorkout(
   const preferMatch = (e: ExerciseDefinition) =>
     prefer !== null && (prefer.has(e.id) || prefer.has(e.name));
 
-  const buildSection = (
+  const buildBlock = (
+    blockType: BlockType,
+    format: BlockFormat,
     title: string,
     pool: ExerciseDefinition[],
     count: number,
     used: Set<string>,
     reasoning: string
-  ): { id: string; title: string; reasoning?: string; exercises: GeneratedExercise[]; supersetPairs?: [GeneratedExercise, GeneratedExercise][] } => {
-    const exercises: GeneratedExercise[] = [];
+  ): WorkoutBlock => {
+    const items: WorkoutItem[] = [];
+    const poolToUse = pool.length ? pool : eligible;
 
-    while (exercises.length < count) {
-      const poolToUse = pool.length ? pool : eligible;
+    while (items.length < count) {
       const available = poolToUse.filter((e) => !used.has(e.id));
       const preferred = prefer ? available.filter(preferMatch) : [];
       const poolToPick = preferred.length ? preferred : available;
       const picked = pickRandom(poolToPick, rng);
       if (!picked) break;
       used.add(picked.id);
-
-      exercises.push({
-        id: picked.id,
-        name: picked.name,
-        prescription: prescriptionForExercise(picked, preferences.energyLevel),
-        tags: picked.tags,
-      });
+      const p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus);
+      items.push(toWorkoutItem(picked, p, picked.tags));
     }
 
-    return {
-      id: title.toLowerCase().replace(" ", "_"),
-      title,
-      reasoning,
-      exercises,
-    };
+    if (WARMUP_CARDIO_POSITION === "last" && blockType === "warmup" && items.length > 1) {
+      const getDef = (id: string) => poolToUse.find((e) => e.id === id) ?? eligible.find((e) => e.id === id);
+      const isConditioning = (id: string) => getDef(id)?.modalities.includes("conditioning") ?? false;
+      items.sort((a, b) => (isConditioning(a.exercise_id) ? 1 : 0) - (isConditioning(b.exercise_id) ? 1 : 0));
+    }
+
+    return { block_type: blockType, format, title, reasoning, items };
   };
 
-  const buildMainSupersetSection = (
+  const buildMainSupersetBlock = (
+    blockType: BlockType,
     title: string,
     pool: ExerciseDefinition[],
     pairCount: number,
     used: Set<string>,
     reasoning: string
-  ): { id: string; title: string; reasoning?: string; exercises: GeneratedExercise[]; supersetPairs: [GeneratedExercise, GeneratedExercise][] } => {
+  ): WorkoutBlock => {
     const poolToUse = pool.length ? pool : eligible;
-    const pairs: [GeneratedExercise, GeneratedExercise][] = [];
-
-    const toGen = (e: ExerciseDefinition): GeneratedExercise => ({
-      id: e.id,
-      name: e.name,
-      prescription: prescriptionForExercise(e, preferences.energyLevel),
-      tags: e.tags,
-    });
+    const pairs: [WorkoutItem, WorkoutItem][] = [];
 
     for (let p = 0; p < pairCount; p += 1) {
       const available = poolToUse.filter((e) => !used.has(e.id));
@@ -235,49 +276,77 @@ export function generateWorkout(
       const first = pickRandom(poolToPick, rng);
       if (!first) break;
       used.add(first.id);
-
       const availableSecond = poolToUse.filter((e) => !used.has(e.id));
       const preferredSecond = prefer ? availableSecond.filter(preferMatch) : [];
       const poolToPickSecond = preferredSecond.length ? preferredSecond : availableSecond;
       const second = pickRandom(poolToPickSecond, rng);
       if (!second) break;
       used.add(second.id);
-
-      pairs.push([toGen(first), toGen(second)]);
+      const p1 = prescriptionForExercise(first, preferences.energyLevel, preferences.primaryFocus);
+      const p2 = prescriptionForExercise(second, preferences.energyLevel, preferences.primaryFocus);
+      pairs.push([toWorkoutItem(first, p1, first.tags), toWorkoutItem(second, p2, second.tags)]);
     }
 
     return {
-      id: title.toLowerCase().replace(" ", "_"),
+      block_type: blockType,
+      format: "superset",
       title,
       reasoning,
-      exercises: pairs.flat(),
+      items: pairs.flat(),
       supersetPairs: pairs,
     };
   };
 
   const usedExerciseIds = new Set<string>();
-  const warmup = buildSection(
+  const warmupBlock = buildBlock(
+    "warmup",
+    "circuit",
     "Warm-up",
     warmupPool,
     counts.warmup,
     usedExerciseIds,
     "Prepares your joints and elevates heart rate before the main work."
   );
-  const mainSets = buildMainSupersetSection(
+  const isHypertrophy = preferences.primaryFocus.some(
+    (f) => f.toLowerCase().includes("hypertrophy") || f.toLowerCase().includes("muscle") || f.toLowerCase().includes("recomposition")
+  );
+  const mainBlockType: BlockType = isHypertrophy ? "main_hypertrophy" : "main_strength";
+  const mainBlock = buildMainSupersetBlock(
+    mainBlockType,
     "Main Sets",
     mainPool,
     counts.mainSupersetPairs,
     usedExerciseIds,
     "Compound and focus-aligned movements in supersets to maximize time under tension."
   );
-  const accessory = buildSection(
+  const accessoryBlock = buildBlock(
+    "main_hypertrophy",
+    "circuit",
     "Accessory",
     accessoryPool,
     counts.accessory,
     usedExerciseIds,
     "Targets supporting muscles and balance for your goals."
   );
-  const cooldown = buildSection(
+
+  const isBodyRecomp = preferences.primaryFocus.includes("Body Recomposition");
+  const conditioningPool = eligible.filter((e) => e.modalities.includes("conditioning"));
+  const cardioBlock: WorkoutBlock | null =
+    isBodyRecomp && conditioningPool.length > 0
+      ? buildBlock(
+          "conditioning",
+          "straight_sets",
+          "Cardio",
+          conditioningPool,
+          1,
+          usedExerciseIds,
+          "20–40 min lower-intensity cardio to support body recomposition."
+        )
+      : null;
+
+  const cooldownBlock = buildBlock(
+    "cooldown",
+    "circuit",
     "Cooldown",
     cooldownPool,
     counts.cooldown,
@@ -286,21 +355,15 @@ export function generateWorkout(
   );
 
   const notes: string[] = [];
-  if (bodyPartFocus.length) {
-    notes.push(`Body focus: ${bodyPartFocus.join(", ")}`);
-  }
-  if (injuryFilter.length) {
-    notes.push(`Injury-aware: avoiding ${injuryFilter.join(", ")}`);
-  }
-  if (preferences.upcoming.length) {
-    notes.push(`Upcoming: ${preferences.upcoming.join(", ")}`);
-  }
-  if (subFocus.length) {
-    notes.push(`Sub-focus: ${subFocus.join(", ")}`);
-  }
-  if (gymProfile) {
-    notes.push(`Using only equipment in ${gymProfile.name}`);
-  }
+  if (bodyPartFocus.length) notes.push(`Body focus: ${bodyPartFocus.join(", ")}`);
+  if (injuryFilter.length) notes.push(`Injury-aware: avoiding ${injuryFilter.join(", ")}`);
+  if (preferences.upcoming.length) notes.push(`Upcoming: ${preferences.upcoming.join(", ")}`);
+  if (subFocus.length) notes.push(`Sub-focus: ${subFocus.join(", ")}`);
+  if (gymProfile) notes.push(`Using only equipment in ${gymProfile.name}`);
+
+  const blocks: WorkoutBlock[] = cardioBlock
+    ? [warmupBlock, mainBlock, accessoryBlock, cardioBlock, cooldownBlock]
+    : [warmupBlock, mainBlock, accessoryBlock, cooldownBlock];
 
   return {
     id: `w_${Date.now()}`,
@@ -308,7 +371,7 @@ export function generateWorkout(
     durationMinutes: preferences.durationMinutes,
     energyLevel: preferences.energyLevel,
     notes: notes.length ? notes.join(" • ") : undefined,
-    sections: [warmup, mainSets, accessory, cooldown],
+    blocks,
   };
 }
 

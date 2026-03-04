@@ -92,6 +92,7 @@ export type ExerciseDefinition = {
   tags: string[];
 };
 
+/** @deprecated Legacy: use WorkoutItem in blocks. */
 export type GeneratedExercise = {
   id: string;
   name: string;
@@ -99,14 +100,53 @@ export type GeneratedExercise = {
   tags: string[];
 };
 
+/** @deprecated Legacy: use WorkoutBlock. */
 export type WorkoutSection = {
   id: string;
   title: string;
-  /** Optional one-sentence reasoning for this section (from generator). */
   reasoning?: string;
   exercises: GeneratedExercise[];
-  /** Main block only: 1–4 superset pairs. When set, UI shows "A ↔ B" per pair. */
   supersetPairs?: [GeneratedExercise, GeneratedExercise][];
+};
+
+// --- Block-based workout (canonical) ---
+
+export type BlockType =
+  | "warmup"
+  | "main_strength"
+  | "main_hypertrophy"
+  | "conditioning"
+  | "skill"
+  | "cooldown";
+
+export type BlockFormat =
+  | "straight_sets"
+  | "superset"
+  | "circuit"
+  | "emom"
+  | "amrap";
+
+export type WorkoutItem = {
+  exercise_id: string;
+  exercise_name: string;
+  sets: number;
+  reps?: number;
+  time_seconds?: number;
+  rest_seconds: number;
+  coaching_cues: string;
+  reasoning_tags?: string[];
+  tags?: string[];
+};
+
+export type WorkoutBlock = {
+  block_type: BlockType;
+  format: BlockFormat;
+  title?: string;
+  reasoning?: string;
+  items: WorkoutItem[];
+  estimated_minutes?: number;
+  /** For UI: "A ↔ B" pairing on main block. */
+  supersetPairs?: [WorkoutItem, WorkoutItem][];
 };
 
 export type GeneratedWorkout = {
@@ -115,8 +155,62 @@ export type GeneratedWorkout = {
   durationMinutes: number | null;
   energyLevel: EnergyLevel | null;
   notes?: string;
-  sections: WorkoutSection[];
+  blocks: WorkoutBlock[];
 };
+
+/** One-line prescription string for display (e.g. "3 x 10 reps", "20–40 min"). */
+export function formatPrescription(item: WorkoutItem): string {
+  if (item.time_seconds != null && item.time_seconds > 0) {
+    const min = Math.round(item.time_seconds / 60);
+    return `${min} min`;
+  }
+  const reps = item.reps != null ? ` ${item.reps} reps` : "";
+  return `${item.sets} x${reps}`.trim() || "—";
+}
+
+/**
+ * Normalize a workout that may be legacy (sections) or block-based (blocks) into GeneratedWorkout with blocks.
+ */
+export function normalizeGeneratedWorkout(
+  workout: { id: string; focus: string[]; durationMinutes: number | null; energyLevel: EnergyLevel | null; notes?: string; sections?: WorkoutSection[]; blocks?: WorkoutBlock[] }
+): GeneratedWorkout {
+  if (workout.blocks?.length) {
+    return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks: workout.blocks };
+  }
+  if (workout.sections?.length) {
+    const blocks: WorkoutBlock[] = workout.sections.map((sec) => ({
+      block_type: mapSectionIdToBlockType(sec.id),
+      format: sec.supersetPairs?.length ? "superset" : "circuit",
+      title: sec.title,
+      reasoning: sec.reasoning,
+      items: sec.exercises.map((ex) => ({
+        exercise_id: ex.id,
+        exercise_name: ex.name,
+        sets: 1,
+        rest_seconds: 0,
+        coaching_cues: ex.prescription,
+        reasoning_tags: [],
+        tags: ex.tags,
+      })),
+      supersetPairs: sec.supersetPairs?.map(([a, b]) => [
+        { exercise_id: a.id, exercise_name: a.name, sets: 1, rest_seconds: 0, coaching_cues: a.prescription, reasoning_tags: [], tags: a.tags },
+        { exercise_id: b.id, exercise_name: b.name, sets: 1, rest_seconds: 0, coaching_cues: b.prescription, reasoning_tags: [], tags: b.tags },
+      ]),
+    }));
+    return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks };
+  }
+  return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks: [] };
+}
+
+function mapSectionIdToBlockType(sectionId: string): BlockType {
+  const id = sectionId.toLowerCase();
+  if (id.includes("warm") || id === "warm-up") return "warmup";
+  if (id.includes("main") || id.includes("strength")) return "main_strength";
+  if (id.includes("accessory") || id.includes("hypertrophy")) return "main_hypertrophy";
+  if (id.includes("cardio") || id.includes("conditioning")) return "conditioning";
+  if (id.includes("cooldown")) return "cooldown";
+  return "main_hypertrophy";
+}
 
 export type WorkoutHistoryItem = {
   id: string;

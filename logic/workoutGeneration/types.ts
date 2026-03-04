@@ -16,6 +16,7 @@ export type MovementPattern =
 export type Modality =
   | "strength"
   | "hypertrophy"
+  | "power"
   | "conditioning"
   | "mobility"
   | "skill"
@@ -78,7 +79,8 @@ export type PrimaryGoal =
   | "conditioning"
   | "mobility"
   | "recovery"
-  | "athletic_performance";
+  | "athletic_performance"
+  | "calisthenics";
 
 export type FocusBodyPart =
   | "upper_push"
@@ -117,39 +119,9 @@ export type GenerateWorkoutInput = {
   seed?: number;
 };
 
-// --- Output contract ---
-export type BlockType =
-  | "warmup"
-  | "main_strength"
-  | "main_hypertrophy"
-  | "conditioning"
-  | "skill"
-  | "cooldown";
-
-export type BlockFormat =
-  | "straight_sets"
-  | "superset"
-  | "circuit"
-  | "emom"
-  | "amrap";
-
-export type WorkoutItem = {
-  exercise_id: string;
-  exercise_name: string;
-  sets: number;
-  reps?: number;
-  time_seconds?: number;
-  rest_seconds: number;
-  coaching_cues: string;
-  reasoning_tags: string[];
-};
-
-export type WorkoutBlock = {
-  block_type: BlockType;
-  format: BlockFormat;
-  items: WorkoutItem[];
-  estimated_minutes?: number;
-};
+// --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
+import type { WorkoutBlock as LibWorkoutBlock } from "../../lib/types";
+export type { BlockType, BlockFormat, WorkoutItem, WorkoutBlock } from "../../lib/types";
 
 export type ScoringDebug = {
   exercise_id: string;
@@ -159,13 +131,14 @@ export type ScoringDebug = {
   energy_fit?: number;
   variety_penalty?: number;
   balance_bonus?: number;
+  fatigue_penalty?: number;
   duration_practicality?: number;
 };
 
 export type WorkoutSession = {
   title: string;
   estimated_duration_minutes: number;
-  blocks: WorkoutBlock[];
+  blocks: LibWorkoutBlock[];
   debug?: {
     scoring_breakdown?: ScoringDebug[];
     seed_used?: number;

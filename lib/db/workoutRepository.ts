@@ -1,5 +1,6 @@
 import { getSupabase } from "./client";
-import type { GeneratedWorkout, WorkoutSection, GeneratedExercise, WorkoutHistoryItem, SavedWorkout } from "../types";
+import type { GeneratedWorkout, WorkoutBlock, WorkoutItem, WorkoutHistoryItem, SavedWorkout } from "../types";
+import { normalizeGeneratedWorkout } from "../types";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -40,38 +41,47 @@ export async function createWorkout(
 }
 
 /**
- * Add blocks (sections) and exercises to an existing workout.
+ * Add blocks and exercises to an existing workout. Prescription stored as structured jsonb.
  */
 export async function addBlocksAndExercises(
   workoutId: string,
-  sections: { id: string; title: string; reasoning?: string; exercises: GeneratedExercise[] }[]
+  blocks: WorkoutBlock[]
 ): Promise<void> {
   const supabase = requireClient();
 
-  for (let i = 0; i < sections.length; i++) {
-    const sec = sections[i];
-    const { data: block, error: blockError } = await supabase
+  for (let i = 0; i < blocks.length; i++) {
+    const blk = blocks[i];
+    const { data: blockRow, error: blockError } = await supabase
       .from("workout_blocks")
       .insert({
         workout_id: workoutId,
-        block_type: sec.id,
+        block_type: blk.block_type,
         sort_order: i,
-        title: sec.title,
-        reasoning: sec.reasoning ?? null,
+        title: blk.title ?? null,
+        reasoning: blk.reasoning ?? null,
       })
       .select("id")
       .single();
     if (blockError) throw new Error(blockError.message);
 
-    for (let j = 0; j < sec.exercises.length; j++) {
-      const ex = sec.exercises[j];
+    for (let j = 0; j < blk.items.length; j++) {
+      const item = blk.items[j];
+      const prescription: Record<string, unknown> = {
+        sets: item.sets,
+        rest_seconds: item.rest_seconds,
+        coaching_cues: item.coaching_cues,
+      };
+      if (item.reps != null) prescription.reps = item.reps;
+      if (item.time_seconds != null) prescription.time_seconds = item.time_seconds;
+      if (item.reasoning_tags?.length) prescription.reasoning_tags = item.reasoning_tags;
+
       const { error: exError } = await supabase.from("workout_exercises").insert({
         workout_id: workoutId,
-        block_id: block.id,
+        block_id: blockRow.id,
         sort_order: j,
-        prescription: { text: ex.prescription },
-        exercise_slug: ex.id,
-        exercise_name: ex.name,
+        prescription,
+        exercise_slug: item.exercise_id,
+        exercise_name: item.exercise_name,
         notes: null,
       });
       if (exError) throw new Error(exError.message);
@@ -102,8 +112,19 @@ export async function listWorkouts(
   }));
 }
 
+type PrescriptionRow = {
+  sets?: number;
+  reps?: number;
+  time_seconds?: number;
+  rest_seconds?: number;
+  coaching_cues?: string;
+  reasoning_tags?: string[];
+  text?: string;
+};
+
 /**
- * Get a single workout by id with blocks and exercises, as GeneratedWorkout shape.
+ * Get a single workout by id with blocks and exercises, as GeneratedWorkout (blocks) shape.
+ * Supports legacy prescription { text } by mapping to WorkoutItem with coaching_cues.
  */
 export async function getWorkout(userId: string, workoutId: string): Promise<GeneratedWorkout | null> {
   const supabase = requireClient();
@@ -117,40 +138,48 @@ export async function getWorkout(userId: string, workoutId: string): Promise<Gen
   if (!workout) return null;
 
   const intent = workout.intent as Record<string, unknown>;
-  const { data: blocks } = await supabase
+  const { data: blockRows } = await supabase
     .from("workout_blocks")
     .select("id, block_type, title, reasoning, sort_order")
     .eq("workout_id", workoutId)
     .order("sort_order");
-  if (!blocks?.length) {
+  if (!blockRows?.length) {
     return {
       id: workout.id,
       focus: (intent.focus as string[]) ?? [],
       durationMinutes: (intent.durationMinutes as number) ?? null,
       energyLevel: (intent.energyLevel as GeneratedWorkout["energyLevel"]) ?? null,
       notes: intent.notes as string | undefined,
-      sections: [],
+      blocks: [],
     };
   }
 
-  const sections: WorkoutSection[] = [];
-  for (const block of blocks as Array<{ id: string; block_type: string; title: string; reasoning: string | null; sort_order: number }>) {
+  const blocks: WorkoutBlock[] = [];
+  for (const block of blockRows as Array<{ id: string; block_type: string; title: string; reasoning: string | null; sort_order: number }>) {
     const { data: exRows } = await supabase
       .from("workout_exercises")
       .select("exercise_slug, exercise_name, prescription, sort_order")
       .eq("block_id", block.id)
       .order("sort_order");
-    const exercises: GeneratedExercise[] = (exRows ?? []).map((r: { exercise_slug: string; exercise_name: string; prescription: { text?: string } }) => ({
-      id: r.exercise_slug,
-      name: r.exercise_name,
-      prescription: typeof r.prescription === "object" && r.prescription && "text" in r.prescription ? (r.prescription.text as string) : "",
-      tags: [],
-    }));
-    sections.push({
-      id: block.block_type,
+    const items: WorkoutItem[] = (exRows ?? []).map((r: { exercise_slug: string; exercise_name: string; prescription: PrescriptionRow }) => {
+      const p = r.prescription ?? {};
+      return {
+        exercise_id: r.exercise_slug,
+        exercise_name: r.exercise_name,
+        sets: p.sets ?? 1,
+        reps: p.reps,
+        time_seconds: p.time_seconds,
+        rest_seconds: p.rest_seconds ?? 0,
+        coaching_cues: p.coaching_cues ?? (p.text as string) ?? "",
+        reasoning_tags: p.reasoning_tags,
+      };
+    });
+    blocks.push({
+      block_type: block.block_type as WorkoutBlock["block_type"],
+      format: "circuit",
       title: block.title,
       reasoning: block.reasoning ?? undefined,
-      exercises,
+      items,
     });
   }
 
@@ -160,7 +189,7 @@ export async function getWorkout(userId: string, workoutId: string): Promise<Gen
     durationMinutes: (intent.durationMinutes as number) ?? null,
     energyLevel: (intent.energyLevel as GeneratedWorkout["energyLevel"]) ?? null,
     notes: intent.notes as string | undefined,
-    sections,
+    blocks,
   };
 }
 
@@ -174,15 +203,7 @@ export async function saveGeneratedWorkout(userId: string, workout: GeneratedWor
     energyLevel: workout.energyLevel,
     notes: workout.notes,
   });
-  await addBlocksAndExercises(
-    id,
-    workout.sections.map((s) => ({
-      id: s.id,
-      title: s.title,
-      reasoning: s.reasoning,
-      exercises: s.exercises,
-    }))
-  );
+  await addBlocksAndExercises(id, workout.blocks);
   return id;
 }
 
@@ -213,19 +234,21 @@ export async function saveCompletedWorkout(userId: string, item: Omit<WorkoutHis
 }
 
 /**
- * List completed workouts (history) for user.
+ * List completed workouts (history) for user. Normalizes legacy section-based workouts to blocks.
  */
 export async function listCompletedWorkouts(userId: string): Promise<WorkoutHistoryItem[]> {
   const rows = await listWorkouts(userId, "completed");
   return rows.map((r) => {
     const i = r.intent as Record<string, unknown>;
+    const raw = i.workout as GeneratedWorkout | undefined;
+    const workout = raw ? normalizeGeneratedWorkout(raw as Parameters<typeof normalizeGeneratedWorkout>[0]) : undefined;
     return {
       id: r.id,
       date: (i.date as string) ?? "",
       focus: (i.focus as string[]) ?? [],
       durationMinutes: (i.durationMinutes as number) ?? null,
       name: i.name as string | undefined,
-      workout: i.workout as GeneratedWorkout | undefined,
+      workout,
       exerciseNotes: i.exerciseNotes as Record<string, string> | undefined,
     };
   });
@@ -251,16 +274,18 @@ export async function saveSavedWorkout(userId: string, item: Omit<SavedWorkout, 
 }
 
 /**
- * List saved workouts for user.
+ * List saved workouts for user. Normalizes legacy section-based workouts to blocks.
  */
 export async function listSavedWorkouts(userId: string): Promise<SavedWorkout[]> {
   const rows = await listWorkouts(userId, "saved");
   return rows.map((r) => {
     const i = r.intent as Record<string, unknown>;
+    const raw = i.workout as GeneratedWorkout;
+    const workout = normalizeGeneratedWorkout(raw as Parameters<typeof normalizeGeneratedWorkout>[0]);
     return {
       id: r.id,
       savedAt: (i.savedAt as string) ?? r.created_at,
-      workout: i.workout as GeneratedWorkout,
+      workout,
       progress: i.progress as SavedWorkout["progress"],
     };
   });

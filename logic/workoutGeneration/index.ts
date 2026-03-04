@@ -9,6 +9,16 @@ export {
   scoreExercise,
 } from "./dailyGenerator";
 export { STUB_EXERCISES } from "./exerciseStub";
+export {
+  getSubstitutes,
+  getBestSubstitute,
+} from "../../lib/generation/exerciseSubstitution";
+export type {
+  ExerciseLike,
+  RankedSubstitute,
+  SubstituteReason,
+  SubstitutionOptions,
+} from "../../lib/generation/exerciseSubstitution";
 export type {
   Exercise,
   ExerciseTags,

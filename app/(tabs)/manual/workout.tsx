@@ -6,6 +6,7 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { generateWorkoutAsync } from "../../../lib/generator";
+import { formatPrescription } from "../../../lib/types";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -99,24 +100,24 @@ export default function ManualWorkoutScreen() {
           ) : null}
         </Card>
 
-        {generatedWorkout.sections.map((section) => (
-          <Card key={section.id} title={section.title} style={styles.sectionCard}>
-            {section.reasoning ? (
+        {generatedWorkout.blocks.map((block, blockIdx) => (
+          <Card key={`${block.block_type}-${blockIdx}`} title={block.title ?? block.block_type} style={styles.sectionCard}>
+            {block.reasoning ? (
               <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
-                {section.reasoning}
+                {block.reasoning}
               </Text>
             ) : null}
-            {section.supersetPairs && section.supersetPairs.length > 0 ? (
-              section.supersetPairs.map((pair, idx) => (
+            {block.supersetPairs && block.supersetPairs.length > 0 ? (
+              block.supersetPairs.map((pair, idx) => (
                 <View key={`superset-${idx}`} style={[styles.supersetBlock, { borderLeftColor: theme.border }]}>
                   <Text style={[styles.supersetLabel, { color: theme.textMuted }]}>
                     Superset {idx + 1}
                   </Text>
-                  {pair.map((exercise) => (
-                    <View key={exercise.id} style={styles.exerciseRow}>
+                  {pair.map((item) => (
+                    <View key={item.exercise_id} style={styles.exerciseRow}>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.exerciseName, { color: theme.text }]}>
-                          {exercise.name}
+                          {item.exercise_name}
                         </Text>
                         <Text
                           style={[
@@ -124,29 +125,31 @@ export default function ManualWorkoutScreen() {
                             { color: theme.textMuted },
                           ]}
                         >
-                          {exercise.prescription}
+                          {formatPrescription(item)}
                         </Text>
-                        <View style={styles.tagsRow}>
-                          {exercise.tags.slice(0, 3).map((tag) => (
-                            <Text
-                              key={tag}
-                              style={[styles.tag, { color: theme.textMuted }]}
-                            >
-                              {tag}
-                            </Text>
-                          ))}
-                        </View>
+                        {(item.tags?.length ?? 0) > 0 && (
+                          <View style={styles.tagsRow}>
+                            {(item.tags ?? []).slice(0, 3).map((tag) => (
+                              <Text
+                                key={tag}
+                                style={[styles.tag, { color: theme.textMuted }]}
+                              >
+                                {tag}
+                              </Text>
+                            ))}
+                          </View>
+                        )}
                       </View>
                     </View>
                   ))}
                 </View>
               ))
             ) : (
-              section.exercises.map((exercise) => (
-                <View key={exercise.id} style={styles.exerciseRow}>
+              block.items.map((item) => (
+                <View key={item.exercise_id} style={styles.exerciseRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.exerciseName, { color: theme.text }]}>
-                      {exercise.name}
+                      {item.exercise_name}
                     </Text>
                     <Text
                       style={[
@@ -154,18 +157,20 @@ export default function ManualWorkoutScreen() {
                         { color: theme.textMuted },
                       ]}
                     >
-                      {exercise.prescription}
+                      {formatPrescription(item)}
                     </Text>
-                    <View style={styles.tagsRow}>
-                      {exercise.tags.slice(0, 3).map((tag) => (
-                        <Text
-                          key={tag}
-                          style={[styles.tag, { color: theme.textMuted }]}
-                        >
-                          {tag}
-                        </Text>
-                      ))}
-                    </View>
+                    {(item.tags?.length ?? 0) > 0 && (
+                      <View style={styles.tagsRow}>
+                        {(item.tags ?? []).slice(0, 3).map((tag) => (
+                          <Text
+                            key={tag}
+                            style={[styles.tag, { color: theme.textMuted }]}
+                          >
+                            {tag}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 </View>
               ))

@@ -11,6 +11,7 @@ import { useRouter } from "expo-router";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
+import { formatPrescription } from "../../../lib/types";
 
 type ExerciseProgress = {
   completed: boolean;
@@ -34,18 +35,24 @@ export default function ExecuteScreen() {
   const allExercises = useMemo(
     () =>
       generatedWorkout != null
-        ? generatedWorkout.sections.flatMap((section) => {
-            if (section.supersetPairs && section.supersetPairs.length > 0) {
-              return section.supersetPairs.flatMap((pair, idx) =>
-                pair.map((ex) => ({
-                  ...ex,
-                  sectionTitle: `${section.title} • Superset ${idx + 1}`,
+        ? generatedWorkout.blocks.flatMap((block) => {
+            if (block.supersetPairs && block.supersetPairs.length > 0) {
+              return block.supersetPairs.flatMap((pair, idx) =>
+                pair.map((item) => ({
+                  ...item,
+                  id: item.exercise_id,
+                  name: item.exercise_name,
+                  prescription: formatPrescription(item),
+                  sectionTitle: `${block.title ?? block.block_type} • Superset ${idx + 1}`,
                 }))
               );
             }
-            return section.exercises.map((ex) => ({
-              ...ex,
-              sectionTitle: section.title,
+            return block.items.map((item) => ({
+              ...item,
+              id: item.exercise_id,
+              name: item.exercise_name,
+              prescription: formatPrescription(item),
+              sectionTitle: block.title ?? block.block_type,
             }));
           })
         : [],
@@ -57,7 +64,7 @@ export default function ExecuteScreen() {
       allExercises.reduce<Record<string, ExerciseProgress>>(
         (acc, ex) => ({
           ...acc,
-          [ex.id]: { completed: false, setsCompleted: 0 },
+          [ex.exercise_id]: { completed: false, setsCompleted: 0 },
         }),
         {}
       )
@@ -158,13 +165,13 @@ export default function ExecuteScreen() {
       >
         <View style={{ gap: 12 }}>
           {allExercises.map((exercise) => {
-            const state = progress[exercise.id] ?? {
+            const state = progress[exercise.exercise_id] ?? {
               completed: false,
               setsCompleted: 0,
             };
             return (
               <View
-                key={exercise.id}
+                key={exercise.exercise_id}
                 style={[
                   styles.exerciseRow,
                   {
@@ -176,7 +183,7 @@ export default function ExecuteScreen() {
                 ]}
               >
                 <Pressable
-                  onPress={() => toggleCompleted(exercise.id)}
+                  onPress={() => toggleCompleted(exercise.exercise_id)}
                   style={[
                     styles.checkbox,
                     {
@@ -193,7 +200,7 @@ export default function ExecuteScreen() {
                 </Pressable>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.exerciseName, { color: theme.text }]}>
-                    {exercise.name}
+                    {exercise.exercise_name}
                   </Text>
                   <Text
                     style={[styles.exerciseMeta, { color: theme.textMuted }]}
@@ -212,12 +219,12 @@ export default function ExecuteScreen() {
                     placeholder="Notes (optional)"
                     placeholderTextColor={theme.textMuted}
                     value={state.notes ?? ""}
-                    onChangeText={(text) => setNote(exercise.id, text)}
+                    onChangeText={(text) => setNote(exercise.exercise_id, text)}
                     multiline
                   />
                 </View>
                 <Pressable
-                  onPress={() => incrementSets(exercise.id)}
+                  onPress={() => incrementSets(exercise.exercise_id)}
                   style={[styles.logButton, { borderColor: theme.border }]}
                 >
                   <Text style={[styles.logButtonText, { color: theme.text }]}>

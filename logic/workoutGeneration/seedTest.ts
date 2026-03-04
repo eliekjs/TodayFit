@@ -25,7 +25,7 @@ function printSession(session: WorkoutSession, label: string) {
       const presc = item.reps != null ? `${item.sets} x ${item.reps} reps` : `${item.sets} x ${item.time_seconds}s`;
       console.log(`  • ${item.exercise_name}: ${presc}, rest ${item.rest_seconds}s`);
       console.log(`    Cues: ${item.coaching_cues}`);
-      if (item.reasoning_tags.length) {
+      if (item.reasoning_tags?.length) {
         console.log(`    Tags: ${item.reasoning_tags.join(", ")}`);
       }
     }

@@ -11,6 +11,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
+import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
 
 export default function ViewCompletedWorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,7 +38,8 @@ export default function ViewCompletedWorkoutScreen() {
     );
   }
 
-  const workout = item.workout;
+  const rawWorkout = item.workout;
+  const workout = rawWorkout ? normalizeGeneratedWorkout(rawWorkout) : null;
   const notes = item.exerciseNotes ?? {};
 
   if (!workout) {
@@ -55,12 +57,9 @@ export default function ViewCompletedWorkoutScreen() {
   const date = new Date(item.date);
   const focusLabel = item.focus?.length ? item.focus.join(" • ") : "General training";
   const displayTitle = item.name?.trim() || focusLabel;
-  const exerciseCount = workout.sections.reduce(
-    (sum, s) =>
-      sum +
-      (s.supersetPairs
-        ? s.supersetPairs.flat().length
-        : s.exercises.length),
+  const exerciseCount = workout.blocks.reduce(
+    (sum, b) =>
+      sum + (b.supersetPairs ? b.supersetPairs.flat().length : b.items.length),
     0
   );
 
@@ -110,7 +109,7 @@ export default function ViewCompletedWorkoutScreen() {
                 year: "numeric",
               }),
               item.durationMinutes != null ? `${item.durationMinutes} min` : null,
-              `${workout.sections.length} section${workout.sections.length !== 1 ? "s" : ""} · ${exerciseCount} exercise${exerciseCount !== 1 ? "s" : ""}`,
+              `${workout.blocks.length} block${workout.blocks.length !== 1 ? "s" : ""} · ${exerciseCount} exercise${exerciseCount !== 1 ? "s" : ""}`,
             ]
               .filter(Boolean)
               .join(" · ")
@@ -131,18 +130,18 @@ export default function ViewCompletedWorkoutScreen() {
           />
         </View>
 
-        {workout.sections.map((section) => {
-          if (section.supersetPairs && section.supersetPairs.length > 0) {
+        {workout.blocks.map((block, blockIdx) => {
+          if (block.supersetPairs && block.supersetPairs.length > 0) {
             return (
-              <View key={section.id} style={styles.section}>
+              <View key={`${block.block_type}-${blockIdx}`} style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                  {section.title}
+                  {block.title ?? block.block_type}
                 </Text>
-                {section.supersetPairs.map((pair, idx) => (
-                  <View key={`${section.id}-ss-${idx}`} style={styles.superset}>
-                    {pair.map((ex) => (
+                {block.supersetPairs.map((pair, idx) => (
+                  <View key={`${block.block_type}-ss-${idx}`} style={styles.superset}>
+                    {pair.map((item) => (
                       <View
-                        key={ex.id}
+                        key={item.exercise_id}
                         style={[
                           styles.exerciseBlock,
                           styles.exerciseBlockSuperset,
@@ -150,18 +149,18 @@ export default function ViewCompletedWorkoutScreen() {
                         ]}
                       >
                         <Text style={[styles.exerciseName, { color: theme.text }]}>
-                          {ex.name}
+                          {item.exercise_name}
                         </Text>
                         <Text style={[styles.exerciseMeta, { color: theme.textMuted }]}>
-                          {ex.prescription}
+                          {formatPrescription(item)}
                         </Text>
-                        {notes[ex.id] ? (
+                        {notes[item.exercise_id] ? (
                           <View style={[styles.noteBox, { backgroundColor: theme.primarySoft }]}>
                             <Text style={[styles.noteLabel, { color: theme.textMuted }]}>
                               Your note
                             </Text>
                             <Text style={[styles.noteText, { color: theme.text }]}>
-                              {notes[ex.id]}
+                              {notes[item.exercise_id]}
                             </Text>
                           </View>
                         ) : null}
@@ -173,13 +172,13 @@ export default function ViewCompletedWorkoutScreen() {
             );
           }
           return (
-            <View key={section.id} style={styles.section}>
+            <View key={`${block.block_type}-${blockIdx}`} style={styles.section}>
               <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                {section.title}
+                {block.title ?? block.block_type}
               </Text>
-              {section.exercises.map((ex) => (
+              {block.items.map((item) => (
                 <View
-                  key={ex.id}
+                  key={item.exercise_id}
                   style={[
                     styles.exerciseBlock,
                     styles.exerciseBlockStandalone,
@@ -187,18 +186,18 @@ export default function ViewCompletedWorkoutScreen() {
                   ]}
                 >
                   <Text style={[styles.exerciseName, { color: theme.text }]}>
-                    {ex.name}
+                    {item.exercise_name}
                   </Text>
                   <Text style={[styles.exerciseMeta, { color: theme.textMuted }]}>
-                    {ex.prescription}
+                    {formatPrescription(item)}
                   </Text>
-                  {notes[ex.id] ? (
+                  {notes[item.exercise_id] ? (
                     <View style={[styles.noteBox, { backgroundColor: theme.primarySoft }]}>
                       <Text style={[styles.noteLabel, { color: theme.textMuted }]}>
                         Your note
                       </Text>
                       <Text style={[styles.noteText, { color: theme.text }]}>
-                        {notes[ex.id]}
+                        {notes[item.exercise_id]}
                       </Text>
                     </View>
                   ) : null}

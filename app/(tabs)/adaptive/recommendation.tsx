@@ -7,6 +7,7 @@ import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import type { GeneratedWorkout } from "../../../lib/types";
+import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 
@@ -319,42 +320,45 @@ export default function AdaptiveWeekPlanScreen() {
           )}
           {!isLoadingWorkout &&
             selectedWorkout &&
-            selectedWorkout.sections.map((section) => (
-              <View key={section.id} style={styles.sectionBlock}>
-                <Text
-                  style={[styles.sectionTitle, { color: theme.text }]}
-                >
-                  {section.title}
-                </Text>
-                {section.reasoning ? (
+            (() => {
+              const displayWorkout = normalizeGeneratedWorkout(selectedWorkout);
+              return displayWorkout.blocks.map((block, blockIdx) => (
+                <View key={`${block.block_type}-${blockIdx}`} style={styles.sectionBlock}>
                   <Text
-                    style={[
-                      styles.sectionReasoning,
-                      { color: theme.textMuted },
-                    ]}
+                    style={[styles.sectionTitle, { color: theme.text }]}
                   >
-                    {section.reasoning}
+                    {block.title ?? block.block_type}
                   </Text>
-                ) : null}
-                {section.exercises.map((exercise) => (
-                  <View key={exercise.id} style={styles.exerciseRow}>
-                    <Text
-                      style={[styles.exerciseName, { color: theme.text }]}
-                    >
-                      {exercise.name}
-                    </Text>
+                  {block.reasoning ? (
                     <Text
                       style={[
-                        styles.exercisePrescription,
+                        styles.sectionReasoning,
                         { color: theme.textMuted },
                       ]}
                     >
-                      {exercise.prescription}
+                      {block.reasoning}
                     </Text>
-                  </View>
-                ))}
-              </View>
-            ))}
+                  ) : null}
+                  {block.items.map((item) => (
+                    <View key={item.exercise_id} style={styles.exerciseRow}>
+                      <Text
+                        style={[styles.exerciseName, { color: theme.text }]}
+                      >
+                        {item.exercise_name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.exercisePrescription,
+                          { color: theme.textMuted },
+                        ]}
+                      >
+                        {formatPrescription(item)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ));
+            })()}
 
           <View style={styles.footer}>
             {selectedDay.status === "planned" ? (

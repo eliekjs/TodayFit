@@ -124,7 +124,7 @@ export default function HistoryScreen() {
               const subtitleParts = [
                 item.durationMinutes != null ? `${item.durationMinutes} min` : null,
                 item.workout
-                  ? `${item.workout.sections.length} section${item.workout.sections.length !== 1 ? "s" : ""}`
+                  ? `${item.workout.blocks.length} block${item.workout.blocks.length !== 1 ? "s" : ""}`
                   : null,
               ].filter(Boolean);
               return (
