@@ -1,5 +1,5 @@
 import { EXERCISES } from "../data/exercises";
-import { deriveBodyPartFocus, deriveSubFocus } from "./preferencesConstants";
+import { deriveBodyPartFocus, deriveBodyPartFocusFromSubFocus, deriveSubFocus } from "./preferencesConstants";
 import type {
   ExerciseDefinition,
   GeneratedExercise,
@@ -91,6 +91,7 @@ function filterByBodyPartFocus(
         return e.muscles.some((m) => m === "push" || m === "pull" || m === "core");
       if (opt === "Lower body") return e.muscles.includes("legs");
       if (opt === "Full body") return true;
+      if (opt === "Core") return e.muscles.includes("core");
       if (opt === "Push") return e.muscles.includes("push");
       if (opt === "Pull") return e.muscles.includes("pull");
       return false;
@@ -116,19 +117,18 @@ export function generateWorkout(
   exercisesInput?: ExerciseDefinition[],
   preferredExerciseSlugs?: string[]
 ): GeneratedWorkout {
-  const bodyPartFocus = deriveBodyPartFocus(
-    preferences.targetBody,
-    preferences.targetModifier
-  );
-  const injuryFilter =
-    preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
-      ? []
-      : preferences.injuries.filter((i) => i !== "No restrictions");
-
   const subFocus = deriveSubFocus(
     preferences.primaryFocus,
     preferences.subFocusByGoal
   );
+  const bodyPartFocus =
+    deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier).length > 0
+      ? deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier)
+      : deriveBodyPartFocusFromSubFocus(subFocus);
+  const injuryFilter =
+    preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
+      ? []
+      : preferences.injuries.filter((i) => i !== "No restrictions");
 
   const seed = JSON.stringify({
     focus: preferences.primaryFocus,
@@ -322,6 +322,8 @@ function bodyPartFocusToMuscles(bodyPartFocus: string[]): string[] {
       out.push("legs");
     } else if (opt === "Full body") {
       return []; // no filter
+    } else if (opt === "Core") {
+      out.push("core");
     } else if (opt === "Push") {
       out.push("push");
     } else if (opt === "Pull") {

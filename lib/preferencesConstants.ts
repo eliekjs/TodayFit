@@ -94,6 +94,10 @@ export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
     "Balanced",
   ],
   "Sport Conditioning": [
+    "Upper body",
+    "Lower body",
+    "Core",
+    "Full-body",
     "Zone 2",
     "Threshold",
     "Intervals",
@@ -113,6 +117,10 @@ export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
     "Full-body",
   ],
   "Athletic Performance": [
+    "Upper body",
+    "Lower body",
+    "Core",
+    "Full-body",
     "Power output",
     "Sprint speed",
     "Vertical jump",
@@ -127,11 +135,14 @@ export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
     "Core compression strength",
   ],
   "Power & Explosiveness": [
+    "Upper body",
+    "Lower body",
+    "Core",
+    "Full-body",
     "Squat",
     "Hinge",
     "Press",
     "Pull",
-    "Full-body",
   ],
   Recovery: [
     "Hips",
@@ -173,4 +184,21 @@ export function deriveBodyPartFocus(
     // Quad/Posterior can be passed as subFocus or used in future generator tag filter
   }
   return [];
+}
+
+/**
+ * Derives body part focus from sub-goals (e.g. "Upper body", "Lower body", "Core", "Full-body").
+ * Used when Target body is not set but user picked a body-area sub-focus under Athletic Performance, Sport Conditioning, or Power.
+ */
+export function deriveBodyPartFocusFromSubFocus(
+  subFocus: string[]
+): BodyPartFocusKey[] {
+  const out: BodyPartFocusKey[] = [];
+  for (const s of subFocus) {
+    if (s === "Full-body") return ["Full body"];
+    if (s === "Upper body" && !out.includes("Upper body")) out.push("Upper body");
+    if (s === "Lower body" && !out.includes("Lower body")) out.push("Lower body");
+    if (s === "Core" && !out.includes("Core")) out.push("Core");
+  }
+  return out;
 }

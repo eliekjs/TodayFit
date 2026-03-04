@@ -21,7 +21,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { EnergyLevel } from "../../../lib/types";
-import { DURATIONS } from "../../../lib/preferencesConstants";
+import { DURATIONS, CONSTRAINT_OPTIONS } from "../../../lib/preferencesConstants";
 import { listSportsForPrep } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 
@@ -73,6 +73,9 @@ const INJURY_STATUS_OPTIONS = [
   "Rebuilding",
 ] as const;
 
+/** Injury area options for sport-specific training (same body regions as Build flow, minus "No restrictions"). */
+const INJURY_TYPE_OPTIONS = CONSTRAINT_OPTIONS.filter((o) => o !== "No restrictions");
+
 const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 
 export default function AdaptiveModeScreen() {
@@ -91,6 +94,8 @@ export default function AdaptiveModeScreen() {
     useState<(typeof RECENT_LOAD_OPTIONS)[number]>("Normal / Mixed");
   const [injuryStatus, setInjuryStatus] =
     useState<(typeof INJURY_STATUS_OPTIONS)[number]>("No Concerns");
+  /** Selected injury areas when status is Managing or Rebuilding (labels, e.g. "Knee", "Shoulder"). */
+  const [injuryTypes, setInjuryTypes] = useState<string[]>([]);
   const [fatigue, setFatigue] =
     useState<(typeof FATIGUE_OPTIONS)[number]>("Moderate");
   const [gymDaysPerWeek, setGymDaysPerWeek] = useState<number>(3);
@@ -168,7 +173,10 @@ export default function AdaptiveModeScreen() {
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,
         energyBaseline,
-        injuries: [], // future: map from injuryStatus to concrete constraints
+        injuries:
+          injuryStatus === "No Concerns"
+            ? []
+            : injuryTypes.map((label) => label.toLowerCase().replace(/\s/g, "_")),
         sportSessions: [],
         gymProfile: activeProfile,
       });
@@ -567,10 +575,39 @@ export default function AdaptiveModeScreen() {
               key={opt}
               label={opt}
               selected={injuryStatus === opt}
-              onPress={() => setInjuryStatus(opt)}
+              onPress={() => {
+                setInjuryStatus(opt);
+                if (opt === "No Concerns") setInjuryTypes([]);
+              }}
             />
           ))}
         </View>
+
+        {(injuryStatus === "Managing" || injuryStatus === "Rebuilding") && (
+          <>
+            <SectionHeader
+              title="Injury areas"
+              subtitle="Select any areas to protect. We'll avoid exercises that stress them."
+              style={{ marginTop: 16 }}
+            />
+            <View style={styles.chipGroup}>
+              {INJURY_TYPE_OPTIONS.map((label) => (
+                <Chip
+                  key={label}
+                  label={label}
+                  selected={injuryTypes.includes(label)}
+                  onPress={() => {
+                    setInjuryTypes((prev) =>
+                      prev.includes(label)
+                        ? prev.filter((x) => x !== label)
+                        : [...prev, label]
+                    );
+                  }}
+                />
+              ))}
+            </View>
+          </>
+        )}
 
         <SectionHeader
           title="Fatigue"

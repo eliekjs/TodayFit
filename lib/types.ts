@@ -3,11 +3,12 @@ export type EnergyLevel = "low" | "medium" | "high";
 /** Single body target: Upper / Lower / Full. Modifiers (Push, Pull, Quad, Posterior) are separate. */
 export type TargetBody = "Upper" | "Lower" | "Full";
 
-/** Used by generator for filtering; derived from targetBody + targetModifier in UI. */
+/** Used by generator for filtering; derived from targetBody + targetModifier or from sub-focus (e.g. Athletic Performance). */
 export type BodyPartFocusKey =
   | "Upper body"
   | "Lower body"
   | "Full body"
+  | "Core"
   | "Push"
   | "Pull";
 
