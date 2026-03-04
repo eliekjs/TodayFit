@@ -132,18 +132,35 @@ function filterByBodyPartFocus(
   bodyPartFocus: string[]
 ): ExerciseDefinition[] {
   if (!bodyPartFocus.length) return exercises;
-  return exercises.filter((e) =>
-    bodyPartFocus.some((opt) => {
-      if (opt === "Upper body")
-        return e.muscles.some((m) => m === "push" || m === "pull" || m === "core");
-      if (opt === "Lower body") return e.muscles.includes("legs");
-      if (opt === "Full body") return true;
-      if (opt === "Core") return e.muscles.includes("core");
-      if (opt === "Push") return e.muscles.includes("push");
-      if (opt === "Pull") return e.muscles.includes("pull");
-      return false;
-    })
-  );
+  const hasUpper = bodyPartFocus.includes("Upper body");
+  const hasLower = bodyPartFocus.includes("Lower body");
+  const hasPush = bodyPartFocus.includes("Push");
+  const hasPull = bodyPartFocus.includes("Pull");
+  const hasQuad = bodyPartFocus.includes("Quad");
+  const hasPosterior = bodyPartFocus.includes("Posterior");
+  const hasFull = bodyPartFocus.includes("Full body");
+  const hasCoreOnly = bodyPartFocus.includes("Core") && !hasUpper && !hasLower;
+
+  if (hasFull) return exercises;
+
+  return exercises.filter((e) => {
+    // Upper: when modifier (Push/Pull) is set, focus entirely on that; otherwise push/pull/core
+    if (hasUpper) {
+      if (hasPush && !hasPull) return e.muscles.includes("push");
+      if (hasPull && !hasPush) return e.muscles.includes("pull");
+      return e.muscles.some((m) => m === "push" || m === "pull" || m === "core");
+    }
+    // Lower: when modifier (Quad/Posterior) is set, filter by tags; otherwise all legs
+    if (hasLower) {
+      if (hasQuad && !hasPosterior)
+        return e.muscles.includes("legs") && e.tags.some((t) => t === "quad-focused");
+      if (hasPosterior && !hasQuad)
+        return e.muscles.includes("legs") && e.tags.some((t) => t === "posterior chain" || t === "glutes" || t === "hamstrings");
+      return e.muscles.includes("legs");
+    }
+    if (hasCoreOnly) return e.muscles.includes("core");
+    return false;
+  });
 }
 
 function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
@@ -330,7 +347,13 @@ export function generateWorkout(
   );
 
   const isBodyRecomp = preferences.primaryFocus.includes("Body Recomposition");
-  const conditioningPool = eligible.filter((e) => e.modalities.includes("conditioning"));
+  // When body recomp, allow cardio even if target is Upper/Lower (e.g. running); use gym+injury filter only for conditioning pool
+  const conditioningPool = isBodyRecomp
+    ? filterByInjuries(
+        filterByGymProfile(exercises, gymProfile),
+        injuryFilter
+      ).filter((e) => e.modalities.includes("conditioning"))
+    : eligible.filter((e) => e.modalities.includes("conditioning"));
   const cardioBlock: WorkoutBlock | null =
     isBodyRecomp && conditioningPool.length > 0
       ? buildBlock(

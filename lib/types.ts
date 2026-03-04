@@ -10,7 +10,9 @@ export type BodyPartFocusKey =
   | "Full body"
   | "Core"
   | "Push"
-  | "Pull";
+  | "Pull"
+  | "Quad"
+  | "Posterior";
 
 export type WorkoutStyleKey =
   | "Compound Strength"

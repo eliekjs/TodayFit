@@ -57,6 +57,23 @@ export const CONSTRAINT_OPTIONS = [
   "No restrictions",
 ] as const;
 
+/** When target is Upper, only show upper-body constraints; when Lower, only lower-body. Full/null = all. */
+export const CONSTRAINT_OPTIONS_UPPER: readonly string[] = [
+  "Shoulder",
+  "Elbow",
+  "Wrist",
+  "Core",
+  "No restrictions",
+];
+export const CONSTRAINT_OPTIONS_LOWER: readonly string[] = [
+  "Lower Back",
+  "Hip",
+  "Knee",
+  "Ankle",
+  "Core",
+  "No restrictions",
+];
+
 /** Refinements – Style (optional multi-select). */
 export const WORKOUT_STYLE_OPTIONS: WorkoutStyleKey[] = [
   "Compound Strength",
@@ -194,8 +211,10 @@ export function deriveBodyPartFocus(
     return base;
   }
   if (targetBody === "Lower") {
-    return ["Lower body"];
-    // Quad/Posterior can be passed as subFocus or used in future generator tag filter
+    const base: BodyPartFocusKey[] = ["Lower body"];
+    if (targetModifier.includes("Quad")) base.push("Quad");
+    if (targetModifier.includes("Posterior")) base.push("Posterior");
+    return base;
   }
   return [];
 }

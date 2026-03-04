@@ -29,6 +29,8 @@ import {
   TARGET_OPTIONS,
   MODIFIERS_BY_TARGET,
   CONSTRAINT_OPTIONS,
+  CONSTRAINT_OPTIONS_UPPER,
+  CONSTRAINT_OPTIONS_LOWER,
   WORKOUT_STYLE_OPTIONS,
   UPCOMING_OPTIONS,
   SUB_FOCUS_BY_PRIMARY,
@@ -80,6 +82,7 @@ export default function ManualPreferencesScreen() {
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
   const [expandedSubGoalsForGoal, setExpandedSubGoalsForGoal] = useState<string | null>(null);
+  const [showGoalPctModal, setShowGoalPctModal] = useState(false);
   const router = useRouter();
   const theme = useTheme();
 
@@ -129,9 +132,20 @@ export default function ManualPreferencesScreen() {
   };
 
   const setTargetBody = (target: TargetBody | null) => {
+    const current = manualPreferences.injuries.filter((i) => i !== "No restrictions");
+    const upperOnly = ["Shoulder", "Elbow", "Wrist", "Core"];
+    const lowerOnly = ["Lower Back", "Hip", "Knee", "Ankle", "Core"];
+    let nextInjuries = current;
+    if (target === "Upper") {
+      nextInjuries = current.filter((i) => upperOnly.includes(i));
+    } else if (target === "Lower") {
+      nextInjuries = current.filter((i) => lowerOnly.includes(i));
+    }
+    if (manualPreferences.injuries.includes("No restrictions")) nextInjuries = ["No restrictions"];
     updateManualPreferences({
       targetBody: target,
       targetModifier: [],
+      injuries: nextInjuries,
     });
   };
 
@@ -264,47 +278,68 @@ export default function ManualPreferencesScreen() {
         />
         {rankedGoals.length > 0 && (
           <View style={styles.chipGroup}>
-            {rankedGoals.map((goal, idx) => (
-              <Pressable
-                key={goal}
-                style={styles.rankedChipWrap}
-                onPress={() => togglePrimaryFocus(goal)}
-              >
-                <View
-                  style={[
-                    styles.rankBadge,
-                    {
-                      backgroundColor: theme.chipSelectedBackground,
-                      borderWidth: 1,
-                      borderColor: theme.primary,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
+            {rankedGoals.map((goal, idx) => {
+              const pct =
+                idx === 0
+                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                  : idx === 1
+                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
+              return (
+                <View key={goal} style={styles.rankedChipWrap}>
+                  <Pressable
+                    style={styles.rankedChipPressable}
+                    onPress={() => setShowGoalPctModal(true)}
                   >
-                    {idx + 1}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.rankedChipInner,
-                    {
-                      backgroundColor: theme.chipSelectedBackground,
-                      borderWidth: 1,
-                      borderColor: theme.primary,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                    numberOfLines={1}
+                    <View
+                      style={[
+                        styles.rankBadge,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
+                      >
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.rankedChipInner,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                        numberOfLines={1}
+                      >
+                        {goal}
+                      </Text>
+                      <Text
+                        style={[styles.rankedChipPct, { color: theme.textMuted }]}
+                      >
+                        {pct}%
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => togglePrimaryFocus(goal)}
+                    style={styles.rankedChipRemove}
                   >
-                    {goal}
-                  </Text>
+                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                  </Pressable>
                 </View>
-              </Pressable>
-            ))}
+              );
+            })}
           </View>
         )}
         <View style={styles.chipGroup}>
@@ -320,123 +355,6 @@ export default function ManualPreferencesScreen() {
           ))}
         </View>
 
-        {rankedGoals.length >= 1 && (
-          <>
-            <SectionHeader
-              title="Goal matching (advanced)"
-              subtitle="What % of the workout should match each ranked goal. Sum = 100%."
-              style={{ marginTop: 24 }}
-            />
-            <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
-              {[1, 2, 3].map((rank) => {
-                const hasGoal = rankedGoals[rank - 1] != null;
-                const value =
-                  rank === 1
-                    ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                    : rank === 2
-                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                      : (manualPreferences.goalMatchTertiaryPct ?? 20);
-                const setPct = (raw: number) => {
-                  const v = Math.max(0, Math.min(100, Math.round(raw)));
-                  const others =
-                    rank === 1
-                      ? {
-                          goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-                          goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-                        }
-                      : rank === 2
-                        ? {
-                            goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-                            goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-                          }
-                        : {
-                            goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-                            goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-                          };
-                  const otherSum =
-                    rank === 1
-                      ? (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct +
-                        (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
-                      : rank === 2
-                        ? (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
-                          (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
-                        : (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
-                          (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct;
-                  const scale =
-                    otherSum > 0 ? (100 - v) / otherSum : 0;
-                  const s2 =
-                    rank === 1
-                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                      : rank === 2
-                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                        : (manualPreferences.goalMatchPrimaryPct ?? 50);
-                  const s3 =
-                    rank === 1
-                      ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                      : rank === 2
-                        ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                        : (manualPreferences.goalMatchSecondaryPct ?? 30);
-                  const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
-                  const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
-                  if (rank === 1) {
-                    updateManualPreferences({
-                      goalMatchPrimaryPct: v,
-                      goalMatchSecondaryPct: scaled2,
-                      goalMatchTertiaryPct: scaled3,
-                    });
-                  } else if (rank === 2) {
-                    updateManualPreferences({
-                      goalMatchSecondaryPct: v,
-                      goalMatchPrimaryPct: scaled2,
-                      goalMatchTertiaryPct: scaled3,
-                    });
-                  } else {
-                    updateManualPreferences({
-                      goalMatchTertiaryPct: v,
-                      goalMatchPrimaryPct: scaled2,
-                      goalMatchSecondaryPct: scaled3,
-                    });
-                  }
-                };
-                return (
-                  <View
-                    key={rank}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      opacity: hasGoal ? 1 : 0.5,
-                    }}
-                  >
-                    <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
-                      {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} goal
-                    </Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <TextInput
-                        style={[
-                          styles.goalMatchInput,
-                          {
-                            color: theme.text,
-                            borderColor: theme.border,
-                          },
-                        ]}
-                        keyboardType="number-pad"
-                        value={String(value)}
-                        editable={hasGoal}
-                        onChangeText={(t) => {
-                          const n = parseInt(t.replace(/\D/g, ""), 10);
-                          if (!Number.isNaN(n)) setPct(n);
-                        }}
-                      />
-                      <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>%</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        )}
-
         <SectionHeader
           title="Duration"
           subtitle="Approximate total session length."
@@ -450,28 +368,6 @@ export default function ManualPreferencesScreen() {
               selected={manualPreferences.durationMinutes === minutes}
               onPress={() =>
                 updateManualPreferences({ durationMinutes: minutes })
-              }
-            />
-          ))}
-        </View>
-
-        <SectionHeader
-          title="Energy Level"
-          subtitle="How much you have in the tank."
-          style={{ marginTop: 24 }}
-        />
-        <View style={styles.chipGroup}>
-          {ENERGY_LEVELS.map((level) => (
-            <Chip
-              key={level}
-              label={level}
-              selected={
-                manualPreferences.energyLevel === level.toLowerCase()
-              }
-              onPress={() =>
-                updateManualPreferences({
-                  energyLevel: level.toLowerCase() as "low" | "medium" | "high",
-                })
               }
             />
           ))}
@@ -547,6 +443,29 @@ export default function ManualPreferencesScreen() {
               },
             ]}
           >
+            {/* Energy Level (moved here from main flow) */}
+            <SectionHeader
+              title="Energy Level"
+              subtitle="How much you have in the tank."
+              style={{ marginTop: 0 }}
+            />
+            <View style={styles.chipGroup}>
+              {ENERGY_LEVELS.map((level) => (
+                <Chip
+                  key={level}
+                  label={level}
+                  selected={
+                    manualPreferences.energyLevel === level.toLowerCase()
+                  }
+                  onPress={() =>
+                    updateManualPreferences({
+                      energyLevel: level.toLowerCase() as "low" | "medium" | "high",
+                    })
+                  }
+                />
+              ))}
+            </View>
+
             {/* Sub-goals per ranked goal */}
             {hasPrimaryFocus && (
               <>
@@ -694,14 +613,19 @@ export default function ManualPreferencesScreen() {
               </>
             )}
 
-            {/* Constraints: single section */}
+            {/* Constraints: single section; when target is Upper/Lower, only show relevant body areas */}
             <SectionHeader
               title="Constraints (injuries / soreness)"
               subtitle="Areas to avoid. No restrictions clears others."
               style={{ marginTop: 20 }}
             />
             <View style={styles.chipGroup}>
-              {CONSTRAINT_OPTIONS.map((opt) => (
+              {(manualPreferences.targetBody === "Upper"
+                ? CONSTRAINT_OPTIONS_UPPER
+                : manualPreferences.targetBody === "Lower"
+                  ? CONSTRAINT_OPTIONS_LOWER
+                  : [...CONSTRAINT_OPTIONS]
+              ).map((opt) => (
                 <Chip
                   key={opt}
                   label={opt}
@@ -934,6 +858,143 @@ export default function ManualPreferencesScreen() {
         </View>
       </Modal>
 
+      {/* Goal match % modal */}
+      <Modal
+        transparent
+        visible={showGoalPctModal}
+        animationType="fade"
+        onRequestClose={() => setShowGoalPctModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            style={styles.modalDismiss}
+            onPress={() => setShowGoalPctModal(false)}
+          />
+          <View
+            style={[styles.modalSheet, styles.savePresetModalSheet, { backgroundColor: theme.card }]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Goal match %
+            </Text>
+            <Text style={[styles.modalSubtitle, { color: theme.textMuted }]}>
+              What % of the workout should match each goal. Sum = 100%.
+            </Text>
+            {rankedGoals.slice(0, 3).map((goal, idx) => {
+              const rank = idx + 1;
+              const value =
+                rank === 1
+                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                  : rank === 2
+                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
+              const setPct = (raw: number) => {
+                const v = Math.max(0, Math.min(100, Math.round(raw)));
+                const others =
+                  rank === 1
+                    ? {
+                        goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+                        goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+                      }
+                    : rank === 2
+                      ? {
+                          goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+                          goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+                        }
+                      : {
+                          goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+                          goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+                        };
+                const otherSum =
+                  rank === 1
+                    ? (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct +
+                      (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
+                    : rank === 2
+                      ? (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
+                        (others as { goalMatchTertiaryPct: number }).goalMatchTertiaryPct
+                      : (others as { goalMatchPrimaryPct: number }).goalMatchPrimaryPct +
+                        (others as { goalMatchSecondaryPct: number }).goalMatchSecondaryPct;
+                const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
+                const s2 =
+                  rank === 1
+                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                    : rank === 2
+                      ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                      : (manualPreferences.goalMatchPrimaryPct ?? 50);
+                const s3 =
+                  rank === 1
+                    ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                    : rank === 2
+                      ? (manualPreferences.goalMatchTertiaryPct ?? 20)
+                      : (manualPreferences.goalMatchSecondaryPct ?? 30);
+                const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
+                const scaled3 = otherSum > 0 ? Math.round(s3 * scale) : 0;
+                if (rank === 1) {
+                  updateManualPreferences({
+                    goalMatchPrimaryPct: v,
+                    goalMatchSecondaryPct: scaled2,
+                    goalMatchTertiaryPct: scaled3,
+                  });
+                } else if (rank === 2) {
+                  updateManualPreferences({
+                    goalMatchSecondaryPct: v,
+                    goalMatchPrimaryPct: scaled2,
+                    goalMatchTertiaryPct: scaled3,
+                  });
+                } else {
+                  updateManualPreferences({
+                    goalMatchTertiaryPct: v,
+                    goalMatchPrimaryPct: scaled2,
+                    goalMatchSecondaryPct: scaled3,
+                  });
+                }
+              };
+              return (
+                <View
+                  key={goal}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginTop: 12,
+                  }}
+                >
+                  <Text
+                    style={[styles.modifierLabel, { color: theme.text }]}
+                    numberOfLines={1}
+                  >
+                    {goal}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <TextInput
+                      style={[
+                        styles.goalMatchInput,
+                        {
+                          color: theme.text,
+                          borderColor: theme.border,
+                        },
+                      ]}
+                      keyboardType="number-pad"
+                      value={String(value)}
+                      onChangeText={(t) => {
+                        const n = parseInt(t.replace(/\D/g, ""), 10);
+                        if (!Number.isNaN(n)) setPct(n);
+                      }}
+                    />
+                    <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>%</Text>
+                  </View>
+                </View>
+              );
+            })}
+            <View style={styles.modalFooter}>
+              <PrimaryButton
+                label="Done"
+                onPress={() => setShowGoalPctModal(false)}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Save preset modal */}
       <Modal
         transparent
@@ -1008,6 +1069,25 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
   },
+  rankedChipPressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  rankedChipPct: {
+    fontSize: 11,
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  rankedChipRemove: {
+    paddingLeft: 6,
+    paddingVertical: 4,
+    marginLeft: 2,
+  },
+  rankedChipRemoveText: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
   rankBadge: {
     minWidth: 22,
     height: 22,
@@ -1021,6 +1101,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   rankedChipInner: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
