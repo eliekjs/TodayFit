@@ -315,6 +315,14 @@ export default function AdaptiveModeScreen() {
   }, [filteredSportsByCategory]);
 
   const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
+
+  /** Available sports to show in the picker (excludes already selected). */
+  const availableSportsForPicker = useMemo(() => {
+    const selected = new Set(selectedSportSlugs);
+    return categoriesToShow.flatMap((cat) =>
+      (filteredSportsByCategory.get(cat) ?? []).filter((s) => !selected.has(s.slug))
+    );
+  }, [categoriesToShow, filteredSportsByCategory, selectedSportSlugs]);
   const hasNoSpecificSport = selectedSportSlugs.length === 0;
   const primarySlug = rankedSportSlugs[0] ?? null;
   const secondarySlug = rankedSportSlugs[1] ?? null;
@@ -424,15 +432,17 @@ export default function AdaptiveModeScreen() {
                           },
                         ]}
                       >
-                        <Text
-                          style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                          numberOfLines={1}
-                        >
-                          {sport?.name ?? slug}
-                        </Text>
-                        <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                          {days} {days === 1 ? "day" : "days"}/wk
-                        </Text>
+                        <View style={styles.rankedChipTextWrap}>
+                          <Text
+                            style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                            numberOfLines={1}
+                          >
+                            {sport?.name ?? slug}
+                          </Text>
+                          <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
+                            {days} {days === 1 ? "day" : "days"}/wk
+                          </Text>
+                        </View>
                       </View>
                       <Pressable
                         hitSlop={8}
@@ -475,7 +485,7 @@ export default function AdaptiveModeScreen() {
           </Text>
         )}
 
-            <View style={styles.chipGroup}>
+            <View style={styles.chipGroup} key={`sport-picker-${selectedSportSlugs.join(",")}`}>
               {selectedSportSlugs.length === 0 && (
                 <Chip
                   label="No specific sport"
@@ -483,11 +493,7 @@ export default function AdaptiveModeScreen() {
                   onPress={clearAllSports}
                 />
               )}
-              {categoriesToShow.flatMap((cat) =>
-                (filteredSportsByCategory.get(cat) ?? []).filter(
-                  (s) => !selectedSportSlugs.includes(s.slug)
-                )
-              ).map((sport) => (
+              {availableSportsForPicker.map((sport) => (
                 <Chip
                   key={sport.id}
                   label={sport.name}
@@ -1092,21 +1098,28 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   rankedChipInner: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    maxWidth: 220,
+    minWidth: 0,
+    flex: 1,
+  },
+  rankedChipTextWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
   },
   rankedChipLabel: {
     fontSize: 13,
     fontWeight: "500",
+    flexShrink: 1,
+    maxWidth: "100%",
   },
   rankedChipPct: {
     fontSize: 11,
-    marginLeft: 6,
     fontWeight: "500",
+    flexShrink: 0,
   },
   rankedChipRemove: {
     paddingLeft: 6,

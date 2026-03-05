@@ -18,6 +18,12 @@ function formatDayOfWeek(isoDate: string): string {
     weekday: "long",
   });
 }
+
+/** Flat list item: day header (fixed) or draggable session. */
+type WeekListItem =
+  | { type: "day-header"; date: string }
+  | { type: "session"; day: PlannedDay };
+
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   NestableScrollContainer,
@@ -31,58 +37,106 @@ export default function AdaptiveWeekPlanScreen() {
   const { userId } = useAuth();
   const { sportPrepWeekPlan, setSportPrepWeekPlan, manualPreferences } = useAppState();
 
-  const [selectedDate, setSelectedDate] = useState<string | null>(
-    sportPrepWeekPlan?.today?.date ?? sportPrepWeekPlan?.days[0]?.date ?? null
-  );
-  const [selectedWorkout, setSelectedWorkout] = useState<GeneratedWorkout | null>(
-    sportPrepWeekPlan?.todayWorkout ?? null
-  );
+  const [selectedSession, setSelectedSession] = useState<PlannedDay | null>(null);
+  const [selectedWorkout, setSelectedWorkout] = useState<GeneratedWorkout | null>(null);
   const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  /** Week dates Mon–Sun in order. */
+  const weekDates = useMemo(() => {
+    if (!sportPrepWeekPlan) return [];
+    const start = new Date(sportPrepWeekPlan.weekStartDate + "T12:00:00");
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+  }, [sportPrepWeekPlan]);
+
+  /** Group sessions by date (7 day slots, Mon–Sun). Each slot can have one or more sessions. */
+  const daySlots = useMemo(() => {
+    if (!sportPrepWeekPlan) return [];
+    const byDate = new Map<string, PlannedDay[]>();
+    for (const date of weekDates) {
+      byDate.set(date, []);
+    }
+    for (const day of sportPrepWeekPlan.days) {
+      if (byDate.has(day.date)) {
+        byDate.get(day.date)!.push(day);
+      } else {
+        byDate.set(day.date, [day]);
+      }
+    }
+    return weekDates.map((date) => ({
+      date,
+      sessions: byDate.get(date) ?? [],
+    }));
+  }, [sportPrepWeekPlan, weekDates]);
+
+  /** Flat list: day header then sessions for that day, for each of 7 days. */
+  const flatListItems = useMemo((): WeekListItem[] => {
+    const out: WeekListItem[] = [];
+    for (const slot of daySlots) {
+      out.push({ type: "day-header", date: slot.date });
+      for (const day of slot.sessions) {
+        out.push({ type: "session", day });
+      }
+    }
+    return out;
+  }, [daySlots]);
+
+  /** Workouts keyed by session id (and by date for initial API response). */
+  const guestWorkoutsById = useMemo(() => {
+    const plan = sportPrepWeekPlan;
+    if (!plan?.guestWorkouts) return {} as Record<string, GeneratedWorkout>;
+    const out = { ...plan.guestWorkouts };
+    for (const d of plan.days) {
+      if (out[d.id] == null && plan.guestWorkouts![d.date] != null) {
+        out[d.id] = plan.guestWorkouts![d.date]!;
+      }
+    }
+    return out;
+  }, [sportPrepWeekPlan]);
+
   useEffect(() => {
     if (!sportPrepWeekPlan) return;
-    if (!selectedDate) {
-      setSelectedDate(
-        sportPrepWeekPlan.today?.date ?? sportPrepWeekPlan.days[0]?.date ?? null
-      );
+    if (!selectedSession) {
+      const first = sportPrepWeekPlan.days[0];
+      setSelectedSession(first ?? null);
     }
-  }, [sportPrepWeekPlan, selectedDate]);
+  }, [sportPrepWeekPlan, selectedSession]);
 
   useEffect(() => {
     const loadWorkout = async () => {
-      if (!sportPrepWeekPlan || !selectedDate) return;
-      const day = sportPrepWeekPlan.days.find((d) => d.date === selectedDate);
-      if (!day) {
+      if (!sportPrepWeekPlan || !selectedSession) {
         setSelectedWorkout(null);
         return;
       }
 
-      // Guest mode: use in-memory workouts
-      if (sportPrepWeekPlan.guestWorkouts?.[selectedDate]) {
-        setSelectedWorkout(sportPrepWeekPlan.guestWorkouts[selectedDate]);
+      const gw = guestWorkoutsById[selectedSession.id] ?? sportPrepWeekPlan.guestWorkouts?.[selectedSession.date];
+      if (gw) {
+        setSelectedWorkout(gw);
         return;
       }
-      // Reuse cached today workout when possible
       if (
-        sportPrepWeekPlan.today &&
-        sportPrepWeekPlan.today.date === selectedDate &&
+        sportPrepWeekPlan.today?.id === selectedSession.id &&
         sportPrepWeekPlan.todayWorkout
       ) {
         setSelectedWorkout(sportPrepWeekPlan.todayWorkout);
         return;
       }
-      // Persisted plan: fetch from DB
-      if (!userId || !day.generatedWorkoutId) {
+      if (!userId || !selectedSession.generatedWorkoutId) {
         setSelectedWorkout(null);
         return;
       }
 
       setIsLoadingWorkout(true);
       try {
-        const workout = await getWorkout(userId, day.generatedWorkoutId);
+        const workout = await getWorkout(userId, selectedSession.generatedWorkoutId);
         setSelectedWorkout(workout);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -92,40 +146,7 @@ export default function AdaptiveWeekPlanScreen() {
     };
 
     loadWorkout();
-  }, [sportPrepWeekPlan, selectedDate, userId]);
-
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
-  /** Week days always in fixed order Mon–Sun for display; drag swaps workout content between two days. */
-  const daysInWeekOrder = useMemo(() => {
-    if (!sportPrepWeekPlan) return [];
-    const start = new Date(sportPrepWeekPlan.weekStartDate + "T12:00:00");
-    const byDate = new Map(sportPrepWeekPlan.days.map((d) => [d.date, d]));
-    const out: PlannedDay[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const iso = d.toISOString().slice(0, 10);
-      const day = byDate.get(iso) ?? {
-        id: `placeholder-${iso}`,
-        date: iso,
-        intentLabel: null,
-        status: "planned" as const,
-        generatedWorkoutId: null,
-      };
-      out.push(day);
-    }
-    return out;
-  }, [sportPrepWeekPlan]);
-
-  /** Stable key so the list re-syncs with our data after a swap (avoids snap-back). */
-  const weekListKey = useMemo(
-    () =>
-      sportPrepWeekPlan
-        ? `week-${sportPrepWeekPlan.weekStartDate}-${sportPrepWeekPlan.days.map((d) => `${d.date}:${d.intentLabel ?? ""}:${d.status}`).join(";")}`
-        : "no-plan",
-    [sportPrepWeekPlan]
-  );
+  }, [sportPrepWeekPlan, selectedSession, userId, guestWorkoutsById]);
 
   if (!sportPrepWeekPlan) {
     return (
@@ -148,50 +169,40 @@ export default function AdaptiveWeekPlanScreen() {
     );
   }
 
-  const selectedDay =
-    sportPrepWeekPlan.days.find((d) => d.date === selectedDate) ??
-    sportPrepWeekPlan.days[0];
+  const selectedDay = selectedSession ?? sportPrepWeekPlan.days[0];
 
-  const onSelectDate = (date: string) => {
-    setSelectedDate(date);
+  const onSelectSession = (session: PlannedDay) => {
+    setSelectedSession(session);
   };
 
   const onDragEnd = useCallback(
-    ({ from, to }: { data: PlannedDay[]; from: number; to: number }) => {
-      if (!sportPrepWeekPlan || from === to) return;
-      const ordered = daysInWeekOrder;
-      const dateFrom = ordered[from]?.date;
-      const dateTo = ordered[to]?.date;
-      if (!dateFrom || !dateTo) return;
-      const dayA = sportPrepWeekPlan.days.find((d) => d.date === dateFrom);
-      const dayB = sportPrepWeekPlan.days.find((d) => d.date === dateTo);
-      if (!dayA || !dayB) return;
-      const swappedDays = sportPrepWeekPlan.days.map((d) => {
-        if (d.date === dateFrom)
-          return { ...d, intentLabel: dayB.intentLabel, status: dayB.status, generatedWorkoutId: dayB.generatedWorkoutId };
-        if (d.date === dateTo)
-          return { ...d, intentLabel: dayA.intentLabel, status: dayA.status, generatedWorkoutId: dayA.generatedWorkoutId };
-        return d;
-      });
-      let guestWorkouts = sportPrepWeekPlan.guestWorkouts;
-      if (guestWorkouts && (guestWorkouts[dateFrom] != null || guestWorkouts[dateTo] != null)) {
-        guestWorkouts = { ...guestWorkouts };
-        const wFrom = guestWorkouts[dateFrom];
-        const wTo = guestWorkouts[dateTo];
-        if (wFrom != null) guestWorkouts[dateTo] = wFrom;
-        if (wTo != null) guestWorkouts[dateFrom] = wTo;
+    ({ data }: { data: WeekListItem[] }) => {
+      if (!sportPrepWeekPlan || weekDates.length === 0) return;
+      let currentDate = weekDates[0];
+      const newDays: PlannedDay[] = [];
+      for (const item of data) {
+        if (item.type === "day-header") {
+          currentDate = item.date;
+        } else {
+          newDays.push({ ...item.day, date: currentDate });
+        }
       }
-      const newToday = swappedDays.find((d) => d.date === todayIso) ?? sportPrepWeekPlan.today;
-      const newTodayWorkout = guestWorkouts ? guestWorkouts[todayIso] : sportPrepWeekPlan.todayWorkout;
+      const newGuestWorkouts: Record<string, GeneratedWorkout> = {};
+      for (const d of newDays) {
+        const w = guestWorkoutsById[d.id];
+        if (w) newGuestWorkouts[d.id] = w;
+      }
+      const newToday = newDays.find((d) => d.date === todayIso) ?? null;
+      const newTodayWorkout = newToday ? newGuestWorkouts[newToday.id] ?? null : null;
       setSportPrepWeekPlan({
         ...sportPrepWeekPlan,
-        days: swappedDays,
-        ...(guestWorkouts && { guestWorkouts }),
+        days: newDays,
+        guestWorkouts: Object.keys(newGuestWorkouts).length > 0 ? newGuestWorkouts : sportPrepWeekPlan.guestWorkouts,
         today: newToday,
         todayWorkout: newTodayWorkout,
       });
     },
-    [sportPrepWeekPlan, setSportPrepWeekPlan, daysInWeekOrder, todayIso]
+    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates, todayIso, guestWorkoutsById]
   );
 
   const onRegenerate = async () => {
@@ -215,23 +226,21 @@ export default function AdaptiveWeekPlanScreen() {
       });
 
       const updatedDays = sportPrepWeekPlan.days.map((d) =>
-        d.date === result.day.date ? result.day : d
+        d.id === result.day.id ? result.day : d
       );
       const updatedGuestWorkouts =
         sportPrepWeekPlan.guestWorkouts && result.workout
-          ? { ...sportPrepWeekPlan.guestWorkouts, [result.day.date]: result.workout }
+          ? { ...sportPrepWeekPlan.guestWorkouts, [result.day.id]: result.workout, [result.day.date]: result.workout }
           : sportPrepWeekPlan.guestWorkouts;
       const updatedPlan = {
         ...sportPrepWeekPlan,
         days: updatedDays,
         today:
-          sportPrepWeekPlan.today &&
-          sportPrepWeekPlan.today.date === result.day.date
+          sportPrepWeekPlan.today?.id === result.day.id
             ? result.day
             : sportPrepWeekPlan.today,
         todayWorkout:
-          sportPrepWeekPlan.today &&
-          sportPrepWeekPlan.today.date === result.day.date
+          sportPrepWeekPlan.today?.id === result.day.id
             ? result.workout
             : sportPrepWeekPlan.todayWorkout,
         ...(updatedGuestWorkouts && { guestWorkouts: updatedGuestWorkouts }),
@@ -250,13 +259,13 @@ export default function AdaptiveWeekPlanScreen() {
     setError(null);
     const updatedDay: typeof selectedDay = { ...selectedDay, status };
     const updatedDays = sportPrepWeekPlan.days.map((d) =>
-      d.date === updatedDay.date ? updatedDay : d
+      d.id === updatedDay.id ? updatedDay : d
     );
     const nextPlan = {
       ...sportPrepWeekPlan,
       days: updatedDays,
       today:
-        sportPrepWeekPlan.today && sportPrepWeekPlan.today.date === updatedDay.date
+        sportPrepWeekPlan.today?.id === updatedDay.id
           ? updatedDay
           : sportPrepWeekPlan.today,
     };
@@ -271,8 +280,8 @@ export default function AdaptiveWeekPlanScreen() {
         });
         setSportPrepWeekPlan({
           ...nextPlan,
-          days: nextPlan.days.map((d) => (d.date === persisted.date ? persisted : d)),
-          today: nextPlan.today?.date === persisted.date ? persisted : nextPlan.today,
+          days: nextPlan.days.map((d) => (d.id === persisted.id ? persisted : d)),
+          today: nextPlan.today?.id === persisted.id ? persisted : nextPlan.today,
         });
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -296,27 +305,44 @@ export default function AdaptiveWeekPlanScreen() {
     summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
   }
 
-  const renderDayRow = useCallback(
+  const renderWeekItem = useCallback(
     ({
-      item: day,
+      item,
       drag,
       isActive,
     }: {
-      item: PlannedDay;
+      item: WeekListItem;
       drag: () => void;
       isActive: boolean;
     }) => {
+      if (item.type === "day-header") {
+        const dateObj = new Date(item.date);
+        const weekday = dateObj.toLocaleDateString(undefined, { weekday: "long" });
+        const isToday = item.date === todayIso;
+        return (
+          <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.dayHeaderText, { color: theme.text }]}>
+              {weekday}
+            </Text>
+            {isToday && (
+              <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
+                Today
+              </Text>
+            )}
+          </View>
+        );
+      }
+      const day = item.day;
       const isToday = day.date === todayIso;
-      const isSelected = day.date === selectedDay.date;
-      const dateObj = new Date(day.date);
-      const weekday = dateObj.toLocaleDateString(undefined, { weekday: "short" });
+      const isSelected = selectedDay?.id === day.id;
+      const weekday = new Date(day.date).toLocaleDateString(undefined, { weekday: "short" });
       const label = day.intentLabel ?? "Rest / low-load day";
       const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
       return (
         <ScaleDecorator>
-          <View style={{ marginBottom: 8 }}>
+          <View style={{ marginBottom: 6, marginLeft: 12 }}>
             <Pressable
-              onPress={() => !isActive && onSelectDate(day.date)}
+              onPress={() => !isActive && onSelectSession(day)}
               onLongPress={drag}
               delayLongPress={200}
               style={[
@@ -334,16 +360,9 @@ export default function AdaptiveWeekPlanScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text
-                    style={[styles.dayWeekday, { color: theme.text, opacity: isToday ? 1 : 0.85 }]}
-                  >
+                  <Text style={[styles.dayWeekday, { color: theme.text, opacity: isToday ? 1 : 0.85 }]}>
                     {weekday}
                   </Text>
-                  {isToday && (
-                    <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary }]}>
-                      Today
-                    </Text>
-                  )}
                   {statusBadge ? (
                     <Text
                       style={[
@@ -368,8 +387,13 @@ export default function AdaptiveWeekPlanScreen() {
         </ScaleDecorator>
       );
     },
-    [theme, todayIso, selectedDay.date, onSelectDate]
+    [theme, todayIso, selectedDay?.id, onSelectSession]
   );
+
+  const keyExtractor = useCallback((item: WeekListItem) => {
+    if (item.type === "day-header") return `header-${item.date}`;
+    return `session-${item.day.id}`;
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -392,23 +416,24 @@ export default function AdaptiveWeekPlanScreen() {
           <Card
             title="Week overview"
             style={{ marginTop: 16 }}
-            subtitle="Long-press and drag to move a workout to a different day. Days always list Mon–Sun in order."
+            subtitle="Days list Mon–Sun. Long-press a workout and drag it under a different day to move it there."
           >
             <NestableDraggableFlatList
-              key={weekListKey}
-              data={daysInWeekOrder}
-              keyExtractor={(d) => d.date}
+              data={flatListItems}
+              keyExtractor={keyExtractor}
               onDragEnd={onDragEnd}
-              renderItem={renderDayRow}
+              renderItem={renderWeekItem}
               activationDistance={10}
             />
           </Card>
 
           <Card
             title={
-              selectedDay.date === todayIso
+              selectedDay?.date === todayIso
                 ? "Today's session"
-                : `Session for ${formatDayOfWeek(selectedDay.date)}`
+                : selectedDay
+                  ? `Session for ${formatDayOfWeek(selectedDay.date)}`
+                  : "Session"
             }
             subtitle={summaryLines.join(" • ")}
             style={{ marginTop: 16 }}
@@ -485,7 +510,7 @@ export default function AdaptiveWeekPlanScreen() {
                 disabled={
                   isRegenerating ||
                   (!selectedDay.generatedWorkoutId &&
-                    !sportPrepWeekPlan?.guestWorkouts?.[selectedDay.date])
+                    !guestWorkoutsById[selectedDay.id])
                 }
                 style={{ marginTop: 8 }}
               />
@@ -531,6 +556,19 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     marginTop: 4,
+  },
+  dayHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  dayHeaderText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
   dayRow: {
     paddingVertical: 10,
