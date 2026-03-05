@@ -12,7 +12,7 @@ import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlann
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import type { SharedValue } from "react-native-reanimated";
 
 function RowWithShift({
@@ -277,12 +277,28 @@ export default function AdaptiveWeekPlanScreen() {
     (_absoluteY: number, fromIndex: number) => {
       const didActivate = dragActivatedRef.current;
       const toIndex = hoverIndexRef.current;
-      for (let i = 0; i < 7; i++) rowTranslates[i].value = 0;
-      setDraggingDayIndex(null);
-      setHoverIndex(-1);
-      dragActivatedRef.current = false;
-      if (!didActivate || toIndex < 0 || toIndex === fromIndex || !sportPrepWeekPlan) return;
+
+      const resetDragState = () => {
+        dragYShared.value = 0;
+        for (let i = 0; i < 7; i++) {
+          rowTranslates[i].value = withTiming(0, { duration: 200 });
+        }
+        setDraggingDayIndex(null);
+        setHoverIndex(-1);
+        dragActivatedRef.current = false;
+      };
+
+      if (!didActivate || !sportPrepWeekPlan) {
+        resetDragState();
+        return;
+      }
+      if (toIndex < 0 || toIndex === fromIndex) {
+        resetDragState();
+        return;
+      }
+
       setSportPrepWeekPlan(reorderPlanDays(sportPrepWeekPlan, fromIndex, toIndex));
+      resetDragState();
     },
     [sportPrepWeekPlan, setSportPrepWeekPlan, reorderPlanDays, rowTranslates]
   );
