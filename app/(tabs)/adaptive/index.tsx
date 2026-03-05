@@ -172,12 +172,10 @@ export default function AdaptiveModeScreen() {
     if (idx >= 0) next[idx] = slug;
     setRankedSportSlugs(next);
     setShowSportList(false);
-    // Default sport days: endurance sports get at least 50% of workout days (default = gym days); others get 1
-    const sportObj = sports.find((s) => s.slug === slug);
-    const isEndurance = sportObj?.category === "Endurance";
+    // Default: 2 days if first sport, 1 day if second sport
     setSportDaysAllocation((prev) => ({
       ...prev,
-      [slug]: isEndurance ? gymDaysPerWeek : Math.min(1, gymDaysPerWeek),
+      [slug]: current.length === 0 ? 2 : 1,
     }));
     if (current.length >= 1) {
       setSportSectionExpanded(false);
@@ -434,6 +432,7 @@ export default function AdaptiveModeScreen() {
               <View style={styles.chipGroup}>
                 {selectedSportSlugs.map((slug, idx) => {
                   const sport = sports.find((s) => s.slug === slug);
+                  const days = sportDaysAllocation[slug] ?? 0;
                   return (
                     <View key={slug} style={styles.rankedChipWrap}>
                       <View
@@ -465,6 +464,9 @@ export default function AdaptiveModeScreen() {
                           numberOfLines={1}
                         >
                           {sport?.name ?? slug}
+                        </Text>
+                        <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
+                          {days} {days === 1 ? "day" : "days"}/wk
                         </Text>
                       </View>
                       <Pressable
@@ -872,27 +874,17 @@ export default function AdaptiveModeScreen() {
             {selectedSportSlugs.length > 0 && (
               <>
                 <SectionHeader
-                  title="Training days allocation"
-                  subtitle="Gym days above; set how many days per week for each sport. You can do a sport and gym on the same day."
+                  title="Sport days"
+                  subtitle="Days per week for each sport. Gym days are set in Week setup below."
                   style={{ marginTop: 20 }}
                 />
-                {selectedSportSlugs.some((slug) => sports.find((s) => s.slug === slug)?.category === "Endurance") && (
-                  <Text style={{ fontSize: 13, color: theme.primary, marginBottom: 12 }}>
-                    For endurance sports, aim for at least 50% of your workout days to be sport-specific.
-                  </Text>
-                )}
                 {selectedSportSlugs.map((slug) => {
                   const sport = sports.find((s) => s.slug === slug);
                   const days = sportDaysAllocation[slug] ?? 0;
-                  const totalSlots = gymDaysPerWeek + selectedSportSlugs.reduce((sum, s) => sum + (sportDaysAllocation[s] ?? 0), 0);
-                  const minRecommended =
-                    sport?.category === "Endurance"
-                      ? Math.ceil(0.5 * Math.max(1, totalSlots))
-                      : 0;
                   return (
                     <View key={slug} style={{ marginBottom: 16 }}>
                       <Text style={{ fontSize: 13, marginBottom: 6, color: theme.textMuted }}>
-                        {sport?.name ?? slug} (sport-specific days)
+                        {sport?.name ?? slug}
                       </Text>
                       <View style={styles.chipGroup}>
                         {[0, 1, 2, 3, 4, 5, 6].map((d) => (
@@ -906,11 +898,6 @@ export default function AdaptiveModeScreen() {
                           />
                         ))}
                       </View>
-                      {sport?.category === "Endurance" && minRecommended > 0 && days < minRecommended && (
-                        <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
-                          Recommended: at least {minRecommended} days for 50% sport focus
-                        </Text>
-                      )}
                     </View>
                   );
                 })}
@@ -1014,7 +1001,7 @@ export default function AdaptiveModeScreen() {
 
         <SectionHeader
           title="Week setup"
-          subtitle={selectedSportSlugs.length > 0 ? "Gym days, session duration. Set sport-specific days in Advanced." : "How many gym days and typical duration."}
+          subtitle={selectedSportSlugs.length > 0 ? "Gym days and session duration. Sport days are in Advanced." : "How many gym days and typical duration."}
           style={{ marginTop: 24 }}
         />
         <Text
