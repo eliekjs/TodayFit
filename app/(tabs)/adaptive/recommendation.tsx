@@ -96,7 +96,7 @@ export default function AdaptiveWeekPlanScreen() {
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
-  /** Week days in fixed order Mon–Sun for display; drag reassigns workouts between days. */
+  /** Week days always in fixed order Mon–Sun for display; drag swaps workout content between two days. */
   const daysInWeekOrder = useMemo(() => {
     if (!sportPrepWeekPlan) return [];
     const start = new Date(sportPrepWeekPlan.weekStartDate + "T12:00:00");
@@ -117,6 +117,15 @@ export default function AdaptiveWeekPlanScreen() {
     }
     return out;
   }, [sportPrepWeekPlan]);
+
+  /** Stable key so the list re-syncs with our data after a swap (avoids snap-back). */
+  const weekListKey = useMemo(
+    () =>
+      sportPrepWeekPlan
+        ? `week-${sportPrepWeekPlan.weekStartDate}-${sportPrepWeekPlan.days.map((d) => `${d.date}:${d.intentLabel ?? ""}:${d.status}`).join(";")}`
+        : "no-plan",
+    [sportPrepWeekPlan]
+  );
 
   if (!sportPrepWeekPlan) {
     return (
@@ -383,16 +392,17 @@ export default function AdaptiveWeekPlanScreen() {
           <Card
             title="Week overview"
             style={{ marginTop: 16 }}
-            subtitle="Long-press and drag to move a workout to a different day. Days stay in order."
+            subtitle="Long-press and drag to move a workout to a different day. Days always list Mon–Sun in order."
           >
             <NestableDraggableFlatList
+              key={weekListKey}
               data={daysInWeekOrder}
               keyExtractor={(d) => d.date}
               onDragEnd={onDragEnd}
               renderItem={renderDayRow}
-              activationDistance={8}
+              activationDistance={10}
             />
-            </Card>
+          </Card>
 
           <Card
             title={

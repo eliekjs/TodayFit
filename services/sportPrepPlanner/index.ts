@@ -26,6 +26,8 @@ export type PlanWeekInput = {
   sportDaysAllocation?: SportDaysAllocation;
   /** Ordered sport slugs [primary, secondary] for slot order and sub-focus (sportSlug is primary). */
   rankedSportSlugs?: string[];
+  /** When 2 sports: [1st sport %, 2nd sport %], sum = 100. Used to weight sport focus in exercise selection. */
+  sportFocusPct?: [number, number];
   preferredTrainingDays?: number[]; // 0 (Sun) - 6 (Sat) relative to weekStartDate
   defaultSessionDuration: number;
   energyBaseline: EnergyLevel;

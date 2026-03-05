@@ -109,6 +109,8 @@ export default function AdaptiveModeScreen() {
   const [gymDaysPerWeek, setGymDaysPerWeek] = useState<number>(3);
   /** Per-sport days per week (sportSlug -> days). Only used when sports are selected; enables gym vs sport-specific split. */
   const [sportDaysAllocation, setSportDaysAllocation] = useState<Record<string, number>>({});
+  /** Sport focus % when 2 sports: [1st sport %, 2nd sport %], sum = 100. Default 60/40. */
+  const [sportFocusPct, setSportFocusPct] = useState<[number, number]>([60, 40]);
   const [defaultDuration, setDefaultDuration] = useState<number>(45);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,9 +119,6 @@ export default function AdaptiveModeScreen() {
   const [sportsSearch, setSportsSearch] = useState("");
   /** Ranked sports (up to 2). Empty = no specific sport. */
   const [rankedSportSlugs, setRankedSportSlugs] = useState<(string | null)[]>([null, null]);
-  const [sportSectionExpanded, setSportSectionExpanded] = useState(true);
-  /** When true, show the search + full sport list. When user has 1 or 2 selected, this is toggled by "Add second sport" / "Change sports". */
-  const [showSportList, setShowSportList] = useState(true);
   /** Sub-focus (qualities) per sport: sportSlug -> quality slugs (max 3 per sport). */
   const [subFocusBySport, setSubFocusBySport] = useState<Record<string, string[]>>({});
   /** Which sport's sub-goals row is expanded. */
@@ -171,15 +170,12 @@ export default function AdaptiveModeScreen() {
     const idx = next.findIndex((s) => s == null);
     if (idx >= 0) next[idx] = slug;
     setRankedSportSlugs(next);
-    setShowSportList(false);
     // Default: 2 days if first sport, 1 day if second sport
     setSportDaysAllocation((prev) => ({
       ...prev,
       [slug]: current.length === 0 ? 2 : 1,
     }));
-    if (current.length >= 1) {
-      setSportSectionExpanded(false);
-    }
+    if (current.length === 1) setSportFocusPct([60, 40]);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
@@ -200,7 +196,6 @@ export default function AdaptiveModeScreen() {
       return next;
     });
     if (expandedSportForSubFocus === slug) setExpandedSportForSubFocus(null);
-    if (selectedSportSlugs.length === 1) setShowSportList(true);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
@@ -265,6 +260,7 @@ export default function AdaptiveModeScreen() {
         gymDaysPerWeek,
         sportDaysAllocation: allocation,
         rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
+        sportFocusPct: selectedSportSlugs.length === 2 ? sportFocusPct : undefined,
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,
         energyBaseline,
@@ -330,19 +326,8 @@ export default function AdaptiveModeScreen() {
     setSubFocusBySport({});
     setSportDaysAllocation({});
     setExpandedSportForSubFocus(null);
-    setSportSectionExpanded(false);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
-
-  const sportSummaryText =
-    hasNoSpecificSport
-      ? "No specific sport"
-      : selectedSportSlugs
-        .map((slug, i) => {
-          const sport = sports.find((s) => s.slug === slug);
-          return `${sport?.name ?? slug}${selectedSportSlugs.length > 1 ? ` (${i + 1})` : ""}`;
-        })
-        .join(", ") || "Choose sport";
 
   const addGoal = (goalId: string) => {
     const currentCount = rankedGoals.filter((g): g is string => g != null).length;
@@ -403,32 +388,12 @@ export default function AdaptiveModeScreen() {
         ) : null}
 
         <SectionHeader
-          title="Choose your sport(s)"
-          subtitle="Pick up to 2, ranked. Optional: leave empty for general fitness."
+          title="Rank your sport(s)"
+          subtitle="Pick up to 2, ranked. Optional: leave empty for general fitness. Sport days in Advanced."
           style={{ marginTop: 20 }}
         />
 
-        {!sportSectionExpanded ? (
-          <Pressable
-            onPress={() => {
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              setSportSectionExpanded(true);
-            }}
-            style={[
-              styles.sportRow,
-              { borderColor: theme.border, backgroundColor: theme.primarySoft },
-            ]}
-          >
-            <Text style={[styles.sportName, { color: theme.text }]}>
-              {sportSummaryText}
-            </Text>
-            <Text style={[styles.sportDescription, { color: theme.primary }]}>
-              Tap to change
-            </Text>
-          </Pressable>
-        ) : (
-          <>
-            {selectedSportSlugs.length > 0 && (
+        {selectedSportSlugs.length > 0 && (
               <View style={styles.chipGroup}>
                 {selectedSportSlugs.map((slug, idx) => {
                   const sport = sports.find((s) => s.slug === slug);
@@ -482,19 +447,7 @@ export default function AdaptiveModeScreen() {
               </View>
             )}
 
-            {selectedSportSlugs.length === 0 ? (
-              <View style={styles.chipGroup}>
-                <Chip
-                  label="No specific sport"
-                  selected={hasNoSpecificSport}
-                  onPress={clearAllSports}
-                />
-              </View>
-            ) : null}
-
-            {(selectedSportSlugs.length === 0 || showSportList) ? (
-              <>
-            <View style={[styles.searchRow, { marginTop: 12 }]}>
+            <View style={[styles.searchRow, { marginTop: selectedSportSlugs.length > 0 ? 12 : 0 }]}>
           <TextInput
             placeholder="Search sports..."
             placeholderTextColor={theme.textMuted}
@@ -522,44 +475,27 @@ export default function AdaptiveModeScreen() {
           </Text>
         )}
 
-            <View style={{ marginTop: 8, marginBottom: 4 }}>
-              <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
-                {selectedSportSlugs.length === 0 ? "Add a sport" : selectedSportSlugs.length === 1 ? "Add second sport" : "Change sport"}
-              </Text>
-              <View style={styles.chipGroup}>
-                {categoriesToShow.flatMap((cat) =>
-                  (filteredSportsByCategory.get(cat) ?? []).filter(
-                    (s) => !selectedSportSlugs.includes(s.slug)
-                  )
-                ).map((sport) => (
-                  <Chip
-                    key={sport.id}
-                    label={sport.name}
-                    selected={false}
-                    onPress={() => addSport(sport.slug)}
-                  />
-                ))}
-              </View>
+            <View style={styles.chipGroup}>
+              {selectedSportSlugs.length === 0 && (
+                <Chip
+                  label="No specific sport"
+                  selected={hasNoSpecificSport}
+                  onPress={clearAllSports}
+                />
+              )}
+              {categoriesToShow.flatMap((cat) =>
+                (filteredSportsByCategory.get(cat) ?? []).filter(
+                  (s) => !selectedSportSlugs.includes(s.slug)
+                )
+              ).map((sport) => (
+                <Chip
+                  key={sport.id}
+                  label={sport.name}
+                  selected={false}
+                  onPress={() => addSport(sport.slug)}
+                />
+              ))}
             </View>
-              </>
-            ) : (
-              <View style={{ marginTop: 12 }}>
-                <Pressable
-                  onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    setShowSportList(true);
-                  }}
-                  style={[
-                    styles.sportRow,
-                    { borderColor: theme.border, backgroundColor: theme.primarySoft },
-                  ]}
-                >
-                  <Text style={[styles.sportName, { color: theme.primary }]}>
-                    {selectedSportSlugs.length === 1 ? "+ Add second sport" : "Change sports"}
-                  </Text>
-                </Pressable>
-              </View>
-            )}
 
             {selectedSportSlugs.length > 0 && (
               <Pressable
@@ -658,8 +594,6 @@ export default function AdaptiveModeScreen() {
                   </View>
                 );
               })}
-          </>
-        )}
 
         <SectionHeader
           title="Rank your goals"
@@ -870,6 +804,64 @@ export default function AdaptiveModeScreen() {
                 );
               })}
             </View>
+
+            {selectedSportSlugs.length === 2 && (
+              <>
+                <SectionHeader
+                  title="Sport focus %"
+                  subtitle="What % of sport-focused training should match each sport. Sum = 100%. Sub-focuses use auto 50 / 30 / 20 by rank."
+                  style={{ marginTop: 20 }}
+                />
+                <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
+                  {[0, 1].map((idx) => {
+                    const value = sportFocusPct[idx];
+                    const otherValue = sportFocusPct[1 - idx];
+                    const setPct = (raw: number) => {
+                      const v = Math.max(0, Math.min(100, Math.round(raw)));
+                      const other = 100 - v;
+                      setSportFocusPct(idx === 0 ? [v, other] : [other, v]);
+                    };
+                    const sport = sports.find((s) => s.slug === selectedSportSlugs[idx]);
+                    return (
+                      <View
+                        key={idx}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text style={{ fontSize: 13, color: theme.textMuted }} numberOfLines={1}>
+                          {idx === 0 ? "1st" : "2nd"} sport {sport ? `(${sport.name})` : ""}
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          <TextInput
+                            style={{
+                              width: 56,
+                              height: 40,
+                              borderWidth: 1,
+                              borderRadius: 8,
+                              paddingHorizontal: 8,
+                              fontSize: 15,
+                              textAlign: "center",
+                              color: theme.text,
+                              borderColor: theme.border,
+                            }}
+                            keyboardType="number-pad"
+                            value={String(value)}
+                            onChangeText={(t) => {
+                              const n = parseInt(t.replace(/\D/g, ""), 10);
+                              if (!Number.isNaN(n)) setPct(n);
+                            }}
+                          />
+                          <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
 
             {selectedSportSlugs.length > 0 && (
               <>

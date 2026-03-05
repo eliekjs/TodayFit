@@ -15,20 +15,27 @@ import { SUB_FOCUS_TAG_MAP } from "./subFocusTagMap";
  * Returns exercise tag slugs (with optional weights) for the given sport and
  * selected sub-focus slugs. Use the result to boost exercise selection toward
  * matching tags in the workout generator.
+ * @param subFocusWeights - Optional weights by rank (e.g. [0.5, 0.3, 0.2] for 50/30/20). If not provided, sub-focuses are weighted equally.
  */
 export function getExerciseTagsForSubFocuses(
   sportSlug: string,
-  subFocusSlugs: string[]
+  subFocusSlugs: string[],
+  subFocusWeights?: number[]
 ): { tag_slug: string; weight: number }[] {
   const byTag = new Map<string, number>();
-  for (const sub of subFocusSlugs) {
+  const weights = subFocusWeights?.length
+    ? subFocusWeights
+    : subFocusSlugs.map(() => 1);
+  for (let i = 0; i < subFocusSlugs.length; i++) {
+    const sub = subFocusSlugs[i];
+    const rankWeight = weights[i] ?? 1;
     const key = `${sportSlug}:${sub}`;
     const entries = SUB_FOCUS_TAG_MAP[key];
     if (!entries) continue;
     for (const { tag_slug, weight = 1 } of entries) {
+      const w = (weight ?? 1) * rankWeight;
       const existing = byTag.get(tag_slug);
-      const w = weight ?? 1;
-      byTag.set(tag_slug, existing != null ? Math.max(existing, w) : w);
+      byTag.set(tag_slug, existing != null ? existing + w : w);
     }
   }
   return Array.from(byTag.entries()).map(([tag_slug, weight]) => ({ tag_slug, weight }));

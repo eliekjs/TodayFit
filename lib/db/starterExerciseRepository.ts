@@ -115,6 +115,14 @@ function tagToSlug(tag: string): string {
   return tag.toLowerCase().trim().replace(/\s+/g, "_");
 }
 
+/** Auto weights by rank: 50% / 30% / 20% for 3 sub-focuses; 60/40 for 2; 100% for 1. */
+function getDefaultSubFocusWeights(count: number): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [1];
+  if (count === 2) return [0.6, 0.4];
+  return [0.5, 0.3, 0.2];
+}
+
 /**
  * Preferred exercise names (and slugs) for sport- and goal-aware workout building.
  * Uses weighted goal ranking (get_exercises_by_goals_ranked) when goalSlugs and goalWeightsPct are provided;
@@ -152,7 +160,8 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   }
 
   if (sportSlug && sportSubFocusSlugs?.length) {
-    const tagWeights = getExerciseTagsForSubFocuses(sportSlug, sportSubFocusSlugs);
+    const subFocusWeights = getDefaultSubFocusWeights(sportSubFocusSlugs.length);
+    const tagWeights = getExerciseTagsForSubFocuses(sportSlug, sportSubFocusSlugs, subFocusWeights);
     if (tagWeights.length > 0) {
       const tagWeightMap = new Map(tagWeights.map((t) => [t.tag_slug, t.weight]));
       const { data: all, error } = requireClient()
