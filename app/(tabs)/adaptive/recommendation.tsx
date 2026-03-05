@@ -11,7 +11,7 @@ import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/type
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 
 export default function AdaptiveWeekPlanScreen() {
@@ -332,13 +332,14 @@ export default function AdaptiveWeekPlanScreen() {
         ) : null}
 
         <Card title="Week overview" style={{ marginTop: 16 }} subtitle="Long-press the handle, then drag to swap workouts between days.">
-          <View
-            ref={weekListContainerRef}
-            onLayout={() => {
-              weekListContainerRef.current?.measureInWindow(() => {});
-            }}
-          >
-            {sportPrepWeekPlan.days.map((day, index) => {
+          <GestureHandlerRootView>
+            <View
+              ref={weekListContainerRef}
+              onLayout={() => {
+                weekListContainerRef.current?.measureInWindow(() => {});
+              }}
+            >
+              {sportPrepWeekPlan.days.map((day, index) => {
               const isToday = day.date === todayIso;
               const isSelected = day.date === selectedDay.date;
               const dateObj = new Date(day.date);
@@ -428,9 +429,10 @@ export default function AdaptiveWeekPlanScreen() {
                     </View>
                   </Pressable>
                 </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          </GestureHandlerRootView>
         </Card>
 
         <Card
