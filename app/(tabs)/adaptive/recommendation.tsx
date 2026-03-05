@@ -11,6 +11,13 @@ import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/type
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
 import type { PlannedDay } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
+
+/** Format ISO date as day of week (e.g. "Monday"). */
+function formatDayOfWeek(isoDate: string): string {
+  return new Date(isoDate + "T12:00:00").toLocaleDateString(undefined, {
+    weekday: "long",
+  });
+}
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   NestableScrollContainer,
@@ -89,6 +96,28 @@ export default function AdaptiveWeekPlanScreen() {
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
+  /** Week days in fixed order Mon–Sun for display; drag reassigns workouts between days. */
+  const daysInWeekOrder = useMemo(() => {
+    if (!sportPrepWeekPlan) return [];
+    const start = new Date(sportPrepWeekPlan.weekStartDate + "T12:00:00");
+    const byDate = new Map(sportPrepWeekPlan.days.map((d) => [d.date, d]));
+    const out: PlannedDay[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const iso = d.toISOString().slice(0, 10);
+      const day = byDate.get(iso) ?? {
+        id: `placeholder-${iso}`,
+        date: iso,
+        intentLabel: null,
+        status: "planned" as const,
+        generatedWorkoutId: null,
+      };
+      out.push(day);
+    }
+    return out;
+  }, [sportPrepWeekPlan]);
+
   if (!sportPrepWeekPlan) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -119,11 +148,41 @@ export default function AdaptiveWeekPlanScreen() {
   };
 
   const onDragEnd = useCallback(
-    ({ data: newDays }: { data: PlannedDay[]; from: number; to: number }) => {
-      if (!sportPrepWeekPlan) return;
-      setSportPrepWeekPlan({ ...sportPrepWeekPlan, days: newDays });
+    ({ from, to }: { data: PlannedDay[]; from: number; to: number }) => {
+      if (!sportPrepWeekPlan || from === to) return;
+      const ordered = daysInWeekOrder;
+      const dateFrom = ordered[from]?.date;
+      const dateTo = ordered[to]?.date;
+      if (!dateFrom || !dateTo) return;
+      const dayA = sportPrepWeekPlan.days.find((d) => d.date === dateFrom);
+      const dayB = sportPrepWeekPlan.days.find((d) => d.date === dateTo);
+      if (!dayA || !dayB) return;
+      const swappedDays = sportPrepWeekPlan.days.map((d) => {
+        if (d.date === dateFrom)
+          return { ...d, intentLabel: dayB.intentLabel, status: dayB.status, generatedWorkoutId: dayB.generatedWorkoutId };
+        if (d.date === dateTo)
+          return { ...d, intentLabel: dayA.intentLabel, status: dayA.status, generatedWorkoutId: dayA.generatedWorkoutId };
+        return d;
+      });
+      let guestWorkouts = sportPrepWeekPlan.guestWorkouts;
+      if (guestWorkouts && (guestWorkouts[dateFrom] != null || guestWorkouts[dateTo] != null)) {
+        guestWorkouts = { ...guestWorkouts };
+        const wFrom = guestWorkouts[dateFrom];
+        const wTo = guestWorkouts[dateTo];
+        if (wFrom != null) guestWorkouts[dateTo] = wFrom;
+        if (wTo != null) guestWorkouts[dateFrom] = wTo;
+      }
+      const newToday = swappedDays.find((d) => d.date === todayIso) ?? sportPrepWeekPlan.today;
+      const newTodayWorkout = guestWorkouts ? guestWorkouts[todayIso] : sportPrepWeekPlan.todayWorkout;
+      setSportPrepWeekPlan({
+        ...sportPrepWeekPlan,
+        days: swappedDays,
+        ...(guestWorkouts && { guestWorkouts }),
+        today: newToday,
+        todayWorkout: newTodayWorkout,
+      });
     },
-    [sportPrepWeekPlan, setSportPrepWeekPlan]
+    [sportPrepWeekPlan, setSportPrepWeekPlan, daysInWeekOrder, todayIso]
   );
 
   const onRegenerate = async () => {
@@ -324,11 +383,11 @@ export default function AdaptiveWeekPlanScreen() {
           <Card
             title="Week overview"
             style={{ marginTop: 16 }}
-            subtitle="Long-press a row (or the handle), then drag to reorder days."
+            subtitle="Long-press and drag to move a workout to a different day. Days stay in order."
           >
             <NestableDraggableFlatList
-              data={sportPrepWeekPlan.days}
-              keyExtractor={(d) => d.id}
+              data={daysInWeekOrder}
+              keyExtractor={(d) => d.date}
               onDragEnd={onDragEnd}
               renderItem={renderDayRow}
               activationDistance={8}
@@ -339,7 +398,7 @@ export default function AdaptiveWeekPlanScreen() {
             title={
               selectedDay.date === todayIso
                 ? "Today's session"
-                : `Session for ${selectedDay.date}`
+                : `Session for ${formatDayOfWeek(selectedDay.date)}`
             }
             subtitle={summaryLines.join(" • ")}
             style={{ marginTop: 16 }}

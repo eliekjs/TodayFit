@@ -356,11 +356,17 @@ export default function AdaptiveModeScreen() {
       next[idx] = goalId;
       return next;
     });
-    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
-    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
-    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
-    const norm = normalizeGoalMatchPct(p1, p2, p3, currentCount + 1);
-    updateManualPreferences(norm);
+    const newCount = currentCount + 1;
+    if (newCount === 2) {
+      updateManualPreferences({ goalMatchPrimaryPct: 60, goalMatchSecondaryPct: 40, goalMatchTertiaryPct: 0 });
+    } else if (newCount === 3) {
+      updateManualPreferences({ goalMatchPrimaryPct: 50, goalMatchSecondaryPct: 30, goalMatchTertiaryPct: 20 });
+    } else {
+      const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+      const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+      const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+      updateManualPreferences(normalizeGoalMatchPct(p1, p2, p3, newCount));
+    }
   };
 
   const removeGoal = (goalId: string) => {
@@ -474,13 +480,15 @@ export default function AdaptiveModeScreen() {
               </View>
             )}
 
-            <View style={styles.chipGroup}>
-              <Chip
-                label="No specific sport"
-                selected={hasNoSpecificSport}
-                onPress={clearAllSports}
-              />
-            </View>
+            {selectedSportSlugs.length === 0 ? (
+              <View style={styles.chipGroup}>
+                <Chip
+                  label="No specific sport"
+                  selected={hasNoSpecificSport}
+                  onPress={clearAllSports}
+                />
+              </View>
+            ) : null}
 
             {(selectedSportSlugs.length === 0 || showSportList) ? (
               <>
@@ -551,37 +559,37 @@ export default function AdaptiveModeScreen() {
               </View>
             )}
 
-            {selectedSportSlugs.map((slug) => {
-              const sport = sports.find((s) => s.slug === slug);
-              const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === slug);
-              const optionsFromSubFocus = sportSubFocus?.sub_focuses ?? null;
-              const optionsFromQualities = qualitiesBySport[slug] ?? [];
-              const options = optionsFromSubFocus
-                ? optionsFromSubFocus.map((sf) => ({ slug: sf.slug, name: sf.name }))
-                : optionsFromQualities.map((q) => ({ slug: q.slug, name: q.name }));
-              const selectedQualities = subFocusBySport[slug] ?? [];
-              const isExpanded = expandedSportForSubFocus === slug;
-              const canAddSub = selectedQualities.length < 3;
-              return (
-                <View key={slug} style={[styles.goalRow, { borderColor: theme.border }]}>
-                  <View style={styles.goalRowHeader}>
-                    <Text style={[styles.goalRowLabel, { color: theme.text }]} numberOfLines={1}>
+            {selectedSportSlugs.length > 0 && (
+              <Pressable
+                onPress={() => {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setExpandedSportForSubFocus((prev) => (prev === "all" ? null : "all"));
+                }}
+                style={[styles.goalRowHeader, { marginTop: 12 }]}
+              >
+                <Text style={[styles.subGoalsControlText, { color: theme.primary }]}>
+                  {expandedSportForSubFocus === "all" ? "− Sport sub-focus (optional)" : "+ Sport sub-focus (optional)"}
+                </Text>
+              </Pressable>
+            )}
+            {expandedSportForSubFocus === "all" &&
+              selectedSportSlugs.map((slug) => {
+                const sport = sports.find((s) => s.slug === slug);
+                const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === slug);
+                const optionsFromSubFocus = sportSubFocus?.sub_focuses ?? null;
+                const optionsFromQualities = qualitiesBySport[slug] ?? [];
+                const options = optionsFromSubFocus
+                  ? optionsFromSubFocus.map((sf) => ({ slug: sf.slug, name: sf.name }))
+                  : optionsFromQualities.map((q) => ({ slug: q.slug, name: q.name }));
+                const selectedQualities = subFocusBySport[slug] ?? [];
+                const canAddSub = selectedQualities.length < 3;
+                return (
+                  <View key={slug} style={[styles.subGoalsBlock, { borderTopColor: theme.border, marginTop: 8 }]}>
+                    <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
                       {sport?.name ?? slug}
                     </Text>
-                    <Pressable
-                      onPress={() =>
-                        setExpandedSportForSubFocus(isExpanded ? null : slug)
-                      }
-                      style={styles.subGoalsControl}
-                    >
-                      <Text style={[styles.subGoalsControlText, { color: theme.primary }]}>
-                        {isExpanded ? "− Sub-focus" : "+ Sub-focus"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  {isExpanded && options.length > 0 && (
-                    <View style={[styles.subGoalsBlock, { borderTopColor: theme.border }]}>
-                      {selectedQualities.length > 0 && (
+                    {options.length > 0 ? (
+                      <>
                         <View style={styles.chipGroup}>
                           {selectedQualities.map((qSlug) => {
                             const opt = options.find((o) => o.slug === qSlug);
@@ -628,31 +636,32 @@ export default function AdaptiveModeScreen() {
                             );
                           })}
                         </View>
-                      )}
-                      <View style={styles.chipGroup}>
-                        {options
-                          .filter((o) => !selectedQualities.includes(o.slug))
-                          .map((o) => (
-                            <Chip
-                              key={o.slug}
-                              label={o.name}
-                              selected={false}
-                              disabled={!canAddSub}
-                              onPress={() => toggleSportSubFocus(slug, o.slug)}
-                            />
-                          ))}
-                      </View>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
+                        <View style={styles.chipGroup}>
+                          {options
+                            .filter((o) => !selectedQualities.includes(o.slug))
+                            .map((o) => (
+                              <Chip
+                                key={o.slug}
+                                label={o.name}
+                                selected={false}
+                                disabled={!canAddSub}
+                                onPress={() => toggleSportSubFocus(slug, o.slug)}
+                              />
+                            ))}
+                        </View>
+                      </>
+                    ) : (
+                      <Text style={{ fontSize: 12, color: theme.textMuted }}>No sub-focus options for this sport.</Text>
+                    )}
+                  </View>
+                );
+              })}
           </>
         )}
 
         <SectionHeader
           title="Rank your goals"
-          subtitle="Pick at least one. You can add a second (optional) to balance your plan."
+          subtitle="Pick 1–3 goals. Suggested split: 60/40 for 2 goals, 50/30/20 for 3 (editable in Advanced)."
           style={{ marginTop: 20 }}
         />
 
@@ -762,6 +771,16 @@ export default function AdaptiveModeScreen() {
               subtitle="What % of the workout should match each ranked goal. Sum = 100%."
               style={{ marginTop: 0 }}
             />
+            {rankedGoals.filter((g): g is string => g != null).length === 2 && (
+              <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
+                Suggested: 60% / 40%
+              </Text>
+            )}
+            {rankedGoals.filter((g): g is string => g != null).length === 3 && (
+              <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
+                Suggested: 50% / 30% / 20%
+              </Text>
+            )}
             <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
               {[1, 2, 3].map((rank) => {
                 const hasGoal = rankedGoals[rank - 1] != null;
