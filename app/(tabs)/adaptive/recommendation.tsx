@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -11,7 +11,7 @@ import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/type
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
-import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 
 export default function AdaptiveWeekPlanScreen() {
@@ -349,6 +349,7 @@ export default function AdaptiveWeekPlanScreen() {
               const label = day.intentLabel ?? "Rest / low-load day";
               const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
               const longPressDrag = Gesture.Pan()
+                .minDistance(0)
                 .onStart(() => {
                   runOnJS(scheduleDragActivation)(index);
                 })
@@ -377,6 +378,11 @@ export default function AdaptiveWeekPlanScreen() {
                         borderColor: isSelected ? theme.primary : theme.border,
                         backgroundColor:
                           draggingDayIndex === index ? theme.border : isSelected ? theme.primarySoft : "transparent",
+                        transform: [{ scale: draggingDayIndex === index ? 1.05 : 1 }],
+                        shadowOpacity: draggingDayIndex === index ? 0.15 : 0,
+                        shadowRadius: 6,
+                        shadowOffset: { width: 0, height: 2 },
+                        elevation: draggingDayIndex === index ? 4 : 0,
                       },
                     ]}
                   >
