@@ -333,9 +333,7 @@ export default function AdaptiveWeekPlanScreen() {
         );
       }
       const day = item.day;
-      const isToday = day.date === todayIso;
       const isSelected = selectedDay?.id === day.id;
-      const weekday = new Date(day.date).toLocaleDateString(undefined, { weekday: "short" });
       const label = day.intentLabel ?? "Rest / low-load day";
       const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
       return (
@@ -358,29 +356,23 @@ export default function AdaptiveWeekPlanScreen() {
               <View style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }}>
                 <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
               </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={[styles.dayWeekday, { color: theme.text, opacity: isToday ? 1 : 0.85 }]}>
-                    {weekday}
-                  </Text>
-                  {statusBadge ? (
-                    <Text
-                      style={[
-                        styles.todayBadge,
-                        {
-                          color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
-                          borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
-                          marginLeft: 8,
-                        },
-                      ]}
-                    >
-                      {statusBadge}
-                    </Text>
-                  ) : null}
-                </View>
-                <Text style={[styles.dayLabel, { color: theme.textMuted }]} numberOfLines={1}>
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
                   {label}
                 </Text>
+                {statusBadge ? (
+                  <Text
+                    style={[
+                      styles.todayBadge,
+                      {
+                        color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
+                        borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
+                      },
+                    ]}
+                  >
+                    {statusBadge}
+                  </Text>
+                ) : null}
               </View>
             </Pressable>
           </View>

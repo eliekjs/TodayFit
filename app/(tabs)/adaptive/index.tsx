@@ -316,11 +316,13 @@ export default function AdaptiveModeScreen() {
 
   const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
 
-  /** Available sports to show in the picker (excludes already selected). */
+  /** Available sports to show in the picker (excludes already selected). Normalize slugs for comparison. */
   const availableSportsForPicker = useMemo(() => {
-    const selected = new Set(selectedSportSlugs);
+    const selected = new Set(selectedSportSlugs.map((s) => s.toLowerCase().trim()));
     return categoriesToShow.flatMap((cat) =>
-      (filteredSportsByCategory.get(cat) ?? []).filter((s) => !selected.has(s.slug))
+      (filteredSportsByCategory.get(cat) ?? []).filter(
+        (s) => !selected.has((s.slug ?? "").toLowerCase().trim())
+      )
     );
   }, [categoriesToShow, filteredSportsByCategory, selectedSportSlugs]);
   const hasNoSpecificSport = selectedSportSlugs.length === 0;
@@ -402,12 +404,13 @@ export default function AdaptiveModeScreen() {
         />
 
         {selectedSportSlugs.length > 0 && (
-              <View style={styles.chipGroup}>
+              <View style={styles.rankedSportRow}>
                 {selectedSportSlugs.map((slug, idx) => {
-                  const sport = sports.find((s) => s.slug === slug);
+                  const sport = sports.find((s) => (s.slug ?? "").toLowerCase() === (slug ?? "").toLowerCase()) ?? sports.find((s) => s.slug === slug);
                   const days = sportDaysAllocation[slug] ?? 0;
+                  const displayName = sport?.name ?? slug;
                   return (
-                    <View key={slug} style={styles.rankedChipWrap}>
+                    <View key={`${slug}-${idx}`} style={styles.rankedChipWrap}>
                       <View
                         style={[
                           styles.rankBadge,
@@ -432,17 +435,15 @@ export default function AdaptiveModeScreen() {
                           },
                         ]}
                       >
-                        <View style={styles.rankedChipTextWrap}>
-                          <Text
-                            style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                            numberOfLines={1}
-                          >
-                            {sport?.name ?? slug}
-                          </Text>
-                          <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                            {days} {days === 1 ? "day" : "days"}/wk
-                          </Text>
-                        </View>
+                        <Text
+                          style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                          numberOfLines={1}
+                        >
+                          {displayName}
+                        </Text>
+                        <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
+                          {days} {days === 1 ? "day" : "days"}/wk
+                        </Text>
                       </View>
                       <Pressable
                         hitSlop={8}
@@ -1079,6 +1080,13 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
+  rankedSportRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
   rankedChipWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -1098,16 +1106,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   rankedChipInner: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    minWidth: 0,
-    flex: 1,
-  },
-  rankedChipTextWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
+    minWidth: 80,
+    maxWidth: 260,
     gap: 6,
   },
   rankedChipLabel: {
