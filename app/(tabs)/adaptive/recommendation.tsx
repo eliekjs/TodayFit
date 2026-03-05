@@ -33,6 +33,8 @@ export default function AdaptiveWeekPlanScreen() {
   const [draggingDayIndex, setDraggingDayIndex] = useState<number | null>(null);
   const weekListContainerRef = useRef<View>(null);
   const rowLayoutsRef = useRef<Record<number, { y: number; height: number }>>({});
+  const dragActivationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragActivatedRef = useRef(false);
 
   useEffect(() => {
     if (!sportPrepWeekPlan) return;
@@ -164,9 +166,29 @@ export default function AdaptiveWeekPlanScreen() {
     [todayIso]
   );
 
+  const scheduleDragActivation = useCallback((index: number) => {
+    dragActivatedRef.current = false;
+    if (dragActivationTimeoutRef.current) clearTimeout(dragActivationTimeoutRef.current);
+    dragActivationTimeoutRef.current = setTimeout(() => {
+      dragActivatedRef.current = true;
+      setDraggingDayIndex(index);
+      dragActivationTimeoutRef.current = null;
+    }, 400);
+  }, []);
+
+  const clearDragActivation = useCallback(() => {
+    if (dragActivationTimeoutRef.current) {
+      clearTimeout(dragActivationTimeoutRef.current);
+      dragActivationTimeoutRef.current = null;
+    }
+  }, []);
+
   const handleWeekDragEnd = useCallback(
     (absoluteY: number, fromIndex: number) => {
       setDraggingDayIndex(null);
+      const didActivate = dragActivatedRef.current;
+      dragActivatedRef.current = false;
+      if (!didActivate) return;
       weekListContainerRef.current?.measureInWindow((_x, containerY) => {
         const offsetInList = absoluteY - containerY;
         const layouts = rowLayoutsRef.current;
@@ -326,12 +348,15 @@ export default function AdaptiveWeekPlanScreen() {
               const label = day.intentLabel ?? "Rest / low-load day";
               const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
               const longPressDrag = Gesture.Pan()
-                .minDuration(400)
                 .onStart(() => {
-                  runOnJS(setDraggingDayIndex)(index);
+                  runOnJS(scheduleDragActivation)(index);
                 })
                 .onEnd((e) => {
+                  runOnJS(clearDragActivation)();
                   runOnJS(handleWeekDragEnd)(e.absoluteY, index);
+                })
+                .onFinalize(() => {
+                  runOnJS(clearDragActivation)();
                 });
               return (
                 <View
