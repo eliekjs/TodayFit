@@ -12,7 +12,23 @@ import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlann
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import type { SharedValue } from "react-native-reanimated";
+
+function RowWithShift({
+  translateYShared,
+  children,
+}: {
+  translateYShared: SharedValue<number>;
+  children: React.ReactNode;
+}) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateYShared.value }],
+  }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
+const ROW_HEIGHT = 56;
 
 export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
@@ -31,10 +47,25 @@ export default function AdaptiveWeekPlanScreen() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draggingDayIndex, setDraggingDayIndex] = useState<number | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number>(-1);
   const weekListContainerRef = useRef<View>(null);
   const rowLayoutsRef = useRef<Record<number, { y: number; height: number }>>({});
+  const containerYRef = useRef(0);
   const dragActivationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragActivatedRef = useRef(false);
+  const draggingIndexRef = useRef<number>(0);
+  const hoverIndexRef = useRef<number>(-1);
+
+  const containerYShared = useSharedValue(0);
+  const dragYShared = useSharedValue(0);
+  const rowTranslate0 = useSharedValue(0);
+  const rowTranslate1 = useSharedValue(0);
+  const rowTranslate2 = useSharedValue(0);
+  const rowTranslate3 = useSharedValue(0);
+  const rowTranslate4 = useSharedValue(0);
+  const rowTranslate5 = useSharedValue(0);
+  const rowTranslate6 = useSharedValue(0);
+  const rowTranslates = useRef([rowTranslate0, rowTranslate1, rowTranslate2, rowTranslate3, rowTranslate4, rowTranslate5, rowTranslate6]).current;
 
   useEffect(() => {
     if (!sportPrepWeekPlan) return;
@@ -166,15 +197,33 @@ export default function AdaptiveWeekPlanScreen() {
     [todayIso]
   );
 
+  const reorderPlanDays = useCallback(
+    (plan: PlanWeekResult, fromIndex: number, toIndex: number): PlanWeekResult => {
+      if (fromIndex === toIndex || toIndex < 0 || toIndex > 6) return plan;
+      const days = [...plan.days];
+      const [removed] = days.splice(fromIndex, 1);
+      days.splice(toIndex, 0, removed);
+      return { ...plan, days };
+    },
+    []
+  );
+
   const scheduleDragActivation = useCallback((index: number) => {
     dragActivatedRef.current = false;
     if (dragActivationTimeoutRef.current) clearTimeout(dragActivationTimeoutRef.current);
     dragActivationTimeoutRef.current = setTimeout(() => {
       dragActivatedRef.current = true;
+      draggingIndexRef.current = index;
       setDraggingDayIndex(index);
+      setHoverIndex(index);
+      for (let i = 0; i < 7; i++) rowTranslates[i].value = 0;
+      weekListContainerRef.current?.measureInWindow((_x, y) => {
+        containerYRef.current = y;
+        containerYShared.value = y;
+      });
       dragActivationTimeoutRef.current = null;
     }, 400);
-  }, []);
+  }, [containerYShared]);
 
   const clearDragActivation = useCallback(() => {
     if (dragActivationTimeoutRef.current) {
@@ -183,29 +232,59 @@ export default function AdaptiveWeekPlanScreen() {
     }
   }, []);
 
+  const ROW_STEP = ROW_HEIGHT + 8;
+
+  const floatingRowAnimatedStyle = useAnimatedStyle(() => ({
+    position: "absolute" as const,
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 10,
+    transform: [
+      { translateY: dragYShared.value - ROW_HEIGHT / 2 },
+      { scale: 1.08 },
+    ],
+  }));
+
+  const updateDragState = useCallback((absoluteY: number) => {
+    const D = draggingIndexRef.current;
+    const containerY = containerYRef.current;
+    const offsetInList = absoluteY - containerY;
+    const layouts = rowLayoutsRef.current;
+    let H = D;
+    for (let i = 0; i < 7; i++) {
+      const r = layouts[i];
+      if (r && offsetInList >= r.y && offsetInList < r.y + r.height) {
+        H = i;
+        break;
+      }
+    }
+    hoverIndexRef.current = H;
+    setHoverIndex(H);
+    const rowStep = layouts[0] ? layouts[0].height + 8 : ROW_STEP;
+    for (let i = 0; i < 7; i++) {
+      let shift = 0;
+      if (D < H) {
+        if (i > D && i <= H) shift = -rowStep;
+      } else if (D > H) {
+        if (i >= H && i < D) shift = rowStep;
+      }
+      rowTranslates[i].value = shift;
+    }
+  }, [rowTranslates]);
+
   const handleWeekDragEnd = useCallback(
-    (absoluteY: number, fromIndex: number) => {
-      setDraggingDayIndex(null);
+    (_absoluteY: number, fromIndex: number) => {
       const didActivate = dragActivatedRef.current;
+      const toIndex = hoverIndexRef.current;
+      for (let i = 0; i < 7; i++) rowTranslates[i].value = 0;
+      setDraggingDayIndex(null);
+      setHoverIndex(-1);
       dragActivatedRef.current = false;
-      if (!didActivate) return;
-      weekListContainerRef.current?.measureInWindow((_x, containerY) => {
-        const offsetInList = absoluteY - containerY;
-        const layouts = rowLayoutsRef.current;
-        let toIndex: number | null = null;
-        for (let i = 0; i < 7; i++) {
-          const r = layouts[i];
-          if (r && offsetInList >= r.y && offsetInList < r.y + r.height) {
-            toIndex = i;
-            break;
-          }
-        }
-        if (toIndex != null && toIndex !== fromIndex && sportPrepWeekPlan) {
-          setSportPrepWeekPlan(swapPlanDays(sportPrepWeekPlan, fromIndex, toIndex));
-        }
-      });
+      if (!didActivate || toIndex < 0 || toIndex === fromIndex || !sportPrepWeekPlan) return;
+      setSportPrepWeekPlan(reorderPlanDays(sportPrepWeekPlan, fromIndex, toIndex));
     },
-    [sportPrepWeekPlan, setSportPrepWeekPlan, swapPlanDays]
+    [sportPrepWeekPlan, setSportPrepWeekPlan, reorderPlanDays, rowTranslates]
   );
 
   const onRegenerate = async () => {
@@ -315,6 +394,7 @@ export default function AdaptiveWeekPlanScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={draggingDayIndex === null}
         >
         <Card
           title="Your Week Plan"
@@ -332,82 +412,157 @@ export default function AdaptiveWeekPlanScreen() {
           </Text>
         ) : null}
 
-        <Card title="Week overview" style={{ marginTop: 16 }} subtitle="Long-press the handle, then drag to swap workouts between days.">
+        <Card title="Week overview" style={{ marginTop: 16 }} subtitle="Long-press the handle, then drag to reorder days.">
             <View
               ref={weekListContainerRef}
+              style={{ position: "relative" }}
               onLayout={() => {
                 weekListContainerRef.current?.measureInWindow(() => {});
               }}
             >
               {sportPrepWeekPlan.days.map((day, index) => {
-              const isToday = day.date === todayIso;
-              const isSelected = day.date === selectedDay.date;
-              const dateObj = new Date(day.date);
-              const weekday = dateObj.toLocaleDateString(undefined, {
-                weekday: "short",
-              });
-              const label = day.intentLabel ?? "Rest / low-load day";
-              const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
-              const longPressDrag = Gesture.Pan()
-                .minDistance(0)
-                .onStart(() => {
-                  runOnJS(scheduleDragActivation)(index);
-                })
-                .onEnd((e) => {
-                  runOnJS(clearDragActivation)();
-                  runOnJS(handleWeekDragEnd)(e.absoluteY, index);
-                })
-                .onFinalize(() => {
-                  runOnJS(clearDragActivation)();
+                const isToday = day.date === todayIso;
+                const isSelected = day.date === selectedDay.date;
+                const dateObj = new Date(day.date);
+                const weekday = dateObj.toLocaleDateString(undefined, {
+                  weekday: "short",
                 });
-              return (
-                <View
-                  key={day.id}
-                  onLayout={(e) => {
-                    const { y, height } = e.nativeEvent.layout;
-                    rowLayoutsRef.current[index] = { y, height };
-                  }}
-                >
-                  <Pressable
-                    onPress={() => onSelectDate(day.date)}
+                const label = day.intentLabel ?? "Rest / low-load day";
+                const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
+                const longPressDrag = Gesture.Pan()
+                  .minDistance(0)
+                  .onStart(() => {
+                    runOnJS(scheduleDragActivation)(index);
+                  })
+                  .onUpdate((e) => {
+                    dragYShared.value = e.absoluteY - containerYShared.value;
+                    runOnJS(updateDragState)(e.absoluteY);
+                  })
+                  .onEnd((e) => {
+                    runOnJS(clearDragActivation)();
+                    runOnJS(handleWeekDragEnd)(e.absoluteY, index);
+                  })
+                  .onFinalize(() => {
+                    runOnJS(clearDragActivation)();
+                  });
+
+                if (draggingDayIndex === index) {
+                  return (
+                    <View
+                      key={day.id}
+                      onLayout={(e) => {
+                        const { y, height } = e.nativeEvent.layout;
+                        rowLayoutsRef.current[index] = { y, height };
+                      }}
+                      style={{ minHeight: ROW_HEIGHT, marginBottom: 8 }}
+                    />
+                  );
+                }
+
+                return (
+                  <RowWithShift key={day.id} translateYShared={rowTranslates[index]}>
+                    <View
+                      onLayout={(e) => {
+                        const { y, height } = e.nativeEvent.layout;
+                        rowLayoutsRef.current[index] = { y, height };
+                      }}
+                    >
+                      <Pressable
+                        onPress={() => onSelectDate(day.date)}
+                        style={[
+                          styles.dayRow,
+                          {
+                            flexDirection: "row",
+                            alignItems: "center",
+                            borderColor: isSelected ? theme.primary : theme.border,
+                            backgroundColor: isSelected ? theme.primarySoft : "transparent",
+                          },
+                        ]}
+                      >
+                        <GestureDetector gesture={longPressDrag}>
+                          <View style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }}>
+                            <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
+                          </View>
+                        </GestureDetector>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <Text
+                              style={[
+                                styles.dayWeekday,
+                                { color: theme.text, opacity: isToday ? 1 : 0.85 },
+                              ]}
+                            >
+                              {weekday}
+                            </Text>
+                            {isToday && (
+                              <Text
+                                style={[
+                                  styles.todayBadge,
+                                  { color: theme.primary, borderColor: theme.primary },
+                                ]}
+                              >
+                                Today
+                              </Text>
+                            )}
+                            {statusBadge ? (
+                              <Text
+                                style={[
+                                  styles.todayBadge,
+                                  {
+                                    color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
+                                    borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
+                                    marginLeft: 8,
+                                  },
+                                ]}
+                              >
+                                {statusBadge}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <Text
+                            style={[styles.dayLabel, { color: theme.textMuted }]}
+                            numberOfLines={1}
+                          >
+                            {label}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  </RowWithShift>
+                );
+              })}
+              {draggingDayIndex !== null && (() => {
+                const day = sportPrepWeekPlan.days[draggingDayIndex];
+                const isToday = day.date === todayIso;
+                const dateObj = new Date(day.date);
+                const weekday = dateObj.toLocaleDateString(undefined, { weekday: "short" });
+                const label = day.intentLabel ?? "Rest / low-load day";
+                const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
+                return (
+                  <Animated.View
                     style={[
                       styles.dayRow,
+                      floatingRowAnimatedStyle,
                       {
                         flexDirection: "row",
                         alignItems: "center",
-                        borderColor: isSelected ? theme.primary : theme.border,
-                        backgroundColor:
-                          draggingDayIndex === index ? theme.border : isSelected ? theme.primarySoft : "transparent",
-                        transform: [{ scale: draggingDayIndex === index ? 1.05 : 1 }],
-                        shadowOpacity: draggingDayIndex === index ? 0.15 : 0,
-                        shadowRadius: 6,
-                        shadowOffset: { width: 0, height: 2 },
-                        elevation: draggingDayIndex === index ? 4 : 0,
+                        borderColor: theme.primary,
+                        backgroundColor: theme.primarySoft,
+                        shadowOpacity: 0.2,
+                        shadowRadius: 8,
+                        shadowOffset: { width: 0, height: 3 },
+                        elevation: 8,
                       },
                     ]}
                   >
-                    <GestureDetector gesture={longPressDrag}>
-                      <View style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }}>
-                        <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
-                      </View>
-                    </GestureDetector>
+                    <View style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }}>
+                      <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
+                    </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
-                        <Text
-                          style={[
-                            styles.dayWeekday,
-                            { color: theme.text, opacity: isToday ? 1 : 0.85 },
-                          ]}
-                        >
-                          {weekday}
-                        </Text>
+                        <Text style={[styles.dayWeekday, { color: theme.text }]}>{weekday}</Text>
                         {isToday && (
-                          <Text
-                            style={[
-                              styles.todayBadge,
-                              { color: theme.primary, borderColor: theme.primary },
-                            ]}
-                          >
+                          <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary }]}>
                             Today
                           </Text>
                         )}
@@ -426,17 +581,13 @@ export default function AdaptiveWeekPlanScreen() {
                           </Text>
                         ) : null}
                       </View>
-                      <Text
-                        style={[styles.dayLabel, { color: theme.textMuted }]}
-                        numberOfLines={1}
-                      >
+                      <Text style={[styles.dayLabel, { color: theme.textMuted }]} numberOfLines={1}>
                         {label}
                       </Text>
                     </View>
-                  </Pressable>
-                </View>
+                  </Animated.View>
                 );
-              })}
+              })()}
             </View>
         </Card>
 
