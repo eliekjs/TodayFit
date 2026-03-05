@@ -311,10 +311,11 @@ export default function AdaptiveWeekPlanScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
         <Card
           title="Your Week Plan"
           subtitle={`Week starting ${sportPrepWeekPlan.weekStartDate}`}
@@ -332,7 +333,6 @@ export default function AdaptiveWeekPlanScreen() {
         ) : null}
 
         <Card title="Week overview" style={{ marginTop: 16 }} subtitle="Long-press the handle, then drag to swap workouts between days.">
-          <GestureHandlerRootView>
             <View
               ref={weekListContainerRef}
               onLayout={() => {
@@ -438,7 +438,6 @@ export default function AdaptiveWeekPlanScreen() {
                 );
               })}
             </View>
-          </GestureHandlerRootView>
         </Card>
 
         <Card
@@ -550,7 +549,8 @@ export default function AdaptiveWeekPlanScreen() {
             />
           </View>
         </Card>
-      </ScrollView>
+        </ScrollView>
+      </GestureHandlerRootView>
     </View>
   );
 }
