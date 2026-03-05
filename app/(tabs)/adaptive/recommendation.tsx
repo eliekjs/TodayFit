@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
@@ -11,8 +11,8 @@ import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/type
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
-import DraggableFlatList from "react-native-draggable-flatlist";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 
 export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
@@ -30,6 +30,9 @@ export default function AdaptiveWeekPlanScreen() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draggingDayIndex, setDraggingDayIndex] = useState<number | null>(null);
+  const weekListContainerRef = useRef<View>(null);
+  const rowLayoutsRef = useRef<Record<number, { y: number; height: number }>>({});
 
   useEffect(() => {
     if (!sportPrepWeekPlan) return;
@@ -161,6 +164,28 @@ export default function AdaptiveWeekPlanScreen() {
     [todayIso]
   );
 
+  const handleWeekDragEnd = useCallback(
+    (absoluteY: number, fromIndex: number) => {
+      setDraggingDayIndex(null);
+      weekListContainerRef.current?.measureInWindow((_x, containerY) => {
+        const offsetInList = absoluteY - containerY;
+        const layouts = rowLayoutsRef.current;
+        let toIndex: number | null = null;
+        for (let i = 0; i < 7; i++) {
+          const r = layouts[i];
+          if (r && offsetInList >= r.y && offsetInList < r.y + r.height) {
+            toIndex = i;
+            break;
+          }
+        }
+        if (toIndex != null && toIndex !== fromIndex && sportPrepWeekPlan) {
+          setSportPrepWeekPlan(swapPlanDays(sportPrepWeekPlan, fromIndex, toIndex));
+        }
+      });
+    },
+    [sportPrepWeekPlan, setSportPrepWeekPlan, swapPlanDays]
+  );
+
   const onRegenerate = async () => {
     if (!sportPrepWeekPlan || !selectedDay) return;
     setError(null);
@@ -284,25 +309,38 @@ export default function AdaptiveWeekPlanScreen() {
           </Text>
         ) : null}
 
-        <Card title="Week overview" style={{ marginTop: 16 }} subtitle="Drag a row to swap workouts between days.">
-          <GestureHandlerRootView style={{ minHeight: 7 * 56 }}>
-            <DraggableFlatList
-              data={sportPrepWeekPlan.days}
-              keyExtractor={(day) => day.id}
-              onDragEnd={({ from, to }) => {
-                if (from === to) return;
-                setSportPrepWeekPlan(swapPlanDays(sportPrepWeekPlan, from, to));
-              }}
-              renderItem={({ item: day, drag }) => {
-                const isToday = day.date === todayIso;
-                const isSelected = day.date === selectedDay.date;
-                const dateObj = new Date(day.date);
-                const weekday = dateObj.toLocaleDateString(undefined, {
-                  weekday: "short",
+        <Card title="Week overview" style={{ marginTop: 16 }} subtitle="Long-press the handle, then drag to swap workouts between days.">
+          <View
+            ref={weekListContainerRef}
+            onLayout={() => {
+              weekListContainerRef.current?.measureInWindow(() => {});
+            }}
+          >
+            {sportPrepWeekPlan.days.map((day, index) => {
+              const isToday = day.date === todayIso;
+              const isSelected = day.date === selectedDay.date;
+              const dateObj = new Date(day.date);
+              const weekday = dateObj.toLocaleDateString(undefined, {
+                weekday: "short",
+              });
+              const label = day.intentLabel ?? "Rest / low-load day";
+              const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
+              const longPressDrag = Gesture.Pan()
+                .minDuration(400)
+                .onStart(() => {
+                  runOnJS(setDraggingDayIndex)(index);
+                })
+                .onEnd((e) => {
+                  runOnJS(handleWeekDragEnd)(e.absoluteY, index);
                 });
-                const label = day.intentLabel ?? "Rest / low-load day";
-                const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
-                return (
+              return (
+                <View
+                  key={day.id}
+                  onLayout={(e) => {
+                    const { y, height } = e.nativeEvent.layout;
+                    rowLayoutsRef.current[index] = { y, height };
+                  }}
+                >
                   <Pressable
                     onPress={() => onSelectDate(day.date)}
                     style={[
@@ -311,13 +349,16 @@ export default function AdaptiveWeekPlanScreen() {
                         flexDirection: "row",
                         alignItems: "center",
                         borderColor: isSelected ? theme.primary : theme.border,
-                        backgroundColor: isSelected ? theme.primarySoft : "transparent",
+                        backgroundColor:
+                          draggingDayIndex === index ? theme.border : isSelected ? theme.primarySoft : "transparent",
                       },
                     ]}
                   >
-                    <Pressable onLongPress={drag} style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }} hitSlop={8}>
-                      <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
-                    </Pressable>
+                    <GestureDetector gesture={longPressDrag}>
+                      <View style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }}>
+                        <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
+                      </View>
+                    </GestureDetector>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center" }}>
                         <Text
@@ -361,10 +402,10 @@ export default function AdaptiveWeekPlanScreen() {
                       </Text>
                     </View>
                   </Pressable>
-                );
-              }}
-            />
-          </GestureHandlerRootView>
+                </View>
+              );
+            })}
+          </View>
         </Card>
 
         <Card
