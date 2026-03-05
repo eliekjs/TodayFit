@@ -6,6 +6,9 @@ import { saveGeneratedWorkout, getWorkout } from "../../lib/db/workoutRepository
 
 type IntentKey = "strength" | "power" | "aerobic" | "mobility" | "prehab" | "recovery";
 
+/** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
+export type SportDaysAllocation = Record<string, number>;
+
 export type PlanWeekInput = {
   /** When absent, plan is generated in memory only (no DB persist). */
   userId?: string | null;
@@ -19,6 +22,10 @@ export type PlanWeekInput = {
   /** Optional sub-focus slugs for primary sport (from SPORTS_WITH_SUB_FOCUSES). Used for exercise-tag biasing. */
   sportSubFocusSlugs?: string[];
   gymDaysPerWeek: number;
+  /** Per-sport days per week (e.g. { road_running: 2, climbing: 1 }). Same day can have gym + sport. */
+  sportDaysAllocation?: SportDaysAllocation;
+  /** Ordered sport slugs [primary, secondary] for slot order and sub-focus (sportSlug is primary). */
+  rankedSportSlugs?: string[];
   preferredTrainingDays?: number[]; // 0 (Sun) - 6 (Sat) relative to weekStartDate
   defaultSessionDuration: number;
   energyBaseline: EnergyLevel;
@@ -117,6 +124,12 @@ function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+function humanizeSportSlug(slug: string): string {
+  return slug
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function intentKeyFromLabel(label: string | null): IntentKey {
   if (!label) return "strength";
   const lower = label.toLowerCase();
@@ -187,6 +200,48 @@ function sessionIntentForKey(
         notes: "Foundation strength session to support your primary goals.",
       };
   }
+}
+
+/** Session intent for a sport-specific training day (complements gym days). */
+function sessionIntentForSport(
+  sportSlug: string,
+  sportLabel: string,
+  date: string,
+  durationMinutes: number,
+  energy: EnergyLevel
+): SessionIntent {
+  return {
+    id: `session_${date}_sport_${sportSlug}`,
+    label: `${sportLabel} (sport-specific)`,
+    focus: ["Improve Endurance", "Sport Conditioning"],
+    durationMinutes,
+    energyLevel: energy,
+    notes: `Sport-specific conditioning to support ${sportLabel}.`,
+  };
+}
+
+type DaySlot = { type: "gym"; key: IntentKey } | { type: "sport"; sportSlug: string };
+
+/** Build ordered list of day slots: gym days first, then per-sport days (ranked order), capped at 7. */
+function buildDaySlots(
+  gymDaysPerWeek: number,
+  sportDaysAllocation: SportDaysAllocation | undefined,
+  rankedSportSlugs: string[],
+  intentOrder: IntentKey[]
+): DaySlot[] {
+  const slots: DaySlot[] = [];
+  const orderedIntents = intentOrder.length ? intentOrder : (["strength"] as IntentKey[]);
+
+  for (let i = 0; i < gymDaysPerWeek && slots.length < 7; i++) {
+    slots.push({ type: "gym", key: orderedIntents[i % orderedIntents.length] });
+  }
+  for (const slug of rankedSportSlugs) {
+    const count = sportDaysAllocation?.[slug] ?? 0;
+    for (let i = 0; i < count && slots.length < 7; i++) {
+      slots.push({ type: "sport", sportSlug: slug });
+    }
+  }
+  return slots;
 }
 
 async function computeCombinedDemand(
@@ -292,10 +347,22 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     input.tertiaryGoalSlug,
   ]);
   const intentOrder = chooseIntentOrder(demand);
+  const rankedSportSlugs = input.rankedSportSlugs ?? (input.sportSlug ? [input.sportSlug] : []);
+  const hasSportDays = input.sportDaysAllocation && Object.keys(input.sportDaysAllocation).length > 0;
+  const daySlots = hasSportDays
+    ? buildDaySlots(
+        input.gymDaysPerWeek || 0,
+        input.sportDaysAllocation,
+        rankedSportSlugs,
+        intentOrder
+      )
+    : [];
 
   const totalTrainingDays = Math.max(
     1,
-    Math.min(7, input.gymDaysPerWeek || 3)
+    daySlots.length > 0
+      ? Math.min(7, daySlots.length)
+      : Math.min(7, input.gymDaysPerWeek || 3)
   );
 
   const weekDates: string[] = [];
@@ -326,11 +393,66 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const todayIso = toIsoDate(today);
   const orderedIntents =
     intentOrder.length > 0 ? intentOrder : (["strength"] as IntentKey[]);
+  const goalWeightsPct = [
+    input.goalMatchPrimaryPct ?? 50,
+    input.goalMatchSecondaryPct ?? 30,
+    input.goalMatchTertiaryPct ?? 20,
+  ];
+
+  const buildWorkoutForSlot = async (
+    slot: DaySlot,
+    date: string
+  ): Promise<{ intent: SessionIntent; workout: GeneratedWorkout }> => {
+    if (slot.type === "sport") {
+      const intent = sessionIntentForSport(
+        slot.sportSlug,
+        humanizeSportSlug(slot.sportSlug),
+        date,
+        input.defaultSessionDuration,
+        input.energyBaseline
+      );
+      const workout = await buildWorkoutForSessionIntent(
+        intent,
+        input.gymProfile,
+        date,
+        {
+          sportSlug: slot.sportSlug,
+          goalSlugs,
+          goalWeightsPct,
+          sportSubFocusSlugs:
+            slot.sportSlug === (input.sportSlug ?? undefined)
+              ? input.sportSubFocusSlugs
+              : undefined,
+        }
+      );
+      return { intent, workout };
+    }
+    const intent = sessionIntentForKey(
+      slot.key,
+      date,
+      input.defaultSessionDuration,
+      input.energyBaseline
+    );
+    const workout = await buildWorkoutForSessionIntent(
+      intent,
+      input.gymProfile,
+      date,
+      {
+        sportSlug: input.sportSlug ?? null,
+        goalSlugs,
+        goalWeightsPct,
+        sportSubFocusSlugs: input.sportSubFocusSlugs,
+      }
+    );
+    return { intent, workout };
+  };
 
   // Guest mode: no DB writes; workouts kept in memory
   if (!input.userId) {
     const guestWorkouts: Record<string, GeneratedWorkout> = {};
     const plannedDays: PlannedDay[] = [];
+    const slotsToUse =
+      daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : null;
     let trainingSlotIdx = 0;
     for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
       const date = weekDates[dayIdx];
@@ -345,35 +467,19 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         });
         continue;
       }
-      const key = orderedIntents[trainingSlotIdx % orderedIntents.length];
+      const slot: DaySlot = slotsToUse
+        ? slotsToUse[trainingSlotIdx]
+        : {
+            type: "gym",
+            key: orderedIntents[trainingSlotIdx % orderedIntents.length],
+          };
       trainingSlotIdx += 1;
-      const sessionIntent = sessionIntentForKey(
-        key,
-        date,
-        input.defaultSessionDuration,
-        input.energyBaseline
-      );
-      const goalWeightsPct = [
-        input.goalMatchPrimaryPct ?? 50,
-        input.goalMatchSecondaryPct ?? 30,
-        input.goalMatchTertiaryPct ?? 20,
-      ];
-      const workout = await buildWorkoutForSessionIntent(
-        sessionIntent,
-        input.gymProfile,
-        date,
-        {
-          sportSlug: input.sportSlug ?? null,
-          goalSlugs,
-          goalWeightsPct,
-          sportSubFocusSlugs: input.sportSubFocusSlugs,
-        }
-      );
+      const { intent, workout } = await buildWorkoutForSlot(slot, date);
       guestWorkouts[date] = workout;
       plannedDays.push({
         id: `guest-${date}`,
         date,
-        intentLabel: sessionIntent.label,
+        intentLabel: intent.label,
         status: "planned",
         generatedWorkoutId: null,
       });
@@ -463,6 +569,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const instanceId = instanceRow.id as string;
 
   const plannedDays: PlannedDay[] = [];
+  const slotsToUse =
+    daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : null;
   let trainingSlotIdx = 0;
 
   for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
@@ -490,31 +598,17 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       continue;
     }
 
-    const key = orderedIntents[trainingSlotIdx % orderedIntents.length];
+    const slot: DaySlot = slotsToUse
+      ? slotsToUse[trainingSlotIdx]
+      : {
+          type: "gym",
+          key: orderedIntents[trainingSlotIdx % orderedIntents.length],
+        };
     trainingSlotIdx += 1;
 
-    const sessionIntent = sessionIntentForKey(
-      key,
-      date,
-      input.defaultSessionDuration,
-      input.energyBaseline
-    );
-
-    const goalWeightsPct = [
-      input.goalMatchPrimaryPct ?? 50,
-      input.goalMatchSecondaryPct ?? 30,
-      input.goalMatchTertiaryPct ?? 20,
-    ];
-    const workout = await buildWorkoutForSessionIntent(
-      sessionIntent,
-      input.gymProfile,
-      date,
-      {
-        sportSlug: input.sportSlug ?? null,
-        goalSlugs,
-        goalWeightsPct,
-        sportSubFocusSlugs: input.sportSubFocusSlugs,
-      }
+    const { intent: sessionIntent, workout } = await buildWorkoutForSlot(
+      slot,
+      date
     );
     const workoutId = await saveGeneratedWorkout(input.userId, workout);
 
@@ -525,6 +619,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     if (goalsSnapshot.tertiary)
       goalContribution.tertiary = goalsSnapshot.tertiary.weight;
 
+    const key = slot.type === "gym" ? slot.key : "aerobic";
     const fatigueScore =
       key === "mobility" || key === "recovery" || key === "prehab" ? 1 : 3;
 

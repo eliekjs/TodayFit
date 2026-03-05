@@ -107,6 +107,8 @@ export default function AdaptiveModeScreen() {
   const [fatigue, setFatigue] =
     useState<(typeof FATIGUE_OPTIONS)[number]>("Moderate");
   const [gymDaysPerWeek, setGymDaysPerWeek] = useState<number>(3);
+  /** Per-sport days per week (sportSlug -> days). Only used when sports are selected; enables gym vs sport-specific split. */
+  const [sportDaysAllocation, setSportDaysAllocation] = useState<Record<string, number>>({});
   const [defaultDuration, setDefaultDuration] = useState<number>(45);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -170,6 +172,13 @@ export default function AdaptiveModeScreen() {
     if (idx >= 0) next[idx] = slug;
     setRankedSportSlugs(next);
     setShowSportList(false);
+    // Default sport days: endurance sports get at least 50% of workout days (default = gym days); others get 1
+    const sportObj = sports.find((s) => s.slug === slug);
+    const isEndurance = sportObj?.category === "Endurance";
+    setSportDaysAllocation((prev) => ({
+      ...prev,
+      [slug]: isEndurance ? gymDaysPerWeek : Math.min(1, gymDaysPerWeek),
+    }));
     if (current.length >= 1) {
       setSportSectionExpanded(false);
     }
@@ -179,11 +188,15 @@ export default function AdaptiveModeScreen() {
   const removeSport = (slug: string) => {
     setRankedSportSlugs((prev) => {
       const next = prev.map((s) => (s === slug ? null : s));
-      // compact: [a, null] -> [a, null], [a, b] remove a -> [b, null]
       const filled = next.filter((s): s is string => s != null);
       return [filled[0] ?? null, filled[1] ?? null];
     });
     setSubFocusBySport((prev) => {
+      const next = { ...prev };
+      delete next[slug];
+      return next;
+    });
+    setSportDaysAllocation((prev) => {
       const next = { ...prev };
       delete next[slug];
       return next;
@@ -233,6 +246,10 @@ export default function AdaptiveModeScreen() {
 
     setIsSubmitting(true);
     try {
+      const allocation =
+        selectedSportSlugs.length > 0
+          ? { ...sportDaysAllocation }
+          : undefined;
       const plan = await planWeek({
         userId: userId ?? undefined,
         primaryGoalSlug: primary,
@@ -248,6 +265,8 @@ export default function AdaptiveModeScreen() {
             ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
             : undefined,
         gymDaysPerWeek,
+        sportDaysAllocation: allocation,
+        rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,
         energyBaseline,
@@ -311,6 +330,7 @@ export default function AdaptiveModeScreen() {
   const clearAllSports = () => {
     setRankedSportSlugs([null, null]);
     setSubFocusBySport({});
+    setSportDaysAllocation({});
     setExpandedSportForSubFocus(null);
     setSportSectionExpanded(false);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -829,6 +849,54 @@ export default function AdaptiveModeScreen() {
                 );
               })}
             </View>
+
+            {selectedSportSlugs.length > 0 && (
+              <>
+                <SectionHeader
+                  title="Training days allocation"
+                  subtitle="Gym days above; set how many days per week for each sport. You can do a sport and gym on the same day."
+                  style={{ marginTop: 20 }}
+                />
+                {selectedSportSlugs.some((slug) => sports.find((s) => s.slug === slug)?.category === "Endurance") && (
+                  <Text style={{ fontSize: 13, color: theme.primary, marginBottom: 12 }}>
+                    For endurance sports, aim for at least 50% of your workout days to be sport-specific.
+                  </Text>
+                )}
+                {selectedSportSlugs.map((slug) => {
+                  const sport = sports.find((s) => s.slug === slug);
+                  const days = sportDaysAllocation[slug] ?? 0;
+                  const totalSlots = gymDaysPerWeek + selectedSportSlugs.reduce((sum, s) => sum + (sportDaysAllocation[s] ?? 0), 0);
+                  const minRecommended =
+                    sport?.category === "Endurance"
+                      ? Math.ceil(0.5 * Math.max(1, totalSlots))
+                      : 0;
+                  return (
+                    <View key={slug} style={{ marginBottom: 16 }}>
+                      <Text style={{ fontSize: 13, marginBottom: 6, color: theme.textMuted }}>
+                        {sport?.name ?? slug} (sport-specific days)
+                      </Text>
+                      <View style={styles.chipGroup}>
+                        {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                          <Chip
+                            key={d}
+                            label={`${d}`}
+                            selected={days === d}
+                            onPress={() =>
+                              setSportDaysAllocation((prev) => ({ ...prev, [slug]: d }))
+                            }
+                          />
+                        ))}
+                      </View>
+                      {sport?.category === "Endurance" && minRecommended > 0 && days < minRecommended && (
+                        <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
+                          Recommended: at least {minRecommended} days for 50% sport focus
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </>
+            )}
           </View>
         )}
 
@@ -927,7 +995,7 @@ export default function AdaptiveModeScreen() {
 
         <SectionHeader
           title="Week setup"
-          subtitle="How many gym days and typical duration."
+          subtitle={selectedSportSlugs.length > 0 ? "Gym days, session duration. Set sport-specific days in Advanced." : "How many gym days and typical duration."}
           style={{ marginTop: 24 }}
         />
         <Text
