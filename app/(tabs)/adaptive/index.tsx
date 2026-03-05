@@ -25,6 +25,7 @@ import { DURATIONS, CONSTRAINT_OPTIONS, normalizeGoalMatchPct } from "../../../l
 import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
+import { SPORTS_WITH_SUB_FOCUSES } from "../../../data/sportSubFocus";
 
 if (
   Platform.OS === "android" &&
@@ -238,9 +239,14 @@ export default function AdaptiveModeScreen() {
         secondaryGoalSlug: secondary,
         tertiaryGoalSlug: tertiary,
         sportSlug: rankedSportSlugs[0] ?? null,
-        sportQualitySlugs: rankedSportSlugs[0]
-          ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
-          : undefined,
+        sportSubFocusSlugs:
+          rankedSportSlugs[0] && SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
+            ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
+            : undefined,
+        sportQualitySlugs:
+          rankedSportSlugs[0] && !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
+            ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
+            : undefined,
         gymDaysPerWeek,
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,
@@ -527,7 +533,12 @@ export default function AdaptiveModeScreen() {
 
             {selectedSportSlugs.map((slug) => {
               const sport = sports.find((s) => s.slug === slug);
-              const qualities = qualitiesBySport[slug] ?? [];
+              const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === slug);
+              const optionsFromSubFocus = sportSubFocus?.sub_focuses ?? null;
+              const optionsFromQualities = qualitiesBySport[slug] ?? [];
+              const options = optionsFromSubFocus
+                ? optionsFromSubFocus.map((sf) => ({ slug: sf.slug, name: sf.name }))
+                : optionsFromQualities.map((q) => ({ slug: q.slug, name: q.name }));
               const selectedQualities = subFocusBySport[slug] ?? [];
               const isExpanded = expandedSportForSubFocus === slug;
               const canAddSub = selectedQualities.length < 3;
@@ -548,12 +559,12 @@ export default function AdaptiveModeScreen() {
                       </Text>
                     </Pressable>
                   </View>
-                  {isExpanded && qualities.length > 0 && (
+                  {isExpanded && options.length > 0 && (
                     <View style={[styles.subGoalsBlock, { borderTopColor: theme.border }]}>
                       {selectedQualities.length > 0 && (
                         <View style={styles.chipGroup}>
                           {selectedQualities.map((qSlug) => {
-                            const q = qualities.find((qu) => qu.slug === qSlug);
+                            const opt = options.find((o) => o.slug === qSlug);
                             return (
                               <Pressable
                                 key={qSlug}
@@ -590,7 +601,7 @@ export default function AdaptiveModeScreen() {
                                     style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
                                     numberOfLines={1}
                                   >
-                                    {q?.name ?? qSlug}
+                                    {opt?.name ?? qSlug}
                                   </Text>
                                 </View>
                               </Pressable>
@@ -599,15 +610,15 @@ export default function AdaptiveModeScreen() {
                         </View>
                       )}
                       <View style={styles.chipGroup}>
-                        {qualities
-                          .filter((q) => !selectedQualities.includes(q.slug))
-                          .map((q) => (
+                        {options
+                          .filter((o) => !selectedQualities.includes(o.slug))
+                          .map((o) => (
                             <Chip
-                              key={q.slug}
-                              label={q.name}
+                              key={o.slug}
+                              label={o.name}
                               selected={false}
                               disabled={!canAddSub}
-                              onPress={() => toggleSportSubFocus(slug, q.slug)}
+                              onPress={() => toggleSportSubFocus(slug, o.slug)}
                             />
                           ))}
                       </View>

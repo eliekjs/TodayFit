@@ -21,6 +21,8 @@ export type SportGoalOptions = {
   goalSlugs?: string[];
   /** Match % for 1st / 2nd / 3rd goal (e.g. [50, 30, 20]). Used with get_exercises_by_goals_ranked. */
   goalWeightsPct?: number[];
+  /** Sub-focus slugs for primary sport (from SPORTS_WITH_SUB_FOCUSES). Biases exercise selection via tag mapping. */
+  sportSubFocusSlugs?: string[];
 };
 
 /**
@@ -48,12 +50,13 @@ export async function buildWorkoutForSessionIntent(
   };
 
   let preferredNames: string[] | undefined;
-  if (isDbConfigured() && options?.goalSlugs?.length) {
+  if (isDbConfigured() && (options?.goalSlugs?.length || options?.sportSubFocusSlugs?.length)) {
     try {
       preferredNames = await getPreferredExerciseNamesForSportAndGoals(
         options.sportSlug ?? null,
-        options.goalSlugs,
-        options.goalWeightsPct ?? [50, 30, 20]
+        options.goalSlugs ?? [],
+        options.goalWeightsPct ?? [50, 30, 20],
+        options.sportSubFocusSlugs
       );
     } catch {
       preferredNames = undefined;

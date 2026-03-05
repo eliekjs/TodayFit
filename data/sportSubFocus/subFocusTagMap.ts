@@ -17,7 +17,7 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "zone2_cardio", weight: 1.2 },
     { tag_slug: "aerobic_base", weight: 1.2 },
     { tag_slug: "single_leg_strength", weight: 1 },
-    { tag_slug: "uphill conditioning", weight: 1 },
+    { tag_slug: "uphill_conditioning", weight: 1 },
   ],
   [key("backcountry_skiing", "leg_strength")]: [
     { tag_slug: "single_leg_strength", weight: 1.2 },

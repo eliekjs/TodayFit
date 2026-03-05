@@ -137,6 +137,7 @@ export default function AdaptiveWeekPlanScreen() {
         date: selectedDay.date,
         sportSlug: sportPrepWeekPlan.sportSlug ?? undefined,
         goalSlugs: sportPrepWeekPlan.goalSlugs,
+        sportSubFocusSlugs: sportPrepWeekPlan.sportSubFocusSlugs,
         intentLabel: selectedDay.intentLabel,
         goalWeightsPct: [
           manualPreferences.goalMatchPrimaryPct ?? 50,

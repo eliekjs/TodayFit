@@ -16,6 +16,8 @@ export type PlanWeekInput = {
   sportSlug?: string | null;
   /** Optional sub-focus quality slugs for primary sport (from sport_qualities). */
   sportQualitySlugs?: string[];
+  /** Optional sub-focus slugs for primary sport (from SPORTS_WITH_SUB_FOCUSES). Used for exercise-tag biasing. */
+  sportSubFocusSlugs?: string[];
   gymDaysPerWeek: number;
   preferredTrainingDays?: number[]; // 0 (Sun) - 6 (Sat) relative to weekStartDate
   defaultSessionDuration: number;
@@ -45,6 +47,8 @@ export type PlanWeekResult = {
   todayWorkout: GeneratedWorkout | null;
   sportSlug?: string | null;
   goalSlugs?: string[];
+  /** Sub-focus slugs for primary sport (for regenerate). */
+  sportSubFocusSlugs?: string[];
   /** When present, workouts are in-memory only (guest mode); key = date (YYYY-MM-DD). */
   guestWorkouts?: Record<string, GeneratedWorkout>;
 };
@@ -58,6 +62,8 @@ export type RegenerateDayInput = {
   energyOverride?: EnergyLevel;
   sportSlug?: string | null;
   goalSlugs?: string[];
+  /** Sub-focus slugs for primary sport (for exercise-tag biasing). */
+  sportSubFocusSlugs?: string[];
   /** Required for guest mode: current day intent label so we can rebuild without DB. */
   intentLabel?: string | null;
   /** Match % for 1st / 2nd / 3rd goal. */
@@ -356,7 +362,12 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         sessionIntent,
         input.gymProfile,
         date,
-        { sportSlug: input.sportSlug ?? null, goalSlugs, goalWeightsPct }
+        {
+          sportSlug: input.sportSlug ?? null,
+          goalSlugs,
+          goalWeightsPct,
+          sportSubFocusSlugs: input.sportSubFocusSlugs,
+        }
       );
       guestWorkouts[date] = workout;
       plannedDays.push({
@@ -376,6 +387,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       todayWorkout: todayDay ? guestWorkouts[todayIso] ?? null : null,
       sportSlug: input.sportSlug ?? null,
       goalSlugs,
+      sportSubFocusSlugs: input.sportSubFocusSlugs,
       guestWorkouts,
     };
   }
@@ -497,7 +509,12 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       sessionIntent,
       input.gymProfile,
       date,
-      { sportSlug: input.sportSlug ?? null, goalSlugs, goalWeightsPct }
+      {
+        sportSlug: input.sportSlug ?? null,
+        goalSlugs,
+        goalWeightsPct,
+        sportSubFocusSlugs: input.sportSubFocusSlugs,
+      }
     );
     const workoutId = await saveGeneratedWorkout(input.userId, workout);
 
@@ -574,6 +591,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     todayWorkout,
     sportSlug: input.sportSlug ?? null,
     goalSlugs,
+    sportSubFocusSlugs: input.sportSubFocusSlugs,
   };
 }
 
@@ -606,6 +624,7 @@ export async function regenerateDay(
         sportSlug: input.sportSlug ?? null,
         goalSlugs: input.goalSlugs ?? [],
         goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
+        sportSubFocusSlugs: input.sportSubFocusSlugs,
       }
     );
     const day: PlannedDay = {
@@ -649,6 +668,7 @@ export async function regenerateDay(
       sportSlug: input.sportSlug ?? null,
       goalSlugs: input.goalSlugs ?? [],
       goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
+      sportSubFocusSlugs: input.sportSubFocusSlugs,
     }
   );
   const workoutId = await saveGeneratedWorkout(input.userId, workout);

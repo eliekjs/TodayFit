@@ -2,6 +2,8 @@
 
 This folder defines **sport sub-focuses** and their **mapping to exercise tags** for the Sports Prep engine. The weekly training generator can use this to bias exercise selection toward tags that match the user’s chosen sport and sub-focuses.
 
+Sub-focus options and tag mappings are intended to reflect **research-backed priorities for progression** in each sport (e.g. finger strength and pull strength for climbing; uphill endurance and leg strength for backcountry skiing). When in doubt, prefer evidence-based training literature and sport-specific periodization norms.
+
 ## Structure
 
 - **Sport** → has 3–6 **Sub-focuses** (e.g. “Finger Strength”, “Uphill Endurance”).

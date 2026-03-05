@@ -1,4 +1,5 @@
 import { getSupabase } from "./client";
+import { getExerciseTagsForSubFocuses } from "../../data/sportSubFocus";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -109,15 +110,22 @@ export async function getExercisesByGoalsRanked(
   return (rows ?? []).map((r: { slug: string; name: string }) => ({ slug: r.slug, name: r.name }));
 }
 
+/** Normalize tag string to slug form for matching (lowercase, spaces to underscores). */
+function tagToSlug(tag: string): string {
+  return tag.toLowerCase().trim().replace(/\s+/g, "_");
+}
+
 /**
  * Preferred exercise names (and slugs) for sport- and goal-aware workout building.
  * Uses weighted goal ranking (get_exercises_by_goals_ranked) when goalSlugs and goalWeightsPct are provided;
- * otherwise falls back to starter_exercises + goal_exercise_relevance. Optionally merges sport tag overlap.
+ * when sportSubFocusSlugs are provided, ranks exercises by sub-focus tag overlap and prepends them.
+ * Optionally merges sport_tag_profile overlap.
  */
 export async function getPreferredExerciseNamesForSportAndGoals(
   sportSlug: string | null,
   goalSlugs: string[],
-  goalWeightsPct?: number[]
+  goalWeightsPct?: number[],
+  sportSubFocusSlugs?: string[]
 ): Promise<string[]> {
   const nameSet = new Set<string>();
   const ordered: string[] = [];
@@ -138,6 +146,39 @@ export async function getPreferredExerciseNamesForSportAndGoals(
         if (!nameSet.has(row.name)) {
           nameSet.add(row.name);
           ordered.push(row.name);
+        }
+      }
+    }
+  }
+
+  if (sportSlug && sportSubFocusSlugs?.length) {
+    const tagWeights = getExerciseTagsForSubFocuses(sportSlug, sportSubFocusSlugs);
+    if (tagWeights.length > 0) {
+      const tagWeightMap = new Map(tagWeights.map((t) => [t.tag_slug, t.weight]));
+      const { data: all, error } = requireClient()
+        .from("starter_exercises")
+        .select("name, tags")
+        .eq("is_active", true);
+      if (!error && all?.length) {
+        const scored: { name: string; score: number }[] = [];
+        for (const row of all as Array<{ name: string; tags: string[] }>) {
+          const tags = Array.isArray(row.tags) ? row.tags : [];
+          let score = 0;
+          for (const t of tags) {
+            const slug = tagToSlug(t);
+            const w = tagWeightMap.get(slug);
+            if (w != null) score += w;
+          }
+          if (score > 0 && !nameSet.has(row.name)) scored.push({ name: row.name, score });
+        }
+        scored.sort((a, b) => b.score - a.score);
+        const topN = 50;
+        for (let i = Math.min(topN, scored.length) - 1; i >= 0; i--) {
+          const { name } = scored[i];
+          if (!nameSet.has(name)) {
+            nameSet.add(name);
+            ordered.unshift(name);
+          }
         }
       }
     }
