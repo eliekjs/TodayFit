@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
@@ -9,7 +9,10 @@ import { useAuth } from "../../../context/AuthContext";
 import type { GeneratedWorkout } from "../../../lib/types";
 import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
+import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
+import DraggableFlatList from "react-native-draggable-flatlist";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
@@ -110,6 +113,53 @@ export default function AdaptiveWeekPlanScreen() {
   const onSelectDate = (date: string) => {
     setSelectedDate(date);
   };
+
+  const swapPlanDays = useCallback(
+    (plan: PlanWeekResult, fromIndex: number, toIndex: number): PlanWeekResult => {
+      const days = [...plan.days];
+      const a = days[fromIndex];
+      const b = days[toIndex];
+      if (!a || !b || fromIndex === toIndex) return plan;
+
+      const newA: PlannedDay = {
+        ...a,
+        intentLabel: b.intentLabel,
+        status: b.status,
+        generatedWorkoutId: b.generatedWorkoutId,
+      };
+      const newB: PlannedDay = {
+        ...b,
+        intentLabel: a.intentLabel,
+        status: a.status,
+        generatedWorkoutId: a.generatedWorkoutId,
+      };
+      days[fromIndex] = newA;
+      days[toIndex] = newB;
+
+      let guestWorkouts = plan.guestWorkouts;
+      if (guestWorkouts && (guestWorkouts[a.date] != null || guestWorkouts[b.date] != null)) {
+        guestWorkouts = { ...guestWorkouts };
+        const atA = guestWorkouts[a.date];
+        const atB = guestWorkouts[b.date];
+        if (atB != null) guestWorkouts[a.date] = atB;
+        else delete guestWorkouts[a.date];
+        if (atA != null) guestWorkouts[b.date] = atA;
+        else delete guestWorkouts[b.date];
+      }
+
+      const todayDay = days.find((d) => d.date === todayIso) ?? null;
+      const todayWorkout = guestWorkouts?.[todayIso] ?? (todayDay?.date === plan.today?.date ? plan.todayWorkout : undefined);
+
+      return {
+        ...plan,
+        days,
+        guestWorkouts: guestWorkouts ?? plan.guestWorkouts,
+        today: todayDay,
+        todayWorkout: todayWorkout ?? plan.todayWorkout,
+      };
+    },
+    [todayIso]
+  );
 
   const onRegenerate = async () => {
     if (!sportPrepWeekPlan || !selectedDay) return;
@@ -234,74 +284,87 @@ export default function AdaptiveWeekPlanScreen() {
           </Text>
         ) : null}
 
-        <Card title="Week overview" style={{ marginTop: 16 }}>
-          {sportPrepWeekPlan.days.map((day) => {
-            const isToday = day.date === todayIso;
-            const isSelected = day.date === selectedDay.date;
-            const dateObj = new Date(day.date);
-            const weekday = dateObj.toLocaleDateString(undefined, {
-              weekday: "short",
-            });
-            const label = day.intentLabel ?? "Rest / low-load day";
-            const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
-            return (
-              <Pressable
-                key={day.id}
-                onPress={() => onSelectDate(day.date)}
-                style={[
-                  styles.dayRow,
-                  {
-                    borderColor: isSelected ? theme.primary : theme.border,
-                    backgroundColor: isSelected ? theme.primarySoft : "transparent",
-                  },
-                ]}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text
+        <Card title="Week overview" style={{ marginTop: 16 }} subtitle="Drag a row to swap workouts between days.">
+          <GestureHandlerRootView style={{ minHeight: 7 * 56 }}>
+            <DraggableFlatList
+              data={sportPrepWeekPlan.days}
+              keyExtractor={(day) => day.id}
+              onDragEnd={({ from, to }) => {
+                if (from === to) return;
+                setSportPrepWeekPlan(swapPlanDays(sportPrepWeekPlan, from, to));
+              }}
+              renderItem={({ item: day, drag }) => {
+                const isToday = day.date === todayIso;
+                const isSelected = day.date === selectedDay.date;
+                const dateObj = new Date(day.date);
+                const weekday = dateObj.toLocaleDateString(undefined, {
+                  weekday: "short",
+                });
+                const label = day.intentLabel ?? "Rest / low-load day";
+                const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
+                return (
+                  <Pressable
+                    onPress={() => onSelectDate(day.date)}
                     style={[
-                      styles.dayWeekday,
-                      { color: theme.text, opacity: isToday ? 1 : 0.85 },
+                      styles.dayRow,
+                      {
+                        flexDirection: "row",
+                        alignItems: "center",
+                        borderColor: isSelected ? theme.primary : theme.border,
+                        backgroundColor: isSelected ? theme.primarySoft : "transparent",
+                      },
                     ]}
                   >
-                    {weekday}
-                  </Text>
-                  {isToday && (
-                    <Text
-                      style={[
-                        styles.todayBadge,
-                        { color: theme.primary, borderColor: theme.primary },
-                      ]}
-                    >
-                      Today
-                    </Text>
-                  )}
-                  {statusBadge ? (
-                    <Text
-                      style={[
-                        styles.todayBadge,
-                        {
-                          color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
-                          borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
-                          marginLeft: 8,
-                        },
-                      ]}
-                    >
-                      {statusBadge}
-                    </Text>
-                  ) : null}
-                </View>
-                <Text
-                  style={[
-                    styles.dayLabel,
-                    { color: theme.textMuted },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
+                    <Pressable onLongPress={drag} style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }} hitSlop={8}>
+                      <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
+                    </Pressable>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center" }}>
+                        <Text
+                          style={[
+                            styles.dayWeekday,
+                            { color: theme.text, opacity: isToday ? 1 : 0.85 },
+                          ]}
+                        >
+                          {weekday}
+                        </Text>
+                        {isToday && (
+                          <Text
+                            style={[
+                              styles.todayBadge,
+                              { color: theme.primary, borderColor: theme.primary },
+                            ]}
+                          >
+                            Today
+                          </Text>
+                        )}
+                        {statusBadge ? (
+                          <Text
+                            style={[
+                              styles.todayBadge,
+                              {
+                                color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
+                                borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
+                                marginLeft: 8,
+                              },
+                            ]}
+                          >
+                            {statusBadge}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text
+                        style={[styles.dayLabel, { color: theme.textMuted }]}
+                        numberOfLines={1}
+                      >
+                        {label}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              }}
+            />
+          </GestureHandlerRootView>
         </Card>
 
         <Card
