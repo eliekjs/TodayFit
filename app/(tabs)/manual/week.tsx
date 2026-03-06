@@ -19,7 +19,6 @@ import {
   PRIMARY_FOCUS_TO_GOAL_SLUG,
 } from "../../../lib/preferencesConstants";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
-import { isDbConfigured } from "../../../lib/db";
 import type { ManualWeekPlan } from "../../../lib/types";
 
 function startOfWeekMonday(date: Date): Date {
