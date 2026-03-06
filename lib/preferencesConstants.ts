@@ -206,8 +206,12 @@ export function normalizeGoalMatchPct(
   if (goalCount === 1) return { goalMatchPrimaryPct: 100, goalMatchSecondaryPct: 0, goalMatchTertiaryPct: 0 };
   if (goalCount === 2) {
     const sum = p1 + p2;
-    const np1 = sum > 0 ? Math.round((p1 / sum) * 100) : 50;
-    const np2 = 100 - np1;
+    let np1 = sum > 0 ? Math.round((p1 / sum) * 100) : 50;
+    let np2 = 100 - np1;
+    if (np2 === 0) {
+      np1 = 60;
+      np2 = 40;
+    }
     return { goalMatchPrimaryPct: np1, goalMatchSecondaryPct: np2, goalMatchTertiaryPct: 0 };
   }
   const sum = p1 + p2 + p3;

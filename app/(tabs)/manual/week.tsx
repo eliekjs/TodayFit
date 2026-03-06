@@ -235,33 +235,31 @@ export default function ManualWeekScreen() {
       const dur = workout.durationMinutes != null ? `${workout.durationMinutes} min` : "—";
       return (
         <ScaleDecorator>
-          <View style={{ marginBottom: 6, marginLeft: 12 }}>
+          <View style={[styles.dayRow, { marginBottom: 6, marginLeft: 12, borderColor: theme.border, backgroundColor: isActive ? theme.primarySoft : theme.card }]}>
             <Pressable
               onLongPress={drag}
-              delayLongPress={200}
-              style={[
-                styles.dayRow,
-                {
-                  borderColor: theme.border,
-                  backgroundColor: isActive ? theme.primarySoft : theme.card,
-                },
-              ]}
+              delayLongPress={300}
+              style={({ pressed }) => ({
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                marginRight: 4,
+                opacity: pressed || isActive ? 0.8 : 1,
+              })}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <View style={{ paddingVertical: 8, paddingRight: 12, marginLeft: -8 }}>
-                <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
-              </View>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={[styles.dayLabel, { color: theme.text }]} numberOfLines={1}>
-                  {focus}
-                </Text>
-                <Text style={[styles.dayMeta, { color: theme.textMuted }]}>{dur}</Text>
-                <PrimaryButton
-                  label="Start"
-                  onPress={() => !isActive && onStartDay(date, workout)}
-                  style={styles.startBtn}
-                />
-              </View>
+              <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
             </Pressable>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={[styles.dayLabel, { color: theme.text }]} numberOfLines={1}>
+                {focus}
+              </Text>
+              <Text style={[styles.dayMeta, { color: theme.textMuted }]}>{dur}</Text>
+              <PrimaryButton
+                label="Start"
+                onPress={() => !isActive && onStartDay(date, workout)}
+                style={styles.startBtn}
+              />
+            </View>
           </View>
         </ScaleDecorator>
       );

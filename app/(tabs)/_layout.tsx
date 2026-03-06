@@ -36,6 +36,34 @@ function HeaderGymProfileButton() {
   );
 }
 
+/** Clears in-progress workout/week state and navigates to Home. Use on flow screens (preferences, week, execute, adaptive). */
+function RestartFlowButton() {
+  const theme = useTheme();
+  const router = useRouter();
+  const {
+    setManualWeekPlan,
+    setGeneratedWorkout,
+    setResumeProgress,
+    setSportPrepWeekPlan,
+    setAdaptiveSetup,
+  } = useAppState();
+  const onRestart = () => {
+    setManualWeekPlan(null);
+    setGeneratedWorkout(null);
+    setResumeProgress(null);
+    setSportPrepWeekPlan(null);
+    setAdaptiveSetup(null);
+    router.replace("/");
+  };
+  return (
+    <Pressable onPress={onRestart} style={{ paddingRight: 16 }}>
+      <Text style={{ fontSize: 15, color: theme.primary, fontWeight: "500" }}>
+        Start over
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function TabsLayout() {
   const theme = useTheme();
 
@@ -101,6 +129,7 @@ export default function TabsLayout() {
           href: null,
           title: "Workout Preferences",
           headerLeft: () => <HeaderBackButton />,
+          headerRight: () => <RestartFlowButton />,
         }}
       />
       <Tabs.Screen
@@ -109,6 +138,7 @@ export default function TabsLayout() {
           href: null,
           title: "Today's Workout",
           headerLeft: () => <HeaderBackButton />,
+          headerRight: () => <RestartFlowButton />,
         }}
       />
       <Tabs.Screen
@@ -117,6 +147,7 @@ export default function TabsLayout() {
           href: null,
           title: "Execute",
           headerLeft: () => <HeaderBackButton />,
+          headerRight: () => <RestartFlowButton />,
         }}
       />
       <Tabs.Screen
@@ -125,6 +156,7 @@ export default function TabsLayout() {
           href: null,
           title: "This week's workouts",
           headerLeft: () => <HeaderBackButton />,
+          headerRight: () => <RestartFlowButton />,
         }}
       />
       <Tabs.Screen
@@ -133,6 +165,7 @@ export default function TabsLayout() {
           href: null,
           title: "Adaptive Mode",
           headerLeft: () => <HeaderBackButton />,
+          headerRight: () => <RestartFlowButton />,
         }}
       />
       <Tabs.Screen
@@ -141,6 +174,7 @@ export default function TabsLayout() {
           href: null,
           title: "Set your schedule",
           headerLeft: () => <HeaderBackButton />,
+          headerRight: () => <RestartFlowButton />,
         }}
       />
       <Tabs.Screen
@@ -149,6 +183,7 @@ export default function TabsLayout() {
           href: null,
           title: "Recommended Session",
           headerLeft: () => <HeaderBackButton />,
+          headerRight: () => <RestartFlowButton />,
         }}
       />
       <Tabs.Screen

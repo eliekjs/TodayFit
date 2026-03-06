@@ -35,13 +35,16 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const colorScheme = useColorScheme();
-  const { manualPreferences } = useAppState();
+  const { manualPreferences, manualWeekPlan, sportPrepWeekPlan, generatedWorkout } = useAppState();
   const pastels = colorScheme === "dark" ? DARK_PASTELS : LIGHT_PASTELS;
 
   const primaryGoal =
     manualPreferences.primaryFocus[0] ?? "Not set";
   const secondaryGoal =
     manualPreferences.primaryFocus[1] ?? "Not set";
+
+  const hasInProgress =
+    manualWeekPlan != null || sportPrepWeekPlan != null || generatedWorkout != null;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -56,6 +59,35 @@ export default function HomeScreen() {
         <Text style={[styles.subtitle, { color: theme.textMuted }]}>
           Reduce decision fatigue with intelligent training decisions
         </Text>
+
+        {hasInProgress && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.continueCard,
+              { backgroundColor: theme.primarySoft ?? pastels.helpBg, opacity: pressed ? 0.9 : 1 },
+            ]}
+            onPress={() => {
+              if (manualWeekPlan != null) router.push("/manual/week");
+              else if (sportPrepWeekPlan != null) router.push("/adaptive/recommendation");
+              else if (generatedWorkout != null) router.push("/manual/execute");
+            }}
+          >
+            <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
+              {manualWeekPlan != null
+                ? "Continue your week"
+                : sportPrepWeekPlan != null
+                  ? "Continue your week plan"
+                  : "Continue workout"}
+            </Text>
+            <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
+              {manualWeekPlan != null
+                ? "Back to this week's workouts"
+                : sportPrepWeekPlan != null
+                  ? "Back to your adaptive week"
+                  : "Back to workout in progress"}
+            </Text>
+          </Pressable>
+        )}
 
         <View style={[styles.actionCard, { backgroundColor: pastels.buildBg }]}>
           <View style={styles.actionCardIcon}>
@@ -177,6 +209,22 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     marginBottom: 24,
+  },
+  continueCard: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  continueCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  continueCardSubtitle: {
+    fontSize: 13,
+    marginTop: 4,
   },
   actionCard: {
     borderRadius: 16,
