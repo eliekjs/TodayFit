@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { PrimaryButton } from "../../../components/Button";
 import { Card } from "../../../components/Card";
 import { Chip } from "../../../components/Chip";
 import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
-import { getLocalDateString, getTodayLocalDateString } from "../../../lib/dateUtils";
+import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import {
@@ -24,6 +24,7 @@ import {
 } from "../../../lib/preferencesConstants";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import type { ManualWeekPlan } from "../../../lib/types";
+import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   NestableScrollContainer,
@@ -55,6 +56,13 @@ function dateToISO(d: Date): string {
 /** 0 = Monday, 6 = Sunday (matches week display order). */
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+/** Format ISO date as day of week in user's locale (e.g. "Monday"). */
+function formatDayOfWeek(isoDate: string): string {
+  return parseLocalDate(isoDate).toLocaleDateString(undefined, {
+    weekday: "long",
+  });
+}
+
 /** Flat list item: day header (fixed) or draggable session. */
 type WeekListItem =
   | { type: "day-header"; date: string }
@@ -79,6 +87,8 @@ export default function ManualWeekScreen() {
   const [error, setError] = useState<string | null>(null);
   /** Which weekdays to generate workouts for. 0 = Mon, 6 = Sun. Default Mon, Wed, Fri. */
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
+  /** Selected session (date + workout) for detail view, matching adaptive mode. */
+  const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -142,6 +152,19 @@ export default function ManualWeekScreen() {
 
   const todayIso = getTodayLocalDateString();
 
+  useEffect(() => {
+    if (!manualWeekPlan?.days?.length) return;
+    const first = manualWeekPlan.days[0];
+    if (!selectedSession) {
+      setSelectedSession(first);
+      return;
+    }
+    const stillInPlan = manualWeekPlan.days.some(
+      (d) => d.date === selectedSession.date && d.workout.id === selectedSession.workout.id
+    );
+    if (!stillInPlan) setSelectedSession(first);
+  }, [manualWeekPlan, selectedSession]);
+
   /** Week dates Mon–Sun in order. */
   const weekDates = useMemo(() => {
     const plan = manualWeekPlan;
@@ -203,6 +226,13 @@ export default function ManualWeekScreen() {
     [setGeneratedWorkout, setResumeProgress, router]
   );
 
+  const onSelectSession = useCallback(
+    (date: string, workout: ManualWeekPlan["days"][0]["workout"]) => {
+      setSelectedSession({ date, workout });
+    },
+    []
+  );
+
   const renderWeekItem = useCallback(
     ({
       item,
@@ -214,8 +244,7 @@ export default function ManualWeekScreen() {
       isActive: boolean;
     }) => {
       if (item.type === "day-header") {
-        const dateObj = new Date(item.date + "T12:00:00");
-        const weekday = dateObj.toLocaleDateString(undefined, { weekday: "long" });
+        const weekday = formatDayOfWeek(item.date);
         const isToday = item.date === todayIso;
         return (
           <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
@@ -231,11 +260,28 @@ export default function ManualWeekScreen() {
         );
       }
       const { date, workout } = item;
-      const focus = workout.focus.join(" • ") || "General";
-      const dur = workout.durationMinutes != null ? `${workout.durationMinutes} min` : "—";
+      const label = workout.focus.join(" • ") || "General";
+      const isSelected =
+        selectedSession?.date === date && selectedSession?.workout.id === workout.id;
       return (
         <ScaleDecorator>
-          <View style={[styles.dayRow, { marginBottom: 6, marginLeft: 12, borderColor: theme.border, backgroundColor: isActive ? theme.primarySoft : theme.card }]}>
+          <View
+            style={[
+              styles.dayRow,
+              {
+                marginBottom: 6,
+                marginLeft: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                borderColor: isSelected ? theme.primary : theme.border,
+                backgroundColor: isActive
+                  ? theme.primarySoft
+                  : isSelected
+                    ? theme.primarySoft
+                    : "transparent",
+              },
+            ]}
+          >
             <Pressable
               onLongPress={drag}
               delayLongPress={300}
@@ -249,22 +295,19 @@ export default function ManualWeekScreen() {
             >
               <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
             </Pressable>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[styles.dayLabel, { color: theme.text }]} numberOfLines={1}>
-                {focus}
+            <Pressable
+              onPress={() => !isActive && onSelectSession(date, workout)}
+              style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                {label}
               </Text>
-              <Text style={[styles.dayMeta, { color: theme.textMuted }]}>{dur}</Text>
-              <PrimaryButton
-                label="Start"
-                onPress={() => !isActive && onStartDay(date, workout)}
-                style={styles.startBtn}
-              />
-            </View>
+            </Pressable>
           </View>
         </ScaleDecorator>
       );
     },
-    [theme, todayIso, onStartDay]
+    [theme, todayIso, selectedSession, onSelectSession]
   );
 
   const keyExtractor = useCallback((item: WeekListItem) => {
@@ -357,7 +400,7 @@ export default function ManualWeekScreen() {
         <View key={slot.date}>
           <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
             <Text style={[styles.dayHeaderText, { color: theme.text }]}>
-              {new Date(slot.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" })}
+              {formatDayOfWeek(slot.date)}
             </Text>
             {slot.date === todayIso && (
               <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
@@ -366,17 +409,29 @@ export default function ManualWeekScreen() {
             )}
           </View>
           {slot.sessions.map((s) => {
-            const focus = s.workout.focus.join(" • ") || "General";
-            const dur = s.workout.durationMinutes != null ? `${s.workout.durationMinutes} min` : "—";
+            const label = s.workout.focus.join(" • ") || "General";
+            const isSelected =
+              selectedSession?.date === s.date && selectedSession?.workout.id === s.workout.id;
             return (
               <View key={`${s.date}-${s.workout.id}`} style={{ marginBottom: 6, marginLeft: 12 }}>
-                <View style={[styles.dayRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={[styles.dayLabel, { color: theme.text }]} numberOfLines={1}>{focus}</Text>
-                    <Text style={[styles.dayMeta, { color: theme.textMuted }]}>{dur}</Text>
-                    <PrimaryButton label="Start" onPress={() => onStartDay(s.date, s.workout)} style={styles.startBtn} />
+                <Pressable
+                  onPress={() => onSelectSession(s.date, s.workout)}
+                  style={[
+                    styles.dayRow,
+                    {
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderColor: isSelected ? theme.primary : theme.border,
+                      backgroundColor: isSelected ? theme.primarySoft : "transparent",
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                      {label}
+                    </Text>
                   </View>
-                </View>
+                </Pressable>
               </View>
             );
           })}
@@ -394,13 +449,35 @@ export default function ManualWeekScreen() {
     />
   );
 
+  const selectedDay = selectedSession;
+  const summaryLines: string[] = [];
+  if (selectedDay?.workout.focus?.length) {
+    summaryLines.push(selectedDay.workout.focus.join(" • "));
+  }
+  if (selectedDay?.workout.durationMinutes != null) {
+    summaryLines.push(`${selectedDay.workout.durationMinutes} min`);
+  }
+  if (selectedDay?.workout.energyLevel) {
+    const e = selectedDay.workout.energyLevel;
+    summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
+  }
+
   const scrollContent = (
     <>
-      <Text style={[styles.title, { color: theme.text }]}>
-        Week of {new Date(plan.weekStartDate + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-      </Text>
+      <Card
+        title="Your Week Plan"
+        subtitle={`Week of ${parseLocalDate(plan.weekStartDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
+      >
+        <Text style={{ fontSize: 13, color: theme.textMuted }}>
+          Tap a day to view its workout. Change which days get workouts, then regenerate to rebuild.
+        </Text>
+      </Card>
 
-      <Card title="Training days" subtitle="Change which days get workouts, then tap Regenerate week to rebuild the plan." style={{ marginTop: 12 }}>
+      {error ? (
+        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+      ) : null}
+
+      <Card title="Training days" subtitle="Change which days get workouts, then tap Regenerate week." style={{ marginTop: 0 }}>
         <View style={styles.chipGroup}>
           {WEEKDAY_LABELS.map((label, dow) => (
             <Chip
@@ -428,6 +505,66 @@ export default function ManualWeekScreen() {
         {weekOverviewContent}
       </Card>
 
+      <Card
+        title={
+          selectedDay?.date === todayIso
+            ? "Today's workout"
+            : selectedDay
+              ? `Workout for ${formatDayOfWeek(selectedDay.date)}`
+              : "Workout"
+        }
+        subtitle={summaryLines.join(" • ")}
+        style={{ marginTop: 16 }}
+      >
+        {selectedDay ? (
+          <>
+            {(() => {
+              const displayWorkout = normalizeGeneratedWorkout(selectedDay.workout);
+              return displayWorkout.blocks.map((block, blockIdx) => (
+                <View key={`${block.block_type}-${blockIdx}`} style={styles.sectionBlock}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                    {block.title ?? block.block_type}
+                  </Text>
+                  {block.reasoning ? (
+                    <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
+                      {block.reasoning}
+                    </Text>
+                  ) : null}
+                  {block.items.map((item) => (
+                    <View key={item.exercise_id} style={styles.exerciseRow}>
+                      <Text style={[styles.exerciseName, { color: theme.text }]}>
+                        {item.exercise_name}
+                      </Text>
+                      <Text
+                        style={[styles.exercisePrescription, { color: theme.textMuted }]}
+                      >
+                        {formatPrescription(item)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ));
+            })()}
+            <View style={styles.footer}>
+              <PrimaryButton
+                label="Start"
+                onPress={() => onStartDay(selectedDay.date, selectedDay.workout)}
+              />
+              <PrimaryButton
+                label="Back to Preferences"
+                variant="ghost"
+                onPress={() => router.back()}
+                style={{ marginTop: 8 }}
+              />
+            </View>
+          </>
+        ) : (
+          <Text style={{ fontSize: 13, color: theme.textMuted }}>
+            Tap a workout above to view its details.
+          </Text>
+        )}
+      </Card>
+
       <PrimaryButton
         label={saving ? "Saving…" : "Save week"}
         onPress={onSaveWeek}
@@ -435,9 +572,6 @@ export default function ManualWeekScreen() {
         style={styles.saveWeekBtn}
         disabled={saving}
       />
-      {error ? (
-        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
-      ) : null}
     </>
   );
 
@@ -476,19 +610,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   errorText: {
-    fontSize: 15,
-    textAlign: "center",
+    fontSize: 13,
+    marginTop: 4,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 8,
+    paddingVertical: 16,
+    paddingBottom: 32,
+    gap: 16,
   },
   chipGroup: {
     flexDirection: "row",
@@ -517,8 +646,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   dayRow: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
@@ -526,15 +653,34 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dayLabel: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  sectionBlock: {
+    marginTop: 12,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  sectionReasoning: {
+    fontSize: 13,
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  exerciseRow: {
+    marginTop: 8,
+  },
+  exerciseName: {
     fontSize: 14,
     fontWeight: "600",
   },
-  dayMeta: {
+  exercisePrescription: {
     fontSize: 13,
+    marginTop: 2,
   },
-  startBtn: {
-    alignSelf: "flex-start",
-    marginTop: 4,
+  footer: {
+    marginTop: 16,
   },
   saveWeekBtn: {
     marginTop: 24,

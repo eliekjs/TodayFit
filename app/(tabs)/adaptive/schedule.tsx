@@ -18,11 +18,9 @@ import { SPORTS_WITH_SUB_FOCUSES } from "../../../data/sportSubFocus";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-/** Convert our dow (0=Mon .. 6=Sun) to API preferredTrainingDays (0=Sun .. 6=Sat). */
+/** preferredTrainingDays uses week index: 0=Mon..6=Sun (matches planner weekDates). */
 function toPreferredTrainingDays(selectedDows: number[]): number[] {
-  return selectedDows
-    .map((d) => (d === 6 ? 0 : d + 1))
-    .sort((a, b) => a - b);
+  return [...selectedDows].sort((a, b) => a - b);
 }
 
 export default function AdaptiveScheduleScreen() {
@@ -133,6 +131,15 @@ export default function AdaptiveScheduleScreen() {
       sportDaysAllocation[slug] = days.length;
     });
 
+    // Union of gym days and all sport-designated days (our dow: 0=Mon..6=Sun)
+    const allTrainingDows = new Set<number>(gymTrainingDays);
+    selectedSportSlugs.forEach((slug) => {
+      (sportDaysBySlug[slug] ?? []).forEach((d) => allTrainingDows.add(d));
+    });
+    const preferredTrainingDays = toPreferredTrainingDays(
+      Array.from(allTrainingDows).sort((a, b) => a - b)
+    );
+
     setIsSubmitting(true);
     try {
       const plan = await planWeek({
@@ -152,7 +159,7 @@ export default function AdaptiveScheduleScreen() {
             ? (adaptiveSetup.subFocusBySport[adaptiveSetup.rankedSportSlugs[0]] ?? []).slice(0, 3)
             : undefined,
         gymDaysPerWeek: gymTrainingDays.length,
-        preferredTrainingDays: toPreferredTrainingDays(gymTrainingDays),
+        preferredTrainingDays,
         sportDaysAllocation:
           Object.keys(sportDaysAllocation).length > 0 ? sportDaysAllocation : undefined,
         rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
