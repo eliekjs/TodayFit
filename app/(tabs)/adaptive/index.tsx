@@ -223,6 +223,17 @@ export default function AdaptiveModeScreen() {
     return "medium";
   };
 
+  /** Farther from event = allow higher intensity; closer = cap so user stays fresh. */
+  const energyFromFatigueAndHorizon = (
+    level: (typeof FATIGUE_OPTIONS)[number],
+    timeHorizon: string
+  ): EnergyLevel => {
+    const base = energyFromFatigue(level);
+    if (timeHorizon === "in_season") return "low";
+    if (timeHorizon === "1_3_weeks" && base === "high") return "medium";
+    return base;
+  };
+
   const onPlanWeek = async () => {
     setError(null);
     if (!isDbConfigured()) {
@@ -234,7 +245,7 @@ export default function AdaptiveModeScreen() {
     const secondary = rankedGoals[1] ?? null;
     const tertiary = rankedGoals[2] ?? null;
 
-    const energyBaseline = energyFromFatigue(fatigue);
+    const energyBaseline = energyFromFatigueAndHorizon(fatigue, horizon);
     const activeProfile =
       gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
 
@@ -1041,24 +1052,24 @@ export default function AdaptiveModeScreen() {
                 />
               ))}
             </View>
+
+            <SectionHeader
+              title="Time horizon"
+              subtitle="Farther from your event = we can push intensity more. Closer = lighter so you're fresh."
+              style={{ marginTop: 20 }}
+            />
+            <View style={styles.chipGroup}>
+              {TIME_HORIZON_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.id}
+                  label={opt.label}
+                  selected={horizon === opt.id}
+                  onPress={() => setHorizon(opt.id)}
+                />
+              ))}
+            </View>
           </View>
         )}
-
-        <SectionHeader
-          title="Time horizon"
-          subtitle="How long we're steering for."
-          style={{ marginTop: 12 }}
-        />
-        <View style={styles.chipGroup}>
-          {TIME_HORIZON_OPTIONS.map((opt) => (
-            <Chip
-              key={opt.id}
-              label={opt.label}
-              selected={horizon === opt.id}
-              onPress={() => setHorizon(opt.id)}
-            />
-          ))}
-        </View>
 
         <View style={styles.footer}>
           <PrimaryButton

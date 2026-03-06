@@ -33,6 +33,7 @@ import {
   CONSTRAINT_OPTIONS_LOWER,
   WORKOUT_STYLE_OPTIONS,
   UPCOMING_OPTIONS,
+  ZONE2_CARDIO_OPTIONS,
   SUB_FOCUS_BY_PRIMARY,
   deriveSubFocus,
   normalizeGoalMatchPct,
@@ -810,6 +811,38 @@ export default function ManualPreferencesScreen() {
                 />
               ))}
             </View>
+
+            {/* Zone 2 cardio preference — show when goals include recomp / endurance / conditioning */}
+            {(manualPreferences.primaryFocus.some(
+              (g) =>
+                g === "Body Recomposition" ||
+                g === "Improve Endurance" ||
+                g === "Sport Conditioning"
+            ) && (
+              <>
+                <SectionHeader
+                  title="Zone 2 cardio"
+                  subtitle="Choose modalities for the cardio finisher (e.g. run, bike, rower, stair climber). Leave empty for any."
+                  style={{ marginTop: 20 }}
+                />
+                <View style={styles.chipGroup}>
+                  {ZONE2_CARDIO_OPTIONS.map((opt) => (
+                    <Chip
+                      key={opt.key}
+                      label={opt.label}
+                      selected={manualPreferences.preferredZone2Cardio?.includes(opt.key) ?? false}
+                      onPress={() => {
+                        const current = manualPreferences.preferredZone2Cardio ?? [];
+                        const next = current.includes(opt.key)
+                          ? current.filter((k) => k !== opt.key)
+                          : [...current, opt.key];
+                        updateManualPreferences({ preferredZone2Cardio: next });
+                      }}
+                    />
+                  ))}
+                </View>
+              </>
+            ))}
           </View>
         )}
 

@@ -1,6 +1,8 @@
 /**
  * Adaptive mode: one recommended session type + 3 alternative session type options.
- * Duration and energy are derived from horizon and recent load.
+ * Duration comes from user preference (e.g. default session duration). Energy (intensity)
+ * is derived from recent load and fatigue, then capped by horizon: farther from event =
+ * more intensity allowed; closer = lighter so user is fresh.
  */
 
 export type SessionTypeOption = {
@@ -31,29 +33,15 @@ export type TimeHorizonId =
   | "2_4_months"
   | "in_season";
 
-function weeksFromHorizon(horizon: string | null): number {
-  if (!horizon) return 8;
-  switch (horizon) {
-    case "no_deadline":
-      return 12;
-    case "1_3_weeks":
-      return 2;
-    case "4_8_weeks":
-      return 6;
-    case "2_4_months":
-      return 12;
-    case "in_season":
-      return 8;
-    default:
-      return 8;
-  }
-}
-
-function durationFromHorizon(horizon: string | null): number {
-  const weeks = weeksFromHorizon(horizon);
-  if (weeks <= 2) return 45;
-  if (weeks >= 12) return 75;
-  return 60;
+/** Horizon only affects intensity: closer to event = cap energy (lighter); farther = allow higher. */
+function capEnergyByHorizon(
+  energy: "low" | "medium" | "high",
+  horizon: string | null
+): "low" | "medium" | "high" {
+  if (!horizon) return energy;
+  if (horizon === "in_season") return "low";
+  if (horizon === "1_3_weeks" && energy === "high") return "medium";
+  return energy;
 }
 
 /** Map spec recent-load options to simple load level. */
@@ -127,10 +115,14 @@ export function getSessionTypeOptions(
   secondary: string | null,
   horizon: string | null,
   recentLoad: string,
-  fatigue?: string | null
+  fatigue?: string | null,
+  durationMinutes?: number
 ): SessionTypeOption[] {
-  const duration = durationFromHorizon(horizon);
-  const energy = energyFromLoadAndFatigue(recentLoad, fatigue ?? null);
+  const duration = durationMinutes ?? 60;
+  const energy = capEnergyByHorizon(
+    energyFromLoadAndFatigue(recentLoad, fatigue ?? null),
+    horizon
+  );
 
   const recommendedId = getRecommendedId(primary, secondary, recentLoad);
   const recommendedDef = SESSION_TYPE_DEFS.find((d) => d.id === recommendedId) ?? SESSION_TYPE_DEFS[0];

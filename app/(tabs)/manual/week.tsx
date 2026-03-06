@@ -13,6 +13,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { PrimaryButton } from "../../../components/Button";
 import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
+import { getLocalDateString } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import {
@@ -37,7 +38,7 @@ function addDays(date: Date, n: number): Date {
 }
 
 function dateToISO(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return getLocalDateString(d);
 }
 
 export default function ManualWeekScreen() {

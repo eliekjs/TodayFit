@@ -37,6 +37,8 @@ export type ManualPreferences = {
   /** Sub-goals per goal: key = goal label, value = ordered sub-goal labels (max 3 per goal, order = rank). */
   subFocusByGoal: Record<string, string[]>;
   workoutStyle: string[];
+  /** Preferred Zone 2 cardio modalities (e.g. "bike", "treadmill", "rower", "stair_climber"). Empty = any. Used for body recomp / endurance finisher. */
+  preferredZone2Cardio?: string[];
   /** Advanced: what % of match score comes from 1st / 2nd / 3rd ranked goal (sum = 100). */
   goalMatchPrimaryPct?: number;
   goalMatchSecondaryPct?: number;

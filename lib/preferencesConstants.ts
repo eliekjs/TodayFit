@@ -95,6 +95,14 @@ export const UPCOMING_OPTIONS = [
   "Hard Upper Day",
 ] as const;
 
+/** Zone 2 cardio modality keys (for preferredZone2Cardio). Empty = any. */
+export const ZONE2_CARDIO_OPTIONS = [
+  { key: "bike", label: "Bike" },
+  { key: "treadmill", label: "Treadmill / Run" },
+  { key: "rower", label: "Rower" },
+  { key: "stair_climber", label: "Stair climber" },
+] as const;
+
 /** Sub-focus: contextual options per primary focus (sub-goals under each goal). Spec-aligned where noted (e.g. Max Strength, Relative Strength). */
 export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
   "Build Strength": [

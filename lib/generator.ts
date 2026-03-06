@@ -23,14 +23,24 @@ import {
   BODY_RECOMP_REP_RANGE,
   isWarmupEligibleEquipment,
   WARMUP_CARDIO_POSITION,
+  WARMUP_ITEM_MAX_SECONDS,
+  MAX_NON_CARDIO_CUE_SECONDS,
+  ZONE2_HR_GUIDANCE,
 } from "./workoutRules";
+
+/** Cardio machine / pure cardio: can be cued for more than 5 min (e.g. zone 2 block). */
+function isCardioMachineOrPureCardio(e: ExerciseDefinition): boolean {
+  if (!e.modalities.includes("conditioning")) return false;
+  const cardioEquipment = new Set(["treadmill", "assault_bike", "rower", "stair_climber"]);
+  return e.tags.includes("zone2") || e.equipment.some((eq) => cardioEquipment.has(eq));
+}
 
 function pickCountByDuration(durationMinutes: number | null) {
   if (!durationMinutes) return { warmup: 2, mainSupersetPairs: 2, accessory: 2, cooldown: 2 };
   if (durationMinutes <= 25) return { warmup: 2, mainSupersetPairs: 1, accessory: 1, cooldown: 1 };
-  if (durationMinutes <= 40) return { warmup: 3, mainSupersetPairs: 2, accessory: 2, cooldown: 2 };
-  if (durationMinutes <= 60) return { warmup: 3, mainSupersetPairs: 3, accessory: 2, cooldown: 2 };
-  return { warmup: 3, mainSupersetPairs: 4, accessory: 3, cooldown: 2 };
+  if (durationMinutes <= 40) return { warmup: 2, mainSupersetPairs: 2, accessory: 2, cooldown: 2 };
+  if (durationMinutes <= 60) return { warmup: 2, mainSupersetPairs: 3, accessory: 2, cooldown: 2 };
+  return { warmup: 2, mainSupersetPairs: 4, accessory: 3, cooldown: 2 };
 }
 
 type StructuredPrescription = {
@@ -50,12 +60,15 @@ function prescriptionForExercise(
   const isBodyRecomp = primaryFocus.includes("Body Recomposition");
 
   if (exercise.modalities.includes("conditioning")) {
+    const isZone2 = exercise.tags.includes("zone2");
+    const zone2Cue = isZone2 ? `${BODY_RECOMP_CUES.cardio} ${ZONE2_HR_GUIDANCE}` : BODY_RECOMP_CUES.cardio;
     if (isBodyRecomp) {
       const timeSeconds = Math.round((BODY_RECOMP_CARDIO_DURATION_MIN + BODY_RECOMP_CARDIO_DURATION_MAX) / 2) * 60;
-      return { sets: 1, time_seconds: timeSeconds, rest_seconds: 0, coaching_cues: BODY_RECOMP_CUES.cardio };
+      return { sets: 1, time_seconds: timeSeconds, rest_seconds: 0, coaching_cues: zone2Cue };
     }
     const minutes = energy === "high" ? 12 : energy === "low" ? 6 : 8;
-    return { sets: 1, time_seconds: minutes * 60, rest_seconds: 0, coaching_cues: "Steady effort. Keep heart rate in target zone." };
+    const steadyCue = isZone2 ? `Steady effort. ${ZONE2_HR_GUIDANCE}` : "Steady effort. Keep heart rate in target zone.";
+    return { sets: 1, time_seconds: minutes * 60, rest_seconds: 0, coaching_cues: steadyCue };
   }
 
   if (exercise.modalities.includes("power")) {
@@ -177,6 +190,29 @@ function filterByUpcoming(
   return exercises.filter((e) => !exerciseHasAnyAvoidTag(e.tags, avoidTags));
 }
 
+/** Map preferred Zone 2 modality keys to equipment slugs (for filtering conditioning pool). */
+const PREFERRED_ZONE2_TO_EQUIPMENT: Record<string, string> = {
+  bike: "assault_bike",
+  treadmill: "treadmill",
+  rower: "rower",
+  stair_climber: "stair_climber",
+};
+
+/** Restrict Zone 2 / conditioning pool to exercises matching preferred modalities (by equipment). */
+function filterByPreferredZone2Cardio(
+  exercises: ExerciseDefinition[],
+  preferredKeys: string[] | undefined
+): ExerciseDefinition[] {
+  if (!preferredKeys?.length) return exercises;
+  const allowedEquipment = new Set(
+    preferredKeys.map((k) => PREFERRED_ZONE2_TO_EQUIPMENT[k.toLowerCase()]).filter(Boolean)
+  );
+  if (!allowedEquipment.size) return exercises;
+  return exercises.filter((e) =>
+    e.equipment.some((eq) => allowedEquipment.has(eq))
+  );
+}
+
 function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
   const id = focus.toLowerCase();
   if (id.includes("strength") || id.includes("power")) return ["strength", "power"];
@@ -278,8 +314,15 @@ export function generateWorkout(
       const picked = pickRandom(poolToPick, rng);
       if (!picked) break;
       used.add(picked.id);
-      const p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus);
-      items.push(toWorkoutItem(picked, p, picked.tags));
+      let p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus);
+      let item = toWorkoutItem(picked, p, picked.tags);
+      if (blockType === "warmup" && item.time_seconds != null && item.time_seconds > WARMUP_ITEM_MAX_SECONDS) {
+        item = { ...item, time_seconds: WARMUP_ITEM_MAX_SECONDS };
+      }
+      if (blockType !== "warmup" && item.time_seconds != null && item.time_seconds > MAX_NON_CARDIO_CUE_SECONDS && !isCardioMachineOrPureCardio(picked)) {
+        item = { ...item, time_seconds: MAX_NON_CARDIO_CUE_SECONDS };
+      }
+      items.push(item);
     }
 
     if (WARMUP_CARDIO_POSITION === "last" && blockType === "warmup" && items.length > 1) {
@@ -339,7 +382,7 @@ export function generateWorkout(
     warmupPool,
     counts.warmup,
     usedExerciseIds,
-    "Prepares your joints and elevates heart rate before the main work."
+    "5–10 min total. Prepares your joints and elevates heart rate before the main work."
   );
   const isHypertrophy = preferences.primaryFocus.some(
     (f) => f.toLowerCase().includes("hypertrophy") || f.toLowerCase().includes("muscle") || f.toLowerCase().includes("recomposition")
@@ -364,8 +407,16 @@ export function generateWorkout(
   );
 
   const isBodyRecomp = preferences.primaryFocus.includes("Body Recomposition");
-  // When body recomp, allow cardio even if target is Upper/Lower (e.g. running); use gym+injury+upcoming for conditioning pool
-  const conditioningPool = isBodyRecomp
+  const wantsZone2Cardio =
+    isBodyRecomp ||
+    preferences.primaryFocus.some(
+      (f) =>
+        f.includes("Endurance") ||
+        f.includes("Sport Conditioning") ||
+        f.includes("Recomposition")
+    );
+  // When body recomp / endurance, allow cardio; use gym+injury+upcoming and optional Zone 2 preference
+  let conditioningPool = isBodyRecomp
     ? filterByUpcoming(
         filterByInjuries(
           filterByGymProfile(exercises, gymProfile),
@@ -374,6 +425,24 @@ export function generateWorkout(
         preferences.upcoming
       )
     : eligible.filter((e) => e.modalities.includes("conditioning"));
+  if (wantsZone2Cardio && conditioningPool.length > 0) {
+    conditioningPool = filterByPreferredZone2Cardio(
+      conditioningPool,
+      preferences.preferredZone2Cardio
+    );
+    // If preference filtered out everything (e.g. no rower in gym), fall back to full conditioning pool
+    if (conditioningPool.length === 0 && preferences.preferredZone2Cardio?.length) {
+      conditioningPool = isBodyRecomp
+        ? filterByUpcoming(
+            filterByInjuries(
+              filterByGymProfile(exercises, gymProfile),
+              injuryFilter
+            ).filter((e) => e.modalities.includes("conditioning")),
+            preferences.upcoming
+          )
+        : eligible.filter((e) => e.modalities.includes("conditioning"));
+    }
+  }
   const cardioBlock: WorkoutBlock | null =
     isBodyRecomp && conditioningPool.length > 0
       ? buildBlock(

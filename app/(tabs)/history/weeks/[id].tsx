@@ -6,6 +6,7 @@ import { useAppState } from "../../../../context/AppStateContext";
 import { useAuth } from "../../../../context/AuthContext";
 import { PrimaryButton } from "../../../../components/Button";
 import { getWeeklyPlanWithWorkouts } from "../../../../lib/db/weekPlanRepository";
+import { getTodayLocalDateString } from "../../../../lib/dateUtils";
 import { isDbConfigured } from "../../../../lib/db";
 import type { PlanWeekResult } from "../../../../services/sportPrepPlanner";
 
@@ -34,7 +35,7 @@ export default function SavedWeekDetailScreen() {
           setLoading(false);
           return;
         }
-        const todayIso = new Date().toISOString().slice(0, 10);
+        const todayIso = getTodayLocalDateString();
         const todayDay = planWith.days.find((d) => d.date === todayIso) ?? planWith.days[0] ?? null;
         const todayWorkout = todayDay
           ? planWith.guestWorkouts[todayDay.date] ?? null

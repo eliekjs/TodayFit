@@ -23,6 +23,14 @@ export const BODY_RECOMP_REP_RANGE = { min: 10, max: 15 } as const;
 export const BODY_RECOMP_CARDIO_DURATION_MIN = 20;
 export const BODY_RECOMP_CARDIO_DURATION_MAX = 40;
 
+/**
+ * Zone 2 heart rate guidance (research-based).
+ * Classic: 60–70% max HR; alternative: 70–80% of lactate threshold HR (LTHR) if tested.
+ * Also: conversational pace, nose breathing, RPE ~3–4/10.
+ */
+export const ZONE2_HR_GUIDANCE =
+  "Target 60–70% max HR or conversational pace (you can speak in short sentences). If you use LTHR: aim for 70–80% of LTHR. RPE ~3–4/10.";
+
 /** Lower-intensity coaching cue for body recomp. */
 export const BODY_RECOMP_CUES = {
   strength:
@@ -35,6 +43,15 @@ export const BODY_RECOMP_CUES = {
  * Use 'last' so activation/mobility come first, then optional light cardio.
  */
 export const WARMUP_CARDIO_POSITION = "last" as const;
+
+/** Warmup should total 5–10 minutes. Keep item count and per-item time in check. */
+export const WARMUP_TARGET_MINUTES = { min: 5, max: 10 } as const;
+
+/** Never cue a single non-cardio move for more than 5 minutes (cardio machines can be longer). */
+export const MAX_NON_CARDIO_CUE_SECONDS = 5 * 60;
+
+/** In warmup, cap any single item at 5 min so total warmup stays 5–10 min. */
+export const WARMUP_ITEM_MAX_SECONDS = 5 * 60;
 
 // --- Movement patterns & balance (exercise selection) ---
 

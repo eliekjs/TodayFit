@@ -1,4 +1,5 @@
 import { getSupabase, isDbConfigured } from "../../lib/db";
+import { getLocalDateString } from "../../lib/dateUtils";
 import type { EnergyLevel, GeneratedWorkout } from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
 import { buildWorkoutForSessionIntent, type SessionIntent } from "../workoutBuilder";
@@ -129,7 +130,7 @@ function addDays(date: Date, days: number): Date {
 }
 
 function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return getLocalDateString(d);
 }
 
 function humanizeSportSlug(slug: string): string {
@@ -235,6 +236,46 @@ function sessionIntentForSport(
 type DaySlot =
   | { type: "gym"; key: IntentKey }
   | { type: "sport"; sportSlug: string; discipline?: TriathlonDiscipline };
+
+/**
+ * Spread N training days across the week, alternating on/off where possible.
+ * Returns day indices (0=Mon .. 6=Sun): even days first (0,2,4,6), then odd (1,3,5).
+ * E.g. 3 days -> [0, 2, 4] (Mon, Wed, Fri); 4 days -> [0, 2, 4, 1].
+ */
+function spreadTrainingDays(totalDays: number): number[] {
+  if (totalDays <= 0) return [];
+  const evenFirstThenOdd = [0, 2, 4, 6, 1, 3, 5];
+  return evenFirstThenOdd.slice(0, Math.min(totalDays, 7));
+}
+
+/**
+ * Reorder slots so gym and sport alternate in the week (gym, sport, gym, sport, ...).
+ * Caller assigns slots in array order to training days in ascending day index.
+ * So Mon gets slots[0], Tue gets slots[1], etc. Interleaving gives gym/sport between days.
+ */
+function interleaveGymAndSportSlots(slots: DaySlot[]): DaySlot[] {
+  const gym: DaySlot[] = [];
+  const sport: DaySlot[] = [];
+  for (const s of slots) {
+    if (s.type === "gym") gym.push(s);
+    else sport.push(s);
+  }
+  const result: DaySlot[] = [];
+  let gi = 0;
+  let si = 0;
+  for (let i = 0; i < slots.length; i++) {
+    if (i % 2 === 0 && gi < gym.length) {
+      result.push(gym[gi++]);
+    } else if (si < sport.length) {
+      result.push(sport[si++]);
+    } else {
+      result.push(gym[gi++]);
+    }
+  }
+  while (gi < gym.length) result.push(gym[gi++]);
+  while (si < sport.length) result.push(sport[si++]);
+  return result;
+}
 
 /** Build ordered list of day slots: gym days first, then per-sport days (ranked order), capped at 7. Triathlon gets 3 slots: running, swimming, biking. */
 function buildDaySlots(
@@ -398,6 +439,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     weekDates.push(toIsoDate(addDays(weekStart, i)));
   }
 
+  const hasSportSlots = daySlots.some((s) => s.type === "sport");
   const trainingIndices: number[] = [];
   if (input.preferredTrainingDays && input.preferredTrainingDays.length > 0) {
     const unique = Array.from(
@@ -406,10 +448,12 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       )
     );
     trainingIndices.push(...unique.slice(0, totalTrainingDays));
-  } else {
+  } else if (hasSportSlots) {
     for (let i = 0; i < totalTrainingDays && i < 7; i += 1) {
       trainingIndices.push(i);
     }
+  } else {
+    trainingIndices.push(...spreadTrainingDays(totalTrainingDays));
   }
 
   const trainingIndexSet = new Set(trainingIndices);
@@ -483,8 +527,13 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   if (!input.userId) {
     const guestWorkouts: Record<string, GeneratedWorkout> = {};
     const plannedDays: PlannedDay[] = [];
+    const rawSlots = daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : [];
     const slotsToUse =
-      daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : null;
+      rawSlots.length > 0
+        ? hasSportSlots
+          ? interleaveGymAndSportSlots(rawSlots)
+          : rawSlots
+        : null;
     let trainingSlotIdx = 0;
     for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
       const date = weekDates[dayIdx];
@@ -601,8 +650,13 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const instanceId = instanceRow.id as string;
 
   const plannedDays: PlannedDay[] = [];
+  const rawSlots = daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : [];
   const slotsToUse =
-    daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : null;
+    rawSlots.length > 0
+      ? hasSportSlots
+        ? interleaveGymAndSportSlots(rawSlots)
+        : rawSlots
+      : null;
   let trainingSlotIdx = 0;
 
   for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {

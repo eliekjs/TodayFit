@@ -6,15 +6,16 @@ import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
+import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import type { GeneratedWorkout } from "../../../lib/types";
 import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
 import type { PlannedDay } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 
-/** Format ISO date as day of week (e.g. "Monday"). */
+/** Format ISO date as day of week in user's locale (e.g. "Monday"). */
 function formatDayOfWeek(isoDate: string): string {
-  return new Date(isoDate + "T12:00:00").toLocaleDateString(undefined, {
+  return parseLocalDate(isoDate).toLocaleDateString(undefined, {
     weekday: "long",
   });
 }
@@ -44,16 +45,16 @@ export default function AdaptiveWeekPlanScreen() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayIso = getTodayLocalDateString();
 
-  /** Week dates Mon–Sun in order. */
+  /** Week dates Mon–Sun in order (local timezone). */
   const weekDates = useMemo(() => {
     if (!sportPrepWeekPlan) return [];
-    const start = new Date(sportPrepWeekPlan.weekStartDate + "T12:00:00");
+    const start = parseLocalDate(sportPrepWeekPlan.weekStartDate);
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      return d.toISOString().slice(0, 10);
+      return getLocalDateString(d);
     });
   }, [sportPrepWeekPlan]);
 

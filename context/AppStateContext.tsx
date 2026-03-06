@@ -26,6 +26,7 @@ export const defaultManualPreferences: ManualPreferences = {
   upcoming: [],
   subFocusByGoal: {},
   workoutStyle: [],
+  preferredZone2Cardio: [],
   goalMatchPrimaryPct: 50,
   goalMatchSecondaryPct: 30,
   goalMatchTertiaryPct: 20,

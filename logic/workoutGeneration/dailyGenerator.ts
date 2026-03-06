@@ -19,6 +19,7 @@ import { STUB_EXERCISES } from "./exerciseStub";
 import {
   isWarmupEligibleEquipment,
   WARMUP_CARDIO_POSITION,
+  WARMUP_ITEM_MAX_SECONDS,
   getInjuryAvoidTags,
   getInjuryAvoidExerciseIds,
   MAX_SAME_PATTERN_PER_SESSION,
@@ -426,7 +427,7 @@ function buildWarmup(
   );
   const pool = basePool.filter((e) => isWarmupEligibleEquipment(e.equipment_required));
   const finalPool = pool.length ? pool : basePool;
-  const count = input.duration_minutes <= 30 ? 2 : input.duration_minutes <= 45 ? 3 : 4;
+  const count = 2;
   const movementCounts = new Map<string, number>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
   const { exercises: chosen } = selectExercises(
@@ -434,7 +435,7 @@ function buildWarmup(
     input,
     recentIds,
     movementCounts,
-    Math.min(count, finalPool.length || 4),
+    Math.min(count, finalPool.length || 2),
     rng,
     false,
     fatigueState
@@ -445,13 +446,17 @@ function buildWarmup(
 
   const items: WorkoutItem[] = sortedChosen.map((e) => {
     used.add(e.id);
-    const p = getPrescription(e, "warmup", input.energy_level, input.primary_goal);
+    let p = getPrescription(e, "warmup", input.energy_level, input.primary_goal);
+    let timeSec = p.time_seconds;
+    if (timeSec != null && timeSec > WARMUP_ITEM_MAX_SECONDS) {
+      timeSec = WARMUP_ITEM_MAX_SECONDS;
+    }
     return {
       exercise_id: e.id,
       exercise_name: e.name,
       sets: p.sets,
       reps: p.reps,
-      time_seconds: p.time_seconds,
+      time_seconds: timeSec,
       rest_seconds: p.rest_seconds,
       coaching_cues: p.coaching_cues,
       reasoning_tags: ["warmup", "mobility", ...(e.tags.goal_tags ?? [])],
@@ -464,7 +469,7 @@ function buildWarmup(
     title: "Warm-up",
     reasoning: "Prepares your joints and elevates heart rate before the main work.",
     items,
-    estimated_minutes: Math.min(8, 3 + items.length * 1.5),
+    estimated_minutes: Math.min(10, 5 + items.length * 2),
   };
 }
 
