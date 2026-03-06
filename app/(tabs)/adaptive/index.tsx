@@ -34,16 +34,12 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/** Spec-aligned: Performance, Physique, Resilience, Energy System (representative set). */
+/** Spec-aligned: Performance, Physique, Resilience, Energy System. Excludes sport-specific (trail, climbing, ski, conditioning) so they don’t overlap with sport selection. */
 const ADAPTIVE_GOALS = [
   { id: "strength", label: "Max strength foundation", category: "Performance" },
   { id: "muscle", label: "Build visible muscle", category: "Physique" },
   { id: "endurance", label: "Endurance engine", category: "Energy System" },
-  { id: "conditioning", label: "Sport-specific conditioning", category: "Energy System" },
   { id: "mobility", label: "Mobility & joint health", category: "Resilience" },
-  { id: "climbing", label: "Climbing / grip performance", category: "Performance" },
-  { id: "trail_running", label: "Trail running", category: "Performance" },
-  { id: "ski", label: "Ski / snow", category: "Performance" },
   { id: "physique", label: "Physique / body comp", category: "Physique" },
   { id: "resilience", label: "Resilience / recovery", category: "Resilience" },
 ];
@@ -123,6 +119,8 @@ export default function AdaptiveModeScreen() {
   const [subFocusBySport, setSubFocusBySport] = useState<Record<string, string[]>>({});
   /** Which sport's sub-goals row is expanded. */
   const [expandedSportForSubFocus, setExpandedSportForSubFocus] = useState<string | null>(null);
+  /** When 1 sport is selected, true = show picker to add second. */
+  const [showAddSecondSport, setShowAddSecondSport] = useState(false);
   /** Cached qualities per sport (loaded when sport is selected). */
   const [qualitiesBySport, setQualitiesBySport] = useState<Record<string, SportQuality[]>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -170,6 +168,7 @@ export default function AdaptiveModeScreen() {
     const idx = next.findIndex((s) => s == null);
     if (idx >= 0) next[idx] = slug;
     setRankedSportSlugs(next);
+    if (current.length === 1) setShowAddSecondSport(false);
     // Default: 2 days if first sport, 1 day if second sport
     setSportDaysAllocation((prev) => ({
       ...prev,
@@ -196,6 +195,7 @@ export default function AdaptiveModeScreen() {
       return next;
     });
     if (expandedSportForSubFocus === slug) setExpandedSportForSubFocus(null);
+    setShowAddSecondSport(false);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
@@ -458,18 +458,20 @@ export default function AdaptiveModeScreen() {
               </View>
             )}
 
-            <View style={[styles.searchRow, { marginTop: selectedSportSlugs.length > 0 ? 12 : 0 }]}>
-          <TextInput
-            placeholder="Search sports..."
-            placeholderTextColor={theme.textMuted}
-            value={sportsSearch}
-            onChangeText={setSportsSearch}
-            style={[
-              styles.searchInput,
-              { borderColor: theme.border, color: theme.text },
-            ]}
-          />
-        </View>
+            {(selectedSportSlugs.length === 0 || (selectedSportSlugs.length === 1 && showAddSecondSport)) && (
+              <>
+                <View style={[styles.searchRow, { marginTop: selectedSportSlugs.length > 0 ? 12 : 0 }]}>
+                  <TextInput
+                    placeholder="Search sports..."
+                    placeholderTextColor={theme.textMuted}
+                    value={sportsSearch}
+                    onChangeText={setSportsSearch}
+                    style={[
+                      styles.searchInput,
+                      { borderColor: theme.border, color: theme.text },
+                    ]}
+                  />
+                </View>
         {sportsError ? (
           <Text style={{ fontSize: 13, color: theme.danger, marginBottom: 8 }}>
             {sportsError}
@@ -486,23 +488,50 @@ export default function AdaptiveModeScreen() {
           </Text>
         )}
 
-            <View style={styles.chipGroup} key={`sport-picker-${selectedSportSlugs.join(",")}`}>
-              {selectedSportSlugs.length === 0 && (
-                <Chip
-                  label="No specific sport"
-                  selected={hasNoSpecificSport}
-                  onPress={clearAllSports}
-                />
-              )}
-              {availableSportsForPicker.map((sport) => (
-                <Chip
-                  key={sport.id}
-                  label={sport.name}
-                  selected={false}
-                  onPress={() => addSport(sport.slug)}
-                />
-              ))}
-            </View>
+                <View style={styles.chipGroup} key={`sport-picker-${selectedSportSlugs.join(",")}`}>
+                  {selectedSportSlugs.length === 0 && (
+                    <Chip
+                      label="No specific sport"
+                      selected={hasNoSpecificSport}
+                      onPress={clearAllSports}
+                    />
+                  )}
+                  {availableSportsForPicker.map((sport) => (
+                    <Chip
+                      key={sport.id}
+                      label={sport.name}
+                      selected={false}
+                      onPress={() => addSport(sport.slug)}
+                    />
+                  ))}
+                </View>
+                {selectedSportSlugs.length === 1 && showAddSecondSport && (
+                  <Pressable
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setShowAddSecondSport(false);
+                    }}
+                    style={{ marginTop: 8, marginBottom: 4, alignSelf: "flex-start" }}
+                  >
+                    <Text style={{ fontSize: 13, color: theme.textMuted }}>− Hide list</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+
+            {selectedSportSlugs.length === 1 && !showAddSecondSport && (
+              <Pressable
+                onPress={() => {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setShowAddSecondSport(true);
+                }}
+                style={[styles.goalRowHeader, { marginTop: 12 }]}
+              >
+                <Text style={[styles.subGoalsControlText, { color: theme.primary }]}>
+                  + Add second sport
+                </Text>
+              </Pressable>
+            )}
 
             {selectedSportSlugs.length > 0 && (
               <Pressable
@@ -603,7 +632,7 @@ export default function AdaptiveModeScreen() {
               })}
 
         <SectionHeader
-          title="Rank your goals"
+          title="Any additional goals"
           subtitle="Pick 1–3 goals. Suggested split: 60/40 for 2 goals, 50/30/20 for 3 (editable in Advanced)."
           style={{ marginTop: 20 }}
         />
@@ -874,7 +903,7 @@ export default function AdaptiveModeScreen() {
               <>
                 <SectionHeader
                   title="Sport days"
-                  subtitle="Days per week for each sport. Gym days are set in Week setup below."
+                  subtitle="Days per week for each sport. Gym days and session duration are below."
                   style={{ marginTop: 20 }}
                 />
                 {selectedSportSlugs.map((slug) => {
@@ -902,6 +931,114 @@ export default function AdaptiveModeScreen() {
                 })}
               </>
             )}
+
+            <SectionHeader
+              title="Week setup"
+              subtitle={selectedSportSlugs.length > 0 ? "Gym days and session duration." : "How many gym days and typical duration."}
+              style={{ marginTop: 20 }}
+            />
+            <Text style={{ fontSize: 13, marginBottom: 6, color: theme.textMuted }}>
+              Gym days per week
+            </Text>
+            <View style={styles.chipGroup}>
+              {[2, 3, 4, 5].map((d) => (
+                <Chip
+                  key={d}
+                  label={`${d} days`}
+                  selected={gymDaysPerWeek === d}
+                  onPress={() => setGymDaysPerWeek(d)}
+                />
+              ))}
+            </View>
+            <Text style={{ fontSize: 13, marginTop: 16, marginBottom: 6, color: theme.textMuted }}>
+              Default session duration
+            </Text>
+            <View style={styles.chipGroup}>
+              {DURATIONS.map((minutes) => (
+                <Chip
+                  key={minutes}
+                  label={`${minutes} min`}
+                  selected={defaultDuration === minutes}
+                  onPress={() => setDefaultDuration(minutes)}
+                />
+              ))}
+            </View>
+
+            <SectionHeader
+              title="Recent load"
+              subtitle="Past 3–5 days."
+              style={{ marginTop: 20 }}
+            />
+            <View style={styles.chipGroup}>
+              {RECENT_LOAD_OPTIONS.map((load) => (
+                <Chip
+                  key={load}
+                  label={load}
+                  selected={recentLoad === load}
+                  onPress={() => setRecentLoad(load)}
+                />
+              ))}
+            </View>
+
+            <SectionHeader
+              title="Injury status"
+              subtitle="Rebuilding, managing, or no concerns."
+              style={{ marginTop: 20 }}
+            />
+            <View style={styles.chipGroup}>
+              {INJURY_STATUS_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt}
+                  label={opt}
+                  selected={injuryStatus === opt}
+                  onPress={() => {
+                    setInjuryStatus(opt);
+                    if (opt === "No Concerns") setInjuryTypes([]);
+                  }}
+                />
+              ))}
+            </View>
+            {(injuryStatus === "Managing" || injuryStatus === "Rebuilding") && (
+              <>
+                <SectionHeader
+                  title="Injury areas"
+                  subtitle="Select any areas to protect. We'll avoid exercises that stress them."
+                  style={{ marginTop: 16 }}
+                />
+                <View style={styles.chipGroup}>
+                  {INJURY_TYPE_OPTIONS.map((label) => (
+                    <Chip
+                      key={label}
+                      label={label}
+                      selected={injuryTypes.includes(label)}
+                      onPress={() => {
+                        setInjuryTypes((prev) =>
+                          prev.includes(label)
+                            ? prev.filter((x) => x !== label)
+                            : [...prev, label]
+                        );
+                      }}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+
+            <SectionHeader
+              title="Fatigue"
+              subtitle="How you generally feel heading into this week."
+              style={{ marginTop: 20 }}
+            />
+            <View style={styles.chipGroup}>
+              {FATIGUE_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt}
+                  label={opt}
+                  selected={fatigue === opt}
+                  onPress={() => setFatigue(opt)}
+                />
+              ))}
+            </View>
           </View>
         )}
 
@@ -917,129 +1054,6 @@ export default function AdaptiveModeScreen() {
               label={opt.label}
               selected={horizon === opt.id}
               onPress={() => setHorizon(opt.id)}
-            />
-          ))}
-        </View>
-
-        <SectionHeader
-          title="Recent load"
-          subtitle="Past 3–5 days."
-          style={{ marginTop: 20 }}
-        />
-        <View style={styles.chipGroup}>
-          {RECENT_LOAD_OPTIONS.map((load) => (
-            <Chip
-              key={load}
-              label={load}
-              selected={recentLoad === load}
-              onPress={() => setRecentLoad(load)}
-            />
-          ))}
-        </View>
-
-        <SectionHeader
-          title="Injury status"
-          subtitle="Rebuilding, managing, or no concerns."
-          style={{ marginTop: 20 }}
-        />
-        <View style={styles.chipGroup}>
-          {INJURY_STATUS_OPTIONS.map((opt) => (
-            <Chip
-              key={opt}
-              label={opt}
-              selected={injuryStatus === opt}
-              onPress={() => {
-                setInjuryStatus(opt);
-                if (opt === "No Concerns") setInjuryTypes([]);
-              }}
-            />
-          ))}
-        </View>
-
-        {(injuryStatus === "Managing" || injuryStatus === "Rebuilding") && (
-          <>
-            <SectionHeader
-              title="Injury areas"
-              subtitle="Select any areas to protect. We'll avoid exercises that stress them."
-              style={{ marginTop: 16 }}
-            />
-            <View style={styles.chipGroup}>
-              {INJURY_TYPE_OPTIONS.map((label) => (
-                <Chip
-                  key={label}
-                  label={label}
-                  selected={injuryTypes.includes(label)}
-                  onPress={() => {
-                    setInjuryTypes((prev) =>
-                      prev.includes(label)
-                        ? prev.filter((x) => x !== label)
-                        : [...prev, label]
-                    );
-                  }}
-                />
-              ))}
-            </View>
-          </>
-        )}
-
-        <SectionHeader
-          title="Fatigue"
-          subtitle="How you generally feel heading into this week."
-          style={{ marginTop: 20 }}
-        />
-        <View style={styles.chipGroup}>
-          {FATIGUE_OPTIONS.map((opt) => (
-            <Chip
-              key={opt}
-              label={opt}
-              selected={fatigue === opt}
-              onPress={() => setFatigue(opt)}
-            />
-          ))}
-        </View>
-
-        <SectionHeader
-          title="Week setup"
-          subtitle={selectedSportSlugs.length > 0 ? "Gym days and session duration. Sport days are in Advanced." : "How many gym days and typical duration."}
-          style={{ marginTop: 24 }}
-        />
-        <Text
-          style={{
-            fontSize: 13,
-            marginBottom: 6,
-            color: theme.textMuted,
-          }}
-        >
-          Gym days per week
-        </Text>
-        <View style={styles.chipGroup}>
-          {[2, 3, 4, 5].map((d) => (
-            <Chip
-              key={d}
-              label={`${d} days`}
-              selected={gymDaysPerWeek === d}
-              onPress={() => setGymDaysPerWeek(d)}
-            />
-          ))}
-        </View>
-
-        <Text
-          style={{
-            fontSize: 13,
-            marginTop: 16,
-            marginBottom: 6,
-            color: theme.textMuted,
-          }}
-        >
-          Default session duration
-        </Text>
-        <View style={styles.chipGroup}>
-          {DURATIONS.map((minutes) => (
-            <Chip
-              key={minutes}
-              label={`${minutes} min`}
-              selected={defaultDuration === minutes}
-              onPress={() => setDefaultDuration(minutes)}
             />
           ))}
         </View>
