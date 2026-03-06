@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -24,6 +24,8 @@ function formatDayOfWeek(isoDate: string): string {
 type WeekListItem =
   | { type: "day-header"; date: string }
   | { type: "session"; day: PlannedDay };
+
+const isWeb = Platform.OS === "web";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
@@ -389,143 +391,222 @@ export default function AdaptiveWeekPlanScreen() {
     return `session-${item.day.id}`;
   }, []);
 
+  const weekOverviewContent = isWeb ? (
+    <View>
+      {daySlots.map((slot) => (
+        <View key={slot.date}>
+          <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.dayHeaderText, { color: theme.text }]}>
+              {new Date(slot.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" })}
+            </Text>
+            {slot.date === todayIso && (
+              <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
+                Today
+              </Text>
+            )}
+          </View>
+          {slot.sessions.map((session) => {
+            const day = session;
+            const isSelected = selectedDay?.id === day.id;
+            const rawLabel = day.intentLabel ?? "Rest / low-load day";
+            const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
+            const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
+            return (
+              <View key={day.id} style={{ marginBottom: 6, marginLeft: 12 }}>
+                <Pressable
+                  onPress={() => onSelectSession(day)}
+                  style={[
+                    styles.dayRow,
+                    {
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderColor: isSelected ? theme.primary : theme.border,
+                      backgroundColor: isSelected ? theme.primarySoft : "transparent",
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                      {label}
+                    </Text>
+                    {statusBadge ? (
+                      <Text
+                        style={[
+                          styles.todayBadge,
+                          {
+                            color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
+                            borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
+                          },
+                        ]}
+                      >
+                        {statusBadge}
+                      </Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  ) : (
+    <NestableDraggableFlatList
+      data={flatListItems}
+      keyExtractor={keyExtractor}
+      onDragEnd={onDragEnd}
+      renderItem={renderWeekItem}
+      activationDistance={10}
+      scrollEnabled={false}
+    />
+  );
+
+  const mainContent = (
+    <>
+      <Card
+        title="Your Week Plan"
+        subtitle={`Week starting ${sportPrepWeekPlan.weekStartDate}`}
+      >
+        <Text style={{ fontSize: 13, color: theme.textMuted }}>
+          Tap a day to view its session. Today is highlighted. You can
+          regenerate an individual day without changing the rest of the plan.
+        </Text>
+        {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
+          <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
+            Week saved — find it in History → Saved weeks
+          </Text>
+        ) : !userId ? (
+          <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
+            Sign in to save this week to History.
+          </Text>
+        ) : null}
+      </Card>
+
+      {error ? (
+        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+      ) : null}
+
+      <Card
+        title="Week overview"
+        style={{ marginTop: 16 }}
+        subtitle={isWeb ? "Reorder workouts in the mobile app." : "Days list Mon–Sun. Long-press a workout and drag it under a different day to move it there."}
+      >
+        {weekOverviewContent}
+      </Card>
+
+      <Card
+        title={
+          selectedDay?.date === todayIso
+            ? "Today's session"
+            : selectedDay
+              ? `Session for ${formatDayOfWeek(selectedDay.date)}`
+              : "Session"
+        }
+        subtitle={summaryLines.join(" • ")}
+        style={{ marginTop: 16 }}
+      >
+        {isLoadingWorkout && (
+          <Text style={{ fontSize: 13, color: theme.textMuted }}>
+            Loading workout…
+          </Text>
+        )}
+        {!isLoadingWorkout && !selectedWorkout && (
+          <Text style={{ fontSize: 13, color: theme.textMuted }}>
+            No workout generated for this day (rest / low-load day).
+          </Text>
+        )}
+        {!isLoadingWorkout &&
+          selectedWorkout &&
+          (() => {
+            const displayWorkout = normalizeGeneratedWorkout(selectedWorkout);
+            return displayWorkout.blocks.map((block, blockIdx) => (
+              <View key={`${block.block_type}-${blockIdx}`} style={styles.sectionBlock}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                  {block.title ?? block.block_type}
+                </Text>
+                {block.reasoning ? (
+                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
+                    {block.reasoning}
+                  </Text>
+                ) : null}
+                {block.items.map((item) => (
+                  <View key={item.exercise_id} style={styles.exerciseRow}>
+                    <Text style={[styles.exerciseName, { color: theme.text }]}>
+                      {item.exercise_name}
+                    </Text>
+                    <Text
+                      style={[styles.exercisePrescription, { color: theme.textMuted }]}
+                    >
+                      {formatPrescription(item)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ));
+          })()}
+
+        <View style={styles.footer}>
+          {selectedDay.status === "planned" ? (
+            <>
+              <PrimaryButton
+                label={isUpdatingStatus ? "Updating…" : "Mark completed"}
+                variant="secondary"
+                onPress={() => onUpdateDayStatus("completed")}
+                disabled={isUpdatingStatus}
+              />
+              <PrimaryButton
+                label="Skip"
+                variant="ghost"
+                onPress={() => onUpdateDayStatus("skipped")}
+                disabled={isUpdatingStatus}
+                style={{ marginTop: 8 }}
+              />
+            </>
+          ) : (
+            <PrimaryButton
+              label={isUpdatingStatus ? "Updating…" : "Mark as planned"}
+              variant="ghost"
+              onPress={() => onUpdateDayStatus("planned")}
+              disabled={isUpdatingStatus}
+            />
+          )}
+          <PrimaryButton
+            label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
+            variant="secondary"
+            onPress={onRegenerate}
+            disabled={
+              isRegenerating ||
+              (!selectedDay.generatedWorkoutId &&
+                !guestWorkoutsById[selectedDay.id])
+            }
+            style={{ marginTop: 8 }}
+          />
+          <PrimaryButton
+            label="Back to Setup"
+            variant="ghost"
+            onPress={() => router.replace("/adaptive")}
+            style={{ marginTop: 8 }}
+          />
+        </View>
+      </Card>
+    </>
+  );
+
+  if (isWeb) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {mainContent}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NestableScrollContainer contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Card
-            title="Your Week Plan"
-            subtitle={`Week starting ${sportPrepWeekPlan.weekStartDate}`}
-          >
-            <Text style={{ fontSize: 13, color: theme.textMuted }}>
-              Tap a day to view its session. Today is highlighted. You can
-              regenerate an individual day without changing the rest of the plan.
-            </Text>
-            {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
-              <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
-                Week saved — find it in History → Saved weeks
-              </Text>
-            ) : !userId ? (
-              <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
-                Sign in to save this week to History.
-              </Text>
-            ) : null}
-          </Card>
-
-          {error ? (
-            <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
-          ) : null}
-
-          <Card
-            title="Week overview"
-            style={{ marginTop: 16 }}
-            subtitle="Days list Mon–Sun. Long-press a workout and drag it under a different day to move it there."
-          >
-            <NestableDraggableFlatList
-              data={flatListItems}
-              keyExtractor={keyExtractor}
-              onDragEnd={onDragEnd}
-              renderItem={renderWeekItem}
-              activationDistance={10}
-              scrollEnabled={false}
-            />
-          </Card>
-
-          <Card
-            title={
-              selectedDay?.date === todayIso
-                ? "Today's session"
-                : selectedDay
-                  ? `Session for ${formatDayOfWeek(selectedDay.date)}`
-                  : "Session"
-            }
-            subtitle={summaryLines.join(" • ")}
-            style={{ marginTop: 16 }}
-          >
-            {isLoadingWorkout && (
-              <Text style={{ fontSize: 13, color: theme.textMuted }}>
-                Loading workout…
-              </Text>
-            )}
-            {!isLoadingWorkout && !selectedWorkout && (
-              <Text style={{ fontSize: 13, color: theme.textMuted }}>
-                No workout generated for this day (rest / low-load day).
-              </Text>
-            )}
-            {!isLoadingWorkout &&
-              selectedWorkout &&
-              (() => {
-                const displayWorkout = normalizeGeneratedWorkout(selectedWorkout);
-                return displayWorkout.blocks.map((block, blockIdx) => (
-                  <View key={`${block.block_type}-${blockIdx}`} style={styles.sectionBlock}>
-                    <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                      {block.title ?? block.block_type}
-                    </Text>
-                    {block.reasoning ? (
-                      <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
-                        {block.reasoning}
-                      </Text>
-                    ) : null}
-                    {block.items.map((item) => (
-                      <View key={item.exercise_id} style={styles.exerciseRow}>
-                        <Text style={[styles.exerciseName, { color: theme.text }]}>
-                          {item.exercise_name}
-                        </Text>
-                        <Text
-                          style={[styles.exercisePrescription, { color: theme.textMuted }]}
-                        >
-                          {formatPrescription(item)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                ));
-              })()}
-
-            <View style={styles.footer}>
-              {selectedDay.status === "planned" ? (
-                <>
-                  <PrimaryButton
-                    label={isUpdatingStatus ? "Updating…" : "Mark completed"}
-                    variant="secondary"
-                    onPress={() => onUpdateDayStatus("completed")}
-                    disabled={isUpdatingStatus}
-                  />
-                  <PrimaryButton
-                    label="Skip"
-                    variant="ghost"
-                    onPress={() => onUpdateDayStatus("skipped")}
-                    disabled={isUpdatingStatus}
-                    style={{ marginTop: 8 }}
-                  />
-                </>
-              ) : (
-                <PrimaryButton
-                  label={isUpdatingStatus ? "Updating…" : "Mark as planned"}
-                  variant="ghost"
-                  onPress={() => onUpdateDayStatus("planned")}
-                  disabled={isUpdatingStatus}
-                />
-              )}
-              <PrimaryButton
-                label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
-                variant="secondary"
-                onPress={onRegenerate}
-                disabled={
-                  isRegenerating ||
-                  (!selectedDay.generatedWorkoutId &&
-                    !guestWorkoutsById[selectedDay.id])
-                }
-                style={{ marginTop: 8 }}
-              />
-              <PrimaryButton
-                label="Back to Setup"
-                variant="ghost"
-                onPress={() => router.replace("/adaptive")}
-                style={{ marginTop: 8 }}
-              />
-            </View>
-          </Card>
+          {mainContent}
         </NestableScrollContainer>
       </GestureHandlerRootView>
     </View>

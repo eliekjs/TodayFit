@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
@@ -29,6 +30,8 @@ import {
   NestableDraggableFlatList,
   ScaleDecorator,
 } from "react-native-draggable-flatlist";
+
+const isWeb = Platform.OS === "web";
 
 function startOfWeekMonday(date: Date): Date {
   const d = new Date(date);
@@ -350,59 +353,111 @@ export default function ManualWeekScreen() {
     );
   }
 
+  const weekOverviewContent = isWeb ? (
+    <View>
+      {daySlots.map((slot) => (
+        <View key={slot.date}>
+          <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.dayHeaderText, { color: theme.text }]}>
+              {new Date(slot.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" })}
+            </Text>
+            {slot.date === todayIso && (
+              <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
+                Today
+              </Text>
+            )}
+          </View>
+          {slot.sessions.map((s) => {
+            const focus = s.workout.focus.join(" • ") || "General";
+            const dur = s.workout.durationMinutes != null ? `${s.workout.durationMinutes} min` : "—";
+            return (
+              <View key={`${s.date}-${s.workout.id}`} style={{ marginBottom: 6, marginLeft: 12 }}>
+                <View style={[styles.dayRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={[styles.dayLabel, { color: theme.text }]} numberOfLines={1}>{focus}</Text>
+                    <Text style={[styles.dayMeta, { color: theme.textMuted }]}>{dur}</Text>
+                    <PrimaryButton label="Start" onPress={() => onStartDay(s.date, s.workout)} style={styles.startBtn} />
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  ) : (
+    <NestableDraggableFlatList
+      data={flatListItems}
+      keyExtractor={keyExtractor}
+      onDragEnd={onDragEnd}
+      renderItem={renderWeekItem}
+      activationDistance={10}
+      scrollEnabled={false}
+    />
+  );
+
+  const scrollContent = (
+    <>
+      <Text style={[styles.title, { color: theme.text }]}>
+        Week of {new Date(plan.weekStartDate + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+      </Text>
+
+      <Card title="Training days" subtitle="Change which days get workouts, then tap Regenerate week to rebuild the plan." style={{ marginTop: 12 }}>
+        <View style={styles.chipGroup}>
+          {WEEKDAY_LABELS.map((label, dow) => (
+            <Chip
+              key={dow}
+              label={label}
+              selected={selectedTrainingDays.includes(dow)}
+              onPress={() => toggleTrainingDay(dow)}
+            />
+          ))}
+        </View>
+        <PrimaryButton
+          label={generating ? "Regenerating…" : "Regenerate week"}
+          variant="ghost"
+          onPress={generateWeek}
+          disabled={generating}
+          style={{ marginTop: 12 }}
+        />
+      </Card>
+
+      <Card
+        title="Week overview"
+        style={{ marginTop: 16 }}
+        subtitle={isWeb ? "Reorder workouts in the mobile app." : "Long-press a workout and drag it under a different day to move it."}
+      >
+        {weekOverviewContent}
+      </Card>
+
+      <PrimaryButton
+        label={saving ? "Saving…" : "Save week"}
+        onPress={onSaveWeek}
+        variant="secondary"
+        style={styles.saveWeekBtn}
+        disabled={saving}
+      />
+      {error ? (
+        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+      ) : null}
+    </>
+  );
+
+  if (isWeb) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {scrollContent}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NestableScrollContainer contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.title, { color: theme.text }]}>
-            Week of {new Date(plan.weekStartDate + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-          </Text>
-
-          <Card title="Training days" subtitle="Change which days get workouts, then tap Regenerate week to rebuild the plan." style={{ marginTop: 12 }}>
-            <View style={styles.chipGroup}>
-              {WEEKDAY_LABELS.map((label, dow) => (
-                <Chip
-                  key={dow}
-                  label={label}
-                  selected={selectedTrainingDays.includes(dow)}
-                  onPress={() => toggleTrainingDay(dow)}
-                />
-              ))}
-            </View>
-            <PrimaryButton
-              label={generating ? "Regenerating…" : "Regenerate week"}
-              variant="ghost"
-              onPress={generateWeek}
-              disabled={generating}
-              style={{ marginTop: 12 }}
-            />
-          </Card>
-
-          <Card
-            title="Week overview"
-            style={{ marginTop: 16 }}
-            subtitle="Long-press a workout and drag it under a different day to move it."
-          >
-            <NestableDraggableFlatList
-              data={flatListItems}
-              keyExtractor={keyExtractor}
-              onDragEnd={onDragEnd}
-              renderItem={renderWeekItem}
-              activationDistance={10}
-              scrollEnabled={false}
-            />
-          </Card>
-
-          <PrimaryButton
-            label={saving ? "Saving…" : "Save week"}
-            onPress={onSaveWeek}
-            variant="secondary"
-            style={styles.saveWeekBtn}
-            disabled={saving}
-          />
-          {error ? (
-            <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
-          ) : null}
+          {scrollContent}
         </NestableScrollContainer>
       </GestureHandlerRootView>
     </View>
