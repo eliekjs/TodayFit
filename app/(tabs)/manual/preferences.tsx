@@ -11,7 +11,7 @@ import {
   Platform,
   UIManager,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   useAppState,
   defaultManualPreferences,
@@ -84,6 +84,7 @@ export default function ManualPreferencesScreen() {
   const [savePresetName, setSavePresetName] = useState("");
   const [expandedSubGoalsForGoal, setExpandedSubGoalsForGoal] = useState<string | null>(null);
   const router = useRouter();
+  const { scope } = useLocalSearchParams<{ scope?: string }>();
   const theme = useTheme();
 
   const activeProfile =
@@ -203,6 +204,10 @@ export default function ManualPreferencesScreen() {
     };
 
   const onGenerate = async () => {
+    if (scope === "week") {
+      router.push("/manual/week");
+      return;
+    }
     const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
     let preferredNames: string[] | undefined;
     if (isDbConfigured() && manualPreferences.primaryFocus.length > 0) {

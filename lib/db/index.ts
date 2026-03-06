@@ -53,3 +53,6 @@ export {
 
 export { listGoals, upsertGoals } from "./goalsRepository";
 export type { UserGoal } from "./goalsRepository";
+
+export { saveManualWeek, listWeeklyPlanInstances, getWeeklyPlanWithWorkouts } from "./weekPlanRepository";
+export type { SavedWeekSummary, WeeklyPlanWithWorkouts } from "./weekPlanRepository";

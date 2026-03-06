@@ -10,7 +10,7 @@ import {
   Platform,
   UIManager,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { SectionHeader } from "../../../components/SectionHeader";
@@ -79,6 +79,7 @@ const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { scope } = useLocalSearchParams<{ scope?: string }>();
   const {
     activeGymProfileId,
     gymProfiles,
@@ -257,7 +258,7 @@ export default function AdaptiveModeScreen() {
           rankedSportSlugs[0] && !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
             ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
             : undefined,
-        gymDaysPerWeek,
+        gymDaysPerWeek: scope === "day" ? 1 : gymDaysPerWeek,
         sportDaysAllocation: allocation,
         rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
         sportFocusPct: selectedSportSlugs.length === 2 ? sportFocusPct : undefined,

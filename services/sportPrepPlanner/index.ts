@@ -204,7 +204,11 @@ function sessionIntentForKey(
   }
 }
 
-/** Session intent for a sport-specific training day (complements gym days). */
+/** Triathlon disciplines: one day each for run / swim / bike. */
+const TRIATHLON_DISCIPLINES = ["running", "swimming", "biking"] as const;
+type TriathlonDiscipline = (typeof TRIATHLON_DISCIPLINES)[number];
+
+/** Session intent for a sport-specific training day (complements gym days). Label is shown as-is (no "sport-specific" suffix). */
 function sessionIntentForSport(
   sportSlug: string,
   sportLabel: string,
@@ -214,7 +218,7 @@ function sessionIntentForSport(
 ): SessionIntent {
   return {
     id: `session_${date}_sport_${sportSlug}`,
-    label: `${sportLabel} (sport-specific)`,
+    label: sportLabel,
     focus: ["Improve Endurance", "Sport Conditioning"],
     durationMinutes,
     energyLevel: energy,
@@ -222,9 +226,11 @@ function sessionIntentForSport(
   };
 }
 
-type DaySlot = { type: "gym"; key: IntentKey } | { type: "sport"; sportSlug: string };
+type DaySlot =
+  | { type: "gym"; key: IntentKey }
+  | { type: "sport"; sportSlug: string; discipline?: TriathlonDiscipline };
 
-/** Build ordered list of day slots: gym days first, then per-sport days (ranked order), capped at 7. */
+/** Build ordered list of day slots: gym days first, then per-sport days (ranked order), capped at 7. Triathlon gets 3 slots: running, swimming, biking. */
 function buildDaySlots(
   gymDaysPerWeek: number,
   sportDaysAllocation: SportDaysAllocation | undefined,
@@ -239,11 +245,25 @@ function buildDaySlots(
   }
   for (const slug of rankedSportSlugs) {
     const count = sportDaysAllocation?.[slug] ?? 0;
+    if (slug === "triathlon") {
+      for (const d of TRIATHLON_DISCIPLINES) {
+        if (slots.length >= 7) break;
+        slots.push({ type: "sport", sportSlug: slug, discipline: d });
+      }
+      continue;
+    }
     for (let i = 0; i < count && slots.length < 7; i++) {
       slots.push({ type: "sport", sportSlug: slug });
     }
   }
   return slots;
+}
+
+function sportSlotLabel(slot: { type: "sport"; sportSlug: string; discipline?: TriathlonDiscipline }): string {
+  if (slot.sportSlug === "triathlon" && slot.discipline) {
+    return slot.discipline.charAt(0).toUpperCase() + slot.discipline.slice(1);
+  }
+  return humanizeSportSlug(slot.sportSlug);
 }
 
 async function computeCombinedDemand(
@@ -408,7 +428,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     if (slot.type === "sport") {
       const intent = sessionIntentForSport(
         slot.sportSlug,
-        humanizeSportSlug(slot.sportSlug),
+        sportSlotLabel(slot),
         date,
         input.defaultSessionDuration,
         input.energyBaseline

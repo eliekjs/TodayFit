@@ -57,13 +57,7 @@ export default function HomeScreen() {
           Reduce decision fatigue with intelligent training decisions
         </Text>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            { backgroundColor: pastels.buildBg, opacity: pressed ? 0.9 : 1 },
-          ]}
-          onPress={() => router.push("/manual/preferences")}
-        >
+        <View style={[styles.actionCard, { backgroundColor: pastels.buildBg }]}>
           <View style={styles.actionCardIcon}>
             <Ionicons
               name="barbell-outline"
@@ -74,15 +68,33 @@ export default function HomeScreen() {
           <Text style={[styles.actionCardTitle, { color: pastels.buildText }]}>
             Build My Workout
           </Text>
-        </Pressable>
+          <View style={styles.subButtons}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.subButton,
+                { backgroundColor: pastels.buildText, opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={() => router.push("/manual/preferences")}
+            >
+              <Text style={[styles.subButtonText, { color: pastels.buildBg }]}>
+                One day
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.subButton,
+                { backgroundColor: pastels.buildText, opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={() => router.push("/manual/preferences?scope=week")}
+            >
+              <Text style={[styles.subButtonText, { color: pastels.buildBg }]}>
+                This week
+              </Text>
+            </Pressable>
+          </View>
+        </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.actionCard,
-            { backgroundColor: pastels.helpBg, opacity: pressed ? 0.9 : 1 },
-          ]}
-          onPress={() => router.push("/adaptive")}
-        >
+        <View style={[styles.actionCard, { backgroundColor: pastels.helpBg }]}>
           <View style={styles.actionCardIcon}>
             <Ionicons
               name="sparkles-outline"
@@ -98,7 +110,31 @@ export default function HomeScreen() {
           >
             Uses your goals, recovery, and upcoming sessions.
           </Text>
-        </Pressable>
+          <View style={styles.subButtons}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.subButton,
+                { backgroundColor: pastels.helpText, opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={() => router.push("/adaptive?scope=day")}
+            >
+              <Text style={[styles.subButtonText, { color: pastels.helpBg }]}>
+                One day
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.subButton,
+                { backgroundColor: pastels.helpText, opacity: pressed ? 0.85 : 1 },
+              ]}
+              onPress={() => router.push("/adaptive")}
+            >
+              <Text style={[styles.subButtonText, { color: pastels.helpBg }]}>
+                This week
+              </Text>
+            </Pressable>
+          </View>
+        </View>
 
         <View style={[styles.goalSummary, { backgroundColor: theme.card }]}>
           <View style={styles.goalRow}>
@@ -161,6 +197,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     opacity: 0.9,
+  },
+  subButtons: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+    justifyContent: "center",
+  },
+  subButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  subButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
   goalSummary: {
     borderRadius: 12,

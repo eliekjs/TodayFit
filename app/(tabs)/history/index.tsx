@@ -1,14 +1,19 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
+import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
+import { listWeeklyPlanInstances } from "../../../lib/db/weekPlanRepository";
+import type { SavedWeekSummary } from "../../../lib/db/weekPlanRepository";
+import { isDbConfigured } from "../../../lib/db";
 
 export default function HistoryScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { userId } = useAuth();
   const {
     workoutHistory,
     savedWorkouts,
@@ -16,6 +21,18 @@ export default function HistoryScreen() {
     setResumeProgress,
     removeSavedWorkout,
   } = useAppState();
+  const [savedWeeks, setSavedWeeks] = useState<SavedWeekSummary[]>([]);
+
+  useEffect(() => {
+    if (!userId || !isDbConfigured()) return;
+    let cancelled = false;
+    listWeeklyPlanInstances(userId)
+      .then((list) => {
+        if (!cancelled) setSavedWeeks(list);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId]);
 
   const getCompletedItemLabel = (item: (typeof items)[0], index: number) =>
     item.name?.trim() || getDisplayLabel(item, index);
@@ -98,6 +115,36 @@ export default function HistoryScreen() {
                     />
                   </View>
                 </View>
+              );
+            })}
+          </View>
+        )}
+
+        {savedWeeks.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              Saved weeks
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
+              Load a saved week plan to view or continue.
+            </Text>
+            {savedWeeks.map((week) => {
+              const weekStart = new Date(week.week_start_date + "T12:00:00");
+              const label = `Week of ${weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+              const isManual = (week.goals_snapshot?.source as string) === "manual";
+              return (
+                <Pressable
+                  key={week.id}
+                  style={[styles.savedCard, { borderColor: theme.border }]}
+                  onPress={() => router.push(`/history/weeks/${week.id}`)}
+                >
+                  <Text style={[styles.savedTitle, { color: theme.text }]}>
+                    {label}
+                  </Text>
+                  <Text style={[styles.savedMeta, { color: theme.textMuted }]}>
+                    {isManual ? "Manual" : "Adaptive"}
+                  </Text>
+                </Pressable>
               );
             })}
           </View>

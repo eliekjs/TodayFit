@@ -120,6 +120,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="manual/week"
+        options={{
+          href: null,
+          title: "This week's workouts",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
         name="adaptive/index"
         options={{
           href: null,
@@ -148,6 +156,14 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "Completed Workout",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
+        name="history/weeks/[id]"
+        options={{
+          href: null,
+          title: "Saved week",
           headerLeft: () => <HeaderBackButton />,
         }}
       />

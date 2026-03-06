@@ -164,6 +164,12 @@ export type GeneratedWorkout = {
   blocks: WorkoutBlock[];
 };
 
+/** In-memory manual week: 7 generated workouts keyed by date. */
+export type ManualWeekPlan = {
+  weekStartDate: string;
+  days: { date: string; workout: GeneratedWorkout }[];
+};
+
 /** One-line prescription string for display (e.g. "3 x 10 reps", "20–40 min"). */
 export function formatPrescription(item: WorkoutItem): string {
   if (item.time_seconds != null && item.time_seconds > 0) {

@@ -7,6 +7,7 @@ import type {
   SavedWorkout,
   ExecutionProgress,
   PreferencePreset,
+  ManualWeekPlan,
 } from "../lib/types";
 import { useAuth } from "./AuthContext";
 import { isDbConfigured } from "../lib/db";
@@ -41,6 +42,8 @@ type AppStateContextValue = {
   resumeProgress: ExecutionProgress | null;
   /** Sports Prep (adaptive) weekly plan; kept separate from manual mode state. */
   sportPrepWeekPlan: PlanWeekResult | null;
+  /** Manual flow: generated week of 7 workouts (before save). */
+  manualWeekPlan: ManualWeekPlan | null;
   setActiveGymProfile: (id: string) => void;
   addGymProfile: (profile: Omit<GymProfile, "id" | "isActive">) => void;
   updateGymProfile: (id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => void;
@@ -58,6 +61,7 @@ type AppStateContextValue = {
   removeSavedWorkout: (id: string) => void;
   removeSavedWorkoutByWorkoutId: (workoutId: string) => void;
   setSportPrepWeekPlan: (plan: PlanWeekResult | null) => void;
+  setManualWeekPlan: (plan: ManualWeekPlan | null) => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(
@@ -81,6 +85,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [resumeProgress, setResumeProgress] = useState<ExecutionProgress | null>(null);
   const [preferencePresets, setPreferencePresets] = useState<PreferencePreset[]>([]);
   const [sportPrepWeekPlan, setSportPrepWeekPlan] = useState<PlanWeekResult | null>(null);
+  const [manualWeekPlan, setManualWeekPlan] = useState<ManualWeekPlan | null>(null);
 
   // Load from Supabase when user is available and DB configured
   useEffect(() => {
@@ -264,6 +269,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       savedWorkouts,
       resumeProgress,
       sportPrepWeekPlan,
+      manualWeekPlan,
       setActiveGymProfile,
       addGymProfile,
       updateGymProfile,
@@ -284,6 +290,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       removeSavedWorkout,
       removeSavedWorkoutByWorkoutId,
       setSportPrepWeekPlan,
+      setManualWeekPlan,
     }),
     [
       activeGymProfileId,
@@ -295,6 +302,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       savedWorkouts,
       resumeProgress,
       sportPrepWeekPlan,
+      manualWeekPlan,
       setActiveGymProfile,
       addGymProfile,
       updateGymProfile,

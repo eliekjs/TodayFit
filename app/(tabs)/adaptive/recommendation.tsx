@@ -334,7 +334,8 @@ export default function AdaptiveWeekPlanScreen() {
       }
       const day = item.day;
       const isSelected = selectedDay?.id === day.id;
-      const label = day.intentLabel ?? "Rest / low-load day";
+      const rawLabel = day.intentLabel ?? "Rest / low-load day";
+      const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
       const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
       return (
         <ScaleDecorator>
@@ -399,6 +400,15 @@ export default function AdaptiveWeekPlanScreen() {
               Tap a day to view its session. Today is highlighted. You can
               regenerate an individual day without changing the rest of the plan.
             </Text>
+            {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
+              <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
+                Week saved — find it in History → Saved weeks
+              </Text>
+            ) : !userId ? (
+              <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
+                Sign in to save this week to History.
+              </Text>
+            ) : null}
           </Card>
 
           {error ? (
@@ -416,6 +426,7 @@ export default function AdaptiveWeekPlanScreen() {
               onDragEnd={onDragEnd}
               renderItem={renderWeekItem}
               activationDistance={10}
+              scrollEnabled={false}
             />
           </Card>
 
@@ -548,6 +559,11 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     marginTop: 4,
+  },
+  savedWeekBadge: {
+    fontSize: 13,
+    marginTop: 12,
+    fontStyle: "italic",
   },
   dayHeaderRow: {
     flexDirection: "row",
