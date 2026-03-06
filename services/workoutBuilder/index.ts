@@ -23,6 +23,10 @@ export type SportGoalOptions = {
   goalWeightsPct?: number[];
   /** Sub-focus slugs for primary sport (from SPORTS_WITH_SUB_FOCUSES). Biases exercise selection via tag mapping. */
   sportSubFocusSlugs?: string[];
+  /** Recent load (e.g. "Long Run", "Heavy Lower") so generation can avoid exercises that add strain before/after. */
+  recentLoad?: string;
+  /** Injury/constraint labels (e.g. "Knee", "Lower Back") so generation excludes contraindicated exercises. */
+  injuries?: string[];
 };
 
 /**
@@ -43,8 +47,8 @@ export async function buildWorkoutForSessionIntent(
     targetModifier: [],
     durationMinutes: intent.durationMinutes,
     energyLevel: intent.energyLevel,
-    injuries: [],
-    upcoming: [],
+    injuries: options?.injuries ?? [],
+    upcoming: options?.recentLoad ? [options.recentLoad] : [],
     subFocusByGoal: {},
     workoutStyle: [],
   };

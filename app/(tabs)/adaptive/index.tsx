@@ -265,6 +265,7 @@ export default function AdaptiveModeScreen() {
         defaultSessionDuration: defaultDuration,
         preferredTrainingDays: undefined,
         energyBaseline,
+        recentLoad,
         injuries:
           injuryStatus === "No Concerns"
             ? []

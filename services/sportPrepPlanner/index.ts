@@ -31,6 +31,8 @@ export type PlanWeekInput = {
   preferredTrainingDays?: number[]; // 0 (Sun) - 6 (Sat) relative to weekStartDate
   defaultSessionDuration: number;
   energyBaseline: EnergyLevel;
+  /** Recent load (e.g. "Long Run", "Heavy Lower") so each workout avoids exercises that add strain. */
+  recentLoad?: string;
   injuries?: string[];
   sportSessions?: { date: string; goalSlug: string; sessionType?: string }[];
   gymProfile?: GymProfile;
@@ -77,6 +79,10 @@ export type RegenerateDayInput = {
   intentLabel?: string | null;
   /** Match % for 1st / 2nd / 3rd goal. */
   goalWeightsPct?: number[];
+  /** Recent load so regeneration avoids exercises that add strain (e.g. "Long Run", "Heavy Lower"). */
+  recentLoad?: string;
+  /** Injury/constraint labels (normalized or display) so generation excludes contraindicated exercises. */
+  injuries?: string[];
 };
 
 export type RegenerateDayResult = {
@@ -445,6 +451,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
             slot.sportSlug === (input.sportSlug ?? undefined)
               ? input.sportSubFocusSlugs
               : undefined,
+          recentLoad: input.recentLoad,
+          injuries: input.injuries,
         }
       );
       return { intent, workout };
@@ -464,6 +472,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         goalSlugs,
         goalWeightsPct,
         sportSubFocusSlugs: input.sportSubFocusSlugs,
+        recentLoad: input.recentLoad,
+        injuries: input.injuries,
       }
     );
     return { intent, workout };
@@ -742,6 +752,8 @@ export async function regenerateDay(
         goalSlugs: input.goalSlugs ?? [],
         goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
         sportSubFocusSlugs: input.sportSubFocusSlugs,
+        recentLoad: input.recentLoad,
+        injuries: input.injuries,
       }
     );
     const day: PlannedDay = {
@@ -786,6 +798,8 @@ export async function regenerateDay(
       goalSlugs: input.goalSlugs ?? [],
       goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
       sportSubFocusSlugs: input.sportSubFocusSlugs,
+      recentLoad: input.recentLoad,
+      injuries: input.injuries,
     }
   );
   const workoutId = await saveGeneratedWorkout(input.userId, workout);

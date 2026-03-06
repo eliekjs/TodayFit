@@ -1,4 +1,8 @@
 import { EXERCISES } from "../data/exercises";
+import {
+  getAvoidTagSlugsFromUpcoming,
+  exerciseHasAnyAvoidTag,
+} from "./filterTagRules";
 import { deriveBodyPartFocus, deriveBodyPartFocusFromSubFocus, deriveSubFocus } from "./preferencesConstants";
 import type {
   BlockFormat,
@@ -163,6 +167,16 @@ function filterByBodyPartFocus(
   });
 }
 
+/** Exclude exercises that add strain before/after upcoming events (e.g. Long Run → avoid heavy leg tags). */
+function filterByUpcoming(
+  exercises: ExerciseDefinition[],
+  upcoming: string[]
+): ExerciseDefinition[] {
+  const avoidTags = getAvoidTagSlugsFromUpcoming(upcoming);
+  if (!avoidTags.length) return exercises;
+  return exercises.filter((e) => !exerciseHasAnyAvoidTag(e.tags, avoidTags));
+}
+
 function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
   const id = focus.toLowerCase();
   if (id.includes("strength") || id.includes("power")) return ["strength", "power"];
@@ -214,12 +228,15 @@ export function generateWorkout(
   const counts = pickCountByDuration(preferences.durationMinutes);
 
   const exercises = exercisesInput ?? EXERCISES;
-  const eligible = filterByBodyPartFocus(
-    filterByInjuries(
-      filterByGymProfile(exercises, gymProfile),
-      injuryFilter
+  const eligible = filterByUpcoming(
+    filterByBodyPartFocus(
+      filterByInjuries(
+        filterByGymProfile(exercises, gymProfile),
+        injuryFilter
+      ),
+      bodyPartFocus
     ),
-    bodyPartFocus
+    preferences.upcoming
   );
 
   // Warm-up: bodyweight or bands only — activation, mobility, getting the body moving (no weights)
@@ -347,12 +364,15 @@ export function generateWorkout(
   );
 
   const isBodyRecomp = preferences.primaryFocus.includes("Body Recomposition");
-  // When body recomp, allow cardio even if target is Upper/Lower (e.g. running); use gym+injury filter only for conditioning pool
+  // When body recomp, allow cardio even if target is Upper/Lower (e.g. running); use gym+injury+upcoming for conditioning pool
   const conditioningPool = isBodyRecomp
-    ? filterByInjuries(
-        filterByGymProfile(exercises, gymProfile),
-        injuryFilter
-      ).filter((e) => e.modalities.includes("conditioning"))
+    ? filterByUpcoming(
+        filterByInjuries(
+          filterByGymProfile(exercises, gymProfile),
+          injuryFilter
+        ).filter((e) => e.modalities.includes("conditioning")),
+        preferences.upcoming
+      )
     : eligible.filter((e) => e.modalities.includes("conditioning"));
   const cardioBlock: WorkoutBlock | null =
     isBodyRecomp && conditioningPool.length > 0
