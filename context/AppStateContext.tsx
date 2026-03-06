@@ -16,6 +16,19 @@ import * as PreferencesRepo from "../lib/db/preferencesRepository";
 import * as WorkoutRepo from "../lib/db/workoutRepository";
 import type { PlanWeekResult } from "../services/sportPrepPlanner";
 
+/** Adaptive mode: first-page choices passed to the schedule (second) page. */
+export type AdaptiveSetup = {
+  rankedGoals: (string | null)[];
+  horizon: string;
+  fatigue: string;
+  recentLoad: string;
+  injuryStatus: string;
+  injuryTypes: string[];
+  rankedSportSlugs: (string | null)[];
+  subFocusBySport: Record<string, string[]>;
+  sportFocusPct: [number, number];
+};
+
 export const defaultManualPreferences: ManualPreferences = {
   primaryFocus: [],
   targetBody: null,
@@ -45,6 +58,8 @@ type AppStateContextValue = {
   sportPrepWeekPlan: PlanWeekResult | null;
   /** Manual flow: generated week of 7 workouts (before save). */
   manualWeekPlan: ManualWeekPlan | null;
+  /** Adaptive mode: goals/sports/etc. from first page; used on schedule page to generate plan. */
+  adaptiveSetup: AdaptiveSetup | null;
   setActiveGymProfile: (id: string) => void;
   addGymProfile: (profile: Omit<GymProfile, "id" | "isActive">) => void;
   updateGymProfile: (id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => void;
@@ -63,6 +78,7 @@ type AppStateContextValue = {
   removeSavedWorkoutByWorkoutId: (workoutId: string) => void;
   setSportPrepWeekPlan: (plan: PlanWeekResult | null) => void;
   setManualWeekPlan: (plan: ManualWeekPlan | null) => void;
+  setAdaptiveSetup: (setup: AdaptiveSetup | null) => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(
@@ -87,6 +103,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [preferencePresets, setPreferencePresets] = useState<PreferencePreset[]>([]);
   const [sportPrepWeekPlan, setSportPrepWeekPlan] = useState<PlanWeekResult | null>(null);
   const [manualWeekPlan, setManualWeekPlan] = useState<ManualWeekPlan | null>(null);
+  const [adaptiveSetup, setAdaptiveSetup] = useState<AdaptiveSetup | null>(null);
 
   // Load from Supabase when user is available and DB configured
   useEffect(() => {
@@ -271,6 +288,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       resumeProgress,
       sportPrepWeekPlan,
       manualWeekPlan,
+      adaptiveSetup,
       setActiveGymProfile,
       addGymProfile,
       updateGymProfile,
@@ -292,6 +310,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       removeSavedWorkoutByWorkoutId,
       setSportPrepWeekPlan,
       setManualWeekPlan,
+      setAdaptiveSetup,
     }),
     [
       activeGymProfileId,
@@ -304,6 +323,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       resumeProgress,
       sportPrepWeekPlan,
       manualWeekPlan,
+      adaptiveSetup,
       setActiveGymProfile,
       addGymProfile,
       updateGymProfile,

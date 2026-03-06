@@ -191,54 +191,14 @@ export default function ManualWeekScreen() {
     [manualWeekPlan, setManualWeekPlan, weekDates]
   );
 
-  const onStartDay = (date: string, workout: ManualWeekPlan["days"][0]["workout"]) => {
-    setGeneratedWorkout(workout);
-    setResumeProgress(null);
-    router.push("/manual/execute");
-  };
-
-  const onSaveWeek = async () => {
-    const weekPlan = manualWeekPlan;
-    if (!weekPlan || !userId || !isDbConfigured()) {
-      if (!userId || !isDbConfigured()) {
-        setError("Sign in and enable sync to save weeks.");
-      }
-      return;
-    }
-    setError(null);
-    setSaving(true);
-    try {
-      await saveManualWeek(userId, weekPlan.weekStartDate, weekPlan.days);
-      setManualWeekPlan(null);
-      router.back();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (generating && !manualWeekPlan) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textMuted }]}>
-          Generating this week's workouts…
-        </Text>
-      </View>
-    );
-  }
-
-  if (error && !manualWeekPlan) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
-        <PrimaryButton label="Retry" onPress={generateWeek} />
-      </View>
-    );
-  }
-
-  const plan = manualWeekPlan;
+  const onStartDay = useCallback(
+    (date: string, workout: ManualWeekPlan["days"][0]["workout"]) => {
+      setGeneratedWorkout(workout);
+      setResumeProgress(null);
+      router.push("/manual/execute");
+    },
+    [setGeneratedWorkout, setResumeProgress, router]
+  );
 
   const renderWeekItem = useCallback(
     ({
@@ -310,6 +270,49 @@ export default function ManualWeekScreen() {
     if (item.type === "day-header") return `header-${item.date}`;
     return `session-${item.date}-${item.workout.id}`;
   }, []);
+
+  const onSaveWeek = async () => {
+    const weekPlan = manualWeekPlan;
+    if (!weekPlan || !userId || !isDbConfigured()) {
+      if (!userId || !isDbConfigured()) {
+        setError("Sign in and enable sync to save weeks.");
+      }
+      return;
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      await saveManualWeek(userId, weekPlan.weekStartDate, weekPlan.days);
+      setManualWeekPlan(null);
+      router.back();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (generating && !manualWeekPlan) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textMuted }]}>
+          Generating this week's workouts…
+        </Text>
+      </View>
+    );
+  }
+
+  if (error && !manualWeekPlan) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+        <PrimaryButton label="Retry" onPress={generateWeek} />
+      </View>
+    );
+  }
+
+  const plan = manualWeekPlan;
 
   if (!plan || plan.days.length === 0) {
     return (

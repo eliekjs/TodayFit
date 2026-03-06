@@ -136,6 +136,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="adaptive/schedule"
+        options={{
+          href: null,
+          title: "Set your schedule",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
         name="adaptive/recommendation"
         options={{
           href: null,

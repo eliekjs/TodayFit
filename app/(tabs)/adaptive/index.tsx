@@ -10,18 +10,17 @@ import {
   Platform,
   UIManager,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
+import type { AdaptiveSetup } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
-import { planWeek } from "../../../services/sportPrepPlanner";
-import type { EnergyLevel } from "../../../lib/types";
-import { DURATIONS, CONSTRAINT_OPTIONS, normalizeGoalMatchPct } from "../../../lib/preferencesConstants";
+import { CONSTRAINT_OPTIONS, normalizeGoalMatchPct } from "../../../lib/preferencesConstants";
 import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
@@ -79,15 +78,11 @@ const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { scope } = useLocalSearchParams<{ scope?: string }>();
   const {
-    activeGymProfileId,
-    gymProfiles,
     manualPreferences,
     updateManualPreferences,
-    setSportPrepWeekPlan,
+    setAdaptiveSetup,
   } = useAppState();
-  const { userId } = useAuth();
 
   const [rankedGoals, setRankedGoals] = useState<(string | null)[]>([
     null,
@@ -103,13 +98,8 @@ export default function AdaptiveModeScreen() {
   const [injuryTypes, setInjuryTypes] = useState<string[]>([]);
   const [fatigue, setFatigue] =
     useState<(typeof FATIGUE_OPTIONS)[number]>("Moderate");
-  const [gymDaysPerWeek, setGymDaysPerWeek] = useState<number>(3);
-  /** Per-sport days per week (sportSlug -> days). Only used when sports are selected; enables gym vs sport-specific split. */
-  const [sportDaysAllocation, setSportDaysAllocation] = useState<Record<string, number>>({});
   /** Sport focus % when 2 sports: [1st sport %, 2nd sport %], sum = 100. Default 60/40. */
   const [sportFocusPct, setSportFocusPct] = useState<[number, number]>([60, 40]);
-  const [defaultDuration, setDefaultDuration] = useState<number>(45);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sports, setSports] = useState<Sport[]>([]);
   const [sportsError, setSportsError] = useState<string | null>(null);
@@ -170,11 +160,6 @@ export default function AdaptiveModeScreen() {
     if (idx >= 0) next[idx] = slug;
     setRankedSportSlugs(next);
     if (current.length === 1) setShowAddSecondSport(false);
-    // Default: 2 days if first sport, 1 day if second sport
-    setSportDaysAllocation((prev) => ({
-      ...prev,
-      [slug]: current.length === 0 ? 2 : 1,
-    }));
     if (current.length === 1) setSportFocusPct([60, 40]);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
@@ -186,11 +171,6 @@ export default function AdaptiveModeScreen() {
       return [filled[0] ?? null, filled[1] ?? null];
     });
     setSubFocusBySport((prev) => {
-      const next = { ...prev };
-      delete next[slug];
-      return next;
-    });
-    setSportDaysAllocation((prev) => {
       const next = { ...prev };
       delete next[slug];
       return next;
@@ -217,83 +197,25 @@ export default function AdaptiveModeScreen() {
     }
   };
 
-  const energyFromFatigue = (level: (typeof FATIGUE_OPTIONS)[number]): EnergyLevel => {
-    if (level === "Fresh") return "high";
-    if (level === "Fatigued") return "low";
-    return "medium";
-  };
-
-  /** Farther from event = allow higher intensity; closer = cap so user stays fresh. */
-  const energyFromFatigueAndHorizon = (
-    level: (typeof FATIGUE_OPTIONS)[number],
-    timeHorizon: string
-  ): EnergyLevel => {
-    const base = energyFromFatigue(level);
-    if (timeHorizon === "in_season") return "low";
-    if (timeHorizon === "1_3_weeks" && base === "high") return "medium";
-    return base;
-  };
-
-  const onPlanWeek = async () => {
+  const onNextToSchedule = () => {
     setError(null);
     if (!isDbConfigured()) {
       setError("Configure Supabase (env vars) to use Adaptive Mode.");
       return;
     }
-
-    const primary = rankedGoals[0] ?? "strength";
-    const secondary = rankedGoals[1] ?? null;
-    const tertiary = rankedGoals[2] ?? null;
-
-    const energyBaseline = energyFromFatigueAndHorizon(fatigue, horizon);
-    const activeProfile =
-      gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
-
-    setIsSubmitting(true);
-    try {
-      const allocation =
-        selectedSportSlugs.length > 0
-          ? { ...sportDaysAllocation }
-          : undefined;
-      const plan = await planWeek({
-        userId: userId ?? undefined,
-        primaryGoalSlug: primary,
-        secondaryGoalSlug: secondary,
-        tertiaryGoalSlug: tertiary,
-        sportSlug: rankedSportSlugs[0] ?? null,
-        sportSubFocusSlugs:
-          rankedSportSlugs[0] && SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
-            ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
-            : undefined,
-        sportQualitySlugs:
-          rankedSportSlugs[0] && !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
-            ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
-            : undefined,
-        gymDaysPerWeek: scope === "day" ? 1 : gymDaysPerWeek,
-        sportDaysAllocation: allocation,
-        rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
-        sportFocusPct: selectedSportSlugs.length === 2 ? sportFocusPct : undefined,
-        defaultSessionDuration: defaultDuration,
-        preferredTrainingDays: undefined,
-        energyBaseline,
-        recentLoad,
-        injuries:
-          injuryStatus === "No Concerns"
-            ? []
-            : injuryTypes.map((label) => label.toLowerCase().replace(/\s/g, "_")),
-        sportSessions: [],
-        gymProfile: activeProfile,
-        goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-        goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-        goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-      });
-      setSportPrepWeekPlan(plan);
-      router.push("/adaptive/recommendation");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setIsSubmitting(false);
-    }
+    const setup: AdaptiveSetup = {
+      rankedGoals: [...rankedGoals],
+      horizon,
+      fatigue,
+      recentLoad,
+      injuryStatus,
+      injuryTypes: [...injuryTypes],
+      rankedSportSlugs: [...rankedSportSlugs],
+      subFocusBySport: { ...subFocusBySport },
+      sportFocusPct: [...sportFocusPct],
+    };
+    setAdaptiveSetup(setup);
+    router.push("/adaptive/schedule");
   };
 
   const canonicalCategoryOrder = [
@@ -420,7 +342,6 @@ export default function AdaptiveModeScreen() {
               <View style={styles.rankedSportRow}>
                 {selectedSportSlugs.map((slug, idx) => {
                   const sport = sports.find((s) => (s.slug ?? "").toLowerCase() === (slug ?? "").toLowerCase()) ?? sports.find((s) => s.slug === slug);
-                  const days = sportDaysAllocation[slug] ?? 0;
                   const displayName = sport?.name ?? slug;
                   return (
                     <View key={`${slug}-${idx}`} style={styles.rankedChipWrap}>
@@ -455,7 +376,7 @@ export default function AdaptiveModeScreen() {
                           {displayName}
                         </Text>
                         <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                          {days} {days === 1 ? "day" : "days"}/wk
+                          Set days on next step
                         </Text>
                       </View>
                       <Pressable
@@ -912,71 +833,6 @@ export default function AdaptiveModeScreen() {
               </>
             )}
 
-            {selectedSportSlugs.length > 0 && (
-              <>
-                <SectionHeader
-                  title="Sport days"
-                  subtitle="Days per week for each sport. Gym days and session duration are below."
-                  style={{ marginTop: 20 }}
-                />
-                {selectedSportSlugs.map((slug) => {
-                  const sport = sports.find((s) => s.slug === slug);
-                  const days = sportDaysAllocation[slug] ?? 0;
-                  return (
-                    <View key={slug} style={{ marginBottom: 16 }}>
-                      <Text style={{ fontSize: 13, marginBottom: 6, color: theme.textMuted }}>
-                        {sport?.name ?? slug}
-                      </Text>
-                      <View style={styles.chipGroup}>
-                        {[0, 1, 2, 3, 4, 5, 6].map((d) => (
-                          <Chip
-                            key={d}
-                            label={`${d}`}
-                            selected={days === d}
-                            onPress={() =>
-                              setSportDaysAllocation((prev) => ({ ...prev, [slug]: d }))
-                            }
-                          />
-                        ))}
-                      </View>
-                    </View>
-                  );
-                })}
-              </>
-            )}
-
-            <SectionHeader
-              title="Week setup"
-              subtitle={selectedSportSlugs.length > 0 ? "Gym days and session duration." : "How many gym days and typical duration."}
-              style={{ marginTop: 20 }}
-            />
-            <Text style={{ fontSize: 13, marginBottom: 6, color: theme.textMuted }}>
-              Gym days per week
-            </Text>
-            <View style={styles.chipGroup}>
-              {[2, 3, 4, 5].map((d) => (
-                <Chip
-                  key={d}
-                  label={`${d} days`}
-                  selected={gymDaysPerWeek === d}
-                  onPress={() => setGymDaysPerWeek(d)}
-                />
-              ))}
-            </View>
-            <Text style={{ fontSize: 13, marginTop: 16, marginBottom: 6, color: theme.textMuted }}>
-              Default session duration
-            </Text>
-            <View style={styles.chipGroup}>
-              {DURATIONS.map((minutes) => (
-                <Chip
-                  key={minutes}
-                  label={`${minutes} min`}
-                  selected={defaultDuration === minutes}
-                  onPress={() => setDefaultDuration(minutes)}
-                />
-              ))}
-            </View>
-
             <SectionHeader
               title="Recent load"
               subtitle="Past 3–5 days."
@@ -1073,9 +929,9 @@ export default function AdaptiveModeScreen() {
 
         <View style={styles.footer}>
           <PrimaryButton
-            label={isSubmitting ? "Planning your week..." : "Generate Week Plan"}
-            onPress={onPlanWeek}
-            disabled={isSubmitting}
+            label="Next: Set your schedule"
+            onPress={onNextToSchedule}
+            disabled={!isDbConfigured()}
           />
         </View>
       </ScrollView>
