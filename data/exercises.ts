@@ -9,8 +9,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["dumbbells"],
     contraindications: ["knee"],
     tags: ["quad-focused", "posterior chain"],
-    regressions: [],
-    progressions: ["split_squat", "leg_press_machine"],
+    regressions: ["leg_press_machine"],
+    progressions: ["split_squat"],
   },
   {
     id: "rdl_dumbbell",
@@ -163,7 +163,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     contraindications: ["shoulder"],
     tags: ["shoulder stability", "posture"],
     regressions: [],
-    progressions: [],
+    progressions: ["face_pull"],
   },
   {
     id: "face_pull",
@@ -173,7 +173,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["cable_machine"],
     contraindications: ["shoulder"],
     tags: ["shoulder stability"],
-    regressions: [],
+    regressions: ["band_pullapart"],
     progressions: [],
   },
   {
@@ -206,7 +206,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["bodyweight"],
     tags: ["spine mobility"],
     regressions: [],
-    progressions: [],
+    progressions: ["t_spine_rotation"],
   },
   {
     id: "t_spine_rotation",
@@ -215,7 +215,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     modalities: ["mobility"],
     equipment: ["bodyweight"],
     tags: ["thoracic mobility", "shoulder-friendly"],
-    regressions: [],
+    regressions: ["cat_camel"],
     progressions: [],
   },
   {
@@ -270,7 +270,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["leg_press"],
     contraindications: ["knee", "lower_back"],
     tags: ["quad-focused", "knee-friendly"],
-    regressions: ["goblet_squat"],
-    progressions: [],
+    regressions: [],
+    progressions: ["goblet_squat"],
   },
 ];

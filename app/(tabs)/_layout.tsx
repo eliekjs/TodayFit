@@ -34,12 +34,12 @@ function HeaderGymProfileButton() {
       <Text style={{ fontSize: 14, color: theme.text, maxWidth: 120 }} numberOfLines={1}>
         {label}
       </Text>
-      <Text style={{ fontSize: 12, color: theme.textMuted }}>▾</Text>
+      <Ionicons name="chevron-down" size={14} color={theme.textMuted} />
     </Pressable>
   );
 }
 
-/** Clears in-progress workout/week state and navigates to Home. Use on flow screens (preferences, week, execute, adaptive). */
+/** Clears in-progress workout/week state and navigates to Generator. Use on flow screens (preferences, week, execute, adaptive). */
 function RestartFlowButton() {
   const theme = useTheme();
   const router = useRouter();
@@ -102,15 +102,15 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
-      {/* ── Visible tabs: Home | Library | Settings ── */}
+      {/* ── Visible tabs: Generator | Library | History | Settings ── */}
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
-          tabBarLabel: "Home",
+          title: "Generator",
+          tabBarLabel: "Generator",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "home" : "home-outline"}
+              name={focused ? "sparkles" : "sparkles-outline"}
               size={TAB_ICON_SIZE}
               color={color}
             />
@@ -134,6 +134,20 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="history"
+        options={{
+          title: "Workout History",
+          tabBarLabel: "History",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "time" : "time-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profiles"
         options={{
           title: "Settings",
@@ -145,13 +159,6 @@ export default function TabsLayout() {
               color={color}
             />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          href: null,
-          title: "Workout History",
         }}
       />
       <Tabs.Screen

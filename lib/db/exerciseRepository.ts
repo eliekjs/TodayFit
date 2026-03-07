@@ -70,9 +70,10 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
 
   const exerciseIds = rows.map((r: { id: string }) => r.id);
 
-  const [tagsRes, contraRes] = await Promise.all([
+  const [tagsRes, contraRes, progRes] = await Promise.all([
     supabase.from("exercise_tag_map").select("exercise_id, tag_id").in("exercise_id", exerciseIds),
     supabase.from("exercise_contraindications").select("exercise_id, contraindication").in("exercise_id", exerciseIds),
+    supabase.from("exercise_progressions").select("exercise_id, related_exercise_id, relationship").in("exercise_id", exerciseIds),
   ]);
 
   const tagIds = [...new Set((tagsRes.data ?? []).map((r: { tag_id: string }) => r.tag_id))];
@@ -98,6 +99,31 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
     const list = contraByExerciseId.get(eid) ?? [];
     list.push(c);
     contraByExerciseId.set(eid, list);
+  }
+
+  const relatedIds = [...new Set((progRes.data ?? []).map((r: { related_exercise_id: string }) => r.related_exercise_id))];
+  const relatedSlugById = new Map<string, string>();
+  if (relatedIds.length > 0) {
+    const { data: relatedRows } = await supabase.from("exercises").select("id, slug").in("id", relatedIds);
+    for (const e of relatedRows ?? []) {
+      relatedSlugById.set((e as { id: string }).id, (e as { slug: string }).slug);
+    }
+  }
+  const progressionsByExerciseId = new Map<string, string[]>();
+  const regressionsByExerciseId = new Map<string, string[]>();
+  for (const r of progRes.data ?? []) {
+    const eid = (r as { exercise_id: string }).exercise_id;
+    const slug = relatedSlugById.get((r as { related_exercise_id: string }).related_exercise_id);
+    if (!slug) continue;
+    if ((r as { relationship: string }).relationship === "progression") {
+      const list = progressionsByExerciseId.get(eid) ?? [];
+      list.push(slug);
+      progressionsByExerciseId.set(eid, list);
+    } else {
+      const list = regressionsByExerciseId.get(eid) ?? [];
+      list.push(slug);
+      regressionsByExerciseId.set(eid, list);
+    }
   }
 
   const result: ExerciseDefinition[] = [];
@@ -126,6 +152,8 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
       equipment: row.equipment as ExerciseDefinition["equipment"],
       tags: tagsByExerciseId.get(row.id) ?? [],
       contraindications: (contraByExerciseId.get(row.id) ?? []) as ExerciseDefinition["contraindications"],
+      progressions: progressionsByExerciseId.get(row.id) ?? [],
+      regressions: regressionsByExerciseId.get(row.id) ?? [],
     });
   }
   return result;
@@ -212,6 +240,8 @@ export async function getExercise(idOrSlug: string): Promise<ExerciseDefinition 
     : [];
   const contra = (contraRes.data ?? []).map((r: { contraindication: string }) => r.contraindication);
 
+  const { progressions: progList, regressions: regList } = await getProgressionsRegressions(row.id);
+
   return {
     id: row.slug,
     name: row.name,
@@ -220,6 +250,8 @@ export async function getExercise(idOrSlug: string): Promise<ExerciseDefinition 
     equipment: row.equipment as ExerciseDefinition["equipment"],
     tags: tagSlugs,
     contraindications: contra as ExerciseDefinition["contraindications"],
+    progressions: progList.map((p) => p.id),
+    regressions: regList.map((r) => r.id),
   };
 }
 
