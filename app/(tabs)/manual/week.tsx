@@ -159,10 +159,10 @@ export default function ManualWeekScreen() {
       setSelectedSession(first);
       return;
     }
-    const stillInPlan = manualWeekPlan.days.some(
-      (d) => d.date === selectedSession.date && d.workout.id === selectedSession.workout.id
-    );
-    if (!stillInPlan) setSelectedSession(first);
+    // After reorder: keep selection on same workout (update date if it moved). Only reset to first if workout left the plan (match adaptive mode).
+    const found = manualWeekPlan.days.find((d) => d.workout.id === selectedSession.workout.id);
+    if (found && found.date !== selectedSession.date) setSelectedSession(found);
+    else if (!found) setSelectedSession(first);
   }, [manualWeekPlan, selectedSession]);
 
   /** Week dates Mon–Sun in order. */
