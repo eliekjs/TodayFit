@@ -446,6 +446,7 @@ export default function ManualWeekScreen() {
       renderItem={renderWeekItem}
       activationDistance={10}
       scrollEnabled={false}
+      autoscrollSpeed={0}
     />
   );
 

@@ -468,6 +468,7 @@ export default function AdaptiveWeekPlanScreen() {
       renderItem={renderWeekItem}
       activationDistance={10}
       scrollEnabled={false}
+      autoscrollSpeed={0}
     />
   );
 
