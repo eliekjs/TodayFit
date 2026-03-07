@@ -91,6 +91,8 @@ export default function ManualWeekScreen() {
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
   /** True while user is dragging; disables outer scroll so page doesn't scroll on long-press (scroll only when pulling item toward edge). */
   const [isDragging, setIsDragging] = useState(false);
+  /** True while user is touching the week list area; disables outer scroll immediately so long-press drag doesn't get stolen by scroll. */
+  const [listAreaTouched, setListAreaTouched] = useState(false);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -446,16 +448,23 @@ export default function ManualWeekScreen() {
       ))}
     </View>
   ) : (
-    <NestableDraggableFlatList
-      data={flatListItems}
-      keyExtractor={keyExtractor}
-      onDragBegin={onDragBegin}
-      onDragEnd={onDragEnd}
-      renderItem={renderWeekItem}
-      activationDistance={10}
-      scrollEnabled={false}
-      autoscrollSpeed={0}
-    />
+    <View
+      onTouchStart={() => setListAreaTouched(true)}
+      onTouchEnd={() => setTimeout(() => setListAreaTouched(false), 80)}
+      onTouchCancel={() => setListAreaTouched(false)}
+      style={{ minHeight: 1 }}
+    >
+      <NestableDraggableFlatList
+        data={flatListItems}
+        keyExtractor={keyExtractor}
+        onDragBegin={onDragBegin}
+        onDragEnd={onDragEnd}
+        renderItem={renderWeekItem}
+        activationDistance={10}
+        scrollEnabled={false}
+        autoscrollSpeed={0}
+      />
+    </View>
   );
 
   const selectedDay = selectedSession;
@@ -600,7 +609,7 @@ export default function ManualWeekScreen() {
         <NestableScrollContainer
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={!isDragging}
+          scrollEnabled={!listAreaTouched}
         >
           {scrollContent}
         </NestableScrollContainer>
