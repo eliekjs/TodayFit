@@ -340,14 +340,17 @@ export default function ManualWeekScreen() {
     []
   );
 
+  const prevListAreaActiveRef = React.useRef(listAreaActive);
   /** Restore scroll position when re-enabling scroll after list interaction (prevents jump). */
   useEffect(() => {
-    if (!listAreaActive && scrollContainerRef.current) {
+    const wasActive = prevListAreaActiveRef.current;
+    prevListAreaActiveRef.current = listAreaActive;
+    if (wasActive && !listAreaActive && scrollContainerRef.current) {
       const y = lastScrollYRef.current;
       const scrollTo = (scrollContainerRef.current as any).scrollTo;
       if (typeof scrollTo === "function") {
         requestAnimationFrame(() => {
-          scrollTo?.({ y, animated: false });
+          scrollTo({ y, animated: false });
         });
       }
     }
@@ -639,6 +642,10 @@ export default function ManualWeekScreen() {
           ref={scrollContainerRef}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={!listAreaActive}
+          onScrollOffsetChange={(y) => {
+            lastScrollYRef.current = y;
+          }}
         >
           {scrollContent}
         </NestableScrollContainer>
