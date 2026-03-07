@@ -90,8 +90,11 @@ export default function ManualWeekScreen() {
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  /** Ref to the outer scroll container so we can imperatively toggle scroll without causing re-renders (and avoiding scroll-position jumps). */
+  /** When true, outer scroll is disabled (touch is or was in list area). Prevents scroll from stealing long-press/drag. */
+  const [listAreaActive, setListAreaActive] = useState(false);
+  const listContainerRef = React.useRef<View>(null);
   const scrollContainerRef = React.useRef<any>(null);
+  const lastScrollYRef = React.useRef(0);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -205,13 +208,11 @@ export default function ManualWeekScreen() {
 
   const onDragBegin = useCallback(() => {
     setIsDragging(true);
-    scrollContainerRef.current?.setNativeProps({ scrollEnabled: false });
   }, []);
 
   const onDragEnd = useCallback(
     ({ data }: { data: WeekListItem[] }) => {
       setIsDragging(false);
-      scrollContainerRef.current?.setNativeProps({ scrollEnabled: true });
       if (!manualWeekPlan || weekDates.length === 0) return;
       let currentDate = weekDates[0];
       const newDays: ManualWeekPlan["days"] = [];
@@ -293,10 +294,7 @@ export default function ManualWeekScreen() {
             ]}
           >
             <Pressable
-              onLongPress={() => {
-                scrollContainerRef.current?.setNativeProps({ scrollEnabled: false });
-                drag();
-              }}
+              onLongPress={drag}
               delayLongPress={300}
               style={({ pressed }) => ({
                 paddingVertical: 12,
@@ -320,13 +318,40 @@ export default function ManualWeekScreen() {
         </ScaleDecorator>
       );
     },
-    [theme, todayIso, selectedSession, onSelectSession, scrollContainerRef]
+    [theme, todayIso, selectedSession, onSelectSession]
   );
 
   const keyExtractor = useCallback((item: WeekListItem) => {
     if (item.type === "day-header") return `header-${item.date}`;
     return `session-${item.workout.id}`;
   }, []);
+
+  /** Disable outer scroll when touch is in list area; re-enable when touch is outside (avoids scroll stealing long-press). */
+  const handleScrollContentTouchStart = useCallback(
+    (e: { nativeEvent: { touches: { pageX: number; pageY: number }[] } }) => {
+      const touch = e.nativeEvent.touches[0];
+      if (!touch || !listContainerRef.current) return;
+      listContainerRef.current.measureInWindow((x, y, w, h) => {
+        const px = touch.pageX;
+        const py = touch.pageY;
+        setListAreaActive(px >= x && px <= x + w && py >= y && py <= y + h);
+      });
+    },
+    []
+  );
+
+  /** Restore scroll position when re-enabling scroll after list interaction (prevents jump). */
+  useEffect(() => {
+    if (!listAreaActive && scrollContainerRef.current) {
+      const y = lastScrollYRef.current;
+      const scrollTo = (scrollContainerRef.current as any).scrollTo;
+      if (typeof scrollTo === "function") {
+        requestAnimationFrame(() => {
+          scrollTo?.({ y, animated: false });
+        });
+      }
+    }
+  }, [listAreaActive]);
 
   const onSaveWeek = async () => {
     const weekPlan = manualWeekPlan;
@@ -452,7 +477,12 @@ export default function ManualWeekScreen() {
       ))}
     </View>
   ) : (
-    <View style={{ minHeight: 1 }}>
+    <View
+      ref={listContainerRef}
+      style={{ minHeight: 1 }}
+      onTouchStart={() => setListAreaActive(true)}
+      collapsable={false}
+    >
       <NestableDraggableFlatList
         data={flatListItems}
         keyExtractor={keyExtractor}
@@ -480,7 +510,7 @@ export default function ManualWeekScreen() {
   }
 
   const scrollContent = (
-    <>
+    <View onTouchStart={handleScrollContentTouchStart}>
       <Card
         title="Your Week Plan"
         subtitle={`Week of ${parseLocalDate(plan.weekStartDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
@@ -589,7 +619,7 @@ export default function ManualWeekScreen() {
         style={styles.saveWeekBtn}
         disabled={saving}
       />
-    </>
+    </View>
   );
 
   if (isWeb) {
