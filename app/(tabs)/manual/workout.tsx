@@ -49,7 +49,7 @@ export default function ManualWorkoutScreen() {
             <PrimaryButton
               label="Resume a saved workout"
               variant="secondary"
-              onPress={() => router.push("/saved")}
+              onPress={() => router.push("/library")}
               style={{ marginTop: 12 }}
             />
           )}

@@ -9,6 +9,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["dumbbells"],
     contraindications: ["knee"],
     tags: ["quad-focused", "posterior chain"],
+    regressions: [],
+    progressions: ["split_squat", "leg_press_machine"],
   },
   {
     id: "rdl_dumbbell",
@@ -18,6 +20,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["dumbbells"],
     contraindications: ["lower_back"],
     tags: ["hamstrings", "posterior chain"],
+    regressions: [],
+    progressions: ["kb_swing", "hip_thrust"],
   },
   {
     id: "split_squat",
@@ -27,6 +31,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["bench", "dumbbells"],
     contraindications: ["knee"],
     tags: ["single-leg", "balance"],
+    regressions: ["goblet_squat", "walking_lunge"],
+    progressions: [],
   },
   {
     id: "bench_press_barbell",
@@ -36,6 +42,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["barbell", "bench", "squat_rack"],
     contraindications: ["shoulder", "wrist"],
     tags: ["chest", "triceps"],
+    regressions: ["db_bench"],
+    progressions: [],
   },
   {
     id: "db_bench",
@@ -45,6 +53,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["dumbbells", "bench"],
     contraindications: ["shoulder", "wrist"],
     tags: ["chest", "triceps", "shoulder-friendly"],
+    regressions: [],
+    progressions: ["bench_press_barbell"],
   },
   {
     id: "oh_press",
@@ -54,6 +64,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["barbell"],
     contraindications: ["shoulder", "lower_back"],
     tags: ["shoulders", "core stability"],
+    regressions: ["db_bench"],
+    progressions: [],
   },
   {
     id: "pullup",
@@ -63,6 +75,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["pullup_bar"],
     contraindications: ["shoulder", "elbow"],
     tags: ["lats", "upper back"],
+    regressions: ["lat_pulldown"],
+    progressions: [],
   },
   {
     id: "lat_pulldown",
@@ -72,6 +86,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["cable_machine"],
     contraindications: ["shoulder"],
     tags: ["lat-focused"],
+    regressions: [],
+    progressions: ["pullup"],
   },
   {
     id: "db_row",
@@ -81,6 +97,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["dumbbells", "bench"],
     contraindications: ["lower_back"],
     tags: ["upper back", "anti-rotation"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "plank",
@@ -90,6 +108,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["bodyweight"],
     contraindications: ["shoulder"],
     tags: ["core stability"],
+    regressions: ["dead_bug"],
+    progressions: [],
   },
   {
     id: "dead_bug",
@@ -98,6 +118,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     modalities: ["strength", "mobility"],
     equipment: ["bodyweight"],
     tags: ["spine-friendly", "core stability"],
+    regressions: [],
+    progressions: ["plank"],
   },
   {
     id: "hip_thrust",
@@ -107,6 +129,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["barbell", "bench"],
     contraindications: ["lower_back"],
     tags: ["glutes", "posterior chain"],
+    regressions: ["rdl_dumbbell"],
+    progressions: [],
   },
   {
     id: "kb_swing",
@@ -116,6 +140,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["kettlebells"],
     contraindications: ["lower_back"],
     tags: ["hip hinge", "power"],
+    regressions: ["rdl_dumbbell"],
+    progressions: [],
   },
   {
     id: "farmer_carry",
@@ -125,6 +151,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["dumbbells", "kettlebells"],
     contraindications: ["wrist"],
     tags: ["grip strength", "core stability"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "band_pullapart",
@@ -134,6 +162,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["bands"],
     contraindications: ["shoulder"],
     tags: ["shoulder stability", "posture"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "face_pull",
@@ -143,6 +173,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["cable_machine"],
     contraindications: ["shoulder"],
     tags: ["shoulder stability"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "walking_lunge",
@@ -152,6 +184,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["bodyweight", "dumbbells"],
     contraindications: ["knee"],
     tags: ["single-leg", "uphill conditioning"],
+    regressions: ["stepup"],
+    progressions: ["split_squat"],
   },
   {
     id: "stepup",
@@ -161,6 +195,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["bench"],
     contraindications: ["knee"],
     tags: ["knee-friendly", "uphill conditioning"],
+    regressions: [],
+    progressions: ["walking_lunge"],
   },
   {
     id: "cat_camel",
@@ -169,6 +205,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     modalities: ["mobility"],
     equipment: ["bodyweight"],
     tags: ["spine mobility"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "t_spine_rotation",
@@ -177,6 +215,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     modalities: ["mobility"],
     equipment: ["bodyweight"],
     tags: ["thoracic mobility", "shoulder-friendly"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "zone2_bike",
@@ -186,6 +226,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["assault_bike"],
     contraindications: ["knee"],
     tags: ["endurance", "low impact", "zone2"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "zone2_treadmill",
@@ -195,6 +237,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["treadmill"],
     contraindications: ["knee"],
     tags: ["endurance", "low impact", "zone2"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "zone2_rower",
@@ -204,6 +248,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["rower"],
     contraindications: ["lower_back"],
     tags: ["endurance", "low impact", "zone2"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "zone2_stair_climber",
@@ -213,6 +259,8 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["stair_climber"],
     contraindications: ["knee"],
     tags: ["endurance", "low impact", "zone2"],
+    regressions: [],
+    progressions: [],
   },
   {
     id: "leg_press_machine",
@@ -222,5 +270,7 @@ export const EXERCISES: ExerciseDefinition[] = [
     equipment: ["leg_press"],
     contraindications: ["knee", "lower_back"],
     tags: ["quad-focused", "knee-friendly"],
+    regressions: ["goblet_squat"],
+    progressions: [],
   },
 ];

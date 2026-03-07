@@ -98,6 +98,10 @@ export type ExerciseDefinition = {
   contraindications?: ContraindicationKey[];
   equipment: EquipmentKey[];
   tags: string[];
+  /** Exercise ids (slugs) of harder variants. */
+  progressions?: string[];
+  /** Exercise ids (slugs) of easier variants. */
+  regressions?: string[];
 };
 
 /** @deprecated Legacy: use WorkoutItem in blocks. */

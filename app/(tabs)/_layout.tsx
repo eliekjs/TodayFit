@@ -1,9 +1,12 @@
 import React from "react";
-import { Pressable, Text } from "react-native";
+import { Platform, Pressable, Text } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../lib/theme";
 import { useAppState } from "../../context/AppStateContext";
+
+const TAB_ICON_SIZE = 24;
 
 function HeaderBackButton() {
   const router = useRouter();
@@ -66,6 +69,9 @@ function RestartFlowButton() {
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { savedWorkouts } = useAppState();
+  const libraryBadgeCount = savedWorkouts.length;
 
   return (
     <Tabs
@@ -75,50 +81,84 @@ export default function TabsLayout() {
         tabBarStyle: {
           borderTopColor: theme.border,
           backgroundColor: theme.card,
+          height: 56 + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: 8,
+          ...(Platform.OS === "android" && { elevation: 8 }),
+          ...(Platform.OS === "ios" && {
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 4,
+          }),
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "500",
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
         },
         headerTitleAlign: "center",
       }}
     >
-      {/* ── Visible tabs: Home | Workout History | Saved Workouts | Profile ── */}
+      {/* ── Visible tabs: Home | Library | Settings ── */}
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
           tabBarLabel: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
           headerRight: () => <HeaderGymProfileButton />,
         }}
       />
       <Tabs.Screen
-        name="history"
+        name="library"
         options={{
-          title: "Workout History",
-          tabBarLabel: "History",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
+          title: "Library",
+          tabBarLabel: "Library",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "library" : "library-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="saved"
-        options={{
-          title: "Saved Workouts",
-          tabBarLabel: "Saved",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bookmark-outline" size={size} color={color} />
-          ),
+          tabBarBadge: libraryBadgeCount > 0 ? libraryBadgeCount : undefined,
         }}
       />
       <Tabs.Screen
         name="profiles"
         options={{
-          title: "Profile",
-          tabBarLabel: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+          title: "Settings",
+          tabBarLabel: "Settings",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "settings" : "settings-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          href: null,
+          title: "Workout History",
+        }}
+      />
+      <Tabs.Screen
+        name="saved"
+        options={{
+          href: null,
+          title: "Saved Workouts",
         }}
       />
       <Tabs.Screen

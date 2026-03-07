@@ -484,7 +484,7 @@ export default function AdaptiveWeekPlanScreen() {
         </Text>
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
           <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
-            Week saved — find it in Saved Workouts
+            Week saved — find it in Library
           </Text>
         ) : !userId ? (
           <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>

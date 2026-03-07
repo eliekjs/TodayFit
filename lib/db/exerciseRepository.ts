@@ -131,6 +131,65 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
   return result;
 }
 
+/** Result shape for progression/regression lookup (id = slug for consistency with app). */
+export type ProgressionsRegressionsResult = {
+  progressions: { id: string; name: string }[];
+  regressions: { id: string; name: string }[];
+};
+
+/**
+ * Get progressions (harder) and regressions (easier) for an exercise by id (uuid) or slug.
+ * Returns empty arrays if exercise not found or has none.
+ */
+export async function getProgressionsRegressions(
+  idOrSlug: string
+): Promise<ProgressionsRegressionsResult> {
+  const supabase = requireClient();
+  const isUuid = /^[0-9a-f-]{36}$/i.test(idOrSlug);
+  const exerciseQuery = isUuid
+    ? supabase.from("exercises").select("id").eq("id", idOrSlug)
+    : supabase.from("exercises").select("id").eq("slug", idOrSlug);
+  const { data: exerciseRow, error: exError } = await exerciseQuery.single();
+  if (exError || !exerciseRow) {
+    return { progressions: [], regressions: [] };
+  }
+  const exerciseId = exerciseRow.id;
+
+  const { data: rows, error } = await supabase
+    .from("exercise_progressions")
+    .select("relationship, related_exercise_id")
+    .eq("exercise_id", exerciseId);
+
+  if (error || !rows?.length) {
+    return { progressions: [], regressions: [] };
+  }
+
+  const relatedIds = [...new Set((rows as { related_exercise_id: string }[]).map((r) => r.related_exercise_id))];
+  const { data: exerciseRows, error: exError2 } = await supabase
+    .from("exercises")
+    .select("id, slug, name")
+    .in("id", relatedIds);
+  if (exError2 || !exerciseRows?.length) {
+    return { progressions: [], regressions: [] };
+  }
+  const byId = new Map(
+    (exerciseRows as { id: string; slug: string; name: string }[]).map((e) => [e.id, { id: e.slug, name: e.name }])
+  );
+
+  const progressions: { id: string; name: string }[] = [];
+  const regressions: { id: string; name: string }[] = [];
+  for (const r of rows as { relationship: string; related_exercise_id: string }[]) {
+    const item = byId.get(r.related_exercise_id);
+    if (!item) continue;
+    if (r.relationship === "progression") {
+      progressions.push(item);
+    } else {
+      regressions.push(item);
+    }
+  }
+  return { progressions, regressions };
+}
+
 /**
  * Get a single exercise by id (uuid) or slug. Returns null if not found.
  */
