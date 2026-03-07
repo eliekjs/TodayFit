@@ -91,8 +91,9 @@ export default function ManualWeekScreen() {
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
   /** True while user is dragging; disables outer scroll so page doesn't scroll on long-press (scroll only when pulling item toward edge). */
   const [isDragging, setIsDragging] = useState(false);
-  /** True while user is touching the week list area; disables outer scroll immediately so long-press drag doesn't get stolen by scroll. */
+  /** True when user last touched the week list area; disables outer scroll so long-press drag and taps don't trigger scroll. Cleared when user touches outside the list. */
   const [listAreaTouched, setListAreaTouched] = useState(false);
+  const listContainerRef = React.useRef<View>(null);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -324,6 +325,20 @@ export default function ManualWeekScreen() {
     return `session-${item.workout.id}`;
   }, []);
 
+  /** Hit-test: disable outer scroll only when touch is inside the list area, so we don't toggle scrollEnabled on every list tap (which was causing page to scroll up). */
+  const handleScrollContentTouchStart = useCallback(
+    (e: { nativeEvent: { touches: { pageX: number; pageY: number }[] } }) => {
+      const touch = e.nativeEvent.touches[0];
+      if (!touch || !listContainerRef.current) return;
+      listContainerRef.current.measureInWindow((x, y, w, h) => {
+        const px = touch.pageX;
+        const py = touch.pageY;
+        setListAreaTouched(px >= x && px <= x + w && py >= y && py <= y + h);
+      });
+    },
+    []
+  );
+
   const onSaveWeek = async () => {
     const weekPlan = manualWeekPlan;
     if (!weekPlan || !userId || !isDbConfigured()) {
@@ -448,12 +463,7 @@ export default function ManualWeekScreen() {
       ))}
     </View>
   ) : (
-    <View
-      onTouchStart={() => setListAreaTouched(true)}
-      onTouchEnd={() => setTimeout(() => setListAreaTouched(false), 80)}
-      onTouchCancel={() => setListAreaTouched(false)}
-      style={{ minHeight: 1 }}
-    >
+    <View ref={listContainerRef} style={{ minHeight: 1 }} collapsable={false}>
       <NestableDraggableFlatList
         data={flatListItems}
         keyExtractor={keyExtractor}
@@ -481,7 +491,7 @@ export default function ManualWeekScreen() {
   }
 
   const scrollContent = (
-    <>
+    <View onTouchStart={handleScrollContentTouchStart}>
       <Card
         title="Your Week Plan"
         subtitle={`Week of ${parseLocalDate(plan.weekStartDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
@@ -590,7 +600,7 @@ export default function ManualWeekScreen() {
         style={styles.saveWeekBtn}
         disabled={saving}
       />
-    </>
+    </View>
   );
 
   if (isWeb) {
