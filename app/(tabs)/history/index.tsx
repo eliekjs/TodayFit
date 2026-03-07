@@ -1,47 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import React from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
-import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
-import { listWeeklyPlanInstances } from "../../../lib/db/weekPlanRepository";
-import type { SavedWeekSummary } from "../../../lib/db/weekPlanRepository";
-import { isDbConfigured } from "../../../lib/db";
 
-export default function HistoryScreen() {
+export default function WorkoutHistoryScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { userId } = useAuth();
-  const {
-    workoutHistory,
-    savedWorkouts,
-    setGeneratedWorkout,
-    setResumeProgress,
-    removeSavedWorkout,
-  } = useAppState();
-  const [savedWeeks, setSavedWeeks] = useState<SavedWeekSummary[]>([]);
-
-  useEffect(() => {
-    if (!userId || !isDbConfigured()) return;
-    let cancelled = false;
-    listWeeklyPlanInstances(userId)
-      .then((list) => {
-        if (!cancelled) setSavedWeeks(list);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [userId]);
-
-  const getCompletedItemLabel = (item: (typeof items)[0], index: number) =>
-    item.name?.trim() || getDisplayLabel(item, index);
+  const { workoutHistory, setGeneratedWorkout, setResumeProgress } = useAppState();
 
   const items = [...workoutHistory].sort((a, b) =>
     a.date.localeCompare(b.date)
   );
 
-  // Build display labels; append " (1)", " (2)" when multiple share same date + focus
   const getItemKey = (item: (typeof items)[0]) =>
     `${new Date(item.date).toLocaleDateString()} • ${item.focus.join(" • ") || "General training"}`;
   const keyToIndices = items.reduce<Record<string, number[]>>((acc, item, i) => {
@@ -57,12 +30,8 @@ export default function HistoryScreen() {
     const which = indices.indexOf(index) + 1;
     return `${key} (${which})`;
   };
-
-  const onResumeSaved = (saved: typeof savedWorkouts[0]) => {
-    setGeneratedWorkout(saved.workout);
-    setResumeProgress(saved.progress ?? null);
-    router.push("/manual/execute");
-  };
+  const getCompletedItemLabel = (item: (typeof items)[0], index: number) =>
+    item.name?.trim() || getDisplayLabel(item, index);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -70,86 +39,6 @@ export default function HistoryScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {savedWorkouts.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Saved for later
-            </Text>
-            <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-              Resume or discard workouts you didn't finish.
-            </Text>
-            {savedWorkouts.map((saved) => {
-              const date = new Date(saved.savedAt);
-              const label = `${date.toLocaleDateString()} • ${
-                saved.workout.focus.join(" • ") || "General"
-              }`;
-              return (
-                <View
-                  key={saved.id}
-                  style={[styles.savedCard, { borderColor: theme.border }]}
-                >
-                  <Text
-                    style={[styles.savedTitle, { color: theme.text }]}
-                    numberOfLines={2}
-                  >
-                    {label}
-                  </Text>
-                  <Text
-                    style={[styles.savedMeta, { color: theme.textMuted }]}
-                  >
-                    {saved.workout.durationMinutes != null
-                      ? `${saved.workout.durationMinutes} min`
-                      : "—"}
-                  </Text>
-                  <View style={styles.savedActions}>
-                    <PrimaryButton
-                      label="Resume"
-                      onPress={() => onResumeSaved(saved)}
-                      style={{ flex: 1 }}
-                    />
-                    <PrimaryButton
-                      label="Discard"
-                      variant="ghost"
-                      onPress={() => removeSavedWorkout(saved.id)}
-                      style={styles.discardBtn}
-                    />
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        {savedWeeks.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Saved weeks
-            </Text>
-            <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-              Load a saved week plan to view or continue.
-            </Text>
-            {savedWeeks.map((week) => {
-              const weekStart = new Date(week.week_start_date + "T12:00:00");
-              const label = `Week of ${weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
-              const isManual = (week.goals_snapshot?.source as string) === "manual";
-              return (
-                <Pressable
-                  key={week.id}
-                  style={[styles.savedCard, { borderColor: theme.border }]}
-                  onPress={() => router.push(`/history/weeks/${week.id}`)}
-                >
-                  <Text style={[styles.savedTitle, { color: theme.text }]}>
-                    {label}
-                  </Text>
-                  <Text style={[styles.savedMeta, { color: theme.textMuted }]}>
-                    {isManual ? "Manual" : "Adaptive"}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Completed
@@ -157,7 +46,7 @@ export default function HistoryScreen() {
           {items.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={[styles.emptyTitle, { color: theme.text }]}>
-                No workouts saved yet
+                No completed workouts yet
               </Text>
               <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
                 Once you finish a session, it will appear here with a quick
@@ -235,33 +124,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  savedCard: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  savedTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  savedMeta: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  savedActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    gap: 8,
-  },
-  discardBtn: {
-    minWidth: 80,
   },
   emptyState: {
     alignItems: "center",

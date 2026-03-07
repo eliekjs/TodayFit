@@ -136,7 +136,7 @@ export default function ExecuteScreen() {
     });
     setGeneratedWorkout(null);
     setResumeProgress(null);
-    router.replace("/history");
+    router.replace("/saved");
   };
 
   if (generatedWorkout == null) {

@@ -79,17 +79,7 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
-      {/* ── Visible tabs: Profile | Home | History | Workout ── */}
-      <Tabs.Screen
-        name="profiles"
-        options={{
-          title: "Profile",
-          tabBarLabel: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
+      {/* ── Visible tabs: Home | Workout History | Saved Workouts | Profile ── */}
       <Tabs.Screen
         name="index"
         options={{
@@ -104,21 +94,38 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: "History",
+          title: "Workout History",
           tabBarLabel: "History",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
+            <Ionicons name="list-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="saved"
+        options={{
+          title: "Saved Workouts",
+          tabBarLabel: "Saved",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bookmark-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profiles"
+        options={{
+          title: "Profile",
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="workout"
         options={{
+          href: null,
           title: "Current Workout",
-          tabBarLabel: "Workout",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="barbell-outline" size={size} color={color} />
-          ),
         }}
       />
 
