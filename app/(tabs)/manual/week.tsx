@@ -89,11 +89,9 @@ export default function ManualWeekScreen() {
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
-  /** True while user is dragging; disables outer scroll so page doesn't scroll on long-press (scroll only when pulling item toward edge). */
   const [isDragging, setIsDragging] = useState(false);
-  /** True when user last touched the week list area; disables outer scroll so long-press drag and taps don't trigger scroll. Cleared when user touches outside the list. */
-  const [listAreaTouched, setListAreaTouched] = useState(false);
-  const listContainerRef = React.useRef<View>(null);
+  /** Ref to the outer scroll container so we can imperatively toggle scroll without causing re-renders (and avoiding scroll-position jumps). */
+  const scrollContainerRef = React.useRef<any>(null);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -207,11 +205,13 @@ export default function ManualWeekScreen() {
 
   const onDragBegin = useCallback(() => {
     setIsDragging(true);
+    scrollContainerRef.current?.setNativeProps({ scrollEnabled: false });
   }, []);
 
   const onDragEnd = useCallback(
     ({ data }: { data: WeekListItem[] }) => {
       setIsDragging(false);
+      scrollContainerRef.current?.setNativeProps({ scrollEnabled: true });
       if (!manualWeekPlan || weekDates.length === 0) return;
       let currentDate = weekDates[0];
       const newDays: ManualWeekPlan["days"] = [];
@@ -293,7 +293,10 @@ export default function ManualWeekScreen() {
             ]}
           >
             <Pressable
-              onLongPress={drag}
+              onLongPress={() => {
+                scrollContainerRef.current?.setNativeProps({ scrollEnabled: false });
+                drag();
+              }}
               delayLongPress={300}
               style={({ pressed }) => ({
                 paddingVertical: 12,
@@ -317,27 +320,13 @@ export default function ManualWeekScreen() {
         </ScaleDecorator>
       );
     },
-    [theme, todayIso, selectedSession, onSelectSession]
+    [theme, todayIso, selectedSession, onSelectSession, scrollContainerRef]
   );
 
   const keyExtractor = useCallback((item: WeekListItem) => {
     if (item.type === "day-header") return `header-${item.date}`;
     return `session-${item.workout.id}`;
   }, []);
-
-  /** Hit-test: disable outer scroll only when touch is inside the list area, so we don't toggle scrollEnabled on every list tap (which was causing page to scroll up). */
-  const handleScrollContentTouchStart = useCallback(
-    (e: { nativeEvent: { touches: { pageX: number; pageY: number }[] } }) => {
-      const touch = e.nativeEvent.touches[0];
-      if (!touch || !listContainerRef.current) return;
-      listContainerRef.current.measureInWindow((x, y, w, h) => {
-        const px = touch.pageX;
-        const py = touch.pageY;
-        setListAreaTouched(px >= x && px <= x + w && py >= y && py <= y + h);
-      });
-    },
-    []
-  );
 
   const onSaveWeek = async () => {
     const weekPlan = manualWeekPlan;
@@ -463,7 +452,7 @@ export default function ManualWeekScreen() {
       ))}
     </View>
   ) : (
-    <View ref={listContainerRef} style={{ minHeight: 1 }} collapsable={false}>
+    <View style={{ minHeight: 1 }}>
       <NestableDraggableFlatList
         data={flatListItems}
         keyExtractor={keyExtractor}
@@ -491,7 +480,7 @@ export default function ManualWeekScreen() {
   }
 
   const scrollContent = (
-    <View onTouchStart={handleScrollContentTouchStart}>
+    <>
       <Card
         title="Your Week Plan"
         subtitle={`Week of ${parseLocalDate(plan.weekStartDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
@@ -600,7 +589,7 @@ export default function ManualWeekScreen() {
         style={styles.saveWeekBtn}
         disabled={saving}
       />
-    </View>
+    </>
   );
 
   if (isWeb) {
@@ -617,9 +606,9 @@ export default function ManualWeekScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NestableScrollContainer
+          ref={scrollContainerRef}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={!listAreaTouched}
         >
           {scrollContent}
         </NestableScrollContainer>
