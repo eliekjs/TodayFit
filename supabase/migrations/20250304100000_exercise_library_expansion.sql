@@ -308,7 +308,7 @@ WHERE e.is_active = true AND 'core' = ANY(e.primary_muscles)
   AND e.slug IN (
     'safety_bar_squat','pistol_squat','goblet_split_squat','front_rack_lunge','lateral_step_up','pause_front_squat','heels_elevated_squat',
     'deficit_deadlift','snatch_grip_deadlift','kb_deadlift','back_extension_reverse_hyper','stability_ball_hamstring_curl',
-    'push_up_plus','half_kneeling_landmine_press','trx_chest_press','close_grip_push_up','plank_shoulder_tap',
+    'half_kneeling_landmine_press','trx_chest_press','close_grip_push_up','plank_shoulder_tap',
     'australian_pull_up','ring_pull_up','weighted_pull_up','neutral_pull_up','inverted_row_feet_elevated','pendlay_row','t_bar_row','scapular_push_up','wall_angel',
     'stir_the_pot','rollout_ab_wheel','dead_bug_band','pallof_rotation','side_plank_raise','bear_hold','plank_shoulder_tap','body_saw','reverse_crunch','dead_bug_single_arm',
     'front_rack_carry','trap_bar_carry','double_kb_front_carry','sandbag_carry','suitcase_deadlift',

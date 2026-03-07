@@ -9,6 +9,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -25,12 +26,6 @@ import {
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import type { ManualWeekPlan } from "../../../lib/types";
 import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import {
-  NestableScrollContainer,
-  NestableDraggableFlatList,
-  ScaleDecorator,
-} from "react-native-draggable-flatlist";
 
 const isWeb = Platform.OS === "web";
 
@@ -63,11 +58,6 @@ function formatDayOfWeek(isoDate: string): string {
   });
 }
 
-/** Flat list item: day header (fixed) or draggable session. */
-type WeekListItem =
-  | { type: "day-header"; date: string }
-  | { type: "session"; date: string; workout: ManualWeekPlan["days"][0]["workout"] };
-
 export default function ManualWeekScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -89,12 +79,6 @@ export default function ManualWeekScreen() {
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  /** When true, outer scroll is disabled (touch is or was in list area). Prevents scroll from stealing long-press/drag. */
-  const [listAreaActive, setListAreaActive] = useState(false);
-  const listContainerRef = React.useRef<View>(null);
-  const scrollContainerRef = React.useRef<any>(null);
-  const lastScrollYRef = React.useRef(0);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -165,7 +149,6 @@ export default function ManualWeekScreen() {
       setSelectedSession(first);
       return;
     }
-    // After reorder: keep selection on same workout (update date if it moved). Only reset to first if workout left the plan (match adaptive mode).
     const found = manualWeekPlan.days.find((d) => d.workout.id === selectedSession.workout.id);
     if (found && found.date !== selectedSession.date) setSelectedSession(found);
     else if (!found) setSelectedSession(first);
@@ -194,35 +177,31 @@ export default function ManualWeekScreen() {
     return weekDates.map((date) => ({ date, sessions: byDate.get(date) ?? [] }));
   }, [manualWeekPlan, weekDates]);
 
-  /** Flat list: day header then sessions for each of 7 days. */
-  const flatListItems = useMemo((): WeekListItem[] => {
-    const out: WeekListItem[] = [];
-    for (const slot of daySlots) {
-      out.push({ type: "day-header", date: slot.date });
-      for (const s of slot.sessions) {
-        out.push({ type: "session", date: s.date, workout: s.workout });
-      }
-    }
-    return out;
-  }, [daySlots]);
+  /** Move workout to previous day (up). */
+  const moveWorkoutUp = useCallback(
+    (date: string, workout: ManualWeekPlan["days"][0]["workout"]) => {
+      if (!manualWeekPlan) return;
+      const idx = weekDates.indexOf(date);
+      if (idx <= 0) return;
+      const newDate = weekDates[idx - 1];
+      const newDays = manualWeekPlan.days.map((d) =>
+        d.workout.id === workout.id ? { ...d, date: newDate } : d
+      );
+      setManualWeekPlan({ ...manualWeekPlan, days: newDays });
+    },
+    [manualWeekPlan, setManualWeekPlan, weekDates]
+  );
 
-  const onDragBegin = useCallback(() => {
-    setIsDragging(true);
-  }, []);
-
-  const onDragEnd = useCallback(
-    ({ data }: { data: WeekListItem[] }) => {
-      setIsDragging(false);
-      if (!manualWeekPlan || weekDates.length === 0) return;
-      let currentDate = weekDates[0];
-      const newDays: ManualWeekPlan["days"] = [];
-      for (const item of data) {
-        if (item.type === "day-header") {
-          currentDate = item.date;
-        } else {
-          newDays.push({ date: currentDate, workout: item.workout });
-        }
-      }
+  /** Move workout to next day (down). */
+  const moveWorkoutDown = useCallback(
+    (date: string, workout: ManualWeekPlan["days"][0]["workout"]) => {
+      if (!manualWeekPlan) return;
+      const idx = weekDates.indexOf(date);
+      if (idx < 0 || idx >= weekDates.length - 1) return;
+      const newDate = weekDates[idx + 1];
+      const newDays = manualWeekPlan.days.map((d) =>
+        d.workout.id === workout.id ? { ...d, date: newDate } : d
+      );
       setManualWeekPlan({ ...manualWeekPlan, days: newDays });
     },
     [manualWeekPlan, setManualWeekPlan, weekDates]
@@ -243,118 +222,6 @@ export default function ManualWeekScreen() {
     },
     []
   );
-
-  const renderWeekItem = useCallback(
-    ({
-      item,
-      drag,
-      isActive,
-    }: {
-      item: WeekListItem;
-      drag: () => void;
-      isActive: boolean;
-    }) => {
-      if (item.type === "day-header") {
-        const weekday = formatDayOfWeek(item.date);
-        const isToday = item.date === todayIso;
-        return (
-          <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.dayHeaderText, { color: theme.text }]}>
-              {weekday}
-            </Text>
-            {isToday && (
-              <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
-                Today
-              </Text>
-            )}
-          </View>
-        );
-      }
-      const { date, workout } = item;
-      const label = workout.focus.join(" • ") || "General";
-      const isSelected =
-        selectedSession?.date === date && selectedSession?.workout.id === workout.id;
-      return (
-        <ScaleDecorator>
-          <View
-            style={[
-              styles.dayRow,
-              {
-                marginBottom: 6,
-                marginLeft: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                borderColor: isSelected ? theme.primary : theme.border,
-                backgroundColor: isActive
-                  ? theme.primarySoft
-                  : isSelected
-                    ? theme.primarySoft
-                    : "transparent",
-              },
-            ]}
-          >
-            <Pressable
-              onLongPress={drag}
-              delayLongPress={300}
-              style={({ pressed }) => ({
-                paddingVertical: 12,
-                paddingHorizontal: 12,
-                marginRight: 4,
-                opacity: pressed || isActive ? 0.8 : 1,
-              })}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => !isActive && onSelectSession(date, workout)}
-              style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
-              <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-                {label}
-              </Text>
-            </Pressable>
-          </View>
-        </ScaleDecorator>
-      );
-    },
-    [theme, todayIso, selectedSession, onSelectSession]
-  );
-
-  const keyExtractor = useCallback((item: WeekListItem) => {
-    if (item.type === "day-header") return `header-${item.date}`;
-    return `session-${item.workout.id}`;
-  }, []);
-
-  /** Disable outer scroll when touch is in list area; re-enable when touch is outside (avoids scroll stealing long-press). */
-  const handleScrollContentTouchStart = useCallback(
-    (e: { nativeEvent: { touches: { pageX: number; pageY: number }[] } }) => {
-      const touch = e.nativeEvent.touches[0];
-      if (!touch || !listContainerRef.current) return;
-      listContainerRef.current.measureInWindow((x, y, w, h) => {
-        const px = touch.pageX;
-        const py = touch.pageY;
-        setListAreaActive(px >= x && px <= x + w && py >= y && py <= y + h);
-      });
-    },
-    []
-  );
-
-  const prevListAreaActiveRef = React.useRef(listAreaActive);
-  /** Restore scroll position when re-enabling scroll after list interaction (prevents jump). */
-  useEffect(() => {
-    const wasActive = prevListAreaActiveRef.current;
-    prevListAreaActiveRef.current = listAreaActive;
-    if (wasActive && !listAreaActive && scrollContainerRef.current) {
-      const y = lastScrollYRef.current;
-      const scrollTo = (scrollContainerRef.current as any).scrollTo;
-      if (typeof scrollTo === "function") {
-        requestAnimationFrame(() => {
-          scrollTo({ y, animated: false });
-        });
-      }
-    }
-  }, [listAreaActive]);
 
   const onSaveWeek = async () => {
     const weekPlan = manualWeekPlan;
@@ -435,7 +302,7 @@ export default function ManualWeekScreen() {
     );
   }
 
-  const weekOverviewContent = isWeb ? (
+  const weekOverviewContent = (
     <View>
       {daySlots.map((slot) => (
         <View key={slot.date}>
@@ -453,13 +320,39 @@ export default function ManualWeekScreen() {
             const label = s.workout.focus.join(" • ") || "General";
             const isSelected =
               selectedSession?.date === s.date && selectedSession?.workout.id === s.workout.id;
+            const dayIdx = weekDates.indexOf(s.date);
+            const canMoveUp = dayIdx > 0;
+            const canMoveDown = dayIdx >= 0 && dayIdx < weekDates.length - 1;
             return (
-              <View key={`${s.date}-${s.workout.id}`} style={{ marginBottom: 6, marginLeft: 12 }}>
+              <View key={`${s.date}-${s.workout.id}`} style={[styles.sessionRow, { marginLeft: 12 }]}>
+                <View style={styles.moveButtons}>
+                  <Pressable
+                    onPress={() => canMoveUp && moveWorkoutUp(s.date, s.workout)}
+                    disabled={!canMoveUp}
+                    style={({ pressed }) => ({
+                      padding: 8,
+                      opacity: canMoveUp ? (pressed ? 0.7 : 1) : 0.3,
+                    })}
+                  >
+                    <Ionicons name="chevron-up" size={20} color={theme.textMuted} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => canMoveDown && moveWorkoutDown(s.date, s.workout)}
+                    disabled={!canMoveDown}
+                    style={({ pressed }) => ({
+                      padding: 8,
+                      opacity: canMoveDown ? (pressed ? 0.7 : 1) : 0.3,
+                    })}
+                  >
+                    <Ionicons name="chevron-down" size={20} color={theme.textMuted} />
+                  </Pressable>
+                </View>
                 <Pressable
                   onPress={() => onSelectSession(s.date, s.workout)}
                   style={[
                     styles.dayRow,
                     {
+                      flex: 1,
                       flexDirection: "row",
                       alignItems: "center",
                       borderColor: isSelected ? theme.primary : theme.border,
@@ -467,35 +360,15 @@ export default function ManualWeekScreen() {
                     },
                   ]}
                 >
-                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-                      {label}
-                    </Text>
-                  </View>
+                  <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                    {label}
+                  </Text>
                 </Pressable>
               </View>
             );
           })}
         </View>
       ))}
-    </View>
-  ) : (
-    <View
-      ref={listContainerRef}
-      style={{ minHeight: 1 }}
-      onTouchStart={() => setListAreaActive(true)}
-      collapsable={false}
-    >
-      <NestableDraggableFlatList
-        data={flatListItems}
-        keyExtractor={keyExtractor}
-        onDragBegin={onDragBegin}
-        onDragEnd={onDragEnd}
-        renderItem={renderWeekItem}
-        activationDistance={10}
-        scrollEnabled={false}
-        autoscrollSpeed={0}
-      />
     </View>
   );
 
@@ -513,13 +386,13 @@ export default function ManualWeekScreen() {
   }
 
   const scrollContent = (
-    <View onTouchStart={handleScrollContentTouchStart}>
+    <>
       <Card
         title="Your Week Plan"
         subtitle={`Week of ${parseLocalDate(plan.weekStartDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
       >
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
-          Tap a day to view its workout. Change which days get workouts, then regenerate to rebuild.
+          Tap a day to view its workout. Use arrows to move workouts between days.
         </Text>
       </Card>
 
@@ -550,7 +423,7 @@ export default function ManualWeekScreen() {
       <Card
         title="Week overview"
         style={{ marginTop: 16 }}
-        subtitle={isWeb ? "Reorder workouts in the mobile app." : "Long-press a workout and drag it under a different day to move it."}
+        subtitle="Use ↑↓ arrows to move workouts to different days."
       >
         {weekOverviewContent}
       </Card>
@@ -622,34 +495,14 @@ export default function ManualWeekScreen() {
         style={styles.saveWeekBtn}
         disabled={saving}
       />
-    </View>
+    </>
   );
-
-  if (isWeb) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {scrollContent}
-        </ScrollView>
-      </View>
-    );
-  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <NestableScrollContainer
-          ref={scrollContainerRef}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={!listAreaActive}
-          onScrollOffsetChange={(y) => {
-            lastScrollYRef.current = y;
-          }}
-        >
-          {scrollContent}
-        </NestableScrollContainer>
-      </GestureHandlerRootView>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {scrollContent}
+      </ScrollView>
     </View>
   );
 }
@@ -702,6 +555,17 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
     borderWidth: 1,
+  },
+  sessionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+    gap: 4,
+  },
+  moveButtons: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
   },
   dayRow: {
     paddingVertical: 10,
