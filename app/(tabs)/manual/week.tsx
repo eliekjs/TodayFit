@@ -89,6 +89,8 @@ export default function ManualWeekScreen() {
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
+  /** True while user is dragging; disables outer scroll so page doesn't scroll on long-press (scroll only when pulling item toward edge). */
+  const [isDragging, setIsDragging] = useState(false);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -200,8 +202,13 @@ export default function ManualWeekScreen() {
     return out;
   }, [daySlots]);
 
+  const onDragBegin = useCallback(() => {
+    setIsDragging(true);
+  }, []);
+
   const onDragEnd = useCallback(
     ({ data }: { data: WeekListItem[] }) => {
+      setIsDragging(false);
       if (!manualWeekPlan || weekDates.length === 0) return;
       let currentDate = weekDates[0];
       const newDays: ManualWeekPlan["days"] = [];
@@ -442,6 +449,7 @@ export default function ManualWeekScreen() {
     <NestableDraggableFlatList
       data={flatListItems}
       keyExtractor={keyExtractor}
+      onDragBegin={onDragBegin}
       onDragEnd={onDragEnd}
       renderItem={renderWeekItem}
       activationDistance={10}
@@ -589,7 +597,11 @@ export default function ManualWeekScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <NestableScrollContainer contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <NestableScrollContainer
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={!isDragging}
+        >
           {scrollContent}
         </NestableScrollContainer>
       </GestureHandlerRootView>
