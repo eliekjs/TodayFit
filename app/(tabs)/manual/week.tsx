@@ -312,7 +312,7 @@ export default function ManualWeekScreen() {
 
   const keyExtractor = useCallback((item: WeekListItem) => {
     if (item.type === "day-header") return `header-${item.date}`;
-    return `session-${item.date}-${item.workout.id}`;
+    return `session-${item.workout.id}`;
   }, []);
 
   const onSaveWeek = async () => {
