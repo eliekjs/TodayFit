@@ -47,7 +47,6 @@ VALUES
   ('stability_ball_hamstring_curl', 'Stability Ball Hamstring Curl', ARRAY['legs'], ARRAY['core'], ARRAY['bodyweight'], ARRAY['strength'], 'hinge', true),
 
   -- Push (chest / shoulders / triceps)
-  ('push_up_plus', 'Push-up Plus', ARRAY['push','core'], ARRAY[]::text[], ARRAY['bodyweight'], ARRAY['strength','mobility'], 'push', true),
   ('dumbbell_floor_press', 'Dumbbell Floor Press', ARRAY['push'], ARRAY[]::text[], ARRAY['dumbbells'], ARRAY['strength'], 'push', true),
   ('landmine_press_one_arm', 'One-Arm Landmine Press', ARRAY['push','core'], ARRAY[]::text[], ARRAY['barbell'], ARRAY['strength'], 'push', true),
   ('bottoms_up_kb_press', 'Bottoms-Up Kettlebell Press', ARRAY['push'], ARRAY[]::text[], ARRAY['kettlebells'], ARRAY['strength'], 'push', true),
@@ -187,7 +186,7 @@ WHERE e.is_active = true
   AND e.slug IN (
     'safety_bar_squat','pistol_squat','shrimp_squat','goblet_split_squat','front_rack_lunge','lateral_step_up','belt_squat','v_squat','pause_front_squat','heels_elevated_squat',
     'deficit_deadlift','snatch_grip_deadlift','kb_deadlift','back_extension_45','nordic_curl','kb_sumo_deadlift','single_leg_hip_thrust','back_extension_reverse_hyper','stability_ball_hamstring_curl',
-    'push_up_plus','dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
+    'dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
     'australian_pull_up','ring_pull_up','weighted_pull_up','neutral_pull_up','wide_grip_pulldown','underhand_pulldown','inverted_row_feet_elevated','pendlay_row','yates_row','t_bar_row','db_shrug','cable_shrug','prone_y_raise','band_row','scapular_push_up','wall_angel',
     'stir_the_pot','rollout_ab_wheel','dead_bug_band','pallof_rotation','side_plank_raise','bear_hold','plank_shoulder_tap','body_saw','reverse_crunch','dead_bug_single_arm',
     'front_rack_carry','trap_bar_carry','double_kb_front_carry','sandbag_carry','suitcase_deadlift',
@@ -207,7 +206,7 @@ WHERE e.is_active = true
   AND e.slug IN (
     'safety_bar_squat','pistol_squat','shrimp_squat','goblet_split_squat','front_rack_lunge','lateral_step_up','belt_squat','v_squat','pause_front_squat','heels_elevated_squat',
     'deficit_deadlift','snatch_grip_deadlift','kb_deadlift','back_extension_45','nordic_curl','kb_sumo_deadlift','single_leg_hip_thrust','back_extension_reverse_hyper','stability_ball_hamstring_curl',
-    'push_up_plus','dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
+    'dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
     'australian_pull_up','ring_pull_up','weighted_pull_up','neutral_pull_up','wide_grip_pulldown','underhand_pulldown','inverted_row_feet_elevated','pendlay_row','yates_row','t_bar_row','db_shrug','cable_shrug','prone_y_raise','band_row','scapular_push_up','wall_angel',
     'stir_the_pot','rollout_ab_wheel','dead_bug_band','pallof_rotation','side_plank_raise','bear_hold','plank_shoulder_tap','body_saw','reverse_crunch','dead_bug_single_arm',
     'front_rack_carry','trap_bar_carry','double_kb_front_carry','sandbag_carry','suitcase_deadlift',
@@ -227,7 +226,7 @@ WHERE e.is_active = true
   AND e.slug IN (
     'safety_bar_squat','pistol_squat','shrimp_squat','goblet_split_squat','front_rack_lunge','lateral_step_up','belt_squat','v_squat','pause_front_squat','heels_elevated_squat',
     'deficit_deadlift','snatch_grip_deadlift','kb_deadlift','back_extension_45','nordic_curl','kb_sumo_deadlift','single_leg_hip_thrust','back_extension_reverse_hyper','stability_ball_hamstring_curl',
-    'push_up_plus','dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
+    'dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
     'australian_pull_up','ring_pull_up','weighted_pull_up','neutral_pull_up','wide_grip_pulldown','underhand_pulldown','inverted_row_feet_elevated','pendlay_row','yates_row','t_bar_row','db_shrug','cable_shrug','prone_y_raise','band_row','scapular_push_up','wall_angel',
     'stir_the_pot','rollout_ab_wheel','dead_bug_band','pallof_rotation','side_plank_raise','bear_hold','plank_shoulder_tap','body_saw','reverse_crunch','dead_bug_single_arm',
     'front_rack_carry','trap_bar_carry','double_kb_front_carry','sandbag_carry','suitcase_deadlift',
@@ -246,7 +245,7 @@ WHERE e.is_active = true
   AND e.slug IN (
     'safety_bar_squat','pistol_squat','shrimp_squat','goblet_split_squat','front_rack_lunge','lateral_step_up','belt_squat','v_squat','pause_front_squat','heels_elevated_squat',
     'deficit_deadlift','snatch_grip_deadlift','kb_deadlift','back_extension_45','nordic_curl','kb_sumo_deadlift','single_leg_hip_thrust','back_extension_reverse_hyper','stability_ball_hamstring_curl',
-    'push_up_plus','dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
+    'dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
     'australian_pull_up','ring_pull_up','weighted_pull_up','neutral_pull_up','wide_grip_pulldown','underhand_pulldown','inverted_row_feet_elevated','pendlay_row','yates_row','t_bar_row','db_shrug','cable_shrug','prone_y_raise','band_row','scapular_push_up','wall_angel',
     'stir_the_pot','rollout_ab_wheel','dead_bug_band','pallof_rotation','side_plank_raise','bear_hold','plank_shoulder_tap','body_saw','reverse_crunch','dead_bug_single_arm',
     'front_rack_carry','trap_bar_carry','double_kb_front_carry','sandbag_carry','suitcase_deadlift',
@@ -284,7 +283,7 @@ WHERE e.is_active = true
   AND e.slug IN (
     'safety_bar_squat','goblet_split_squat','front_rack_lunge','belt_squat','v_squat','pause_front_squat','heels_elevated_squat',
     'deficit_deadlift','snatch_grip_deadlift','kb_deadlift','kb_sumo_deadlift','single_leg_hip_thrust',
-    'push_up_plus','dumbbell_floor_press','landmine_press_one_arm','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','dip_assisted','tricep_dip_bench','close_grip_push_up',
+    'dumbbell_floor_press','landmine_press_one_arm','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','dip_assisted','tricep_dip_bench','close_grip_push_up',
     'australian_pull_up','ring_pull_up','weighted_pull_up','neutral_pull_up','inverted_row_feet_elevated','pendlay_row','yates_row','t_bar_row',
     'front_rack_carry','trap_bar_carry','double_kb_front_carry','sandbag_carry','suitcase_deadlift',
     'rower_steady','rower_intervals_30_30','assault_bike_steady','ski_erg_intervals','ski_erg_steady','treadmill_run','treadmill_intervals','incline_treadmill_walk','stair_climber_steady','elliptical_steady','sled_drag','battle_rope_waves','burpee_box_jump','devils_press','air_bike_sprint','row_calorie_burn',
@@ -355,7 +354,7 @@ WHERE e.is_active = true
   AND e.slug IN (
     'safety_bar_squat','pistol_squat','shrimp_squat','goblet_split_squat','front_rack_lunge','lateral_step_up','belt_squat','v_squat','pause_front_squat','heels_elevated_squat',
     'deficit_deadlift','snatch_grip_deadlift','kb_deadlift','back_extension_45','nordic_curl','kb_sumo_deadlift','single_leg_hip_thrust','back_extension_reverse_hyper','stability_ball_hamstring_curl',
-    'push_up_plus','dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
+    'dumbbell_floor_press','landmine_press_one_arm','bottoms_up_kb_press','seated_dumbbell_ohp','half_kneeling_landmine_press','trx_chest_press','cable_crossover','incline_cable_fly','dip_assisted','tricep_dip_bench','cable_tricep_extension','db_tricep_kickback','close_grip_push_up','band_chest_press','band_ohp',
     'australian_pull_up','ring_pull_up','weighted_pull_up','neutral_pull_up','wide_grip_pulldown','underhand_pulldown','inverted_row_feet_elevated','pendlay_row','yates_row','t_bar_row','db_shrug','cable_shrug','prone_y_raise','band_row','scapular_push_up','wall_angel',
     'stir_the_pot','rollout_ab_wheel','dead_bug_band','pallof_rotation','side_plank_raise','bear_hold','plank_shoulder_tap','body_saw','reverse_crunch','dead_bug_single_arm',
     'front_rack_carry','trap_bar_carry','double_kb_front_carry','sandbag_carry','suitcase_deadlift',
