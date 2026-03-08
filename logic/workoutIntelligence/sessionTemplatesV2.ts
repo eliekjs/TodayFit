@@ -93,6 +93,97 @@ export const SESSION_TEMPLATES_V2: Record<string, SessionTemplateV2> = {
     45,
     "low"
   ),
+  // Phase 6 weekly planner session types
+  lower_hypertrophy_accumulation: buildTemplate(
+    "lower_hypertrophy_accumulation",
+    "Lower hypertrophy",
+    "lower_hypertrophy",
+    "hypertrophy_accumulation",
+    45,
+    65,
+    "high"
+  ),
+  pull_strength_sport_support: buildTemplate(
+    "pull_strength_sport_support",
+    "Pull / sport support",
+    "pull_strength",
+    "sport_support_strength",
+    45,
+    65,
+    "moderate"
+  ),
+  pull_strength_max_strength: buildTemplate(
+    "pull_strength_max_strength",
+    "Pull strength",
+    "pull_strength",
+    "max_strength",
+    45,
+    65,
+    "high"
+  ),
+  pull_strength_hypertrophy_accumulation: buildTemplate(
+    "pull_strength_hypertrophy_accumulation",
+    "Pull hypertrophy",
+    "pull_strength",
+    "hypertrophy_accumulation",
+    45,
+    65,
+    "high"
+  ),
+  push_strength_max_strength: buildTemplate(
+    "push_strength_max_strength",
+    "Push strength",
+    "push_strength",
+    "max_strength",
+    45,
+    65,
+    "high"
+  ),
+  push_strength_hypertrophy_accumulation: buildTemplate(
+    "push_strength_hypertrophy_accumulation",
+    "Push hypertrophy",
+    "push_strength",
+    "hypertrophy_accumulation",
+    45,
+    65,
+    "high"
+  ),
+  conditioning_only_aerobic_base: buildTemplate(
+    "conditioning_only_aerobic_base",
+    "Conditioning (aerobic)",
+    "conditioning_only",
+    "aerobic_base",
+    30,
+    60,
+    "moderate"
+  ),
+  core_and_mobility_resilience_stability: buildTemplate(
+    "core_and_mobility_resilience_stability",
+    "Core and mobility",
+    "core_and_mobility",
+    "resilience_stability",
+    20,
+    45,
+    "low"
+  ),
+  core_and_mobility_mobility_recovery: buildTemplate(
+    "core_and_mobility_mobility_recovery",
+    "Core and mobility (recovery)",
+    "core_and_mobility",
+    "mobility_recovery",
+    20,
+    45,
+    "low"
+  ),
+  full_body_strength_hypertrophy_accumulation: buildTemplate(
+    "full_body_strength_hypertrophy_accumulation",
+    "Full body hypertrophy",
+    "full_body_strength",
+    "hypertrophy_accumulation",
+    45,
+    75,
+    "high"
+  ),
 };
 
 /** Get a V2 template by id. */
@@ -109,11 +200,21 @@ export function resolveSessionTemplateV2(
   const key = `${sessionType}_${stimulusProfile}`.replace(/\s/g, "_");
   const byKey: Record<string, string> = {
     full_body_strength_max_strength: "full_body_strength_max_strength",
+    full_body_strength_hypertrophy_accumulation: "full_body_strength_hypertrophy_accumulation",
     upper_hypertrophy_hypertrophy_accumulation: "upper_hypertrophy_accumulation",
+    lower_hypertrophy_hypertrophy_accumulation: "lower_hypertrophy_accumulation",
     lower_power_power_speed: "lower_power_speed",
+    pull_strength_sport_support_strength: "pull_strength_sport_support",
+    pull_strength_max_strength: "pull_strength_max_strength",
+    pull_strength_hypertrophy_accumulation: "pull_strength_hypertrophy_accumulation",
+    push_strength_max_strength: "push_strength_max_strength",
+    push_strength_hypertrophy_accumulation: "push_strength_hypertrophy_accumulation",
     mixed_sport_support_sport_support_strength: "mixed_sport_support_strength",
+    conditioning_only_aerobic_base: "conditioning_only_aerobic_base",
     aerobic_builder_aerobic_base: "aerobic_builder_base",
     resilience_recovery_mobility_recovery: "resilience_recovery_mobility",
+    core_and_mobility_resilience_stability: "core_and_mobility_resilience_stability",
+    core_and_mobility_mobility_recovery: "core_and_mobility_mobility_recovery",
   };
   const templateId = byKey[key];
   if (templateId && SESSION_TEMPLATES_V2[templateId]) {

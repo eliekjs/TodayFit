@@ -163,3 +163,42 @@ export type {
   ExerciseQualityScoreRow,
   ExerciseQualityScoreMap,
 } from "./dataModels";
+
+// Phase 6: Adaptive weekly planning
+export {
+  generateAdaptiveWeeklyPlan,
+  generateWeeklyPlanWithWorkouts,
+  resolveWeeklyDemand,
+  allocateWeeklySessions,
+  orderSessionsAcrossWeek,
+  buildDownstreamInput,
+  createEmptyLoadState,
+  applySessionToLoadState,
+  wouldViolateLoadRule,
+  satisfiesStimulusDistribution,
+  generateSessionRationale,
+  generateWeeklySummary,
+  demandLevel,
+  hasClimbingDemand,
+  hasLowerEccentricDemand,
+  isPrimaryHypertrophy,
+} from "./weekly";
+export type {
+  WeeklyPlanningInput,
+  WeeklyDemandProfile,
+  WeeklySessionIntent,
+  WeeklyLoadState,
+  WeeklyPlan,
+  WeeklyPlannedSession,
+  DownstreamGenerationInput,
+  WeeklyPlannerConfig,
+  StructuralLoadCategory,
+  FatigueTier,
+} from "./weekly";
+export { DEFAULT_WEEKLY_PLANNER_CONFIG } from "./weekly";
+export {
+  exampleClimbingHypertrophy5Days,
+  exampleSkiingHypertrophy4Days,
+  exampleGeneralHypertrophy4Days,
+  exampleWithPreferredDaysAndEnergy,
+} from "./weekly";
