@@ -81,7 +81,79 @@ export type {
   ExerciseScoreBreakdown,
   SupersetCompatibility,
 } from "./types";
-export type { GeneratedWorkout, GeneratedBlock, GeneratedExerciseSlot } from "./workoutTypes";
+export type {
+  GeneratedWorkout,
+  GeneratedBlock,
+  GeneratedExerciseSlot,
+  GeneratedExercisePrescription,
+  ResolvedPrescription,
+  WorkoutWithPrescriptions,
+} from "./workoutTypes";
+
+// Phase 5: Prescription layer
+export { generateWorkoutWithPrescriptions } from "./prescription/generateWorkout";
+export { applyPrescriptions } from "./prescription/prescriptionResolver";
+export {
+  resolveSets,
+  resolveReps,
+  resolveRest,
+} from "./prescription/setRepResolver";
+export { scaleSetsByDuration, reduceSetsToFitFatigue } from "./prescription/durationScaling";
+export { assignSupersetGroups, formatSupersetRestInstruction } from "./prescription/supersetFormatter";
+export { getIntentForStyle } from "./prescription/intentGuidance";
+export type { ExerciseInfo, PrescriptionContext } from "./prescription/prescriptionResolver";
+export type { ResolverContext } from "./prescription/setRepResolver";
+
+// Phase 4: Selection + scoring engine
+export {
+  resolveSessionQualities,
+  resolveBlockQualities,
+  resolveSessionContext,
+} from "./scoring/qualityResolution";
+export {
+  scoreExerciseForSelection,
+  scoreAndRankCandidatesForSelection,
+} from "./scoring/exerciseScoring";
+export type { ScoreExerciseInput as ScoreExerciseForSelectionInput } from "./scoring/exerciseScoring";
+export { pairingScore, assembleSupersetPairs } from "./scoring/pairing";
+export { noveltyScore } from "./scoring/redundancy";
+export {
+  createSessionSelectionState,
+  exerciseFatigueContribution,
+  applyExerciseToState,
+  wouldExceedSessionFatigue,
+  wouldExceedBlockFatigue,
+} from "./scoring/fatigueTracking";
+export {
+  wouldViolateGuardrail,
+  guardrailApproachPenalty,
+} from "./scoring/movementBalanceGuardrails";
+export {
+  filterCandidates,
+  filterEquipment,
+  filterMovementPattern,
+  filterQualityRelevance,
+  filterSkillForEnergy,
+  filterInjury,
+  filterBlockType,
+  filterBodyRegion,
+} from "./selection/candidateFilters";
+export { fillBlock } from "./selection/blockFiller";
+export type { FillBlockInput } from "./selection/blockFiller";
+export { assembleSession } from "./selection/sessionAssembler";
+export type { AssembleSessionInput } from "./selection/sessionAssembler";
+export { DEFAULT_SELECTION_CONFIG, getFatigueCostNumber } from "./scoring/scoringConfig";
+export type { SelectionConfig } from "./scoring/scoreTypes";
+export type {
+  WorkoutSelectionInput,
+  ResolvedSessionContext,
+  DesiredQualityProfile,
+  ScoreBreakdown,
+  ExerciseCandidateScore,
+  SessionSelectionState,
+  BlockSelectionResult,
+  PairingScore,
+} from "./scoring/scoreTypes";
 
 export type {
   SportTrainingDemandRow,
