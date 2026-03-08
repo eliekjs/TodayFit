@@ -1,6 +1,7 @@
 /**
- * Daily "Build My Workout" generation engine.
- * Deterministic workout generation from user inputs. Isolated from Sports Prep planner.
+ * Session generation engine. Used by both Build My Workout and Sports Prep.
+ * The difference between modes is the type of filters that supply the input
+ * (session-focused vs sport/plan-focused); both can generate one day or a week.
  */
 
 import type {

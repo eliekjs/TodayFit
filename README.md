@@ -1,107 +1,104 @@
-# Welcome to your Expo app 👋
+# TodayFit
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A fitness app for building and executing workouts, with sport-specific prep and adaptive planning. One codebase for iOS, Android, and web.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Build My Workout** — Create a day or a week of workouts using **session-focused filters**: duration, goal, equipment, energy, injuries, body focus. Same generation logic whether you’re building one day or a full week.
+- **Adaptive / Sports Prep** — Create a day or a week of workouts using **sport- and plan-focused filters**: sports, training goals, gym days, sport days, events, phase. Same generation logic; the difference is the type of filters, not daily vs weekly.
+- **Manual planning** — Plan individual days or weeks and generate workouts per session (from either mode).
+- **History & saved** — Log completed workouts and save favorites.
+- **Backend** — Supabase (Postgres + Auth). Catalog data works without sign-in; sign in to persist profiles, plans, and history.
 
-   ```bash
-   npm install
-   ```
+## Tech stack
 
-2. Start the app
+| Layer      | Choices |
+|-----------|---------|
+| **App**   | React Native (Expo SDK 54), TypeScript (strict), Expo Router (file-based routing), React 19 |
+| **UI**    | React Native Reanimated, Gesture Handler (e.g. reorderable lists) |
+| **Backend** | Supabase (Postgres, Auth). Client uses anon key only; RLS for security. No separate API server. |
+| **Data**  | SQL migrations in `supabase/migrations/` (schema + seeds, idempotent where possible) |
 
-   ```bash
-   npx expo start
-   ```
+**Project layout**
 
-In the output, you'll find options to open the app in a
+- `app/` — Screens and routes (Expo Router); `(tabs)/` = bottom tabs.
+- `lib/` — DB client, repositories, types, theme, date utils, generation helpers.
+- `services/` — Workout builder, sport-prep planner.
+- `logic/` — Workout generation (rules, daily generator).
+- `data/` — Static/canonical data (sport sub-focus, gym profiles, tag taxonomy).
+- `components/` — Shared UI. `context/` — Auth and app state. `hooks/` — Theme, color scheme.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Prerequisites
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Node.js (LTS)
+- npm (or yarn/pnpm)
+- A [Supabase](https://supabase.com) project (for full app; optional for local UI only)
 
-## Get a fresh project
-
-When you're ready, run:
+## Installation
 
 ```bash
-npm run reset-project
+git clone <repo-url>
+cd todayfit
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Configuration
 
-## Learn more
+Create a `.env` (see `.env.example`). Do not commit `.env` or any service_role key.
 
-To learn more about developing your project with Expo, look at the following resources:
+| Variable | Description |
+|----------|-------------|
+| `EXPO_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Your project’s anon (public) key |
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Without these, the app runs with in-memory state only; sign-in and persistence require a configured Supabase project.
 
-## Supabase (all app data)
+## Database (Supabase)
 
-The app uses [Supabase](https://supabase.com) (Postgres + Supabase Auth) as the single backend for:
-
-- **Sport Mode**: sports catalog, sport qualities, user sport profiles, sport events
-- **Core app**: exercises & tags, gym profiles & equipment, workouts (generated + history + saved), user preferences & presets, user goals
-
-See **MIGRATION.md** for the migration plan, entity list, and verification checklist.
-
-### Setup
-
-1. Create a Supabase project at [supabase.com](https://supabase.com) and get your project URL and **anon (public)** key.
-2. Add to your environment (e.g. `.env` — see `.env.example`; **do not commit** `.env` or any **service_role** key):
-   - `EXPO_PUBLIC_SUPABASE_URL` — your Supabase project URL
-   - `EXPO_PUBLIC_SUPABASE_ANON_KEY` — your project’s anon/public key
-
-### Running migrations
-
-Apply schema and seeds in order (Supabase Dashboard **SQL Editor** or CLI):
-
-| Order | File | Description |
-|-------|------|-------------|
-| 1 | `supabase/migrations/20250301000000_sport_mode_schema.sql` | Sport Mode tables, RLS, triggers |
-| 2 | `supabase/migrations/20250301000001_sport_mode_seed.sql` | Sports, qualities, sport_quality_map |
-| 3 | `supabase/migrations/20250301000002_app_entities_schema.sql` | Exercises, tags, gym_profiles, workouts, user_preferences, etc. + RLS |
-| 4 | `supabase/migrations/20250301000003_app_entities_seed.sql` | Exercise tags, exercises, exercise_tag_map, exercise_contraindications |
-| 5 | `supabase/migrations/20250301000004_sport_prep_plans_schema.sql` | Goals, goal_demand_profile, user_training_plans, weekly_plan_instances, weekly_plan_days |
-| 6 | `supabase/migrations/20250301000005_sport_prep_plans_seed.sql` | Goals + goal_demand_profile seed |
-| 7 | `supabase/migrations/20250301000006_sports_extended_schema.sql` | Adds description, popularity_tier to sports |
-| 8 | `supabase/migrations/20250301000007_sports_canonical_seed.sql` | Canonical sports list for Sports Prep |
-| 9 | `supabase/migrations/20250301000008_sports_tags_and_starter_exercises.sql` | sport_tag_profile, exercise_tag_taxonomy, starter_exercises, goal_exercise_relevance |
-| 10 | `supabase/migrations/20250302000000_anon_catalog_read.sql` | Anon read access for catalog data (sports, exercises, goals, etc.) so app works without sign-in |
-
-**Option B — Supabase CLI**
+The app uses Supabase for sports catalog, exercises & tags, gym profiles, workouts, user preferences, goals, and weekly plans. Apply migrations in order (Supabase Dashboard **SQL Editor** or CLI):
 
 ```bash
 npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-After migrations 00–09 are applied, catalog data (sports, exercises, goals) loads without sign-in. Sign in to save week plans and use **Generate Week Plan** on the Adaptive setup screen to verify the week view.
+Migration files live in `supabase/migrations/`. Key groups:
 
-Seeds are **idempotent** (upserts by slug / composite key). Re-run them safely if needed.
+- **Sport mode** — `20250301000000`–`20250301000001`: sports, qualities, user sport profiles.
+- **App entities** — `20250301000002`–`20250301000003`: exercises, tags, gym_profiles, workouts, user_preferences.
+- **Sport prep / goals** — `20250301000004`–`20250301000008`: goals, demand profiles, sport tag profiles, starter exercises.
+- **Catalog read** — `20250302000000`: anon read for sports, exercises, goals (app works without sign-in).
 
-### Auth
+Seeds are idempotent (upserts by slug). See **MIGRATION.md** for the full list and verification checklist.
 
-When no user is signed in, the app keeps using in-memory state (no persistence). Sign in with Supabase Auth to persist gym profiles, preferences, workout history, and saved workouts. The client uses only the **anon** key; never use or commit the **service_role** key in the app or repo.
+## Running the app
 
-### One-time migration scripts
+```bash
+npx expo start
+```
 
-If you need to migrate from another backend (e.g. Firebase), add one-off scripts under `/tools`. Use service credentials only in local env (not committed). See MIGRATION.md.
+Then choose iOS simulator, Android emulator, or web. For a development build, see [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/).
 
-### Verification
+## Auth
 
-- **Sport Mode**: Profile tab → **Sport DB (Dev)** (dev-only) to load sports/qualities and test profile save/RLS.
-- **Full checklist**: MIGRATION.md § Verification checklist.
+When no user is signed in, the app uses in-memory state (no persistence). Sign in with Supabase Auth to save gym profiles, preferences, workout history, and weekly plans. The client uses only the **anon** key.
 
-## Join the community
+## Scripts
 
-Join our community of developers creating universal apps.
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start Expo dev server |
+| `npm run android` | Start with Android |
+| `npm run ios` | Start with iOS |
+| `npm run web` | Start for web |
+| `npm run lint` | Run ESLint |
+| `npm run test:generator` | Run workout generator seed test |
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Docs
+
+- **MIGRATION.md** — Migration order, entity list, verification checklist.
+- **docs/** — Development plans (e.g. sport prep, sub-focus).
+
+## License
+
+Private.

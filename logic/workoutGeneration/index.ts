@@ -1,5 +1,5 @@
 /**
- * Daily "Build My Workout" generation — public API.
+ * Session generation — public API. Used by both Build My Workout and Sports Prep.
  */
 
 export {

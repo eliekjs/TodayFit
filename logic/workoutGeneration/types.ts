@@ -1,6 +1,6 @@
 /**
- * Types for the Daily "Build My Workout" generation engine.
- * Isolated from Sports Prep planner and existing lib/generator.
+ * Types for the session generation engine (shared by Build My Workout and Sports Prep).
+ * Input is built from the active mode’s filters; same generator runs for one session or per day in a week.
  */
 
 // --- Movement & modality ---
