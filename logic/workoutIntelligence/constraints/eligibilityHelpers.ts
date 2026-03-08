@@ -10,8 +10,16 @@ import type {
   JointStressTag,
 } from "./constraintTypes";
 
-/** Derive primary movement family from existing exercise fields (before schema has primary_movement_family). */
+const VALID_MOVEMENT_FAMILIES: MovementFamily[] = [
+  "upper_push", "upper_pull", "lower_body", "core", "mobility", "conditioning",
+];
+
+/** Derive primary movement family from existing exercise fields (or use DB primary_movement_family when set). */
 export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily {
+  const fromDb = ex.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
+  if (fromDb && VALID_MOVEMENT_FAMILIES.includes(fromDb as MovementFamily))
+    return fromDb as MovementFamily;
+
   const pattern = (ex.movement_pattern ?? "").toLowerCase();
   const muscles = new Set((ex.muscle_groups ?? []).map((m) => m.toLowerCase()));
   const modality = (ex.modality ?? "").toLowerCase();

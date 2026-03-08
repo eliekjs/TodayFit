@@ -31,6 +31,8 @@ export interface ExerciseWithQualities {
   energy_fit?: ("low" | "medium" | "high")[];
   time_cost?: "low" | "medium" | "high";
   modality?: string;
+  /** When set (e.g. from DB primary_movement_family), used by constraints/eligibility for strict body-part filtering. */
+  primary_movement_family?: string;
 }
 
 /** Input for merging goal + sport into a session target. */

@@ -70,6 +70,15 @@ Regions that get fatigued: `quads`, `glutes`, `pecs`, `triceps`, `lats`, `biceps
 - Generator can use **primary_movement_family** when present, else fall back to **deriveMovementFamily()** from existing fields.
 - Keep **joint_stress** and **contraindications** on ExerciseWithQualities; map from DB **joint_stress_tags** and **contraindication_tags** when present.
 
+## Integration with app
+
+When loading exercises from the DB for the workout intelligence layer (constraints, filtering, assembly):
+
+- Select **joint_stress_tags** and map to `ExerciseWithQualities.joint_stress` (array of strings). These must match the slugs in `lib/workoutRules` `INJURY_AVOID_TAGS` (e.g. `shoulder_overhead`, `knee_flexion`, `lumbar_shear`).
+- Select **contraindication_tags** or keep using **exercise_contraindications** and map to `contraindications`.
+- Select **primary_movement_family**; when present, `eligibilityHelpers.deriveMovementFamily()` can use it directly instead of deriving from pattern + muscles.
+- **exercise_role**, **pairing_category**, **stretch_targets**, **fatigue_regions** can be used by block-type filters and cooldown mobility selection once the loader exposes them.
+
 ## Naming conventions
 
 - Snake_case for DB and TypeScript.
