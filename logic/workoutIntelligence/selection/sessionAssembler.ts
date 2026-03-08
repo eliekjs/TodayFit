@@ -2,6 +2,7 @@
  * Phase 4: Session assembly engine (MVP).
  * Takes resolved template, iterates blocks, resolves qualities, filters, scores, fills,
  * tracks fatigue and balance, returns GeneratedWorkout skeleton.
+ * Resolves workout constraints from input for strict filter-to-workout rules.
  */
 
 import type { ExerciseWithQualities } from "../types";
@@ -9,6 +10,7 @@ import type { WorkoutSelectionInput } from "../scoring/scoreTypes";
 import { resolveSessionContext } from "../scoring/qualityResolution";
 import { createSessionSelectionState } from "../scoring/fatigueTracking";
 import { getFatigueBudgetForStimulus, getNumericFatigueBudget } from "../sessionShaping";
+import { resolveWorkoutConstraints } from "../constraints/resolveWorkoutConstraints";
 import { fillBlock } from "./blockFiller";
 import { getBlockTemplate } from "../blockTemplates";
 import { DEFAULT_SELECTION_CONFIG } from "../scoring/scoringConfig";
@@ -60,6 +62,7 @@ export function assembleSession(inp: AssembleSessionInput): GeneratedWorkout {
       state,
       stimulusProfile: inp.template.stimulus_profile,
       config,
+      constraints,
     });
 
     blocks.push(result.generated_block);

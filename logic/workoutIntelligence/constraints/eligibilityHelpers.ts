@@ -1,0 +1,153 @@
+/**
+ * Strict eligibility helpers for the filter-to-workout rules engine.
+ * Use resolved constraints and exercise metadata to gate inclusion and pairing.
+ */
+
+import type { ExerciseWithQualities } from "../types";
+import type {
+  ResolvedWorkoutConstraints,
+  MovementFamily,
+  JointStressTag,
+} from "./constraintTypes";
+
+/** Derive primary movement family from existing exercise fields (before schema has primary_movement_family). */
+export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily {
+  const pattern = (ex.movement_pattern ?? "").toLowerCase();
+  const muscles = new Set((ex.muscle_groups ?? []).map((m) => m.toLowerCase()));
+  const modality = (ex.modality ?? "").toLowerCase();
+
+  if (modality === "mobility" || modality === "recovery") return "mobility";
+  if (modality === "conditioning") return "conditioning";
+
+  if (pattern === "push") {
+    if (muscles.has("chest") || muscles.has("triceps") || muscles.has("push") || muscles.has("shoulders"))
+      return "upper_push";
+    return "upper_push";
+  }
+  if (pattern === "pull") {
+    if (muscles.has("back") || muscles.has("biceps") || muscles.has("pull") || muscles.has("lats"))
+      return "upper_pull";
+    return "upper_pull";
+  }
+  if (pattern === "squat" || pattern === "hinge" || pattern === "locomotion") {
+    if (muscles.has("legs") || muscles.has("quad") || muscles.has("glutes") || muscles.has("hamstrings"))
+      return "lower_body";
+    if (muscles.has("core") || muscles.has("abs")) return "core";
+    return "lower_body";
+  }
+  if (pattern === "carry") {
+    if (muscles.has("core") && !muscles.has("legs")) return "core";
+    return "lower_body";
+  }
+  if (pattern === "rotate") {
+    if (muscles.has("core") || muscles.has("abs")) return "core";
+    return "core";
+  }
+  return "lower_body";
+}
+
+/** Check if exercise is allowed given injury/restriction rules (hard exclude). */
+export function isExerciseAllowedByInjuries(
+  exercise: ExerciseWithQualities,
+  constraints: ResolvedWorkoutConstraints
+): boolean {
+  if (constraints.excluded_exercise_ids.has(exercise.id)) return false;
+  const jointStress = exercise.joint_stress ?? [];
+  for (const tag of jointStress) {
+    const normalized = tag.toLowerCase().replace(/\s/g, "_");
+    if (constraints.excluded_joint_stress_tags.has(normalized)) return false;
+  }
+  const contra = exercise.contraindications ?? [];
+  for (const c of contra) {
+    const key = c.toLowerCase().replace(/\s/g, "_");
+    for (const rule of constraints.rules) {
+      if (rule.kind === "hard_exclude" && rule.contraindication_keys?.some((k) => key.includes(k) || k.includes(key)))
+        return false;
+    }
+  }
+  return true;
+}
+
+/** Check if exercise matches body-part focus (hard_include). Returns true when no strict focus or when exercise matches. */
+export function matchesBodyPartFocus(
+  exercise: ExerciseWithQualities,
+  constraints: ResolvedWorkoutConstraints,
+  blockType?: string
+): boolean {
+  if (constraints.allowed_movement_families == null || constraints.allowed_movement_families.length === 0)
+    return true;
+  const family = deriveMovementFamily(exercise);
+  return constraints.allowed_movement_families.includes(family);
+}
+
+/** Check if block requirement is satisfied (e.g. cooldown has mobility). Used by validator. */
+export function satisfiesBlockRequirement(
+  blockType: string,
+  exerciseSlots: { exercise_id: string }[],
+  exercisesById: Map<string, ExerciseWithQualities>,
+  constraints: ResolvedWorkoutConstraints
+): { satisfied: boolean; missing_mobility_count?: number } {
+  if (constraints.min_cooldown_mobility_exercises === 0) return { satisfied: true };
+  if (blockType !== "cooldown" && blockType !== "mobility" && blockType !== "recovery")
+    return { satisfied: true };
+
+  let mobilityCount = 0;
+  for (const slot of exerciseSlots) {
+    const ex = exercisesById.get(slot.exercise_id);
+    if (!ex) continue;
+    const fam = deriveMovementFamily(ex);
+    const mod = (ex.modality ?? "").toLowerCase();
+    if (fam === "mobility" || mod === "mobility" || mod === "recovery") mobilityCount += 1;
+  }
+  const required = constraints.min_cooldown_mobility_exercises;
+  return {
+    satisfied: mobilityCount >= required,
+    missing_mobility_count: Math.max(0, required - mobilityCount),
+  };
+}
+
+/** Check if two exercises can be paired in a superset (forbidden same pattern, double grip). */
+export function canPairInSuperset(
+  a: ExerciseWithQualities,
+  b: ExerciseWithQualities,
+  constraints: ResolvedWorkoutConstraints
+): boolean {
+  if (a.id === b.id) return false;
+  const pairing = constraints.superset_pairing;
+  if (pairing) {
+    if (pairing.forbidden_same_pattern && (a.movement_pattern === b.movement_pattern)) return false;
+    if (pairing.forbid_double_grip) {
+      const gripQualities = ["grip_strength", "forearm_endurance"];
+      const hasGrip = (ex: ExerciseWithQualities) =>
+        Object.keys(ex.training_quality_weights ?? {}).some((k) => gripQualities.includes(k));
+      if (hasGrip(a) && hasGrip(b)) return false;
+    }
+    if (pairing.forbidden_pairs?.length) {
+      const fa = deriveMovementFamily(a);
+      const fb = deriveMovementFamily(b);
+      for (const [x, y] of pairing.forbidden_pairs) {
+        if ((fa === x && fb === y) || (fa === y && fb === x)) return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** Select exercises suitable for cooldown mobility/stretch (for filling required_finishers). */
+export function selectCooldownMobilityExercises(
+  pool: ExerciseWithQualities[],
+  constraints: ResolvedWorkoutConstraints,
+  alreadyUsedIds: Set<string>,
+  count: number
+): ExerciseWithQualities[] {
+  const need = Math.max(0, count);
+  if (need === 0) return [];
+  const allowed = pool.filter((ex) => {
+    if (alreadyUsedIds.has(ex.id)) return false;
+    if (!isExerciseAllowedByInjuries(ex, constraints)) return false;
+    const fam = deriveMovementFamily(ex);
+    const mod = (ex.modality ?? "").toLowerCase();
+    return fam === "mobility" || mod === "mobility" || mod === "recovery";
+  });
+  return allowed.slice(0, need);
+}

@@ -7,6 +7,7 @@ import type { ExerciseWithQualities } from "../types";
 import type { BlockSpec } from "../types";
 import type { WorkoutSelectionInput, DesiredQualityProfile } from "../scoring/scoreTypes";
 import type { SessionSelectionState, BlockSelectionResult, SelectionConfig } from "../scoring/scoreTypes";
+import type { ResolvedWorkoutConstraints } from "../constraints/constraintTypes";
 import { getBlockTemplate } from "../blockTemplates";
 import { filterCandidates } from "./candidateFilters";
 import { scoreAndRankCandidatesForSelection } from "../scoring/exerciseScoring";
@@ -34,6 +35,8 @@ export interface FillBlockInput {
   state: SessionSelectionState;
   stimulusProfile: import("../types").StimulusProfileSlug;
   config?: SelectionConfig;
+  /** Resolved constraints for strict filter-to-workout rules. */
+  constraints?: ResolvedWorkoutConstraints;
 }
 
 /**
@@ -49,7 +52,8 @@ export function fillBlock(inp: FillBlockInput): BlockSelectionResult {
     inp.input,
     inp.blockSpec,
     inp.blockQualities.weights ?? {},
-    inp.stimulusProfile
+    inp.stimulusProfile,
+    inp.constraints
   );
 
   const recentIds = new Set(inp.input.recent_exercise_ids ?? []);

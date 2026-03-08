@@ -1,6 +1,7 @@
 /**
  * Phase 4: Candidate filtering pipeline.
  * Modular filters composed into a single pipeline; each filter returns pass/fail.
+ * When ResolvedWorkoutConstraints is provided, strict rule-based gates are applied.
  */
 
 import type { ExerciseWithQualities } from "../types";
@@ -13,6 +14,8 @@ import {
   getInjuryAvoidExerciseIds,
   normalizeInjuryKey,
 } from "../../../lib/workoutRules";
+import type { ResolvedWorkoutConstraints } from "../constraints/constraintTypes";
+import { deriveMovementFamily } from "../constraints/eligibilityHelpers";
 
 export type FilterResult = { pass: boolean; reason?: string };
 
@@ -148,9 +151,9 @@ export function filterBodyRegion(
   const upperPull = focus.some((f) => f.includes("upper_pull") || f === "pull");
   const lower = focus.some((f) => f.includes("lower"));
   const core = focus.some((f) => f.includes("core"));
-  if (upperPush && (pattern === "push" || muscles.has("chest") || muscles.has("triceps"))) return { pass: true };
-  if (upperPull && (pattern === "pull" || muscles.has("back") || muscles.has("biceps"))) return { pass: true };
-  if (lower && (pattern === "squat" || pattern === "hinge" || muscles.has("quad") || muscles.has("hamstring"))) return { pass: true };
+  if (upperPush && (pattern === "push" || muscles.has("chest") || muscles.has("triceps") || muscles.has("push") || muscles.has("shoulders"))) return { pass: true };
+  if (upperPull && (pattern === "pull" || muscles.has("back") || muscles.has("biceps") || muscles.has("pull") || muscles.has("lats"))) return { pass: true };
+  if (lower && (pattern === "squat" || pattern === "hinge" || pattern === "locomotion" || muscles.has("quad") || muscles.has("hamstring") || muscles.has("legs") || muscles.has("glutes"))) return { pass: true };
   if (core && (muscles.has("core") || muscles.has("abs") || pattern === "rotate")) return { pass: true };
   if (focus.length > 0) {
     const anyMatch = upperPush || upperPull || lower || core;
@@ -159,19 +162,49 @@ export function filterBodyRegion(
   return { pass: true };
 }
 
+/** Strict filter from resolved constraints: hard_exclude and hard_include (body-part). */
+export function filterByConstraints(
+  exercise: ExerciseWithQualities,
+  constraints: ResolvedWorkoutConstraints,
+  blockSpec: BlockSpec
+): FilterResult {
+  if (constraints.excluded_exercise_ids.has(exercise.id))
+    return { pass: false, reason: "constraint_excluded_id" };
+  const jointStress = exercise.joint_stress ?? [];
+  for (const t of jointStress) {
+    const n = t.toLowerCase().replace(/\s/g, "_");
+    if (constraints.excluded_joint_stress_tags.has(n))
+      return { pass: false, reason: "constraint_joint_stress" };
+  }
+  const workingBlockTypes = new Set(["main_strength", "main_hypertrophy", "power", "accessory", "conditioning"]);
+  if (
+    constraints.allowed_movement_families != null &&
+    constraints.allowed_movement_families.length > 0 &&
+    workingBlockTypes.has(blockSpec.block_type)
+  ) {
+    const family = deriveMovementFamily(exercise);
+    if (!constraints.allowed_movement_families.includes(family))
+      return { pass: false, reason: "constraint_body_part_focus" };
+  }
+  return { pass: true };
+}
+
 /**
  * Run full filter pipeline. Returns only exercises that pass all filters.
+ * When constraints is provided, strict rule-based gates (hard_exclude, hard_include) are applied.
  */
 export function filterCandidates(
   exercises: ExerciseWithQualities[],
   input: WorkoutSelectionInput,
   blockSpec: BlockSpec,
   blockQualityWeights: Partial<Record<string, number>>,
-  stimulusProfile: StimulusProfileSlug
+  stimulusProfile: StimulusProfileSlug,
+  constraints?: ResolvedWorkoutConstraints
 ): ExerciseWithQualities[] {
   return exercises.filter((ex) => {
     if (!filterEquipment(ex, input).pass) return false;
     if (!filterMovementPattern(ex, blockSpec, input).pass) return false;
+    if (constraints && !filterByConstraints(ex, constraints, blockSpec).pass) return false;
     if (!filterQualityRelevance(ex, blockQualityWeights).pass) return false;
     if (!filterSkillForEnergy(ex, input).pass) return false;
     if (!filterInjury(ex, input).pass) return false;
