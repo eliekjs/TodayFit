@@ -1071,6 +1071,12 @@ export function generateWorkoutSession(
   if (validation.repairedWorkout) {
     return validation.repairedWorkout as WorkoutSession;
   }
+  if (validation.violations.length > 0) {
+    console.warn(
+      "[Phase 8] Workout validation issues (no repair possible):",
+      validation.violations.map((v) => ({ type: v.type, description: v.description }))
+    );
+  }
   return session;
 }
 

@@ -129,6 +129,7 @@ function replaceItem(
 
 /**
  * Validate workout against constraints and attempt repairs.
+ * Accepts GeneratedWorkout / WorkoutSession (blocks with items, block_type).
  * Does not throw; returns violations and optional repaired workout.
  */
 export function validateWorkoutAgainstConstraints(
@@ -271,13 +272,40 @@ export function validateWorkoutAgainstConstraints(
     }
 
     if (cooldownBlockIndex === -1) {
-      violations.push({
-        type: "cooldown_mobility_required",
-        block: repaired.blocks[repaired.blocks.length - 1]!,
-        blockIndex: repaired.blocks.length - 1,
-        description: "Missing cooldown/mobility block; required when mobility is a secondary goal.",
-        repaired: false,
+      const pool = exercises.filter((ex) => {
+        const q = asQualities(ex);
+        return isMobilityOrStretchExercise(q) && !usedIds.has(ex.id);
       });
+      const need = constraints.min_cooldown_mobility_exercises;
+      const toAdd = pool.slice(0, need).map((ex) => ({
+        exercise_id: ex.id,
+        exercise_name: ex.name,
+        sets: 1,
+        reps: 8,
+        time_seconds: 45,
+        rest_seconds: 15,
+        coaching_cues: "Controlled, full range of motion.",
+        reasoning_tags: ["cooldown", "mobility"],
+      }));
+      if (toAdd.length >= need) {
+        const newBlock: ValidatableBlock = {
+          block_type: "cooldown",
+          title: "Cooldown",
+          format: "straight_sets",
+          items: toAdd as ValidatableItem[],
+        };
+        repaired.blocks.push(newBlock);
+        for (const item of toAdd) usedIds.add(item.exercise_id);
+        anyRepair = true;
+      } else {
+        violations.push({
+          type: "cooldown_mobility_required",
+          block: repaired.blocks[repaired.blocks.length - 1]!,
+          blockIndex: repaired.blocks.length - 1,
+          description: "Missing cooldown/mobility block; required when mobility is a secondary goal.",
+          repaired: false,
+        });
+      }
     } else {
       const cooldownBlock = repaired.blocks[cooldownBlockIndex]!;
       const slots = cooldownBlock.items.map((i) => ({ exercise_id: i.exercise_id }));
