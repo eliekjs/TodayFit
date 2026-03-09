@@ -1,10 +1,11 @@
 /**
  * Superset pairing heuristics: good vs bad pairs.
  * Phase 7: ontology-aware using pairing_category, fatigue_regions, effective movement families.
- * Accepts minimal input so both Exercise (workoutGeneration) and ExerciseWithQualities work.
+ * Phase 10: uses canonical fatigue regions (including grip) from ontology normalization.
  */
 
 import type { ExerciseWithQualities } from "./types";
+import { getCanonicalFatigueRegions } from "../workoutGeneration/ontologyNormalization";
 
 /** Minimal shape for pairing logic (satisfied by Exercise and ExerciseWithQualities). */
 export interface PairingInput {
@@ -106,28 +107,26 @@ export function getEffectivePairingCategory(ex: PairingInput): string {
 }
 
 /**
- * Effective fatigue regions: ontology fatigue_regions when present, else derived from muscles/pattern.
+ * Effective fatigue regions (canonical; includes grip when hasGripFatigueDemand).
  */
 export function getEffectiveFatigueRegions(ex: PairingInput): string[] {
-  const fromOntology = ex.fatigue_regions;
-  if (fromOntology?.length) return fromOntology.map(normalizeSlug).filter(Boolean);
-
-  const pattern = (ex.movement_pattern ?? "").toLowerCase();
-  const muscles = new Set((ex.muscle_groups ?? []).map((m) => m.toLowerCase()));
-  const out: string[] = [];
-
-  if (muscles.has("chest") || muscles.has("pecs")) out.push("pecs");
-  if (muscles.has("triceps")) out.push("triceps");
-  if (muscles.has("shoulders") || muscles.has("delts")) out.push("shoulders");
-  if (muscles.has("back") || muscles.has("lats")) out.push("lats");
-  if (muscles.has("biceps")) out.push("biceps");
-  if (muscles.has("quads") || muscles.has("quad") || muscles.has("legs")) out.push("quads");
-  if (muscles.has("hamstrings") || muscles.has("glutes")) out.push("hamstrings");
-  if (muscles.has("glutes")) out.push("glutes");
-  if (pattern === "carry" || muscles.has("forearms")) out.push("forearms");
-  if (muscles.has("core") || muscles.has("abs")) out.push("core");
-
-  return [...new Set(out)];
+  const adapter = {
+    id: ex.id,
+    movement_pattern: ex.movement_pattern,
+    muscle_groups: ex.muscle_groups,
+    primary_movement_family: undefined,
+    secondary_movement_families: undefined,
+    movement_patterns: ex.movement_patterns,
+    exercise_role: undefined,
+    pairing_category: ex.pairing_category,
+    fatigue_regions: ex.fatigue_regions,
+    mobility_targets: undefined,
+    stretch_targets: undefined,
+    joint_stress_tags: undefined,
+    tags: ex.tags,
+    unilateral: undefined,
+  };
+  return getCanonicalFatigueRegions(adapter);
 }
 
 /**

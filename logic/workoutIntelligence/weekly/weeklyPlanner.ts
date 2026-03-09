@@ -1,7 +1,6 @@
 /**
  * Phase 6: Top-level adaptive weekly planner.
- * Orchestrates: demand resolution → allocation → ordering → rationale → WeeklyPlan.
- * Optionally generates full workouts per session via generateWorkoutWithPrescriptions.
+ * Phase 12: Optional path that uses the daily generator (logic/workoutGeneration) per day with rolling state.
  */
 
 import type {
@@ -9,6 +8,8 @@ import type {
   WeeklyPlan,
   WeeklyPlannedSession,
   WeeklyPlannerConfig,
+  WeeklyPlanWithWorkouts,
+  WeeklyDayWithWorkout,
 } from "./weeklyTypes";
 import { DEFAULT_WEEKLY_PLANNER_CONFIG } from "./weeklyTypes";
 import { resolveWeeklyDemand } from "./weeklyDemandResolution";
@@ -21,6 +22,19 @@ import {
   generateSessionRationale,
   generateWeeklySummary,
 } from "./weeklyRationale";
+import {
+  weeklySessionToDailyInput,
+  workoutSessionToRecentSummary,
+  buildRollingTrainingHistory,
+  buildWeeklyStateSnapshot,
+} from "./weeklyDailyGeneratorBridge";
+import { generateWorkoutSession } from "../../workoutGeneration/dailyGenerator";
+import {
+  pushPullBalanceOk,
+  recoveryMinimumOk,
+  gripDistribution,
+  lowerBodySpacingOk,
+} from "./weeklyBalanceRules";
 
 /**
  * Generate an adaptive weekly plan (session intents with day assignment and handoff inputs).
@@ -131,4 +145,88 @@ export function generateWeeklyPlanWithWorkouts(
     workoutsByDay.set(session.day_index, workout);
   }
   return { plan, workoutsByDay };
+}
+
+/**
+ * Phase 12: Generate an adaptive weekly plan and fill each day using the daily generator
+ * (logic/workoutGeneration.generateWorkoutSession). Uses rolling recent_history and
+ * training_history so later days see prior days' workouts. Returns WeeklyPlanWithWorkouts.
+ * Does not affect Manual mode (session-first); this is the Adaptive week-first path.
+ */
+export function generateAdaptiveWeekWithDailyGenerator(
+  input: WeeklyPlanningInput,
+  options: {
+    config?: WeeklyPlannerConfig;
+    /** Exercise pool in generator shape (Exercise[] from workoutGeneration). */
+    exercisePool: import("../../workoutGeneration/types").Exercise[];
+    includeDebug?: boolean;
+  }
+): WeeklyPlanWithWorkouts {
+  const cfg = { ...DEFAULT_WEEKLY_PLANNER_CONFIG, ...options.config };
+  const plan = generateAdaptiveWeeklyPlan(input, cfg);
+  const sessionsByDay = [...plan.sessions].sort((a, b) => a.day_index - b.day_index);
+
+  const rollingSummaries: { exercise_ids: string[]; muscle_groups: string[]; modality: string }[] = [];
+  const days: WeeklyDayWithWorkout[] = [];
+  const seedBase = typeof input.variation_seed === "number" ? input.variation_seed : (input.variation_seed ?? "").toString().length * 1000;
+
+  for (const session of sessionsByDay) {
+    const trainingHistory = rollingSummaries.length > 0 ? buildRollingTrainingHistory(rollingSummaries) : undefined;
+    const dailyInput = weeklySessionToDailyInput(
+      session,
+      input,
+      rollingSummaries,
+      trainingHistory,
+      seedBase
+    );
+    const workout = generateWorkoutSession(
+      dailyInput,
+      options.exercisePool,
+      options.includeDebug ?? false
+    );
+    const summary = workoutSessionToRecentSummary(workout, options.exercisePool);
+    rollingSummaries.push(summary);
+
+    days.push({
+      day_index: session.day_index,
+      session_label: session.label,
+      planned_session: session,
+      workout,
+      day_summary: `${session.label}, ${session.planned_duration_minutes} min`,
+      recovery_note: session.expected_fatigue === "low" ? "Low fatigue / recovery-friendly." : undefined,
+    });
+  }
+
+  const snapshot = buildWeeklyStateSnapshot(
+    rollingSummaries,
+    plan.sessions
+  );
+
+  const balanceNotes: string[] = [];
+  const pushPull = pushPullBalanceOk(plan.sessions, cfg);
+  if (!pushPull.ok && pushPull.note) balanceNotes.push(pushPull.note);
+  const recovery = recoveryMinimumOk(plan.sessions, cfg);
+  if (!recovery.ok && recovery.note) balanceNotes.push(recovery.note);
+  const grip = gripDistribution(plan.sessions);
+  if (grip.consecutive_grip_days > 0) {
+    balanceNotes.push(`Grip-intensive sessions: ${grip.grip_intensive_count}, max consecutive: ${grip.consecutive_grip_days}.`);
+  }
+  const lower = lowerBodySpacingOk(plan.sessions, cfg);
+  if (!lower.ok && lower.note) balanceNotes.push(lower.note);
+
+  const result: WeeklyPlanWithWorkouts = {
+    id: plan.id,
+    primary_goal: plan.primary_goal,
+    sports: plan.sports,
+    total_days: plan.total_days,
+    week_summary: plan.summary,
+    recovery_notes: [...(plan.notes ?? []), ...balanceNotes],
+    days,
+    debug: {
+      allocation_rationale: `Allocated ${sessionsByDay.length} sessions across ${plan.total_days} days; stress distribution: ${snapshot.stress_distribution.high} high, ${snapshot.stress_distribution.moderate} moderate, ${snapshot.stress_distribution.low} low.`,
+      weekly_state_snapshot: snapshot,
+      config_used: cfg,
+    },
+  };
+  return result;
 }

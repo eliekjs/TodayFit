@@ -1,6 +1,6 @@
 /**
  * Phase 4: Session-level fatigue accumulation during selection.
- * Tracks running fatigue total and block-level consumption.
+ * Phase 10: Uses canonical fatigue regions (including grip) via ontology normalization.
  */
 
 import type { ExerciseWithQualities } from "../types";
@@ -8,6 +8,7 @@ import type { SessionSelectionState } from "./scoreTypes";
 import type { SessionFatigueBudget } from "../types";
 import { getNumericFatigueBudget } from "../sessionShaping";
 import { getFatigueCostNumber } from "./scoringConfig";
+import { getCanonicalFatigueRegions } from "../../workoutGeneration/ontologyNormalization";
 
 const GRIP_QUALITIES = new Set(["grip_strength", "forearm_endurance"]);
 /** Canonical + legacy joint-stress slugs for shoulder (see lib/ontology JOINT_STRESS_TAGS). */
@@ -17,6 +18,29 @@ const HEAVY_PATTERNS = new Set(["hinge", "squat"]);
 function isGripHeavy(ex: ExerciseWithQualities): boolean {
   const q = ex.training_quality_weights ?? {};
   return Object.keys(q).some((k) => GRIP_QUALITIES.has(k));
+}
+
+/** Effective fatigue regions for selection state (canonical; includes grip when demand present). */
+export function getEffectiveFatigueRegionsForQualities(ex: ExerciseWithQualities): string[] {
+  const adapter = {
+    id: ex.id,
+    movement_pattern: ex.movement_pattern,
+    muscle_groups: ex.muscle_groups,
+    primary_movement_family: ex.primary_movement_family,
+    secondary_movement_families: ex.secondary_movement_families,
+    movement_patterns: ex.movement_patterns,
+    exercise_role: ex.exercise_role,
+    pairing_category: ex.pairing_category,
+    fatigue_regions: ex.fatigue_regions,
+    mobility_targets: ex.mobility_targets,
+    stretch_targets: ex.stretch_targets,
+    joint_stress_tags: ex.joint_stress_tags,
+    tags: { joint_stress: ex.joint_stress ?? [], stimulus: [] },
+    unilateral: ex.unilateral,
+  };
+  const regions = getCanonicalFatigueRegions(adapter);
+  if (isGripHeavy(ex) && !regions.includes("grip")) return [...regions, "grip"];
+  return regions;
 }
 
 function isShoulderLoad(ex: ExerciseWithQualities): boolean {
@@ -47,6 +71,7 @@ export function createSessionSelectionState(
     grip_exercise_count: 0,
     shoulder_exercise_count: 0,
     heavy_compound_count: 0,
+    fatigue_region_counts: new Map(),
   };
 }
 
@@ -103,4 +128,8 @@ export function applyExerciseToState(
   if (isGripHeavy(exercise)) state.grip_exercise_count += 1;
   if (isShoulderLoad(exercise)) state.shoulder_exercise_count += 1;
   if (isHeavyCompound(exercise)) state.heavy_compound_count += 1;
+  const regions = getEffectiveFatigueRegionsForQualities(exercise);
+  for (const r of regions) {
+    state.fatigue_region_counts.set(r, (state.fatigue_region_counts.get(r) ?? 0) + 1);
+  }
 }

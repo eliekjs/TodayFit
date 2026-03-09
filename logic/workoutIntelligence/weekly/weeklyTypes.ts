@@ -53,6 +53,18 @@ export interface WeeklyPlanningInput {
   available_equipment: string[];
   /** Optional: variation seed (e.g. week index) for light rotation. */
   variation_seed?: string | number;
+  /** Phase 12: recent training load / fatigue summary (e.g. from prior week). */
+  recent_training_load?: "low" | "moderate" | "high" | "accumulated";
+  /** Phase 12: recovery constraints (e.g. prefer_lighter_week, max_high_fatigue_days). */
+  recovery_constraints?: {
+    prefer_lighter_week?: boolean;
+    max_high_fatigue_sessions_this_week?: number;
+    min_recovery_or_mobility_sessions?: number;
+  };
+  /** Phase 12: upcoming events or key days (day_index -> note, e.g. "race", "game day"). */
+  upcoming_events?: Partial<Record<number, string>>;
+  /** Phase 12: desired weekly emphasis (e.g. "upper_focus", "lower_taper", "sport_priority"). */
+  desired_weekly_emphasis?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +170,60 @@ export interface WeeklyPlan {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 12: Weekly plan with daily-generated workouts (Adaptive week-first)
+// ---------------------------------------------------------------------------
+
+/** One day in the week with its generated workout and metadata. */
+export interface WeeklyDayWithWorkout {
+  day_index: number;
+  /** Session label from the weekly plan. */
+  session_label: string;
+  /** Planned session (intent, rationale, downstream input). */
+  planned_session: WeeklyPlannedSession;
+  /** Generated workout from the daily generator (logic/workoutGeneration). */
+  workout: import("../../workoutGeneration/types").WorkoutSession;
+  /** Short day summary (e.g. "Upper strength, 45 min"). */
+  day_summary?: string;
+  /** Optional recovery/load note for this day. */
+  recovery_note?: string;
+}
+
+/** Phase 12: Full week with per-day generated workouts and debug. */
+export interface WeeklyPlanWithWorkouts {
+  /** Same as WeeklyPlan.id. */
+  id: string;
+  primary_goal: string;
+  sports: string[];
+  total_days: number;
+  /** Week-level summary and rationale. */
+  week_summary: string;
+  /** Optional recovery/load notes for the week. */
+  recovery_notes?: string[];
+  /** Per-day plans with generated workouts (ordered by day_index). */
+  days: WeeklyDayWithWorkout[];
+  /** Phase 12: why the week was structured this way (allocation, balance). */
+  debug?: {
+    allocation_rationale?: string;
+    weekly_state_snapshot?: WeeklyStateSnapshot;
+    config_used?: WeeklyPlannerConfig;
+  };
+}
+
+/** Snapshot of weekly state after all days generated (for debugging / next week). */
+export interface WeeklyStateSnapshot {
+  /** Exercise IDs used across the week. */
+  exercise_ids_used: string[];
+  /** Movement family -> count of sessions that emphasized it. */
+  movement_family_exposure: Partial<Record<string, number>>;
+  /** Fatigue region -> approximate count. */
+  fatigue_region_exposure: Partial<Record<string, number>>;
+  /** Body region -> count. */
+  body_region_exposure: Partial<Record<string, number>>;
+  /** High-level stress distribution (high/moderate/low session count). */
+  stress_distribution: { high: number; moderate: number; low: number };
+}
+
+// ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
@@ -177,6 +243,8 @@ export interface WeeklyPlannerConfig {
   max_grip_sessions_consecutive?: number;
   /** Allow bridge day (low fatigue) when density is high. Default true. */
   allow_bridge_day?: boolean;
+  /** Phase 12: min recovery/mobility sessions per week (soft). Default 0. */
+  min_recovery_or_mobility_sessions?: number;
   /** Variation seed for light rotation (e.g. week index). */
   variation_seed?: string | number;
 }
@@ -189,5 +257,6 @@ export const DEFAULT_WEEKLY_PLANNER_CONFIG: Required<WeeklyPlannerConfig> = {
   min_days_between_high_lower: 1,
   max_grip_sessions_consecutive: 0,
   allow_bridge_day: true,
+  min_recovery_or_mobility_sessions: 0,
   variation_seed: 0,
 };

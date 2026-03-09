@@ -74,6 +74,7 @@ export function fillBlock(inp: FillBlockInput): BlockSelectionResult {
       avoidExerciseIds: avoidIds,
       energyLevel: inp.input.energy_level,
       includeBreakdown: false,
+      bodyRegionFocus: inp.input.body_region_focus,
     },
     config
   );

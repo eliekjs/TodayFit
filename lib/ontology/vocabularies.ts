@@ -182,6 +182,7 @@ export const FATIGUE_REGIONS = [
   "lats",
   "biceps",
   "forearms",
+  "grip",
   "core",
   "calves",
 ] as const;

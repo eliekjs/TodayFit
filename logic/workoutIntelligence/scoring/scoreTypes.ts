@@ -81,6 +81,16 @@ export interface ScoreBreakdown {
   injury_fit?: number;
   novelty_fit?: number;
   equipment_fit?: number;
+  /** Phase 9: ontology role fit for block type. */
+  ontology_role_fit?: number;
+  /** Phase 9: movement family match (focus). */
+  ontology_movement_family_fit?: number;
+  /** Phase 9: main-lift anchor preference. */
+  ontology_main_lift_anchor?: number;
+  /** Phase 9: fatigue region balance (session-level). */
+  ontology_fatigue_balance?: number;
+  /** Phase 9: soft joint stress penalty. */
+  ontology_joint_stress_soft?: number;
 }
 
 /** Scored candidate with optional breakdown. */
@@ -112,6 +122,8 @@ export interface SessionSelectionState {
   shoulder_exercise_count: number;
   /** High-fatigue compound count (hinge/squat) for stacking cap. */
   heavy_compound_count: number;
+  /** Phase 9: fatigue region -> count in session (for ontology-aware ranking). */
+  fatigue_region_counts: Map<string, number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +169,14 @@ export interface SelectionConfig {
     novelty_penalty: number;
     equipment_fit: number;
     balance_bonus: number;
+    /** Phase 9: ontology role fit (block type). */
+    ontology_role_fit?: number;
+    /** Phase 9: ontology fatigue region balance. */
+    ontology_fatigue_balance?: number;
+    /** Phase 9: ontology movement family / main-lift anchor. */
+    ontology_anchor_fit?: number;
+    /** Phase 9: soft joint stress penalty. */
+    ontology_joint_stress_soft?: number;
   };
   /** Movement balance: max same pattern per session. */
   max_same_pattern_per_session: number;

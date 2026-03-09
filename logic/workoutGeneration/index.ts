@@ -8,6 +8,65 @@ export {
   filterByHardConstraints,
   scoreExercise,
 } from "./dailyGenerator";
+export type { ScoreExerciseOptions } from "./dailyGenerator";
+export {
+  computeOntologyScoreComponents,
+  getEffectiveFatigueRegions,
+  getPreferredWarmupTargetsFromFocus,
+  scoreRoleFit,
+  scoreFatigueBalance,
+  scoreMainLiftAnchor,
+  scoreUnilateralVariety,
+  scoreMovementPatternRedundancy,
+} from "./ontologyScoring";
+export type { OntologyScoreBreakdown, ExerciseForScoring } from "./ontologyScoring";
+export {
+  getCanonicalExerciseRole,
+  getCanonicalMovementFamilies,
+  getCanonicalMovementPatterns,
+  getCanonicalFatigueRegions,
+  getCanonicalJointStressTags,
+  getCanonicalMobilityTargets,
+  getCanonicalStretchTargets,
+  isCanonicalCompound,
+  isCanonicalIsolation,
+  isCanonicalUnilateral,
+  hasGripFatigueDemand,
+} from "./ontologyNormalization";
+export type { ExerciseForNormalization } from "./ontologyNormalization";
+export { auditExerciseLibrary, formatAuditReport } from "./libraryAudit";
+export type { LibraryAuditReport, AuditFinding } from "./libraryAudit";
+export {
+  buildHistoryContextFromLegacy,
+  recentHistoryToRecentIds,
+} from "./historyTypes";
+export type {
+  TrainingHistoryContext,
+  RecentSessionRecord,
+  ExerciseExposure,
+  LastPerformedMap,
+  ReadinessSignals,
+} from "./historyTypes";
+export {
+  computeHistoryScoreComponents,
+  getEffectiveRecentIds,
+  getExerciseExposureCount,
+  scoreRecentExposurePenalty,
+  scoreAnchorRepeatBonus,
+  scoreAccessoryRotationPenalty,
+  HISTORY_WEIGHTS,
+} from "./historyScoring";
+export type { HistoryScoreBreakdown } from "./historyScoring";
+export { getRecommendation } from "./recommendationLayer";
+export type { Recommendation, RecommendationResult } from "./recommendationLayer";
+export { applyRecommendationToPrescription } from "./prescriptionHistory";
+export type { PrescriptionShape } from "./prescriptionHistory";
+export {
+  getExerciseRelations,
+  pickRegressionInPool,
+  pickProgressionOrAlternativeInPool,
+} from "./exerciseRelations";
+export type { ExerciseRelations } from "./exerciseRelations";
 export { STUB_EXERCISES } from "./exerciseStub";
 export {
   getSubstitutes,

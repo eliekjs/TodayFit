@@ -138,6 +138,9 @@ export type BlockFormat =
   | "emom"
   | "amrap";
 
+/** Phase 11: progress | maintain | regress | rotate from history-aware recommendation layer. */
+export type RecommendationSlug = "progress" | "maintain" | "regress" | "rotate";
+
 export type WorkoutItem = {
   exercise_id: string;
   exercise_name: string;
@@ -148,6 +151,9 @@ export type WorkoutItem = {
   coaching_cues: string;
   reasoning_tags?: string[];
   tags?: string[];
+  /** Phase 11: history recommendation (why this prescription). */
+  recommendation?: RecommendationSlug;
+  recommendation_reason?: string;
 };
 
 export type WorkoutBlock = {

@@ -7,6 +7,7 @@
 export {
   generateAdaptiveWeeklyPlan,
   generateWeeklyPlanWithWorkouts,
+  generateAdaptiveWeekWithDailyGenerator,
 } from "./weeklyPlanner";
 export { resolveWeeklyDemand } from "./weeklyDemandResolution";
 export { allocateWeeklySessions } from "./weeklyAllocation";
@@ -37,7 +38,16 @@ export type {
   WeeklyPlannerConfig,
   StructuralLoadCategory,
   FatigueTier,
+  WeeklyPlanWithWorkouts,
+  WeeklyDayWithWorkout,
+  WeeklyStateSnapshot,
 } from "./weeklyTypes";
+export {
+  weeklySessionToDailyInput,
+  workoutSessionToRecentSummary,
+  buildRollingTrainingHistory,
+  buildWeeklyStateSnapshot,
+} from "./weeklyDailyGeneratorBridge";
 export { DEFAULT_WEEKLY_PLANNER_CONFIG } from "./weeklyTypes";
 export {
   exampleClimbingHypertrophy5Days,

@@ -17,6 +17,7 @@ import { noveltyScore } from "./redundancy";
 import {
   wouldExceedSessionFatigue,
   exerciseFatigueContribution,
+  getEffectiveFatigueRegionsForQualities,
 } from "./fatigueTracking";
 import { DEFAULT_SELECTION_CONFIG } from "./scoringConfig";
 
@@ -100,6 +101,87 @@ function injuryFitScore(
   return 0;
 }
 
+// --- Phase 9/10: ontology-aware scoring (canonical normalization) ---
+import {
+  getCanonicalExerciseRole,
+  getCanonicalMovementFamilies,
+  getCanonicalJointStressTags,
+} from "../../workoutGeneration/ontologyNormalization";
+
+function norm(s: string | undefined): string {
+  if (!s) return "";
+  return s.toLowerCase().replace(/\s/g, "_");
+}
+const ROLE_MAIN_PREFERRED = new Set(["main_compound", "secondary_compound"]);
+const ROLE_MAIN_ACCEPTABLE = new Set(["accessory", "isolation", "finisher"]);
+const ROLE_MAIN_PENALIZED = new Set(["cooldown", "stretch", "mobility", "breathing", "warmup"]);
+const ROLE_WARMUP_PREFERRED = new Set(["prep", "warmup", "mobility", "activation", "mobility_prep"]);
+const ROLE_COOLDOWN_PREFERRED = new Set(["cooldown", "stretch", "breathing", "mobility"]);
+
+function toNormalizationAdapter(ex: ExerciseWithQualities) {
+  return {
+    id: ex.id,
+    movement_pattern: ex.movement_pattern,
+    muscle_groups: ex.muscle_groups,
+    primary_movement_family: ex.primary_movement_family,
+    secondary_movement_families: ex.secondary_movement_families,
+    movement_patterns: ex.movement_patterns,
+    exercise_role: ex.exercise_role,
+    pairing_category: ex.pairing_category,
+    fatigue_regions: ex.fatigue_regions,
+    mobility_targets: ex.mobility_targets,
+    stretch_targets: ex.stretch_targets,
+    joint_stress_tags: ex.joint_stress_tags,
+    tags: { joint_stress: ex.joint_stress ?? [], stimulus: [] },
+    unilateral: ex.unilateral,
+  };
+}
+
+function ontologyRoleFitScore(ex: ExerciseWithQualities, blockType: string): number {
+  const role = getCanonicalExerciseRole(toNormalizationAdapter(ex));
+  const bt = norm(blockType);
+  if (bt === "main_strength" || bt === "main_hypertrophy") {
+    if (role && ROLE_MAIN_PENALIZED.has(role)) return -3;
+    if (role && ROLE_MAIN_PREFERRED.has(role)) return 2;
+    if (role && ROLE_MAIN_ACCEPTABLE.has(role)) return 0.5;
+    return 0;
+  }
+  if (bt === "warmup" && role && ROLE_WARMUP_PREFERRED.has(role)) return 1.5;
+  if (bt === "cooldown" && role && ROLE_COOLDOWN_PREFERRED.has(role)) return 1.5;
+  return 0;
+}
+
+function ontologyFatigueBalanceScore(ex: ExerciseWithQualities, fatigueRegionCounts: Map<string, number>): number {
+  if (!fatigueRegionCounts?.size) return 0;
+  const regions = getEffectiveFatigueRegionsForQualities(ex);
+  if (!regions.length) return 0;
+  let overlap = 0;
+  for (const r of regions) overlap += fatigueRegionCounts.get(r) ?? 0;
+  if (overlap === 0) return 0.5;
+  if (overlap >= 3) return -1;
+  if (overlap >= 1) return -0.3;
+  return 0;
+}
+
+function ontologyAnchorFitScore(ex: ExerciseWithQualities, blockType: string, bodyRegionFocus: string[] | undefined): number {
+  if (blockType !== "main_strength" && blockType !== "main_hypertrophy") return 0;
+  const adapter = toNormalizationAdapter(ex);
+  const role = getCanonicalExerciseRole(adapter);
+  const { primary } = getCanonicalMovementFamilies(adapter);
+  const focusSet = bodyRegionFocus?.length ? new Set(bodyRegionFocus.map(norm)) : null;
+  if (role && ROLE_MAIN_PREFERRED.has(role)) {
+    if (!focusSet || (primary && focusSet.has(primary))) return 2;
+    return 1.2;
+  }
+  if (primary && focusSet?.has(primary)) return 0.8;
+  return 0;
+}
+
+function ontologyJointStressSoftScore(ex: ExerciseWithQualities): number {
+  const tags = getCanonicalJointStressTags(toNormalizationAdapter(ex));
+  return tags.length ? -0.2 : 0;
+}
+
 export interface ScoreExerciseInput {
   exercise: ExerciseWithQualities;
   blockQualities: DesiredQualityProfile;
@@ -114,6 +196,8 @@ export interface ScoreExerciseInput {
   avoidExerciseIds?: Set<string>;
   energyLevel?: "low" | "medium" | "high";
   includeBreakdown?: boolean;
+  /** Phase 9: body region focus for movement family / anchor fit. */
+  bodyRegionFocus?: string[];
 }
 
 /**
@@ -199,6 +283,21 @@ export function scoreExerciseForSelection(input: ScoreExerciseInput): {
     fatiguePenalty = fatiguePenaltyForExercise(exercise.muscle_groups ?? [], fatigueState);
   }
 
+  // Phase 9: ontology-aware components (additive; fallback when ontology absent)
+  const fatigueRegionCounts = state.fatigue_region_counts ?? new Map<string, number>();
+  const ontologyRole = ontologyRoleFitScore(exercise, blockType);
+  const ontologyFatigue = ontologyFatigueBalanceScore(exercise, fatigueRegionCounts);
+  const ontologyAnchor = ontologyAnchorFitScore(exercise, blockType, input.bodyRegionFocus);
+  const ontologyJoint = ontologyJointStressSoftScore(exercise);
+  const wRole = w.ontology_role_fit ?? 1.5;
+  const wFatigue = w.ontology_fatigue_balance ?? 1.0;
+  const wAnchor = w.ontology_anchor_fit ?? 1.2;
+  const wJoint = w.ontology_joint_stress_soft ?? 1.0;
+  breakdown.ontology_role_fit = wRole * ontologyRole;
+  breakdown.ontology_fatigue_balance = wFatigue * ontologyFatigue;
+  breakdown.ontology_main_lift_anchor = wAnchor * ontologyAnchor;
+  breakdown.ontology_joint_stress_soft = wJoint * ontologyJoint;
+
   const total =
     alignmentScoreVal +
     (breakdown.stimulus_fit ?? 0) +
@@ -209,7 +308,11 @@ export function scoreExerciseForSelection(input: ScoreExerciseInput): {
     (breakdown.novelty_fit ?? 0) +
     (breakdown.equipment_fit ?? 0) +
     balanceVal +
-    fatiguePenalty;
+    fatiguePenalty +
+    (breakdown.ontology_role_fit ?? 0) +
+    (breakdown.ontology_fatigue_balance ?? 0) +
+    (breakdown.ontology_main_lift_anchor ?? 0) +
+    (breakdown.ontology_joint_stress_soft ?? 0);
   breakdown.total = total;
 
   return {

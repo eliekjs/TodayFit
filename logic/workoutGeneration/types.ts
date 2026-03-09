@@ -144,6 +144,8 @@ export type GenerateWorkoutInput = {
   available_equipment: string[];
   injuries_or_constraints: string[];
   recent_history?: RecentSessionSummary[];
+  /** Phase 11: Rich history (exposure, last performed, completion, readiness). Supplements recent_history. */
+  training_history?: import("./historyTypes").TrainingHistoryContext;
   style_prefs?: StylePrefs;
   seed?: number;
 };
@@ -162,6 +164,22 @@ export type ScoringDebug = {
   balance_bonus?: number;
   fatigue_penalty?: number;
   duration_practicality?: number;
+  /** Phase 9: ontology scoring components (when present). */
+  ontology_role_fit?: number;
+  ontology_movement_family_fit?: number;
+  ontology_main_lift_anchor?: number;
+  ontology_fatigue_balance?: number;
+  ontology_joint_stress_soft?: number;
+  ontology_warmup_cooldown_relevance?: number;
+  /** Phase 10: unilateral variety bonus, movement pattern redundancy penalty. */
+  ontology_unilateral_variety_bonus?: number;
+  ontology_movement_pattern_redundancy_penalty?: number;
+  /** Phase 11: history-aware scoring. */
+  history_recent_exposure_penalty?: number;
+  history_anchor_repeat_bonus?: number;
+  history_accessory_rotation_penalty?: number;
+  history_movement_family_rotation_bonus?: number;
+  history_joint_stress_sensitivity_penalty?: number;
 };
 
 export type WorkoutSession = {

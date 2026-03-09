@@ -54,6 +54,18 @@ import {
 } from "./cooldownSelection";
 import { pickBestSupersetPairs } from "../workoutIntelligence/supersetPairing";
 import { validateWorkoutAgainstConstraints } from "../workoutIntelligence/validation/workoutValidator";
+import {
+  computeOntologyScoreComponents,
+  getEffectiveFatigueRegions,
+  getPreferredWarmupTargetsFromFocus,
+} from "./ontologyScoring";
+import { buildHistoryContextFromLegacy, type TrainingHistoryContext } from "./historyTypes";
+import {
+  computeHistoryScoreComponents,
+  getEffectiveRecentIds,
+} from "./historyScoring";
+import { getRecommendation } from "./recommendationLayer";
+import { applyRecommendationToPrescription } from "./prescriptionHistory";
 
 // --- Avoid tags that imply overhead / hanging / shoulder extension (safety) ---
 const OVERHEAD_HANGING_PATTERNS = new Set([
@@ -256,16 +268,33 @@ function focusBodyPartToMuscles(focus: string): string[] {
   return [];
 }
 
+export interface ScoreExerciseOptions {
+  /** Block type for role-aware and main-lift scoring (e.g. main_strength, warmup). */
+  blockType?: string;
+  /** Session fatigue regions so far (region -> count) for balance penalty/bonus. */
+  sessionFatigueRegions?: Map<string, number>;
+  /** Preferred mobility/stretch targets for warmup/cooldown relevance. */
+  preferredWarmupCooldownTargets?: string[];
+  /** Phase 10: movement pattern counts in session so far (for pattern redundancy penalty). */
+  sessionMovementPatternCounts?: Map<string, number>;
+  /** Phase 10: session already has bilateral lower-body work (for unilateral variety bonus). */
+  sessionHasBilateralLowerBody?: boolean;
+  /** Phase 11: history context for exposure/anchor/rotation scoring. */
+  historyContext?: TrainingHistoryContext;
+}
+
 export function scoreExercise(
   exercise: Exercise,
   input: GenerateWorkoutInput,
   recentExerciseIds: Set<string>,
   movementPatternCounts: Map<string, number>,
   includeDebug: boolean,
-  fatigueState?: FatigueState
+  fatigueState?: FatigueState,
+  options?: ScoreExerciseOptions
 ): { score: number; debug?: Partial<ScoringDebug> } {
   let total = 0;
   const debug: Partial<ScoringDebug> | undefined = includeDebug ? { exercise_id: exercise.id } : undefined;
+  const opts = options ?? {};
 
   // Goal alignment
   const goalTags = exercise.tags.goal_tags ?? [];
@@ -280,7 +309,7 @@ export function scoreExercise(
   total += goalScore;
   if (debug) debug.goal_alignment = goalScore;
 
-  // Body part focus
+  // Body part focus (legacy); ontology movement_family_fit handled below when blockType/focus present
   const focusParts = input.focus_body_parts ?? [];
   if (focusParts.length) {
     const wantedMuscles = new Set(focusParts.flatMap(focusBodyPartToMuscles));
@@ -332,6 +361,50 @@ export function scoreExercise(
   } else if (input.duration_minutes <= 30 && exercise.time_cost === "low") {
     total += 0.5;
     if (debug) debug.duration_practicality = 0.5;
+  }
+
+  // Phase 11: history-aware scoring (no effect when history absent)
+  if (opts.historyContext) {
+    const lastSuccess = opts.historyContext.recent_sessions?.[0]?.performance_by_exercise?.[exercise.id]
+      ? undefined
+      : undefined;
+    const { total: historyTotal, breakdown: historyBreakdown } = computeHistoryScoreComponents(exercise, {
+      recentIds: recentExerciseIds,
+      blockType: opts.blockType,
+      preferVariety: opts.blockType !== "main_strength" && opts.blockType !== "main_hypertrophy",
+      historyContext: opts.historyContext,
+      lastCompletionSuccess: lastSuccess,
+    });
+    total += historyTotal;
+    if (debug && historyBreakdown) {
+      if (historyBreakdown.recent_exposure_penalty != null) debug.history_recent_exposure_penalty = historyBreakdown.recent_exposure_penalty;
+      if (historyBreakdown.anchor_repeat_bonus != null) debug.history_anchor_repeat_bonus = historyBreakdown.anchor_repeat_bonus;
+      if (historyBreakdown.accessory_rotation_penalty != null) debug.history_accessory_rotation_penalty = historyBreakdown.accessory_rotation_penalty;
+      if (historyBreakdown.movement_family_rotation_bonus != null) debug.history_movement_family_rotation_bonus = historyBreakdown.movement_family_rotation_bonus;
+      if (historyBreakdown.joint_stress_sensitivity_penalty != null) debug.history_joint_stress_sensitivity_penalty = historyBreakdown.joint_stress_sensitivity_penalty;
+    }
+  }
+
+  // Phase 9/10: ontology-aware scoring (additive; fallback when ontology absent)
+  const { total: ontologyTotal, breakdown: ontologyBreakdown } = computeOntologyScoreComponents(exercise, {
+    blockType: opts.blockType,
+    focusBodyParts: input.focus_body_parts,
+    primaryGoal: input.primary_goal,
+    sessionFatigueRegions: opts.sessionFatigueRegions,
+    preferredWarmupCooldownTargets: opts.preferredWarmupCooldownTargets,
+    sessionHasBilateralLowerBody: opts.sessionHasBilateralLowerBody,
+    sessionMovementPatternCounts: opts.sessionMovementPatternCounts,
+  });
+  total += ontologyTotal;
+  if (debug && ontologyBreakdown) {
+    if (ontologyBreakdown.role_fit != null) debug.ontology_role_fit = ontologyBreakdown.role_fit;
+    if (ontologyBreakdown.movement_family_fit != null) debug.ontology_movement_family_fit = ontologyBreakdown.movement_family_fit;
+    if (ontologyBreakdown.main_lift_anchor != null) debug.ontology_main_lift_anchor = ontologyBreakdown.main_lift_anchor;
+    if (ontologyBreakdown.fatigue_balance != null) debug.ontology_fatigue_balance = ontologyBreakdown.fatigue_balance;
+    if (ontologyBreakdown.joint_stress_soft != null) debug.ontology_joint_stress_soft = ontologyBreakdown.joint_stress_soft;
+    if (ontologyBreakdown.warmup_cooldown_relevance != null) debug.ontology_warmup_cooldown_relevance = ontologyBreakdown.warmup_cooldown_relevance;
+    if (ontologyBreakdown.unilateral_variety_bonus != null) debug.ontology_unilateral_variety_bonus = ontologyBreakdown.unilateral_variety_bonus;
+    if (ontologyBreakdown.movement_pattern_redundancy_penalty != null) debug.ontology_movement_pattern_redundancy_penalty = ontologyBreakdown.movement_pattern_redundancy_penalty;
   }
 
   if (debug) debug.total = total;
@@ -428,6 +501,65 @@ function getPrescription(
   };
 }
 
+/** Add exercise's fatigue regions to session map (mutates map). */
+function addExerciseFatigueRegionsToSession(
+  sessionFatigueRegions: Map<string, number>,
+  exercise: Exercise
+): void {
+  const regions = getEffectiveFatigueRegions({
+    id: exercise.id,
+    fatigue_regions: exercise.fatigue_regions,
+    pairing_category: exercise.pairing_category,
+    muscle_groups: exercise.muscle_groups,
+    movement_pattern: exercise.movement_pattern,
+  });
+  for (const r of regions) {
+    sessionFatigueRegions.set(r, (sessionFatigueRegions.get(r) ?? 0) + 1);
+  }
+}
+
+/** Phase 11: Attach recommendation and prescription influence to each item (mutates blocks). */
+function attachRecommendationsToSession(
+  blocks: WorkoutBlock[],
+  exercisePool: Exercise[],
+  historyContext: TrainingHistoryContext | undefined,
+  recentIds: Set<string>
+): void {
+  const byId = new Map(exercisePool.map((e) => [e.id, e]));
+  const preferLighter = historyContext?.readiness?.prefer_lighter ?? false;
+  for (const block of blocks) {
+    for (let i = 0; i < block.items.length; i++) {
+      const item = block.items[i];
+      const exercise = byId.get(item.exercise_id);
+      if (!exercise) continue;
+      const rec = getRecommendation(exercise, block.block_type, historyContext, {
+        wasRecentlyUsed: recentIds.has(exercise.id),
+        preferLighter,
+      });
+      const adjusted = applyRecommendationToPrescription(
+        {
+          sets: item.sets,
+          reps: item.reps,
+          time_seconds: item.time_seconds,
+          rest_seconds: item.rest_seconds,
+          coaching_cues: item.coaching_cues,
+        },
+        rec.recommendation
+      );
+      block.items[i] = {
+        ...item,
+        sets: adjusted.sets,
+        reps: adjusted.reps,
+        time_seconds: adjusted.time_seconds,
+        rest_seconds: adjusted.rest_seconds,
+        coaching_cues: adjusted.coaching_cues,
+        recommendation: rec.recommendation,
+        recommendation_reason: rec.reason,
+      };
+    }
+  }
+}
+
 // --- Select top exercises by score (and by movement pattern for balance) ---
 function selectExercises(
   pool: Exercise[],
@@ -437,11 +569,29 @@ function selectExercises(
   count: number,
   rng: () => number,
   includeDebug: boolean,
-  fatigueState?: FatigueState
+  fatigueState?: FatigueState,
+  selectionOptions?: {
+    blockType?: string;
+    sessionFatigueRegions?: Map<string, number>;
+    preferredWarmupCooldownTargets?: string[];
+    sessionMovementPatternCounts?: Map<string, number>;
+    sessionHasBilateralLowerBody?: boolean;
+    historyContext?: TrainingHistoryContext;
+  }
 ): { exercises: Exercise[]; scoringDebug: ScoringDebug[] } {
+  const opts = selectionOptions ?? {};
+  const scoreOpts: ScoreExerciseOptions = {
+    blockType: opts.blockType,
+    sessionFatigueRegions: opts.sessionFatigueRegions,
+    preferredWarmupCooldownTargets: opts.preferredWarmupCooldownTargets,
+    sessionMovementPatternCounts: opts.sessionMovementPatternCounts,
+    sessionHasBilateralLowerBody: opts.sessionHasBilateralLowerBody,
+    historyContext: opts.historyContext,
+  };
+
   const scored = pool.map((e) => ({
     exercise: e,
-    ...scoreExercise(e, input, recentIds, movementCounts, includeDebug, fatigueState),
+    ...scoreExercise(e, input, recentIds, movementCounts, includeDebug, fatigueState, scoreOpts),
   }));
   scored.sort((a, b) => b.score - a.score);
   const topOverall = scored.slice(0, Math.min(60, scored.length));
@@ -464,6 +614,7 @@ function selectExercises(
     if (!best) continue;
     chosen.push(best.exercise);
     movementCounts.set(best.exercise.movement_pattern, (movementCounts.get(best.exercise.movement_pattern) ?? 0) + 1);
+    if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, best.exercise);
     if (best.debug && includeDebug) debugList.push(best.debug as ScoringDebug);
   }
 
@@ -476,6 +627,7 @@ function selectExercises(
     if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
     chosen.push(item.exercise);
     movementCounts.set(item.exercise.movement_pattern, nextCount);
+    if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, item.exercise);
     if (item.debug && includeDebug) debugList.push(item.debug as ScoringDebug);
   }
 
@@ -487,6 +639,7 @@ function selectExercises(
     if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
     chosen.push(exercise);
     movementCounts.set(exercise.movement_pattern, nextCount);
+    if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, exercise);
     if (debug && includeDebug) debugList.push(debug as ScoringDebug);
   }
 
@@ -495,13 +648,15 @@ function selectExercises(
 
 // --- Build warmup block (5–8 min): 2–4 mobility/activation items ---
 // Warm-up: bodyweight or bands only (shared rules). Short cardio first or last (WARMUP_CARDIO_POSITION).
+// Phase 9: prefers prep/activation/mobility roles and targets relevant to focus when annotated.
 function buildWarmup(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
   used: Set<string>,
   rng: () => number,
   includeDebug: boolean,
-  fatigueState?: FatigueState
+  fatigueState?: FatigueState,
+  historyContext?: TrainingHistoryContext
 ): WorkoutBlock {
   const basePool = exercises.filter(
     (e) =>
@@ -514,6 +669,7 @@ function buildWarmup(
   const count = 2;
   const movementCounts = new Map<string, number>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
+  const preferredWarmupTargets = getPreferredWarmupTargetsFromFocus(input.focus_body_parts);
   const { exercises: chosen } = selectExercises(
     finalPool,
     input,
@@ -522,7 +678,14 @@ function buildWarmup(
     Math.min(count, finalPool.length || 2),
     rng,
     false,
-    fatigueState
+    fatigueState,
+    {
+      blockType: "warmup",
+      preferredWarmupCooldownTargets: preferredWarmupTargets,
+      sessionMovementPatternCounts: movementCounts,
+      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+      historyContext,
+    }
   );
   const sortedChosen = WARMUP_CARDIO_POSITION === "last"
     ? [...chosen].sort((a, b) => (a.modality === "conditioning" ? 1 : 0) - (b.modality === "conditioning" ? 1 : 0))
@@ -645,7 +808,9 @@ function buildMainStrength(
   rng: () => number,
   wantsSupersets: boolean,
   fatigueVolumeScale?: number,
-  fatigueState?: FatigueState
+  fatigueState?: FatigueState,
+  sessionFatigueRegions?: Map<string, number>,
+  historyContext?: TrainingHistoryContext
 ): WorkoutBlock[] {
   const blocks: WorkoutBlock[] = [];
   const goalRules = getGoalRules(input.primary_goal);
@@ -673,7 +838,14 @@ function buildMainStrength(
     mainLiftCount,
     rng,
     false,
-    fatigueState
+    fatigueState,
+    {
+      blockType: "main_strength",
+      sessionFatigueRegions,
+      sessionMovementPatternCounts: movementCounts,
+      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+      historyContext,
+    }
   );
   for (const mainLift of mainLifts) {
     used.add(mainLift.id);
@@ -704,6 +876,10 @@ function buildMainStrength(
     for (const [exA, exB] of pairs) {
       used.add(exA.id);
       used.add(exB.id);
+      if (sessionFatigueRegions) {
+        addExerciseFatigueRegionsToSession(sessionFatigueRegions, exA);
+        addExerciseFatigueRegionsToSession(sessionFatigueRegions, exB);
+      }
     }
     const items: WorkoutItem[] = pairs.flatMap(([exA, exB]) => {
       const pA = getPrescription(exA, "main_strength", input.energy_level, input.primary_goal, true, fatigueVolumeScale);
@@ -752,7 +928,9 @@ function buildMainHypertrophy(
   rng: () => number,
   wantsSupersets: boolean,
   fatigueVolumeScale?: number,
-  fatigueState?: FatigueState
+  fatigueState?: FatigueState,
+  sessionFatigueRegions?: Map<string, number>,
+  historyContext?: TrainingHistoryContext
 ): WorkoutBlock[] {
   let pool = exercises.filter(
     (e) =>
@@ -781,7 +959,14 @@ function buildMainHypertrophy(
     wantCount,
     rng,
     false,
-    fatigueState
+    fatigueState,
+    {
+      blockType: "main_hypertrophy",
+      sessionFatigueRegions,
+      sessionMovementPatternCounts: movementCounts,
+      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+      historyContext,
+    }
   );
 
   const targetPairCount = Math.floor(chosen.length / 2);
@@ -831,7 +1016,9 @@ function buildEnduranceMain(
   movementCounts: Map<string, number>,
   rng: () => number,
   fatigueVolumeScale?: number,
-  fatigueState?: FatigueState
+  fatigueState?: FatigueState,
+  sessionFatigueRegions?: Map<string, number>,
+  historyContext?: TrainingHistoryContext
 ): WorkoutBlock[] {
   const strengthPool = exercises.filter(
     (e) =>
@@ -840,7 +1027,22 @@ function buildEnduranceMain(
       e.time_cost !== "high" &&
       !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
-  const { exercises: two } = selectExercises(strengthPool, input, recentIds, movementCounts, 2, rng, false, fatigueState);
+  const { exercises: two } = selectExercises(
+    strengthPool,
+    input,
+    recentIds,
+    movementCounts,
+    2,
+    rng,
+    false,
+    fatigueState,
+    {
+      sessionFatigueRegions,
+      sessionMovementPatternCounts: movementCounts,
+      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+      historyContext,
+    }
+  );
   const blocks: WorkoutBlock[] = [];
   if (two.length >= 2) {
     two.forEach((e) => used.add(e.id));
@@ -969,7 +1171,9 @@ export function generateWorkoutSession(
   const filtered = filterByHardConstraints(exercisePool, input);
   const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
   const used = new Set<string>();
-  const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
+  const historyContext = input.training_history ?? buildHistoryContextFromLegacy(input);
+  const legacyRecentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
+  const recentIds = getEffectiveRecentIds(legacyRecentIds, historyContext);
   const movementCounts = new Map<string, number>();
 
   // Fatigue management: volume scale and fatigued muscle groups from recent history
@@ -979,23 +1183,23 @@ export function generateWorkoutSession(
   const fatigueVolumeScale = fatigueState.volumeScaleFactor;
 
   // 3. Build warmup
-  const warmup = buildWarmup(filtered, input, used, rng, false, fatigueState);
+  const warmup = buildWarmup(filtered, input, used, rng, false, fatigueState, historyContext);
   const blocks: WorkoutBlock[] = [warmup];
 
   const wantsSupersets = input.style_prefs?.wants_supersets !== false;
+  const sessionFatigueRegions = new Map<string, number>();
 
-  // 4. Build main block (goal-specific)
+  // 4. Build main block (goal-specific); session fatigue regions improve later picks
   if (primary === "strength" || primary === "power") {
-    blocks.push(...buildMainStrength(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState));
+    blocks.push(...buildMainStrength(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
   } else if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
-    blocks.push(...buildMainHypertrophy(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState));
+    blocks.push(...buildMainHypertrophy(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
   } else if (primary === "endurance" || primary === "conditioning") {
-    blocks.push(...buildEnduranceMain(filtered, input, used, recentIds, movementCounts, rng, fatigueVolumeScale, fatigueState));
+    blocks.push(...buildEnduranceMain(filtered, input, used, recentIds, movementCounts, rng, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
   } else if (primary === "mobility" || primary === "recovery") {
     blocks.push(...buildMobilityRecoveryMain(filtered, input, used, rng));
   } else {
-    // athletic_performance: strength + power style
-    blocks.push(...buildMainStrength(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState));
+    blocks.push(...buildMainStrength(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
   }
 
   // 5. Build accessory (handled inside buildMainStrength / buildMainHypertrophy per goal rules)
@@ -1049,6 +1253,9 @@ export function generateWorkoutSession(
     mainWorkFamilies,
   });
   blocks.push(cooldown);
+
+  // Phase 11: attach progress/maintain/regress/rotate and prescription influence
+  attachRecommendationsToSession(blocks, filtered, historyContext, recentIds);
 
   // 8. Post-assembly validation and repair (Phase 8)
   const estimated_duration_minutes = blocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);

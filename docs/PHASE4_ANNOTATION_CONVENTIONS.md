@@ -82,7 +82,7 @@ Used when annotating exercises with ontology fields. Keeps classifications consi
 
 ## 8. Fatigue regions
 
-- **fatigue_regions**: Regions that get fatigued (from vocabularies: quads, glutes, hamstrings, pecs, triceps, shoulders, lats, biceps, forearms, core, calves).
+- **fatigue_regions**: Regions that get fatigued (from vocabularies: quads, glutes, hamstrings, pecs, triceps, shoulders, lats, biceps, forearms, **grip**, core, calves). Phase 10: **grip** is first-class for pull-ups, hangs, heavy carries, rows/deadlifts with high grip demand.
 
 **Rules:**
 - Use for superset distribution. Don’t list every possible muscle; list the main regions that limit performance or recovery.
