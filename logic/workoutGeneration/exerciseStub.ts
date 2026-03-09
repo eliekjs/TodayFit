@@ -109,6 +109,9 @@ export const STUB_EXERCISES: Exercise[] = [
       contraindications: ["low_back_sensitive"],
       stimulus: ["eccentric", "scapular_control"],
     },
+    primary_movement_family: "lower_body",
+    pairing_category: "posterior_chain",
+    fatigue_regions: ["hamstrings", "glutes"],
   },
   {
     id: "barbell_deadlift",
@@ -549,6 +552,9 @@ export const STUB_EXERCISES: Exercise[] = [
       joint_stress: [],
       stimulus: [],
     },
+    exercise_role: "mobility",
+    mobility_targets: ["thoracic_spine", "lumbar"],
+    stretch_targets: ["low_back"],
   },
   {
     id: "t_spine_rotation",
@@ -565,6 +571,9 @@ export const STUB_EXERCISES: Exercise[] = [
       joint_stress: [],
       stimulus: [],
     },
+    exercise_role: "mobility",
+    mobility_targets: ["thoracic_spine"],
+    stretch_targets: ["thoracic_spine"],
   },
   {
     id: "hip_90_90",
@@ -581,6 +590,9 @@ export const STUB_EXERCISES: Exercise[] = [
       joint_stress: [],
       stimulus: [],
     },
+    exercise_role: "mobility",
+    mobility_targets: ["hip_internal_rotation", "hip_external_rotation"],
+    stretch_targets: ["glutes", "hip_flexors"],
   },
   {
     id: "worlds_greatest_stretch",
@@ -613,6 +625,7 @@ export const STUB_EXERCISES: Exercise[] = [
       joint_stress: [],
       stimulus: [],
     },
+    exercise_role: "breathing",
   },
   {
     id: "trap_bar_deadlift",
@@ -646,6 +659,9 @@ export const STUB_EXERCISES: Exercise[] = [
       joint_stress: ["shoulder_extension"],
       stimulus: ["eccentric"],
     },
+    primary_movement_family: "upper_push",
+    pairing_category: "chest",
+    fatigue_regions: ["pecs", "triceps"],
   },
   {
     id: "trx_row",
@@ -662,6 +678,9 @@ export const STUB_EXERCISES: Exercise[] = [
       joint_stress: [],
       stimulus: ["scapular_control"],
     },
+    primary_movement_family: "upper_pull",
+    pairing_category: "back",
+    fatigue_regions: ["lats"],
   },
   {
     id: "glute_bridge",
@@ -678,6 +697,9 @@ export const STUB_EXERCISES: Exercise[] = [
       joint_stress: [],
       stimulus: ["eccentric"],
     },
+    primary_movement_family: "lower_body",
+    pairing_category: "posterior_chain",
+    fatigue_regions: ["glutes"],
   },
   {
     id: "box_jump",

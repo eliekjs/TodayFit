@@ -9,6 +9,10 @@ import type {
   MovementFamily,
   JointStressTag,
 } from "./constraintTypes";
+import {
+  getEffectivePairingFamilies,
+  hasGripDemand as hasGripDemandPairing,
+} from "../supersetPairing";
 
 const VALID_MOVEMENT_FAMILIES: MovementFamily[] = [
   "upper_push", "upper_pull", "lower_body", "core", "mobility", "conditioning",
@@ -153,6 +157,23 @@ export function matchesBodyPartFocus(
   return families.some((f) => constraints.allowed_movement_families!.includes(f));
 }
 
+/** Roles that count as mobility/stretch for required_finishers (ontology). */
+const COOLDOWN_COUNT_ROLES = new Set([
+  "cooldown", "stretch", "mobility", "breathing",
+]);
+
+/** Count if exercise counts as mobility/stretch (ontology-first, then modality/derivation). */
+export function isMobilityOrStretchExercise(ex: ExerciseWithQualities): boolean {
+  const role = ex.exercise_role?.toLowerCase().replace(/\s/g, "_");
+  if (role && COOLDOWN_COUNT_ROLES.has(role)) return true;
+  const hasTargets =
+    (ex.mobility_targets?.length ?? 0) > 0 || (ex.stretch_targets?.length ?? 0) > 0;
+  if (hasTargets) return true;
+  const fam = deriveMovementFamily(ex);
+  const mod = (ex.modality ?? "").toLowerCase();
+  return fam === "mobility" || mod === "mobility" || mod === "recovery";
+}
+
 /** Check if block requirement is satisfied (e.g. cooldown has mobility). Used by validator. */
 export function satisfiesBlockRequirement(
   blockType: string,
@@ -168,9 +189,7 @@ export function satisfiesBlockRequirement(
   for (const slot of exerciseSlots) {
     const ex = exercisesById.get(slot.exercise_id);
     if (!ex) continue;
-    const fam = deriveMovementFamily(ex);
-    const mod = (ex.modality ?? "").toLowerCase();
-    if (fam === "mobility" || mod === "mobility" || mod === "recovery") mobilityCount += 1;
+    if (isMobilityOrStretchExercise(ex)) mobilityCount += 1;
   }
   const required = constraints.min_cooldown_mobility_exercises;
   return {
@@ -179,7 +198,7 @@ export function satisfiesBlockRequirement(
   };
 }
 
-/** Check if two exercises can be paired in a superset (forbidden same pattern, double grip). */
+/** Check if two exercises can be paired in a superset (ontology-aware: effective families, double grip). */
 export function canPairInSuperset(
   a: ExerciseWithQualities,
   b: ExerciseWithQualities,
@@ -190,37 +209,45 @@ export function canPairInSuperset(
   if (pairing) {
     if (pairing.forbidden_same_pattern && (a.movement_pattern === b.movement_pattern)) return false;
     if (pairing.forbid_double_grip) {
-      const gripQualities = ["grip_strength", "forearm_endurance"];
-      const hasGrip = (ex: ExerciseWithQualities) =>
-        Object.keys(ex.training_quality_weights ?? {}).some((k) => gripQualities.includes(k));
-      if (hasGrip(a) && hasGrip(b)) return false;
+      if (hasGripDemandPairing(a) && hasGripDemandPairing(b)) return false;
     }
     if (pairing.forbidden_pairs?.length) {
-      const fa = deriveMovementFamily(a);
-      const fb = deriveMovementFamily(b);
+      const fa = getEffectivePairingFamilies(a);
+      const fb = getEffectivePairingFamilies(b);
       for (const [x, y] of pairing.forbidden_pairs) {
-        if ((fa === x && fb === y) || (fa === y && fb === x)) return false;
+        const aHasX = fa.includes(x);
+        const aHasY = fa.includes(y);
+        const bHasX = fb.includes(x);
+        const bHasY = fb.includes(y);
+        if ((aHasX && bHasY) || (aHasY && bHasX)) return false;
       }
     }
   }
   return true;
 }
 
-/** Select exercises suitable for cooldown mobility/stretch (for filling required_finishers). */
+/** Select exercises suitable for cooldown mobility/stretch (ontology-aware; for required_finishers). */
 export function selectCooldownMobilityExercises(
   pool: ExerciseWithQualities[],
   constraints: ResolvedWorkoutConstraints,
   alreadyUsedIds: Set<string>,
-  count: number
+  count: number,
+  preferredTargets?: string[]
 ): ExerciseWithQualities[] {
   const need = Math.max(0, count);
   if (need === 0) return [];
   const allowed = pool.filter((ex) => {
     if (alreadyUsedIds.has(ex.id)) return false;
     if (!isExerciseAllowedByInjuries(ex, constraints)) return false;
-    const fam = deriveMovementFamily(ex);
-    const mod = (ex.modality ?? "").toLowerCase();
-    return fam === "mobility" || mod === "mobility" || mod === "recovery";
+    return isMobilityOrStretchExercise(ex);
   });
+  if (preferredTargets?.length) {
+    const score = (ex: ExerciseWithQualities) => {
+      const m = new Set((ex.mobility_targets ?? []).map((t) => t.toLowerCase().replace(/\s/g, "_")));
+      const s = new Set((ex.stretch_targets ?? []).map((t) => t.toLowerCase().replace(/\s/g, "_")));
+      return preferredTargets.filter((t) => m.has(t) || s.has(t)).length;
+    };
+    allowed.sort((a, b) => score(b) - score(a));
+  }
   return allowed.slice(0, need);
 }

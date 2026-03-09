@@ -10,6 +10,8 @@ import {
   isExerciseAllowedByInjuries,
   matchesBodyPartFocus,
   isExerciseEligibleByConstraints,
+  isMobilityOrStretchExercise,
+  satisfiesBlockRequirement,
 } from "./eligibilityHelpers";
 import type { ExerciseWithQualities } from "../types";
 import type { ResolvedWorkoutConstraints } from "./constraintTypes";
@@ -217,6 +219,47 @@ function testIsExerciseEligibleByConstraints() {
   );
 }
 
+/** Phase 6: ontology-based mobility/stretch counting for cooldown requirement. */
+function testIsMobilityOrStretchAndSatisfiesBlockRequirement() {
+  const cooldownRole: ExerciseWithQualities = {
+    ...UPPER_PUSH_EXERCISE,
+    id: "cooldown_drill",
+    name: "Cooldown drill",
+    exercise_role: "cooldown",
+    modality: "mobility",
+  };
+  assert(isMobilityOrStretchExercise(cooldownRole), "exercise_role cooldown counts as mobility/stretch");
+
+  const stretchTargetsOnly: ExerciseWithQualities = {
+    ...UPPER_PUSH_EXERCISE,
+    id: "stretch_only",
+    name: "Stretch",
+    modality: "strength",
+    stretch_targets: ["hamstrings"],
+  };
+  assert(isMobilityOrStretchExercise(stretchTargetsOnly), "stretch_targets present counts as mobility/stretch");
+
+  const constraints = resolveWorkoutConstraints({
+    primary_goal: "strength",
+    secondary_goals: ["mobility"],
+    available_equipment: ["bodyweight"],
+    duration_minutes: 45,
+    energy_level: "medium",
+  });
+  assert(constraints.min_cooldown_mobility_exercises >= 2, "mobility secondary sets min_cooldown_mobility_exercises");
+
+  const byId = new Map<string, ExerciseWithQualities>([
+    [cooldownRole.id, cooldownRole],
+    [stretchTargetsOnly.id, stretchTargetsOnly],
+  ]);
+  const twoSlots = [
+    { exercise_id: cooldownRole.id },
+    { exercise_id: stretchTargetsOnly.id },
+  ];
+  const result = satisfiesBlockRequirement("cooldown", twoSlots, byId, constraints);
+  assert(result.satisfied, "cooldown block with 2 ontology mobility/stretch exercises satisfies requirement");
+}
+
 function main() {
   console.log("Phase 5 eligibility tests...");
   testUpperPushFocusReturnsOnlyUpperPush();
@@ -233,7 +276,9 @@ function main() {
   console.log("  OK: getEffectiveMovementFamilies");
   testIsExerciseEligibleByConstraints();
   console.log("  OK: isExerciseEligibleByConstraints");
-  console.log("All Phase 5 eligibility tests passed.");
+  testIsMobilityOrStretchAndSatisfiesBlockRequirement();
+  console.log("  OK: isMobilityOrStretchExercise + satisfiesBlockRequirement (Phase 6)");
+  console.log("All Phase 5/6 eligibility tests passed.");
 }
 
 main();

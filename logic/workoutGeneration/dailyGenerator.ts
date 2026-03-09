@@ -45,6 +45,15 @@ import {
   type EnergyLevel,
 } from "../../lib/generation/prescriptionRules";
 import { getBestSubstitute } from "../../lib/generation/exerciseSubstitution";
+import { resolveWorkoutConstraints } from "../workoutIntelligence/constraints/resolveWorkoutConstraints";
+import type { ResolvedWorkoutConstraints } from "../workoutIntelligence/constraints/constraintTypes";
+import {
+  selectCooldownMobilityExercises as selectOntologyCooldown,
+  getPreferredCooldownTargetsFromFamilies,
+  MAIN_WORK_EXCLUDED_ROLES,
+} from "./cooldownSelection";
+import { pickBestSupersetPairs } from "../workoutIntelligence/supersetPairing";
+import { validateWorkoutAgainstConstraints } from "../workoutIntelligence/validation/workoutValidator";
 
 // --- Avoid tags that imply overhead / hanging / shoulder extension (safety) ---
 const OVERHEAD_HANGING_PATTERNS = new Set([
@@ -88,6 +97,36 @@ function shuffleWithSeed<T>(arr: T[], rng: () => number): T[] {
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
+}
+
+/** Map generator input to WorkoutSelectionInput for resolveWorkoutConstraints (Phase 6). */
+function inputToSelectionInput(input: GenerateWorkoutInput): Parameters<typeof resolveWorkoutConstraints>[0] {
+  return {
+    primary_goal: input.primary_goal,
+    secondary_goals: input.secondary_goals?.map((g) => g.toLowerCase().replace(/\s/g, "_")) ?? [],
+    available_equipment: input.available_equipment,
+    duration_minutes: input.duration_minutes,
+    energy_level: input.energy_level,
+    injuries_or_limitations: input.injuries_or_constraints ?? [],
+    body_region_focus: input.focus_body_parts?.map((f) => f.toLowerCase().replace(/\s/g, "_")) ?? [],
+  };
+}
+
+/** Collect movement families from main-work blocks for ontology-aware cooldown targeting. */
+function getMainWorkFamiliesFromBlocks(blocks: WorkoutBlock[], exercises: Exercise[]): string[] {
+  const byId = new Map(exercises.map((e) => [e.id, e]));
+  const mainTypes = new Set(["main_strength", "main_hypertrophy", "power", "accessory"]);
+  const families = new Set<string>();
+  for (const block of blocks) {
+    if (!mainTypes.has(block.block_type)) continue;
+    for (const item of block.items) {
+      const ex = byId.get(item.exercise_id);
+      if (!ex) continue;
+      const fams = getEffectiveFamiliesForExercise(ex);
+      fams.forEach((f) => families.add(f));
+    }
+  }
+  return [...families];
 }
 
 /** Map focus_body_parts (generator input) to canonical movement families for strict filtering. */
@@ -518,29 +557,50 @@ function buildWarmup(
   };
 }
 
-// --- Build cooldown block (3–6 min): 2–3 items breathing + mobility ---
+// --- Build cooldown block (3–6 min): ontology-aware when constraints require mobility; else legacy ---
 function buildCooldown(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
   used: Set<string>,
-  rng: () => number
-): WorkoutBlock {
-  const pool = exercises.filter(
-    (e) =>
-      (e.modality === "mobility" || e.modality === "recovery") &&
-      !used.has(e.id)
-  );
-  const count = input.duration_minutes <= 30 ? 2 : 3;
-  const chosen: Exercise[] = [];
-  const ids = shuffleWithSeed([...pool], rng);
-  for (const e of ids) {
-    if (chosen.length >= count) break;
-    chosen.push(e);
-    used.add(e.id);
+  rng: () => number,
+  options: {
+    constraints: ResolvedWorkoutConstraints;
+    mainWorkFamilies: string[];
   }
-  if (chosen.length < count && !used.has("breathing_cooldown")) {
+): WorkoutBlock {
+  const minMobility = options.constraints.min_cooldown_mobility_exercises ?? 0;
+  const useOntologyCooldown = minMobility > 0;
+  const preferredTargets = getPreferredCooldownTargetsFromFamilies(options.mainWorkFamilies);
+
+  let chosen: Exercise[];
+  if (useOntologyCooldown) {
+    chosen = selectOntologyCooldown(exercises, {
+      minMobilityCount: minMobility,
+      preferredTargets,
+      alreadyUsedIds: used,
+      rng,
+      maxItems: input.duration_minutes <= 30 ? Math.max(minMobility, 3) : Math.max(minMobility, 4),
+    });
+    chosen.forEach((e) => used.add(e.id));
+  } else {
+    const pool = exercises.filter(
+      (e) =>
+        (e.modality === "mobility" || e.modality === "recovery") &&
+        !used.has(e.id)
+    );
+    const count = input.duration_minutes <= 30 ? 2 : 3;
+    chosen = [];
+    const ids = shuffleWithSeed([...pool], rng);
+    for (const e of ids) {
+      if (chosen.length >= count) break;
+      chosen.push(e);
+      used.add(e.id);
+    }
+  }
+
+  if (chosen.length > 0 && !used.has("breathing_cooldown")) {
     const breath = exercises.find((e) => e.id === "breathing_cooldown");
-    if (breath) {
+    if (breath && chosen.length < (useOntologyCooldown ? 5 : 4)) {
       chosen.push(breath);
       used.add(breath.id);
     }
@@ -560,11 +620,18 @@ function buildCooldown(
     };
   });
 
+  const title = useOntologyCooldown ? "Cooldown & mobility" : undefined;
+  const reasoning = useOntologyCooldown
+    ? "Mobility and stretch to support recovery and range of motion (from your secondary goal)."
+    : undefined;
+
   return {
     block_type: "cooldown",
     format: "circuit",
+    ...(title ? { title } : {}),
+    ...(reasoning ? { reasoning } : {}),
     items,
-    estimated_minutes: Math.min(6, 2 + items.length),
+    estimated_minutes: Math.min(8, 2 + items.length * 2),
   };
 }
 
@@ -587,12 +654,14 @@ function buildMainStrength(
     (e) =>
       (e.modality === "strength" || e.modality === "power") &&
       !used.has(e.id) &&
-      ["squat", "hinge", "push", "pull"].includes(e.movement_pattern)
+      ["squat", "hinge", "push", "pull"].includes(e.movement_pattern) &&
+      !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
   const accessoryPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "hypertrophy") &&
-      !used.has(e.id)
+      !used.has(e.id) &&
+      !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
 
   const mainLiftCount = Math.min(compoundMin, 2, mainPool.length);
@@ -630,29 +699,11 @@ function buildMainStrength(
 
   const pairCount = input.duration_minutes <= 30 ? 1 : input.duration_minutes <= 45 ? 1 : 2;
   if (pairCount && wantsSupersets) {
-    let available = accessoryPool.filter((e) => !used.has(e.id));
-    const pairs: [Exercise, Exercise][] = [];
-    const nonCompeting: [string, string][] = [
-      ["push", "pull"],
-      ["hinge", "rotate"],
-      ["squat", "pull"],
-    ];
-    for (let i = 0; i < pairCount && available.length >= 2; i++) {
-      const a = available[Math.floor(rng() * available.length)];
-      if (!a) break;
-      const competing = nonCompeting.find(([x, y]) => (x === a.movement_pattern || y === a.movement_pattern));
-      const b = available.find(
-        (e) =>
-          e.id !== a.id &&
-          competing &&
-          (e.movement_pattern === competing[0] || e.movement_pattern === competing[1]) &&
-          e.movement_pattern !== a.movement_pattern
-      ) ?? available.find((e) => e.id !== a.id);
-      if (!b) break;
-      pairs.push([a, b]);
-      used.add(a.id);
-      used.add(b.id);
-      available = available.filter((e) => e.id !== a.id && e.id !== b.id);
+    const available = accessoryPool.filter((e) => !used.has(e.id));
+    const pairs = pickBestSupersetPairs(available, pairCount, used) as [Exercise, Exercise][];
+    for (const [exA, exB] of pairs) {
+      used.add(exA.id);
+      used.add(exB.id);
     }
     const items: WorkoutItem[] = pairs.flatMap(([exA, exB]) => {
       const pA = getPrescription(exA, "main_strength", input.energy_level, input.primary_goal, true, fatigueVolumeScale);
@@ -707,7 +758,8 @@ function buildMainHypertrophy(
     (e) =>
       (e.modality === "hypertrophy" || e.modality === "strength") &&
       !used.has(e.id) &&
-      ["push", "pull", "squat", "hinge", "rotate"].includes(e.movement_pattern)
+      ["push", "pull", "squat", "hinge", "rotate"].includes(e.movement_pattern) &&
+      !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
   if (input.primary_goal === "calisthenics") {
     const bodyweightOrCal = pool.filter(
@@ -732,10 +784,15 @@ function buildMainHypertrophy(
     fatigueState
   );
 
-  const pairs: Exercise[][] = [];
-  for (let i = 0; i < chosen.length - 1; i += 2) {
-    pairs.push([chosen[i], chosen[i + 1]].filter(Boolean));
-  }
+  const targetPairCount = Math.floor(chosen.length / 2);
+  const rawPairs: Exercise[][] =
+    targetPairCount > 0 && chosen.length >= 2
+      ? (pickBestSupersetPairs(chosen, targetPairCount, new Set<string>()) as [Exercise, Exercise][])
+      : [];
+  const pairs: Exercise[][] = rawPairs;
+  const usedInPairs = new Set(pairs.flatMap(([a, b]) => [a.id, b.id]));
+  const leftover = chosen.filter((e) => !usedInPairs.has(e.id));
+  for (const ex of leftover) pairs.push([ex]);
   if (pairs.length === 0 && chosen.length) pairs.push([chosen[0]]);
 
   const items: WorkoutItem[] = pairs.flatMap((pair) =>
@@ -780,7 +837,8 @@ function buildEnduranceMain(
     (e) =>
       (e.modality === "strength" || e.modality === "conditioning") &&
       !used.has(e.id) &&
-      e.time_cost !== "high"
+      e.time_cost !== "high" &&
+      !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
   const { exercises: two } = selectExercises(strengthPool, input, recentIds, movementCounts, 2, rng, false, fatigueState);
   const blocks: WorkoutBlock[] = [];
@@ -909,6 +967,7 @@ export function generateWorkoutSession(
 
   // 2. Filter exercises (equipment, injuries, avoid tags, energy)
   const filtered = filterByHardConstraints(exercisePool, input);
+  const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
   const used = new Set<string>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
   const movementCounts = new Map<string, number>();
@@ -983,14 +1042,16 @@ export function generateWorkoutSession(
     }
   }
 
-  // 7. Build cooldown
-  const cooldown = buildCooldown(filtered, input, used, rng);
+  // 7. Build cooldown (required-block: mobility secondary goal → min mobility exercises + visible block)
+  const mainWorkFamilies = getMainWorkFamiliesFromBlocks(blocks, filtered);
+  const cooldown = buildCooldown(filtered, input, used, rng, {
+    constraints,
+    mainWorkFamilies,
+  });
   blocks.push(cooldown);
 
-  // 8. Enforce shared rules (movement pattern cap and balance already applied in selectExercises / scoring)
-
+  // 8. Post-assembly validation and repair (Phase 8)
   const estimated_duration_minutes = blocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
-
   const debug = includeDebug
     ? {
         scoring_breakdown: [] as ScoringDebug[],
@@ -998,12 +1059,19 @@ export function generateWorkoutSession(
       }
     : undefined;
 
-  return {
+  const session: WorkoutSession = {
     title: sessionTitle(input),
     estimated_duration_minutes,
     blocks,
     debug,
   };
+
+  const validation = validateWorkoutAgainstConstraints(session, constraints, filtered);
+  if (validation.valid) return session;
+  if (validation.repairedWorkout) {
+    return validation.repairedWorkout as WorkoutSession;
+  }
+  return session;
 }
 
 // --- Regenerate ---

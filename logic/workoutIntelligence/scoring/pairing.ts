@@ -1,26 +1,33 @@
 /**
- * Phase 4: Superset pairing engine (MVP).
- * Pairing compatibility, numeric score, and assembly of 2-exercise supersets.
+ * Phase 4/7: Superset pairing engine.
+ * Pairing compatibility, numeric score (ontology-aware), and assembly of 2-exercise supersets.
  */
 
 import type { ExerciseWithQualities } from "../types";
 import type { PairingScore, SelectionConfig } from "./scoreTypes";
-import { supersetCompatibility } from "../supersetPairing";
+import {
+  supersetCompatibility,
+  getSupersetPairingScore,
+  type PairingInput,
+} from "../supersetPairing";
 import { DEFAULT_SELECTION_CONFIG } from "./scoringConfig";
 
 /**
- * Pairing compatibility and numeric score for A + B.
+ * Pairing compatibility and numeric score for A + B (ontology-aware when fields present).
  */
 export function pairingScore(
-  a: ExerciseWithQualities,
-  b: ExerciseWithQualities,
+  a: ExerciseWithQualities | PairingInput,
+  b: ExerciseWithQualities | PairingInput,
   config: SelectionConfig = DEFAULT_SELECTION_CONFIG
 ): PairingScore {
+  const numeric = getSupersetPairingScore(a, b);
   const compat = supersetCompatibility(a, b);
   const goodBonus = config.pairing_good_bonus;
   const badPenalty = config.pairing_bad_penalty;
   if (compat === "good") return { compatibility: "good", score: goodBonus };
   if (compat === "bad") return { compatibility: "bad", score: badPenalty, reason: "poor_pair" };
+  if (numeric > 0) return { compatibility: "neutral", score: numeric };
+  if (numeric < 0) return { compatibility: "bad", score: badPenalty, reason: "poor_pair" };
   return { compatibility: "neutral", score: 0 };
 }
 

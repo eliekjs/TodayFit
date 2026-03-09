@@ -27,7 +27,17 @@ export {
   resolveSessionTemplateV2,
 } from "./sessionTemplatesV2";
 
-export { supersetCompatibility, pickSupersetPartner } from "./supersetPairing";
+export {
+  supersetCompatibility,
+  pickSupersetPartner,
+  getSupersetPairingScore,
+  getEffectivePairingCategory,
+  getEffectiveFatigueRegions,
+  getEffectivePairingFamilies,
+  pickBestSupersetPairs,
+  hasGripDemand,
+} from "./supersetPairing";
+export type { PairingInput } from "./supersetPairing";
 
 // Phase 3: Session architecture
 export { STIMULUS_PROFILES, getStimulusProfile, getBlockSequenceForStimulus } from "./stimulusProfiles";
@@ -202,3 +212,13 @@ export {
   exampleGeneralHypertrophy4Days,
   exampleWithPreferredDaysAndEnergy,
 } from "./weekly";
+
+export { validateWorkoutAgainstConstraints } from "./validation/workoutValidator";
+export type {
+  ValidatableWorkout,
+  ValidatableBlock,
+  ValidatableItem,
+  ValidationResult,
+  ValidationIssue,
+  ValidationIssueType,
+} from "./validation/workoutValidator";
