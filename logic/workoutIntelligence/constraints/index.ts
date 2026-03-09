@@ -7,10 +7,13 @@ export { resolveWorkoutConstraints } from "./resolveWorkoutConstraints";
 export {
   isExerciseAllowedByInjuries,
   matchesBodyPartFocus,
+  getEffectiveMovementFamilies,
   satisfiesBlockRequirement,
   canPairInSuperset,
   selectCooldownMobilityExercises,
   deriveMovementFamily,
+  matchesEquipmentConstraints,
+  isExerciseEligibleByConstraints,
 } from "./eligibilityHelpers";
 export { validateWorkoutAgainstConstraints } from "./validateWorkout";
 export type { ValidationResult } from "./validateWorkout";

@@ -54,38 +54,103 @@ export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily 
   return "lower_body";
 }
 
-/** Check if exercise is allowed given injury/restriction rules (hard exclude). */
+/** Ontology-first: joint stress tags to check (prefer structured, fallback to legacy). */
+function getJointStressForEligibility(ex: ExerciseWithQualities): string[] {
+  const fromOntology = ex.joint_stress_tags ?? [];
+  if (fromOntology.length > 0) return fromOntology;
+  return ex.joint_stress ?? [];
+}
+
+/** Ontology-first: contraindication tags to check (prefer structured, fallback to legacy). */
+function getContraindicationsForEligibility(ex: ExerciseWithQualities): string[] {
+  const fromOntology = ex.contraindication_tags ?? [];
+  if (fromOntology.length > 0) return fromOntology;
+  return ex.contraindications ?? [];
+}
+
+/** Check if exercise is allowed given injury/restriction rules (hard exclude). Uses ontology fields first when present. */
 export function isExerciseAllowedByInjuries(
   exercise: ExerciseWithQualities,
   constraints: ResolvedWorkoutConstraints
 ): boolean {
   if (constraints.excluded_exercise_ids.has(exercise.id)) return false;
-  const jointStress = exercise.joint_stress ?? [];
+  const jointStress = getJointStressForEligibility(exercise);
   for (const tag of jointStress) {
     const normalized = tag.toLowerCase().replace(/\s/g, "_");
     if (constraints.excluded_joint_stress_tags.has(normalized)) return false;
   }
-  const contra = exercise.contraindications ?? [];
-  for (const c of contra) {
-    const key = c.toLowerCase().replace(/\s/g, "_");
-    for (const rule of constraints.rules) {
-      if (rule.kind === "hard_exclude" && rule.contraindication_keys?.some((k) => key.includes(k) || k.includes(key)))
-        return false;
+  const contra = getContraindicationsForEligibility(exercise);
+  const excludedContra = constraints.excluded_contraindication_keys;
+  if (excludedContra.size > 0) {
+    for (const c of contra) {
+      const key = c.toLowerCase().replace(/\s/g, "_");
+      if (excludedContra.has(key)) return false;
+      for (const exKey of excludedContra) {
+        if (key.includes(exKey) || exKey.includes(key)) return false;
+      }
     }
   }
   return true;
 }
 
-/** Check if exercise matches body-part focus (hard_include). Returns true when no strict focus or when exercise matches. */
+/** Check equipment compatibility (ontology-agnostic; uses exercise.equipment_required). */
+export function matchesEquipmentConstraints(
+  exercise: ExerciseWithQualities,
+  availableEquipment: string[],
+  excludedEquipment: string[] = []
+): boolean {
+  const available = new Set(availableEquipment.map((e) => e.toLowerCase().replace(/\s/g, "_")));
+  const excluded = new Set(excludedEquipment.map((e) => e.toLowerCase().replace(/\s/g, "_")));
+  const required = (exercise.equipment_required ?? []).map((e) => e.toLowerCase().replace(/\s/g, "_"));
+  if (required.length === 0) return true;
+  for (const r of required) {
+    if (excluded.has(r)) return false;
+    if (!available.has(r)) return false;
+  }
+  return true;
+}
+
+/** One-shot eligibility: allowed by injuries, body-part, and equipment. Uses ontology when present. */
+export function isExerciseEligibleByConstraints(
+  exercise: ExerciseWithQualities,
+  constraints: ResolvedWorkoutConstraints,
+  options: { blockType?: string; availableEquipment?: string[]; excludedEquipment?: string[] }
+): boolean {
+  if (!isExerciseAllowedByInjuries(exercise, constraints)) return false;
+  if (!matchesBodyPartFocus(exercise, constraints, options.blockType)) return false;
+  if (options.availableEquipment != null && !matchesEquipmentConstraints(
+    exercise,
+    options.availableEquipment,
+    options.excludedEquipment ?? []
+  )) return false;
+  return true;
+}
+
+/**
+ * Effective movement families for an exercise (ontology-first; used for strict body-part filtering).
+ * For hybrids (e.g. thruster): primary + secondary so exercise is allowed when focus matches either.
+ */
+export function getEffectiveMovementFamilies(exercise: ExerciseWithQualities): MovementFamily[] {
+  const primary = exercise.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
+  if (primary && VALID_MOVEMENT_FAMILIES.includes(primary as MovementFamily)) {
+    const secondaries = (exercise.secondary_movement_families ?? [])
+      .map((s) => s.toLowerCase().replace(/\s/g, "_"))
+      .filter((s): s is MovementFamily => VALID_MOVEMENT_FAMILIES.includes(s as MovementFamily));
+    return [primary as MovementFamily, ...secondaries].filter((f, i, a) => a.indexOf(f) === i);
+  }
+  return [deriveMovementFamily(exercise)];
+}
+
+/** Check if exercise matches body-part focus (hard_include). Uses ontology primary + secondary when present; fallback to derivation. */
 export function matchesBodyPartFocus(
   exercise: ExerciseWithQualities,
   constraints: ResolvedWorkoutConstraints,
-  blockType?: string
+  _blockType?: string
 ): boolean {
   if (constraints.allowed_movement_families == null || constraints.allowed_movement_families.length === 0)
     return true;
-  const family = deriveMovementFamily(exercise);
-  return constraints.allowed_movement_families.includes(family);
+  const families = getEffectiveMovementFamilies(exercise);
+  return families.some((f) => constraints.allowed_movement_families!.includes(f));
 }
 
 /** Check if block requirement is satisfied (e.g. cooldown has mobility). Used by validator. */

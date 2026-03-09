@@ -15,7 +15,7 @@ import {
   normalizeInjuryKey,
 } from "../../../lib/workoutRules";
 import type { ResolvedWorkoutConstraints } from "../constraints/constraintTypes";
-import { deriveMovementFamily } from "../constraints/eligibilityHelpers";
+import { getEffectiveMovementFamilies } from "../constraints/eligibilityHelpers";
 
 export type FilterResult = { pass: boolean; reason?: string };
 
@@ -76,7 +76,7 @@ export function filterSkillForEnergy(
   return { pass: true };
 }
 
-/** Injury / joint stress: exclude exercises that conflict with limitations. */
+/** Injury / joint stress: exclude exercises that conflict with limitations. Ontology-first (joint_stress_tags, contraindication_tags) when present. */
 export function filterInjury(
   exercise: ExerciseWithQualities,
   input: WorkoutSelectionInput
@@ -86,15 +86,16 @@ export function filterInjury(
   const avoidTags = getInjuryAvoidTags(injuries);
   const avoidIds = getInjuryAvoidExerciseIds(injuries);
   if (avoidIds.has(exercise.id)) return { pass: false, reason: "injury_excluded_id" };
-  const jointStress = exercise.joint_stress ?? [];
+  const jointStress = (exercise.joint_stress_tags?.length ? exercise.joint_stress_tags : exercise.joint_stress) ?? [];
   for (const t of jointStress) {
-    if (avoidTags.has(t)) return { pass: false, reason: "injury_joint_stress" };
+    const normalized = t.toLowerCase().replace(/\s/g, "_");
+    if (avoidTags.has(normalized) || avoidTags.has(t)) return { pass: false, reason: "injury_joint_stress" };
   }
-  const contraindications = exercise.contraindications ?? [];
+  const contraindications = (exercise.contraindication_tags?.length ? exercise.contraindication_tags : exercise.contraindications) ?? [];
+  const injuryKeys = new Set(injuries.map((i) => normalizeInjuryKey(i)));
   for (const c of contraindications) {
     const key = normalizeInjuryKey(c);
-    if (injuries.some((i) => normalizeInjuryKey(i) === key))
-      return { pass: false, reason: "contraindication" };
+    if (injuryKeys.has(key)) return { pass: false, reason: "contraindication" };
   }
   return { pass: true };
 }
@@ -162,7 +163,7 @@ export function filterBodyRegion(
   return { pass: true };
 }
 
-/** Strict filter from resolved constraints: hard_exclude and hard_include (body-part). */
+/** Strict filter from resolved constraints: hard_exclude and hard_include (body-part). Ontology-first. */
 export function filterByConstraints(
   exercise: ExerciseWithQualities,
   constraints: ResolvedWorkoutConstraints,
@@ -170,11 +171,16 @@ export function filterByConstraints(
 ): FilterResult {
   if (constraints.excluded_exercise_ids.has(exercise.id))
     return { pass: false, reason: "constraint_excluded_id" };
-  const jointStress = exercise.joint_stress ?? [];
+  const jointStress = (exercise.joint_stress_tags?.length ? exercise.joint_stress_tags : exercise.joint_stress) ?? [];
   for (const t of jointStress) {
     const n = t.toLowerCase().replace(/\s/g, "_");
     if (constraints.excluded_joint_stress_tags.has(n))
       return { pass: false, reason: "constraint_joint_stress" };
+  }
+  const contra = (exercise.contraindication_tags?.length ? exercise.contraindication_tags : exercise.contraindications) ?? [];
+  for (const c of contra) {
+    const key = c.toLowerCase().replace(/\s/g, "_");
+    if (constraints.excluded_contraindication_keys.has(key)) return { pass: false, reason: "constraint_contraindication" };
   }
   const workingBlockTypes = new Set(["main_strength", "main_hypertrophy", "power", "accessory", "conditioning"]);
   if (
@@ -182,8 +188,8 @@ export function filterByConstraints(
     constraints.allowed_movement_families.length > 0 &&
     workingBlockTypes.has(blockSpec.block_type)
   ) {
-    const family = deriveMovementFamily(exercise);
-    if (!constraints.allowed_movement_families.includes(family))
+    const families = getEffectiveMovementFamilies(exercise);
+    if (!families.some((f) => constraints.allowed_movement_families!.includes(f)))
       return { pass: false, reason: "constraint_body_part_focus" };
   }
   return { pass: true };

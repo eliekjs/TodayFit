@@ -114,8 +114,10 @@ export interface ResolvedWorkoutConstraints {
   rules: WorkoutConstraint[];
   /** Quick lookup: all exercise IDs that are hard-excluded. */
   excluded_exercise_ids: Set<string>;
-  /** Quick lookup: all joint_stress tags to exclude when any injury matches. */
+  /** Quick lookup: all joint_stress tags to exclude when any injury matches (canonical slugs). */
   excluded_joint_stress_tags: Set<string>;
+  /** Quick lookup: contraindication keys (body regions) to exclude when user has matching injury (e.g. shoulder, knee). */
+  excluded_contraindication_keys: Set<string>;
   /** When body-part is strict: only these movement families allowed for working blocks. */
   allowed_movement_families: MovementFamily[] | null;
   /** Secondary goal mobility: min mobility/stretch exercises in cooldown. */

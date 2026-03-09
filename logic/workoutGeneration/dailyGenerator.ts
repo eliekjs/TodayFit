@@ -23,6 +23,7 @@ import {
   WARMUP_ITEM_MAX_SECONDS,
   getInjuryAvoidTags,
   getInjuryAvoidExerciseIds,
+  normalizeInjuryKey,
   MAX_SAME_PATTERN_PER_SESSION,
   MIN_MOVEMENT_CATEGORIES,
   BALANCE_CATEGORY_PATTERNS,
@@ -66,7 +67,7 @@ function exerciseHasOverheadOrHanging(e: Exercise, avoidTags: string[]): boolean
   const hasOverheadAvoid = [...OVERHEAD_HANGING_PATTERNS].some((p) => avoid.has(p));
   if (!hasOverheadAvoid) return false;
   if (EXERCISE_IDS_OVERHEAD_OR_HANGING.has(e.id)) return true;
-  const jointStress = e.tags.joint_stress ?? [];
+  const jointStress = (e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags.joint_stress) ?? [];
   if (jointStress.some((s) => s === "shoulder_overhead" || s === "grip_hanging")) return true;
   return false;
 }
@@ -89,45 +90,88 @@ function shuffleWithSeed<T>(arr: T[], rng: () => number): T[] {
   return out;
 }
 
-// --- Hard constraints: filter out exercises that violate equipment, injuries, avoid, energy, time ---
+/** Map focus_body_parts (generator input) to canonical movement families for strict filtering. */
+function focusToMovementFamilies(focus: string[]): Set<string> | null {
+  if (!focus?.length || focus.some((f) => f.toLowerCase() === "full_body")) return null;
+  const families = new Set<string>();
+  for (const f of focus) {
+    const key = f.toLowerCase().replace(/\s/g, "_");
+    if (key === "upper_push") families.add("upper_push");
+    else if (key === "upper_pull") families.add("upper_pull");
+    else if (key === "lower") families.add("lower_body");
+    else if (key === "core") families.add("core");
+    else if (key === "mobility") families.add("mobility");
+    else if (key === "conditioning") families.add("conditioning");
+  }
+  return families.size > 0 ? families : null;
+}
+
+/** Effective movement families for one exercise (ontology-first; fallback from pattern + muscles for generator Exercise). */
+function getEffectiveFamiliesForExercise(e: Exercise): string[] {
+  const primary = e.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
+  if (primary) {
+    const secondaries = (e.secondary_movement_families ?? []).map((s) => s.toLowerCase().replace(/\s/g, "_"));
+    return [primary, ...secondaries].filter((x, i, a) => a.indexOf(x) === i);
+  }
+  const pattern = (e.movement_pattern ?? "").toLowerCase();
+  const muscles = new Set((e.muscle_groups ?? []).map((m) => m.toLowerCase()));
+  if (pattern === "push" || muscles.has("chest") || muscles.has("triceps") || muscles.has("push") || muscles.has("shoulders")) return ["upper_push"];
+  if (pattern === "pull" || muscles.has("back") || muscles.has("biceps") || muscles.has("pull") || muscles.has("lats")) return ["upper_pull"];
+  if (pattern === "squat" || pattern === "hinge" || pattern === "locomotion") {
+    if (muscles.has("legs") || muscles.has("quads") || muscles.has("glutes") || muscles.has("hamstrings")) return ["lower_body"];
+    if (muscles.has("core")) return ["core"];
+    return ["lower_body"];
+  }
+  if (pattern === "carry") return muscles.has("core") && !muscles.has("legs") ? ["core"] : ["lower_body"];
+  if (pattern === "rotate") return ["core"];
+  return ["lower_body"];
+}
+
+// --- Hard constraints: filter out exercises that violate equipment, injuries, avoid, energy, time, body-part ---
+// Ontology-first: uses joint_stress_tags, contraindication_tags, primary_movement_family when present; fallback to tags/derivation.
 export function filterByHardConstraints(
   exercises: Exercise[],
   input: GenerateWorkoutInput
 ): Exercise[] {
   const equipmentSet = new Set(
-    input.available_equipment.map((e) => e.toLowerCase().replace(/\s/g, "_"))
+    input.available_equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"))
   );
-  const injuriesSet = new Set(
-    input.injuries_or_constraints.map((i) => i.toLowerCase().replace(/\s/g, "_"))
-  );
+  const injuryKeys = new Set(input.injuries_or_constraints.map((i) => normalizeInjuryKey(i)));
   const avoidTags = input.style_prefs?.avoid_tags ?? [];
   const injuryAvoidTags = getInjuryAvoidTags(input.injuries_or_constraints);
   const injuryAvoidIds = getInjuryAvoidExerciseIds(input.injuries_or_constraints);
+  const allowedFamilies = focusToMovementFamilies(input.focus_body_parts ?? []);
 
   return exercises.filter((e) => {
     // Equipment: every required piece must be available
     const required = e.equipment_required.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
     if (required.some((eq) => !equipmentSet.has(eq))) return false;
 
-    // Contraindications / injuries (explicit tag match)
-    const contra = e.tags.contraindications ?? [];
-    if (contra.some((c) => injuriesSet.has(c))) return false;
+    // Ontology-first: contraindications (canonical body regions) vs normalized injury keys
+    const contra = (e.contraindication_tags?.length ? e.contraindication_tags : e.tags.contraindications) ?? [];
+    if (contra.some((c) => injuryKeys.has(c.toLowerCase().replace(/\s/g, "_")))) return false;
 
-    // Injury safety: exclude exercises that stress injured areas
-    const jointStress = e.tags.joint_stress ?? [];
+    // Ontology-first: joint stress (canonical slugs)
+    const jointStress = (e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags.joint_stress) ?? [];
     for (const avoid of injuryAvoidTags) {
-      if (jointStress.includes(avoid)) return false;
+      if (jointStress.some((t) => t.toLowerCase().replace(/\s/g, "_") === avoid)) return false;
     }
     if (injuryAvoidIds.has(e.id)) return false;
 
     // Joint stress: if user style prefs avoid certain patterns, exclude
     for (const avoid of avoidTags) {
       const a = avoid.toLowerCase().replace(/\s/g, "_");
-      if (jointStress.includes(a)) return false;
+      if (jointStress.some((t) => t.toLowerCase().replace(/\s/g, "_") === a)) return false;
     }
 
     // Avoid overhead / hanging when user specified
     if (exerciseHasOverheadOrHanging(e, avoidTags)) return false;
+
+    // Strict body-part focus: only allow exercises whose primary or secondary movement family is in the allowed set
+    if (allowedFamilies != null && allowedFamilies.size > 0) {
+      const families = getEffectiveFamiliesForExercise(e);
+      if (!families.some((f) => allowedFamilies!.has(f))) return false;
+    }
 
     // Energy: low energy → exclude exercises tagged only for high
     if (input.energy_level === "low") {

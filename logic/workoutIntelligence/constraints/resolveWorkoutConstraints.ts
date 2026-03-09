@@ -54,6 +54,7 @@ export function resolveWorkoutConstraints(
   const rules: WorkoutConstraint[] = [];
   const excludedIds = new Set<string>();
   const excludedJointStress = new Set<string>();
+  const excludedContraindicationKeys = new Set<string>();
   let allowedMovementFamilies: MovementFamily[] | null = null;
   let minCooldownMobility = 0;
   let supersetPairing: SupersetPairingRule | null = null;
@@ -63,13 +64,15 @@ export function resolveWorkoutConstraints(
   if (injuries.length > 0) {
     const avoidTags = getInjuryAvoidTags(injuries);
     const avoidIds = getInjuryAvoidExerciseIds(injuries);
+    const contraKeys = injuries.map((i) => normalizeInjuryKey(i));
     avoidTags.forEach((t) => excludedJointStress.add(t));
     avoidIds.forEach((id) => excludedIds.add(id));
+    contraKeys.forEach((k) => excludedContraindicationKeys.add(k));
     const hardExclude: HardExcludeRule = {
       kind: "hard_exclude",
       exercise_ids: [...avoidIds],
       joint_stress_tags: [...avoidTags],
-      contraindication_keys: injuries.map((i) => normalizeInjuryKey(i)),
+      contraindication_keys: contraKeys,
     };
     rules.push(hardExclude);
   }
@@ -146,6 +149,7 @@ export function resolveWorkoutConstraints(
     rules,
     excluded_exercise_ids: excludedIds,
     excluded_joint_stress_tags: excludedJointStress,
+    excluded_contraindication_keys: excludedContraindicationKeys,
     allowed_movement_families: allowedMovementFamilies,
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
