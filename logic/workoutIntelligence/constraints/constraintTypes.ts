@@ -1,35 +1,13 @@
 /**
  * Filter-to-workout rules engine — constraint and rule types.
  * Used by resolveWorkoutConstraints and by filtering/validation.
+ * MovementFamily and JointStressTag are canonical from lib/ontology.
  */
 
 import type { BlockType } from "../types";
+import type { MovementFamily, JointStressTag } from "../../../lib/ontology";
 
-/** Movement family for strict body-part inclusion (aligned with NSCA-style taxonomy). */
-export type MovementFamily =
-  | "upper_push"
-  | "upper_pull"
-  | "lower_body"
-  | "core"
-  | "mobility"
-  | "conditioning";
-
-/** Structured joint-stress tag for injury filtering (research-backed naming). */
-export type JointStressTag =
-  | "shoulder_overhead"
-  | "shoulder_abduction_load"
-  | "shoulder_extension_load"
-  | "shoulder_external_rotation_load"
-  | "grip_hanging"
-  | "deep_knee_flexion"
-  | "knee_flexion"
-  | "spinal_axial_load"
-  | "lumbar_shear"
-  | "lumbar_flexion_load"
-  | "wrist_extension_load"
-  | "elbow_stress"
-  | "hip_stress"
-  | "ankle_stress";
+export type { MovementFamily, JointStressTag };
 
 /** Severity for injury/restriction: hard exclude vs soft caution. */
 export type RestrictionSeverity = "hard" | "soft";

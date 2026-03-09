@@ -53,6 +53,23 @@ export type ExerciseTags = {
   )[];
 };
 
+// --- Ontology (optional; when present, source of truth for filtering/rules) ---
+// Canonical slugs from lib/ontology. Legacy tags.joint_stress / tags.contraindications
+// can be populated from joint_stress_tags / contraindication_tags by adapters.
+export type ExerciseOntology = {
+  primary_movement_family?: string;
+  secondary_movement_families?: string[];
+  movement_patterns?: string[];
+  joint_stress_tags?: string[];
+  contraindication_tags?: string[];
+  exercise_role?: string;
+  pairing_category?: string;
+  fatigue_regions?: string[];
+  mobility_targets?: string[];
+  stretch_targets?: string[];
+  unilateral?: boolean;
+};
+
 // --- Exercise (generator schema) ---
 export type Exercise = {
   id: string;
@@ -67,6 +84,18 @@ export type Exercise = {
   tags: ExerciseTags;
   progressions?: string[]; // exercise IDs
   regressions?: string[];
+  /** Ontology fields (optional). When set, use for strict filtering; legacy tags still populated for compat. */
+  primary_movement_family?: string;
+  secondary_movement_families?: string[];
+  movement_patterns?: string[];
+  joint_stress_tags?: string[];
+  contraindication_tags?: string[];
+  exercise_role?: string;
+  pairing_category?: string;
+  fatigue_regions?: string[];
+  mobility_targets?: string[];
+  stretch_targets?: string[];
+  unilateral?: boolean;
 };
 
 // --- Input contract ---

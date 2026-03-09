@@ -8,7 +8,7 @@ import type { ExerciseWithQualities, QualityWeightMap } from "./types";
 import type { TrainingQualitySlug } from "./trainingQualities";
 import { qualitiesFromTags } from "./tagToQualityMap";
 
-/** Generator Exercise shape (logic/workoutGeneration/types). */
+/** Generator Exercise shape (logic/workoutGeneration/types). Includes optional ontology fields. */
 export type GeneratorExercise = {
   id: string;
   name: string;
@@ -29,6 +29,18 @@ export type GeneratorExercise = {
   };
   progressions?: string[];
   regressions?: string[];
+  /** Ontology fields (when present, used by constraints/eligibility). */
+  primary_movement_family?: string;
+  secondary_movement_families?: string[];
+  movement_patterns?: string[];
+  joint_stress_tags?: string[];
+  contraindication_tags?: string[];
+  exercise_role?: string;
+  pairing_category?: string;
+  fatigue_regions?: string[];
+  mobility_targets?: string[];
+  stretch_targets?: string[];
+  unilateral?: boolean;
 };
 
 /** Optional overrides: exercise_id -> partial quality weights (merge with derived). */
@@ -63,18 +75,30 @@ export function toExerciseWithQualities(e: GeneratorExercise): ExerciseWithQuali
       if (typeof v === "number") weights[k as TrainingQualitySlug] = v;
     }
   }
-  return {
+  const out: ExerciseWithQualities = {
     id: e.id,
     name: e.name,
     movement_pattern: e.movement_pattern,
     muscle_groups: e.muscle_groups,
     equipment_required: e.equipment_required,
     training_quality_weights: weights,
-    joint_stress: e.tags?.joint_stress,
-    contraindications: e.tags?.contraindications,
+    joint_stress: e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags?.joint_stress,
+    contraindications: e.contraindication_tags?.length ? e.contraindication_tags : e.tags?.contraindications,
     energy_fit: e.tags?.energy_fit,
     time_cost: e.time_cost,
     modality: e.modality,
     skill_level: e.difficulty,
   };
+  if (e.primary_movement_family != null) out.primary_movement_family = e.primary_movement_family;
+  if (e.secondary_movement_families?.length) out.secondary_movement_families = e.secondary_movement_families;
+  if (e.movement_patterns?.length) out.movement_patterns = e.movement_patterns;
+  if (e.joint_stress_tags?.length) out.joint_stress_tags = e.joint_stress_tags;
+  if (e.contraindication_tags?.length) out.contraindication_tags = e.contraindication_tags;
+  if (e.exercise_role != null) out.exercise_role = e.exercise_role;
+  if (e.pairing_category != null) out.pairing_category = e.pairing_category;
+  if (e.fatigue_regions?.length) out.fatigue_regions = e.fatigue_regions;
+  if (e.mobility_targets?.length) out.mobility_targets = e.mobility_targets;
+  if (e.stretch_targets?.length) out.stretch_targets = e.stretch_targets;
+  if (e.unilateral === true) out.unilateral = true;
+  return out;
 }

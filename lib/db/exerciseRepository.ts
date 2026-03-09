@@ -1,5 +1,8 @@
 import { getSupabase } from "./client";
 import type { ExerciseDefinition } from "../types";
+import type { Exercise } from "../../logic/workoutGeneration/types";
+import type { ExerciseRowWithOntology } from "./generatorExerciseAdapter";
+import { mapDbExerciseToGeneratorExercise } from "./generatorExerciseAdapter";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -279,6 +282,118 @@ export async function listTags(): Promise<{
  */
 export async function listExercisesByTags(tagSlugs: string[]): Promise<ExerciseDefinition[]> {
   return listExercises({ tagSlugs });
+}
+
+/** Select list including structured ontology columns for generator adapter. */
+const EXERCISE_SELECT_WITH_ONTOLOGY =
+  "id, slug, name, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral";
+
+/**
+ * List exercises in generator Exercise format with ontology fields when present.
+ * Uses structured DB columns (primary_movement_family, joint_stress_tags, etc.) and
+ * populates legacy movement_pattern and tags.joint_stress/contraindications for compat.
+ */
+export async function listExercisesForGenerator(
+  filters?: ExerciseFilters
+): Promise<Exercise[]> {
+  const supabase = requireClient();
+  let query = supabase
+    .from("exercises")
+    .select(EXERCISE_SELECT_WITH_ONTOLOGY)
+    .eq("is_active", true);
+
+  if (filters?.equipment?.length) {
+    query = query.overlaps("equipment", filters.equipment);
+  }
+  if (filters?.primaryMuscles?.length) {
+    query = query.overlaps("primary_muscles", filters.primaryMuscles);
+  }
+
+  const { data: rows, error } = await query;
+  if (error) throw new Error(error.message);
+  if (!rows?.length) return [];
+
+  const exerciseIds = rows.map((r: { id: string }) => r.id);
+
+  const [tagsRes, contraRes, progRes] = await Promise.all([
+    supabase.from("exercise_tag_map").select("exercise_id, tag_id").in("exercise_id", exerciseIds),
+    supabase.from("exercise_contraindications").select("exercise_id, contraindication").in("exercise_id", exerciseIds),
+    supabase.from("exercise_progressions").select("exercise_id, related_exercise_id, relationship").in("exercise_id", exerciseIds),
+  ]);
+
+  const tagIds = [...new Set((tagsRes.data ?? []).map((r: { tag_id: string }) => r.tag_id))];
+  const tagRows = tagIds.length
+    ? await supabase.from("exercise_tags").select("id, slug, name").in("id", tagIds)
+    : { data: [] };
+  const tagById = new Map((tagRows.data ?? []).map((t: { id: string; slug: string; name: string }) => [t.id, t]));
+
+  const tagsByExerciseId = new Map<string, string[]>();
+  for (const r of tagsRes.data ?? []) {
+    const t = tagById.get((r as { tag_id: string }).tag_id);
+    if (t) {
+      const list = tagsByExerciseId.get((r as { exercise_id: string }).exercise_id) ?? [];
+      list.push(t.slug);
+      tagsByExerciseId.set((r as { exercise_id: string }).exercise_id, list);
+    }
+  }
+
+  const contraByExerciseId = new Map<string, string[]>();
+  for (const r of contraRes.data ?? []) {
+    const eid = (r as { exercise_id: string }).exercise_id;
+    const c = (r as { contraindication: string }).contraindication;
+    const list = contraByExerciseId.get(eid) ?? [];
+    list.push(c);
+    contraByExerciseId.set(eid, list);
+  }
+
+  const relatedIds = [...new Set((progRes.data ?? []).map((r: { related_exercise_id: string }) => r.related_exercise_id))];
+  const relatedSlugById = new Map<string, string>();
+  if (relatedIds.length > 0) {
+    const { data: relatedRows } = await supabase.from("exercises").select("id, slug").in("id", relatedIds);
+    for (const e of relatedRows ?? []) {
+      relatedSlugById.set((e as { id: string }).id, (e as { slug: string }).slug);
+    }
+  }
+  const progressionsByExerciseId = new Map<string, string[]>();
+  const regressionsByExerciseId = new Map<string, string[]>();
+  for (const r of progRes.data ?? []) {
+    const eid = (r as { exercise_id: string }).exercise_id;
+    const slug = relatedSlugById.get((r as { related_exercise_id: string }).related_exercise_id);
+    if (!slug) continue;
+    if ((r as { relationship: string }).relationship === "progression") {
+      const list = progressionsByExerciseId.get(eid) ?? [];
+      list.push(slug);
+      progressionsByExerciseId.set(eid, list);
+    } else {
+      const list = regressionsByExerciseId.get(eid) ?? [];
+      list.push(slug);
+      regressionsByExerciseId.set(eid, list);
+    }
+  }
+
+  const result: Exercise[] = [];
+  for (const row of rows as ExerciseRowWithOntology[]) {
+    if (filters?.injuries?.length) {
+      const contra = contraByExerciseId.get(row.id) ?? [];
+      const fromOntology = (row.contraindication_tags ?? []).map((c) => c.toLowerCase().replace(/\s/g, "_"));
+      const allContra = [...contra, ...fromOntology];
+      if (allContra.some((c) => filters.injuries!.some((i) => i.toLowerCase().replace(/\s/g, "_") === c))) continue;
+    }
+    if (filters?.tagSlugs?.length) {
+      const exTags = tagsByExerciseId.get(row.id) ?? [];
+      if (!filters.tagSlugs.some((t) => exTags.includes(t))) continue;
+    }
+    result.push(
+      mapDbExerciseToGeneratorExercise(
+        row,
+        tagsByExerciseId.get(row.id) ?? [],
+        contraByExerciseId.get(row.id) ?? [],
+        progressionsByExerciseId.get(row.id) ?? [],
+        regressionsByExerciseId.get(row.id) ?? []
+      )
+    );
+  }
+  return result;
 }
 
 /**

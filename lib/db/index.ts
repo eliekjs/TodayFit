@@ -15,8 +15,11 @@ export {
   getExercise,
   listTags,
   listExercisesByTags,
+  listExercisesForGenerator,
 } from "./exerciseRepository";
 export type { ExerciseFilters } from "./exerciseRepository";
+export { mapDbExerciseToGeneratorExercise } from "./generatorExerciseAdapter";
+export type { ExerciseRowWithOntology } from "./generatorExerciseAdapter";
 
 export {
   listProfiles,

@@ -33,6 +33,17 @@ export interface ExerciseWithQualities {
   modality?: string;
   /** When set (e.g. from DB primary_movement_family), used by constraints/eligibility for strict body-part filtering. */
   primary_movement_family?: string;
+  /** Optional ontology fields (canonical slugs from lib/ontology). */
+  secondary_movement_families?: string[];
+  movement_patterns?: string[];
+  joint_stress_tags?: string[];
+  contraindication_tags?: string[];
+  exercise_role?: string;
+  pairing_category?: string;
+  fatigue_regions?: string[];
+  mobility_targets?: string[];
+  stretch_targets?: string[];
+  unilateral?: boolean;
 }
 
 /** Input for merging goal + sport into a session target. */

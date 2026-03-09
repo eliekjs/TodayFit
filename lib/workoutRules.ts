@@ -83,6 +83,7 @@ export const BALANCE_CATEGORY_PATTERNS: MovementPatternKey[] = [
 ];
 
 // --- Injury safety: avoid patterns / tags when user reports injury ---
+// Joint-stress tag values use canonical slugs from lib/ontology (JOINT_STRESS_TAGS).
 
 export type InjuryConstraintKey =
   | "shoulder"
@@ -97,17 +98,17 @@ export type InjuryConstraintKey =
   | "hip"
   | "ankle";
 
-/** Injury → joint_stress / contraindication tags to avoid. */
+/** Injury → joint_stress tags to avoid (canonical slugs; see lib/ontology JOINT_STRESS_TAGS). Includes legacy "shoulder_extension" for backward compat. */
 export const INJURY_AVOID_TAGS: Record<string, string[]> = {
-  shoulder: ["shoulder_overhead", "shoulder_extension", "grip_hanging"],
-  rotator_cuff_irritation: ["shoulder_overhead", "shoulder_extension", "grip_hanging"],
+  shoulder: ["shoulder_overhead", "shoulder_extension_load", "shoulder_extension", "grip_hanging"],
+  rotator_cuff_irritation: ["shoulder_overhead", "shoulder_extension_load", "shoulder_extension", "grip_hanging"],
   shoulder_overhead: ["shoulder_overhead", "grip_hanging"],
   knee: ["knee_flexion"],
   knee_pain: ["knee_flexion"],
   lower_back: ["lumbar_shear"],
   low_back_sensitive: ["lumbar_shear"],
   elbow: ["elbow_stress"],
-  wrist: ["wrist_stress"],
+  wrist: ["wrist_stress", "wrist_extension_load"],
   hip: ["hip_stress"],
   ankle: ["ankle_stress"],
 };

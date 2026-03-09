@@ -10,7 +10,8 @@ import { getNumericFatigueBudget } from "../sessionShaping";
 import { getFatigueCostNumber } from "./scoringConfig";
 
 const GRIP_QUALITIES = new Set(["grip_strength", "forearm_endurance"]);
-const SHOULDER_STRESS = new Set(["shoulder_overhead", "shoulder_extension", "grip_hanging"]);
+/** Canonical + legacy joint-stress slugs for shoulder (see lib/ontology JOINT_STRESS_TAGS). */
+const SHOULDER_STRESS = new Set(["shoulder_overhead", "shoulder_extension_load", "shoulder_extension", "grip_hanging"]);
 const HEAVY_PATTERNS = new Set(["hinge", "squat"]);
 
 function isGripHeavy(ex: ExerciseWithQualities): boolean {
