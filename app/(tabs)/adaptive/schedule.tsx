@@ -11,12 +11,23 @@ import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { EnergyLevel } from "../../../lib/types";
+import type { BodyEmphasisKey } from "../../../lib/types";
 import { DURATIONS } from "../../../lib/preferencesConstants";
 import { listSportsForPrep } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES } from "../../../data/sportSubFocus";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const EMPHASIS_OPTIONS: { id: BodyEmphasisKey; label: string }[] = [
+  { id: "none", label: "None" },
+  { id: "upper_body", label: "Upper Body" },
+  { id: "lower_body", label: "Lower Body" },
+  { id: "pull", label: "Pull" },
+  { id: "push", label: "Push" },
+  { id: "glutes", label: "Glutes" },
+  { id: "core", label: "Core" },
+];
 
 /** preferredTrainingDays uses week index: 0=Mon..6=Sun (matches planner weekDates). */
 function toPreferredTrainingDays(selectedDows: number[]): number[] {
@@ -39,6 +50,7 @@ export default function AdaptiveScheduleScreen() {
   const [gymTrainingDays, setGymTrainingDays] = useState<number[]>([0, 2, 4]);
   const [sportDaysBySlug, setSportDaysBySlug] = useState<Record<string, number[]>>({});
   const [defaultDuration, setDefaultDuration] = useState<number>(45);
+  const [weeklyEmphasis, setWeeklyEmphasis] = useState<BodyEmphasisKey | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -178,6 +190,7 @@ export default function AdaptiveScheduleScreen() {
         goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
         goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
         goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+        emphasis: weeklyEmphasis ?? undefined,
       });
       setSportPrepWeekPlan(plan);
       setAdaptiveSetup(null);
@@ -192,6 +205,7 @@ export default function AdaptiveScheduleScreen() {
     gymTrainingDays,
     sportDaysBySlug,
     defaultDuration,
+    weeklyEmphasis,
     setSportPrepWeekPlan,
     setAdaptiveSetup,
     activeGymProfileId,
@@ -270,6 +284,22 @@ export default function AdaptiveScheduleScreen() {
             })}
           </>
         )}
+
+        <SectionHeader
+          title="Which area should we emphasize this week?"
+          subtitle="Workouts will still train the whole body, but we'll prioritize this area more."
+          style={{ marginTop: 24 }}
+        />
+        <View style={styles.chipGroup}>
+          {EMPHASIS_OPTIONS.map((opt) => (
+            <Chip
+              key={opt.id}
+              label={opt.label}
+              selected={weeklyEmphasis === opt.id || (opt.id === "none" && weeklyEmphasis == null)}
+              onPress={() => setWeeklyEmphasis(opt.id === "none" ? null : opt.id)}
+            />
+          ))}
+        </View>
 
         <SectionHeader
           title="Session duration"

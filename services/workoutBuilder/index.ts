@@ -1,4 +1,9 @@
-import type { GeneratedWorkout, EnergyLevel, ManualPreferences } from "../../lib/types";
+import type {
+  GeneratedWorkout,
+  EnergyLevel,
+  ManualPreferences,
+  TargetBody,
+} from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
 import { generateWorkoutAsync } from "../../lib/generator";
 import { isDbConfigured } from "../../lib/db";
@@ -14,6 +19,8 @@ export type SessionIntent = {
   energyLevel: EnergyLevel;
   /** Optional rationale or notes for this session. */
   notes?: string;
+  /** Optional body-region bias for this session (emphasis, not strict filter). */
+  bodyRegionBias?: { targetBody: TargetBody | null; targetModifier: string[] };
 };
 
 export type SportGoalOptions = {
@@ -27,6 +34,8 @@ export type SportGoalOptions = {
   recentLoad?: string;
   /** Injury/constraint labels (e.g. "Knee", "Lower Back") so generation excludes contraindicated exercises. */
   injuries?: string[];
+  /** Body-region bias for this session (emphasis; generator uses as targetBody/targetModifier). */
+  bodyRegionBias?: { targetBody: TargetBody | null; targetModifier: string[] };
 };
 
 /**
@@ -41,10 +50,12 @@ export async function buildWorkoutForSessionIntent(
   seedExtra?: string | number,
   options?: SportGoalOptions
 ): Promise<GeneratedWorkout> {
+  const bodyBias =
+    options?.bodyRegionBias ?? intent.bodyRegionBias ?? null;
   const basePreferences: ManualPreferences = {
     primaryFocus: intent.focus,
-    targetBody: null,
-    targetModifier: [],
+    targetBody: bodyBias?.targetBody ?? null,
+    targetModifier: bodyBias?.targetModifier ?? [],
     durationMinutes: intent.durationMinutes,
     energyLevel: intent.energyLevel,
     injuries: options?.injuries ?? [],

@@ -368,10 +368,10 @@ export default function ManualPreferencesScreen() {
           ))}
         </View>
 
-        {/* ——— Targets ——— */}
+        {/* ——— Body emphasis (optional) ——— */}
         <SectionHeader
-          title="Target"
-          subtitle="Upper, Lower, or Full body (optional)."
+          title="Emphasize this area?"
+          subtitle="Workouts will still train the whole body, but we'll prioritize this area more."
           style={{ marginTop: 24 }}
         />
         <View style={styles.chipGroup}>

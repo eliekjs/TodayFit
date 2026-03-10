@@ -27,6 +27,8 @@ export type AdaptiveSetup = {
   rankedSportSlugs: (string | null)[];
   subFocusBySport: Record<string, string[]>;
   sportFocusPct: [number, number];
+  /** Weekly body emphasis: more volume on this area; week still trains full body. */
+  weeklyEmphasis?: import("../lib/types").BodyEmphasisKey | null;
 };
 
 export const defaultManualPreferences: ManualPreferences = {

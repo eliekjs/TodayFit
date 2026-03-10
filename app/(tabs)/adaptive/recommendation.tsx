@@ -7,9 +7,10 @@ import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
-import type { GeneratedWorkout } from "../../../lib/types";
+import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/types";
 import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
 import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
+import { Chip } from "../../../components/Chip";
 import type { PlannedDay } from "../../../services/sportPrepPlanner";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 
@@ -46,6 +47,8 @@ export default function AdaptiveWeekPlanScreen() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Override preferences for the selected day when regenerating (goal, body, energy). */
+  const [dailyPrefsOverride, setDailyPrefsOverride] = useState<DailyWorkoutPreferences | null>(null);
 
   const todayIso = getTodayLocalDateString();
 
@@ -226,6 +229,7 @@ export default function AdaptiveWeekPlanScreen() {
           manualPreferences.goalMatchSecondaryPct ?? 30,
           manualPreferences.goalMatchTertiaryPct ?? 20,
         ],
+        dailyPreferences: dailyPrefsOverride ?? undefined,
       });
 
       const updatedDays = sportPrepWeekPlan.days.map((d) =>
@@ -250,6 +254,7 @@ export default function AdaptiveWeekPlanScreen() {
       };
       setSportPrepWeekPlan(updatedPlan);
       setSelectedWorkout(result.workout);
+      setDailyPrefsOverride(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -337,7 +342,7 @@ export default function AdaptiveWeekPlanScreen() {
       }
       const day = item.day;
       const isSelected = selectedDay?.id === day.id;
-      const rawLabel = day.intentLabel ?? "Rest / low-load day";
+      const rawLabel = day.title ?? day.intentLabel ?? "Rest / low-load day";
       const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
       const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
       return (
@@ -418,7 +423,7 @@ export default function AdaptiveWeekPlanScreen() {
           {slot.sessions.map((session) => {
             const day = session;
             const isSelected = selectedDay?.id === day.id;
-            const rawLabel = day.intentLabel ?? "Rest / low-load day";
+            const rawLabel = day.title ?? day.intentLabel ?? "Rest / low-load day";
             const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
             const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
             return (
@@ -581,17 +586,70 @@ export default function AdaptiveWeekPlanScreen() {
               disabled={isUpdatingStatus}
             />
           )}
-          <PrimaryButton
-            label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
-            variant="secondary"
-            onPress={onRegenerate}
-            disabled={
-              isRegenerating ||
-              (!selectedDay.generatedWorkoutId &&
-                !guestWorkoutsById[selectedDay.id])
-            }
-            style={{ marginTop: 8 }}
-          />
+          {(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id]) ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
+                Change focus for this day (optional)
+              </Text>
+              <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
+                Then tap Regenerate to rebuild only this workout.
+              </Text>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
+                {(["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const).map((g) => (
+                  <Chip
+                    key={g}
+                    label={g.charAt(0).toUpperCase() + g.slice(1)}
+                    selected={dailyPrefsOverride?.goalBias === g}
+                    onPress={() =>
+                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), goalBias: p?.goalBias === g ? undefined : g }))
+                    }
+                  />
+                ))}
+              </View>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
+                {(["upper", "lower", "full", "pull", "push", "core"] as const).map((b) => (
+                  <Chip
+                    key={b}
+                    label={b.charAt(0).toUpperCase() + b}
+                    selected={dailyPrefsOverride?.bodyRegionBias === b}
+                    onPress={() =>
+                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), bodyRegionBias: p?.bodyRegionBias === b ? undefined : b }))
+                    }
+                  />
+                ))}
+              </View>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
+                {(["low", "medium", "high"] as const).map((e) => (
+                  <Chip
+                    key={e}
+                    label={e.charAt(0).toUpperCase() + e.slice(1)}
+                    selected={dailyPrefsOverride?.energyLevel === e}
+                    onPress={() =>
+                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), energyLevel: p?.energyLevel === e ? undefined : e }))
+                    }
+                  />
+                ))}
+              </View>
+              <PrimaryButton
+                label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
+                variant="secondary"
+                onPress={onRegenerate}
+                disabled={isRegenerating}
+                style={{ marginTop: 8 }}
+              />
+            </View>
+          ) : (
+            <PrimaryButton
+              label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
+              variant="secondary"
+              onPress={onRegenerate}
+              disabled={isRegenerating}
+              style={{ marginTop: 8 }}
+            />
+          )}
           <PrimaryButton
             label="Back to Setup"
             variant="ghost"
@@ -701,6 +759,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  chipGroup: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    alignItems: "center",
   },
   sectionReasoning: {
     fontSize: 13,

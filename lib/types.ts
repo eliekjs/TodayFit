@@ -14,6 +14,24 @@ export type BodyPartFocusKey =
   | "Quad"
   | "Posterior";
 
+/** Weekly training emphasis: which area gets slightly more volume; week still trains full body. */
+export type BodyEmphasisKey =
+  | "upper_body"
+  | "lower_body"
+  | "pull"
+  | "push"
+  | "glutes"
+  | "core"
+  | "none";
+
+/** Per-workout preferences when editing a single day in a week (goal/body/energy/style bias). */
+export type DailyWorkoutPreferences = {
+  goalBias?: "strength" | "hypertrophy" | "endurance" | "mobility" | "recovery" | "power";
+  bodyRegionBias?: "upper" | "lower" | "full" | "pull" | "push" | "core";
+  energyLevel?: EnergyLevel;
+  stylePreference?: string;
+};
+
 export type WorkoutStyleKey =
   | "Compound Strength"
   | "Hypertrophy Bias"
