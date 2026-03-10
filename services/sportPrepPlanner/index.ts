@@ -11,8 +11,6 @@ import {
   type IntentKey,
 } from "./weeklyEmphasis";
 
-type IntentKey = "strength" | "power" | "aerobic" | "mobility" | "prehab" | "recovery";
-
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
 
@@ -63,6 +61,28 @@ export type PlannedDay = {
   preferences?: import("../../lib/types").DailyWorkoutPreferences | null;
 };
 
+/** Snapshot of schedule inputs for replanning from recommendation screen. */
+export type ScheduleSnapshot = {
+  weekStartDate: string;
+  primaryGoalSlug: string;
+  secondaryGoalSlug?: string | null;
+  tertiaryGoalSlug?: string | null;
+  sportSlug?: string | null;
+  sportQualitySlugs?: string[];
+  sportSubFocusSlugs?: string[];
+  gymDaysPerWeek: number;
+  sportDaysAllocation?: SportDaysAllocation;
+  rankedSportSlugs?: string[];
+  sportFocusPct?: [number, number];
+  preferredTrainingDays?: number[];
+  defaultSessionDuration: number;
+  energyBaseline: EnergyLevel;
+  recentLoad?: string;
+  injuries?: string[];
+  emphasis?: import("../../lib/types").BodyEmphasisKey | null;
+  gymProfile?: GymProfile;
+};
+
 export type PlanWeekResult = {
   weeklyPlanInstanceId: string;
   weekStartDate: string;
@@ -77,6 +97,8 @@ export type PlanWeekResult = {
   guestWorkouts?: Record<string, GeneratedWorkout>;
   /** Weekly emphasis used to build this plan. */
   emphasis?: import("../../lib/types").BodyEmphasisKey | null;
+  /** Schedule inputs for replanning (e.g. adjust focus from recommendation). */
+  scheduleSnapshot?: ScheduleSnapshot;
 };
 
 export type RegenerateDayInput = {
@@ -376,7 +398,8 @@ function sportSlotLabel(slot: { type: "sport"; sportSlug: string; discipline?: T
 }
 
 async function computeCombinedDemand(
-  goalSlugs: (string | null | undefined)[]
+  goalSlugs: (string | null | undefined)[],
+  userGoalWeightsPct?: [number, number, number]
 ): Promise<{
   combined: DemandVector;
   goalsSnapshot: Record<string, { slug: string; weight: number }>;
@@ -431,6 +454,10 @@ async function computeCombinedDemand(
   const combined = zeroDemand();
   const goalsSnapshot: Record<string, { slug: string; weight: number }> = {};
 
+  const weights: number[] = userGoalWeightsPct
+    ? userGoalWeightsPct.map((p) => p / 100)
+    : GOAL_WEIGHTS;
+
   (["primary", "secondary", "tertiary"] as const).forEach((slot, idx) => {
     const slug = goalSlugs[idx];
     if (!slug) return;
@@ -438,7 +465,7 @@ async function computeCombinedDemand(
     if (!goalId) return;
     const row = (demandRows ?? []).find((r) => r.goal_id === goalId);
     if (!row) return;
-    const weight = GOAL_WEIGHTS[idx] ?? 0;
+    const weight = weights[idx] ?? GOAL_WEIGHTS[idx] ?? 0;
     DEMAND_KEYS.forEach((k) => {
       const val = Number((row as any)[k] ?? 0);
       combined[k] += val * weight;
@@ -472,11 +499,22 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const weekStart = startOfWeekMonday(baseDate);
   const weekStartIso = toIsoDate(weekStart);
 
-  const { combined: demand, goalsSnapshot } = await computeCombinedDemand([
-    input.primaryGoalSlug,
-    input.secondaryGoalSlug,
-    input.tertiaryGoalSlug,
-  ]);
+  const userGoalWeights: [number, number, number] | undefined =
+    input.goalMatchPrimaryPct != null
+      ? [
+          input.goalMatchPrimaryPct ?? 50,
+          input.goalMatchSecondaryPct ?? 30,
+          input.goalMatchTertiaryPct ?? 20,
+        ]
+      : undefined;
+  const { combined: demand, goalsSnapshot } = await computeCombinedDemand(
+    [
+      input.primaryGoalSlug,
+      input.secondaryGoalSlug,
+      input.tertiaryGoalSlug,
+    ],
+    userGoalWeights
+  );
   const intentOrder = chooseIntentOrder(demand);
   const rankedSportSlugs = input.rankedSportSlugs ?? (input.sportSlug ? [input.sportSlug] : []);
   const hasSportDays = input.sportDaysAllocation && Object.keys(input.sportDaysAllocation).length > 0;
@@ -635,6 +673,26 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       });
     }
     const todayDay = plannedDays.find((d) => d.date === todayIso) ?? null;
+    const scheduleSnapshot: ScheduleSnapshot = {
+      weekStartDate: weekStartIso,
+      primaryGoalSlug: input.primaryGoalSlug,
+      secondaryGoalSlug: input.secondaryGoalSlug ?? null,
+      tertiaryGoalSlug: input.tertiaryGoalSlug ?? null,
+      sportSlug: input.sportSlug ?? null,
+      sportQualitySlugs: input.sportQualitySlugs,
+      sportSubFocusSlugs: input.sportSubFocusSlugs,
+      gymDaysPerWeek: input.gymDaysPerWeek || 0,
+      sportDaysAllocation: input.sportDaysAllocation,
+      rankedSportSlugs: input.rankedSportSlugs,
+      sportFocusPct: input.sportFocusPct,
+      preferredTrainingDays: trainingIndices.length > 0 ? trainingIndices : input.preferredTrainingDays,
+      defaultSessionDuration: input.defaultSessionDuration,
+      energyBaseline: input.energyBaseline,
+      recentLoad: input.recentLoad,
+      injuries: input.injuries,
+      emphasis: input.emphasis ?? null,
+      gymProfile: input.gymProfile,
+    };
     return {
       weeklyPlanInstanceId: `guest-${weekStartIso}-${Date.now()}`,
       weekStartDate: weekStartIso,
@@ -646,6 +704,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       sportSubFocusSlugs: input.sportSubFocusSlugs,
       guestWorkouts,
       emphasis: input.emphasis ?? null,
+      scheduleSnapshot,
     };
   }
 
@@ -838,6 +897,27 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       ? await getWorkout(input.userId, todayDay.generatedWorkoutId)
       : null;
 
+  const scheduleSnapshot: ScheduleSnapshot = {
+    weekStartDate: weekStartIso,
+    primaryGoalSlug: input.primaryGoalSlug,
+    secondaryGoalSlug: input.secondaryGoalSlug ?? null,
+    tertiaryGoalSlug: input.tertiaryGoalSlug ?? null,
+    sportSlug: input.sportSlug ?? null,
+    sportQualitySlugs: input.sportQualitySlugs,
+    sportSubFocusSlugs: input.sportSubFocusSlugs,
+    gymDaysPerWeek: input.gymDaysPerWeek || 0,
+    sportDaysAllocation: input.sportDaysAllocation,
+    rankedSportSlugs: input.rankedSportSlugs,
+    sportFocusPct: input.sportFocusPct,
+    preferredTrainingDays: trainingIndices.length > 0 ? trainingIndices : input.preferredTrainingDays,
+    defaultSessionDuration: input.defaultSessionDuration,
+    energyBaseline: input.energyBaseline,
+    recentLoad: input.recentLoad,
+    injuries: input.injuries,
+    emphasis: input.emphasis ?? null,
+    gymProfile: input.gymProfile,
+  };
+
   return {
     weeklyPlanInstanceId: instanceId,
     weekStartDate: weekStartIso,
@@ -848,6 +928,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     goalSlugs,
     sportSubFocusSlugs: input.sportSubFocusSlugs,
     emphasis: input.emphasis ?? null,
+    scheduleSnapshot,
   };
 }
 

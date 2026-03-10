@@ -9,10 +9,18 @@ import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/types";
 import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
-import { regenerateDay, updateDayStatus } from "../../../services/sportPrepPlanner";
+import { regenerateDay, updateDayStatus, planWeek } from "../../../services/sportPrepPlanner";
 import { Chip } from "../../../components/Chip";
 import type { PlannedDay } from "../../../services/sportPrepPlanner";
+import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
+import { GOAL_SLUG_TO_LABEL } from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
+
+function humanizeSportSlug(slug: string): string {
+  return slug
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 /** Format ISO date as day of week in user's locale (e.g. "Monday"). */
 function formatDayOfWeek(isoDate: string): string {
@@ -39,18 +47,190 @@ export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { userId } = useAuth();
-  const { sportPrepWeekPlan, setSportPrepWeekPlan, manualPreferences } = useAppState();
+  const {
+    sportPrepWeekPlan,
+    setSportPrepWeekPlan,
+    manualPreferences,
+    updateManualPreferences,
+    activeGymProfileId,
+    gymProfiles,
+  } = useAppState();
 
   const [selectedSession, setSelectedSession] = useState<PlannedDay | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<GeneratedWorkout | null>(null);
   const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isReplanning, setIsReplanning] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
   /** Override preferences for the selected day when regenerating (goal, body, energy). */
   const [dailyPrefsOverride, setDailyPrefsOverride] = useState<DailyWorkoutPreferences | null>(null);
 
   const todayIso = getTodayLocalDateString();
+
+  const focusSectionsForModal = useMemo((): FocusSection[] => {
+    const plan = sportPrepWeekPlan;
+    if (!plan) return [];
+    const sections: FocusSection[] = [];
+    const goalSlugs = plan.goalSlugs ?? [];
+    if (goalSlugs.length > 0) {
+      const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+      const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+      const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+      const percentages = [p1, p2, p3].slice(0, goalSlugs.length);
+      const sum = percentages.reduce((a, b) => a + b, 0);
+      if (sum !== 100 && percentages.length > 0) {
+        percentages[0] = Math.max(0, (percentages[0] ?? 0) + (100 - sum));
+      }
+      sections.push({
+        title: "Goals",
+        items: goalSlugs.map((slug) => ({
+          id: slug,
+          label: GOAL_SLUG_TO_LABEL[slug] ?? humanizeSportSlug(slug),
+        })),
+        percentages,
+      });
+    }
+    const snapshot = plan.scheduleSnapshot;
+    const rankedSports = snapshot?.rankedSportSlugs ?? (plan.sportSlug ? [plan.sportSlug] : []);
+    if (rankedSports.length === 2 && snapshot?.sportFocusPct) {
+      sections.push({
+        title: "Sports",
+        items: rankedSports.map((slug) => ({
+          id: slug,
+          label: humanizeSportSlug(slug),
+        })),
+        percentages: [...snapshot.sportFocusPct],
+      });
+    }
+    return sections;
+  }, [sportPrepWeekPlan, manualPreferences.goalMatchPrimaryPct, manualPreferences.goalMatchSecondaryPct, manualPreferences.goalMatchTertiaryPct]);
+
+  const handleAdjustFocusApply = useCallback(
+    async (sections: FocusSection[]) => {
+      const plan = sportPrepWeekPlan;
+      if (!plan) return;
+      setError(null);
+      setShowAdjustFocusModal(false);
+      const goalsSection = sections.find((s) => s.title === "Goals");
+      const sportsSection = sections.find((s) => s.title === "Sports");
+      const p1 = goalsSection?.percentages[0] ?? 50;
+      const p2 = goalsSection?.percentages[1] ?? 30;
+      const p3 = goalsSection?.percentages[2] ?? 20;
+      if (goalsSection?.items?.length) {
+        updateManualPreferences({
+          goalMatchPrimaryPct: p1,
+          goalMatchSecondaryPct: p2,
+          goalMatchTertiaryPct: p3,
+        });
+      }
+      const goalWeightsPct = [p1, p2, p3];
+      const snapshot = plan.scheduleSnapshot;
+      if (snapshot) {
+        const sportFocusPct =
+          sportsSection?.items?.length === 2
+            ? [sportsSection.percentages[0] ?? 60, sportsSection.percentages[1] ?? 40]
+            : undefined;
+        const activeProfile =
+          gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+        setIsReplanning(true);
+        try {
+          const newPlan = await planWeek({
+            userId: userId ?? undefined,
+            weekStartDate: snapshot.weekStartDate,
+            primaryGoalSlug: snapshot.primaryGoalSlug,
+            secondaryGoalSlug: snapshot.secondaryGoalSlug ?? null,
+            tertiaryGoalSlug: snapshot.tertiaryGoalSlug ?? null,
+            sportSlug: snapshot.sportSlug ?? null,
+            sportQualitySlugs: snapshot.sportQualitySlugs,
+            sportSubFocusSlugs: snapshot.sportSubFocusSlugs,
+            gymDaysPerWeek: snapshot.gymDaysPerWeek,
+            sportDaysAllocation: snapshot.sportDaysAllocation,
+            rankedSportSlugs: snapshot.rankedSportSlugs,
+            sportFocusPct: (() => {
+          if (sportFocusPct && sportFocusPct.length === 2) {
+            return [sportFocusPct[0], sportFocusPct[1]] as [number, number];
+          }
+          if (snapshot.sportFocusPct?.length === 2) {
+            return [snapshot.sportFocusPct[0], snapshot.sportFocusPct[1]] as [number, number];
+          }
+          return undefined;
+        })(),
+            preferredTrainingDays: snapshot.preferredTrainingDays,
+            defaultSessionDuration: snapshot.defaultSessionDuration,
+            energyBaseline: snapshot.energyBaseline,
+            recentLoad: snapshot.recentLoad,
+            injuries: snapshot.injuries,
+            gymProfile: activeProfile,
+            goalMatchPrimaryPct: p1,
+            goalMatchSecondaryPct: p2,
+            goalMatchTertiaryPct: p3,
+            emphasis: snapshot.emphasis ?? undefined,
+          });
+          setSportPrepWeekPlan(newPlan);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e));
+        } finally {
+          setIsReplanning(false);
+        }
+      } else {
+        setIsReplanning(true);
+        try {
+          const trainingDays = plan.days.filter(
+            (d) => d.generatedWorkoutId || plan.guestWorkouts?.[d.date]
+          );
+          let nextPlan = { ...plan };
+          const updatedGuestWorkouts = { ...(plan.guestWorkouts ?? {}) };
+          for (const day of trainingDays) {
+            const result = await regenerateDay({
+              userId: userId ?? undefined,
+              weeklyPlanInstanceId: plan.weeklyPlanInstanceId,
+              date: day.date,
+              sportSlug: plan.sportSlug ?? undefined,
+              goalSlugs: plan.goalSlugs,
+              sportSubFocusSlugs: plan.sportSubFocusSlugs,
+              intentLabel: day.intentLabel,
+              goalWeightsPct,
+            });
+            if (result.workout) {
+              updatedGuestWorkouts[result.day.id] = result.workout;
+              updatedGuestWorkouts[result.day.date] = result.workout;
+            }
+            nextPlan = {
+              ...nextPlan,
+              days: nextPlan.days.map((d) =>
+                d.id === result.day.id ? result.day : d
+              ),
+              guestWorkouts: updatedGuestWorkouts,
+              today:
+                nextPlan.today?.id === result.day.id
+                  ? result.day
+                  : nextPlan.today,
+              todayWorkout:
+                nextPlan.today?.id === result.day.id
+                  ? result.workout
+                  : nextPlan.todayWorkout,
+            };
+          }
+          setSportPrepWeekPlan(nextPlan);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e));
+        } finally {
+          setIsReplanning(false);
+        }
+      }
+    },
+    [
+      sportPrepWeekPlan,
+      updateManualPreferences,
+      manualPreferences,
+      gymProfiles,
+      activeGymProfileId,
+      userId,
+      setSportPrepWeekPlan,
+    ]
+  );
 
   /** Week dates Mon–Sun in order (local timezone). */
   const weekDates = useMemo(() => {
@@ -487,6 +667,20 @@ export default function AdaptiveWeekPlanScreen() {
           Tap a day to view its session. Today is highlighted. You can
           regenerate an individual day without changing the rest of the plan.
         </Text>
+        {focusSectionsForModal.length > 0 ? (
+          <Pressable
+            onPress={() => setShowAdjustFocusModal(true)}
+            style={({ pressed }) => ({
+              marginTop: 12,
+              paddingVertical: 8,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
+              Focus not quite right? Adjust focus areas and days
+            </Text>
+          </Pressable>
+        ) : null}
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
           <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
             Week saved — find it in Library
@@ -658,6 +852,14 @@ export default function AdaptiveWeekPlanScreen() {
           />
         </View>
       </Card>
+
+      <AdjustFocusModal
+        visible={showAdjustFocusModal}
+        onClose={() => setShowAdjustFocusModal(false)}
+        sections={focusSectionsForModal}
+        onApply={handleAdjustFocusApply}
+        title="Adjust focus areas and days"
+      />
     </>
   );
 

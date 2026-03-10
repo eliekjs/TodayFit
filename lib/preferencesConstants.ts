@@ -14,6 +14,20 @@ export const PRIMARY_FOCUS_OPTIONS = [
   "Recovery",
 ] as const;
 
+/** Map DB goal slugs to display labels (for Adaptive mode). */
+export const GOAL_SLUG_TO_LABEL: Record<string, string> = {
+  strength: "Max strength",
+  muscle: "Build muscle",
+  endurance: "Endurance",
+  conditioning: "Sport conditioning",
+  mobility: "Mobility & joint health",
+  climbing: "Climbing",
+  trail_running: "Trail running",
+  ski: "Ski / snow",
+  physique: "Physique / body comp",
+  resilience: "Resilience / recovery",
+};
+
 /** Map Manual primary focus labels to DB goal slugs (for weighted exercise ranking). */
 export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   "Build Strength": "strength",

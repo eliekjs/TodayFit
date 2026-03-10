@@ -18,6 +18,17 @@ function HeaderBackButton() {
   );
 }
 
+/** Back from week screen: go to preferences so user can resume week creation (not home). */
+function WeekScreenBackButton() {
+  const router = useRouter();
+  const theme = useTheme();
+  return (
+    <Pressable onPress={() => router.push("/manual/preferences")} style={{ paddingLeft: 16 }}>
+      <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
+
 function HeaderGymProfileButton() {
   const theme = useTheme();
   const router = useRouter();
@@ -209,7 +220,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "This week's workouts",
-          headerLeft: () => <HeaderBackButton />,
+          headerLeft: () => <WeekScreenBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
       />

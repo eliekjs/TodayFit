@@ -16,6 +16,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { PrimaryButton } from "../../../components/Button";
 import { Card } from "../../../components/Card";
 import { Chip } from "../../../components/Chip";
+import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
 import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
@@ -63,6 +64,7 @@ export default function ManualWeekScreen() {
   const router = useRouter();
   const {
     manualPreferences,
+    updateManualPreferences,
     activeGymProfileId,
     gymProfiles,
     manualWeekPlan,
@@ -75,10 +77,31 @@ export default function ManualWeekScreen() {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
   /** Which weekdays to generate workouts for. 0 = Mon, 6 = Sun. Default Mon, Wed, Fri. */
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
+
+  const focusSectionsForModal = useMemo((): FocusSection[] => {
+    const goals = manualPreferences.primaryFocus;
+    if (goals.length === 0) return [];
+    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+    const percentages = [p1, p2, p3].slice(0, goals.length);
+    if (percentages.reduce((a, b) => a + b, 0) !== 100 && goals.length > 0) {
+      const sum = percentages.reduce((a, b) => a + b, 0);
+      percentages[0] = Math.max(0, percentages[0] + (100 - (sum || 1)));
+    }
+    return [
+      {
+        title: "Goals",
+        items: goals.map((g) => ({ id: g, label: g })),
+        percentages,
+      },
+    ];
+  }, [manualPreferences.primaryFocus, manualPreferences.goalMatchPrimaryPct, manualPreferences.goalMatchSecondaryPct, manualPreferences.goalMatchTertiaryPct]);
 
   const toggleTrainingDay = useCallback((dow: number) => {
     setSelectedTrainingDays((prev) =>
@@ -139,6 +162,24 @@ export default function ManualWeekScreen() {
     setManualWeekPlan,
     selectedTrainingDays,
   ]);
+
+  const handleAdjustFocusApply = useCallback(
+    (sections: FocusSection[]) => {
+      const sec = sections[0];
+      if (!sec?.items?.length) return;
+      const p1 = sec.percentages[0] ?? 100;
+      const p2 = sec.percentages[1] ?? 0;
+      const p3 = sec.percentages[2] ?? 0;
+      updateManualPreferences({
+        goalMatchPrimaryPct: p1,
+        goalMatchSecondaryPct: p2,
+        goalMatchTertiaryPct: p3,
+      });
+      setShowAdjustFocusModal(false);
+      generateWeek();
+    },
+    [updateManualPreferences, generateWeek]
+  );
 
   const todayIso = getTodayLocalDateString();
 
@@ -394,6 +435,20 @@ export default function ManualWeekScreen() {
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
           Tap a day to view its workout. Use arrows to move workouts between days.
         </Text>
+        {manualPreferences.primaryFocus.length > 0 ? (
+          <Pressable
+            onPress={() => setShowAdjustFocusModal(true)}
+            style={({ pressed }) => ({
+              marginTop: 12,
+              paddingVertical: 8,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
+              Focus not quite right? Adjust focus areas and days
+            </Text>
+          </Pressable>
+        ) : null}
       </Card>
 
       {error ? (
@@ -476,7 +531,7 @@ export default function ManualWeekScreen() {
               <PrimaryButton
                 label="Back to Preferences"
                 variant="ghost"
-                onPress={() => router.back()}
+                onPress={() => router.push("/manual/preferences")}
                 style={{ marginTop: 8 }}
               />
             </View>
@@ -494,6 +549,14 @@ export default function ManualWeekScreen() {
         variant="secondary"
         style={styles.saveWeekBtn}
         disabled={saving}
+      />
+
+      <AdjustFocusModal
+        visible={showAdjustFocusModal}
+        onClose={() => setShowAdjustFocusModal(false)}
+        sections={focusSectionsForModal}
+        onApply={handleAdjustFocusApply}
+        title="Adjust focus areas and days"
       />
     </>
   );
