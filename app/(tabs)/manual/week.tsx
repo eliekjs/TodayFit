@@ -399,7 +399,7 @@ export default function ManualWeekScreen() {
             )}
           </View>
           {slot.sessions.map((s) => {
-            const label = s.displayTitle ?? s.workout.focus.join(" • ") || "General";
+            const label = s.displayTitle ?? (s.workout.focus.join(" • ") || "General");
             const isSelected =
               selectedSession?.date === s.date && selectedSession?.workout.id === s.workout.id;
             const dayIdx = weekDates.indexOf(s.date);
