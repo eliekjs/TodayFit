@@ -26,7 +26,28 @@ import {
   WARMUP_ITEM_MAX_SECONDS,
   MAX_NON_CARDIO_CUE_SECONDS,
   ZONE2_HR_GUIDANCE,
+  getSimilarExerciseClusterId,
 } from "./workoutRules";
+import { pickBestSupersetPairs } from "../logic/workoutIntelligence/supersetPairing";
+import type { PairingInput } from "../logic/workoutIntelligence/supersetPairing";
+
+/** Convert ExerciseDefinition to PairingInput so we can use superset pairing rules (push+pull, chest+triceps, etc.). */
+function toPairingInput(e: ExerciseDefinition): PairingInput {
+  const muscles = e.muscles ?? [];
+  const tags = e.tags ?? [];
+  const tagSet = new Set(tags.map((t) => t.toLowerCase().replace(/\s/g, "_")));
+  let movement_pattern = "push";
+  if (muscles.includes("pull")) movement_pattern = "pull";
+  else if (muscles.includes("legs"))
+    movement_pattern = tagSet.has("quad-focused") || tagSet.has("squat") ? "squat" : tagSet.has("posterior_chain") || tagSet.has("hamstrings") || tagSet.has("glutes") ? "hinge" : "squat";
+  else if (muscles.includes("core")) movement_pattern = "rotate";
+  return {
+    id: e.id,
+    movement_pattern,
+    muscle_groups: [...muscles, ...tags].map((m) => m.toLowerCase().replace(/\s/g, "_")),
+    tags: { stimulus: tags },
+  };
+}
 
 /** Cardio machine / pure cardio: can be cued for more than 5 min (e.g. zone 2 block). */
 function isCardioMachineOrPureCardio(e: ExerciseDefinition): boolean {
@@ -295,6 +316,50 @@ export function generateWorkout(
   const preferMatch = (e: ExerciseDefinition) =>
     prefer !== null && (prefer.has(e.id) || prefer.has(e.name));
 
+  /** Avoid 3+ in a row from the same similar cluster (e.g. deadlift family). */
+  const wouldBeThreeSameClusterInARow = (lastTwoExerciseIds: string[], candidateId: string): boolean => {
+    if (lastTwoExerciseIds.length < 2) return false;
+    const cluster = getSimilarExerciseClusterId({ id: candidateId });
+    const last = getSimilarExerciseClusterId({ id: lastTwoExerciseIds[1] });
+    const prev = getSimilarExerciseClusterId({ id: lastTwoExerciseIds[0] });
+    return last === cluster && prev === cluster;
+  };
+
+  /** If flattened pairs have 3+ same-cluster in a row, swap order within a pair to break it when possible. */
+  const reorderPairsToAvoidThreeInARow = (pairs: [WorkoutItem, WorkoutItem][]): [WorkoutItem, WorkoutItem][] => {
+    const items = pairs.flat();
+    for (let i = 2; i < items.length; i++) {
+      const a = getSimilarExerciseClusterId({ id: items[i - 2].exercise_id });
+      const b = getSimilarExerciseClusterId({ id: items[i - 1].exercise_id });
+      const c = getSimilarExerciseClusterId({ id: items[i].exercise_id });
+      if (a === b && b === c) {
+        const pairIndex = Math.floor((i - 1) / 2);
+        if (pairIndex < pairs.length) {
+          const [first, second] = pairs[pairIndex];
+          const midId = items[i - 1].exercise_id;
+          const other = first.exercise_id === midId ? second : first;
+          const otherCluster = getSimilarExerciseClusterId({ id: other.exercise_id });
+          if (otherCluster !== a) {
+            pairs[pairIndex] = [second, first];
+            return reorderPairsToAvoidThreeInARow(pairs);
+          }
+        }
+        const pairIndexFirst = Math.floor((i - 2) / 2);
+        if (pairIndexFirst >= 0 && pairIndexFirst < pairs.length && pairIndexFirst !== pairIndex) {
+          const [first, second] = pairs[pairIndexFirst];
+          const midIdFirst = items[i - 2].exercise_id;
+          const otherFirst = first.exercise_id === midIdFirst ? second : first;
+          const otherClusterFirst = getSimilarExerciseClusterId({ id: otherFirst.exercise_id });
+          if (otherClusterFirst !== a) {
+            pairs[pairIndexFirst] = [second, first];
+            return reorderPairsToAvoidThreeInARow(pairs);
+          }
+        }
+      }
+    }
+    return pairs;
+  };
+
   const buildBlock = (
     blockType: BlockType,
     format: BlockFormat,
@@ -311,7 +376,11 @@ export function generateWorkout(
       const available = poolToUse.filter((e) => !used.has(e.id));
       const preferred = prefer ? available.filter(preferMatch) : [];
       const poolToPick = preferred.length ? preferred : available;
-      const picked = pickRandom(poolToPick, rng);
+      const lastTwoIds = items.length >= 2 ? [items[items.length - 2].exercise_id, items[items.length - 1].exercise_id] : [];
+      const withoutThreeInARow = lastTwoIds.length === 2
+        ? poolToPick.filter((e) => !wouldBeThreeSameClusterInARow(lastTwoIds, e.id))
+        : poolToPick;
+      const picked = pickRandom(withoutThreeInARow.length ? withoutThreeInARow : poolToPick, rng);
       if (!picked) break;
       used.add(picked.id);
       let p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus);
@@ -343,34 +412,30 @@ export function generateWorkout(
     reasoning: string
   ): WorkoutBlock => {
     const poolToUse = pool.length ? pool : eligible;
+    const byId = new Map(poolToUse.map((e) => [e.id, e]));
+    const asPairing = poolToUse.map(toPairingInput);
+    const pairingResults = pickBestSupersetPairs(asPairing, pairCount, used);
     const pairs: [WorkoutItem, WorkoutItem][] = [];
 
-    for (let p = 0; p < pairCount; p += 1) {
-      const available = poolToUse.filter((e) => !used.has(e.id));
-      if (available.length < 2) break;
-      const preferred = prefer ? available.filter(preferMatch) : [];
-      const poolToPick = preferred.length ? preferred : available;
-      const first = pickRandom(poolToPick, rng);
-      if (!first) break;
+    for (const [pA, pB] of pairingResults) {
+      const first = byId.get(pA.id);
+      const second = byId.get(pB.id);
+      if (!first || !second) continue;
       used.add(first.id);
-      const availableSecond = poolToUse.filter((e) => !used.has(e.id));
-      const preferredSecond = prefer ? availableSecond.filter(preferMatch) : [];
-      const poolToPickSecond = preferredSecond.length ? preferredSecond : availableSecond;
-      const second = pickRandom(poolToPickSecond, rng);
-      if (!second) break;
       used.add(second.id);
-      const p1 = prescriptionForExercise(first, preferences.energyLevel, preferences.primaryFocus);
-      const p2 = prescriptionForExercise(second, preferences.energyLevel, preferences.primaryFocus);
-      pairs.push([toWorkoutItem(first, p1, first.tags), toWorkoutItem(second, p2, second.tags)]);
+      const pres1 = prescriptionForExercise(first, preferences.energyLevel, preferences.primaryFocus);
+      const pres2 = prescriptionForExercise(second, preferences.energyLevel, preferences.primaryFocus);
+      pairs.push([toWorkoutItem(first, pres1, first.tags), toWorkoutItem(second, pres2, second.tags)]);
     }
 
+    const reordered = reorderPairsToAvoidThreeInARow(pairs);
     return {
       block_type: blockType,
       format: "superset",
       title,
       reasoning,
-      items: pairs.flat(),
-      supersetPairs: pairs,
+      items: reordered.flat(),
+      supersetPairs: reordered,
     };
   };
 

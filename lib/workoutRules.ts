@@ -71,6 +71,42 @@ export type MovementPatternKey = (typeof MOVEMENT_PATTERNS)[number];
 /** Max times the same movement pattern can appear in a session (avoid push-push-push). */
 export const MAX_SAME_PATTERN_PER_SESSION = 2;
 
+/**
+ * Max consecutive exercises from the same "similar exercise" cluster (e.g. deadlift family).
+ * Avoids cueing 3+ deadlift variants in a row (conventional, RDL, trap bar, deficit, snatch grip, etc.).
+ */
+export const MAX_CONSECUTIVE_SAME_CLUSTER = 2;
+
+/**
+ * Exercise IDs that belong to the "deadlift family": conventional, sumo, deficit, snatch grip,
+ * trap bar, stiff-leg, RDL (barbell/dumbbell/KB), suitcase, etc. Barbell deadlift is the
+ * overall category; these variants are treated as extremely similar for ordering.
+ */
+const DEADLIFT_FAMILY_IDS = new Set([
+  "barbell_deadlift",
+  "trap_bar_deadlift",
+  "sumo_deadlift",
+  "stiff_leg_deadlift",
+  "deficit_deadlift",
+  "snatch_grip_deadlift",
+  "kb_deadlift",
+  "kb_sumo_deadlift",
+  "suitcase_deadlift",
+  "barbell_rdl",
+  "rdl_dumbbell",
+]);
+
+/**
+ * Returns a cluster id for "extremely similar" exercises. Same cluster => avoid 3+ in a row.
+ * Deadlift variants (including RDL, trap bar, deficit, snatch grip) share "deadlift_family";
+ * others use their own id so no consecutive cap applies.
+ */
+export function getSimilarExerciseClusterId(exercise: { id: string }): string {
+  const id = exercise.id.toLowerCase().replace(/\s/g, "_");
+  if (DEADLIFT_FAMILY_IDS.has(id)) return "deadlift_family";
+  return exercise.id;
+}
+
 /** Minimum movement categories to aim for in a workout (e.g. push + pull + hinge). */
 export const MIN_MOVEMENT_CATEGORIES = 3;
 

@@ -217,11 +217,9 @@ export default function AdaptiveScheduleScreen() {
     router,
   ]);
 
-  if (!adaptiveSetup) {
-    return null;
-  }
-
-  const selectedSportSlugs = adaptiveSetup.rankedSportSlugs.filter((s): s is string => s != null);
+  const selectedSportSlugs = adaptiveSetup
+    ? adaptiveSetup.rankedSportSlugs.filter((s): s is string => s != null)
+    : [];
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

@@ -702,6 +702,16 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     userGoalWeights
   );
   const intentOrder = chooseIntentOrder(demand);
+  const goalSlugs = [
+    input.primaryGoalSlug,
+    input.secondaryGoalSlug ?? null,
+    input.tertiaryGoalSlug ?? null,
+  ].filter((s): s is string => Boolean(s));
+  const goalWeightsPct = [
+    input.goalMatchPrimaryPct ?? 50,
+    input.goalMatchSecondaryPct ?? 30,
+    input.goalMatchTertiaryPct ?? 20,
+  ];
   const rankedSportSlugs = input.rankedSportSlugs ?? (input.sportSlug ? [input.sportSlug] : []);
   const hasSportDays = input.sportDaysAllocation && Object.keys(input.sportDaysAllocation).length > 0;
   const daySlots = buildDaySlots(
@@ -749,19 +759,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   }
 
   const trainingIndexSet = new Set(trainingIndices);
-  const goalSlugs = [
-    input.primaryGoalSlug,
-    input.secondaryGoalSlug ?? null,
-    input.tertiaryGoalSlug ?? null,
-  ].filter((s): s is string => Boolean(s));
   const todayIso = toIsoDate(today);
   const orderedIntents =
     intentOrder.length > 0 ? intentOrder : (["strength"] as IntentKey[]);
-  const goalWeightsPct = [
-    input.goalMatchPrimaryPct ?? 50,
-    input.goalMatchSecondaryPct ?? 30,
-    input.goalMatchTertiaryPct ?? 20,
-  ];
 
   const buildWorkoutForSlot = async (
     slot: DaySlot,

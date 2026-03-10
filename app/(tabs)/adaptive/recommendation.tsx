@@ -821,7 +821,7 @@ export default function AdaptiveWeekPlanScreen() {
                 {(["upper", "lower", "full", "pull", "push", "core"] as const).map((b) => (
                   <Chip
                     key={b}
-                    label={b.charAt(0).toUpperCase() + b}
+                    label={b.charAt(0).toUpperCase() + b.slice(1)}
                     selected={dailyPrefsOverride?.bodyRegionBias === b}
                     onPress={() =>
                       setDailyPrefsOverride((p) => ({ ...(p ?? {}), bodyRegionBias: p?.bodyRegionBias === b ? undefined : b }))

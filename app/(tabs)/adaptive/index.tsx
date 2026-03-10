@@ -117,6 +117,8 @@ export default function AdaptiveModeScreen() {
   /** Cached qualities per sport (loaded when sport is selected). */
   const [qualitiesBySport, setQualitiesBySport] = useState<Record<string, SportQuality[]>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
+  const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
 
   useEffect(() => {
     const loadSports = async () => {
@@ -272,7 +274,6 @@ export default function AdaptiveModeScreen() {
   const clearAllSports = () => {
     setRankedSportSlugs([null, null]);
     setSubFocusBySport({});
-    setSportDaysAllocation({});
     setExpandedSportForSubFocus(null);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
@@ -749,91 +750,84 @@ export default function AdaptiveModeScreen() {
               </Text>
             )}
             <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
-              {[1, 2, 3].map((rank) => {
-                const hasGoal = rankedGoals[rank - 1] != null;
-                const value =
-                  rank === 1
-                    ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                    : rank === 2
-                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                      : (manualPreferences.goalMatchTertiaryPct ?? 20);
-                const setPct = (raw: number) => {
-                  const v = Math.max(0, Math.min(100, Math.round(raw)));
-                  const s2 =
+              {rankedGoals
+                .filter((g): g is string => g != null)
+                .slice(0, 3)
+                .map((goal, idx) => {
+                  const rank = (idx + 1) as 1 | 2 | 3;
+                  const value =
                     rank === 1
-                      ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                      ? (manualPreferences.goalMatchPrimaryPct ?? 50)
                       : rank === 2
-                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                        : (manualPreferences.goalMatchPrimaryPct ?? 50);
-                  const s3 =
-                    rank === 1
-                      ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                      : rank === 2
-                        ? (manualPreferences.goalMatchTertiaryPct ?? 20)
-                        : (manualPreferences.goalMatchSecondaryPct ?? 30);
-                  const otherSum = s2 + s3;
-                  const scale = otherSum > 0 ? (100 - v) / otherSum : 0;
-                  const scaled2 = otherSum > 0 ? Math.round(s2 * scale) : 0;
-                  const scaled3 = 100 - v - scaled2; // ensure sum is always 100
-                  if (rank === 1) {
-                    updateManualPreferences({
-                      goalMatchPrimaryPct: v,
-                      goalMatchSecondaryPct: scaled2,
-                      goalMatchTertiaryPct: scaled3,
-                    });
-                  } else if (rank === 2) {
-                    updateManualPreferences({
-                      goalMatchSecondaryPct: v,
-                      goalMatchPrimaryPct: scaled2,
-                      goalMatchTertiaryPct: scaled3,
-                    });
-                  } else {
-                    updateManualPreferences({
-                      goalMatchTertiaryPct: v,
-                      goalMatchPrimaryPct: scaled2,
-                      goalMatchSecondaryPct: scaled3,
-                    });
-                  }
-                };
-                return (
-                  <View
-                    key={rank}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      opacity: hasGoal ? 1 : 0.5,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, color: theme.textMuted }}>
-                      {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} goal
-                    </Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <TextInput
-                        style={{
-                          width: 56,
-                          height: 40,
-                          borderWidth: 1,
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          fontSize: 15,
-                          textAlign: "center",
-                          color: theme.text,
-                          borderColor: theme.border,
-                        }}
-                        keyboardType="number-pad"
-                        value={String(value)}
-                        editable={hasGoal}
-                        onChangeText={(t) => {
-                          const n = parseInt(t.replace(/\D/g, ""), 10);
-                          if (!Number.isNaN(n)) setPct(n);
-                        }}
-                      />
-                      <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
+                        ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                        : (manualPreferences.goalMatchTertiaryPct ?? 20);
+                  const isEditing = editingGoalMatchRank === rank;
+                  const displayValue = isEditing ? editingGoalMatchValue : String(value);
+                  const commitWeight = (raw: number) => {
+                    const v = Math.max(0, Math.min(100, Math.round(raw)));
+                    let p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+                    let p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+                    let p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+                    if (rank === 1) p1 = v;
+                    else if (rank === 2) p2 = v;
+                    else p3 = v;
+                    const goalCount = rankedGoals.filter((g): g is string => g != null).length;
+                    const norm = normalizeGoalMatchPct(p1, p2, p3, goalCount);
+                    updateManualPreferences(norm);
+                  };
+                  return (
+                    <View
+                      key={goal}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, color: theme.textMuted }}>
+                        {rank === 1 ? "1st" : rank === 2 ? "2nd" : "3rd"} goal
+                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <TextInput
+                          style={{
+                            width: 56,
+                            height: 40,
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            paddingHorizontal: 8,
+                            fontSize: 15,
+                            textAlign: "center",
+                            color: theme.text,
+                            borderColor: theme.border,
+                          }}
+                          keyboardType="number-pad"
+                          value={displayValue}
+                          onFocus={() => {
+                            setEditingGoalMatchRank(rank);
+                            setEditingGoalMatchValue(String(value));
+                          }}
+                          onBlur={() => {
+                            const n = parseInt(
+                              editingGoalMatchValue.replace(/\D/g, ""),
+                              10,
+                            );
+                            if (!Number.isNaN(n) && n >= 0 && n <= 100) {
+                              commitWeight(n);
+                            }
+                            setEditingGoalMatchRank(null);
+                            setEditingGoalMatchValue("");
+                          }}
+                          onChangeText={(t) => {
+                            if (!isEditing) return;
+                            const digits = t.replace(/\D/g, "");
+                            setEditingGoalMatchValue(digits);
+                          }}
+                        />
+                        <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
+                      </View>
                     </View>
-                  </View>
-                );
-              })}
+                  );
+                })}
             </View>
 
             {selectedSportSlugs.length === 2 && (

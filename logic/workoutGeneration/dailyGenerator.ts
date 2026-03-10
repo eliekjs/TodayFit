@@ -25,8 +25,10 @@ import {
   getInjuryAvoidExerciseIds,
   normalizeInjuryKey,
   MAX_SAME_PATTERN_PER_SESSION,
+  MAX_CONSECUTIVE_SAME_CLUSTER,
   MIN_MOVEMENT_CATEGORIES,
   BALANCE_CATEGORY_PATTERNS,
+  getSimilarExerciseClusterId,
 } from "../../lib/workoutRules";
 import {
   balanceBonusForExercise,
@@ -52,7 +54,7 @@ import {
   getPreferredCooldownTargetsFromFamilies,
   MAIN_WORK_EXCLUDED_ROLES,
 } from "./cooldownSelection";
-import { pickBestSupersetPairs } from "../workoutIntelligence/supersetPairing";
+import { pickBestSupersetPairs, supersetCompatibility } from "../workoutIntelligence/supersetPairing";
 import { validateWorkoutAgainstConstraints } from "../workoutIntelligence/validation/workoutValidator";
 import {
   computeOntologyScoreComponents,
@@ -560,6 +562,15 @@ function attachRecommendationsToSession(
   }
 }
 
+/** True if adding candidate would create 3+ consecutive exercises from the same similar cluster (e.g. deadlift family). */
+function wouldBeThreeSameClusterInARow(chosen: Exercise[], candidate: Exercise): boolean {
+  if (chosen.length < MAX_CONSECUTIVE_SAME_CLUSTER) return false;
+  const cluster = getSimilarExerciseClusterId(candidate);
+  const last = getSimilarExerciseClusterId(chosen[chosen.length - 1]);
+  const prev = getSimilarExerciseClusterId(chosen[chosen.length - 2]);
+  return last === cluster && prev === cluster;
+}
+
 // --- Select top exercises by score (and by movement pattern for balance) ---
 function selectExercises(
   pool: Exercise[],
@@ -609,7 +620,8 @@ function selectExercises(
     const best = topOverall.find(
       (x) =>
         x.exercise.movement_pattern === targetPattern &&
-        !chosen.some((c) => c.id === x.exercise.id)
+        !chosen.some((c) => c.id === x.exercise.id) &&
+        !wouldBeThreeSameClusterInARow(chosen, x.exercise)
     );
     if (!best) continue;
     chosen.push(best.exercise);
@@ -618,25 +630,27 @@ function selectExercises(
     if (best.debug && includeDebug) debugList.push(best.debug as ScoringDebug);
   }
 
-  // Random selection from top candidates (respecting pattern cap)
+  // Random selection from top candidates (respecting pattern cap and consecutive-cluster cap)
   for (let i = 0; chosen.length < count && i < topOverall.length * 2; i++) {
     const idx = Math.floor(rng() * Math.min(15, topOverall.length));
     const item = topOverall[idx];
     if (!item || chosen.some((c) => c.id === item.exercise.id)) continue;
     const nextCount = (movementCounts.get(item.exercise.movement_pattern) ?? 0) + 1;
     if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
+    if (wouldBeThreeSameClusterInARow(chosen, item.exercise)) continue;
     chosen.push(item.exercise);
     movementCounts.set(item.exercise.movement_pattern, nextCount);
     if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, item.exercise);
     if (item.debug && includeDebug) debugList.push(item.debug as ScoringDebug);
   }
 
-  // If we didn't fill, add from top in order (respecting pattern cap)
+  // If we didn't fill, add from top in order (respecting pattern cap and consecutive-cluster cap)
   for (const { exercise, debug } of topOverall) {
     if (chosen.length >= count) break;
     if (chosen.some((c) => c.id === exercise.id)) continue;
     const nextCount = (movementCounts.get(exercise.movement_pattern) ?? 0) + 1;
     if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
+    if (wouldBeThreeSameClusterInARow(chosen, exercise)) continue;
     chosen.push(exercise);
     movementCounts.set(exercise.movement_pattern, nextCount);
     if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, exercise);
@@ -847,26 +861,68 @@ function buildMainStrength(
       historyContext,
     }
   );
-  for (const mainLift of mainLifts) {
-    used.add(mainLift.id);
-    movementCounts.set(mainLift.movement_pattern, (movementCounts.get(mainLift.movement_pattern) ?? 0) + 1);
-    const p = getPrescription(mainLift, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+
+  // When we have exactly 2 main lifts and supersets are wanted, pair them if they're a good superset (push+pull, squat+hinge, etc.)
+  const pairMainLifts =
+    wantsSupersets &&
+    mainLifts.length === 2 &&
+    supersetCompatibility(mainLifts[0], mainLifts[1]) !== "bad";
+
+  if (pairMainLifts) {
+    const [a, b] = mainLifts;
+    used.add(a.id);
+    used.add(b.id);
+    movementCounts.set(a.movement_pattern, (movementCounts.get(a.movement_pattern) ?? 0) + 1);
+    movementCounts.set(b.movement_pattern, (movementCounts.get(b.movement_pattern) ?? 0) + 1);
+    const pA = getPrescription(a, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+    const pB = getPrescription(b, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+    const itemA: WorkoutItem = {
+      exercise_id: a.id,
+      exercise_name: a.name,
+      sets: pA.sets,
+      reps: pA.reps,
+      rest_seconds: pA.rest_seconds,
+      coaching_cues: pA.coaching_cues,
+      reasoning_tags: ["main_lift", "strength", ...(a.tags.goal_tags ?? [])],
+    };
+    const itemB: WorkoutItem = {
+      exercise_id: b.id,
+      exercise_name: b.name,
+      sets: pB.sets,
+      reps: pB.reps,
+      rest_seconds: pB.rest_seconds,
+      coaching_cues: pB.coaching_cues,
+      reasoning_tags: ["main_lift", "strength", ...(b.tags.goal_tags ?? [])],
+    };
     blocks.push({
       block_type: "main_strength",
-      format: "straight_sets",
-      items: [
-        {
-          exercise_id: mainLift.id,
-          exercise_name: mainLift.name,
-          sets: p.sets,
-          reps: p.reps,
-          rest_seconds: p.rest_seconds,
-          coaching_cues: p.coaching_cues,
-          reasoning_tags: ["main_lift", "strength", ...(mainLift.tags.goal_tags ?? [])],
-        },
-      ],
-      estimated_minutes: p.sets * (2 + (p.rest_seconds || 0) / 60),
+      format: "superset",
+      items: [itemA, itemB],
+      supersetPairs: [[itemA, itemB]],
+      estimated_minutes: Math.max(pA.sets, pB.sets) * (2 + ((pA.rest_seconds ?? 0) + (pB.rest_seconds ?? 0)) / 60),
     });
+  } else {
+    for (const mainLift of mainLifts) {
+      used.add(mainLift.id);
+      movementCounts.set(mainLift.movement_pattern, (movementCounts.get(mainLift.movement_pattern) ?? 0) + 1);
+      const p = getPrescription(mainLift, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+      blocks.push({
+        block_type: "main_strength",
+        format: "straight_sets",
+        items: [
+          {
+            exercise_id: mainLift.id,
+            exercise_name: mainLift.name,
+            sets: p.sets,
+            reps: p.reps,
+            rest_seconds: p.rest_seconds,
+            coaching_cues: p.coaching_cues,
+            reasoning_tags: ["main_lift", "strength", ...(mainLift.tags.goal_tags ?? [])],
+          },
+        ],
+        estimated_minutes: p.sets * (2 + (p.rest_seconds || 0) / 60),
+      });
+    }
   }
 
   const pairCount = input.duration_minutes <= 30 ? 1 : input.duration_minutes <= 45 ? 1 : 2;
@@ -906,10 +962,15 @@ function buildMainStrength(
       ];
     });
     if (items.length) {
+      const supersetPairs: [WorkoutItem, WorkoutItem][] = [];
+      for (let i = 0; i < pairs.length; i++) {
+        supersetPairs.push([items[2 * i], items[2 * i + 1]]);
+      }
       blocks.push({
         block_type: "main_strength",
         format: "superset",
         items,
+        supersetPairs,
         estimated_minutes: Math.ceil(items.length / 2) * 4,
       });
     }
@@ -997,11 +1058,14 @@ function buildMainHypertrophy(
   );
 
   const format: BlockFormat = wantsSupersets && pairs.every((p) => p.length === 2) ? "superset" : "straight_sets";
+  const supersetPairs: [WorkoutItem, WorkoutItem][] | undefined =
+    format === "superset" ? pairs.map((_, i) => [items[2 * i], items[2 * i + 1]]) : undefined;
   return [
     {
       block_type: "main_hypertrophy",
       format,
       items,
+      ...(supersetPairs && supersetPairs.length > 0 ? { supersetPairs } : {}),
       estimated_minutes: Math.ceil(items.length / 2) * 5,
     },
   ];
@@ -1063,6 +1127,7 @@ function buildEnduranceMain(
       block_type: "conditioning",
       format: "superset",
       items,
+      supersetPairs: items.length >= 2 ? [[items[0], items[1]]] : undefined,
       estimated_minutes: 8,
     });
   }

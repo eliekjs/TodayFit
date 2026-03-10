@@ -21,7 +21,7 @@ import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
-import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
+import { PRIMARY_FOCUS_TO_GOAL_SLUG, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../../lib/preferencesConstants";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
@@ -78,10 +78,13 @@ export default function ManualWeekScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
+  /** Override preferences for the selected day when regenerating (goal, body, energy). */
+  const [dailyPrefsOverride, setDailyPrefsOverride] = useState<DailyWorkoutPreferences | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   /** Which weekdays to generate workouts for. 0 = Mon, 6 = Sun. Default Mon, Wed, Fri. */
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
-  const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"] } | null>(null);
+  const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"]; displayTitle?: string } | null>(null);
 
   const focusSectionsForModal = useMemo((): FocusSection[] => {
     const goals = manualPreferences.primaryFocus;
@@ -249,8 +252,9 @@ export default function ManualWeekScreen() {
 
   /** Group plan days by date (7 slots Mon–Sun). */
   const daySlots = useMemo(() => {
-    if (!manualWeekPlan) return weekDates.map((date) => ({ date, sessions: [] as { date: string; workout: ManualWeekPlan["days"][0]["workout"] }[] }));
-    const byDate = new Map<string, { date: string; workout: ManualWeekPlan["days"][0]["workout"] }[]>();
+    type DayEntry = ManualWeekPlan["days"][number];
+    if (!manualWeekPlan) return weekDates.map((date) => ({ date, sessions: [] as DayEntry[] }));
+    const byDate = new Map<string, DayEntry[]>();
     for (const date of weekDates) byDate.set(date, []);
     for (const day of manualWeekPlan.days) {
       if (byDate.has(day.date)) byDate.get(day.date)!.push(day);
@@ -299,11 +303,108 @@ export default function ManualWeekScreen() {
   );
 
   const onSelectSession = useCallback(
-    (date: string, workout: ManualWeekPlan["days"][0]["workout"]) => {
-      setSelectedSession({ date, workout });
+    (date: string, workout: ManualWeekPlan["days"][0]["workout"], displayTitle?: string) => {
+      setSelectedSession({ date, workout, displayTitle });
     },
     []
   );
+
+  /** Map goalBias (daily override) to manual primary focus label. */
+  const goalBiasToPrimaryFocus = useCallback((goalBias: DailyWorkoutPreferences["goalBias"]): string | undefined => {
+    if (!goalBias) return undefined;
+    if (goalBias === "hypertrophy") return GOAL_SLUG_TO_PRIMARY_FOCUS["muscle"];
+    if (goalBias === "power") return "Power & Explosiveness";
+    return GOAL_SLUG_TO_PRIMARY_FOCUS[goalBias];
+  }, []);
+
+  const onRegenerateDay = useCallback(async () => {
+    const plan = manualWeekPlan;
+    if (!plan || !selectedSession) return;
+    setError(null);
+    setIsRegenerating(true);
+    const profile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+    const dayIndex = plan.days.findIndex((d) => d.date === selectedSession.date);
+    if (dayIndex < 0) {
+      setIsRegenerating(false);
+      return;
+    }
+    const n = plan.days.length;
+    const bodyDistribution = getBodyEmphasisDistribution(n);
+    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+    const total = p1 + p2 + p3;
+    const n1 = total > 0 ? Math.round(n * (p1 / total)) : n;
+    const n2 = total > 0 ? Math.min(n - n1, Math.round(n * (p2 / total))) : 0;
+    const goalIndices: number[] = [];
+    for (let i = 0; i < n1; i++) goalIndices.push(0);
+    for (let i = 0; i < n2; i++) goalIndices.push(1);
+    for (let i = n1 + n2; i < n; i++) goalIndices.push(2);
+    const dedicateDays = manualPreferences.goalDistributionStyle === "dedicate_days" && manualPreferences.primaryFocus.length > 0;
+    const bodyBias = bodyDistribution[dayIndex];
+    const goalIdx = goalIndices[dayIndex] ?? 0;
+    const dayFocus = dedicateDays && manualPreferences.primaryFocus.length
+      ? [manualPreferences.primaryFocus[goalIdx] ?? manualPreferences.primaryFocus[0]]
+      : manualPreferences.primaryFocus;
+    let dayPrefs: typeof manualPreferences = {
+      ...manualPreferences,
+      primaryFocus: dayFocus.length ? dayFocus : manualPreferences.primaryFocus,
+      targetBody: bodyBias.targetBody,
+      targetModifier: bodyBias.targetModifier,
+    };
+    if (dailyPrefsOverride) {
+      if (dailyPrefsOverride.goalBias) {
+        const focusLabel = goalBiasToPrimaryFocus(dailyPrefsOverride.goalBias);
+        if (focusLabel) dayPrefs = { ...dayPrefs, primaryFocus: [focusLabel] };
+      }
+      if (dailyPrefsOverride.bodyRegionBias) {
+        const b = dailyPrefsOverride.bodyRegionBias;
+        if (b === "upper" || b === "lower" || b === "full") {
+          dayPrefs = { ...dayPrefs, targetBody: b.charAt(0).toUpperCase() + b.slice(1) as "Upper" | "Lower" | "Full", targetModifier: [] };
+        } else if (b === "pull" || b === "push") {
+          dayPrefs = { ...dayPrefs, targetBody: "Upper", targetModifier: [b.charAt(0).toUpperCase() + b.slice(1)] };
+        } else if (b === "core") {
+          dayPrefs = { ...dayPrefs, targetBody: "Full", targetModifier: [] };
+        }
+      }
+      if (dailyPrefsOverride.energyLevel) dayPrefs = { ...dayPrefs, energyLevel: dailyPrefsOverride.energyLevel };
+    }
+    let preferredNames: string[] | undefined;
+    if (isDbConfigured() && dayPrefs.primaryFocus.length > 0) {
+      try {
+        const goalSlugs = dayPrefs.primaryFocus.map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f]).filter(Boolean);
+        const goalWeightsPct = [dayPrefs.goalMatchPrimaryPct ?? 50, dayPrefs.goalMatchSecondaryPct ?? 30, dayPrefs.goalMatchTertiaryPct ?? 20];
+        preferredNames = await getPreferredExerciseNamesForSportAndGoals(null, goalSlugs, goalWeightsPct.slice(0, goalSlugs.length));
+      } catch {
+        preferredNames = undefined;
+      }
+    }
+    try {
+      const workout = await generateWorkoutAsync(dayPrefs, profile, selectedSession.date, preferredNames);
+      const bodyKey = (dayPrefs.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
+      const specificEmphasis = (dayPrefs.targetModifier ?? []).map((m) => m.toLowerCase()).filter(Boolean);
+      const displayTitle = formatDayTitle(dayPrefs.primaryFocus[0] ?? "Workout", bodyKey, specificEmphasis.length ? specificEmphasis : undefined);
+      const newDays = plan.days.map((d) =>
+        d.date === selectedSession.date ? { ...d, workout, displayTitle } : d
+      );
+      setManualWeekPlan({ ...plan, days: newDays });
+      setSelectedSession((prev) => (prev ? { ...prev, workout, displayTitle } : null));
+      setDailyPrefsOverride(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [
+    manualWeekPlan,
+    selectedSession,
+    manualPreferences,
+    dailyPrefsOverride,
+    activeGymProfileId,
+    gymProfiles,
+    goalBiasToPrimaryFocus,
+    setManualWeekPlan,
+  ]);
 
   const onSaveWeek = async () => {
     const weekPlan = manualWeekPlan;
@@ -430,7 +531,7 @@ export default function ManualWeekScreen() {
                   </Pressable>
                 </View>
                 <Pressable
-                  onPress={() => onSelectSession(s.date, s.workout)}
+                  onPress={() => onSelectSession(s.date, s.workout, s.displayTitle)}
                   style={[
                     styles.dayRow,
                     {
@@ -569,6 +670,60 @@ export default function ManualWeekScreen() {
                 label="Start"
                 onPress={() => onStartDay(selectedDay.date, selectedDay.workout)}
               />
+              <View style={{ marginTop: 12 }}>
+                <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
+                  Change focus for this day (optional)
+                </Text>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
+                  Then tap Regenerate to rebuild only this workout.
+                </Text>
+                <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
+                  {(["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const).map((g) => (
+                    <Chip
+                      key={g}
+                      label={g.charAt(0).toUpperCase() + g.slice(1)}
+                      selected={dailyPrefsOverride?.goalBias === g}
+                      onPress={() =>
+                        setDailyPrefsOverride((p) => ({ ...(p ?? {}), goalBias: p?.goalBias === g ? undefined : g }))
+                      }
+                    />
+                  ))}
+                </View>
+                <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
+                  {(["upper", "lower", "full", "pull", "push", "core"] as const).map((b) => (
+                    <Chip
+                      key={b}
+                      label={b.charAt(0).toUpperCase() + b.slice(1)}
+                      selected={dailyPrefsOverride?.bodyRegionBias === b}
+                      onPress={() =>
+                        setDailyPrefsOverride((p) => ({ ...(p ?? {}), bodyRegionBias: p?.bodyRegionBias === b ? undefined : b }))
+                      }
+                    />
+                  ))}
+                </View>
+                <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
+                  {(["low", "medium", "high"] as const).map((e) => (
+                    <Chip
+                      key={e}
+                      label={e.charAt(0).toUpperCase() + e.slice(1)}
+                      selected={dailyPrefsOverride?.energyLevel === e}
+                      onPress={() =>
+                        setDailyPrefsOverride((p) => ({ ...(p ?? {}), energyLevel: p?.energyLevel === e ? undefined : e }))
+                      }
+                    />
+                  ))}
+                </View>
+                <PrimaryButton
+                  label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
+                  variant="secondary"
+                  onPress={onRegenerateDay}
+                  disabled={isRegenerating}
+                  style={{ marginTop: 8 }}
+                />
+              </View>
               <PrimaryButton
                 label="Back to Preferences"
                 variant="ghost"
