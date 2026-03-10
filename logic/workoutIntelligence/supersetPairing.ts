@@ -246,7 +246,7 @@ export function pickSupersetPartner(
 }
 
 /** When rng is provided, we pick randomly among the top this many pairs to rebalance exercise frequency. */
-const TOP_K_PAIRS_FOR_VARIETY = 5;
+const TOP_K_PAIRS_FOR_VARIETY = 10;
 
 /**
  * From a pool of exercises, form up to pairCount pairs by repeatedly picking the best-scoring pair.

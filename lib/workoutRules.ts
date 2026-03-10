@@ -149,6 +149,9 @@ export const INJURY_AVOID_TAGS: Record<string, string[]> = {
   ankle: ["ankle_stress"],
 };
 
+/** Exercise IDs/slugs to always exclude from generation (e.g. user-disliked). */
+export const BLOCKED_EXERCISE_IDS = new Set<string>(["prone_y_raise"]);
+
 /** Injury → exercise IDs to exclude (e.g. overhead press for shoulder). */
 export const INJURY_AVOID_EXERCISE_IDS: Record<string, string[]> = {
   shoulder: ["oh_press", "db_shoulder_press", "pullup", "dips"],

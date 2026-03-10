@@ -114,7 +114,7 @@ export default function TabsLayout() {
         headerTitleAlign: "center",
       }}
     >
-      {/* ── Visible tabs: Generate | Library | History | Settings ── */}
+      {/* ── Visible tabs: Generate | Library | History | Profile ── */}
       <Tabs.Screen
         name="index"
         options={{
@@ -137,7 +137,7 @@ export default function TabsLayout() {
           tabBarLabel: "Library",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "library" : "library-outline"}
+              name={focused ? "book" : "book-outline"}
               size={TAB_ICON_SIZE}
               color={color}
             />
@@ -152,7 +152,7 @@ export default function TabsLayout() {
           tabBarLabel: "History",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "time" : "time-outline"}
+              name={focused ? "calendar" : "calendar-outline"}
               size={TAB_ICON_SIZE}
               color={color}
             />
@@ -162,11 +162,11 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profiles"
         options={{
-          title: "Settings",
-          tabBarLabel: "Settings",
+          title: "Gym Profile",
+          tabBarLabel: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "settings" : "settings-outline"}
+              name={focused ? "person" : "person-outline"}
               size={TAB_ICON_SIZE}
               color={color}
             />

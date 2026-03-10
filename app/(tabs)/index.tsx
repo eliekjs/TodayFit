@@ -31,6 +31,68 @@ const DARK_PASTELS = {
   buildSubtext: "#C5E8D0",
 };
 
+type ActionCardProps = {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  title: string;
+  subtitle: string;
+  oneDayHref: string;
+  weekHref: string;
+  oneDayLabel?: string;
+  weekLabel?: string;
+  pastels: typeof LIGHT_PASTELS;
+  variant: "build" | "help";
+};
+
+function ActionCard({
+  icon,
+  title,
+  subtitle,
+  oneDayHref,
+  weekHref,
+  oneDayLabel = "One day",
+  weekLabel = "This week",
+  pastels,
+  variant,
+}: ActionCardProps) {
+  const router = useRouter();
+  const isBuild = variant === "build";
+  const bg = isBuild ? pastels.buildBg : pastels.helpBg;
+  const text = isBuild ? pastels.buildText : pastels.helpText;
+  const subtext = isBuild ? pastels.buildSubtext : pastels.helpSubtext;
+
+  return (
+    <View style={[styles.actionCard, { backgroundColor: bg }]}>
+      <View style={styles.actionCardIcon}>
+        <Ionicons name={icon} size={28} color={text} />
+      </View>
+      <Text style={[styles.actionCardTitle, { color: text }]}>{title}</Text>
+      <Text style={[styles.actionCardSubtitle, { color: subtext }]}>
+        {subtitle}
+      </Text>
+      <View style={styles.subButtons}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.subButton,
+            { backgroundColor: text, opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={() => router.push(oneDayHref)}
+        >
+          <Text style={[styles.subButtonText, { color: bg }]}>{oneDayLabel}</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.subButton,
+            { backgroundColor: text, opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={() => router.push(weekHref)}
+        >
+          <Text style={[styles.subButtonText, { color: bg }]}>{weekLabel}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -89,84 +151,24 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        <View style={[styles.actionCard, { backgroundColor: pastels.buildBg }]}>
-          <View style={styles.actionCardIcon}>
-            <Ionicons
-              name="barbell-outline"
-              size={28}
-              color={pastels.buildText}
-            />
-          </View>
-          <Text style={[styles.actionCardTitle, { color: pastels.buildText }]}>
-            Build My Workout
-          </Text>
-          <View style={styles.subButtons}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.subButton,
-                { backgroundColor: pastels.buildText, opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={() => router.push("/manual/preferences")}
-            >
-              <Text style={[styles.subButtonText, { color: pastels.buildBg }]}>
-                One day
-              </Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.subButton,
-                { backgroundColor: pastels.buildText, opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={() => router.push("/manual/preferences?scope=week")}
-            >
-              <Text style={[styles.subButtonText, { color: pastels.buildBg }]}>
-                This week
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={[styles.actionCard, { backgroundColor: pastels.helpBg }]}>
-          <View style={styles.actionCardIcon}>
-            <Ionicons
-              name="sparkles-outline"
-              size={28}
-              color={pastels.helpText}
-            />
-          </View>
-          <Text style={[styles.actionCardTitle, { color: pastels.helpText }]}>
-            Adaptive Mode — Train Toward a Goal
-          </Text>
-          <Text
-            style={[styles.actionCardSubtitle, { color: pastels.helpSubtext }]}
-          >
-            Uses your goals, recovery, and upcoming sessions.
-          </Text>
-          <View style={styles.subButtons}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.subButton,
-                { backgroundColor: pastels.helpText, opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={() => router.push("/adaptive?scope=day")}
-            >
-              <Text style={[styles.subButtonText, { color: pastels.helpBg }]}>
-                One day
-              </Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.subButton,
-                { backgroundColor: pastels.helpText, opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={() => router.push("/adaptive")}
-            >
-              <Text style={[styles.subButtonText, { color: pastels.helpBg }]}>
-                This week
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+        <ActionCard
+          icon="barbell-outline"
+          title="Build My Workout"
+          subtitle="Choose exercises and structure for one day or plan the whole week."
+          oneDayHref="/manual/preferences"
+          weekHref="/manual/preferences?scope=week"
+          pastels={pastels}
+          variant="build"
+        />
+        <ActionCard
+          icon="sparkles-outline"
+          title="Adaptive Mode — Train Toward a Goal"
+          subtitle="Uses your goals, recovery, and upcoming sessions."
+          oneDayHref="/adaptive?scope=day"
+          weekHref="/adaptive"
+          pastels={pastels}
+          variant="help"
+        />
 
         <View style={[styles.goalSummary, { backgroundColor: theme.card }]}>
           <View style={styles.goalRow}>

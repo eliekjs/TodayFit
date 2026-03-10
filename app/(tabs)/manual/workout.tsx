@@ -123,9 +123,42 @@ export default function ManualWorkoutScreen() {
     }
     let cancelled = false;
     setSwapLoading(true);
+    // #region agent log
+    fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
+      body: JSON.stringify({
+        sessionId: "305ec8",
+        location: "app/(tabs)/manual/workout.tsx:useEffect swap",
+        message: "swap modal opened requesting suggestions",
+        data: { exerciseId: swapModal.exerciseId, exerciseName: swapModal.exerciseName },
+        timestamp: Date.now(),
+        hypothesisId: "H5",
+      }),
+    }).catch(() => {});
+    // #endregion
     getProgressionsRegressionsForExercise(swapModal.exerciseId).then((res) => {
       if (cancelled) return;
       const combined = [...res.regressions, ...res.progressions].slice(0, 3);
+      // #region agent log
+      fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
+        body: JSON.stringify({
+          sessionId: "305ec8",
+          location: "app/(tabs)/manual/workout.tsx:useEffect swap then",
+          message: "swap combined suggestions set",
+          data: {
+            exerciseId: swapModal.exerciseId,
+            combinedLength: combined.length,
+            progressionsLength: res.progressions.length,
+            regressionsLength: res.regressions.length,
+          },
+          timestamp: Date.now(),
+          hypothesisId: "H5",
+        }),
+      }).catch(() => {});
+      // #endregion
       setSwapSuggested(combined);
       setSwapLoading(false);
     });

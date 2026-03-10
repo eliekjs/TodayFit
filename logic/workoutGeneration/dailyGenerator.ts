@@ -29,6 +29,7 @@ import {
   MIN_MOVEMENT_CATEGORIES,
   BALANCE_CATEGORY_PATTERNS,
   getSimilarExerciseClusterId,
+  BLOCKED_EXERCISE_IDS,
 } from "../../lib/workoutRules";
 import {
   balanceBonusForExercise,
@@ -196,6 +197,7 @@ export function filterByHardConstraints(
   const allowedFamilies = focusToMovementFamilies(input.focus_body_parts ?? []);
 
   return exercises.filter((e) => {
+    if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
     // Equipment: every required piece must be available
     const required = e.equipment_required.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
     if (required.some((eq) => !equipmentSet.has(eq))) return false;
@@ -622,6 +624,12 @@ function selectExercises(
   }));
   scored.sort((a, b) => b.score - a.score);
   const topOverall = scored.slice(0, Math.min(60, scored.length));
+  // Score tier: all exercises within 2.5 points of the best, so we don't over-weight a small top set (min 25, max 50)
+  const bestScore = topOverall[0]?.score ?? 0;
+  const tierThreshold = Math.max(0, bestScore - 2.5);
+  const topTier = topOverall.filter((x) => x.score >= tierThreshold);
+  const randomPoolSize = Math.min(50, Math.max(25, topTier.length));
+  const randomPool = topTier.slice(0, randomPoolSize);
   const chosen: Exercise[] = [];
   const debugList: ScoringDebug[] = [];
 
@@ -646,10 +654,10 @@ function selectExercises(
     if (best.debug && includeDebug) debugList.push(best.debug as ScoringDebug);
   }
 
-  // Random selection from top candidates (respecting pattern cap and consecutive-cluster cap)
+  // Random selection from score-tier pool (no single exercise weighted more than others in same tier)
   for (let i = 0; chosen.length < count && i < topOverall.length * 2; i++) {
-    const idx = Math.floor(rng() * Math.min(15, topOverall.length));
-    const item = topOverall[idx];
+    const idx = Math.floor(rng() * Math.max(1, randomPool.length));
+    const item = randomPool[idx];
     if (!item || chosen.some((c) => c.id === item.exercise.id)) continue;
     const nextCount = (movementCounts.get(item.exercise.movement_pattern) ?? 0) + 1;
     if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;

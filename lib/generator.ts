@@ -27,6 +27,7 @@ import {
   MAX_NON_CARDIO_CUE_SECONDS,
   ZONE2_HR_GUIDANCE,
   getSimilarExerciseClusterId,
+  BLOCKED_EXERCISE_IDS,
 } from "./workoutRules";
 import { pickBestSupersetPairs } from "../logic/workoutIntelligence/supersetPairing";
 import type { PairingInput } from "../logic/workoutIntelligence/supersetPairing";
@@ -284,7 +285,8 @@ export function generateWorkout(
 
   const counts = pickCountByDuration(preferences.durationMinutes);
 
-  const exercises = exercisesInput ?? EXERCISES;
+  let exercises = exercisesInput ?? EXERCISES;
+  exercises = exercises.filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id));
   const eligible = filterByUpcoming(
     filterByBodyPartFocus(
       filterByInjuries(

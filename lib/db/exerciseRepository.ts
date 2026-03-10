@@ -3,6 +3,7 @@ import type { ExerciseDefinition } from "../types";
 import type { Exercise } from "../../logic/workoutGeneration/types";
 import type { ExerciseRowWithOntology } from "./generatorExerciseAdapter";
 import { mapDbExerciseToGeneratorExercise } from "./generatorExerciseAdapter";
+import { BLOCKED_EXERCISE_IDS } from "../workoutRules";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -181,6 +182,25 @@ export async function getProgressionsRegressions(
     ? supabase.from("exercises").select("id").eq("id", idOrSlug)
     : supabase.from("exercises").select("id").eq("slug", idOrSlug);
   const { data: exerciseRow, error: exError } = await exerciseQuery.single();
+  // #region agent log
+  fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
+    body: JSON.stringify({
+      sessionId: "305ec8",
+      location: "lib/db/exerciseRepository.ts:getProgressionsRegressions",
+      message: "swap DB exercise lookup",
+      data: {
+        idOrSlug,
+        found: Boolean(exerciseRow),
+        exError: exError?.message ?? null,
+        exCode: exError?.code ?? null,
+      },
+      timestamp: Date.now(),
+      hypothesisId: "H3",
+    }),
+  }).catch(() => {});
+  // #endregion
   if (exError || !exerciseRow) {
     return { progressions: [], regressions: [] };
   }
@@ -191,6 +211,24 @@ export async function getProgressionsRegressions(
     .select("relationship, related_exercise_id")
     .eq("exercise_id", exerciseId);
 
+  // #region agent log
+  fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
+    body: JSON.stringify({
+      sessionId: "305ec8",
+      location: "lib/db/exerciseRepository.ts:getProgressionsRegressions",
+      message: "swap exercise_progressions query",
+      data: {
+        idOrSlug,
+        rowsCount: rows?.length ?? 0,
+        error: error?.message ?? null,
+      },
+      timestamp: Date.now(),
+      hypothesisId: "H4",
+    }),
+  }).catch(() => {});
+  // #endregion
   if (error || !rows?.length) {
     return { progressions: [], regressions: [] };
   }
@@ -383,15 +421,14 @@ export async function listExercisesForGenerator(
       const exTags = tagsByExerciseId.get(row.id) ?? [];
       if (!filters.tagSlugs.some((t) => exTags.includes(t))) continue;
     }
-    result.push(
-      mapDbExerciseToGeneratorExercise(
-        row,
-        tagsByExerciseId.get(row.id) ?? [],
-        contraByExerciseId.get(row.id) ?? [],
-        progressionsByExerciseId.get(row.id) ?? [],
-        regressionsByExerciseId.get(row.id) ?? []
-      )
+    const exercise = mapDbExerciseToGeneratorExercise(
+      row,
+      tagsByExerciseId.get(row.id) ?? [],
+      contraByExerciseId.get(row.id) ?? [],
+      progressionsByExerciseId.get(row.id) ?? [],
+      regressionsByExerciseId.get(row.id) ?? []
     );
+    if (!BLOCKED_EXERCISE_IDS.has(exercise.id)) result.push(exercise);
   }
   return result;
 }
