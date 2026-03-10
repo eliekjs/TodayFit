@@ -9,7 +9,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/types";
 import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
-import { regenerateDay, updateDayStatus, planWeek } from "../../../services/sportPrepPlanner";
+import { regenerateDay, updateDayStatus, planWeek, deriveDailyPreferencesFromDay } from "../../../services/sportPrepPlanner";
 import { Chip } from "../../../components/Chip";
 import type { PlannedDay } from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
@@ -190,6 +190,10 @@ export default function AdaptiveWeekPlanScreen() {
               sportSlug: plan.sportSlug ?? undefined,
               goalSlugs: plan.goalSlugs,
               sportSubFocusSlugs: plan.sportSubFocusSlugs,
+              rankedSportSlugs: plan.rankedSportSlugs,
+              sportFocusPct: plan.sportFocusPct,
+              sportVsGoalPct: plan.sportVsGoalPct,
+              sportSubFocusSlugsBySport: plan.sportSubFocusSlugsBySport,
               intentLabel: day.intentLabel,
               goalWeightsPct,
             });
@@ -396,6 +400,13 @@ export default function AdaptiveWeekPlanScreen() {
     setError(null);
     setIsRegenerating(true);
     try {
+      // When user changed only one thing (e.g. energy), merge with existing day goals/intent so the rest stay the same.
+      const existingPrefs = deriveDailyPreferencesFromDay(selectedDay);
+      const mergedPrefs =
+        dailyPrefsOverride && Object.keys(dailyPrefsOverride).length > 0
+          ? { ...existingPrefs, ...dailyPrefsOverride }
+          : undefined;
+
       const result = await regenerateDay({
         userId: userId ?? undefined,
         weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
@@ -403,13 +414,17 @@ export default function AdaptiveWeekPlanScreen() {
         sportSlug: sportPrepWeekPlan.sportSlug ?? undefined,
         goalSlugs: sportPrepWeekPlan.goalSlugs,
         sportSubFocusSlugs: sportPrepWeekPlan.sportSubFocusSlugs,
+        rankedSportSlugs: sportPrepWeekPlan.rankedSportSlugs,
+        sportFocusPct: sportPrepWeekPlan.sportFocusPct,
+        sportVsGoalPct: sportPrepWeekPlan.sportVsGoalPct,
+        sportSubFocusSlugsBySport: sportPrepWeekPlan.sportSubFocusSlugsBySport,
         intentLabel: selectedDay.intentLabel,
         goalWeightsPct: [
           manualPreferences.goalMatchPrimaryPct ?? 50,
           manualPreferences.goalMatchSecondaryPct ?? 30,
           manualPreferences.goalMatchTertiaryPct ?? 20,
         ],
-        dailyPreferences: dailyPrefsOverride ?? undefined,
+        dailyPreferences: mergedPrefs,
       });
 
       const updatedDays = sportPrepWeekPlan.days.map((d) =>
@@ -522,7 +537,7 @@ export default function AdaptiveWeekPlanScreen() {
       }
       const day = item.day;
       const isSelected = selectedDay?.id === day.id;
-      const rawLabel = day.title ?? day.intentLabel ?? "Rest / low-load day";
+      const rawLabel = day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
       const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
       const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
       return (
@@ -603,7 +618,7 @@ export default function AdaptiveWeekPlanScreen() {
           {slot.sessions.map((session) => {
             const day = session;
             const isSelected = selectedDay?.id === day.id;
-            const rawLabel = day.title ?? day.intentLabel ?? "Rest / low-load day";
+            const rawLabel = day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
             const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
             const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
             return (

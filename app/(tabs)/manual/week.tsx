@@ -21,9 +21,9 @@ import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
-import {
-  PRIMARY_FOCUS_TO_GOAL_SLUG,
-} from "../../../lib/preferencesConstants";
+import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
+import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
+import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import type { ManualWeekPlan } from "../../../lib/types";
 import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
@@ -138,16 +138,57 @@ export default function ManualWeekScreen() {
     }
 
     try {
+      const n = selectedTrainingDays.length;
+      const bodyDistribution = getBodyEmphasisDistribution(n);
+      const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+      const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+      const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+      const total = p1 + p2 + p3;
+      const n1 = total > 0 ? Math.round(n * (p1 / total)) : n;
+      const n2 = total > 0 ? Math.min(n - n1, Math.round(n * (p2 / total))) : 0;
+      const goalIndices: number[] = [];
+      for (let i = 0; i < n1; i++) goalIndices.push(0);
+      for (let i = 0; i < n2; i++) goalIndices.push(1);
+      for (let i = n1 + n2; i < n; i++) goalIndices.push(2);
+      const dedicateDays = manualPreferences.goalDistributionStyle === "dedicate_days" && manualPreferences.primaryFocus.length > 0;
+      const modifierToSpecific: Record<string, string> = {
+        Push: "push",
+        Pull: "pull",
+        Quad: "quad",
+        Posterior: "posterior",
+      };
+      const specificEmphasis =
+        (manualPreferences.targetModifier?.length ?? 0) > 0
+          ? (manualPreferences.targetModifier ?? [])
+              .map((m) => modifierToSpecific[m] ?? m.toLowerCase())
+              .filter(Boolean)
+          : [];
+
       const days: ManualWeekPlan["days"] = [];
-      for (const dow of selectedTrainingDays) {
+      for (let i = 0; i < selectedTrainingDays.length; i++) {
+        const dow = selectedTrainingDays[i];
         const date = addDays(weekStart, dow);
+        const bodyBias = bodyDistribution[i];
+        const bodyKey = bodyBias.targetBody.toLowerCase() as "upper" | "lower" | "full";
+        const specificForDay = specificEmphasis.filter((k) => isSpecificFocusRelevantForBody(k, bodyKey));
+        const dayFocus = dedicateDays && manualPreferences.primaryFocus.length
+          ? [manualPreferences.primaryFocus[goalIndices[i] ?? 0] ?? manualPreferences.primaryFocus[0]]
+          : manualPreferences.primaryFocus;
+        const dayPrefs: typeof manualPreferences = {
+          ...manualPreferences,
+          primaryFocus: dayFocus.length ? dayFocus : manualPreferences.primaryFocus,
+          targetBody: bodyBias.targetBody,
+          targetModifier: bodyBias.targetModifier,
+        };
         const workout = await generateWorkoutAsync(
-          manualPreferences,
+          dayPrefs,
           profile,
           dateToISO(date),
           preferredNames
         );
-        days.push({ date: dateToISO(date), workout });
+        const goalLabel = dayFocus[0] ?? "Workout";
+        const displayTitle = formatDayTitle(goalLabel, bodyKey, specificForDay.length ? specificForDay : undefined);
+        days.push({ date: dateToISO(date), workout, displayTitle });
       }
       setManualWeekPlan({ weekStartDate: weekStartStr, days });
     } catch (e) {
@@ -358,7 +399,7 @@ export default function ManualWeekScreen() {
             )}
           </View>
           {slot.sessions.map((s) => {
-            const label = s.workout.focus.join(" • ") || "General";
+            const label = s.displayTitle ?? s.workout.focus.join(" • ") || "General";
             const isSelected =
               selectedSession?.date === s.date && selectedSession?.workout.id === s.workout.id;
             const dayIdx = weekDates.indexOf(s.date);
@@ -416,7 +457,7 @@ export default function ManualWeekScreen() {
   const selectedDay = selectedSession;
   const summaryLines: string[] = [];
   if (selectedDay?.workout.focus?.length) {
-    summaryLines.push(selectedDay.workout.focus.join(" • "));
+    summaryLines.push(selectedDay.displayTitle ?? selectedDay.workout.focus.join(" • "));
   }
   if (selectedDay?.workout.durationMinutes != null) {
     summaryLines.push(`${selectedDay.workout.durationMinutes} min`);

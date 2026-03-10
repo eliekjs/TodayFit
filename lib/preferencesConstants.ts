@@ -42,6 +42,20 @@ export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   "Recovery": "resilience",
 };
 
+/** Map goal slug to a canonical primary focus label (for session intent when dedicating days to goals). */
+export const GOAL_SLUG_TO_PRIMARY_FOCUS: Record<string, string> = {
+  strength: "Build Strength",
+  muscle: "Build Muscle (Hypertrophy)",
+  physique: "Body Recomposition",
+  conditioning: "Sport Conditioning",
+  endurance: "Improve Endurance",
+  mobility: "Mobility & Joint Health",
+  resilience: "Recovery",
+  climbing: "Sport Conditioning",
+  trail_running: "Improve Endurance",
+  ski: "Sport Conditioning",
+};
+
 /** Core: duration in minutes (single select). */
 export const DURATIONS = [20, 30, 45, 60, 75] as const;
 

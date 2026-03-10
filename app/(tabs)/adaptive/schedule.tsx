@@ -176,6 +176,8 @@ export default function AdaptiveScheduleScreen() {
           Object.keys(sportDaysAllocation).length > 0 ? sportDaysAllocation : undefined,
         rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
         sportFocusPct: selectedSportSlugs.length === 2 ? adaptiveSetup.sportFocusPct : undefined,
+        sportVsGoalPct: adaptiveSetup.sportVsGoalPct ?? 50,
+        sportSubFocusSlugsBySport: Object.keys(adaptiveSetup.subFocusBySport).length > 0 ? adaptiveSetup.subFocusBySport : undefined,
         defaultSessionDuration: defaultDuration,
         energyBaseline,
         recentLoad: adaptiveSetup.recentLoad,

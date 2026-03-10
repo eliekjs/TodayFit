@@ -27,6 +27,8 @@ export type AdaptiveSetup = {
   rankedSportSlugs: (string | null)[];
   subFocusBySport: Record<string, string[]>;
   sportFocusPct: [number, number];
+  /** When both sports and goals selected: 0–100 = sport(s) share; additional goals = 100 - sportVsGoalPct. Omit or 50 = default. */
+  sportVsGoalPct?: number;
   /** Weekly body emphasis: more volume on this area; week still trains full body. */
   weeklyEmphasis?: import("../lib/types").BodyEmphasisKey | null;
 };

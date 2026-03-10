@@ -115,26 +115,124 @@ function tagToSlug(tag: string): string {
   return tag.toLowerCase().trim().replace(/\s+/g, "_");
 }
 
-/** Auto weights by rank: 50% / 30% / 20% for 3 sub-focuses; 60/40 for 2; 100% for 1. */
+/** Auto weights by rank: 50% / 30% / 20% for 3 sub-focuses; 50% / 30% for 2; 100% for 1. */
 function getDefaultSubFocusWeights(count: number): number[] {
   if (count <= 0) return [];
   if (count === 1) return [1];
-  if (count === 2) return [0.6, 0.4];
+  if (count === 2) return [0.5, 0.3];
   return [0.5, 0.3, 0.2];
+}
+
+export type SportGoalMergeOptions = {
+  rankedSportSlugs?: string[];
+  sportFocusPct?: [number, number];
+  sportVsGoalPct?: number;
+  sportSubFocusSlugsBySport?: Record<string, string[]>;
+};
+
+/**
+ * Build a name -> score map for exercises by sport (sub-focus 50/30/20 + sport tags).
+ * When 2 sports: merge tag weights by sportFocusPct, then score.
+ */
+async function buildSportScoreMap(
+  rankedSportSlugs: string[],
+  sportFocusPct: [number, number] | undefined,
+  sportSubFocusSlugsBySport: Record<string, string[]> | undefined
+): Promise<Map<string, number>> {
+  const byTag = new Map<string, number>();
+  const sportWeights =
+    rankedSportSlugs.length === 2 && sportFocusPct
+      ? [sportFocusPct[0] / 100, sportFocusPct[1] / 100]
+      : rankedSportSlugs.map(() => 1 / rankedSportSlugs.length);
+
+  for (let s = 0; s < rankedSportSlugs.length; s++) {
+    const slug = rankedSportSlugs[s];
+    const weight = sportWeights[s] ?? 1 / rankedSportSlugs.length;
+    const subSlugs = sportSubFocusSlugsBySport?.[slug] ?? [];
+    const subWeights = getDefaultSubFocusWeights(subSlugs.length);
+    const tagWeights = getExerciseTagsForSubFocuses(slug, subSlugs, subWeights);
+    for (const { tag_slug, weight: w } of tagWeights) {
+      byTag.set(tag_slug, (byTag.get(tag_slug) ?? 0) + w * weight);
+    }
+    const sportTags = await getSportTags(slug);
+    for (const t of sportTags) {
+      const tagSlug = tagToSlug(t);
+      byTag.set(tagSlug, (byTag.get(tagSlug) ?? 0) + weight);
+    }
+  }
+
+  const { data: allSport, error: sportError } = requireClient()
+    .from("starter_exercises")
+    .select("name, tags")
+    .eq("is_active", true);
+  if (sportError || !allSport?.length) return new Map();
+  const scoreMap = new Map<string, number>();
+  for (const row of allSport as Array<{ name: string; tags: string[] }>) {
+    const tags = Array.isArray(row.tags) ? row.tags : [];
+    let score = 0;
+    for (const t of tags) {
+      const w = byTag.get(tagToSlug(t));
+      if (w != null) score += w;
+    }
+    if (score > 0) scoreMap.set(row.name, score);
+  }
+  return scoreMap;
 }
 
 /**
  * Preferred exercise names (and slugs) for sport- and goal-aware workout building.
  * Uses weighted goal ranking (get_exercises_by_goals_ranked) when goalSlugs and goalWeightsPct are provided;
  * when sportSubFocusSlugs are provided, ranks exercises by sub-focus tag overlap and prepends them.
- * Optionally merges sport_tag_profile overlap.
+ * When options.sportVsGoalPct is provided and both sports and goals exist, merges sport and goal rankings by that weight.
  */
 export async function getPreferredExerciseNamesForSportAndGoals(
   sportSlug: string | null,
   goalSlugs: string[],
   goalWeightsPct?: number[],
-  sportSubFocusSlugs?: string[]
+  sportSubFocusSlugs?: string[],
+  options?: SportGoalMergeOptions
 ): Promise<string[]> {
+  const rankedSlugs = options?.rankedSportSlugs?.length
+    ? options.rankedSportSlugs
+    : sportSlug
+      ? [sportSlug]
+      : [];
+  const hasSport = rankedSlugs.length > 0;
+  const hasGoals = goalSlugs.length > 0;
+  const sportVsGoal = options?.sportVsGoalPct;
+
+  if (hasSport && hasGoals && sportVsGoal != null) {
+    const sportScoreMap = await buildSportScoreMap(
+      rankedSlugs,
+      rankedSlugs.length === 2 ? options?.sportFocusPct : undefined,
+      options?.sportSubFocusSlugsBySport ?? (sportSlug && sportSubFocusSlugs?.length ? { [sportSlug]: sportSubFocusSlugs } : undefined)
+    );
+    const weights = goalWeightsPct ?? [50, 30, 20].slice(0, goalSlugs.length);
+    let goalList: { name: string }[];
+    try {
+      goalList = await getExercisesByGoalsRanked(goalSlugs, weights, 100);
+    } catch {
+      const byGoal = await getStarterExercisesRankedByGoals(goalSlugs);
+      goalList = byGoal.map((r) => ({ name: r.name }));
+    }
+    const sportMax = Math.max(1, ...sportScoreMap.values());
+    const goalScoreMap = new Map<string, number>();
+    goalList.forEach((row, i) => {
+      goalScoreMap.set(row.name, 1 - i / Math.max(1, goalList.length));
+    });
+    const allNames = new Set([...sportScoreMap.keys(), ...goalScoreMap.keys()]);
+    const sportW = sportVsGoal / 100;
+    const goalW = 1 - sportW;
+    const combined: { name: string; score: number }[] = [];
+    for (const name of allNames) {
+      const s = (sportScoreMap.get(name) ?? 0) / sportMax;
+      const g = goalScoreMap.get(name) ?? 0;
+      combined.push({ name, score: sportW * s + goalW * g });
+    }
+    combined.sort((a, b) => b.score - a.score);
+    return combined.map((c) => c.name);
+  }
+
   const nameSet = new Set<string>();
   const ordered: string[] = [];
 
@@ -159,9 +257,14 @@ export async function getPreferredExerciseNamesForSportAndGoals(
     }
   }
 
-  if (sportSlug && sportSubFocusSlugs?.length) {
-    const subFocusWeights = getDefaultSubFocusWeights(sportSubFocusSlugs.length);
-    const tagWeights = getExerciseTagsForSubFocuses(sportSlug, sportSubFocusSlugs, subFocusWeights);
+  const primarySlug = sportSlug ?? rankedSlugs[0];
+  const subSlugs =
+    primarySlug && (options?.sportSubFocusSlugsBySport?.[primarySlug] ?? sportSubFocusSlugs)?.length
+      ? (options?.sportSubFocusSlugsBySport?.[primarySlug] ?? sportSubFocusSlugs)!
+      : undefined;
+  if (primarySlug && subSlugs?.length) {
+    const subFocusWeights = getDefaultSubFocusWeights(subSlugs.length);
+    const tagWeights = getExerciseTagsForSubFocuses(primarySlug, subSlugs, subFocusWeights);
     if (tagWeights.length > 0) {
       const tagWeightMap = new Map(tagWeights.map((t) => [t.tag_slug, t.weight]));
       const { data: all, error } = requireClient()
@@ -193,9 +296,9 @@ export async function getPreferredExerciseNamesForSportAndGoals(
     }
   }
 
-  if (!sportSlug) return ordered;
+  if (!primarySlug) return ordered;
 
-  const sportTags = await getSportTags(sportSlug);
+  const sportTags = await getSportTags(primarySlug);
   if (!sportTags.length) return ordered;
 
   const sportTagSet = new Set(sportTags);

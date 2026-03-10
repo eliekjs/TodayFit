@@ -24,13 +24,35 @@ export type BodyEmphasisKey =
   | "core"
   | "none";
 
+/** Specific body-part focus for a day (e.g. glutes, shoulders, back, core). Used in titles and exercise selection. */
+export type SpecificBodyFocusKey =
+  | "glutes"
+  | "quad"
+  | "posterior"
+  | "shoulders"
+  | "back"
+  | "push"
+  | "pull"
+  | "core";
+
 /** Per-workout preferences when editing a single day in a week (goal/body/energy/style bias). */
 export type DailyWorkoutPreferences = {
   goalBias?: "strength" | "hypertrophy" | "endurance" | "mobility" | "recovery" | "power";
   bodyRegionBias?: "upper" | "lower" | "full" | "pull" | "push" | "core";
+  /** Specific body-part emphasis for this day (e.g. glutes, shoulders). Only include when relevant to body region. */
+  specificBodyFocus?: SpecificBodyFocusKey[];
   energyLevel?: EnergyLevel;
   stylePreference?: string;
 };
+
+/** How to distribute primary/secondary goals across the week. */
+export type GoalDistributionStyle = "dedicate_days" | "blend";
+
+/** How to assign body emphasis (upper/lower/full) across the week. */
+export type WeeklyBodyEmphasisStyle = "auto_alternate" | "manual";
+
+/** How to apply user-selected specific body-part emphasis to days. */
+export type SpecificBodyPartBehavior = "auto_apply" | "manual";
 
 export type WorkoutStyleKey =
   | "Compound Strength"
@@ -61,6 +83,12 @@ export type ManualPreferences = {
   goalMatchPrimaryPct?: number;
   goalMatchSecondaryPct?: number;
   goalMatchTertiaryPct?: number;
+  /** Weekly programming: dedicate entire days to specific goals vs blend in each workout. */
+  goalDistributionStyle?: GoalDistributionStyle;
+  /** Weekly programming: auto upper/lower/full structure vs manual (future). */
+  weeklyBodyEmphasisStyle?: WeeklyBodyEmphasisStyle;
+  /** Weekly programming: auto-apply specific body-part focus to relevant days vs manual (future). */
+  specificBodyPartBehavior?: SpecificBodyPartBehavior;
 };
 
 export type EquipmentKey =
@@ -197,7 +225,7 @@ export type GeneratedWorkout = {
 /** In-memory manual week: 7 generated workouts keyed by date. */
 export type ManualWeekPlan = {
   weekStartDate: string;
-  days: { date: string; workout: GeneratedWorkout }[];
+  days: { date: string; workout: GeneratedWorkout; displayTitle?: string }[];
 };
 
 /** One-line prescription string for display (e.g. "3 x 10 reps", "20–40 min"). */

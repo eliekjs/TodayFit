@@ -1,7 +1,11 @@
 /**
  * Weekly structure templates: given gym days per week and optional emphasis,
- * returns the body-region and goal bias for each gym day so the week stays
- * balanced while giving the emphasized area ~60–65% of volume.
+ * returns the body-region and goal bias for each gym day.
+ *
+ * Body emphasis distribution rule (when no weekly emphasis or auto_alternate):
+ * - Even number of days: alternate Upper and Lower only (no Full body day).
+ * - Odd number of days: exactly one Full body day; remaining days alternate Upper/Lower.
+ * Examples: 2=U,L; 3=U,L,Full; 4=U,L,U,L; 5=U,L,Full,U,L; 6=U,L,U,L,U,L.
  */
 
 import type { BodyEmphasisKey } from "../../lib/types";
@@ -16,8 +20,36 @@ export type DayBias = {
 };
 
 /**
+ * Returns body-emphasis distribution only (targetBody + targetModifier per day).
+ * Does not set intentKey; caller combines with goal/intent order.
+ * Rule: even days = Upper/Lower alternating; odd days = one Full (middle), rest U/L alternating.
+ */
+export function getBodyEmphasisDistribution(gymDaysPerWeek: number): { targetBody: "Upper" | "Lower" | "Full"; targetModifier: string[] }[] {
+  const n = Math.max(1, Math.min(7, gymDaysPerWeek));
+  const out: { targetBody: "Upper" | "Lower" | "Full"; targetModifier: string[] }[] = [];
+  if (n % 2 === 0) {
+    for (let i = 0; i < n; i++) {
+      out.push({ targetBody: i % 2 === 0 ? "Upper" : "Lower", targetModifier: [] });
+    }
+  } else {
+    const fullIndex = Math.floor(n / 2);
+    let ulIndex = 0;
+    for (let i = 0; i < n; i++) {
+      if (i === fullIndex) {
+        out.push({ targetBody: "Full", targetModifier: [] });
+      } else {
+        out.push({ targetBody: ulIndex % 2 === 0 ? "Upper" : "Lower", targetModifier: [] });
+        ulIndex += 1;
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Returns ordered day biases for gym-only days (no sport slots).
- * Emphasis area gets more days; week still includes lower, upper, and full-body work.
+ * When no emphasis: uses getBodyEmphasisDistribution (even=U/L only, odd=one Full).
+ * When emphasis set: legacy templates that give emphasized area more volume.
  */
 export function getWeeklyStructureTemplate(
   gymDaysPerWeek: number,
@@ -25,7 +57,8 @@ export function getWeeklyStructureTemplate(
 ): DayBias[] {
   const n = Math.max(1, Math.min(7, gymDaysPerWeek));
   if (!emphasis || emphasis === "none") {
-    return getBalancedWeek(n);
+    const bodyOnly = getBodyEmphasisDistribution(n);
+    return bodyOnly.map((b) => ({ ...b, intentKey: "strength" as IntentKey }));
   }
   switch (emphasis) {
     case "upper_body":
@@ -41,7 +74,8 @@ export function getWeeklyStructureTemplate(
     case "core":
       return getCoreEmphasis(n);
     default:
-      return getBalancedWeek(n);
+      const bodyOnly = getBodyEmphasisDistribution(n);
+      return bodyOnly.map((b) => ({ ...b, intentKey: "strength" as IntentKey }));
   }
 }
 

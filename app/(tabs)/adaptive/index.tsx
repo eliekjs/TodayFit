@@ -100,6 +100,8 @@ export default function AdaptiveModeScreen() {
     useState<(typeof FATIGUE_OPTIONS)[number]>("Moderate");
   /** Sport focus % when 2 sports: [1st sport %, 2nd sport %], sum = 100. Default 60/40. */
   const [sportFocusPct, setSportFocusPct] = useState<[number, number]>([60, 40]);
+  /** When both sports and goals: 0–100 = sport(s) share; additional goals = 100 - sportVsGoalPct. Default 50. */
+  const [sportVsGoalPct, setSportVsGoalPct] = useState(50);
   const [error, setError] = useState<string | null>(null);
   const [sports, setSports] = useState<Sport[]>([]);
   const [sportsError, setSportsError] = useState<string | null>(null);
@@ -213,6 +215,7 @@ export default function AdaptiveModeScreen() {
       rankedSportSlugs: [...rankedSportSlugs],
       subFocusBySport: { ...subFocusBySport },
       sportFocusPct: [...sportFocusPct],
+      sportVsGoalPct,
     };
     setAdaptiveSetup(setup);
     router.push("/adaptive/schedule");
@@ -672,6 +675,64 @@ export default function AdaptiveModeScreen() {
               },
             ]}
           >
+            {selectedSportSlugs.length > 0 && rankedGoals.filter((g): g is string => g != null).length > 0 && (
+              <>
+                <SectionHeader
+                  title="Sport(s) vs Additional goals"
+                  subtitle="What % of the workout should favor sport(s) vs your additional goals. Sum = 100%."
+                  style={{ marginTop: 0 }}
+                />
+                <View style={[styles.chipGroup, { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }]}>
+                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={{ fontSize: 13, color: theme.textMuted }}>Sport(s)</Text>
+                    <TextInput
+                      style={{
+                        width: 56,
+                        height: 40,
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        fontSize: 15,
+                        textAlign: "center",
+                        color: theme.text,
+                        borderColor: theme.border,
+                      }}
+                      keyboardType="number-pad"
+                      value={String(sportVsGoalPct)}
+                      onChangeText={(t) => {
+                        const n = parseInt(t.replace(/\D/g, ""), 10);
+                        if (!Number.isNaN(n)) setSportVsGoalPct(Math.max(0, Math.min(100, n)));
+                      }}
+                    />
+                    <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
+                  </View>
+                  <Text style={{ fontSize: 13, color: theme.textMuted }}>/</Text>
+                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={{ fontSize: 13, color: theme.textMuted }}>Additional goals</Text>
+                    <TextInput
+                      style={{
+                        width: 56,
+                        height: 40,
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        fontSize: 15,
+                        textAlign: "center",
+                        color: theme.text,
+                        borderColor: theme.border,
+                      }}
+                      keyboardType="number-pad"
+                      value={String(100 - sportVsGoalPct)}
+                      onChangeText={(t) => {
+                        const n = parseInt(t.replace(/\D/g, ""), 10);
+                        if (!Number.isNaN(n)) setSportVsGoalPct(Math.max(0, Math.min(100, 100 - n)));
+                      }}
+                    />
+                    <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
+                  </View>
+                </View>
+              </>
+            )}
             <SectionHeader
               title="Goal match %"
               subtitle="What % of the workout should match each ranked goal. Sum = 100%."

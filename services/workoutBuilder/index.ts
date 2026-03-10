@@ -30,6 +30,14 @@ export type SportGoalOptions = {
   goalWeightsPct?: number[];
   /** Sub-focus slugs for primary sport (from SPORTS_WITH_SUB_FOCUSES). Biases exercise selection via tag mapping. */
   sportSubFocusSlugs?: string[];
+  /** When both sports and goals: 0–100 = sport(s) share. Used to merge sport vs goal exercise rankings. */
+  sportVsGoalPct?: number;
+  /** Ordered sport slugs (1 or 2) for two-sport weighting with sportFocusPct. */
+  rankedSportSlugs?: string[];
+  /** When 2 sports: [1st sport %, 2nd sport %], sum = 100. */
+  sportFocusPct?: [number, number];
+  /** Sub-focus slugs per sport (sportSlug -> slugs). Used when 1 or 2 sports. */
+  sportSubFocusSlugsBySport?: Record<string, string[]>;
   /** Recent load (e.g. "Long Run", "Heavy Lower") so generation can avoid exercises that add strain before/after. */
   recentLoad?: string;
   /** Injury/constraint labels (e.g. "Knee", "Lower Back") so generation excludes contraindicated exercises. */
@@ -65,13 +73,23 @@ export async function buildWorkoutForSessionIntent(
   };
 
   let preferredNames: string[] | undefined;
-  if (isDbConfigured() && (options?.goalSlugs?.length || options?.sportSubFocusSlugs?.length)) {
+  const hasGoals = (options?.goalSlugs?.length ?? 0) > 0;
+  const hasSport =
+    (options?.sportSlug != null && options.sportSlug !== "") ||
+    (options?.rankedSportSlugs?.length ?? 0) > 0;
+  if (isDbConfigured() && (hasGoals || hasSport)) {
     try {
       preferredNames = await getPreferredExerciseNamesForSportAndGoals(
-        options.sportSlug ?? null,
-        options.goalSlugs ?? [],
-        options.goalWeightsPct ?? [50, 30, 20],
-        options.sportSubFocusSlugs
+        options?.sportSlug ?? options?.rankedSportSlugs?.[0] ?? null,
+        options?.goalSlugs ?? [],
+        options?.goalWeightsPct ?? [50, 30, 20],
+        options?.sportSubFocusSlugs,
+        {
+          rankedSportSlugs: options?.rankedSportSlugs,
+          sportFocusPct: options?.sportFocusPct,
+          sportVsGoalPct: options?.sportVsGoalPct,
+          sportSubFocusSlugsBySport: options?.sportSubFocusSlugsBySport,
+        }
       );
     } catch {
       preferredNames = undefined;
