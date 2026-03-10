@@ -18,8 +18,8 @@ function HeaderBackButton() {
   );
 }
 
-/** Back from week screen: go to preferences so user can resume week creation (not home). */
-function WeekScreenBackButton() {
+/** Back from manual flow (week/workout/execute): go to first preference screen, not home. */
+function ManualFlowBackButton() {
   const router = useRouter();
   const theme = useTheme();
   return (
@@ -107,18 +107,19 @@ export default function TabsLayout() {
           fontSize: 11,
           fontWeight: "500",
         },
+        tabBarShowLabel: true,
         tabBarItemStyle: {
           paddingVertical: 4,
         },
         headerTitleAlign: "center",
       }}
     >
-      {/* ── Visible tabs: Generator | Library | History | Settings ── */}
+      {/* ── Visible tabs: Generate | Library | History | Settings ── */}
       <Tabs.Screen
         name="index"
         options={{
           title: "Generator",
-          tabBarLabel: "Generator",
+          tabBarLabel: "Generate",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "sparkles" : "sparkles-outline"}
@@ -202,7 +203,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "Today's Workout",
-          headerLeft: () => <HeaderBackButton />,
+          headerLeft: () => <ManualFlowBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
       />
@@ -211,7 +212,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "Execute",
-          headerLeft: () => <HeaderBackButton />,
+          headerLeft: () => <ManualFlowBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
       />
@@ -220,7 +221,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "This week's workouts",
-          headerLeft: () => <WeekScreenBackButton />,
+          headerLeft: () => <ManualFlowBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
       />

@@ -1,12 +1,15 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
+import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { generateWorkoutAsync } from "../../../lib/generator";
-import { formatPrescription } from "../../../lib/types";
+import { formatPrescription, getSupersetPairsForBlock } from "../../../lib/types";
+import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
 import { isDbConfigured } from "../../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
@@ -109,6 +112,38 @@ export default function ManualWorkoutScreen() {
     router.back();
   };
 
+  const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);
+  const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
+  const [swapLoading, setSwapLoading] = useState(false);
+
+  useEffect(() => {
+    if (!swapModal) {
+      setSwapSuggested([]);
+      return;
+    }
+    let cancelled = false;
+    setSwapLoading(true);
+    getProgressionsRegressionsForExercise(swapModal.exerciseId).then((res) => {
+      if (cancelled) return;
+      const combined = [...res.regressions, ...res.progressions].slice(0, 3);
+      setSwapSuggested(combined);
+      setSwapLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [swapModal?.exerciseId]);
+
+  const onSwapChoose = (optionId: string, optionName: string) => {
+    if (generatedWorkout == null || swapModal == null) return;
+    const updated = replaceExerciseInWorkout(
+      generatedWorkout,
+      swapModal.exerciseId,
+      optionId,
+      optionName
+    );
+    setGeneratedWorkout(updated);
+    setSwapModal(null);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -134,45 +169,60 @@ export default function ManualWorkoutScreen() {
                 {block.reasoning}
               </Text>
             ) : null}
-            {block.supersetPairs && block.supersetPairs.length > 0 ? (
-              block.supersetPairs.map((pair, idx) => (
-                <View key={`superset-${idx}`} style={[styles.supersetBlock, { borderLeftColor: theme.border }]}>
-                  <Text style={[styles.supersetLabel, { color: theme.textMuted }]}>
-                    Superset {idx + 1}
-                  </Text>
-                  {pair.map((item) => (
-                    <View key={item.exercise_id} style={styles.exerciseRow}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.exerciseName, { color: theme.text }]}>
-                          {item.exercise_name}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.exercisePrescription,
-                            { color: theme.textMuted },
-                          ]}
-                        >
-                          {formatPrescription(item)}
-                        </Text>
-                        {(item.tags?.length ?? 0) > 0 && (
-                          <View style={styles.tagsRow}>
-                            {(item.tags ?? []).slice(0, 3).map((tag) => (
-                              <Text
-                                key={tag}
-                                style={[styles.tag, { color: theme.textMuted }]}
-                              >
-                                {tag}
-                              </Text>
-                            ))}
+            {(() => {
+              const pairs = getSupersetPairsForBlock(block);
+              return pairs && pairs.length > 0 ? (
+                pairs.map((pair, idx) => (
+                  <View key={`superset-${idx}`} style={[styles.supersetBlock, { borderLeftColor: theme.primary ?? theme.border }]}>
+                    <Text style={[styles.supersetLabel, { color: theme.textMuted }]}>
+                      Pair {idx + 1} — do A then B, rest after both
+                    </Text>
+                    <View style={[styles.pairRow, { backgroundColor: theme.card ?? theme.background }]}>
+                      {pair.map((item, pairIdx) => (
+                        <View key={item.exercise_id} style={styles.exerciseRow}>
+                          <Text style={[styles.supersetLetter, { color: theme.primary ?? theme.text }]}>
+                            {String.fromCharCode(65 + pairIdx)}
+                          </Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.exerciseName, { color: theme.text }]}>
+                              {item.exercise_name}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.exercisePrescription,
+                                { color: theme.textMuted },
+                              ]}
+                            >
+                              {formatPrescription(item)}
+                            </Text>
+                            {(item.tags?.length ?? 0) > 0 && (
+                              <View style={styles.tagsRow}>
+                                {(item.tags ?? []).slice(0, 3).map((tag) => (
+                                  <Text
+                                    key={tag}
+                                    style={[styles.tag, { color: theme.textMuted }]}
+                                  >
+                                    {tag}
+                                  </Text>
+                                ))}
+                              </View>
+                            )}
                           </View>
-                        )}
-                      </View>
+                          <Pressable
+                            onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
+                            style={[styles.swapBtn, { borderColor: theme.border }]}
+                          >
+                            <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
+                          </Pressable>
+                        </View>
+                      ))}
                     </View>
-                  ))}
-                </View>
-              ))
-            ) : (
-              block.items.map((item) => (
+                  </View>
+                ))
+              ) : null;
+            })()}
+            {!getSupersetPairsForBlock(block)?.length
+              ?               block.items.map((item) => (
                 <View key={item.exercise_id} style={styles.exerciseRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.exerciseName, { color: theme.text }]}>
@@ -199,9 +249,15 @@ export default function ManualWorkoutScreen() {
                       </View>
                     )}
                   </View>
+                  <Pressable
+                    onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
+                    style={[styles.swapBtn, { borderColor: theme.border }]}
+                  >
+                    <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
+                  </Pressable>
                 </View>
               ))
-            )}
+              : null}
           </Card>
         ))}
 
@@ -230,6 +286,16 @@ export default function ManualWorkoutScreen() {
           />
         </View>
       </ScrollView>
+
+      <SwapExerciseModal
+        visible={swapModal != null}
+        onClose={() => setSwapModal(null)}
+        exerciseId={swapModal?.exerciseId ?? ""}
+        exerciseName={swapModal?.exerciseName ?? ""}
+        suggested={swapSuggested}
+        loading={swapLoading}
+        onChoose={onSwapChoose}
+      />
     </View>
   );
 }
@@ -286,7 +352,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   exerciseRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     paddingVertical: 8,
+    gap: 8,
   },
   exerciseName: {
     fontSize: 15,
@@ -304,6 +373,16 @@ const styles = StyleSheet.create({
   },
   tag: {
     fontSize: 11,
+  },
+  swapBtn: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  swapBtnText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   footer: {
     marginTop: 16,

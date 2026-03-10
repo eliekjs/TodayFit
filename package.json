@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test:generator": "npx tsx logic/workoutGeneration/seedTest.ts",
-    "test:phase5": "npx tsx logic/workoutIntelligence/constraints/eligibility.test.ts"
+    "test:phase5": "npx tsx logic/workoutIntelligence/constraints/eligibility.test.ts",
+    "test:exercise-frequency": "npx tsx scripts/exerciseFrequencyTest.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

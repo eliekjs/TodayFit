@@ -22,7 +22,8 @@ export const PRESCRIPTION_STYLES: Record<PrescriptionStyleSlug, PrescriptionStyl
   moderate_hypertrophy: {
     slug: "moderate_hypertrophy",
     name: "Moderate hypertrophy",
-    rep_range_min: 6,
+    // Evidence-based: 8–15 aligns with hypertrophy research (effective range ~6–20 when near failure; 8+ favors muscle growth over pure strength).
+    rep_range_min: 8,
     rep_range_max: 15,
     set_range_min: 2,
     set_range_max: 4,

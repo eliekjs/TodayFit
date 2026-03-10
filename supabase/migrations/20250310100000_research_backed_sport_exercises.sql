@@ -283,7 +283,6 @@ FROM (VALUES
   ('plank', 'sport_rock_bouldering'), ('dead_bug', 'sport_rock_bouldering'), ('pallof_hold', 'sport_rock_bouldering'),
   ('face_pull', 'sport_rock_bouldering'), ('face_pull', 'sport_rock_sport_lead'), ('band_pullapart', 'sport_rock_bouldering'),
   ('ytw', 'sport_rock_bouldering'), ('wrist_curl', 'sport_rock_bouldering'), ('rower', 'sport_rock_sport_lead'),
-  ('scapular_push_up', 'sport_rock_bouldering'), ('scapular_push_up', 'sport_rock_sport_lead'),
   -- Running (road, trail, ultra)
   ('barbell_back_squat', 'sport_road_running'), ('front_squat', 'sport_road_running'), ('rdl_dumbbell', 'sport_road_running'),
   ('barbell_rdl', 'sport_road_running'), ('single_leg_rdl', 'sport_road_running'), ('hip_thrust', 'sport_road_running'),

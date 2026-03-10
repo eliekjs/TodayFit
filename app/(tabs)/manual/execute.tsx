@@ -6,16 +6,15 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Modal,
-  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
-import { formatPrescription } from "../../../lib/types";
+import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
+import { formatPrescription, getSupersetPairsForBlock } from "../../../lib/types";
+import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
-import type { GeneratedWorkout, WorkoutItem } from "../../../lib/types";
 
 type ExerciseProgress = {
   completed: boolean;
@@ -40,14 +39,15 @@ export default function ExecuteScreen() {
     () =>
       generatedWorkout != null
         ? generatedWorkout.blocks.flatMap((block) => {
-            if (block.supersetPairs && block.supersetPairs.length > 0) {
-              return block.supersetPairs.flatMap((pair, idx) =>
+            const pairs = getSupersetPairsForBlock(block);
+            if (pairs && pairs.length > 0) {
+              return pairs.flatMap((pair, idx) =>
                 pair.map((item) => ({
                   ...item,
                   id: item.exercise_id,
                   name: item.exercise_name,
                   prescription: formatPrescription(item),
-                  sectionTitle: `${block.title ?? block.block_type} • Superset ${idx + 1}`,
+                  sectionTitle: `${block.title ?? block.block_type} • Pair ${idx + 1}`,
                 }))
               );
             }
@@ -77,10 +77,8 @@ export default function ExecuteScreen() {
     exerciseId: string;
     exerciseName: string;
   } | null>(null);
-  const [swapOptions, setSwapOptions] = useState<{
-    progressions: { id: string; name: string }[];
-    regressions: { id: string; name: string }[];
-  } | null>(null);
+  const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
+  const [swapLoading, setSwapLoading] = useState(false);
 
   useEffect(() => {
     if (resumeProgress != null && Object.keys(resumeProgress).length > 0) {
@@ -121,48 +119,22 @@ export default function ExecuteScreen() {
 
   useEffect(() => {
     if (!swapModal) {
-      setSwapOptions(null);
+      setSwapSuggested([]);
       return;
     }
     let cancelled = false;
-    setSwapOptions(null);
+    setSwapLoading(true);
     getProgressionsRegressionsForExercise(swapModal.exerciseId).then((res) => {
-      if (!cancelled) setSwapOptions(res);
+      if (cancelled) return;
+      const combined = [...res.regressions, ...res.progressions].slice(0, 3);
+      setSwapSuggested(combined);
+      setSwapLoading(false);
     });
     return () => { cancelled = true; };
   }, [swapModal?.exerciseId]);
 
-  const replaceExerciseInWorkout = (
-    workout: GeneratedWorkout,
-    fromExerciseId: string,
-    toId: string,
-    toName: string
-  ): GeneratedWorkout => {
-    const updateItem = (item: WorkoutItem): WorkoutItem =>
-      item.exercise_id === fromExerciseId
-        ? { ...item, exercise_id: toId, exercise_name: toName }
-        : item;
-    return {
-      ...workout,
-      blocks: workout.blocks.map((block) => {
-        if (block.supersetPairs && block.supersetPairs.length > 0) {
-          return {
-            ...block,
-            supersetPairs: block.supersetPairs.map((pair) =>
-              pair.map(updateItem) as [WorkoutItem, WorkoutItem]
-            ),
-          };
-        }
-        return {
-          ...block,
-          items: block.items.map(updateItem),
-        };
-      }),
-    };
-  };
-
   const onSwapChoose = (optionId: string, optionName: string) => {
-    if (generatedWorkout == null || swapModal == null) return;
+    if (!generatedWorkout || !swapModal) return;
     const updated = replaceExerciseInWorkout(
       generatedWorkout,
       swapModal.exerciseId,
@@ -334,79 +306,15 @@ export default function ExecuteScreen() {
         </View>
       </ScrollView>
 
-      <Modal
+      <SwapExerciseModal
         visible={swapModal != null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSwapModal(null)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setSwapModal(null)}
-        >
-          <Pressable
-            style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Swap: {swapModal?.exerciseName ?? ""}
-            </Text>
-            {swapOptions == null ? (
-              <ActivityIndicator size="small" color={theme.primary} style={{ marginVertical: 24 }} />
-            ) : (
-              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                {swapOptions.regressions.length > 0 && (
-                  <View style={styles.swapSection}>
-                    <Text style={[styles.swapSectionTitle, { color: theme.textMuted }]}>
-                      Regressions (easier)
-                    </Text>
-                    {swapOptions.regressions.map((opt) => (
-                      <Pressable
-                        key={opt.id}
-                        style={[styles.swapOption, { borderColor: theme.border }]}
-                        onPress={() => onSwapChoose(opt.id, opt.name)}
-                      >
-                        <Text style={[styles.swapOptionName, { color: theme.text }]}>
-                          {opt.name}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-                {swapOptions.progressions.length > 0 && (
-                  <View style={styles.swapSection}>
-                    <Text style={[styles.swapSectionTitle, { color: theme.textMuted }]}>
-                      Progressions (harder)
-                    </Text>
-                    {swapOptions.progressions.map((opt) => (
-                      <Pressable
-                        key={opt.id}
-                        style={[styles.swapOption, { borderColor: theme.border }]}
-                        onPress={() => onSwapChoose(opt.id, opt.name)}
-                      >
-                        <Text style={[styles.swapOptionName, { color: theme.text }]}>
-                          {opt.name}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-                {swapOptions.regressions.length === 0 && swapOptions.progressions.length === 0 && (
-                  <Text style={[styles.swapEmpty, { color: theme.textMuted }]}>
-                    No progressions or regressions for this exercise.
-                  </Text>
-                )}
-              </ScrollView>
-            )}
-            <PrimaryButton
-              label="Cancel"
-              variant="ghost"
-              onPress={() => setSwapModal(null)}
-              style={{ marginTop: 12 }}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setSwapModal(null)}
+        exerciseId={swapModal?.exerciseId ?? ""}
+        exerciseName={swapModal?.exerciseName ?? ""}
+        suggested={swapSuggested}
+        loading={swapLoading}
+        onChoose={onSwapChoose}
+      />
     </View>
   );
 }
@@ -489,55 +397,5 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 24,
     marginBottom: 32,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalContent: {
-    width: "100%",
-    maxWidth: 400,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    maxHeight: "80%",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  modalScroll: {
-    maxHeight: 320,
-  },
-  swapSection: {
-    marginBottom: 16,
-  },
-  swapSectionTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  swapOption: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 8,
-  },
-  swapOptionName: {
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  swapEmpty: {
-    fontSize: 14,
-    textAlign: "center",
-    marginVertical: 16,
   },
 });

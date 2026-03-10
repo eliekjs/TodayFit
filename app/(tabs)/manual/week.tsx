@@ -17,16 +17,19 @@ import { PrimaryButton } from "../../../components/Button";
 import { Card } from "../../../components/Card";
 import { Chip } from "../../../components/Chip";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
+import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
+import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../../lib/preferencesConstants";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import type { ManualWeekPlan } from "../../../lib/types";
-import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
+import { formatPrescription, getSupersetPairsForBlock, normalizeGeneratedWorkout } from "../../../lib/types";
 
 const isWeb = Platform.OS === "web";
 
@@ -85,6 +88,9 @@ export default function ManualWeekScreen() {
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"]; displayTitle?: string } | null>(null);
+  const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);
+  const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
+  const [swapLoading, setSwapLoading] = useState(false);
 
   const focusSectionsForModal = useMemo((): FocusSection[] => {
     const goals = manualPreferences.primaryFocus;
@@ -307,6 +313,42 @@ export default function ManualWeekScreen() {
       setSelectedSession({ date, workout, displayTitle });
     },
     []
+  );
+
+  useEffect(() => {
+    if (!swapModal) {
+      setSwapSuggested([]);
+      return;
+    }
+    let cancelled = false;
+    setSwapLoading(true);
+    getProgressionsRegressionsForExercise(swapModal.exerciseId).then((res) => {
+      if (cancelled) return;
+      const combined = [...res.regressions, ...res.progressions].slice(0, 3);
+      setSwapSuggested(combined);
+      setSwapLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [swapModal?.exerciseId]);
+
+  const onSwapChoose = useCallback(
+    (optionId: string, optionName: string) => {
+      const plan = manualWeekPlan;
+      if (!plan || !selectedSession || !swapModal) return;
+      const updatedWorkout = replaceExerciseInWorkout(
+        selectedSession.workout,
+        swapModal.exerciseId,
+        optionId,
+        optionName
+      );
+      const newDays = plan.days.map((d) =>
+        d.date === selectedSession.date ? { ...d, workout: updatedWorkout } : d
+      );
+      setManualWeekPlan({ ...plan, days: newDays });
+      setSelectedSession({ ...selectedSession, workout: updatedWorkout });
+      setSwapModal(null);
+    },
+    [manualWeekPlan, selectedSession, swapModal, setManualWeekPlan]
   );
 
   /** Map goalBias (daily override) to manual primary focus label. */
@@ -577,20 +619,6 @@ export default function ManualWeekScreen() {
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
           Tap a day to view its workout. Use arrows to move workouts between days.
         </Text>
-        {manualPreferences.primaryFocus.length > 0 ? (
-          <Pressable
-            onPress={() => setShowAdjustFocusModal(true)}
-            style={({ pressed }) => ({
-              marginTop: 12,
-              paddingVertical: 8,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
-              Focus not quite right? Adjust focus areas and days
-            </Text>
-          </Pressable>
-        ) : null}
       </Card>
 
       {error ? (
@@ -650,80 +678,133 @@ export default function ManualWeekScreen() {
                       {block.reasoning}
                     </Text>
                   ) : null}
-                  {block.items.map((item) => (
-                    <View key={item.exercise_id} style={styles.exerciseRow}>
-                      <Text style={[styles.exerciseName, { color: theme.text }]}>
-                        {item.exercise_name}
-                      </Text>
-                      <Text
-                        style={[styles.exercisePrescription, { color: theme.textMuted }]}
-                      >
-                        {formatPrescription(item)}
-                      </Text>
-                    </View>
-                  ))}
+                  {(() => {
+                    const pairs = getSupersetPairsForBlock(block);
+                    return pairs
+                      ? pairs.map((pair, pairIdx) => (
+                        <View key={`pair-${pairIdx}`} style={{ marginBottom: 10 }}>
+                          <Text style={[styles.supersetPairLabel, { color: theme.textMuted }]}>
+                            Pair {pairIdx + 1} — A then B
+                          </Text>
+                          {pair.map((item, abIdx) => (
+                            <View key={item.exercise_id} style={[styles.exerciseRow, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
+                              <Text style={[styles.supersetLetter, { color: theme.textMuted }]}>
+                                {String.fromCharCode(65 + abIdx)}
+                              </Text>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.exerciseName, { color: theme.text }]}>
+                                  {item.exercise_name}
+                                </Text>
+                                <Text style={[styles.exercisePrescription, { color: theme.textMuted }]}>
+                                  {formatPrescription(item)}
+                                </Text>
+                              </View>
+                              <Pressable
+                                onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
+                                style={[styles.swapBtn, { borderColor: theme.border }]}
+                              >
+                                <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
+                              </Pressable>
+                            </View>
+                          ))}
+                        </View>
+                      ))
+                      : block.items.map((item) => (
+                        <View key={item.exercise_id} style={[styles.exerciseRow, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.exerciseName, { color: theme.text }]}>
+                              {item.exercise_name}
+                            </Text>
+                            <Text
+                              style={[styles.exercisePrescription, { color: theme.textMuted }]}
+                            >
+                              {formatPrescription(item)}
+                            </Text>
+                          </View>
+                          <Pressable
+                            onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
+                            style={[styles.swapBtn, { borderColor: theme.border }]}
+                          >
+                            <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
+                          </Pressable>
+                        </View>
+                      ));
+                  })()}
                 </View>
               ));
             })()}
             <View style={styles.footer}>
+              {focusSectionsForModal.length > 0 ? (
+                <Pressable
+                  onPress={() => setShowAdjustFocusModal(true)}
+                  style={({ pressed }) => ({
+                    marginBottom: 12,
+                    paddingVertical: 6,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
+                    Adjust focus areas and weighting
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
+                Change focus for this day (optional)
+              </Text>
+              <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
+                Then tap Regenerate to rebuild only this workout.
+              </Text>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
+                {(["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const).map((g) => (
+                  <Chip
+                    key={g}
+                    label={g.charAt(0).toUpperCase() + g.slice(1)}
+                    selected={dailyPrefsOverride?.goalBias === g}
+                    onPress={() =>
+                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), goalBias: p?.goalBias === g ? undefined : g }))
+                    }
+                  />
+                ))}
+              </View>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
+                {(["upper", "lower", "full", "pull", "push", "core"] as const).map((b) => (
+                  <Chip
+                    key={b}
+                    label={b.charAt(0).toUpperCase() + b.slice(1)}
+                    selected={dailyPrefsOverride?.bodyRegionBias === b}
+                    onPress={() =>
+                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), bodyRegionBias: p?.bodyRegionBias === b ? undefined : b }))
+                    }
+                  />
+                ))}
+              </View>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
+                {(["low", "medium", "high"] as const).map((e) => (
+                  <Chip
+                    key={e}
+                    label={e.charAt(0).toUpperCase() + e.slice(1)}
+                    selected={dailyPrefsOverride?.energyLevel === e}
+                    onPress={() =>
+                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), energyLevel: p?.energyLevel === e ? undefined : e }))
+                    }
+                  />
+                ))}
+              </View>
+              <PrimaryButton
+                label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
+                variant="secondary"
+                onPress={onRegenerateDay}
+                disabled={isRegenerating}
+                style={{ marginTop: 8 }}
+              />
               <PrimaryButton
                 label="Start"
                 onPress={() => onStartDay(selectedDay.date, selectedDay.workout)}
+                style={{ marginTop: 16 }}
               />
-              <View style={{ marginTop: 12 }}>
-                <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
-                  Change focus for this day (optional)
-                </Text>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
-                  Then tap Regenerate to rebuild only this workout.
-                </Text>
-                <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
-                  {(["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const).map((g) => (
-                    <Chip
-                      key={g}
-                      label={g.charAt(0).toUpperCase() + g.slice(1)}
-                      selected={dailyPrefsOverride?.goalBias === g}
-                      onPress={() =>
-                        setDailyPrefsOverride((p) => ({ ...(p ?? {}), goalBias: p?.goalBias === g ? undefined : g }))
-                      }
-                    />
-                  ))}
-                </View>
-                <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
-                  {(["upper", "lower", "full", "pull", "push", "core"] as const).map((b) => (
-                    <Chip
-                      key={b}
-                      label={b.charAt(0).toUpperCase() + b.slice(1)}
-                      selected={dailyPrefsOverride?.bodyRegionBias === b}
-                      onPress={() =>
-                        setDailyPrefsOverride((p) => ({ ...(p ?? {}), bodyRegionBias: p?.bodyRegionBias === b ? undefined : b }))
-                      }
-                    />
-                  ))}
-                </View>
-                <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
-                  {(["low", "medium", "high"] as const).map((e) => (
-                    <Chip
-                      key={e}
-                      label={e.charAt(0).toUpperCase() + e.slice(1)}
-                      selected={dailyPrefsOverride?.energyLevel === e}
-                      onPress={() =>
-                        setDailyPrefsOverride((p) => ({ ...(p ?? {}), energyLevel: p?.energyLevel === e ? undefined : e }))
-                      }
-                    />
-                  ))}
-                </View>
-                <PrimaryButton
-                  label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
-                  variant="secondary"
-                  onPress={onRegenerateDay}
-                  disabled={isRegenerating}
-                  style={{ marginTop: 8 }}
-                />
-              </View>
               <PrimaryButton
                 label="Back to Preferences"
                 variant="ghost"
@@ -849,8 +930,30 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     marginTop: 2,
   },
+  supersetPairLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  supersetLetter: {
+    fontSize: 13,
+    fontWeight: "700",
+    width: 20,
+  },
   exerciseRow: {
     marginTop: 8,
+  },
+  swapBtn: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  swapBtnText: {
+    fontSize: 12,
+    fontWeight: "500",
   },
   exerciseName: {
     fontSize: 14,

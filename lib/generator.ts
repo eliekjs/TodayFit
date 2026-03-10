@@ -409,12 +409,13 @@ export function generateWorkout(
     pool: ExerciseDefinition[],
     pairCount: number,
     used: Set<string>,
-    reasoning: string
+    reasoning: string,
+    rngForPairs: () => number
   ): WorkoutBlock => {
     const poolToUse = pool.length ? pool : eligible;
     const byId = new Map(poolToUse.map((e) => [e.id, e]));
     const asPairing = poolToUse.map(toPairingInput);
-    const pairingResults = pickBestSupersetPairs(asPairing, pairCount, used);
+    const pairingResults = pickBestSupersetPairs(asPairing, pairCount, used, rngForPairs);
     const pairs: [WorkoutItem, WorkoutItem][] = [];
 
     for (const [pA, pB] of pairingResults) {
@@ -459,7 +460,8 @@ export function generateWorkout(
     mainPool,
     counts.mainSupersetPairs,
     usedExerciseIds,
-    "Compound and focus-aligned movements in supersets to maximize time under tension."
+    "Compound and focus-aligned movements in supersets to maximize time under tension.",
+    rng
   );
   const accessoryBlock = buildBlock(
     "main_hypertrophy",

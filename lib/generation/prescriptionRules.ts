@@ -100,7 +100,8 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   },
 
   hypertrophy: {
-    repRange: { min: 8, max: 12 },
+    // Evidence-based: hypertrophy is similar across 6–20 reps when taken near failure; 8–15 favors classic hypertrophy and allows hard sets per week (Schoenfeld, Stronger by Science).
+    repRange: { min: 8, max: 15 },
     setRange: { min: 3, max: 4 },
     restRange: { min: 45, max: 90 },
     preferredFormats: ["superset", "straight_sets"],

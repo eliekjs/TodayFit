@@ -228,6 +228,24 @@ export type ManualWeekPlan = {
   days: { date: string; workout: GeneratedWorkout; displayTitle?: string }[];
 };
 
+/**
+ * Return superset pairs for display. Uses block.supersetPairs when set; otherwise
+ * derives pairs from block.items when format is "superset" (items 0-1, 2-3, ...).
+ */
+export function getSupersetPairsForBlock(block: WorkoutBlock): [WorkoutItem, WorkoutItem][] | undefined {
+  if (block.supersetPairs && block.supersetPairs.length > 0) return block.supersetPairs;
+  if (block.format === "superset" && block.items.length >= 2) {
+    const pairs: [WorkoutItem, WorkoutItem][] = [];
+    for (let i = 0; i < block.items.length - 1; i += 2) {
+      const a = block.items[i];
+      const b = block.items[i + 1];
+      if (a && b) pairs.push([a, b]);
+    }
+    return pairs.length ? pairs : undefined;
+  }
+  return undefined;
+}
+
 /** One-line prescription string for display (e.g. "3 x 10 reps", "20–40 min"). */
 export function formatPrescription(item: WorkoutItem): string {
   if (item.time_seconds != null && item.time_seconds > 0) {

@@ -245,14 +245,19 @@ export function pickSupersetPartner(
   return best;
 }
 
+/** When rng is provided, we pick randomly among the top this many pairs to rebalance exercise frequency. */
+const TOP_K_PAIRS_FOR_VARIETY = 5;
+
 /**
  * From a pool of exercises, form up to pairCount pairs by repeatedly picking the best-scoring pair.
- * Removes chosen exercises from pool. Deterministic when rng is fixed; use rng only for tie-breaking if needed.
+ * When rng is provided, picks randomly among the top TOP_K_PAIRS_FOR_VARIETY pairs (by score) so
+ * the same exercises don't always dominate; otherwise deterministic (single best pair).
  */
 export function pickBestSupersetPairs(
   pool: PairingInput[],
   pairCount: number,
-  usedIds: Set<string>
+  usedIds: Set<string>,
+  rng?: () => number
 ): [PairingInput, PairingInput][] {
   const available = pool.filter((e) => !usedIds.has(e.id));
   const pairs: [PairingInput, PairingInput][] = [];
@@ -262,28 +267,35 @@ export function pickBestSupersetPairs(
     const remaining = available.filter((e) => !used.has(e.id));
     if (remaining.length < 2) break;
 
-    let bestA: PairingInput | null = null;
-    let bestB: PairingInput | null = null;
-    let bestScore = -Infinity;
+    type Scored = { a: PairingInput; b: PairingInput; score: number };
+    const scored: Scored[] = [];
 
     for (let i1 = 0; i1 < remaining.length; i1++) {
       for (let i2 = i1 + 1; i2 < remaining.length; i2++) {
         const a = remaining[i1];
         const b = remaining[i2];
         if (!a || !b) continue;
-        const s = getSupersetPairingScore(a, b);
-        if (s > bestScore) {
-          bestScore = s;
-          bestA = a;
-          bestB = b;
-        }
+        const score = getSupersetPairingScore(a, b);
+        if (score >= -5) scored.push({ a, b, score });
       }
     }
 
-    if (!bestA || !bestB || bestScore < -5) break;
-    pairs.push([bestA, bestB]);
-    used.add(bestA.id);
-    used.add(bestB.id);
+    scored.sort((x, y) => y.score - x.score);
+    if (scored.length === 0) break;
+
+    const bestScore = scored[0].score;
+    const topTier = scored.filter((s) => s.score >= bestScore - 0.5);
+    const topK = topTier.slice(0, TOP_K_PAIRS_FOR_VARIETY);
+    const pickFrom = topK.length > 0 ? topK : [scored[0]];
+    const idx = rng
+      ? Math.floor(rng() * pickFrom.length)
+      : 0;
+    const chosen = pickFrom[idx];
+    if (!chosen) break;
+
+    pairs.push([chosen.a, chosen.b]);
+    used.add(chosen.a.id);
+    used.add(chosen.b.id);
   }
 
   return pairs;

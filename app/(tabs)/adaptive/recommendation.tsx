@@ -682,20 +682,6 @@ export default function AdaptiveWeekPlanScreen() {
           Tap a day to view its session. Today is highlighted. You can
           regenerate an individual day without changing the rest of the plan.
         </Text>
-        {focusSectionsForModal.length > 0 ? (
-          <Pressable
-            onPress={() => setShowAdjustFocusModal(true)}
-            style={({ pressed }) => ({
-              marginTop: 12,
-              paddingVertical: 8,
-              opacity: pressed ? 0.7 : 1,
-            })}
-          >
-            <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
-              Focus not quite right? Adjust focus areas and days
-            </Text>
-          </Pressable>
-        ) : null}
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
           <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
             Week saved — find it in Library
@@ -797,6 +783,20 @@ export default function AdaptiveWeekPlanScreen() {
           )}
           {(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id]) ? (
             <View style={{ marginTop: 12 }}>
+              {focusSectionsForModal.length > 0 ? (
+                <Pressable
+                  onPress={() => setShowAdjustFocusModal(true)}
+                  style={({ pressed }) => ({
+                    marginBottom: 12,
+                    paddingVertical: 6,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
+                    Adjust focus areas and weighting
+                  </Text>
+                </Pressable>
+              ) : null}
               <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
                 Change focus for this day (optional)
               </Text>
