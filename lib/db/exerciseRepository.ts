@@ -286,7 +286,7 @@ export async function listExercisesByTags(tagSlugs: string[]): Promise<ExerciseD
 
 /** Select list including structured ontology columns for generator adapter. */
 const EXERCISE_SELECT_WITH_ONTOLOGY =
-  "id, slug, name, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral";
+  "id, slug, name, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral, rep_range_min, rep_range_max";
 
 /**
  * List exercises in generator Exercise format with ontology fields when present.

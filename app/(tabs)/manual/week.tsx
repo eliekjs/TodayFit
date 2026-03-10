@@ -17,6 +17,7 @@ import { PrimaryButton } from "../../../components/Button";
 import { Card } from "../../../components/Card";
 import { Chip } from "../../../components/Chip";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
+import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
@@ -28,8 +29,9 @@ import { PRIMARY_FOCUS_TO_GOAL_SLUG, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../..
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
-import type { ManualWeekPlan } from "../../../lib/types";
-import { formatPrescription, getSupersetPairsForBlock, normalizeGeneratedWorkout } from "../../../lib/types";
+import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import type { DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
+import { normalizeGeneratedWorkout } from "../../../lib/types";
 
 const isWeb = Platform.OS === "web";
 
@@ -617,7 +619,7 @@ export default function ManualWeekScreen() {
         subtitle={`Week of ${parseLocalDate(plan.weekStartDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
       >
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
-          Tap a day to view its workout. Use arrows to move workouts between days.
+          Tap a day to view its session. Use arrows to move sessions between days.
         </Text>
       </Card>
 
@@ -625,7 +627,7 @@ export default function ManualWeekScreen() {
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
       ) : null}
 
-      <Card title="Training days" subtitle="Change which days get workouts, then tap Regenerate week." style={{ marginTop: 0 }}>
+      <Card title="Training days" subtitle="Change which days get sessions, then tap Regenerate week." style={{ marginTop: 0 }}>
         <View style={styles.chipGroup}>
           {WEEKDAY_LABELS.map((label, dow) => (
             <Chip
@@ -648,7 +650,7 @@ export default function ManualWeekScreen() {
       <Card
         title="Week overview"
         style={{ marginTop: 16 }}
-        subtitle="Use ↑↓ arrows to move workouts to different days."
+        subtitle="Use ↑↓ arrows to move sessions to different days."
       >
         {weekOverviewContent}
       </Card>
@@ -656,149 +658,33 @@ export default function ManualWeekScreen() {
       <Card
         title={
           selectedDay?.date === todayIso
-            ? "Today's workout"
+            ? "Today's session"
             : selectedDay
-              ? `Workout for ${formatDayOfWeek(selectedDay.date)}`
-              : "Workout"
+              ? `Session for ${formatDayOfWeek(selectedDay.date)}`
+              : "Session"
         }
         subtitle={summaryLines.join(" • ")}
         style={{ marginTop: 16 }}
       >
         {selectedDay ? (
           <>
-            {(() => {
-              const displayWorkout = normalizeGeneratedWorkout(selectedDay.workout);
-              return displayWorkout.blocks.map((block, blockIdx) => (
-                <View key={`${block.block_type}-${blockIdx}`} style={styles.sectionBlock}>
-                  <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                    {block.title ?? block.block_type}
-                  </Text>
-                  {block.reasoning ? (
-                    <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
-                      {block.reasoning}
-                    </Text>
-                  ) : null}
-                  {(() => {
-                    const pairs = getSupersetPairsForBlock(block);
-                    return pairs
-                      ? pairs.map((pair, pairIdx) => (
-                        <View key={`pair-${pairIdx}`} style={{ marginBottom: 10 }}>
-                          <Text style={[styles.supersetPairLabel, { color: theme.textMuted }]}>
-                            Pair {pairIdx + 1} — A then B
-                          </Text>
-                          {pair.map((item, abIdx) => (
-                            <View key={item.exercise_id} style={[styles.exerciseRow, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
-                              <Text style={[styles.supersetLetter, { color: theme.textMuted }]}>
-                                {String.fromCharCode(65 + abIdx)}
-                              </Text>
-                              <View style={{ flex: 1 }}>
-                                <Text style={[styles.exerciseName, { color: theme.text }]}>
-                                  {item.exercise_name}
-                                </Text>
-                                <Text style={[styles.exercisePrescription, { color: theme.textMuted }]}>
-                                  {formatPrescription(item)}
-                                </Text>
-                              </View>
-                              <Pressable
-                                onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
-                                style={[styles.swapBtn, { borderColor: theme.border }]}
-                              >
-                                <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
-                              </Pressable>
-                            </View>
-                          ))}
-                        </View>
-                      ))
-                      : block.items.map((item) => (
-                        <View key={item.exercise_id} style={[styles.exerciseRow, { flexDirection: "row", alignItems: "center", gap: 8 }]}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.exerciseName, { color: theme.text }]}>
-                              {item.exercise_name}
-                            </Text>
-                            <Text
-                              style={[styles.exercisePrescription, { color: theme.textMuted }]}
-                            >
-                              {formatPrescription(item)}
-                            </Text>
-                          </View>
-                          <Pressable
-                            onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
-                            style={[styles.swapBtn, { borderColor: theme.border }]}
-                          >
-                            <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
-                          </Pressable>
-                        </View>
-                      ));
-                  })()}
-                </View>
-              ));
-            })()}
+            <WorkoutBlockList
+              workout={normalizeGeneratedWorkout(selectedDay.workout)}
+              showSwap
+              onSwap={(exerciseId, exerciseName) =>
+                setSwapModal({ exerciseId, exerciseName })
+              }
+            />
             <View style={styles.footer}>
-              {focusSectionsForModal.length > 0 ? (
-                <Pressable
-                  onPress={() => setShowAdjustFocusModal(true)}
-                  style={({ pressed }) => ({
-                    marginBottom: 12,
-                    paddingVertical: 6,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
-                    Adjust focus areas and weighting
-                  </Text>
-                </Pressable>
-              ) : null}
-              <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
-                Change focus for this day (optional)
-              </Text>
-              <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
-                Then tap Regenerate to rebuild only this workout.
-              </Text>
-              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
-                {(["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const).map((g) => (
-                  <Chip
-                    key={g}
-                    label={g.charAt(0).toUpperCase() + g.slice(1)}
-                    selected={dailyPrefsOverride?.goalBias === g}
-                    onPress={() =>
-                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), goalBias: p?.goalBias === g ? undefined : g }))
-                    }
-                  />
-                ))}
-              </View>
-              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
-                {(["upper", "lower", "full", "pull", "push", "core"] as const).map((b) => (
-                  <Chip
-                    key={b}
-                    label={b.charAt(0).toUpperCase() + b.slice(1)}
-                    selected={dailyPrefsOverride?.bodyRegionBias === b}
-                    onPress={() =>
-                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), bodyRegionBias: p?.bodyRegionBias === b ? undefined : b }))
-                    }
-                  />
-                ))}
-              </View>
-              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
-                {(["low", "medium", "high"] as const).map((e) => (
-                  <Chip
-                    key={e}
-                    label={e.charAt(0).toUpperCase() + e.slice(1)}
-                    selected={dailyPrefsOverride?.energyLevel === e}
-                    onPress={() =>
-                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), energyLevel: p?.energyLevel === e ? undefined : e }))
-                    }
-                  />
-                ))}
-              </View>
-              <PrimaryButton
-                label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
-                variant="secondary"
-                onPress={onRegenerateDay}
-                disabled={isRegenerating}
-                style={{ marginTop: 8 }}
+              <DayFocusOverrideChips
+                dailyPrefsOverride={dailyPrefsOverride}
+                onOverrideChange={(update) =>
+                  setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
+                }
+                onRegenerate={onRegenerateDay}
+                isRegenerating={isRegenerating}
+                showAdjustFocusLink={focusSectionsForModal.length > 0}
+                onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
               />
               <PrimaryButton
                 label="Start"
@@ -815,7 +701,7 @@ export default function ManualWeekScreen() {
           </>
         ) : (
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Tap a workout above to view its details.
+            Tap a session above to view its details.
           </Text>
         )}
       </Card>
@@ -843,6 +729,15 @@ export default function ManualWeekScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {scrollContent}
       </ScrollView>
+      <SwapExerciseModal
+        visible={swapModal != null}
+        onClose={() => setSwapModal(null)}
+        exerciseId={swapModal?.exerciseId ?? ""}
+        exerciseName={swapModal?.exerciseName ?? ""}
+        suggested={swapSuggested}
+        loading={swapLoading}
+        onChoose={onSwapChoose}
+      />
     </View>
   );
 }
@@ -915,51 +810,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   dayLabel: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  sectionBlock: {
-    marginTop: 12,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  sectionReasoning: {
-    fontSize: 13,
-    fontStyle: "italic",
-    marginTop: 2,
-  },
-  supersetPairLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  supersetLetter: {
-    fontSize: 13,
-    fontWeight: "700",
-    width: 20,
-  },
-  exerciseRow: {
-    marginTop: 8,
-  },
-  swapBtn: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  swapBtnText: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  exerciseName: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  exercisePrescription: {
     fontSize: 13,
     marginTop: 2,
   },

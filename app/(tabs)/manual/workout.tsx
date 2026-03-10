@@ -6,8 +6,8 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
+import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { generateWorkoutAsync } from "../../../lib/generator";
-import { formatPrescription, getSupersetPairsForBlock } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
@@ -162,104 +162,14 @@ export default function ManualWorkoutScreen() {
           ) : null}
         </Card>
 
-        {generatedWorkout.blocks.map((block, blockIdx) => (
-          <Card key={`${block.block_type}-${blockIdx}`} title={block.title ?? block.block_type} style={styles.sectionCard}>
-            {block.reasoning ? (
-              <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
-                {block.reasoning}
-              </Text>
-            ) : null}
-            {(() => {
-              const pairs = getSupersetPairsForBlock(block);
-              return pairs && pairs.length > 0 ? (
-                pairs.map((pair, idx) => (
-                  <View key={`superset-${idx}`} style={[styles.supersetBlock, { borderLeftColor: theme.primary ?? theme.border }]}>
-                    <Text style={[styles.supersetLabel, { color: theme.textMuted }]}>
-                      Pair {idx + 1} — do A then B, rest after both
-                    </Text>
-                    <View style={[styles.pairRow, { backgroundColor: theme.card ?? theme.background }]}>
-                      {pair.map((item, pairIdx) => (
-                        <View key={item.exercise_id} style={styles.exerciseRow}>
-                          <Text style={[styles.supersetLetter, { color: theme.primary ?? theme.text }]}>
-                            {String.fromCharCode(65 + pairIdx)}
-                          </Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.exerciseName, { color: theme.text }]}>
-                              {item.exercise_name}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.exercisePrescription,
-                                { color: theme.textMuted },
-                              ]}
-                            >
-                              {formatPrescription(item)}
-                            </Text>
-                            {(item.tags?.length ?? 0) > 0 && (
-                              <View style={styles.tagsRow}>
-                                {(item.tags ?? []).slice(0, 3).map((tag) => (
-                                  <Text
-                                    key={tag}
-                                    style={[styles.tag, { color: theme.textMuted }]}
-                                  >
-                                    {tag}
-                                  </Text>
-                                ))}
-                              </View>
-                            )}
-                          </View>
-                          <Pressable
-                            onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
-                            style={[styles.swapBtn, { borderColor: theme.border }]}
-                          >
-                            <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
-                          </Pressable>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ))
-              ) : null;
-            })()}
-            {!getSupersetPairsForBlock(block)?.length
-              ?               block.items.map((item) => (
-                <View key={item.exercise_id} style={styles.exerciseRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.exerciseName, { color: theme.text }]}>
-                      {item.exercise_name}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.exercisePrescription,
-                        { color: theme.textMuted },
-                      ]}
-                    >
-                      {formatPrescription(item)}
-                    </Text>
-                    {(item.tags?.length ?? 0) > 0 && (
-                      <View style={styles.tagsRow}>
-                        {(item.tags ?? []).slice(0, 3).map((tag) => (
-                          <Text
-                            key={tag}
-                            style={[styles.tag, { color: theme.textMuted }]}
-                          >
-                            {tag}
-                          </Text>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                  <Pressable
-                    onPress={() => setSwapModal({ exerciseId: item.exercise_id, exerciseName: item.exercise_name })}
-                    style={[styles.swapBtn, { borderColor: theme.border }]}
-                  >
-                    <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>Swap</Text>
-                  </Pressable>
-                </View>
-              ))
-              : null}
-          </Card>
-        ))}
+        <WorkoutBlockList
+          workout={generatedWorkout}
+          showSwap
+          onSwap={(exerciseId, exerciseName) =>
+            setSwapModal({ exerciseId, exerciseName })
+          }
+          showTags
+        />
 
         <View style={styles.footer}>
           <PrimaryButton
@@ -330,59 +240,6 @@ const styles = StyleSheet.create({
   },
   notes: {
     fontSize: 13,
-  },
-  sectionCard: {
-    gap: 12,
-  },
-  sectionReasoning: {
-    fontSize: 13,
-    fontStyle: "italic",
-    marginBottom: 4,
-  },
-  supersetBlock: {
-    marginBottom: 12,
-    paddingLeft: 8,
-    borderLeftWidth: 3,
-  },
-  supersetLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  exerciseRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 8,
-    gap: 8,
-  },
-  exerciseName: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  exercisePrescription: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  tagsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 6,
-  },
-  tag: {
-    fontSize: 11,
-  },
-  swapBtn: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  swapBtnText: {
-    fontSize: 12,
-    fontWeight: "500",
   },
   footer: {
     marginTop: 16,

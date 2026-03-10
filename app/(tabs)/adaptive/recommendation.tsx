@@ -7,8 +7,10 @@ import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
+import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
+import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/types";
-import { formatPrescription, normalizeGeneratedWorkout } from "../../../lib/types";
+import { normalizeGeneratedWorkout } from "../../../lib/types";
 import { regenerateDay, updateDayStatus, planWeek, deriveDailyPreferencesFromDay } from "../../../services/sportPrepPlanner";
 import { Chip } from "../../../components/Chip";
 import type { PlannedDay } from "../../../services/sportPrepPlanner";
@@ -700,7 +702,7 @@ export default function AdaptiveWeekPlanScreen() {
       <Card
         title="Week overview"
         style={{ marginTop: 16 }}
-        subtitle={isWeb ? "Reorder workouts in the mobile app." : "Days list Mon–Sun. Long-press a workout and drag it under a different day to move it there."}
+        subtitle={isWeb ? "Reorder sessions in the mobile app." : "Days list Mon–Sun. Long-press a session and drag it under a different day to move it there."}
       >
         {weekOverviewContent}
       </Card>
@@ -718,43 +720,19 @@ export default function AdaptiveWeekPlanScreen() {
       >
         {isLoadingWorkout && (
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Loading workout…
+            Loading session…
           </Text>
         )}
         {!isLoadingWorkout && !selectedWorkout && (
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            No workout generated for this day (rest / low-load day).
+            No session generated for this day (rest / low-load day).
           </Text>
         )}
-        {!isLoadingWorkout &&
-          selectedWorkout &&
-          (() => {
-            const displayWorkout = normalizeGeneratedWorkout(selectedWorkout);
-            return displayWorkout.blocks.map((block, blockIdx) => (
-              <View key={`${block.block_type}-${blockIdx}`} style={styles.sectionBlock}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                  {block.title ?? block.block_type}
-                </Text>
-                {block.reasoning ? (
-                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
-                    {block.reasoning}
-                  </Text>
-                ) : null}
-                {block.items.map((item) => (
-                  <View key={item.exercise_id} style={styles.exerciseRow}>
-                    <Text style={[styles.exerciseName, { color: theme.text }]}>
-                      {item.exercise_name}
-                    </Text>
-                    <Text
-                      style={[styles.exercisePrescription, { color: theme.textMuted }]}
-                    >
-                      {formatPrescription(item)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ));
-          })()}
+        {!isLoadingWorkout && selectedWorkout && (
+          <WorkoutBlockList
+            workout={normalizeGeneratedWorkout(selectedWorkout)}
+          />
+        )}
 
         <View style={styles.footer}>
           {selectedDay.status === "planned" ? (
@@ -781,84 +759,17 @@ export default function AdaptiveWeekPlanScreen() {
               disabled={isUpdatingStatus}
             />
           )}
-          {(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id]) ? (
-            <View style={{ marginTop: 12 }}>
-              {focusSectionsForModal.length > 0 ? (
-                <Pressable
-                  onPress={() => setShowAdjustFocusModal(true)}
-                  style={({ pressed }) => ({
-                    marginBottom: 12,
-                    paddingVertical: 6,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
-                    Adjust focus areas and weighting
-                  </Text>
-                </Pressable>
-              ) : null}
-              <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
-                Change focus for this day (optional)
-              </Text>
-              <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
-                Then tap Regenerate to rebuild only this workout.
-              </Text>
-              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
-                {(["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const).map((g) => (
-                  <Chip
-                    key={g}
-                    label={g.charAt(0).toUpperCase() + g.slice(1)}
-                    selected={dailyPrefsOverride?.goalBias === g}
-                    onPress={() =>
-                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), goalBias: p?.goalBias === g ? undefined : g }))
-                    }
-                  />
-                ))}
-              </View>
-              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
-                {(["upper", "lower", "full", "pull", "push", "core"] as const).map((b) => (
-                  <Chip
-                    key={b}
-                    label={b.charAt(0).toUpperCase() + b.slice(1)}
-                    selected={dailyPrefsOverride?.bodyRegionBias === b}
-                    onPress={() =>
-                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), bodyRegionBias: p?.bodyRegionBias === b ? undefined : b }))
-                    }
-                  />
-                ))}
-              </View>
-              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
-                {(["low", "medium", "high"] as const).map((e) => (
-                  <Chip
-                    key={e}
-                    label={e.charAt(0).toUpperCase() + e.slice(1)}
-                    selected={dailyPrefsOverride?.energyLevel === e}
-                    onPress={() =>
-                      setDailyPrefsOverride((p) => ({ ...(p ?? {}), energyLevel: p?.energyLevel === e ? undefined : e }))
-                    }
-                  />
-                ))}
-              </View>
-              <PrimaryButton
-                label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
-                variant="secondary"
-                onPress={onRegenerate}
-                disabled={isRegenerating}
-                style={{ marginTop: 8 }}
-              />
-            </View>
-          ) : (
-            <PrimaryButton
-              label={isRegenerating ? "Regenerating…" : "Regenerate this day"}
-              variant="secondary"
-              onPress={onRegenerate}
-              disabled={isRegenerating}
-              style={{ marginTop: 8 }}
-            />
-          )}
+          <DayFocusOverrideChips
+            dailyPrefsOverride={dailyPrefsOverride}
+            onOverrideChange={(update) =>
+              setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
+            }
+            onRegenerate={onRegenerate}
+            isRegenerating={isRegenerating}
+            showAdjustFocusLink={focusSectionsForModal.length > 0}
+            onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
+            showChips={!!(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id])}
+          />
           <PrimaryButton
             label="Back to Setup"
             variant="ghost"
@@ -967,35 +878,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   dayLabel: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  sectionBlock: {
-    marginTop: 12,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  chipGroup: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    alignItems: "center",
-  },
-  sectionReasoning: {
-    fontSize: 13,
-    fontStyle: "italic",
-    marginTop: 2,
-  },
-  exerciseRow: {
-    marginTop: 8,
-  },
-  exerciseName: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  exercisePrescription: {
     fontSize: 13,
     marginTop: 2,
   },

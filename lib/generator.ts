@@ -430,14 +430,11 @@ export function generateWorkout(
     }
 
     const reordered = reorderPairsToAvoidThreeInARow(pairs);
-    return {
-      block_type: blockType,
-      format: "superset",
-      title,
-      reasoning,
-      items: reordered.flat(),
-      supersetPairs: reordered,
-    };
+    // #region agent log
+    const out = { block_type: blockType, format: "superset" as const, title, reasoning, items: reordered.flat(), supersetPairs: reordered };
+    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/generator.ts:buildMainSupersetBlock',message:'generator returning superset block',data:{format:out.format,supersetPairsLen:out.supersetPairs.length,itemsLen:out.items.length},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+    return out;
+    // #endregion
   };
 
   const usedExerciseIds = new Set<string>();

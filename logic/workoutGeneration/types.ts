@@ -68,6 +68,8 @@ export type ExerciseOntology = {
   mobility_targets?: string[];
   stretch_targets?: string[];
   unilateral?: boolean;
+  rep_range_min?: number;
+  rep_range_max?: number;
 };
 
 // --- Exercise (generator schema) ---
@@ -96,6 +98,8 @@ export type Exercise = {
   mobility_targets?: string[];
   stretch_targets?: string[];
   unilateral?: boolean;
+  rep_range_min?: number;
+  rep_range_max?: number;
 };
 
 // --- Input contract ---

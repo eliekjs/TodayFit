@@ -16,6 +16,7 @@ export type ExerciseLike = {
   tags?: { contraindications?: string[]; joint_stress?: string[] };
   progressions?: string[];
   regressions?: string[];
+  unilateral?: boolean;
 };
 
 export type SubstituteReason =

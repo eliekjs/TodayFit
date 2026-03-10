@@ -2,6 +2,13 @@
  * Evidence-based prescription rules per primary goal.
  * Aligned with ACSM, NSCA, hypertrophy literature (Schoenfeld et al.),
  * and endurance training norms. Used by the daily workout generator.
+ *
+ * Rep ranges by goal (research summary):
+ * - Strength: 1–5 reps (85–100% 1RM), neural adaptations.
+ * - Hypertrophy: 6–20 effective; 8–15 typical for efficiency and time under tension.
+ * - Body recomp: 10–15 (moderate-high volume, time under tension).
+ * - Endurance: 15–25+ (50–65% 1RM), metabolic stress.
+ * Exercise-specific overrides (e.g. calves 15–25, isolation 10–20) live in exercises.rep_range_min/max.
  */
 
 import type { BlockFormat } from "../types";
@@ -128,7 +135,8 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   },
 
   endurance: {
-    repRange: { min: 12, max: 15 },
+    // Research: muscular endurance 15–25+ reps at 50–65% 1RM (ACSM/NSCA); we use 15–25 for strength-support work.
+    repRange: { min: 15, max: 25 },
     setRange: { min: 2, max: 3 },
     restRange: { min: 45, max: 90 },
     preferredFormats: ["circuit", "straight_sets"],

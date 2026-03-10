@@ -197,6 +197,8 @@ export type WorkoutItem = {
   coaching_cues: string;
   reasoning_tags?: string[];
   tags?: string[];
+  /** When true, reps are per leg / per arm; display "each leg" or "per leg". */
+  unilateral?: boolean;
   /** Phase 11: history recommendation (why this prescription). */
   recommendation?: RecommendationSlug;
   recommendation_reason?: string;
@@ -233,27 +235,35 @@ export type ManualWeekPlan = {
  * derives pairs from block.items when format is "superset" (items 0-1, 2-3, ...).
  */
 export function getSupersetPairsForBlock(block: WorkoutBlock): [WorkoutItem, WorkoutItem][] | undefined {
-  if (block.supersetPairs && block.supersetPairs.length > 0) return block.supersetPairs;
-  if (block.format === "superset" && block.items.length >= 2) {
+  // #region agent log
+  let result: [WorkoutItem, WorkoutItem][] | undefined;
+  if (block.supersetPairs && block.supersetPairs.length > 0) {
+    result = block.supersetPairs;
+  } else if (block.format === "superset" && block.items.length >= 2) {
     const pairs: [WorkoutItem, WorkoutItem][] = [];
     for (let i = 0; i < block.items.length - 1; i += 2) {
       const a = block.items[i];
       const b = block.items[i + 1];
       if (a && b) pairs.push([a, b]);
     }
-    return pairs.length ? pairs : undefined;
+    result = pairs.length ? pairs : undefined;
+  } else {
+    result = undefined;
   }
-  return undefined;
+  fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/types.ts:getSupersetPairsForBlock',message:'getSupersetPairsForBlock',data:{format:block.format,supersetPairsLen:block.supersetPairs?.length,itemsLen:block.items?.length,resultPairsLen:result?.length},timestamp:Date.now(),hypothesisId:'H2-H3'})}).catch(()=>{});
+  return result;
+  // #endregion
 }
 
-/** One-line prescription string for display (e.g. "3 x 10 reps", "20–40 min"). */
+/** One-line prescription string for display (e.g. "3 x 10 reps", "3 x 10 reps each leg", "20–40 min"). */
 export function formatPrescription(item: WorkoutItem): string {
   if (item.time_seconds != null && item.time_seconds > 0) {
     const min = Math.round(item.time_seconds / 60);
     return `${min} min`;
   }
   const reps = item.reps != null ? ` ${item.reps} reps` : "";
-  return `${item.sets} x${reps}`.trim() || "—";
+  const perLeg = item.unilateral && item.reps != null ? " each leg" : "";
+  return `${item.sets} x${reps}${perLeg}`.trim() || "—";
 }
 
 /**
@@ -263,7 +273,11 @@ export function normalizeGeneratedWorkout(
   workout: { id: string; focus: string[]; durationMinutes: number | null; energyLevel: EnergyLevel | null; notes?: string; sections?: WorkoutSection[]; blocks?: WorkoutBlock[] }
 ): GeneratedWorkout {
   if (workout.blocks?.length) {
+    // #region agent log
+    const blockFormats = workout.blocks.map((b) => ({ format: b.format, supersetPairsLen: b.supersetPairs?.length, itemsLen: b.items?.length }));
+    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/types.ts:normalizeGeneratedWorkout',message:'normalizeGeneratedWorkout pass-through blocks',data:{blocksLen:workout.blocks.length,blockFormats},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
     return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks: workout.blocks };
+    // #endregion
   }
   if (workout.sections?.length) {
     const blocks: WorkoutBlock[] = workout.sections.map((sec) => ({

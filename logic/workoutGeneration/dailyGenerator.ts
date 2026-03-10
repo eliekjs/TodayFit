@@ -413,6 +413,18 @@ export function scoreExercise(
   return { score: total, debug };
 }
 
+/** Blend goal rep range with exercise-specific rep range when set (e.g. calves 15-25, isolation 10-20). */
+function getEffectiveRepRange(
+  exercise: Exercise,
+  goalRange: { min: number; max: number }
+): { min: number; max: number } {
+  if (exercise.rep_range_min == null || exercise.rep_range_max == null) return goalRange;
+  const effectiveMin = Math.max(goalRange.min, exercise.rep_range_min);
+  const effectiveMax = Math.min(goalRange.max, exercise.rep_range_max);
+  if (effectiveMin <= effectiveMax) return { min: effectiveMin, max: effectiveMax };
+  return goalRange;
+}
+
 // --- Rep/set prescription from goal rules (evidence-based) ---
 function getPrescription(
   exercise: Exercise,
@@ -454,7 +466,8 @@ function getPrescription(
   if (isAccessory && rules.accessoryRepRange) {
     const setRange = rules.accessorySetRange ?? { min: 2, max: 3 };
     const sets = scaleSets(scaleSetsByEnergy(Math.round((setRange.min + setRange.max) / 2), energyLevel));
-    const reps = Math.round((rules.accessoryRepRange.min + rules.accessoryRepRange.max) / 2);
+    const repRange = getEffectiveRepRange(exercise, rules.accessoryRepRange);
+    const reps = Math.round((repRange.min + repRange.max) / 2);
     const rest = rules.accessoryRestRange ? Math.round((rules.accessoryRestRange.min + rules.accessoryRestRange.max) / 2) : 60;
     return {
       sets,
@@ -467,7 +480,8 @@ function getPrescription(
   if (blockType === "main_strength" || exercise.tags.goal_tags?.includes("strength")) {
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-    const reps = Math.round((rules.repRange.min + rules.repRange.max) / 2);
+    const repRange = getEffectiveRepRange(exercise, rules.repRange);
+    const reps = Math.round((repRange.min + repRange.max) / 2);
     const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
     return {
       sets,
@@ -480,7 +494,8 @@ function getPrescription(
   if (blockType === "main_hypertrophy" || exercise.tags.goal_tags?.includes("hypertrophy")) {
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-    const reps = Math.round((rules.repRange.min + rules.repRange.max) / 2);
+    const repRange = getEffectiveRepRange(exercise, rules.repRange);
+    const reps = Math.round((repRange.min + repRange.max) / 2);
     const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
     return {
       sets,
@@ -493,7 +508,8 @@ function getPrescription(
   // Default
   const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
   const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-  const reps = Math.round((rules.repRange.min + rules.repRange.max) / 2);
+  const repRange = getEffectiveRepRange(exercise, rules.repRange);
+  const reps = Math.round((repRange.min + repRange.max) / 2);
   const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
   return {
     sets,
@@ -721,6 +737,7 @@ function buildWarmup(
       rest_seconds: p.rest_seconds,
       coaching_cues: p.coaching_cues,
       reasoning_tags: ["warmup", "mobility", ...(e.tags.goal_tags ?? [])],
+      unilateral: e.unilateral ?? false,
     };
   });
 
@@ -794,6 +811,7 @@ function buildCooldown(
       rest_seconds: p.rest_seconds,
       coaching_cues: p.coaching_cues,
       reasoning_tags: ["cooldown", "recovery", ...(e.tags.goal_tags ?? [])],
+      unilateral: e.unilateral ?? false,
     };
   });
 
@@ -884,6 +902,7 @@ function buildMainStrength(
       rest_seconds: pA.rest_seconds,
       coaching_cues: pA.coaching_cues,
       reasoning_tags: ["main_lift", "strength", ...(a.tags.goal_tags ?? [])],
+      unilateral: a.unilateral ?? false,
     };
     const itemB: WorkoutItem = {
       exercise_id: b.id,
@@ -893,14 +912,13 @@ function buildMainStrength(
       rest_seconds: pB.rest_seconds,
       coaching_cues: pB.coaching_cues,
       reasoning_tags: ["main_lift", "strength", ...(b.tags.goal_tags ?? [])],
+      unilateral: b.unilateral ?? false,
     };
-    blocks.push({
-      block_type: "main_strength",
-      format: "superset",
-      items: [itemA, itemB],
-      supersetPairs: [[itemA, itemB]],
-      estimated_minutes: Math.max(pA.sets, pB.sets) * (2 + ((pA.rest_seconds ?? 0) + (pB.rest_seconds ?? 0)) / 60),
-    });
+    // #region agent log
+    const mainPairBlock = { block_type: "main_strength" as const, format: "superset" as const, items: [itemA, itemB], supersetPairs: [[itemA, itemB]] as [typeof itemA, typeof itemB][], estimated_minutes: Math.max(pA.sets, pB.sets) * (2 + ((pA.rest_seconds ?? 0) + (pB.rest_seconds ?? 0)) / 60) };
+    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'logic/workoutGeneration/dailyGenerator.ts:main strength pair',message:'dailyGenerator push superset block',data:{format:mainPairBlock.format,supersetPairsLen:mainPairBlock.supersetPairs.length,itemsLen:mainPairBlock.items.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    blocks.push(mainPairBlock);
+    // #endregion
   } else {
     for (const mainLift of mainLifts) {
       used.add(mainLift.id);
@@ -918,6 +936,7 @@ function buildMainStrength(
             rest_seconds: p.rest_seconds,
             coaching_cues: p.coaching_cues,
             reasoning_tags: ["main_lift", "strength", ...(mainLift.tags.goal_tags ?? [])],
+            unilateral: mainLift.unilateral ?? false,
           },
         ],
         estimated_minutes: p.sets * (2 + (p.rest_seconds || 0) / 60),
@@ -949,6 +968,7 @@ function buildMainStrength(
           rest_seconds: pA.rest_seconds,
           coaching_cues: pA.coaching_cues,
           reasoning_tags: ["superset", "accessory", ...(exA.tags.goal_tags ?? [])],
+          unilateral: exA.unilateral ?? false,
         },
         {
           exercise_id: exB.id,
@@ -958,6 +978,7 @@ function buildMainStrength(
           rest_seconds: pB.rest_seconds,
           coaching_cues: pB.coaching_cues,
           reasoning_tags: ["superset", "accessory", ...(exB.tags.goal_tags ?? [])],
+          unilateral: exB.unilateral ?? false,
         },
       ];
     });
@@ -966,13 +987,11 @@ function buildMainStrength(
       for (let i = 0; i < pairs.length; i++) {
         supersetPairs.push([items[2 * i], items[2 * i + 1]]);
       }
-      blocks.push({
-        block_type: "main_strength",
-        format: "superset",
-        items,
-        supersetPairs,
-        estimated_minutes: Math.ceil(items.length / 2) * 4,
-      });
+      // #region agent log
+      const accBlock = { block_type: "main_strength" as const, format: "superset" as const, items, supersetPairs, estimated_minutes: Math.ceil(items.length / 2) * 4 };
+      fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'logic/workoutGeneration/dailyGenerator.ts:accessory supersets',message:'dailyGenerator push accessory superset block',data:{format:accBlock.format,supersetPairsLen:accBlock.supersetPairs.length,itemsLen:accBlock.items.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      blocks.push(accBlock);
+      // #endregion
     }
   }
 
@@ -1053,6 +1072,7 @@ function buildMainHypertrophy(
         rest_seconds: p.rest_seconds,
         coaching_cues: p.coaching_cues,
         reasoning_tags: ["hypertrophy", ...(e.tags.goal_tags ?? [])],
+        unilateral: e.unilateral ?? false,
       };
     })
   );
@@ -1121,6 +1141,7 @@ function buildEnduranceMain(
         rest_seconds: 30,
         coaching_cues: p.coaching_cues,
         reasoning_tags: ["conditioning", "strength", ...(e.tags.goal_tags ?? [])],
+        unilateral: e.unilateral ?? false,
       };
     });
     blocks.push({
@@ -1157,6 +1178,7 @@ function buildEnduranceMain(
             rest_seconds: 0,
             coaching_cues: p.coaching_cues,
             reasoning_tags: ["endurance", ...(c.tags.goal_tags ?? [])],
+            unilateral: c.unilateral ?? false,
           },
         ],
         estimated_minutes: condMins,
@@ -1199,6 +1221,7 @@ function buildMobilityRecoveryMain(
       rest_seconds: p.rest_seconds,
       coaching_cues: p.coaching_cues,
       reasoning_tags: ["mobility", "recovery", ...(e.tags.goal_tags ?? [])],
+      unilateral: e.unilateral ?? false,
     };
   });
 
@@ -1302,6 +1325,7 @@ export function generateWorkoutSession(
                 rest_seconds: 0,
                 coaching_cues: p.coaching_cues,
                 reasoning_tags: ["conditioning", ...(c.tags.goal_tags ?? [])],
+                unilateral: c.unilateral ?? false,
               },
             ],
             estimated_minutes: conditioningMins,
@@ -1405,10 +1429,12 @@ function regenerateWithSubstitution(
       const exerciseName = chosen?.name ?? item.exercise_name;
       if (chosen) usedInNewSession.add(chosen.id);
 
+      const unilateral = chosen && "unilateral" in chosen ? (chosen as Exercise).unilateral : item.unilateral;
       return {
         ...item,
         exercise_id: exerciseId,
         exercise_name: exerciseName,
+        unilateral: unilateral ?? false,
       };
     });
 

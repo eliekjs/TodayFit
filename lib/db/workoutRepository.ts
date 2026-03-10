@@ -74,6 +74,7 @@ export async function addBlocksAndExercises(
       if (item.reps != null) prescription.reps = item.reps;
       if (item.time_seconds != null) prescription.time_seconds = item.time_seconds;
       if (item.reasoning_tags?.length) prescription.reasoning_tags = item.reasoning_tags;
+      if (item.unilateral === true) prescription.unilateral = true;
 
       const { error: exError } = await supabase.from("workout_exercises").insert({
         workout_id: workoutId,
@@ -120,6 +121,7 @@ type PrescriptionRow = {
   coaching_cues?: string;
   reasoning_tags?: string[];
   text?: string;
+  unilateral?: boolean;
 };
 
 /**
@@ -172,15 +174,20 @@ export async function getWorkout(userId: string, workoutId: string): Promise<Gen
         rest_seconds: p.rest_seconds ?? 0,
         coaching_cues: p.coaching_cues ?? (p.text as string) ?? "",
         reasoning_tags: p.reasoning_tags,
+        ...(p.unilateral === true ? { unilateral: true } : {}),
       };
     });
-    blocks.push({
+    // #region agent log
+    const blk = {
       block_type: block.block_type as WorkoutBlock["block_type"],
-      format: "circuit",
+      format: "circuit" as const,
       title: block.title,
       reasoning: block.reasoning ?? undefined,
       items,
-    });
+    };
+    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/db/workoutRepository.ts:getWorkout',message:'getWorkout block restored from DB',data:{block_type:blk.block_type,format:blk.format,itemsLen:blk.items.length,hasSupersetPairs:false},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    blocks.push(blk);
+    // #endregion
   }
 
   return {

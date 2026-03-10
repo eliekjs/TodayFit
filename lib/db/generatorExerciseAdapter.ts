@@ -34,6 +34,8 @@ export type ExerciseRowWithOntology = {
   mobility_targets?: string[] | null;
   stretch_targets?: string[] | null;
   unilateral?: boolean | null;
+  rep_range_min?: number | null;
+  rep_range_max?: number | null;
 };
 
 const VALID_MODALITIES: Modality[] = [
@@ -170,6 +172,10 @@ export function mapDbExerciseToGeneratorExercise(
   }
   if (row.unilateral === true) {
     exercise.unilateral = true;
+  }
+  if (row.rep_range_min != null && row.rep_range_max != null) {
+    exercise.rep_range_min = row.rep_range_min;
+    exercise.rep_range_max = row.rep_range_max;
   }
 
   return exercise;

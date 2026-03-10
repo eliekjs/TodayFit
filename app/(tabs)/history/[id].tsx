@@ -11,7 +11,8 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
-import { formatPrescription, getSupersetPairsForBlock, normalizeGeneratedWorkout } from "../../../lib/types";
+import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { normalizeGeneratedWorkout } from "../../../lib/types";
 
 export default function ViewCompletedWorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -58,10 +59,7 @@ export default function ViewCompletedWorkoutScreen() {
   const focusLabel = item.focus?.length ? item.focus.join(" • ") : "General training";
   const displayTitle = item.name?.trim() || focusLabel;
   const exerciseCount = workout.blocks.reduce(
-    (sum, b) => {
-      const pairs = getSupersetPairsForBlock(b);
-      return sum + (pairs ? pairs.flat().length : b.items.length);
-    },
+    (sum, b) => sum + b.items.length,
     0
   );
 
@@ -132,93 +130,10 @@ export default function ViewCompletedWorkoutScreen() {
           />
         </View>
 
-        {workout.blocks.map((block, blockIdx) => {
-          const pairs = getSupersetPairsForBlock(block);
-          if (pairs && pairs.length > 0) {
-            return (
-              <View key={`${block.block_type}-${blockIdx}`} style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                  {block.title ?? block.block_type}
-                </Text>
-                {pairs.map((pair, idx) => (
-                  <View key={`${block.block_type}-ss-${idx}`} style={styles.supersetPairWrapper}>
-                    <Text style={[styles.supersetPairLabel, { color: theme.textMuted }]}>
-                      Pair {idx + 1} — do A then B
-                    </Text>
-                    <View style={styles.superset}>
-                      {pair.map((item, pairIdx) => (
-                        <View
-                          key={item.exercise_id}
-                          style={[
-                            styles.exerciseBlock,
-                            styles.exerciseBlockSuperset,
-                            { borderColor: theme.border },
-                          ]}
-                        >
-                          <Text style={[styles.supersetLetter, { color: theme.textMuted }]}>
-                            {String.fromCharCode(65 + pairIdx)}
-                          </Text>
-                          <View style={styles.exerciseBlockContent}>
-                            <Text style={[styles.exerciseName, { color: theme.text }]}>
-                              {item.exercise_name}
-                            </Text>
-                            <Text style={[styles.exerciseMeta, { color: theme.textMuted }]}>
-                              {formatPrescription(item)}
-                            </Text>
-                            {notes[item.exercise_id] ? (
-                              <View style={[styles.noteBox, { backgroundColor: theme.primarySoft }]}>
-                                <Text style={[styles.noteLabel, { color: theme.textMuted }]}>
-                                  Your note
-                                </Text>
-                                <Text style={[styles.noteText, { color: theme.text }]}>
-                                  {notes[item.exercise_id]}
-                                </Text>
-                              </View>
-                            ) : null}
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                ))}
-              </View>
-            );
-          }
-          return (
-            <View key={`${block.block_type}-${blockIdx}`} style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                {block.title ?? block.block_type}
-              </Text>
-              {block.items.map((item) => (
-                <View
-                  key={item.exercise_id}
-                  style={[
-                    styles.exerciseBlock,
-                    styles.exerciseBlockStandalone,
-                    { borderColor: theme.border },
-                  ]}
-                >
-                  <Text style={[styles.exerciseName, { color: theme.text }]}>
-                    {item.exercise_name}
-                  </Text>
-                  <Text style={[styles.exerciseMeta, { color: theme.textMuted }]}>
-                    {formatPrescription(item)}
-                  </Text>
-                  {notes[item.exercise_id] ? (
-                    <View style={[styles.noteBox, { backgroundColor: theme.primarySoft }]}>
-                      <Text style={[styles.noteLabel, { color: theme.textMuted }]}>
-                        Your note
-                      </Text>
-                      <Text style={[styles.noteText, { color: theme.text }]}>
-                        {notes[item.exercise_id]}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          );
-        })}
+        <WorkoutBlockList
+          workout={workout}
+          exerciseNotes={notes}
+        />
       </ScrollView>
     </View>
   );
@@ -268,70 +183,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  supersetPairWrapper: {
-    marginBottom: 14,
-  },
-  supersetPairLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  superset: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  exerciseBlock: {
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  exerciseBlockStandalone: {
-    marginBottom: 10,
-  },
-  exerciseBlockSuperset: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  supersetLetter: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  exerciseBlockContent: {
-    flex: 1,
-  },
-  exerciseName: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  exerciseMeta: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  noteBox: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 8,
-  },
-  noteLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    marginBottom: 4,
-    textTransform: "uppercase",
-  },
-  noteText: {
-    fontSize: 13,
   },
 });
