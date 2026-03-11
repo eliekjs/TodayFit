@@ -65,6 +65,18 @@ function pickCountByDuration(durationMinutes: number | null) {
   return { warmup: 2, mainSupersetPairs: 4, accessory: 3, cooldown: 2 };
 }
 
+/**
+ * Max sets per exercise by session duration (research-informed).
+ * Shorter sessions: cap sets so volume fits time and quality is preserved (Schoenfeld et al.;
+ * time-efficient resistance training still uses 2–3 sets per exercise when duration is limited).
+ */
+function maxSetsByDuration(durationMinutes: number | null): number {
+  if (!durationMinutes) return 4;
+  if (durationMinutes <= 25) return 2;
+  if (durationMinutes <= 40) return 3;
+  return 4;
+}
+
 type StructuredPrescription = {
   sets: number;
   reps?: number;
@@ -73,12 +85,22 @@ type StructuredPrescription = {
   coaching_cues: string;
 };
 
+/**
+ * Sets/reps/rest per exercise. Factors:
+ * - Energy: low → fewer sets (2), high → more (4), medium → 3 (RPE/recovery).
+ * - Duration: short session → cap sets so workout fits and quality stays high.
+ * - Goal: hypertrophy/recomp → moderate sets (3–4); strength/power → 3–5 sets (we use energy band 2–4).
+ * - Type: conditioning → 1 set (time-based, "do once"); power → 3–6; mobility/accessory → 2–4.
+ */
 function prescriptionForExercise(
   exercise: ExerciseDefinition,
   energy: ManualPreferences["energyLevel"],
-  primaryFocus: string[]
+  primaryFocus: string[],
+  durationMinutes: number | null
 ): StructuredPrescription {
-  const baseSets = energy === "high" ? 4 : energy === "low" ? 2 : 3;
+  let baseSets = energy === "high" ? 4 : energy === "low" ? 2 : 3;
+  const maxSets = maxSetsByDuration(durationMinutes);
+  baseSets = Math.min(baseSets, maxSets);
   const isBodyRecomp = primaryFocus.includes("Body Recomposition");
 
   if (exercise.modalities.includes("conditioning")) {
@@ -183,21 +205,23 @@ function filterByBodyPartFocus(
   if (hasFull) return exercises;
 
   return exercises.filter((e) => {
-    // Upper: when modifier (Push/Pull) is set, focus entirely on that; otherwise push/pull/core
+    // Upper: strictly no lower-body; when modifier (Push/Pull) is set, focus on that; otherwise push/pull/core (core = abs, not legs)
     if (hasUpper) {
+      if (e.muscles.includes("legs")) return false;
       if (hasPush && !hasPull) return e.muscles.includes("push");
       if (hasPull && !hasPush) return e.muscles.includes("pull");
       return e.muscles.some((m) => m === "push" || m === "pull" || m === "core");
     }
-    // Lower: when modifier (Quad/Posterior) is set, filter by tags; otherwise all legs
+    // Lower: strictly no upper push/pull; when modifier (Quad/Posterior) is set, filter by tags; otherwise all legs
     if (hasLower) {
+      if (e.muscles.includes("push") || e.muscles.includes("pull")) return false;
       if (hasQuad && !hasPosterior)
         return e.muscles.includes("legs") && e.tags.some((t) => t === "quad-focused");
       if (hasPosterior && !hasQuad)
         return e.muscles.includes("legs") && e.tags.some((t) => t === "posterior chain" || t === "glutes" || t === "hamstrings");
       return e.muscles.includes("legs");
     }
-    if (hasCoreOnly) return e.muscles.includes("core");
+    if (hasCoreOnly) return e.muscles.includes("core") && !e.muscles.includes("legs");
     return false;
   });
 }
@@ -243,6 +267,7 @@ function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
     return ["conditioning"];
   }
   if (id.includes("mobility") || id.includes("joint")) return ["mobility"];
+  if (id.includes("recovery") || id.includes("resilience")) return ["mobility", "recovery"];
   return ["strength", "hypertrophy"];
 }
 
@@ -297,6 +322,13 @@ export function generateWorkout(
     ),
     preferences.upcoming
   );
+
+  // #region agent log
+  const hasUpper = bodyPartFocus.includes("Upper body");
+  const eligibleIds = eligible.map((e) => e.id);
+  const anyLegsInEligible = eligible.some((e) => e.muscles.includes("legs"));
+  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'67622d'},body:JSON.stringify({sessionId:'67622d',location:'lib/generator.ts:generateWorkout',message:'body-part filter result',data:{bodyPartFocus,hasUpper,eligibleCount:eligible.length,anyLegsInEligible,sampleIds:eligibleIds.slice(0,12)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
 
   // Warm-up: bodyweight or bands only — activation, mobility, getting the body moving (no weights)
   const warmupPool = eligible.filter(
@@ -385,7 +417,7 @@ export function generateWorkout(
       const picked = pickRandom(withoutThreeInARow.length ? withoutThreeInARow : poolToPick, rng);
       if (!picked) break;
       used.add(picked.id);
-      let p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus);
+      let p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus, preferences.durationMinutes);
       let item = toWorkoutItem(picked, p, picked.tags);
       if (blockType === "warmup" && item.time_seconds != null && item.time_seconds > WARMUP_ITEM_MAX_SECONDS) {
         item = { ...item, time_seconds: WARMUP_ITEM_MAX_SECONDS };
@@ -426,8 +458,8 @@ export function generateWorkout(
       if (!first || !second) continue;
       used.add(first.id);
       used.add(second.id);
-      const pres1 = prescriptionForExercise(first, preferences.energyLevel, preferences.primaryFocus);
-      const pres2 = prescriptionForExercise(second, preferences.energyLevel, preferences.primaryFocus);
+      const pres1 = prescriptionForExercise(first, preferences.energyLevel, preferences.primaryFocus, preferences.durationMinutes);
+      const pres2 = prescriptionForExercise(second, preferences.energyLevel, preferences.primaryFocus, preferences.durationMinutes);
       pairs.push([toWorkoutItem(first, pres1, first.tags), toWorkoutItem(second, pres2, second.tags)]);
     }
 
@@ -449,19 +481,33 @@ export function generateWorkout(
     usedExerciseIds,
     "5–10 min total. Prepares your joints and elevates heart rate before the main work."
   );
-  const isHypertrophy = preferences.primaryFocus.some(
+  const isRecoveryOnly = preferences.primaryFocus.some(
+    (f) => f.toLowerCase().includes("recovery") || f.toLowerCase().includes("resilience")
+  );
+  const isHypertrophy = !isRecoveryOnly && preferences.primaryFocus.some(
     (f) => f.toLowerCase().includes("hypertrophy") || f.toLowerCase().includes("muscle") || f.toLowerCase().includes("recomposition")
   );
   const mainBlockType: BlockType = isHypertrophy ? "main_hypertrophy" : "main_strength";
-  const mainBlock = buildMainSupersetBlock(
-    mainBlockType,
-    "Main Sets",
-    mainPool,
-    counts.mainSupersetPairs,
-    usedExerciseIds,
-    "Compound and focus-aligned movements in supersets to maximize time under tension.",
-    rng
-  );
+  const recoveryCircuitCount = Math.min(6, Math.max(4, Math.floor((preferences.durationMinutes ?? 30) / 5)));
+  const mainBlock = isRecoveryOnly
+    ? buildBlock(
+        "mobility",
+        "circuit",
+        "Stretch & mobility",
+        mainPool,
+        recoveryCircuitCount,
+        usedExerciseIds,
+        "Light movement, stretching and breathing to support recovery. No heavy loading."
+      )
+    : buildMainSupersetBlock(
+        mainBlockType,
+        "Main Sets",
+        mainPool,
+        counts.mainSupersetPairs,
+        usedExerciseIds,
+        "Compound and focus-aligned movements in supersets to maximize time under tension.",
+        rng
+      );
   const accessoryBlock = buildBlock(
     "main_hypertrophy",
     "circuit",
@@ -539,9 +585,11 @@ export function generateWorkout(
   if (subFocus.length) notes.push(`Sub-focus: ${subFocus.join(", ")}`);
   if (gymProfile) notes.push(`Using only equipment in ${gymProfile.name}`);
 
-  const blocks: WorkoutBlock[] = cardioBlock
-    ? [warmupBlock, mainBlock, accessoryBlock, cardioBlock, cooldownBlock]
-    : [warmupBlock, mainBlock, accessoryBlock, cooldownBlock];
+  const blocks: WorkoutBlock[] = isRecoveryOnly
+    ? [warmupBlock, mainBlock, cooldownBlock]
+    : cardioBlock
+      ? [warmupBlock, mainBlock, accessoryBlock, cardioBlock, cooldownBlock]
+      : [warmupBlock, mainBlock, accessoryBlock, cooldownBlock];
 
   return {
     id: `w_${Date.now()}`,

@@ -53,6 +53,30 @@ generateWorkoutWithPrescriptions()  =  assembleSession + applyPrescriptions
 
 - **assignSupersetGroups**: In superset/alternating_sets blocks, assign "A" to first pair, "B" to second, etc.
 - **formatSupersetRestInstruction(restSeconds)**: "Rest X sec/min after each pair" for display.
+- **Set count in UI**: Each superset pair shows how many times to perform it: rep-based → "3 sets — do A then B, rest after both"; time-based single round → "1 round (do once) — do A then B". See `formatSupersetPairLabel` in lib/types.ts and WorkoutBlockList / execute screens.
+
+---
+
+## Set-number reasoning (goals, energy, duration, exercise type)
+
+Set counts are chosen so they reflect **goals**, **energy**, **time available**, and **exercise type**, in line with common research and practice:
+
+1. **Energy**  
+   Low energy → fewer sets (2) to preserve quality and recovery; high → more (4); medium → 3. Reduces injury and overreaching when the user is tired.
+
+2. **Duration**  
+   Short sessions (e.g. ≤25 min) → cap at 2 sets per exercise so the workout fits and each set stays quality-focused. ≤40 min → cap at 3 sets; longer → up to 4. Aligns with time-efficient resistance training (e.g. 2–3 sets per exercise when time is limited).
+
+3. **Goals**  
+   Hypertrophy / recomp → moderate set ranges (3–4) consistent with meta-analyses (e.g. Schoenfeld) on effective volume. Strength/power → 3–5 sets; we use the same energy-based band (2–4) and duration cap.
+
+4. **Exercise type**  
+   - **Conditioning / time-based**: 1 set (one continuous or time-based block) — displayed as "1 round (do once)" so it’s clear the superset is done once.  
+   - **Power**: 3–6 sets with adequate rest; we use the same duration- and energy-capped base.  
+   - **Mobility / accessory**: 2–4 sets; often 1–2 sets is enough for mobility, but we use the shared cap for consistency.
+
+5. **Supersets**  
+   Both exercises in a pair get the same set count (e.g. 3 sets of A1 and 3 sets of A2). The UI shows this at the pair level ("3 sets") and per exercise ("3 x 8 reps") so users see how many sets of each and how many rounds of the pair.
 
 ---
 

@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTheme } from "../lib/theme";
 import type { GeneratedWorkout, WorkoutBlock } from "../lib/types";
-import { formatPrescription, getSupersetPairsForBlock } from "../lib/types";
+import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 
 export type WorkoutBlockListProps = {
   workout: GeneratedWorkout;
@@ -73,7 +73,8 @@ function renderBlockContent(
             style={[styles.supersetBlock, { borderLeftColor: theme.primary ?? theme.border }]}
           >
             <Text style={[styles.supersetLabel, { color: theme.textMuted }]}>
-              Pair {idx + 1} — do A then B, rest after both
+              {formatSupersetPairLabel(pair)} — do A then B
+              {pair[0]?.time_seconds != null && (pair[0]?.sets ?? 1) <= 1 ? "" : ", rest after both"}
             </Text>
             <View style={[styles.pairRow, { backgroundColor: theme.card ?? theme.background }]}>
               {pair.map((item, pairIdx) => (

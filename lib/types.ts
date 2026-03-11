@@ -267,6 +267,21 @@ export function formatPrescription(item: WorkoutItem): string {
 }
 
 /**
+ * Label for how many times to perform a superset pair (for UI header).
+ * Time-based single round: "1 round (do once)". Rep-based: "3 sets" so header can show "3 sets — do A then B, rest after both".
+ */
+export function formatSupersetPairLabel(pair: [WorkoutItem, WorkoutItem]): string {
+  const a = pair[0];
+  const sets = a?.sets ?? 1;
+  const isTimeBased =
+    (a?.time_seconds != null && a.time_seconds > 0) ||
+    (pair[1]?.time_seconds != null && (pair[1] as WorkoutItem).time_seconds! > 0);
+  if (isTimeBased && sets <= 1) return "1 round (do once)";
+  if (sets <= 1) return "1 set";
+  return `${sets} sets`;
+}
+
+/**
  * Normalize a workout that may be legacy (sections) or block-based (blocks) into GeneratedWorkout with blocks.
  */
 export function normalizeGeneratedWorkout(

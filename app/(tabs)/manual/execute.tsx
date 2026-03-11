@@ -12,7 +12,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
-import { formatPrescription, getSupersetPairsForBlock } from "../../../lib/types";
+import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
 
@@ -47,7 +47,7 @@ export default function ExecuteScreen() {
                   id: item.exercise_id,
                   name: item.exercise_name,
                   prescription: formatPrescription(item),
-                  sectionTitle: `${block.title ?? block.block_type} • Pair ${idx + 1}`,
+                  sectionTitle: `${block.title ?? block.block_type} • Pair ${idx + 1} (${formatSupersetPairLabel(pair)})`,
                 }))
               );
             }

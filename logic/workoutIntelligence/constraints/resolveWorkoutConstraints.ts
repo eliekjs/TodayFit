@@ -85,8 +85,13 @@ export function resolveWorkoutConstraints(
     const families = new Set<MovementFamily>();
     for (const f of bodyFocus) {
       const key = f.toLowerCase().replace(/\s/g, "_");
-      const fam = BODY_FOCUS_TO_FAMILY[key];
-      if (fam) families.add(fam);
+      if (key === "upper_body") {
+        families.add("upper_push");
+        families.add("upper_pull");
+      } else {
+        const fam = BODY_FOCUS_TO_FAMILY[key];
+        if (fam) families.add(fam);
+      }
     }
     if (families.size > 0) {
       allowedMovementFamilies = [...families];

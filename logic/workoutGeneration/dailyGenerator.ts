@@ -152,7 +152,10 @@ function focusToMovementFamilies(focus: string[]): Set<string> | null {
     const key = f.toLowerCase().replace(/\s/g, "_");
     if (key === "upper_push") families.add("upper_push");
     else if (key === "upper_pull") families.add("upper_pull");
-    else if (key === "lower") families.add("lower_body");
+    else if (key === "upper_body") {
+      families.add("upper_push");
+      families.add("upper_pull");
+    } else if (key === "lower" || key === "lower_body") families.add("lower_body");
     else if (key === "core") families.add("core");
     else if (key === "mobility") families.add("mobility");
     else if (key === "conditioning") families.add("conditioning");
@@ -195,6 +198,11 @@ export function filterByHardConstraints(
   const injuryAvoidTags = getInjuryAvoidTags(input.injuries_or_constraints);
   const injuryAvoidIds = getInjuryAvoidExerciseIds(input.injuries_or_constraints);
   const allowedFamilies = focusToMovementFamilies(input.focus_body_parts ?? []);
+
+  // #region agent log
+  const famArr = allowedFamilies ? [...allowedFamilies] : [];
+  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'67622d'},body:JSON.stringify({sessionId:'67622d',location:'logic/workoutGeneration/dailyGenerator.ts:filterByHardConstraints',message:'body-part allowed families',data:{focus_body_parts:input.focus_body_parts,allowedFamilies:famArr,hasStrictBodyFilter:famArr.length>0},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
 
   return exercises.filter((e) => {
     if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
@@ -1196,7 +1204,7 @@ function buildEnduranceMain(
   return blocks;
 }
 
-// --- Mobility / recovery: mobility circuit + light carries/core + breathing ---
+// --- Mobility / recovery: stretching and mobility only (no strength) ---
 function buildMobilityRecoveryMain(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
@@ -1208,14 +1216,8 @@ function buildMobilityRecoveryMain(
       (e.modality === "mobility" || e.modality === "recovery") &&
       !used.has(e.id)
   );
-  const lightPool = exercises.filter(
-    (e) =>
-      (e.movement_pattern === "carry" || e.movement_pattern === "rotate") &&
-      (e.modality === "strength" || e.modality === "mobility") &&
-      !used.has(e.id)
-  );
   const count = input.duration_minutes <= 30 ? 4 : 6;
-  const chosen = shuffleWithSeed([...mobilityPool, ...lightPool], rng).slice(0, count);
+  const chosen = shuffleWithSeed([...mobilityPool], rng).slice(0, count);
   chosen.forEach((e) => used.add(e.id));
 
   const items: WorkoutItem[] = chosen.map((e) => {
