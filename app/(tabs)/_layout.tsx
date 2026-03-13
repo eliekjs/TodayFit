@@ -3,8 +3,31 @@ import { Platform, Pressable, Text } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomTabBar } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../lib/theme";
 import { useAppState } from "../../context/AppStateContext";
+
+const VISIBLE_TAB_NAMES = ["index", "library", "profiles"];
+
+function isTabVisible(routeName: string): boolean {
+  const base = String(routeName).split("/")[0];
+  return VISIBLE_TAB_NAMES.includes(base);
+}
+
+function FilteredTabBar(props: BottomTabBarProps) {
+  const { state } = props;
+  const filteredRoutes = state.routes.filter((r) => isTabVisible(String(r.name)));
+  const currentRoute = state.routes[state.index];
+  const filteredIndex = filteredRoutes.findIndex((r) => r.key === currentRoute?.key);
+  const activeIndex = filteredIndex >= 0 ? filteredIndex : 0;
+  const filteredState = {
+    ...state,
+    routes: filteredRoutes,
+    index: activeIndex,
+  };
+  return <BottomTabBar {...props} state={filteredState} />;
+}
 
 const TAB_ICON_SIZE = 24;
 const TAB_ICON_SIZE_ACTIVE = 26;
@@ -88,6 +111,7 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
+        tabBar: (props) => <FilteredTabBar {...props} />,
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
         tabBarActiveBackgroundColor: theme.primarySoft,
@@ -95,7 +119,7 @@ export default function TabsLayout() {
         tabBarStyle: {
           borderTopColor: theme.border,
           backgroundColor: theme.card,
-          height: 64 + insets.bottom,
+          height: 88 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: 12,
           ...(Platform.OS === "android" && { elevation: 8 }),
@@ -107,16 +131,15 @@ export default function TabsLayout() {
           }),
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: "500",
-          marginTop: 4,
-          marginBottom: 4,
+          marginTop: 2,
+          marginBottom: 2,
         },
         tabBarShowLabel: true,
         tabBarItemStyle: {
-          paddingVertical: 4,
+          paddingVertical: 6,
           borderRadius: 16,
-          overflow: "hidden",
         },
         headerTitleAlign: "center",
       }}
@@ -129,7 +152,7 @@ export default function TabsLayout() {
           tabBarLabel: "Today",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "today" : "today-outline"}
+              name={focused ? "fitness" : "fitness-outline"}
               size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
               color={color}
             />
@@ -144,28 +167,12 @@ export default function TabsLayout() {
           tabBarLabel: "Library",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "bookmark" : "bookmark-outline"}
+              name={focused ? "library" : "library-outline"}
               size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
               color={color}
             />
           ),
           tabBarBadge: libraryBadgeCount > 0 ? libraryBadgeCount : undefined,
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          href: null,
-          title: "Workout History",
-          tabBarLabel: "History",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "time" : "time-outline"}
-              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen
@@ -175,28 +182,13 @@ export default function TabsLayout() {
           tabBarLabel: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "person" : "person-outline"}
+              name={focused ? "person-circle" : "person-circle-outline"}
               size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
               color={color}
             />
           ),
         }}
       />
-      <Tabs.Screen
-        name="saved"
-        options={{
-          title: "Saved Workouts",
-          tabBarButton: () => null,
-        }}
-      />
-      <Tabs.Screen
-        name="workout"
-        options={{
-          title: "Current Workout",
-          tabBarButton: () => null,
-        }}
-      />
-
       {/* ── Flow screens – no tab button, back arrow in header ── */}
       <Tabs.Screen
         name="manual/preferences"
@@ -261,31 +253,6 @@ export default function TabsLayout() {
           headerRight: () => <RestartFlowButton />,
         }}
       />
-      <Tabs.Screen
-        name="history/complete"
-        options={{
-          href: null,
-          title: "Workout Saved",
-          headerLeft: () => <HeaderBackButton />,
-        }}
-      />
-      <Tabs.Screen
-        name="history/[id]"
-        options={{
-          href: null,
-          title: "Completed Workout",
-          headerLeft: () => <HeaderBackButton />,
-        }}
-      />
-      <Tabs.Screen
-        name="history/weeks/[id]"
-        options={{
-          href: null,
-          title: "Saved week",
-          headerLeft: () => <HeaderBackButton />,
-        }}
-      />
-
       {/* ── Other hidden ── */}
       <Tabs.Screen name="build" options={{ href: null }} />
       <Tabs.Screen name="factors" options={{ href: null }} />

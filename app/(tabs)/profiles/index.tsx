@@ -141,8 +141,10 @@ export default function GymProfilesScreen() {
           {(displayName ?? email) ? (
             <>
               {displayName != null && displayName !== "" && (
-                <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Name</Text>
-                <Text style={[styles.profileInfoValue, { color: theme.text }]}>{displayName}</Text>
+                <>
+                  <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Name</Text>
+                  <Text style={[styles.profileInfoValue, { color: theme.text }]}>{displayName}</Text>
+                </>
               )}
               {email != null && email !== "" && (
                 <>
