@@ -10,24 +10,25 @@ export const PRESCRIPTION_STYLES: Record<PrescriptionStyleSlug, PrescriptionStyl
   heavy_strength: {
     slug: "heavy_strength",
     name: "Heavy strength",
+    // ACSM: 1–6 RM, 3–5 min rest for strength.
     rep_range_min: 3,
     rep_range_max: 6,
     set_range_min: 3,
     set_range_max: 5,
-    rest_seconds_min: 120,
-    rest_seconds_max: 240,
+    rest_seconds_min: 150,
+    rest_seconds_max: 300,
     intent_guidance: "High force intent; quality over speed",
     rpe_target: 8,
   },
   moderate_hypertrophy: {
     slug: "moderate_hypertrophy",
     name: "Moderate hypertrophy",
-    // Evidence-based: 8–15 aligns with hypertrophy research (effective range ~6–20 when near failure; 8+ favors muscle growth over pure strength).
+    // Evidence-based: 8–15 reps (Schoenfeld); rest 60–90 s (ACSM 1–2 min, meta-analysis ≥60 s).
     rep_range_min: 8,
     rep_range_max: 15,
     set_range_min: 2,
     set_range_max: 4,
-    rest_seconds_min: 45,
+    rest_seconds_min: 60,
     rest_seconds_max: 90,
     intent_guidance: "Controlled eccentric acceptable; moderate tempo",
     rpe_target: 7,

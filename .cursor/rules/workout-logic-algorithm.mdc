@@ -1,0 +1,39 @@
+---
+description: Workout and exercise logic: ensure outputs respect all user filters and exercise science per goal
+globs: logic/**/*.ts, lib/generator.ts, lib/workoutRules.ts
+alwaysApply: false
+---
+
+# Workout Logic & Algorithm Design
+
+When editing workout generation, scoring, prescription, or filtering logic:
+
+## Filter fidelity
+
+- **Every user control must be honored.** Filters and buttons (body focus, injuries, equipment, energy, duration, goals, workout style, upcoming events, Zone 2 preference) must flow through to constraints and selection. No silent overrides.
+- **Constraint precedence** (from `resolveWorkoutConstraints`): injuries → equipment → body-part → primary goal → secondary goal → preferences. Apply in that order; document any new constraint kind and where it fits.
+- **Body-part focus** is strict: Upper/Lower/Full + modifiers (Push/Pull, Quad/Posterior). Use movement family and ontology fields (`primary_movement_family`, `movement_patterns`) when present; fall back to `muscles`/tags consistently.
+
+## Exercise science by goal
+
+- **Strength:** Lower rep ranges (e.g. 3–6), higher load, adequate rest (e.g. 2–5 min). Prioritize compound patterns; balance push/pull and hinge/squat.
+- **Hypertrophy:** Moderate reps (e.g. 6–12), moderate rest (e.g. 60–90 s). Include isolation where appropriate; respect volume and fatigue regions.
+- **Endurance / conditioning:** Time- or work-based prescription; zone/energy system (e.g. Zone 2) when relevant. Avoid stacking heavy strength and high-intensity conditioning in the same session unless intended.
+- **Mobility / recovery:** Low load, ROM and control focus; avoid high fatigue. Cooldown selection should use `mobility_targets` / `stretch_targets` and contraindications.
+- **Power:** Low reps, high intent, adequate rest; use quality vector (e.g. `power`, `rate_of_force_development`) and avoid fatiguing before power work.
+- **Sport-specific goals** (e.g. climbing, ski, running): Use `goalQualityWeights.ts` and sport demand; match qualities (e.g. grip, eccentric, unilateral) to the goal.
+
+## Scoring and selection
+
+- **Target vector** = goal + optional sport weights from `goalQualityWeights` / sport config. Score exercises by alignment to this vector plus balance, variety, energy/duration fit, and fatigue.
+- **Balance:** Respect movement-pattern caps and push/pull/legs balance; use ontology `movement_patterns` and pairing categories to avoid same-pattern or same-fatigue-region stacking.
+- **Injuries:** Hard-exclude by `joint_stress_tags` and `contraindication_tags`; never suggest exercises that conflict with user-stated restrictions.
+
+## Prescription
+
+- Reps/sets/rest/tempo come from **goal and stimulus** (strength vs hypertrophy vs conditioning, etc.). Use `prescriptionResolver` and intent guidance; keep prescription consistent with the session’s target vector and block type (main_strength vs accessory vs conditioning).
+- Duration scaling: shorter sessions should reduce block counts or exercise count, not only rest; see `durationScaling` and session templates.
+
+## Ontology and types
+
+- Prefer canonical slugs from `docs/EXERCISE_ONTOLOGY_DESIGN.md` (movement families, patterns, joint stress, pairing category). When adding new logic, use existing types in `lib/types.ts` and `logic/workoutIntelligence/types.ts`; extend thoughtfully and document.

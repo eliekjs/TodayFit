@@ -1,0 +1,48 @@
+---
+description: Run exercise-db-enrichment agent 2×/week for metadata enrichment
+trigger: schedule
+schedule: "0 10 * * 2,4"
+---
+
+# Exercise DB Enrichment Automation (2×/week)
+
+**Purpose:** Run the exercise-db-enrichment agent on a schedule so one enrichment category is improved per run via PRs.
+
+## Proposed Cursor Automation setup
+
+Create this automation at **cursor.com/automations** (or equivalent):
+
+| Field | Value |
+|-------|--------|
+| **Name** | TodayFit — Exercise DB enrichment |
+| **Trigger** | Schedule |
+| **Schedule** | 2 times per week (e.g. Tue / Thu 10:00 — cron: `0 10 * * 2,4`) |
+| **Repository** | This repo (todayfit) |
+
+## Prompt for the agent
+
+Copy the following into the automation’s prompt. The agent should use the skill **exercise-db-enrichment-agent** (project skill in `.cursor/skills/exercise-db-enrichment-agent/SKILL.md`).
+
+```
+You are running the exercise-db-enrichment agent for TodayFit.
+
+1. Read AGENTS.md and .cursor/skills/exercise-db-enrichment-agent/SKILL.md.
+2. Audit the current exercise schema and data (supabase/migrations, lib/ontology, docs/EXERCISE_ONTOLOGY_DESIGN.md). Choose exactly ONE enrichment category for this run (e.g. fatigue_regions, progressions/regressions, contraindications, warmup/cooldown relevance, movement families, sports tags). Pick one that has gaps and has not been enriched in the last 2 weeks (check docs/research/ and recent PRs).
+3. Enrich only that category: normalize to canonical slugs, prefer existing columns, avoid schema drift unless explicitly proposed.
+4. Add validation notes and machine-readable diffs (SQL or data files). Open a PR. Do not change generator logic.
+5. Do not auto-merge.
+```
+
+## Tools / integrations (optional)
+
+- **GitHub:** Create branch, commit, open PR (no auto-merge).
+
+## Validation
+
+After the agent opens a PR, run:
+
+```bash
+npm run validate:autonomous-pr
+```
+
+New exercise rows must include required ontology fields (movement family or pattern, equipment, etc.). See scripts/README-autonomous-validation.md.

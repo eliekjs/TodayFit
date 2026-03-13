@@ -1,11 +1,13 @@
 /**
  * Evidence-based prescription rules per primary goal.
- * Aligned with ACSM, NSCA, hypertrophy literature (Schoenfeld et al.),
- * and endurance training norms. Used by the daily workout generator.
+ * Aligned with ACSM position stand, NSCA guidelines, and systematic reviews/meta-analyses
+ * (rest intervals: Grgic et al. Sports Med 2018; Schoenfeld et al. Frontiers 2024).
+ * Used by the daily workout generator.
  *
  * Rep ranges by goal (research summary):
- * - Strength: 1–5 reps (85–100% 1RM), neural adaptations.
- * - Hypertrophy: 6–20 effective; 8–15 typical for efficiency and time under tension.
+ * - Strength: 1–6 reps (ACSM: heavy loading 1–6 RM); neural adaptations, 3–5 min rest (ACSM).
+ * - Hypertrophy: 6–20 effective when near failure (Schoenfeld); 8–15 typical. Rest 1–2 min (ACSM)
+ *   or 60–90 s (meta-analyses: minimal difference vs longer; ≥60 s may slightly favor volume).
  * - Body recomp: 10–15 (moderate-high volume, time under tension).
  * - Endurance: 15–25+ (50–65% 1RM), metabolic stress.
  * Exercise-specific overrides (e.g. calves 15–25, isolation 10–20) live in exercises.rep_range_min/max.
@@ -88,9 +90,10 @@ export type GoalTrainingRule = {
 /** Keys match PrimaryGoal in logic/workoutGeneration/types. */
 export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   strength: {
+    // ACSM: heavy loading 1–6 RM, 3–5 min rest between sets for intermediate/advanced.
     repRange: { min: 3, max: 6 },
     setRange: { min: 3, max: 5 },
-    restRange: { min: 120, max: 180 },
+    restRange: { min: 150, max: 300 },
     preferredFormats: ["straight_sets", "superset"],
     conditioningStrategy: "optional_short",
     conditioningDuration: { min: 6, max: 10 },
@@ -107,10 +110,10 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   },
 
   hypertrophy: {
-    // Evidence-based: hypertrophy is similar across 6–20 reps when taken near failure; 8–15 favors classic hypertrophy and allows hard sets per week (Schoenfeld, Stronger by Science).
+    // Evidence-based: hypertrophy similar across 6–20 reps near failure; 8–15 favors efficiency (Schoenfeld). Rest 1–2 min (ACSM); 60–90 s supported by meta-analysis (≥60 s may slightly favor volume).
     repRange: { min: 8, max: 15 },
     setRange: { min: 3, max: 4 },
-    restRange: { min: 45, max: 90 },
+    restRange: { min: 60, max: 90 },
     preferredFormats: ["superset", "straight_sets"],
     conditioningStrategy: "optional_short",
     conditioningDuration: { min: 5, max: 8 },

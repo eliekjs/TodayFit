@@ -1,0 +1,54 @@
+---
+description: Run workout-logic-research-integration agent 3×/week for evidence-based logic improvements
+trigger: schedule
+schedule: "0 9 * * 1,3,5"
+---
+
+# Logic Research + Integration Automation (3×/week)
+
+**Purpose:** Run the workout-logic-research-integration agent on a schedule so improvements are proposed incrementally via PRs.
+
+## Proposed Cursor Automation setup
+
+Create this automation at **cursor.com/automations** (or equivalent):
+
+| Field | Value |
+|-------|--------|
+| **Name** | TodayFit — Logic research integration |
+| **Trigger** | Schedule |
+| **Schedule** | 3 times per week (e.g. Mon / Wed / Fri 09:00 — cron: `0 9 * * 1,3,5`) |
+| **Repository** | This repo (todayfit) |
+
+## Prompt for the agent
+
+Copy the following into the automation’s prompt. The agent should use the skill **workout-logic-research-integration-agent** (project skill in `.cursor/skills/workout-logic-research-integration-agent/SKILL.md`).
+
+```
+You are running the workout-logic-research-integration agent for TodayFit.
+
+1. Read AGENTS.md and .cursor/skills/workout-logic-research-integration-agent/SKILL.md.
+2. Choose exactly ONE narrow subsystem from the list in the skill (e.g. superset pairing, prescription for hypertrophy, cooldown selection, movement balance, weekly day naming). Pick one that has not been improved in the last 2 weeks (check docs/research/ and recent PRs).
+3. Follow the full per-run workflow in the skill:
+   - Research current exercise science for that subsystem (use source-ranking.md for source quality).
+   - Classify findings (high-confidence / heuristic / speculative).
+   - Compare current implementation to evidence.
+   - Implement the smallest justified end-to-end change (metadata → constraints → scoring → blocks → prescription → daily + weekly output). Ensure any new DB/ontology fields are wired into generation.
+   - Add or update tests and a research note in docs/research/.
+   - Open a PR with summary, evidence, risks, and rollback notes.
+4. Do not auto-merge. Do not mix multiple subsystems in this run.
+```
+
+## Tools / integrations (optional)
+
+- **GitHub:** Create branch, commit, open PR (no auto-merge).
+- **Slack (optional):** Post when a PR is opened (e.g. #todayfit-automation).
+
+## Validation
+
+After the agent pushes and opens a PR, run in CI or locally:
+
+```bash
+npm run validate:autonomous-pr
+```
+
+If the branch touches logic, ensure the PR includes a research note under `docs/research/` and added/updated tests.
