@@ -30,8 +30,8 @@ export default function WorkoutCompleteScreen() {
         </Text>
         <View style={{ marginTop: 24 }}>
           <PrimaryButton
-            label="View History"
-            onPress={() => router.replace("/history")}
+            label="Back to Library"
+            onPress={() => router.replace("/library")}
           />
         </View>
       </View>

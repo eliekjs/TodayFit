@@ -31,19 +31,10 @@ function formatDayOfWeek(isoDate: string): string {
   });
 }
 
-/** Flat list item: day header (fixed) or draggable session. */
-type WeekListItem =
-  | { type: "day-header"; date: string }
-  | { type: "session"; day: PlannedDay };
-
 const isWeb = Platform.OS === "web";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import {
-  NestableScrollContainer,
-  NestableDraggableFlatList,
-  ScaleDecorator,
-} from "react-native-draggable-flatlist";
+import { NestableScrollContainer } from "react-native-draggable-flatlist";
 
 export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
@@ -269,18 +260,6 @@ export default function AdaptiveWeekPlanScreen() {
     }));
   }, [sportPrepWeekPlan, weekDates]);
 
-  /** Flat list: day header then sessions for that day, for each of 7 days. */
-  const flatListItems = useMemo((): WeekListItem[] => {
-    const out: WeekListItem[] = [];
-    for (const slot of daySlots) {
-      out.push({ type: "day-header", date: slot.date });
-      for (const day of slot.sessions) {
-        out.push({ type: "session", day });
-      }
-    }
-    return out;
-  }, [daySlots]);
-
   /** Workouts keyed by session id (and by date for initial API response). */
   const guestWorkoutsById = useMemo(() => {
     const plan = sportPrepWeekPlan;
@@ -366,36 +345,6 @@ export default function AdaptiveWeekPlanScreen() {
   const onSelectSession = (session: PlannedDay) => {
     setSelectedSession(session);
   };
-
-  const onDragEnd = useCallback(
-    ({ data }: { data: WeekListItem[] }) => {
-      if (!sportPrepWeekPlan || weekDates.length === 0) return;
-      let currentDate = weekDates[0];
-      const newDays: PlannedDay[] = [];
-      for (const item of data) {
-        if (item.type === "day-header") {
-          currentDate = item.date;
-        } else {
-          newDays.push({ ...item.day, date: currentDate });
-        }
-      }
-      const newGuestWorkouts: Record<string, GeneratedWorkout> = {};
-      for (const d of newDays) {
-        const w = guestWorkoutsById[d.id];
-        if (w) newGuestWorkouts[d.id] = w;
-      }
-      const newToday = newDays.find((d) => d.date === todayIso) ?? null;
-      const newTodayWorkout = newToday ? newGuestWorkouts[newToday.id] ?? null : null;
-      setSportPrepWeekPlan({
-        ...sportPrepWeekPlan,
-        days: newDays,
-        guestWorkouts: Object.keys(newGuestWorkouts).length > 0 ? newGuestWorkouts : sportPrepWeekPlan.guestWorkouts,
-        today: newToday,
-        todayWorkout: newTodayWorkout,
-      });
-    },
-    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates, todayIso, guestWorkoutsById]
-  );
 
   const onRegenerate = async () => {
     if (!sportPrepWeekPlan || !selectedDay) return;
@@ -510,100 +459,7 @@ export default function AdaptiveWeekPlanScreen() {
     summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
   }
 
-  const renderWeekItem = useCallback(
-    ({
-      item,
-      drag,
-      isActive,
-    }: {
-      item: WeekListItem;
-      drag: () => void;
-      isActive: boolean;
-    }) => {
-      if (item.type === "day-header") {
-        const dateObj = new Date(item.date);
-        const weekday = dateObj.toLocaleDateString(undefined, { weekday: "long" });
-        const isToday = item.date === todayIso;
-        return (
-          <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.dayHeaderText, { color: theme.text }]}>
-              {weekday}
-            </Text>
-            {isToday && (
-              <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
-                Today
-              </Text>
-            )}
-          </View>
-        );
-      }
-      const day = item.day;
-      const isSelected = selectedDay?.id === day.id;
-      const rawLabel = day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
-      const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
-      const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
-      return (
-        <ScaleDecorator>
-          <View
-            style={[
-              styles.dayRow,
-              {
-                marginBottom: 6,
-                marginLeft: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                borderColor: isSelected ? theme.primary : theme.border,
-                backgroundColor: isActive ? theme.primarySoft : isSelected ? theme.primarySoft : "transparent",
-              },
-            ]}
-          >
-            <Pressable
-              onLongPress={drag}
-              delayLongPress={300}
-              style={({ pressed }) => ({
-                paddingVertical: 12,
-                paddingHorizontal: 12,
-                marginRight: 4,
-                opacity: pressed || isActive ? 0.8 : 1,
-              })}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={{ fontSize: 18, color: theme.textMuted }}>⋮⋮</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => !isActive && onSelectSession(day)}
-              style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}
-            >
-              <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-                {label}
-              </Text>
-              {statusBadge ? (
-                <Text
-                  style={[
-                    styles.todayBadge,
-                    {
-                      color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
-                      borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
-                    },
-                  ]}
-                >
-                  {statusBadge}
-                </Text>
-              ) : null}
-            </Pressable>
-          </View>
-        </ScaleDecorator>
-      );
-    },
-    [theme, todayIso, selectedDay?.id, onSelectSession]
-  );
-
-  const keyExtractor = useCallback((item: WeekListItem) => {
-    if (item.type === "day-header") return `header-${item.date}`;
-    return `session-${item.day.id}`;
-  }, []);
-
-  const weekOverviewContent = isWeb ? (
+  const weekOverviewContent = (
     <View>
       {daySlots.map((slot) => (
         <View key={slot.date}>
@@ -662,16 +518,6 @@ export default function AdaptiveWeekPlanScreen() {
         </View>
       ))}
     </View>
-  ) : (
-    <NestableDraggableFlatList
-      data={flatListItems}
-      keyExtractor={keyExtractor}
-      onDragEnd={onDragEnd}
-      renderItem={renderWeekItem}
-      activationDistance={10}
-      scrollEnabled={false}
-      autoscrollSpeed={0}
-    />
   );
 
   const mainContent = (
@@ -702,7 +548,7 @@ export default function AdaptiveWeekPlanScreen() {
       <Card
         title="Week overview"
         style={{ marginTop: 16 }}
-        subtitle={isWeb ? "Reorder sessions in the mobile app." : "Days list Mon–Sun. Long-press a session and drag it under a different day to move it there."}
+        subtitle="Days list Mon–Sun. Tap a session to view or regenerate it."
       >
         {weekOverviewContent}
       </Card>

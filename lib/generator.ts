@@ -4,6 +4,10 @@ import {
   exerciseHasAnyAvoidTag,
 } from "./filterTagRules";
 import { deriveBodyPartFocus, deriveBodyPartFocusFromSubFocus, deriveSubFocus } from "./preferencesConstants";
+import {
+  resolveGoalSubFocusSlugs,
+  getExerciseTagsForGoalSubFocuses,
+} from "../data/goalSubFocus";
 import type {
   BlockFormat,
   BlockType,
@@ -271,6 +275,50 @@ function focusToModalities(focus: string): ExerciseDefinition["modalities"] {
   return ["strength", "hypertrophy"];
 }
 
+/** Normalize display tag to slug form for matching goal sub-focus tag map. */
+function tagToSlug(tag: string): string {
+  return tag.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+}
+
+/**
+ * When user has selected sub-goals (subFocusByGoal), score eligible exercises by tag overlap
+ * with goal sub-focus tag weights and return top exercise ids/slugs to prefer during pick.
+ */
+function buildPreferredSlugsFromSubFocus(
+  primaryFocus: string[],
+  subFocusByGoal: Record<string, string[]>,
+  eligible: ExerciseDefinition[]
+): string[] {
+  const tagWeightMap = new Map<string, number>();
+  for (const goalLabel of primaryFocus) {
+    const subLabels = subFocusByGoal[goalLabel];
+    if (!subLabels?.length) continue;
+    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(goalLabel, subLabels);
+    if (!goalSlug || !subFocusSlugs.length) continue;
+    const weights = getExerciseTagsForGoalSubFocuses(goalSlug, subFocusSlugs);
+    for (const { tag_slug, weight } of weights) {
+      const existing = tagWeightMap.get(tag_slug) ?? 0;
+      tagWeightMap.set(tag_slug, existing + weight);
+    }
+  }
+  if (tagWeightMap.size === 0) return [];
+
+  const scored: { id: string; score: number }[] = [];
+  for (const e of eligible) {
+    const tagLike = [...(e.tags ?? []), ...(e.muscles ?? [])];
+    let score = 0;
+    for (const t of tagLike) {
+      const slug = tagToSlug(t);
+      const w = tagWeightMap.get(slug);
+      if (w != null) score += w;
+    }
+    if (score > 0) scored.push({ id: e.id, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const topN = 40;
+  return scored.slice(0, topN).map((x) => x.id);
+}
+
 export function generateWorkout(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
@@ -344,9 +392,15 @@ export function generateWorkout(
   );
   const cooldownPool = eligible.filter((e) => e.modalities.includes("mobility"));
 
-  const prefer = preferredExerciseSlugs?.length
-    ? new Set(preferredExerciseSlugs)
-    : null;
+  // Build prefer set: optional caller-provided preferred slugs + slugs from goal sub-focus tag scoring
+  const subFocusPreferSlugs = buildPreferredSlugsFromSubFocus(
+    preferences.primaryFocus,
+    preferences.subFocusByGoal,
+    eligible
+  );
+  const preferSet = new Set<string>(preferredExerciseSlugs ?? []);
+  for (const slug of subFocusPreferSlugs) preferSet.add(slug);
+  const prefer = preferSet.size > 0 ? preferSet : null;
   const preferMatch = (e: ExerciseDefinition) =>
     prefer !== null && (prefer.has(e.id) || prefer.has(e.name));
 

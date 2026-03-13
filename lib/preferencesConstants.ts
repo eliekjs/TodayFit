@@ -1,4 +1,5 @@
 import type { BodyPartFocusKey, TargetBody, WorkoutStyleKey } from "./types";
+import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus";
 
 /** Core: primary focus options (multi-select, suggest up to 2). */
 export const PRIMARY_FOCUS_OPTIONS = [
@@ -131,94 +132,14 @@ export const ZONE2_CARDIO_OPTIONS = [
   { key: "stair_climber", label: "Stair climber" },
 ] as const;
 
-/** Sub-focus: contextual options per primary focus (sub-goals under each goal). Spec-aligned where noted (e.g. Max Strength, Relative Strength). */
-export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = {
-  "Build Strength": [
-    "Max Strength",
-    "Relative Strength",
-    "Squat",
-    "Hinge",
-    "Press",
-    "Pull",
-    "Full-body",
-  ],
-  "Build Muscle (Hypertrophy)": [
-    "Glutes",
-    "Quads",
-    "Back",
-    "Arms",
-    "Shoulders",
-    "Chest",
-    "Balanced",
-  ],
-  "Body Recomposition": [
-    "Glutes",
-    "Quads",
-    "Back",
-    "Arms",
-    "Shoulders",
-    "Chest",
-    "Balanced",
-  ],
-  "Sport Conditioning": [
-    "Upper body",
-    "Lower body",
-    "Core",
-    "Full-body",
-    "Zone 2",
-    "Threshold",
-    "Intervals",
-    "Hills",
-  ],
-  "Improve Endurance": [
-    "Zone 2",
-    "Threshold",
-    "Intervals",
-    "Hills",
-  ],
-  "Mobility & Joint Health": [
-    "Hips",
-    "Ankles",
-    "T-spine",
-    "Shoulders",
-    "Full-body",
-  ],
-  "Athletic Performance": [
-    "Upper body",
-    "Lower body",
-    "Core",
-    "Full-body",
-    "Power output",
-    "Sprint speed",
-    "Vertical jump",
-    "Elasticity",
-    "Reactive strength",
-  ],
-  Calisthenics: [
-    "Pull-up Capacity",
-    "Dips",
-    "Handstand",
-    "Front lever",
-    "Core compression strength",
-  ],
-  "Power & Explosiveness": [
-    "Upper body",
-    "Lower body",
-    "Core",
-    "Full-body",
-    "Squat",
-    "Hinge",
-    "Press",
-    "Pull",
-  ],
-  Recovery: [
-    "Hips",
-    "Ankles",
-    "T-spine",
-    "Shoulders",
-    "Full-body",
-  ],
-};
+/** Sub-focus: contextual options per primary focus (sub-goals under each goal). Derived from goalSubFocusOptions. */
+export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = (() => {
+  const out: Record<string, string[]> = {};
+  for (const [primaryFocus, entry] of Object.entries(GOAL_SUB_FOCUS_OPTIONS)) {
+    out[primaryFocus] = entry.subFocuses.map((f) => f.name);
+  }
+  return out;
+})();
 
 /**
  * Normalize goal match percentages so the first `goalCount` goals sum to 100.
@@ -286,7 +207,7 @@ export function deriveBodyPartFocus(
 }
 
 /**
- * Derives body part focus from sub-goals (e.g. "Upper body", "Lower body", "Core", "Full-body").
+ * Derives body part focus from sub-goals (e.g. "Upper", "Lower", "Core", "Full-body").
  * Used when Target body is not set but user picked a body-area sub-focus under Athletic Performance, Sport Conditioning, or Power.
  */
 export function deriveBodyPartFocusFromSubFocus(
@@ -295,8 +216,8 @@ export function deriveBodyPartFocusFromSubFocus(
   const out: BodyPartFocusKey[] = [];
   for (const s of subFocus) {
     if (s === "Full-body") return ["Full body"];
-    if (s === "Upper body" && !out.includes("Upper body")) out.push("Upper body");
-    if (s === "Lower body" && !out.includes("Lower body")) out.push("Lower body");
+    if ((s === "Upper" || s === "Upper body") && !out.includes("Upper body")) out.push("Upper body");
+    if ((s === "Lower" || s === "Lower body") && !out.includes("Lower body")) out.push("Lower body");
     if (s === "Core" && !out.includes("Core")) out.push("Core");
   }
   return out;

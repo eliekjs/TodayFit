@@ -1,12 +1,18 @@
 import React, { useEffect } from "react";
-import { useRouter } from "expo-router";
+import { InteractionManager } from "react-native";
+import { useRouter, useRootNavigationState } from "expo-router";
 
 export default function WorkoutHistoryScreen() {
   const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
-    router.replace("/library");
-  }, [router]);
+    if (!rootNavigationState?.key) return;
+    const task = InteractionManager.runAfterInteractions(() => {
+      router.replace("/library");
+    });
+    return () => task.cancel();
+  }, [router, rootNavigationState?.key]);
 
   return null;
 }

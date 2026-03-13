@@ -14,6 +14,8 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
+import { useAuth } from "../../../context/AuthContext";
+import { getSupabase } from "../../../lib/db";
 import { Card } from "../../../components/Card";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
@@ -37,6 +39,7 @@ export default function GymProfilesScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  const { email, displayName } = useAuth();
   const {
     gymProfiles,
     activeGymProfileId,
@@ -111,6 +114,10 @@ export default function GymProfilesScreen() {
     router.push("/manual/preferences");
   };
 
+  const onSignOut = () => {
+    getSupabase()?.auth.signOut();
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
@@ -127,14 +134,43 @@ export default function GymProfilesScreen() {
           </View>
         )}
 
-        <Card title="Profiles">
-          <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Manage gym profiles (equipment) and preference presets (saved workout settings).
-          </Text>
+        <Text style={[styles.sectionTitle, styles.profileInfoSectionTitle, { color: theme.text }]}>
+          Profile
+        </Text>
+        <Card title="Account">
+          {(displayName ?? email) ? (
+            <>
+              {displayName != null && displayName !== "" && (
+                <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Name</Text>
+                <Text style={[styles.profileInfoValue, { color: theme.text }]}>{displayName}</Text>
+              )}
+              {email != null && email !== "" && (
+                <>
+                  <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Email</Text>
+                  <Text style={[styles.profileInfoValue, { color: theme.text }]}>{email}</Text>
+                </>
+              )}
+            </>
+          ) : (
+            <Text style={{ fontSize: 13, color: theme.textMuted }}>
+              Sign in to see your profile and sync data.
+            </Text>
+          )}
+          <PrimaryButton
+            label="Sign out"
+            variant="ghost"
+            onPress={onSignOut}
+            style={styles.signOutButton}
+          />
         </Card>
 
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Gym profiles
+          Membership
+        </Text>
+        <Card title="Membership" subtitle="Free plan. More plans coming soon." />
+
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          Gyms
         </Text>
         <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
           Workouts use equipment from your active profile.
@@ -421,7 +457,7 @@ export default function GymProfilesScreen() {
         ) : null}
 
         <Text style={[styles.sectionTitle, styles.preferencePresetsTitle, { color: theme.text }]}>
-          Preference presets
+          Saved preference profiles
         </Text>
         <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
           Saved workout preference sets. Apply one to load it in Workout Preferences.
@@ -510,6 +546,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 24,
     marginBottom: 4,
+  },
+  profileInfoSectionTitle: {
+    marginTop: 0,
+  },
+  profileInfoLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  profileInfoValue: {
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  signOutButton: {
+    marginTop: 8,
   },
   sectionSubtitle: {
     fontSize: 13,

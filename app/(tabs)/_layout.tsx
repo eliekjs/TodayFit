@@ -7,6 +7,7 @@ import { useTheme } from "../../lib/theme";
 import { useAppState } from "../../context/AppStateContext";
 
 const TAB_ICON_SIZE = 24;
+const TAB_ICON_SIZE_ACTIVE = 26;
 
 function HeaderBackButton() {
   const router = useRouter();
@@ -89,12 +90,14 @@ export default function TabsLayout() {
       screenOptions={{
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
+        tabBarActiveBackgroundColor: theme.primarySoft,
+        tabBarInactiveBackgroundColor: "transparent",
         tabBarStyle: {
           borderTopColor: theme.border,
           backgroundColor: theme.card,
-          height: 56 + insets.bottom,
+          height: 64 + insets.bottom,
           paddingBottom: insets.bottom,
-          paddingTop: 8,
+          paddingTop: 12,
           ...(Platform.OS === "android" && { elevation: 8 }),
           ...(Platform.OS === "ios" && {
             shadowColor: "#000",
@@ -106,24 +109,28 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "500",
+          marginTop: 4,
+          marginBottom: 4,
         },
         tabBarShowLabel: true,
         tabBarItemStyle: {
           paddingVertical: 4,
+          borderRadius: 16,
+          overflow: "hidden",
         },
         headerTitleAlign: "center",
       }}
     >
-      {/* ── Visible tabs: Generate | Library | History | Profile ── */}
+      {/* ── 3 visible tabs: Today | Library | Profile; hide history, saved, workout ── */}
       <Tabs.Screen
         name="index"
         options={{
-          title: "Generator",
-          tabBarLabel: "Generate",
+          title: "Today",
+          tabBarLabel: "Today",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "sparkles" : "sparkles-outline"}
-              size={TAB_ICON_SIZE}
+              name={focused ? "today" : "today-outline"}
+              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
               color={color}
             />
           ),
@@ -137,8 +144,8 @@ export default function TabsLayout() {
           tabBarLabel: "Library",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "book" : "book-outline"}
-              size={TAB_ICON_SIZE}
+              name={focused ? "bookmark" : "bookmark-outline"}
+              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
               color={color}
             />
           ),
@@ -148,15 +155,17 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="history"
         options={{
+          href: null,
           title: "Workout History",
           tabBarLabel: "History",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "calendar" : "calendar-outline"}
-              size={TAB_ICON_SIZE}
+              name={focused ? "time" : "time-outline"}
+              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
               color={color}
             />
           ),
+          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen
@@ -167,7 +176,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "person" : "person-outline"}
-              size={TAB_ICON_SIZE}
+              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
               color={color}
             />
           ),
@@ -176,15 +185,15 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="saved"
         options={{
-          href: null,
           title: "Saved Workouts",
+          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen
         name="workout"
         options={{
-          href: null,
           title: "Current Workout",
+          tabBarButton: () => null,
         }}
       />
 

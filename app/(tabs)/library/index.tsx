@@ -6,9 +6,19 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
-import { listWeeklyPlanInstances } from "../../../lib/db/weekPlanRepository";
+import { listWeeklyPlanInstances, saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import type { SavedWeekSummary } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
+import { getLocalDateString } from "../../../lib/dateUtils";
+
+function getCurrentWeekStartIso(): string {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() - daysSinceMonday);
+  return getLocalDateString(monday);
+}
 
 export default function LibraryScreen() {
   const theme = useTheme();
@@ -20,8 +30,21 @@ export default function LibraryScreen() {
     setGeneratedWorkout,
     setResumeProgress,
     removeSavedWorkout,
+    manualWeekPlan,
+    sportPrepWeekPlan,
+    setManualWeekPlan,
+    setSportPrepWeekPlan,
+    setAdaptiveSetup,
   } = useAppState();
   const [savedWeeks, setSavedWeeks] = useState<SavedWeekSummary[]>([]);
+  const [movingToLibrary, setMovingToLibrary] = useState(false);
+
+  const currentWeekStart = getCurrentWeekStartIso();
+  const manualStale =
+    manualWeekPlan != null && manualWeekPlan.weekStartDate < currentWeekStart;
+  const sportPrepStale =
+    sportPrepWeekPlan != null && sportPrepWeekPlan.weekStartDate < currentWeekStart;
+  const hasStaleInProgress = manualStale || sportPrepStale;
 
   useEffect(() => {
     if (!userId || !isDbConfigured()) return;
@@ -64,13 +87,36 @@ export default function LibraryScreen() {
   const hasAny =
     savedWorkouts.length > 0 || savedWeeks.length > 0 || items.length > 0;
 
+  const onMoveManualToLibrary = async () => {
+    if (!manualWeekPlan || !userId || !isDbConfigured()) {
+      setManualWeekPlan(null);
+      return;
+    }
+    setMovingToLibrary(true);
+    try {
+      await saveManualWeek(userId, manualWeekPlan.weekStartDate, manualWeekPlan.days);
+      setManualWeekPlan(null);
+      const list = await listWeeklyPlanInstances(userId);
+      setSavedWeeks(list);
+    } catch {
+      setManualWeekPlan(null);
+    } finally {
+      setMovingToLibrary(false);
+    }
+  };
+
+  const onMoveSportPrepToLibrary = () => {
+    setSportPrepWeekPlan(null);
+    setAdaptiveSetup(null);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {!hasAny && (
+        {!hasAny && !hasStaleInProgress && (
           <View style={styles.emptyState}>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>
               Nothing in your library yet
@@ -80,6 +126,58 @@ export default function LibraryScreen() {
               plan from manual or adaptive mode, or finish a session — they'll
               show up here.
             </Text>
+          </View>
+        )}
+
+        {hasStaleInProgress && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              In progress
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
+              Past week still in progress. Open to continue or move to library.
+            </Text>
+            {manualStale && manualWeekPlan && (
+              <View style={[styles.savedCard, { borderColor: theme.border }]}>
+                <Text style={[styles.savedTitle, { color: theme.text }]}>
+                  Week of {new Date(manualWeekPlan.weekStartDate + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} (Manual)
+                </Text>
+                <View style={styles.savedActions}>
+                  <PrimaryButton
+                    label="Open"
+                    onPress={() => router.push("/manual/week")}
+                    style={{ flex: 1 }}
+                  />
+                  <PrimaryButton
+                    label={movingToLibrary ? "Saving…" : "Move to library"}
+                    variant="secondary"
+                    onPress={onMoveManualToLibrary}
+                    disabled={movingToLibrary}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </View>
+            )}
+            {sportPrepStale && sportPrepWeekPlan && (
+              <View style={[styles.savedCard, { borderColor: theme.border }]}>
+                <Text style={[styles.savedTitle, { color: theme.text }]}>
+                  Week of {new Date(sportPrepWeekPlan.weekStartDate + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} (Adaptive)
+                </Text>
+                <View style={styles.savedActions}>
+                  <PrimaryButton
+                    label="Open"
+                    onPress={() => router.push("/adaptive/recommendation")}
+                    style={{ flex: 1 }}
+                  />
+                  <PrimaryButton
+                    label="Move to library"
+                    variant="secondary"
+                    onPress={onMoveSportPrepToLibrary}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </View>
+            )}
           </View>
         )}
 

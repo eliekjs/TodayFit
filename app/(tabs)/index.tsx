@@ -12,6 +12,8 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
+import { getTodayLocalDateString } from "../../lib/dateUtils";
+import { PrimaryButton } from "../../components/Button";
 
 const LIGHT_PASTELS = {
   helpBg: "#B8D4F0",
@@ -97,7 +99,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const colorScheme = useColorScheme();
-  const { manualPreferences, manualWeekPlan, sportPrepWeekPlan, generatedWorkout } = useAppState();
+  const {
+    manualPreferences,
+    manualWeekPlan,
+    sportPrepWeekPlan,
+    generatedWorkout,
+    setGeneratedWorkout,
+    savedWorkouts,
+  } = useAppState();
   const pastels = colorScheme === "dark" ? DARK_PASTELS : LIGHT_PASTELS;
 
   const primaryGoal =
@@ -107,6 +116,13 @@ export default function HomeScreen() {
 
   const hasInProgress =
     manualWeekPlan != null || sportPrepWeekPlan != null || generatedWorkout != null;
+
+  // Resolve today's workout: standalone generated, or from manual/adaptive week for today's date
+  const todayIso = getTodayLocalDateString();
+  const fromManualWeek = manualWeekPlan?.days.find((d) => d.date === todayIso)?.workout ?? null;
+  const fromSportPrep = sportPrepWeekPlan?.todayWorkout ?? null;
+  const todayWorkout =
+    generatedWorkout ?? fromManualWeek ?? fromSportPrep ?? null;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -150,6 +166,62 @@ export default function HomeScreen() {
             </Text>
           </Pressable>
         )}
+
+        <View style={[styles.todaySection, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Text style={[styles.todaySectionTitle, { color: theme.text }]}>
+            Today's workout
+          </Text>
+          {todayWorkout ? (
+            <>
+              <Text style={[styles.todaySummary, { color: theme.textMuted }]} numberOfLines={2}>
+                {todayWorkout.focus?.length
+                  ? todayWorkout.focus.join(" • ")
+                  : "General training"}
+                {todayWorkout.durationMinutes != null
+                  ? ` · ${todayWorkout.durationMinutes} min`
+                  : ""}
+              </Text>
+              <View style={styles.todayActions}>
+                <PrimaryButton
+                  label="View / Edit"
+                  variant="secondary"
+                  onPress={() => {
+                    setGeneratedWorkout(todayWorkout);
+                    router.push("/workout");
+                  }}
+                  style={styles.todayButton}
+                />
+                <PrimaryButton
+                  label="Start"
+                  onPress={() => {
+                    setGeneratedWorkout(todayWorkout);
+                    router.push("/manual/execute");
+                  }}
+                  style={styles.todayButton}
+                />
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={[styles.todayEmpty, { color: theme.textMuted }]}>
+                No workout for today yet.
+              </Text>
+              <PrimaryButton
+                label="Generate today's workout"
+                onPress={() => router.push("/manual/preferences")}
+                style={styles.todayButton}
+              />
+              {savedWorkouts.length > 0 && (
+                <PrimaryButton
+                  label="Resume a saved workout"
+                  variant="secondary"
+                  onPress={() => router.push("/library")}
+                  style={styles.todayButton}
+                />
+              )}
+            </>
+          )}
+        </View>
 
         <ActionCard
           icon="barbell-outline"
@@ -227,6 +299,32 @@ const styles = StyleSheet.create({
   continueCardSubtitle: {
     fontSize: 13,
     marginTop: 4,
+  },
+  todaySection: {
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+  },
+  todaySectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  todaySummary: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  todayEmpty: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  todayActions: {
+    flexDirection: "row",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  todayButton: {
+    minWidth: 120,
   },
   actionCard: {
     borderRadius: 16,
