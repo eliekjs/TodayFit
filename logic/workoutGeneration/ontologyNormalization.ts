@@ -35,6 +35,7 @@ export interface ExerciseForNormalization {
   joint_stress_tags?: string[];
   tags?: { joint_stress?: string[]; stimulus?: string[] };
   unilateral?: boolean;
+  grip_demand?: string;
 }
 
 const SET_MOVEMENT_FAMILY = new Set<string>(MOVEMENT_FAMILIES);
@@ -79,6 +80,8 @@ const GRIP_PAIRING = "grip";
  * Used to add "grip" to canonical fatigue regions when appropriate.
  */
 export function hasGripFatigueDemand(ex: ExerciseForNormalization): boolean {
+  const demand = ex.grip_demand && norm(ex.grip_demand);
+  if (demand === "high" || demand === "medium") return true;
   const cat = ex.pairing_category && norm(ex.pairing_category);
   if (cat === GRIP_PAIRING) return true;
   const stress = ex.joint_stress_tags ?? ex.tags?.joint_stress ?? [];

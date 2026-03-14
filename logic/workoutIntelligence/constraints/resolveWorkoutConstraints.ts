@@ -1,6 +1,12 @@
 /**
  * Converts normalized workout input into explicit workout constraints.
- * Precedence: 1) injuries 2) equipment 3) body-part 4) primary goal 5) secondary goal 6) preferences.
+ * Precedence (applied in order; filters and validators must respect this):
+ * 1) Injuries → hard_exclude (joint_stress_tags, contraindication_keys, exercise_ids)
+ * 2) Equipment → stored as allowed_equipment; filter excludes exercises requiring unavailable equipment
+ * 3) Body-part → hard_include + movement_distribution + superset_pairing
+ * 4) Primary goal → drives block template/sequence (no explicit rule)
+ * 5) Secondary goal (mobility/recovery) → required_block_type + required_finishers
+ * 6) Preferences → e.g. superset format (no extra rule)
  */
 
 import type { WorkoutSelectionInput } from "../scoring/scoreTypes";
@@ -77,7 +83,8 @@ export function resolveWorkoutConstraints(
     rules.push(hardExclude);
   }
 
-  // 2) Equipment — handled at filter time (filterEquipment); no constraint object, just document that exclusion is applied there from available_equipment / excluded_equipment)
+  // 2) Equipment — no rule object; filter excludes exercises whose required equipment is not in available_equipment. Store for validation.
+  const allowedEquipment = input.available_equipment ?? [];
 
   // 3) Body-part strictness → hard_include + movement_distribution
   const bodyFocus = input.body_region_focus ?? [];
@@ -129,13 +136,16 @@ export function resolveWorkoutConstraints(
   }
 
   // 4) Primary goal — already drives template/block sequence; optional preferred rule could be added here
-  // 5) Secondary goal — mobility → required_finishers + required block
+  // 5) Secondary goal — mobility or recovery → required_finishers + required block (recovery = more emphasis)
   const secondary = input.secondary_goals ?? [];
   const mobilitySecondary = secondary.some(
     (g) => g.toLowerCase().replace(/\s/g, "_").includes("mobility") || g.toLowerCase().includes("mobility")
   );
-  if (mobilitySecondary) {
-    minCooldownMobility = 2;
+  const recoverySecondary = secondary.some(
+    (g) => g.toLowerCase().replace(/\s/g, "_").includes("recovery") || g.toLowerCase().includes("recovery")
+  );
+  if (mobilitySecondary || recoverySecondary) {
+    minCooldownMobility = recoverySecondary ? 3 : 2;
     rules.push({
       kind: "required_block_type",
       block_types: ["cooldown", "mobility", "recovery"],
@@ -158,5 +168,6 @@ export function resolveWorkoutConstraints(
     allowed_movement_families: allowedMovementFamilies,
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
+    allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,
   };
 }

@@ -53,6 +53,9 @@ export type ExerciseTags = {
   )[];
 };
 
+/** Canonical relevance/demand levels (warmup, cooldown, stability, grip, impact). */
+export type DemandLevelSlug = "none" | "low" | "medium" | "high";
+
 // --- Ontology (optional; when present, source of truth for filtering/rules) ---
 // Canonical slugs from lib/ontology. Legacy tags.joint_stress / tags.contraindications
 // can be populated from joint_stress_tags / contraindication_tags by adapters.
@@ -70,6 +73,22 @@ export type ExerciseOntology = {
   unilateral?: boolean;
   rep_range_min?: number;
   rep_range_max?: number;
+  /** Alternate names / search aliases (e.g. "OHP", "overhead press"). */
+  aliases?: string[];
+  /** Exercise ids (slugs) that are good substitutes in the same slot. */
+  swap_candidates?: string[];
+  /** How suitable as a warm-up exercise (none | low | medium | high). */
+  warmup_relevance?: DemandLevelSlug;
+  /** How suitable as a cooldown/stretch exercise. */
+  cooldown_relevance?: DemandLevelSlug;
+  /** Balance / stability demand. */
+  stability_demand?: DemandLevelSlug;
+  /** Grip / forearm demand. */
+  grip_demand?: DemandLevelSlug;
+  /** Joint impact level (e.g. plyometric, running). */
+  impact_level?: DemandLevelSlug;
+  /** Secondary muscles trained (canonical slugs). */
+  secondary_muscle_groups?: string[];
 };
 
 // --- Exercise (generator schema) ---
@@ -100,6 +119,14 @@ export type Exercise = {
   unilateral?: boolean;
   rep_range_min?: number;
   rep_range_max?: number;
+  aliases?: string[];
+  swap_candidates?: string[];
+  warmup_relevance?: "none" | "low" | "medium" | "high";
+  cooldown_relevance?: "none" | "low" | "medium" | "high";
+  stability_demand?: "none" | "low" | "medium" | "high";
+  grip_demand?: "none" | "low" | "medium" | "high";
+  impact_level?: "none" | "low" | "medium" | "high";
+  secondary_muscle_groups?: string[];
 };
 
 // --- Input contract ---
@@ -131,6 +158,8 @@ export type StylePrefs = {
   conditioning_minutes?: number;
   avoid_tags?: string[];
   user_level?: UserLevel;
+  /** Preferred Zone 2 / cardio modalities (e.g. "bike", "treadmill", "rower"); generator prefers these when picking conditioning. */
+  preferred_zone2_cardio?: string[];
 };
 
 export type RecentSessionSummary = {
@@ -184,6 +213,10 @@ export type ScoringDebug = {
   history_accessory_rotation_penalty?: number;
   history_movement_family_rotation_bonus?: number;
   history_joint_stress_sensitivity_penalty?: number;
+  /** Quad/Posterior emphasis bonus when focus matches pattern or pairing_category. */
+  body_part_emphasis_bonus?: number;
+  /** Penalty when user has impact-sensitive injury and exercise has high impact_level. */
+  impact_penalty?: number;
 };
 
 export type WorkoutSession = {

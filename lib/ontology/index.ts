@@ -36,7 +36,15 @@ export type {
   FatigueRegion,
   Domain,
   EquipmentSlug,
+  DemandLevel,
+  WarmupRelevance,
+  CooldownRelevance,
+  StabilityDemand,
+  GripDemand,
+  ImpactLevel,
 } from "./vocabularies";
+
+export { DEMAND_LEVELS } from "./vocabularies";
 
 export {
   getLegacyMovementPattern,

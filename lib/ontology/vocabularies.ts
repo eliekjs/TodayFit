@@ -229,6 +229,30 @@ export const EQUIPMENT_SLUGS = [
 export type EquipmentSlug = (typeof EQUIPMENT_SLUGS)[number];
 
 // ---------------------------------------------------------------------------
+// Relevance / demand levels (warmup, cooldown, stability, grip, impact)
+// ---------------------------------------------------------------------------
+
+/** Canonical levels for warmup_relevance, cooldown_relevance, stability_demand, grip_demand, impact_level. */
+export const DEMAND_LEVELS = ["none", "low", "medium", "high"] as const;
+
+export type DemandLevel = (typeof DEMAND_LEVELS)[number];
+
+/** Warmup relevance: how suitable as a warm-up exercise. */
+export type WarmupRelevance = DemandLevel;
+
+/** Cooldown relevance: how suitable as a cooldown/stretch exercise. */
+export type CooldownRelevance = DemandLevel;
+
+/** Stability demand: balance/single-leg/anti-rotation demand. */
+export type StabilityDemand = DemandLevel;
+
+/** Grip demand: forearm/grip fatigue. */
+export type GripDemand = DemandLevel;
+
+/** Impact level: joint impact (e.g. plyometric, running). Used for injury-aware filtering. */
+export type ImpactLevel = DemandLevel;
+
+// ---------------------------------------------------------------------------
 // Validation helpers
 // ---------------------------------------------------------------------------
 

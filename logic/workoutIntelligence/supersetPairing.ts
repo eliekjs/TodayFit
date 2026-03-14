@@ -19,6 +19,8 @@ export interface PairingInput {
   fatigue_regions?: string[];
   training_quality_weights?: Record<string, number>;
   tags?: { stimulus?: string[] };
+  /** When 'high' or 'medium', contributes to grip fatigue (forbid_double_grip). */
+  grip_demand?: string;
 }
 
 /** Canonical pairing categories (ontology). Complementary within upper_push: chest, shoulders, triceps. */
@@ -114,8 +116,8 @@ export function getEffectiveFatigueRegions(ex: PairingInput): string[] {
     id: ex.id,
     movement_pattern: ex.movement_pattern,
     muscle_groups: ex.muscle_groups,
-    primary_movement_family: undefined,
-    secondary_movement_families: undefined,
+    primary_movement_family: ex.primary_movement_family,
+    secondary_movement_families: ex.secondary_movement_families,
     movement_patterns: ex.movement_patterns,
     exercise_role: undefined,
     pairing_category: ex.pairing_category,
@@ -125,6 +127,7 @@ export function getEffectiveFatigueRegions(ex: PairingInput): string[] {
     joint_stress_tags: undefined,
     tags: ex.tags,
     unilateral: undefined,
+    grip_demand: ex.grip_demand,
   };
   return getCanonicalFatigueRegions(adapter);
 }

@@ -33,6 +33,9 @@ export interface ExerciseForScoring {
   joint_stress_tags?: string[];
   tags?: { joint_stress?: string[]; stimulus?: string[] };
   unilateral?: boolean;
+  warmup_relevance?: "none" | "low" | "medium" | "high";
+  cooldown_relevance?: "none" | "low" | "medium" | "high";
+  grip_demand?: string;
 }
 
 function toNormalization(ex: ExerciseForScoring): ExerciseForNormalization {
@@ -51,6 +54,7 @@ function toNormalization(ex: ExerciseForScoring): ExerciseForNormalization {
     joint_stress_tags: ex.joint_stress_tags,
     tags: ex.tags,
     unilateral: ex.unilateral,
+    grip_demand: ex.grip_demand,
   };
 }
 
@@ -220,22 +224,30 @@ export function scoreJointStressSoft(
   return { score: -0.2, reason: "joint_stress_present" };
 }
 
-/** Warmup/cooldown relevance: canonical mobility/stretch targets vs preferred. */
+/** Warmup/cooldown relevance: ontology warmup_relevance/cooldown_relevance + canonical mobility/stretch targets vs preferred. */
 export function scoreWarmupCooldownRelevance(
   ex: ExerciseForScoring,
   blockType: string | undefined,
   preferredTargets: string[] | undefined
 ): { score: number; reason?: string } {
-  if (!preferredTargets?.length || (blockType !== "warmup" && blockType !== "cooldown")) return { score: 0 };
-  const mobility = new Set(getCanonicalMobilityTargets(toNormalization(ex)));
-  const stretch = new Set(getCanonicalStretchTargets(toNormalization(ex)));
-  const all = new Set([...mobility, ...stretch]);
+  if (blockType !== "warmup" && blockType !== "cooldown") return { score: 0 };
   let score = 0;
-  for (const t of preferredTargets) {
-    const key = norm(t);
-    if (all.has(key)) score += 1;
+  const rel = blockType === "warmup" ? ex.warmup_relevance : ex.cooldown_relevance;
+  if (rel === "high") score += 1.5;
+  else if (rel === "medium") score += 0.8;
+  else if (rel === "low") score += 0.2;
+  if (preferredTargets?.length) {
+    const mobility = new Set(getCanonicalMobilityTargets(toNormalization(ex)));
+    const stretch = new Set(getCanonicalStretchTargets(toNormalization(ex)));
+    const all = new Set([...mobility, ...stretch]);
+    let targetCount = 0;
+    for (const t of preferredTargets) {
+      const key = norm(t);
+      if (all.has(key)) targetCount += 1;
+    }
+    if (targetCount > 0) score += Math.min(targetCount * 0.5, 1.5);
   }
-  return score > 0 ? { score: Math.min(score * 0.5, 1.5), reason: "target_match" } : { score: 0 };
+  return score > 0 ? { score: Math.min(score, 2), reason: "target_match_or_relevance" } : { score: 0 };
 }
 
 /** Phase 10: Unilateral variety bonus when session has bilateral lower and candidate is unilateral (tunable). */
@@ -311,6 +323,9 @@ export function computeOntologyScoreComponents(
     joint_stress_tags: exercise.joint_stress_tags,
     tags: exercise.tags,
     unilateral: exercise.unilateral,
+    warmup_relevance: exercise.warmup_relevance,
+    cooldown_relevance: exercise.cooldown_relevance,
+    grip_demand: exercise.grip_demand,
   };
 
   const breakdown: OntologyScoreBreakdown = {};

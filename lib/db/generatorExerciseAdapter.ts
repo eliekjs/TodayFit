@@ -36,6 +36,14 @@ export type ExerciseRowWithOntology = {
   unilateral?: boolean | null;
   rep_range_min?: number | null;
   rep_range_max?: number | null;
+  aliases?: string[] | null;
+  swap_candidates?: string[] | null;
+  warmup_relevance?: string | null;
+  cooldown_relevance?: string | null;
+  stability_demand?: string | null;
+  grip_demand?: string | null;
+  impact_level?: string | null;
+  secondary_muscle_groups?: string[] | null;
 };
 
 const VALID_MODALITIES: Modality[] = [
@@ -121,9 +129,9 @@ export function mapDbExerciseToGeneratorExercise(
 
   const tags = buildTags(row, tagSlugs, contraindications);
   const modality = toModality(row.modalities?.[0]);
-  const muscle_groups = [...(row.primary_muscles ?? []), ...(row.secondary_muscles ?? [])].filter(
-    (m, i, a) => a.indexOf(m) === i
-  );
+  const primary = row.primary_muscles ?? [];
+  const secondary = row.secondary_muscles ?? [];
+  const muscle_groups = [...primary, ...secondary].filter((m, i, a) => a.indexOf(m) === i);
   const equipment_required = (row.equipment ?? []).map(normalizeEquipmentSlug);
 
   const exercise: Exercise = {
@@ -176,6 +184,24 @@ export function mapDbExerciseToGeneratorExercise(
   if (row.rep_range_min != null && row.rep_range_max != null) {
     exercise.rep_range_min = row.rep_range_min;
     exercise.rep_range_max = row.rep_range_max;
+  }
+  if (row.aliases?.length) {
+    exercise.aliases = row.aliases;
+  }
+  if (row.swap_candidates?.length) {
+    exercise.swap_candidates = row.swap_candidates;
+  }
+  const demandSlug = (s: string | null | undefined): "none" | "low" | "medium" | "high" | undefined =>
+    s === "none" || s === "low" || s === "medium" || s === "high" ? s : undefined;
+  if (demandSlug(row.warmup_relevance)) exercise.warmup_relevance = demandSlug(row.warmup_relevance);
+  if (demandSlug(row.cooldown_relevance)) exercise.cooldown_relevance = demandSlug(row.cooldown_relevance);
+  if (demandSlug(row.stability_demand)) exercise.stability_demand = demandSlug(row.stability_demand);
+  if (demandSlug(row.grip_demand)) exercise.grip_demand = demandSlug(row.grip_demand);
+  if (demandSlug(row.impact_level)) exercise.impact_level = demandSlug(row.impact_level);
+  if (row.secondary_muscle_groups?.length) {
+    exercise.secondary_muscle_groups = row.secondary_muscle_groups;
+  } else if (secondary.length) {
+    exercise.secondary_muscle_groups = secondary;
   }
 
   return exercise;

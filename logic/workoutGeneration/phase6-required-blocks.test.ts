@@ -54,7 +54,7 @@ function testNoMobilityGoalLegacyCooldown() {
   const last = session.blocks[session.blocks.length - 1];
   assert(last?.block_type === "cooldown", "last block is cooldown");
   assert(last.items.length >= 2, "cooldown has at least 2 items");
-  console.log("  OK: no mobility goal → cooldown still present (legacy path)");
+  console.log("  OK: no mobility goal → cooldown still present with 2+ items");
 }
 
 // --- Upper push + mobility: preferred targets used when annotated options exist ---

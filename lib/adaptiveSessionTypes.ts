@@ -118,7 +118,7 @@ export function getSessionTypeOptions(
   fatigue?: string | null,
   durationMinutes?: number
 ): SessionTypeOption[] {
-  const duration = durationMinutes ?? 60;
+  const duration = durationMinutes ?? 45;
   const energy = capEnergyByHorizon(
     energyFromLoadAndFatigue(recentLoad, fatigue ?? null),
     horizon

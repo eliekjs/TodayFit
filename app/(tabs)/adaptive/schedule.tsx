@@ -106,7 +106,7 @@ export default function AdaptiveScheduleScreen() {
     if (!adaptiveSetup) return;
     setError(null);
     if (!isDbConfigured()) {
-      setError("Configure Supabase (env vars) to use Adaptive Mode.");
+      setError("Configure Supabase (env vars) to use Sport Mode.");
       return;
     }
     if (gymTrainingDays.length === 0) {

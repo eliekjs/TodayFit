@@ -32,16 +32,16 @@ export default function BuildTabScreen() {
 
         <View style={styles.section}>
           <Text style={[styles.label, { color: theme.text }]}>
-            Adaptive mode
+            Sport mode
           </Text>
           <PrimaryButton
-            label="Adaptive Mode — Train Toward a Goal"
+            label="Sport Mode"
             variant="secondary"
             onPress={() => router.push("/adaptive")}
           />
           <Text style={[styles.subtext, { color: theme.textMuted }]}>
-            Uses your long-term goals, recent load, and time horizon to pick
-            the most useful session type for today.
+            Train for your sport: goals, recovery, and weekly sessions so your
+            plan fits your game.
           </Text>
         </View>
       </ScrollView>

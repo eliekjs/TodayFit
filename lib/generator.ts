@@ -319,6 +319,8 @@ function buildPreferredSlugsFromSubFocus(
   return scored.slice(0, topN).map((x) => x.id);
 }
 
+const DEFAULT_DURATION_MINUTES = 45;
+
 export function generateWorkout(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
@@ -326,6 +328,7 @@ export function generateWorkout(
   exercisesInput?: ExerciseDefinition[],
   preferredExerciseSlugs?: string[]
 ): GeneratedWorkout {
+  const durationMinutes = preferences.durationMinutes ?? DEFAULT_DURATION_MINUTES;
   const subFocus = deriveSubFocus(
     preferences.primaryFocus,
     preferences.subFocusByGoal
@@ -342,7 +345,7 @@ export function generateWorkout(
   const seed = JSON.stringify({
     focus: preferences.primaryFocus,
     bodyPartFocus,
-    duration: preferences.durationMinutes,
+    duration: durationMinutes,
     energy: preferences.energyLevel,
     injuries: injuryFilter,
     upcoming: preferences.upcoming,
@@ -356,7 +359,7 @@ export function generateWorkout(
     focusToModalities(f)
   );
 
-  const counts = pickCountByDuration(preferences.durationMinutes);
+  const counts = pickCountByDuration(durationMinutes);
 
   let exercises = exercisesInput ?? EXERCISES;
   exercises = exercises.filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id));
@@ -471,7 +474,7 @@ export function generateWorkout(
       const picked = pickRandom(withoutThreeInARow.length ? withoutThreeInARow : poolToPick, rng);
       if (!picked) break;
       used.add(picked.id);
-      let p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus, preferences.durationMinutes);
+      let p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus, durationMinutes);
       let item = toWorkoutItem(picked, p, picked.tags);
       if (blockType === "warmup" && item.time_seconds != null && item.time_seconds > WARMUP_ITEM_MAX_SECONDS) {
         item = { ...item, time_seconds: WARMUP_ITEM_MAX_SECONDS };
@@ -512,8 +515,8 @@ export function generateWorkout(
       if (!first || !second) continue;
       used.add(first.id);
       used.add(second.id);
-      const pres1 = prescriptionForExercise(first, preferences.energyLevel, preferences.primaryFocus, preferences.durationMinutes);
-      const pres2 = prescriptionForExercise(second, preferences.energyLevel, preferences.primaryFocus, preferences.durationMinutes);
+      const pres1 = prescriptionForExercise(first, preferences.energyLevel, preferences.primaryFocus, durationMinutes);
+      const pres2 = prescriptionForExercise(second, preferences.energyLevel, preferences.primaryFocus, durationMinutes);
       pairs.push([toWorkoutItem(first, pres1, first.tags), toWorkoutItem(second, pres2, second.tags)]);
     }
 
@@ -542,7 +545,7 @@ export function generateWorkout(
     (f) => f.toLowerCase().includes("hypertrophy") || f.toLowerCase().includes("muscle") || f.toLowerCase().includes("recomposition")
   );
   const mainBlockType: BlockType = isHypertrophy ? "main_hypertrophy" : "main_strength";
-  const recoveryCircuitCount = Math.min(6, Math.max(4, Math.floor((preferences.durationMinutes ?? 30) / 5)));
+  const recoveryCircuitCount = Math.min(6, Math.max(4, Math.floor(durationMinutes / 5)));
   const mainBlock = isRecoveryOnly
     ? buildBlock(
         "mobility",
@@ -648,7 +651,7 @@ export function generateWorkout(
   return {
     id: `w_${Date.now()}`,
     focus: preferences.primaryFocus,
-    durationMinutes: preferences.durationMinutes,
+    durationMinutes,
     energyLevel: preferences.energyLevel,
     notes: notes.length ? notes.join(" • ") : undefined,
     blocks,

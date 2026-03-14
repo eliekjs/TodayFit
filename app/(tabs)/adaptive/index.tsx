@@ -204,7 +204,7 @@ export default function AdaptiveModeScreen() {
   const onNextToSchedule = () => {
     setError(null);
     if (!isDbConfigured()) {
-      setError("Configure Supabase (env vars) to use Adaptive Mode.");
+      setError("Configure Supabase (env vars) to use Sport Mode.");
       return;
     }
     const setup: AdaptiveSetup = {
@@ -321,12 +321,12 @@ export default function AdaptiveModeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Card title="How Adaptive Mode works">
+        <Card title="How Sport Mode works">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             Pick at least one goal (and optionally a second to balance your plan),
             choose your sport(s) if any, and set your weekly availability. TodayFit
-            will generate a 7-day plan with smart intents and a concrete workout
-            for each training day.
+            will generate a 7-day sport plan with smart intents and a concrete
+            workout for each training day.
           </Text>
         </Card>
 

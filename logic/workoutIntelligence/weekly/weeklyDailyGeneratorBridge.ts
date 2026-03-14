@@ -83,6 +83,7 @@ export function weeklySessionToDailyInput(
     recent_history: rollingRecentHistory.length > 0 ? rollingRecentHistory : undefined,
     training_history: rollingTrainingHistory,
     seed: seedOffset + planned.day_index,
+    style_prefs: baseInput.style_prefs,
   };
 }
 

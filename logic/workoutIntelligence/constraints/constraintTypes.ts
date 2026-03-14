@@ -124,4 +124,6 @@ export interface ResolvedWorkoutConstraints {
   min_cooldown_mobility_exercises: number;
   /** Superset pairing rules (forbidden pairs, preferred pairs). */
   superset_pairing: SupersetPairingRule | null;
+  /** Equipment allowed for this session (from input; filters apply at filter time). */
+  allowed_equipment?: string[];
 }

@@ -123,7 +123,7 @@ export default function LibraryScreen() {
             </Text>
             <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
               Save a workout for later from the execute screen, save a week
-              plan from manual or adaptive mode, or finish a session — they'll
+              plan from manual or sport mode, or finish a session — they'll
               show up here.
             </Text>
           </View>

@@ -8,7 +8,8 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../lib/theme";
 import { useAppState } from "../../context/AppStateContext";
 
-const VISIBLE_TAB_NAMES = ["index", "library", "profiles"];
+/** Order defines tab bar left-to-right; index (Today) is center and app home. */
+const VISIBLE_TAB_NAMES = ["library", "index", "profiles"];
 
 function isTabVisible(routeName: string): boolean {
   const base = String(routeName).split("/")[0];
@@ -143,23 +144,9 @@ export default function TabsLayout() {
         },
         headerTitleAlign: "center",
       }}
+      initialRouteName="index"
     >
-      {/* ── 3 visible tabs: Today | Library | Profile; hide history, saved, workout ── */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Today",
-          tabBarLabel: "Today",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "fitness" : "fitness-outline"}
-              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          headerRight: () => <HeaderGymProfileButton />,
-        }}
-      />
+      {/* ── 3 visible tabs: Library | Today (center, home) | Profile ── */}
       <Tabs.Screen
         name="library"
         options={{
@@ -173,6 +160,21 @@ export default function TabsLayout() {
             />
           ),
           tabBarBadge: libraryBadgeCount > 0 ? libraryBadgeCount : undefined,
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Today",
+          tabBarLabel: "Today",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "fitness" : "fitness-outline"}
+              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
+              color={color}
+            />
+          ),
+          headerRight: () => <HeaderGymProfileButton />,
         }}
       />
       <Tabs.Screen
@@ -230,7 +232,7 @@ export default function TabsLayout() {
         name="adaptive/index"
         options={{
           href: null,
-          title: "Adaptive Mode",
+          title: "Sport Mode",
           headerLeft: () => <HeaderBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}

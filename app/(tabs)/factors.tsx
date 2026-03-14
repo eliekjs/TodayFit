@@ -27,14 +27,14 @@ export default function FactorsTabScreen() {
           </Text>
         </Card>
 
-        <Card title="Adaptive Mode">
+        <Card title="Sport Mode">
           <Text style={[styles.body, { color: theme.textMuted }]}>
-            Use Adaptive Mode when you want TodayFit to choose the right
-            session type given your goals, recent load, and time horizon.
+            Use Sport Mode when you want TodayFit to plan training around your
+            sport: goals, recovery, and weekly sessions so your plan fits your game.
           </Text>
           <View style={{ marginTop: 12 }}>
             <PrimaryButton
-              label="Open Adaptive Mode"
+              label="Open Sport Mode"
               variant="secondary"
               onPress={() => router.push("/adaptive")}
             />

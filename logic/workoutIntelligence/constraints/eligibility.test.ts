@@ -94,6 +94,7 @@ function testUpperPushFocusReturnsOnlyUpperPush() {
   });
   assert(constraints.allowed_movement_families != null, "allowed_movement_families set");
   assert(constraints.allowed_movement_families!.includes("upper_push"), "upper_push in allowed");
+  assert(constraints.allowed_equipment != null && constraints.allowed_equipment!.length === 2, "allowed_equipment set from input");
 
   assert(matchesBodyPartFocus(UPPER_PUSH_EXERCISE, constraints), "annotated upper_push matches upper_push focus");
   assert(!matchesBodyPartFocus(UPPER_PULL_EXERCISE, constraints), "upper_pull does not match upper_push focus");

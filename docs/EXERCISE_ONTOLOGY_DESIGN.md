@@ -335,6 +335,32 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 
 ---
 
+### C.16 Demand levels and relevance (warmup, cooldown, stability, grip, impact)
+
+**Purpose:** Ordinal levels for warmup/cooldown suitability, balance/stability demand, grip demand, and joint impact. Used by generator for block selection (warmup/cooldown) and fatigue/injury awareness.
+
+**Values (all):** `none` | `low` | `medium` | `high`. **Storage:** DB columns `warmup_relevance`, `cooldown_relevance`, `stability_demand`, `grip_demand`, `impact_level` (text). Optional on Exercise.
+
+| Field | Use in generation |
+|-------|--------------------|
+| `warmup_relevance` | Warmup block: prefer high/medium when scoring candidates. |
+| `cooldown_relevance` | Cooldown block: prefer high/medium; cooldown selection sorts by this after role. |
+| `stability_demand` | Optional: down-rank high when user_level is beginner. |
+| `grip_demand` | `hasGripFatigueDemand`: high/medium → add "grip" to fatigue regions for superset logic. |
+| `impact_level` | Optional: down-rank or exclude high when user has knee/lower_back/ankle limitations. |
+
+---
+
+### C.17 Aliases and swap candidates
+
+**Purpose:** Search/discovery (aliases) and substitution in the same slot (swap_candidates).
+
+**aliases:** Alternate names (e.g. "OHP", "overhead press" for oh_press). **Cardinality:** Multi (text[]). **Storage:** DB `aliases` (text[]).
+
+**swap_candidates:** Exercise slugs that are good substitutes in the same block/slot. **Cardinality:** Multi (slugs). **Storage:** DB `swap_candidates` (text[]).
+
+---
+
 ## D. Mapping to Current Repo and DB
 
 ### D.1 Which ontology fields live on the exercise type used by dailyGenerator

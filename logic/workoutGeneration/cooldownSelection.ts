@@ -88,6 +88,14 @@ function cooldownRolePriority(exercise: Exercise): number {
   return 1;
 }
 
+/** Cooldown relevance from ontology (high=2, medium=1, low/none=0). Used in tie-break after role and target match. */
+function cooldownRelevanceScore(exercise: Exercise): number {
+  const rel = exercise.cooldown_relevance;
+  if (rel === "high") return 2;
+  if (rel === "medium") return 1;
+  return 0;
+}
+
 /**
  * Select exercises for a cooldown block using ontology when present and preferred targets from main work.
  * Deterministic when rng is seeded; fallback to modality-based selection when ontology is absent.
@@ -111,16 +119,18 @@ export function selectCooldownMobilityExercises(
 
   if (pool.length === 0) return [];
 
-  // Sort: prefer role match, then target match, then shuffle for variety (deterministic via rng)
+  // Sort: prefer role match, then cooldown_relevance (ontology), then target match, then shuffle (deterministic via rng)
   const scored = pool.map((e) => ({
     exercise: e,
     rolePriority: cooldownRolePriority(e),
+    relevanceScore: cooldownRelevanceScore(e),
     targetScore: scoreTargetMatch(e, preferredTargets),
     rnd: rng(),
   }));
 
   scored.sort((a, b) => {
     if (b.rolePriority !== a.rolePriority) return b.rolePriority - a.rolePriority;
+    if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
     if (b.targetScore !== a.targetScore) return b.targetScore - a.targetScore;
     return a.rnd - b.rnd;
   });

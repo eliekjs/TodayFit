@@ -65,6 +65,14 @@ export interface WeeklyPlanningInput {
   upcoming_events?: Partial<Record<number, string>>;
   /** Phase 12: desired weekly emphasis (e.g. "upper_focus", "lower_taper", "sport_priority"). */
   desired_weekly_emphasis?: string;
+  /** Style prefs applied to each day (avoid_tags, preferred_zone2_cardio, user_level, etc.). Passed through to daily generator. */
+  style_prefs?: {
+    avoid_tags?: string[];
+    preferred_zone2_cardio?: string[];
+    user_level?: "beginner" | "intermediate" | "advanced";
+    wants_supersets?: boolean;
+    conditioning_minutes?: number;
+  };
 }
 
 // ---------------------------------------------------------------------------

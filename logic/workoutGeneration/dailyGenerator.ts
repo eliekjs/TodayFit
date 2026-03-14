@@ -15,6 +15,7 @@ import type {
   BlockType,
   BlockFormat,
   PrimaryGoal,
+  UserLevel,
 } from "./types";
 import { STUB_EXERCISES } from "./exerciseStub";
 import {
@@ -69,6 +70,7 @@ import {
 } from "./historyScoring";
 import { getRecommendation } from "./recommendationLayer";
 import { applyRecommendationToPrescription } from "./prescriptionHistory";
+import { getLegacyMovementPattern } from "../../lib/ontology/legacyMapping";
 
 // --- Avoid tags that imply overhead / hanging / shoulder extension (safety) ---
 const OVERHEAD_HANGING_PATTERNS = new Set([
@@ -199,11 +201,6 @@ export function filterByHardConstraints(
   const injuryAvoidIds = getInjuryAvoidExerciseIds(input.injuries_or_constraints);
   const allowedFamilies = focusToMovementFamilies(input.focus_body_parts ?? []);
 
-  // #region agent log
-  const famArr = allowedFamilies ? [...allowedFamilies] : [];
-  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'67622d'},body:JSON.stringify({sessionId:'67622d',location:'logic/workoutGeneration/dailyGenerator.ts:filterByHardConstraints',message:'body-part allowed families',data:{focus_body_parts:input.focus_body_parts,allowedFamilies:famArr,hasStrictBodyFilter:famArr.length>0},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-  // #endregion
-
   return exercises.filter((e) => {
     if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
     // Equipment: every required piece must be available
@@ -321,7 +318,7 @@ export function scoreExercise(
   total += goalScore;
   if (debug) debug.goal_alignment = goalScore;
 
-  // Body part focus (legacy); ontology movement_family_fit handled below when blockType/focus present
+  // Body part focus (legacy muscles + ontology movement_family_fit below)
   const focusParts = input.focus_body_parts ?? [];
   if (focusParts.length) {
     const wantedMuscles = new Set(focusParts.flatMap(focusBodyPartToMuscles));
@@ -330,6 +327,26 @@ export function scoreExercise(
       total += WEIGHT_BODY_PART;
       if (debug) debug.body_part = WEIGHT_BODY_PART;
     }
+    // Quad/Posterior emphasis: when Lower is selected with modifier, prefer matching pattern/category
+    const focusSet = new Set(focusParts.map((f) => f.toLowerCase().replace(/\s/g, "_")));
+    const pattern = (exercise.movement_pattern ?? "").toLowerCase();
+    const pairing = (exercise.pairing_category ?? "").toLowerCase().replace(/\s/g, "_");
+    if (focusSet.has("quad") && (pattern === "squat" || pairing === "quads")) {
+      total += 0.8;
+      if (debug) debug.body_part_emphasis_bonus = 0.8;
+    }
+    if (focusSet.has("posterior") && (pattern === "hinge" || pairing === "posterior_chain")) {
+      total += 0.8;
+      if (debug) debug.body_part_emphasis_bonus = (debug.body_part_emphasis_bonus ?? 0) + 0.8;
+    }
+  }
+
+  // Injury-aware: down-rank high-impact exercises when user has knee/lower_back/ankle limitations
+  const injuries = input.injuries_or_constraints ?? [];
+  const impactSensitiveKeys = new Set(injuries.map(normalizeInjuryKey).filter((k) => ["knee", "knee_pain", "lower_back", "low_back_sensitive", "ankle"].includes(k)));
+  if (impactSensitiveKeys.size > 0 && exercise.impact_level === "high") {
+    total -= 2;
+    if (debug) debug.impact_penalty = -2;
   }
 
   // Energy fit
@@ -442,14 +459,20 @@ function getPrescription(
   energyLevel: EnergyLevel,
   primaryGoal?: PrimaryGoal,
   isAccessory?: boolean,
-  fatigueVolumeScale?: number
+  fatigueVolumeScale?: number,
+  userLevel?: UserLevel
 ): { sets: number; reps?: number; time_seconds?: number; rest_seconds: number; coaching_cues: string } {
   const goal = primaryGoal ?? "hypertrophy";
   const rules = getGoalRules(goal);
-  const scaleSets = (s: number) =>
-    fatigueVolumeScale != null && fatigueVolumeScale < 1
+  const scaleSets = (s: number) => {
+    let n = fatigueVolumeScale != null && fatigueVolumeScale < 1
       ? Math.max(1, Math.round(s * fatigueVolumeScale))
       : s;
+    if (userLevel === "beginner") n = Math.min(n, 3);
+    return n;
+  };
+  const beginnerCue = (fallback: string) =>
+    userLevel === "beginner" ? "Focus on form and control. Quality over weight." : fallback;
 
   if (blockType === "warmup" || blockType === "cooldown" || exercise.modality === "mobility" || exercise.modality === "recovery") {
     const timeSec = rules.mobilityTimePerMovement ?? 45;
@@ -458,7 +481,7 @@ function getPrescription(
       reps: 8,
       time_seconds: timeSec,
       rest_seconds: 15,
-      coaching_cues: rules.cueStyle.mobility ?? "Controlled, full range of motion. Breathe steadily.",
+      coaching_cues: beginnerCue(rules.cueStyle.mobility ?? "Controlled, full range of motion. Breathe steadily."),
     };
   }
 
@@ -468,7 +491,7 @@ function getPrescription(
       sets: 1,
       time_seconds: mins * 60,
       rest_seconds: 0,
-      coaching_cues: rules.cueStyle.cardio ?? "Steady effort. Keep heart rate in target zone.",
+      coaching_cues: beginnerCue(rules.cueStyle.cardio ?? "Steady effort. Keep heart rate in target zone."),
     };
   }
 
@@ -483,7 +506,22 @@ function getPrescription(
       sets,
       reps,
       rest_seconds: rest,
-      coaching_cues: rules.cueStyle.strength ?? "Controlled tempo. Muscular balance.",
+      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Controlled tempo. Muscular balance."),
+    };
+  }
+
+  // Power goal: use power rep/rest in main_strength block (evidence-based: low reps, high intent, long rest).
+  if (blockType === "main_strength" && goal === "power" && rules.powerRepRange && rules.powerRestRange) {
+    const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
+    const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
+    const repRange = getEffectiveRepRange(exercise, rules.powerRepRange);
+    const reps = Math.round((repRange.min + repRange.max) / 2);
+    const rest = Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2);
+    return {
+      sets,
+      reps,
+      rest_seconds: rest,
+      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Explosive intent. Quality over volume."),
     };
   }
 
@@ -497,7 +535,7 @@ function getPrescription(
       sets,
       reps,
       rest_seconds: rest,
-      coaching_cues: rules.cueStyle.strength ?? "Heavy, controlled. Full lockout.",
+      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Heavy, controlled. Full lockout."),
     };
   }
 
@@ -511,7 +549,7 @@ function getPrescription(
       sets,
       reps,
       rest_seconds: rest,
-      coaching_cues: rules.cueStyle.strength ?? "Moderate load. Squeeze at peak contraction.",
+      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Moderate load. Squeeze at peak contraction."),
     };
   }
 
@@ -525,7 +563,7 @@ function getPrescription(
     sets,
     reps,
     rest_seconds: rest,
-    coaching_cues: rules.cueStyle.strength ?? "Controlled tempo.",
+    coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Controlled tempo."),
   };
 }
 
@@ -712,7 +750,7 @@ function buildWarmup(
   );
   const pool = basePool.filter((e) => isWarmupEligibleEquipment(e.equipment_required));
   const finalPool = pool.length ? pool : basePool;
-  const count = 2;
+  const count = input.duration_minutes <= 25 ? 1 : input.duration_minutes <= 40 ? 2 : 3;
   const movementCounts = new Map<string, number>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
   const preferredWarmupTargets = getPreferredWarmupTargetsFromFocus(input.focus_body_parts);
@@ -739,7 +777,7 @@ function buildWarmup(
 
   const items: WorkoutItem[] = sortedChosen.map((e) => {
     used.add(e.id);
-    let p = getPrescription(e, "warmup", input.energy_level, input.primary_goal);
+    let p = getPrescription(e, "warmup", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
     let timeSec = p.time_seconds;
     if (timeSec != null && timeSec > WARMUP_ITEM_MAX_SECONDS) {
       timeSec = WARMUP_ITEM_MAX_SECONDS;
@@ -779,17 +817,24 @@ function buildCooldown(
   }
 ): WorkoutBlock {
   const minMobility = options.constraints.min_cooldown_mobility_exercises ?? 0;
-  const useOntologyCooldown = minMobility > 0;
+  const useOntologyCooldown = minMobility > 0 || options.mainWorkFamilies.length > 0;
+  const recoveryEmphasis =
+    (input.secondary_goals ?? []).some(
+      (g) => g.toLowerCase().replace(/\s/g, "_").includes("recovery") || g.toLowerCase().includes("recovery")
+    ) || input.primary_goal === "recovery";
   const preferredTargets = getPreferredCooldownTargetsFromFamilies(options.mainWorkFamilies);
 
   let chosen: Exercise[];
   if (useOntologyCooldown) {
+    const maxItems = recoveryEmphasis
+      ? (input.duration_minutes <= 30 ? Math.max(minMobility, 4) : Math.max(minMobility, 6))
+      : (input.duration_minutes <= 30 ? Math.max(minMobility, 3) : Math.max(minMobility, 4));
     chosen = selectOntologyCooldown(exercises, {
       minMobilityCount: minMobility,
       preferredTargets,
       alreadyUsedIds: used,
       rng,
-      maxItems: input.duration_minutes <= 30 ? Math.max(minMobility, 3) : Math.max(minMobility, 4),
+      maxItems,
     });
     chosen.forEach((e) => used.add(e.id));
   } else {
@@ -798,7 +843,10 @@ function buildCooldown(
         (e.modality === "mobility" || e.modality === "recovery") &&
         !used.has(e.id)
     );
-    const count = input.duration_minutes <= 30 ? 2 : 3;
+    const count =
+      input.duration_minutes <= 30
+        ? (recoveryEmphasis ? 3 : 2)
+        : (recoveryEmphasis ? 5 : 3);
     chosen = [];
     const ids = shuffleWithSeed([...pool], rng);
     for (const e of ids) {
@@ -817,7 +865,7 @@ function buildCooldown(
   }
 
   const items: WorkoutItem[] = chosen.map((e) => {
-    const p = getPrescription(e, "cooldown", input.energy_level, input.primary_goal);
+    const p = getPrescription(e, "cooldown", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
     return {
       exercise_id: e.id,
       exercise_name: e.name,
@@ -833,7 +881,7 @@ function buildCooldown(
 
   const title = useOntologyCooldown ? "Cooldown & mobility" : undefined;
   const reasoning = useOntologyCooldown
-    ? "Mobility and stretch to support recovery and range of motion (from your secondary goal)."
+    ? "Mobility and stretch to support recovery and range of motion (from your recovery or mobility goal)."
     : undefined;
 
   return {
@@ -862,12 +910,15 @@ function buildMainStrength(
 ): WorkoutBlock[] {
   const blocks: WorkoutBlock[] = [];
   const goalRules = getGoalRules(input.primary_goal);
-  const compoundMin = goalRules.compoundLiftMin ?? 1;
+  let compoundMin = goalRules.compoundLiftMin ?? 1;
+  if (input.duration_minutes <= 30) compoundMin = Math.min(compoundMin, 1);
+  if (input.energy_level === "low") compoundMin = Math.min(compoundMin, 1);
+  const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
   const mainPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "power") &&
       !used.has(e.id) &&
-      ["squat", "hinge", "push", "pull"].includes(e.movement_pattern) &&
+      mainStrengthPatterns.has(effectiveMainWorkPattern(e)) &&
       !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
   const accessoryPool = exercises.filter(
@@ -908,8 +959,8 @@ function buildMainStrength(
     used.add(b.id);
     movementCounts.set(a.movement_pattern, (movementCounts.get(a.movement_pattern) ?? 0) + 1);
     movementCounts.set(b.movement_pattern, (movementCounts.get(b.movement_pattern) ?? 0) + 1);
-    const pA = getPrescription(a, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
-    const pB = getPrescription(b, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+    const pA = getPrescription(a, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+    const pB = getPrescription(b, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
     const itemA: WorkoutItem = {
       exercise_id: a.id,
       exercise_name: a.name,
@@ -930,19 +981,25 @@ function buildMainStrength(
       reasoning_tags: ["main_lift", "strength", ...(b.tags.goal_tags ?? [])],
       unilateral: b.unilateral ?? false,
     };
-    // #region agent log
-    const mainPairBlock = { block_type: "main_strength" as const, format: "superset" as const, items: [itemA, itemB], supersetPairs: [[itemA, itemB]] as [typeof itemA, typeof itemB][], estimated_minutes: Math.max(pA.sets, pB.sets) * (2 + ((pA.rest_seconds ?? 0) + (pB.rest_seconds ?? 0)) / 60) };
-    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'logic/workoutGeneration/dailyGenerator.ts:main strength pair',message:'dailyGenerator push superset block',data:{format:mainPairBlock.format,supersetPairsLen:mainPairBlock.supersetPairs.length,itemsLen:mainPairBlock.items.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    blocks.push(mainPairBlock);
-    // #endregion
+    blocks.push({
+      block_type: "main_strength",
+      format: "superset",
+      title: "Main strength",
+      reasoning: "Compound lifts for strength; superset for efficiency.",
+      items: [itemA, itemB],
+      supersetPairs: [[itemA, itemB]],
+      estimated_minutes: Math.max(pA.sets, pB.sets) * (2 + ((pA.rest_seconds ?? 0) + (pB.rest_seconds ?? 0)) / 60),
+    });
   } else {
     for (const mainLift of mainLifts) {
       used.add(mainLift.id);
       movementCounts.set(mainLift.movement_pattern, (movementCounts.get(mainLift.movement_pattern) ?? 0) + 1);
-      const p = getPrescription(mainLift, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+      const p = getPrescription(mainLift, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
       blocks.push({
         block_type: "main_strength",
         format: "straight_sets",
+        title: "Main strength",
+        reasoning: "Compound lift for strength.",
         items: [
           {
             exercise_id: mainLift.id,
@@ -960,7 +1017,11 @@ function buildMainStrength(
     }
   }
 
-  const pairCount = input.duration_minutes <= 30 ? 1 : input.duration_minutes <= 45 ? 1 : 2;
+  let pairCount =
+    input.duration_minutes <= 30 ? 1
+    : input.duration_minutes <= 45 ? 1
+    : 2;
+  if (input.energy_level === "low") pairCount = Math.min(pairCount, 1);
   if (pairCount && wantsSupersets) {
     const available = accessoryPool.filter((e) => !used.has(e.id));
     const pairs = pickBestSupersetPairs(available, pairCount, used) as [Exercise, Exercise][];
@@ -973,8 +1034,8 @@ function buildMainStrength(
       }
     }
     const items: WorkoutItem[] = pairs.flatMap(([exA, exB]) => {
-      const pA = getPrescription(exA, "main_strength", input.energy_level, input.primary_goal, true, fatigueVolumeScale);
-      const pB = getPrescription(exB, "main_strength", input.energy_level, input.primary_goal, true, fatigueVolumeScale);
+      const pA = getPrescription(exA, "main_strength", input.energy_level, input.primary_goal, true, fatigueVolumeScale, input.style_prefs?.user_level);
+      const pB = getPrescription(exB, "main_strength", input.energy_level, input.primary_goal, true, fatigueVolumeScale, input.style_prefs?.user_level);
       return [
         {
           exercise_id: exA.id,
@@ -1003,15 +1064,48 @@ function buildMainStrength(
       for (let i = 0; i < pairs.length; i++) {
         supersetPairs.push([items[2 * i], items[2 * i + 1]]);
       }
-      // #region agent log
-      const accBlock = { block_type: "main_strength" as const, format: "superset" as const, items, supersetPairs, estimated_minutes: Math.ceil(items.length / 2) * 4 };
-      fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'logic/workoutGeneration/dailyGenerator.ts:accessory supersets',message:'dailyGenerator push accessory superset block',data:{format:accBlock.format,supersetPairsLen:accBlock.supersetPairs.length,itemsLen:accBlock.items.length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-      blocks.push(accBlock);
-      // #endregion
+      blocks.push({
+        block_type: "main_strength",
+        format: "superset",
+        title: "Accessory",
+        reasoning: "Superset for time efficiency.",
+        items,
+        supersetPairs,
+        estimated_minutes: Math.ceil(items.length / 2) * 4,
+      });
     }
   }
 
   return blocks;
+}
+
+/** Effective legacy movement pattern for main-work pool (ontology movement_patterns or legacy movement_pattern). */
+function effectiveMainWorkPattern(e: Exercise): string {
+  return getLegacyMovementPattern({
+    movement_patterns: e.movement_patterns,
+    movement_pattern: e.movement_pattern,
+  });
+}
+
+/** Pick conditioning exercise: prefer those matching preferred_zone2_cardio (e.g. bike, treadmill, rower), else random. */
+function pickConditioningExercise(
+  pool: Exercise[],
+  preferredModalities: string[] | undefined,
+  rng: () => number
+): Exercise | undefined {
+  if (!pool.length) return undefined;
+  if (preferredModalities?.length) {
+    const normalized = preferredModalities.map((m) => m.toLowerCase().replace(/\s/g, "_"));
+    const preferred = pool.filter((e) => {
+      const id = e.id.toLowerCase();
+      const name = e.name.toLowerCase();
+      return normalized.some((n) => id.includes(n) || name.includes(n));
+    });
+    if (preferred.length) {
+      return preferred[Math.floor(rng() * preferred.length)];
+    }
+  }
+  return pool[Math.floor(rng() * pool.length)];
 }
 
 // --- Main block: hypertrophy / body recomp / calisthenics (2–4 supersets) ---
@@ -1028,11 +1122,12 @@ function buildMainHypertrophy(
   sessionFatigueRegions?: Map<string, number>,
   historyContext?: TrainingHistoryContext
 ): WorkoutBlock[] {
+  const mainWorkPatternSet = new Set(["push", "pull", "squat", "hinge", "rotate"]);
   let pool = exercises.filter(
     (e) =>
       (e.modality === "hypertrophy" || e.modality === "strength") &&
       !used.has(e.id) &&
-      ["push", "pull", "squat", "hinge", "rotate"].includes(e.movement_pattern) &&
+      mainWorkPatternSet.has(effectiveMainWorkPattern(e)) &&
       !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
   if (input.primary_goal === "calisthenics") {
@@ -1045,8 +1140,19 @@ function buildMainHypertrophy(
   }
   const goalRules = getGoalRules(input.primary_goal);
   const maxExercises = goalRules.maxStrengthExercises ?? 8;
-  const pairCount = input.duration_minutes <= 30 ? 2 : input.duration_minutes <= 60 ? 3 : 4;
-  const wantCount = Math.min(pairCount * 2, maxExercises, pool.length);
+  const mainBlockRange = goalRules.mainBlockMovementCount ?? { min: 2, max: 4 };
+  const durationScale =
+    input.duration_minutes <= 30 ? mainBlockRange.min
+    : input.duration_minutes >= 55 ? mainBlockRange.max
+    : Math.round((mainBlockRange.min + mainBlockRange.max) / 2);
+  let pairCount = input.duration_minutes <= 30 ? 2 : input.duration_minutes <= 60 ? 3 : 4;
+  if (input.energy_level === "low") pairCount = Math.min(pairCount, 2);
+  const wantCount = Math.min(
+    pairCount * 2,
+    durationScale * 2,
+    maxExercises,
+    pool.length
+  );
   const { exercises: chosen } = selectExercises(
     pool,
     input,
@@ -1079,7 +1185,7 @@ function buildMainHypertrophy(
   const items: WorkoutItem[] = pairs.flatMap((pair) =>
     pair.map((e) => {
       used.add(e.id);
-      const p = getPrescription(e, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+      const p = getPrescription(e, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
       return {
         exercise_id: e.id,
         exercise_name: e.name,
@@ -1100,6 +1206,8 @@ function buildMainHypertrophy(
     {
       block_type: "main_hypertrophy",
       format,
+      title: "Main hypertrophy",
+      reasoning: "Volume-focused work for muscle building.",
       items,
       ...(supersetPairs && supersetPairs.length > 0 ? { supersetPairs } : {}),
       estimated_minutes: Math.ceil(items.length / 2) * 5,
@@ -1148,7 +1256,7 @@ function buildEnduranceMain(
     two.forEach((e) => used.add(e.id));
     const supportSets = Math.max(1, Math.round(2 * (fatigueVolumeScale ?? 1)));
     const items: WorkoutItem[] = two.map((e) => {
-      const p = getPrescription(e, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale);
+      const p = getPrescription(e, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
       return {
         exercise_id: e.id,
         exercise_name: e.name,
@@ -1178,13 +1286,20 @@ function buildEnduranceMain(
     ?? input.style_prefs?.conditioning_minutes
     ?? (input.duration_minutes >= 60 ? 30 : 20);
   if (cardioPool.length && condMins > 0) {
-    const c = cardioPool[Math.floor(rng() * cardioPool.length)];
+    const c = pickConditioningExercise(
+      cardioPool,
+      input.style_prefs?.preferred_zone2_cardio,
+      rng
+    );
     if (c) {
       used.add(c.id);
-      const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal);
+      const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
+      const condFormat = (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ?? "straight_sets";
       blocks.push({
         block_type: "conditioning",
-        format: "straight_sets",
+        format: condFormat as BlockFormat,
+        title: "Conditioning",
+        reasoning: "Steady cardio to support endurance.",
         items: [
           {
             exercise_id: c.id,
@@ -1205,6 +1320,7 @@ function buildEnduranceMain(
 }
 
 // --- Mobility / recovery: stretching and mobility only (no strength) ---
+// Recovery goal: emphasize more stretching/recovery movements than mobility-only.
 function buildMobilityRecoveryMain(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
@@ -1216,12 +1332,16 @@ function buildMobilityRecoveryMain(
       (e.modality === "mobility" || e.modality === "recovery") &&
       !used.has(e.id)
   );
-  const count = input.duration_minutes <= 30 ? 4 : 6;
+  const isRecovery = input.primary_goal === "recovery";
+  const count =
+    input.duration_minutes <= 30
+      ? isRecovery ? 6 : 4
+      : isRecovery ? 9 : 6;
   const chosen = shuffleWithSeed([...mobilityPool], rng).slice(0, count);
   chosen.forEach((e) => used.add(e.id));
 
   const items: WorkoutItem[] = chosen.map((e) => {
-    const p = getPrescription(e, "cooldown", input.energy_level, input.primary_goal);
+    const p = getPrescription(e, "cooldown", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
     return {
       exercise_id: e.id,
       exercise_name: e.name,
@@ -1245,11 +1365,35 @@ function buildMobilityRecoveryMain(
   ];
 }
 
-// --- Session title ---
+// --- Session title: body focus + goal + optional secondary + duration ---
 function sessionTitle(input: GenerateWorkoutInput): string {
   const goal = input.primary_goal.replace(/_/g, " ");
   const cap = goal.charAt(0).toUpperCase() + goal.slice(1);
-  return `${cap} • ${input.duration_minutes} min`;
+  const focus = input.focus_body_parts ?? [];
+  const hasFocus = focus.length > 0 && !focus.some((f) => f.toLowerCase() === "full_body");
+  const focusLabel = hasFocus
+    ? focus
+        .map((f) => {
+          const k = f.toLowerCase().replace(/\s/g, "_");
+          if (k === "upper_push") return "Push";
+          if (k === "upper_pull") return "Pull";
+          if (k === "upper_body") return "Upper";
+          if (k === "lower" || k === "lower_body") return "Lower";
+          if (k === "quad") return "Quad";
+          if (k === "posterior") return "Posterior";
+          if (k === "core") return "Core";
+          return f;
+        })
+        .filter((x, i, a) => a.indexOf(x) === i)
+        .join(" ")
+    : "";
+  const secondary = input.secondary_goals ?? [];
+  const mobilityOrRecovery = secondary.some(
+    (g) => g.toLowerCase().includes("mobility") || g.toLowerCase().includes("recovery")
+  );
+  const suffix = mobilityOrRecovery ? " + Mobility" : "";
+  if (focusLabel) return `${focusLabel} ${cap}${suffix} • ${input.duration_minutes} min`;
+  return `${cap}${suffix} • ${input.duration_minutes} min`;
 }
 
 // --- Main entry: 8-step generation flow ---
@@ -1319,13 +1463,20 @@ export function generateWorkoutSession(
     if (conditioningMins > 0) {
       const cardioPool = filtered.filter((e) => e.modality === "conditioning" && !used.has(e.id));
       if (cardioPool.length) {
-        const c = cardioPool[Math.floor(rng() * cardioPool.length)];
+        const c = pickConditioningExercise(
+          cardioPool,
+          input.style_prefs?.preferred_zone2_cardio,
+          rng
+        );
         if (c) {
           used.add(c.id);
-          const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal);
+          const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
+          const condFormat = (goalRules.conditioningFormats?.[0]) ?? "straight_sets";
           blocks.push({
             block_type: "conditioning",
-            format: "straight_sets",
+            format: condFormat as BlockFormat,
+            title: "Conditioning",
+            reasoning: "Cardio finisher.",
             items: [
               {
                 exercise_id: c.id,
