@@ -65,4 +65,5 @@
 
 ## 6. References
 
-- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.12, lib/ontology/vocabularies.ts (FATIGUE_REGIONS), logic/workoutGeneration/ontologyNormalization.ts (getCanonicalFatigueRegions, MUSCLE_TO_FATIGUE, hasGripFatigueDemand), logic/workoutIntelligence/supersetPairing.ts (getSupersetPairingScore), supabase/migrations/20250312000002_exercise_structured_backfill.sql, 20250319000000_exercise_fatigue_regions_enrichment.sql.
+- **Evidence-based audit (same sources):** docs/research/fatigue-regions-audit-2025.md (NSCA, ACSM, ExRx, NCSF; hybrid compounds, calves, generator use).
+- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.12, lib/ontology/vocabularies.ts (FATIGUE_REGIONS), logic/workoutGeneration/ontologyNormalization.ts (getCanonicalFatigueRegions, hasGripFatigueDemand), logic/workoutIntelligence/supersetPairing.ts (getSupersetPairingScore), supabase/migrations/20250325000006_exercise_fatigue_regions_audit.sql, 20250331000001_fatigue_regions_evidence_enrichment.sql.

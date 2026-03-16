@@ -51,4 +51,5 @@
 
 ## 6. References
 
-- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.16, lib/ontology/vocabularies.ts (DEMAND_LEVELS), supabase/migrations/20250320000000_exercise_ontology_enrichment_columns.sql, 20250320000001_exercise_ontology_enrichment_backfill.sql, 20250324000000_stretches_and_mobility_expansion.sql, logic/workoutGeneration/cooldownSelection.ts, ontologyScoring.ts, dailyGenerator.ts (impact_level), logic/workoutIntelligence/supersetPairing.ts (grip_demand), lib/db/generatorExerciseAdapter.ts (demandSlug).
+- **Evidence-based audit (same sources):** docs/research/demand-levels-audit-2025.md (NSCA, ACSM, ExRx, NCSF; warmup/cooldown/stability/grip/impact; block selection, superset grip, injury-aware).
+- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.16, lib/ontology/vocabularies.ts (DEMAND_LEVELS), supabase/migrations/20250325000011_exercise_demand_levels_audit.sql, 20250331000000 (consolidated), 20250331000006_demand_levels_evidence_enrichment.sql, logic/workoutGeneration/cooldownSelection.ts, ontologyScoring.ts, dailyGenerator.ts (impact_level), logic/workoutIntelligence/supersetPairing.ts (grip_demand), lib/db/generatorExerciseAdapter.ts (demandSlug).

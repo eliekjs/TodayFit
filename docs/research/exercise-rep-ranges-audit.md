@@ -52,4 +52,5 @@
 
 ## 6. References
 
-- Project: docs/REP_RANGE_AND_SUPERSET_DURATION.md, lib/generation/prescriptionRules.ts, logic/workoutGeneration/dailyGenerator.ts (getEffectiveRepRange), logic/workoutIntelligence/prescriptionStyles.ts, supabase/migrations/20250316100001_exercise_rep_ranges.sql, docs/research/evidence-review-prescription-rep-rest.md.
+- **Evidence-based audit (same sources):** docs/research/rep-ranges-audit-2025.md (NSCA, ACSM, ExRx, NCSF, Schoenfeld; goal vs exercise override, power/Olympic null, calves/isolation bands).
+- Project: docs/REP_RANGE_AND_SUPERSET_DURATION.md, lib/generation/prescriptionRules.ts, logic/workoutGeneration/dailyGenerator.ts (getEffectiveRepRange), logic/workoutIntelligence/prescriptionStyles.ts, supabase/migrations/20250325000008_exercise_rep_ranges_audit.sql, 20250331000003_rep_ranges_evidence_enrichment.sql, docs/research/evidence-review-prescription-rep-rest.md.

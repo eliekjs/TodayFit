@@ -299,8 +299,92 @@ function tagToSlug(tag: string): string {
 }
 
 /**
+ * Build the set of all tag slugs that represent the user's selections (goals + sub-goals + body part focus).
+ * Used as the primary source for tag-match scoring: more exercise tags matching this set = higher priority.
+ */
+function getUserSelectedTagSlugs(
+  primaryFocus: string[],
+  subFocusByGoal: Record<string, string[]>,
+  bodyPartFocus: string[]
+): Set<string> {
+  const slugs = new Set<string>();
+
+  // Goal sub-focus tag slugs (from selected sub-goals per primary focus)
+  for (const goalLabel of primaryFocus) {
+    const subLabels = subFocusByGoal[goalLabel];
+    if (!subLabels?.length) continue;
+    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(goalLabel, subLabels);
+    if (!goalSlug || !subFocusSlugs.length) continue;
+    const weights = getExerciseTagsForGoalSubFocuses(goalSlug, subFocusSlugs);
+    for (const { tag_slug } of weights) slugs.add(tag_slug);
+  }
+
+  // Body part focus → tag slugs (so body-part choices count as "user selected" for match count)
+  const hasUpper = bodyPartFocus.includes("Upper body");
+  const hasLower = bodyPartFocus.includes("Lower body");
+  const hasPush = bodyPartFocus.includes("Push");
+  const hasPull = bodyPartFocus.includes("Pull");
+  const hasQuad = bodyPartFocus.includes("Quad");
+  const hasPosterior = bodyPartFocus.includes("Posterior");
+  const hasCore = bodyPartFocus.includes("Core");
+  if (hasUpper) {
+    slugs.add("push").add("pull").add("chest").add("triceps").add("shoulders").add("lats").add("biceps").add("upper_back").add("back");
+    if (hasPush) slugs.add("chest").add("triceps").add("shoulders");
+    if (hasPull) slugs.add("lats").add("biceps").add("back").add("upper_back");
+  }
+  if (hasLower) {
+    slugs.add("legs").add("quads").add("glutes").add("hamstrings").add("calves").add("quad_focused").add("posterior_chain");
+    if (hasQuad) slugs.add("quad_focused").add("squat").add("quads");
+    if (hasPosterior) slugs.add("posterior_chain").add("glutes").add("hamstrings");
+  }
+  if (hasCore) slugs.add("core").add("core_stability");
+
+  return slugs;
+}
+
+/**
+ * Score an exercise by how many of its tags (and muscles) match the user's selected tag set.
+ * This is the primary indicator for selection: higher count = more likely to be in the workout.
+ */
+function scoreExerciseByTagMatch(
+  exercise: ExerciseDefinition,
+  userSelectedTagSlugs: Set<string>
+): number {
+  if (userSelectedTagSlugs.size === 0) return 0;
+  const tagLike = [...(exercise.tags ?? []), ...(exercise.muscles ?? [])];
+  let count = 0;
+  for (const t of tagLike) {
+    const slug = tagToSlug(t);
+    if (userSelectedTagSlugs.has(slug)) count += 1;
+  }
+  return count;
+}
+
+/**
+ * Pick one item with probability proportional to (getScore(item) + 1).
+ * Ensures tag-match count is the highest-priority driver while still allowing some variety.
+ */
+function pickWeightedByScore<T>(
+  items: T[],
+  getScore: (item: T) => number,
+  rng: () => number
+): T | null {
+  if (!items.length) return null;
+  const weights = items.map((e) => getScore(e) + 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0) return items[Math.floor(rng() * items.length)] ?? null;
+  let r = rng() * total;
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return items[i] ?? null;
+  }
+  return items[items.length - 1] ?? null;
+}
+
+/**
  * When user has selected sub-goals (subFocusByGoal), score eligible exercises by tag overlap
  * with goal sub-focus tag weights and return top exercise ids/slugs to prefer during pick.
+ * Kept for backward compatibility; primary selection is now via tag-match count (scoreExerciseByTagMatch).
  */
 function buildPreferredSlugsFromSubFocus(
   primaryFocus: string[],
@@ -417,17 +501,26 @@ export function generateWorkout(
       e.modalities.includes("mobility") && isCooldownEligibleEquipment(e.equipment ?? [])
   );
 
-  // Build prefer set: optional caller-provided preferred slugs + slugs from goal sub-focus tag scoring
-  const subFocusPreferSlugs = buildPreferredSlugsFromSubFocus(
+  // User-selected tag slugs (goals + sub-goals + body part): primary driver for exercise selection
+  const userSelectedTagSlugs = getUserSelectedTagSlugs(
     preferences.primaryFocus,
     preferences.subFocusByGoal,
-    eligible
+    bodyPartFocus
   );
-  const preferSet = new Set<string>(preferredExerciseSlugs ?? []);
-  for (const slug of subFocusPreferSlugs) preferSet.add(slug);
-  const prefer = preferSet.size > 0 ? preferSet : null;
-  const preferMatch = (e: ExerciseDefinition) =>
-    prefer !== null && (prefer.has(e.id) || prefer.has(e.name));
+  const tagMatchScoreById = new Map<string, number>();
+  for (const e of eligible) {
+    tagMatchScoreById.set(e.id, scoreExerciseByTagMatch(e, userSelectedTagSlugs));
+  }
+  // Caller-provided preferred exercises get a score bonus so they remain more likely to be picked
+  if (preferredExerciseSlugs?.length) {
+    const preferSet = new Set(preferredExerciseSlugs);
+    for (const e of eligible) {
+      if (preferSet.has(e.id) || preferSet.has(e.name)) {
+        tagMatchScoreById.set(e.id, (tagMatchScoreById.get(e.id) ?? 0) + 10);
+      }
+    }
+  }
+  const getTagMatchScore = (e: ExerciseDefinition) => tagMatchScoreById.get(e.id) ?? 0;
 
   /** Avoid 3+ in a row from the same similar cluster (e.g. deadlift family). */
   const wouldBeThreeSameClusterInARow = (lastTwoExerciseIds: string[], candidateId: string): boolean => {
@@ -487,13 +580,13 @@ export function generateWorkout(
 
     while (items.length < count) {
       const available = poolToUse.filter((e) => !used.has(e.id));
-      const preferred = prefer ? available.filter(preferMatch) : [];
-      const poolToPick = preferred.length ? preferred : available;
       const lastTwoIds = items.length >= 2 ? [items[items.length - 2].exercise_id, items[items.length - 1].exercise_id] : [];
       const withoutThreeInARow = lastTwoIds.length === 2
-        ? poolToPick.filter((e) => !wouldBeThreeSameClusterInARow(lastTwoIds, e.id))
-        : poolToPick;
-      const picked = pickRandom(withoutThreeInARow.length ? withoutThreeInARow : poolToPick, rng);
+        ? available.filter((e) => !wouldBeThreeSameClusterInARow(lastTwoIds, e.id))
+        : available;
+      const poolToPick = withoutThreeInARow.length ? withoutThreeInARow : available;
+      // Primary selection: weighted by tag-match count (more user-selected tags = higher priority)
+      const picked = pickWeightedByScore(poolToPick, getTagMatchScore, rng);
       if (!picked) break;
       used.add(picked.id);
       let p = prescriptionForExercise(picked, preferences.energyLevel, preferences.primaryFocus, durationMinutes);
@@ -528,7 +621,13 @@ export function generateWorkout(
     const poolToUse = pool.length ? pool : eligible;
     const byId = new Map(poolToUse.map((e) => [e.id, e]));
     const asPairing = poolToUse.map(toPairingInput);
-    const pairingResults = pickBestSupersetPairs(asPairing, pairCount, used, rngForPairs);
+    const pairingResults = pickBestSupersetPairs(
+      asPairing,
+      pairCount,
+      used,
+      rngForPairs,
+      tagMatchScoreById
+    );
     const pairs: [WorkoutItem, WorkoutItem][] = [];
 
     for (const [pA, pB] of pairingResults) {

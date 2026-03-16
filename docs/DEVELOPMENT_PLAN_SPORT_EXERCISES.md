@@ -8,10 +8,11 @@ A phased plan to keep developing research-backed sport support: more tags, more 
 
 | Layer | What exists |
 |-------|-------------|
-| **Sports** | Canonical list in DB (`sports`); sport_quality_map (4 qualities, no transfer); sport_tag_profile (tag vectors per sport). |
+| **Sports** | Canonical list in DB (`sports`); sport_quality_map (4 qualities, no transfer); sport_tag_profile (tag vectors per sport). **Evidence:** See `docs/research/sports-audit-2025.md` (NSCA, ACSM, ExRx, NCSF; qualities, relevance scale, exercise–sport alignment). |
 | **Exercise → sport** | `exercise_tag_map` links `public.exercises` to `sport_<slug>` tags (research-backed migration). |
-| **Sub-focus** | TypeScript: `SPORTS_WITH_SUB_FOCUSES` (many sports, 3–6 sub-focuses each) and `SUB_FOCUS_TAG_MAP` (sub-focus → exercise tag slugs + weights). DB: `sports_sub_focus` and `sub_focus_tag_map` seeded for 3 sports only. |
+| **Sub-focus** | TypeScript: `SPORTS_WITH_SUB_FOCUSES` (many sports, 3–6 sub-focuses each) and `SUB_FOCUS_TAG_MAP` (sub-focus → exercise tag slugs + weights). DB: `sports_sub_focus` and `sub_focus_tag_map` seeded for 3 sports only. **Evidence:** See `docs/research/sport-sub-goals-audit-2025.md` (NSCA, ACSM, ExRx, NCSF; sub-goals and tag mapping). |
 | **Sub-focus ranking** | `getPreferredExerciseNamesForSportAndGoals()` uses `starter_exercises.tags` (jsonb) and matches against tag slugs from `getExerciseTagsForSubFocuses()`. |
+| **Goals** | DB: `goals` (slug, goal_type), `goal_demand_profile`, `goal_tag_profile`; Manual mode: `goal_sub_focus`, `goal_sub_focus_tag_map` (canonical source: `data/goalSubFocus/`). Generator: PrimaryGoal → GOAL_TRAINING_RULES (prescription); goal tags used for exercise ranking. **Evidence:** See `docs/research/goals-audit-2025.md` (NSCA, ACSM, ExRx, NCSF, Schoenfeld; prescription and goal–tag mapping). **Goal sub-goals (sub-focus options and tag mapping):** See `docs/research/goal-sub-goals-audit-2025.md`. |
 | **Gap** | Sub-focus tag slugs (e.g. `zone2_cardio`, `single_leg_strength`, `finger_strength`) live in TS; many are not in `public.exercise_tags` or in `starter_exercises.tags`, so sub-focus biasing only works where tags overlap. |
 
 ---

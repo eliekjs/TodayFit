@@ -193,6 +193,9 @@ export function mapDbExerciseToGeneratorExercise(
   if (row.swap_candidates?.length) {
     exercise.swap_candidates = row.swap_candidates;
   }
+  if (primary.length) {
+    exercise.primary_muscle_groups = primary;
+  }
   const demandSlug = (s: string | null | undefined): "none" | "low" | "medium" | "high" | undefined =>
     s === "none" || s === "low" || s === "medium" || s === "high" ? s : undefined;
   if (demandSlug(row.warmup_relevance)) exercise.warmup_relevance = demandSlug(row.warmup_relevance);

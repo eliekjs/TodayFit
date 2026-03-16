@@ -48,4 +48,5 @@
 
 ## 6. References
 
-- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.17, supabase/migrations/20250320000000_exercise_ontology_enrichment_columns.sql, 20250320000001_exercise_ontology_enrichment_backfill.sql, lib/generation/exerciseSubstitution.ts, lib/exerciseProgressions.ts, lib/db/generatorExerciseAdapter.ts, logic/workoutGeneration/types.ts.
+- **Evidence-based audit (same sources):** docs/research/swap-candidates-audit-2025.md (NSCA, ACSM, ExRx, NCSF; same pattern/family, equipment alternatives; substitution in same block/slot).
+- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.17, supabase/migrations/20250325000010_exercise_swap_candidates_audit.sql, 20250331000000 (consolidated), 20250331000005_swap_candidates_evidence_enrichment.sql, lib/generation/exerciseSubstitution.ts, lib/exerciseProgressions.ts, lib/db/generatorExerciseAdapter.ts.

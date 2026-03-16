@@ -52,4 +52,5 @@
 
 ## 6. References
 
-- Project: docs/research/exercise-table-full-audit.md (description as optional, ExRx/NSCA), supabase/migrations/20250301000002_app_entities_schema.sql (exercises.description text), lib/db/exerciseRepository.ts, lib/db/generatorExerciseAdapter.ts.
+- **Evidence-based audit (same sources):** docs/research/descriptions-audit-2025.md (NSCA, ACSM, ExRx, NCSF; stub format "Primarily targets", 1–3 sentences, display-only).
+- Project: docs/research/exercise-table-full-audit.md (description as optional, ExRx/NSCA), supabase/migrations/20250325000007_exercise_descriptions_audit.sql, 20250331000002_descriptions_evidence_enrichment.sql, lib/db/exerciseRepository.ts, lib/db/generatorExerciseAdapter.ts.

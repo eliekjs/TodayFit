@@ -50,4 +50,5 @@
 
 ## 6. References
 
-- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.17, supabase/migrations/20250320000000_exercise_ontology_enrichment_columns.sql, 20250320000001_exercise_ontology_enrichment_backfill.sql, lib/db/generatorExerciseAdapter.ts, logic/workoutGeneration/types.ts, docs/research/exercise-table-full-audit.md.
+- **Evidence-based audit (same sources):** docs/research/aliases-audit-2025.md (NSCA, ACSM, ExRx, NCSF; abbreviations, alternate spellings, common names; search/discovery only).
+- Project: docs/EXERCISE_ONTOLOGY_DESIGN.md § C.17, supabase/migrations/20250325000009_exercise_aliases_audit.sql, 20250331000000 (consolidated), 20250331000004_aliases_evidence_enrichment.sql, lib/db/generatorExerciseAdapter.ts, logic/workoutGeneration/types.ts.

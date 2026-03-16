@@ -282,16 +282,22 @@ export function pickSupersetPartner(
 /** When rng is provided, we pick randomly among the top this many pairs to rebalance exercise frequency. */
 const TOP_K_PAIRS_FOR_VARIETY = 10;
 
+/** Multiplier for user tag-match preference so it dominates pair selection (higher match count = preferred). */
+const PREFERENCE_SCORE_MULTIPLIER = 3;
+
 /**
  * From a pool of exercises, form up to pairCount pairs by repeatedly picking the best-scoring pair.
  * When rng is provided, picks randomly among the top TOP_K_PAIRS_FOR_VARIETY pairs (by score) so
  * the same exercises don't always dominate; otherwise deterministic (single best pair).
+ * When exercisePreferenceScores is provided (e.g. tag-match count per exercise), pair score is
+ * boosted by (prefA + prefB) * PREFERENCE_SCORE_MULTIPLIER so user-aligned exercises are highest priority.
  */
 export function pickBestSupersetPairs(
   pool: PairingInput[],
   pairCount: number,
   usedIds: Set<string>,
-  rng?: () => number
+  rng?: () => number,
+  exercisePreferenceScores?: Map<string, number>
 ): [PairingInput, PairingInput][] {
   const available = pool.filter((e) => !usedIds.has(e.id));
   const pairs: [PairingInput, PairingInput][] = [];
@@ -309,7 +315,12 @@ export function pickBestSupersetPairs(
         const a = remaining[i1];
         const b = remaining[i2];
         if (!a || !b) continue;
-        const score = getSupersetPairingScore(a, b);
+        let score = getSupersetPairingScore(a, b);
+        if (exercisePreferenceScores?.size) {
+          const prefA = exercisePreferenceScores.get(a.id) ?? 0;
+          const prefB = exercisePreferenceScores.get(b.id) ?? 0;
+          score += (prefA + prefB) * PREFERENCE_SCORE_MULTIPLIER;
+        }
         if (score >= -5) scored.push({ a, b, score });
       }
     }

@@ -271,13 +271,15 @@ function goalToTags(goal: string): string[] {
   return map[g] ?? [g];
 }
 
+/** Map focus_body_parts to canonical muscle slugs (ExRx-style; for body-part scoring and primary-match bonus). */
 function focusBodyPartToMuscles(focus: string): string[] {
-  const f = focus.toLowerCase();
-  if (f === "upper_push") return ["push"];
-  if (f === "upper_pull") return ["pull"];
-  if (f === "lower") return ["legs"];
+  const f = focus.toLowerCase().replace(/\s/g, "_");
+  if (f === "upper_push") return ["chest", "triceps", "shoulders"];
+  if (f === "upper_pull") return ["lats", "biceps", "upper_back"];
+  if (f === "upper_body") return ["chest", "triceps", "shoulders", "lats", "biceps", "upper_back"];
+  if (f === "lower" || f === "lower_body") return ["legs", "quads", "glutes", "hamstrings", "calves"];
   if (f === "core") return ["core"];
-  if (f === "full_body") return ["legs", "push", "pull", "core"];
+  if (f === "full_body") return ["legs", "quads", "glutes", "hamstrings", "calves", "core", "chest", "triceps", "shoulders", "lats", "biceps", "upper_back"];
   return [];
 }
 
@@ -322,14 +324,21 @@ export function scoreExercise(
   total += goalScore;
   if (debug) debug.goal_alignment = goalScore;
 
-  // Body part focus (legacy muscles + ontology movement_family_fit below)
+  // Body part focus (canonical muscles + ontology movement_family_fit below). Muscle priority: prefer exercises that primarily target focus.
   const focusParts = input.focus_body_parts ?? [];
   if (focusParts.length) {
     const wantedMuscles = new Set(focusParts.flatMap(focusBodyPartToMuscles));
-    const match = exercise.muscle_groups.some((m) => wantedMuscles.has(m));
-    if (match) {
+    const primaryMuscles = exercise.primary_muscle_groups ?? exercise.muscle_groups.filter((m) => !exercise.secondary_muscle_groups?.includes(m));
+    const matchInPrimary = primaryMuscles.length > 0 && primaryMuscles.some((m) => wantedMuscles.has(m));
+    const matchInAny = exercise.muscle_groups.some((m) => wantedMuscles.has(m));
+    if (matchInAny) {
       total += WEIGHT_BODY_PART;
       if (debug) debug.body_part = WEIGHT_BODY_PART;
+    }
+    // Primary muscle match bonus: exercise primarily targets the user's focus (ExRx primary movers)
+    if (matchInPrimary) {
+      total += 0.5;
+      if (debug) debug.primary_muscle_match_bonus = 0.5;
     }
     // Quad/Posterior emphasis: when Lower is selected with modifier, prefer matching pattern/category
     const focusSet = new Set(focusParts.map((f) => f.toLowerCase().replace(/\s/g, "_")));
@@ -351,6 +360,20 @@ export function scoreExercise(
   if (impactSensitiveKeys.size > 0 && exercise.impact_level === "high") {
     total -= 2;
     if (debug) debug.impact_penalty = -2;
+  }
+
+  // Contraindication priority: prefer exercises with fewer contraindications when otherwise equal
+  // (tags are ordered most→least relevant; fewer tags = broader applicability / better match pool)
+  const contraCount = (exercise.contraindication_tags?.length ?? exercise.tags.contraindications?.length ?? 0);
+  if (contraCount === 0) {
+    total += 0.3;
+    if (debug) debug.contraindication_priority_bonus = 0.3;
+  } else if (contraCount === 1) {
+    total += 0.2;
+    if (debug) debug.contraindication_priority_bonus = 0.2;
+  } else if (contraCount === 2) {
+    total += 0.1;
+    if (debug) debug.contraindication_priority_bonus = 0.1;
   }
 
   // Energy fit
@@ -709,12 +732,25 @@ function selectExercises(
   for (let k = 0; k < needCategories && chosen.length < count; k++) {
     const targetPattern = patternsToPrefer[k];
     if (!targetPattern) break;
-    const best = topOverall.find(
+    const candidates = topOverall.filter(
       (x) =>
         x.exercise.movement_pattern === targetPattern &&
         !chosen.some((c) => c.id === x.exercise.id) &&
         !wouldBeThreeSameClusterInARow(chosen, x.exercise)
     );
+    // Pattern priority: prefer exercises whose primary (first) fine pattern maps to target legacy
+    const best = candidates.length === 0 ? undefined : candidates.sort((a, b) => {
+      const aPrimary = a.exercise.movement_patterns?.[0]
+        ? getLegacyMovementPattern({ movement_patterns: [a.exercise.movement_patterns[0]], movement_pattern: undefined })
+        : a.exercise.movement_pattern;
+      const bPrimary = b.exercise.movement_patterns?.[0]
+        ? getLegacyMovementPattern({ movement_patterns: [b.exercise.movement_patterns[0]], movement_pattern: undefined })
+        : b.exercise.movement_pattern;
+      const aMatch = aPrimary === targetPattern ? 1 : 0;
+      const bMatch = bPrimary === targetPattern ? 1 : 0;
+      if (bMatch !== aMatch) return bMatch - aMatch;
+      return b.score - a.score;
+    })[0];
     if (!best) continue;
     chosen.push(best.exercise);
     movementCounts.set(best.exercise.movement_pattern, (movementCounts.get(best.exercise.movement_pattern) ?? 0) + 1);

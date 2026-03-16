@@ -87,6 +87,8 @@ export type ExerciseOntology = {
   grip_demand?: DemandLevelSlug;
   /** Joint impact level (e.g. plyometric, running). */
   impact_level?: DemandLevelSlug;
+  /** Primary muscles (ExRx-style; ordered most→least contribution). */
+  primary_muscle_groups?: string[];
   /** Secondary muscles trained (canonical slugs). */
   secondary_muscle_groups?: string[];
 };
@@ -128,6 +130,8 @@ export type Exercise = {
   stability_demand?: "none" | "low" | "medium" | "high";
   grip_demand?: "none" | "low" | "medium" | "high";
   impact_level?: "none" | "low" | "medium" | "high";
+  /** Primary muscles (ExRx-style; ordered most→least contribution). When set, used for body-part focus priority scoring. */
+  primary_muscle_groups?: string[];
   secondary_muscle_groups?: string[];
 };
 
@@ -217,8 +221,12 @@ export type ScoringDebug = {
   history_joint_stress_sensitivity_penalty?: number;
   /** Quad/Posterior emphasis bonus when focus matches pattern or pairing_category. */
   body_part_emphasis_bonus?: number;
+  /** Bonus when body-part focus matches exercise's primary muscles (ExRx primary movers). */
+  primary_muscle_match_bonus?: number;
   /** Penalty when user has impact-sensitive injury and exercise has high impact_level. */
   impact_penalty?: number;
+  /** Bonus when exercise has fewer contraindications (tag priority: prefer broader applicability). */
+  contraindication_priority_bonus?: number;
 };
 
 export type WorkoutSession = {

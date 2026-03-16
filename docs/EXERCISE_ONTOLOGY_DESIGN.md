@@ -96,7 +96,8 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `conditioning` | Cardio / work capacity (not strength-dominant) | Run, bike, row, ski erg, circuits as cardio |
 
 **Cardinality:** Primary = single. Secondary = array (0..n).  
-**Rule:** Use **primary** for strict filtering. Use **secondary** when the exercise clearly contributes to another family (e.g. thruster: primary `lower_body`, secondary `upper_push`).  
+**Rule:** Use **primary** for dominant emphasis; use **secondary** when the exercise clearly contributes to another family (e.g. thruster: primary `lower_body`, secondary `upper_push`).  
+**Generator:** Strict body-part filter includes an exercise if user focus matches **primary or secondary**. Scoring uses **family priority**: primary family match receives higher score than secondary (scoreMovementFamilyFit: 1.5 for primary match, 0.8 for secondary).  
 **Storage:** `primary_movement_family` (text), `secondary_movement_families` (text[]). DB columns exist. Optional on Exercise / ExerciseWithQualities.
 
 ---
@@ -122,7 +123,8 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `thoracic_mobility` | T-spine / rib cage (mobility) | Cat cow, T-spine rotation |
 
 **Cardinality:** Multi (array). At least one for working exercises; mobility/conditioning can have one or more.  
-**Backward compatibility:** Legacy single `movement_pattern` (squat, hinge, push, pull, carry, rotate, locomotion) can be derived: e.g. horizontal_push → `push`, vertical_push → `push`, squat → `squat`. When `movement_patterns[]` is set, generator can use first or map to legacy for existing code.  
+**Order:** Within `movement_patterns`, list **most→least relevant** (first = primary pattern for that exercise). Compounds (e.g. thruster) have multiple patterns in order: primary then secondary.  
+**Backward compatibility:** Legacy single `movement_pattern` (squat, hinge, push, pull, carry, rotate, locomotion) is derived from first element via getLegacyMovementPattern(). When `movement_patterns[]` is set, generator uses first for legacy and for **pattern priority**: when filling a target legacy pattern, prefers exercises whose primary (first) fine pattern maps to that legacy.  
 **Storage:** DB `movement_patterns` (text[]). Exercise type: keep `movement_pattern` (single) for compat; add optional `movement_patterns?: string[]`.
 
 ---
@@ -134,7 +136,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 **Canonical slugs (primary/secondary):**  
 `legs`, `quads`, `glutes`, `hamstrings`, `calves`, `core`, `chest`, `back`, `lats`, `upper_back`, `shoulders`, `triceps`, `biceps`, `forearms`.
 
-**Cardinality:** Multi (array) each. **Storage:** DB `primary_muscles`, `secondary_muscles`; Exercise `muscle_groups` (today often primary only; can merge primary+secondary in adapter).  
+**Cardinality:** Multi (array) each. **Storage:** DB `primary_muscles`, `secondary_muscles`; Exercise `muscle_groups` (merged), optional `primary_muscle_groups` and `secondary_muscle_groups` in adapter. **Order:** Within each array, list muscles **most→least contribution** (ExRx: first = primary mover). Generator uses primary_muscle_groups for body-part focus priority (primary-match bonus).  
 **Guidance:** Prefer these slugs; avoid freeform. “Push”/“pull” as body regions are movement-family; for muscles use chest, shoulders, triceps, etc.
 
 ---
@@ -157,6 +159,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 
 **Cardinality:** Single. An exercise can have one **primary** role; some exercises are valid in multiple (e.g. glute bridge as prep or accessory). Use the **most common** placement.  
 **Storage:** DB `exercise_role` (text). Optional on Exercise.  
+**Generator:** **Role priority** is used for block-type fit: main_strength/main_hypertrophy prefer main_compound (scoreRoleFit +2), accept accessory/isolation/finisher (+0.5); cooldown/stretch/mobility/breathing are excluded from main work (MAIN_WORK_EXCLUDED_ROLES). Warmup block prefers prep/warmup/mobility; cooldown block prefers cooldown/stretch/breathing/mobility.  
 **Guidance:** If used in both warmup and cooldown (e.g. cat cow), pick the more common (e.g. `mobility` or `cooldown`).
 
 ---
@@ -210,7 +213,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `hip` | Hip concern | hip_stress |
 | `ankle` | Ankle concern | ankle_stress |
 
-**Cardinality:** Multi (array). **Storage:** DB `contraindication_tags` (text[]). Map to `tags.contraindications` for compat. **Rule:** Populate from joint_stress mapping (e.g. shoulder_overhead → contraindication `shoulder`) plus exercise-specific overrides (e.g. “this exercise is known bad for knee” even if joint_stress is light).
+**Cardinality:** Multi (array). **Storage:** DB `contraindication_tags` (text[]). Map to `tags.contraindications` for compat. **Order:** Tags are stored **most→least relevant** (first = primary concern). Source: `exercise_contraindications.sort_order`; sync uses `ORDER BY sort_order, contraindication`. **Rule:** Populate from joint_stress mapping (e.g. shoulder_overhead → contraindication `shoulder`) plus exercise-specific overrides (e.g. “this exercise is known bad for knee” even if joint_stress is light). Generator uses contraindication count for tie-breaking (prefer fewer contraindications when otherwise equal).
 
 ---
 
@@ -294,7 +297,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `core` | Trunk / abs | Plank, carry, anti-rotation |
 | `calves` | Calves | Calf raise, jump |
 
-**Cardinality:** Multi (array). **Storage:** DB `fatigue_regions` (text[]). Optional on Exercise.
+**Cardinality:** Multi (array). **Storage:** DB `fatigue_regions` (text[]). Optional on Exercise. **Evidence and enrichment:** See `docs/research/fatigue-regions-audit-2025.md` (NSCA, ACSM, ExRx, NCSF); grip-heavy exercises include `forearms` and `grip`; hybrid compounds (thruster, devils press, wall ball) explicitly list quads, glutes, shoulders, triceps, core; calf-dominant and jump/run conditioning include `calves`. See also `docs/research/exercise-ontology-enrichment-2025.md`.
 
 ---
 
@@ -315,7 +318,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `grip` | Grip limited | Deadlift, hang, farmer |
 | `mobility` | Mobility / prep | Band, CARs, flow |
 
-**Cardinality:** Single. **Storage:** DB `pairing_category` (text). Optional on Exercise. **Rule:** Pick the **primary** limiting factor for pairing (e.g. deadlift → `grip` or `posterior_chain`; bench → `chest`).
+**Cardinality:** Single. **Storage:** DB `pairing_category` (text). Optional on Exercise. **Rule:** Pick the **primary** limiting factor for pairing (e.g. deadlift → `grip` or `posterior_chain`; bench → `chest`). **Evidence and enrichment:** See `docs/research/exercise-ontology-enrichment-2025.md`; power/Olympic (thruster → quads, clean/snatch → grip, jerk → shoulders).
 
 ---
 
@@ -349,6 +352,8 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `grip_demand` | `hasGripFatigueDemand`: high/medium → add "grip" to fatigue regions for superset logic. |
 | `impact_level` | Optional: down-rank or exclude high when user has knee/lower_back/ankle limitations. |
 
+**Evidence and enrichment:** See `docs/research/demand-levels-audit-2025.md` (NSCA, ACSM, ExRx, NCSF; warmup/cooldown block selection, stability for beginners, grip for superset, impact for injury-aware). Backfill: warmup/cooldown low for main work, impact high for plyo/jump/run, grip high for heavy pulls.
+
 ---
 
 ### C.17 Aliases and swap candidates
@@ -357,7 +362,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 
 **aliases:** Alternate names (e.g. "OHP", "overhead press" for oh_press). **Cardinality:** Multi (text[]). **Storage:** DB `aliases` (text[]).
 
-**swap_candidates:** Exercise slugs that are good substitutes in the same block/slot. **Cardinality:** Multi (slugs). **Storage:** DB `swap_candidates` (text[]).
+**swap_candidates:** Exercise slugs that are good substitutes in the same block/slot. **Cardinality:** Multi (slugs). **Storage:** DB `swap_candidates` (text[]). **Rules:** No self-reference; only active slugs; same pattern/family preferred. **Evidence and enrichment:** See `docs/research/exercise-ontology-enrichment-2025.md`; **descriptions:** `docs/research/descriptions-audit-2025.md`; **rep ranges:** `docs/research/rep-ranges-audit-2025.md`; **aliases:** `docs/research/aliases-audit-2025.md`; **swap_candidates:** `docs/research/swap-candidates-audit-2025.md` (NSCA, ACSM, ExRx, NCSF; same pattern/family, substitution in same slot).
 
 ---
 
@@ -419,7 +424,7 @@ No new DB columns required for this ontology; use existing nullable/array column
 ### D.6 Which current generic tag categories remain
 
 - **goal_tags** — Keep. Used for goal alignment scoring; training_quality_weights can complement.
-- **sport_tags** — Keep. Sport-specific scoring and future sport logic.
+- **sport_tags** — Keep. Sport-specific scoring and future sport logic. Sport prep design and evidence: see `docs/research/sports-audit-2025.md` (NSCA, ACSM, ExRx, NCSF; qualities, exercise–sport alignment).
 - **energy_fit** — Keep. Session energy filter.
 - **joint_stress** (in tags) — Keep on type for backward compat; **source of truth** becomes `joint_stress_tags` when present (adapter copies to tags).
 - **contraindications** (in tags) — Same: keep on type; source of truth `contraindication_tags` when present.
