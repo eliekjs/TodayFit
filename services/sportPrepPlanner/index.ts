@@ -1288,7 +1288,7 @@ export async function regenerateDay(
   if (input.dailyPreferences?.goalBias) {
     sessionIntent.focus = [
       GOAL_SLUG_TO_PRIMARY_FOCUS[input.dailyPreferences.goalBias] ??
-        goalBiasToLabel[input.dailyPreferences.goalBias] ??
+        GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ??
         sessionIntent.focus?.[0] ??
         "Build Strength",
     ];

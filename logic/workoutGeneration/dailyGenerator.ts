@@ -57,6 +57,7 @@ import type { ResolvedWorkoutConstraints } from "../workoutIntelligence/constrai
 import {
   selectCooldownMobilityExercises as selectOntologyCooldown,
   getPreferredCooldownTargetsFromFamilies,
+  isStretchOnlyEligible,
   MAIN_WORK_EXCLUDED_ROLES,
 } from "./cooldownSelection";
 import { pickBestSupersetPairs, supersetCompatibility } from "../workoutIntelligence/supersetPairing";
@@ -443,6 +444,18 @@ export function scoreExercise(
   return { score: total, debug };
 }
 
+/** Equipment slugs that count as "only dumbbells/kettlebells" for rep-range override (no barbell, cable, machine). */
+const DB_KB_ONLY_EQUIPMENT = new Set(["dumbbells", "kettlebells", "adjustable_bench"]);
+
+/** True if exercise uses only dumbbells and/or kettlebells (and optionally bench). Goblet squats, DB RDLs, etc. → 8–12 reps unless max strength. */
+function exerciseUsesOnlyDumbbellsOrKettlebells(exercise: Exercise): boolean {
+  const req = (exercise.equipment_required ?? []).map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
+  if (req.length === 0) return false;
+  const hasDbOrKb = req.some((e) => e === "dumbbells" || e === "kettlebells");
+  if (!hasDbOrKb) return false;
+  return req.every((e) => DB_KB_ONLY_EQUIPMENT.has(e));
+}
+
 /** Blend goal rep range with exercise-specific rep range when set (e.g. calves 15-25, isolation 10-20). */
 function getEffectiveRepRange(
   exercise: Exercise,
@@ -499,11 +512,12 @@ function getPrescription(
     };
   }
 
-  // Accessory work (e.g. strength superset pairs): use accessory rules when present
+  // Accessory work (e.g. strength superset pairs): use accessory rules when present. DB/KB-only → 8–12 reps.
   if (isAccessory && rules.accessoryRepRange) {
     const setRange = rules.accessorySetRange ?? { min: 2, max: 3 };
     const sets = scaleSets(scaleSetsByEnergy(Math.round((setRange.min + setRange.max) / 2), energyLevel));
-    const repRange = getEffectiveRepRange(exercise, rules.accessoryRepRange);
+    const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.accessoryRepRange;
+    const repRange = getEffectiveRepRange(exercise, goalRepRange);
     const reps = Math.round((repRange.min + repRange.max) / 2);
     const rest = rules.accessoryRestRange ? Math.round((rules.accessoryRestRange.min + rules.accessoryRestRange.max) / 2) : 60;
     return {
@@ -529,10 +543,12 @@ function getPrescription(
     };
   }
 
+  // Main strength: DB/KB-only (e.g. goblet squat) → 8–12 reps unless truly max strength; barbell stays low-rep.
   if (blockType === "main_strength" || exercise.tags.goal_tags?.includes("strength")) {
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-    const repRange = getEffectiveRepRange(exercise, rules.repRange);
+    const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
+    const repRange = getEffectiveRepRange(exercise, goalRepRange);
     const reps = Math.round((repRange.min + repRange.max) / 2);
     const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
     return {
@@ -546,7 +562,8 @@ function getPrescription(
   if (blockType === "main_hypertrophy" || exercise.tags.goal_tags?.includes("hypertrophy")) {
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-    const repRange = getEffectiveRepRange(exercise, rules.repRange);
+    const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
+    const repRange = getEffectiveRepRange(exercise, goalRepRange);
     const reps = Math.round((repRange.min + repRange.max) / 2);
     const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
     return {
@@ -557,10 +574,11 @@ function getPrescription(
     };
   }
 
-  // Default
+  // Default: DB/KB-only → 8–12
   const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
   const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-  const repRange = getEffectiveRepRange(exercise, rules.repRange);
+  const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
+  const repRange = getEffectiveRepRange(exercise, goalRepRange);
   const reps = Math.round((repRange.min + repRange.max) / 2);
   const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
   return {
@@ -828,8 +846,9 @@ function buildCooldown(
     ) || input.primary_goal === "recovery";
   const preferredTargets = getPreferredCooldownTargetsFromFamilies(options.mainWorkFamilies);
 
-  // Cooldown = stretching/mobility only; no cables or weights.
-  const cooldownPool = exercises.filter((e) => isCooldownEligibleEquipment(e.equipment_required ?? []));
+  // Cooldown = stretching only (body-part and workout-type aware via preferredTargets); no cables or weights.
+  const equipmentOk = exercises.filter((e) => isCooldownEligibleEquipment(e.equipment_required ?? []));
+  const cooldownPool = equipmentOk.filter((e) => isStretchOnlyEligible(e));
 
   let chosen: Exercise[];
   if (useOntologyCooldown) {
@@ -845,11 +864,7 @@ function buildCooldown(
     });
     chosen.forEach((e) => used.add(e.id));
   } else {
-    const pool = cooldownPool.filter(
-      (e) =>
-        (e.modality === "mobility" || e.modality === "recovery") &&
-        !used.has(e.id)
-    );
+    const pool = cooldownPool.filter((e) => !used.has(e.id));
     const count =
       input.duration_minutes <= 30
         ? (recoveryEmphasis ? 3 : 2)
@@ -865,7 +880,7 @@ function buildCooldown(
 
   // Breathing only when recovery was chosen (sometimes include breathing).
   if (recoveryEmphasis && chosen.length > 0 && !used.has("breathing_cooldown")) {
-    const breath = cooldownPool.find((e) => e.id === "breathing_cooldown") ?? exercises.find((e) => e.id === "breathing_cooldown");
+    const breath = equipmentOk.find((e) => e.id === "breathing_cooldown") ?? exercises.find((e) => e.id === "breathing_cooldown");
     if (breath && isCooldownEligibleEquipment(breath.equipment_required ?? []) && chosen.length < (useOntologyCooldown ? 5 : 4)) {
       chosen.push(breath);
       used.add(breath.id);
@@ -889,9 +904,9 @@ function buildCooldown(
 
   const totalMinutes = input.duration_minutes ?? 60;
   const cooldownCap = Math.max(1, Math.floor(totalMinutes / 10));
-  const title = useOntologyCooldown ? "Cooldown & mobility" : undefined;
+  const title = useOntologyCooldown ? "Cooldown (stretch)" : undefined;
   const reasoning = useOntologyCooldown
-    ? "Mobility and stretch to support recovery and range of motion (from your recovery or mobility goal)."
+    ? "Stretching for the body parts and movement patterns you used today. Supports recovery and range of motion."
     : undefined;
 
   return {
@@ -991,9 +1006,10 @@ function buildMainStrength(
       reasoning_tags: ["main_lift", "strength", ...(b.tags.goal_tags ?? [])],
       unilateral: b.unilateral ?? false,
     };
-    // Superset: one rest per round (after the pair A→B), not rest_A + rest_B per round.
+    // Superset: one rest per round (after the pair A→B). Realistic ~15–20 min for two 5x5 exercises (not full straight-set rest).
     const restPerRoundSec = Math.max(pA.rest_seconds ?? 0, pB.rest_seconds ?? 0);
-    const workMinPerRound = 2; // ~1 min per set for both exercises
+    const workMinPerRound = 1.5; // both exercises per round; superset is faster than straight sets
+    const restForEstimateSec = Math.min(restPerRoundSec, 120); // cap rest in estimate (superset rest typically 1–2 min)
     blocks.push({
       block_type: "main_strength",
       format: "superset",
@@ -1001,7 +1017,7 @@ function buildMainStrength(
       reasoning: "Compound lifts for strength; superset for efficiency.",
       items: [itemA, itemB],
       supersetPairs: [[itemA, itemB]],
-      estimated_minutes: Math.max(pA.sets, pB.sets) * (workMinPerRound + restPerRoundSec / 60),
+      estimated_minutes: Math.max(pA.sets, pB.sets) * (workMinPerRound + restForEstimateSec / 60),
     });
   } else {
     for (const mainLift of mainLifts) {

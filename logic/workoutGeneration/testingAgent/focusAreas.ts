@@ -14,7 +14,8 @@ export type FocusAreaId =
   | "duration_scaling"
   | "equipment_limits"
   | "supersets"
-  | "goals_and_conditioning";
+  | "goals_and_conditioning"
+  | "tags_and_filters_isolated";
 
 export type Scenario = {
   /** Short name for logs and reports. */
@@ -335,6 +336,29 @@ export const FOCUS_AREAS: FocusArea[] = [
           seed: 903,
         }),
       },
+    ],
+  },
+  {
+    id: "tags_and_filters_isolated",
+    label: "Tags and filters (one scenario per filter)",
+    description: "Isolated tests so every tag and filter can be verified individually.",
+    scenarios: [
+      { name: "avoid_tags: overhead", input: baseInput({ style_prefs: { avoid_tags: ["overhead"] }, seed: 1001 }), expectedDecision: { valid: true } },
+      { name: "avoid_tags: hanging", input: baseInput({ style_prefs: { avoid_tags: ["hanging"] }, seed: 1002 }), expectedDecision: { valid: true } },
+      { name: "avoid_tags: shoulder_extension", input: baseInput({ style_prefs: { avoid_tags: ["shoulder_extension"] }, seed: 1003 }), expectedDecision: { valid: true } },
+      { name: "avoid_tags: knee_flexion", input: baseInput({ style_prefs: { avoid_tags: ["knee_flexion"] }, seed: 1004 }), expectedDecision: { valid: true } },
+      { name: "injuries: knee_pain", input: baseInput({ injuries_or_constraints: ["knee_pain"], seed: 1005 }), expectedDecision: { valid: true } },
+      { name: "injuries: shoulder", input: baseInput({ injuries_or_constraints: ["shoulder"], seed: 1006 }), expectedDecision: { valid: true } },
+      { name: "injuries: lower_back", input: baseInput({ injuries_or_constraints: ["lower_back"], seed: 1007 }), expectedDecision: { valid: true } },
+      { name: "focus: upper_push", input: baseInput({ focus_body_parts: ["upper_push"], seed: 1008 }), expectedDecision: { allowed_movement_families: ["upper_push"], valid: true } },
+      { name: "focus: upper_pull", input: baseInput({ focus_body_parts: ["upper_pull"], seed: 1009 }), expectedDecision: { allowed_movement_families: ["upper_pull"], valid: true } },
+      { name: "focus: lower", input: baseInput({ focus_body_parts: ["lower"], seed: 1010 }), expectedDecision: { allowed_movement_families: ["lower_body"], valid: true } },
+      { name: "focus: full_body", input: baseInput({ focus_body_parts: ["full_body"], seed: 1011 }), expectedDecision: { allowed_movement_families: null, valid: true } },
+      { name: "equipment: dumbbells only", input: baseInput({ available_equipment: ["dumbbells", "bench", "bodyweight"], seed: 1012 }), expectedDecision: { valid: true } },
+      { name: "energy: low", input: baseInput({ energy_level: "low", seed: 1013 }), expectedDecision: { valid: true } },
+      { name: "energy: high", input: baseInput({ energy_level: "high", seed: 1014 }), expectedDecision: { valid: true } },
+      { name: "conditioning_minutes: 10", input: baseInput({ style_prefs: { conditioning_minutes: 10 }, primary_goal: "endurance", available_equipment: [...BASE_EQUIPMENT, "treadmill"], seed: 1015 }), expectedDecision: { valid: true } },
+      { name: "wants_supersets: true", input: baseInput({ style_prefs: { wants_supersets: true }, focus_body_parts: ["upper_push", "upper_pull"], seed: 1016 }), expectedDecision: { valid: true } },
     ],
   },
 ];

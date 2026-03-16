@@ -19,7 +19,7 @@ import { Chip } from "../../../components/Chip";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
-import { saveManualWeek } from "../../../lib/db/weekPlanRepository";
+import { saveManualWeek, saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
@@ -81,6 +81,7 @@ export default function ManualWeekScreen() {
 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
   /** Override preferences for the selected day when regenerating (goal, body, energy). */
@@ -324,14 +325,15 @@ export default function ManualWeekScreen() {
     }
     let cancelled = false;
     setSwapLoading(true);
-    getProgressionsRegressionsForExercise(swapModal.exerciseId).then((res) => {
+    const energyLevel = manualPreferences.energyLevel ?? undefined;
+    getProgressionsRegressionsForExercise(swapModal.exerciseId, { energyLevel }).then((res) => {
       if (cancelled) return;
       const combined = [...res.regressions, ...res.progressions].slice(0, 3);
       setSwapSuggested(combined);
       setSwapLoading(false);
     });
     return () => { cancelled = true; };
-  }, [swapModal?.exerciseId]);
+  }, [swapModal?.exerciseId, manualPreferences.energyLevel]);
 
   const onSwapChoose = useCallback(
     (optionId: string, optionName: string) => {
@@ -471,6 +473,24 @@ export default function ManualWeekScreen() {
     }
   };
 
+  const onSaveDay = async () => {
+    if (!selectedSession || !userId || !isDbConfigured()) {
+      if (!userId || !isDbConfigured()) {
+        setError("Sign in and enable sync to save days.");
+      }
+      return;
+    }
+    setError(null);
+    setSavingDay(true);
+    try {
+      await saveManualDay(userId, selectedSession.date, selectedSession.workout);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingDay(false);
+    }
+  };
+
   if (generating && !manualWeekPlan) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
@@ -590,6 +610,21 @@ export default function ManualWeekScreen() {
                   <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
                     {label}
                   </Text>
+                  <Pressable
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onSelectSession(s.date, s.workout, s.displayTitle);
+                    }}
+                    style={({ pressed }) => ({
+                      paddingVertical: 6,
+                      paddingHorizontal: 10,
+                      opacity: pressed ? 0.7 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 13, color: theme.primary, fontWeight: "500" }}>
+                      Change focus
+                    </Text>
+                  </Pressable>
                 </Pressable>
               </View>
             );
@@ -691,6 +726,15 @@ export default function ManualWeekScreen() {
                 onPress={() => onStartDay(selectedDay.date, selectedDay.workout)}
                 style={{ marginTop: 16 }}
               />
+              {userId && isDbConfigured() ? (
+                <PrimaryButton
+                  label={savingDay ? "Saving…" : "Save this day"}
+                  variant="secondary"
+                  onPress={onSaveDay}
+                  disabled={savingDay}
+                  style={{ marginTop: 8 }}
+                />
+              ) : null}
               <PrimaryButton
                 label="Back to Preferences"
                 variant="ghost"

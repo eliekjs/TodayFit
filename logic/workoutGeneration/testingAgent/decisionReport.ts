@@ -297,6 +297,19 @@ function formatReasoning(report: DecisionReport): string[] {
   return lines;
 }
 
+/** Crisp 1-line bullets for reasoning (compact output). */
+function formatReasoningShort(report: DecisionReport): string[] {
+  const c = report.constraintsSummary;
+  const lines: string[] = [];
+  if (c.excluded_contraindication_keys.length || c.excluded_joint_stress_tags.length) {
+    lines.push("  • Exclude: " + [...c.excluded_contraindication_keys, ...c.excluded_joint_stress_tags].filter(Boolean).join(", ") || "—");
+  }
+  lines.push("  • Equipment: user list only. Body focus: " + (c.allowed_movement_families?.join(", ") ?? "any") + ".");
+  if (c.min_cooldown_mobility_exercises > 0) lines.push("  • Cooldown: ≥" + c.min_cooldown_mobility_exercises + " mobility/stretch.");
+  if (c.has_superset_pairing_rules) lines.push("  • Superset pairing rules on.");
+  return lines;
+}
+
 /**
  * Format reasoning behind session and block timing (why durations are what they are).
  */
@@ -354,26 +367,20 @@ function formatItemPrescription(it: WorkoutItem): string {
   return presc + unilateral;
 }
 
-/** Human-readable phrase for why an exercise was chosen (from reasoning_tags set by the generator). */
+/** Short phrase for why an exercise was chosen (from reasoning_tags). */
 function formatExerciseReasoning(item: WorkoutItem, block: WorkoutBlock): string {
   const tags = item.reasoning_tags ?? [];
-  if (tags.length === 0) {
-    return block.reasoning ?? "Selected for this block.";
-  }
-  const phrases: string[] = [];
-  if (tags.includes("main_lift")) phrases.push("main compound lift");
-  else if (tags.includes("warmup")) phrases.push("warmup / joint prep");
-  else if (tags.includes("cooldown")) phrases.push("cooldown / mobility");
-  else if (tags.includes("hypertrophy")) phrases.push("hypertrophy volume");
-  else if (tags.includes("superset")) phrases.push("part of superset pair");
-  else if (tags.includes("accessory")) phrases.push("accessory work");
-  else if (tags.includes("conditioning")) phrases.push("conditioning");
-  else if (tags.includes("endurance")) phrases.push("endurance");
-  else if (tags.includes("mobility") || tags.includes("recovery")) phrases.push("mobility / recovery");
-  const goalTags = tags.filter((t) => !["main_lift", "warmup", "cooldown", "hypertrophy", "superset", "accessory", "conditioning", "endurance", "mobility", "recovery", "strength"].includes(t));
-  if (goalTags.length) phrases.push("goal fit: " + goalTags.join(", ").replace(/_/g, " "));
-  if (tags.includes("strength") && !phrases.some((p) => p.includes("strength"))) phrases.push("strength goal");
-  return phrases.length ? phrases.join("; ") : tags.join(", ").replace(/_/g, " ");
+  if (tags.length === 0) return block.reasoning ?? "block fit";
+  const t = new Set(tags);
+  if (t.has("main_lift")) return "main compound";
+  if (t.has("warmup")) return "warmup";
+  if (t.has("cooldown") || t.has("mobility") || t.has("recovery")) return "cooldown/mobility";
+  if (t.has("hypertrophy")) return "hypertrophy";
+  if (t.has("superset")) return "superset pair";
+  if (t.has("accessory")) return "accessory";
+  if (t.has("conditioning") || t.has("endurance")) return "conditioning";
+  if (t.has("strength")) return "strength";
+  return tags.slice(0, 2).join(",").replace(/_/g, " ");
 }
 
 /** Build body parts, movement types, and filter-tie lines for one exercise (when exercise metadata is available). */
@@ -464,13 +471,32 @@ function formatExerciseDetailLines(
 
 /**
  * Format "why each exercise was chosen" for audit: block → exercise name → reasoning (from reasoning_tags).
- * When exerciseLookup is provided, adds body parts, movement types, and ties to each filter (body focus, goal, equipment, injuries, energy).
+ * When exerciseLookup is provided and not compact, adds body parts, movement types, and ties to each filter.
  */
 function formatExerciseChoiceReasoning(
   session: WorkoutSession,
   report: DecisionReport,
-  exerciseLookup?: ExerciseLookup
+  exerciseLookup?: ExerciseLookup,
+  compact?: boolean
 ): string[] {
+  if (compact) {
+    const lines: string[] = [];
+    for (const block of session.blocks ?? []) {
+      const title = block.title ?? block.block_type;
+      const pairs = block.format === "superset" ? getSupersetPairsForBlock(block) : undefined;
+      const itemsToExplain: WorkoutItem[] =
+        pairs && pairs.length > 0
+          ? pairs.flatMap(([a, b]) => (b ? [a, b] : [a]))
+          : (block.items ?? []).map((it) => it as WorkoutItem);
+      for (const it of itemsToExplain) {
+        const name = it.exercise_name ?? it.exercise_id;
+        const reason = formatExerciseReasoning(it, block);
+        const tagSuffix = (it.reasoning_tags?.length ?? 0) > 0 ? " [" + (it.reasoning_tags ?? []).slice(0, 3).join(",") + "]" : "";
+        lines.push("    • " + name + ": " + reason + tagSuffix);
+      }
+    }
+    return lines;
+  }
   const lines: string[] = [
     "  (Reasoning comes from generator-assigned reasoning_tags and block context.)",
     exerciseLookup
@@ -509,17 +535,16 @@ function formatExerciseChoiceReasoning(
  * Superset blocks show A1/A2 pairs and "Rest X s after each pair" instead of per-exercise rest.
  * (Single-session only; week plan is not generated in the current test runner.)
  */
-function formatWorkoutOutput(session: WorkoutSession): string[] {
+function formatWorkoutOutput(session: WorkoutSession, compact?: boolean): string[] {
   const lines: string[] = [
-    "  Session title: " + session.title,
-    "  Estimated total duration: " + (session.estimated_duration_minutes ?? 0) + " min",
-    "  (Single session; week plan not run in this test.)",
+    "  " + session.title + " · " + (session.estimated_duration_minutes ?? 0) + " min",
     "",
   ];
   for (const block of session.blocks ?? []) {
     const title = block.title ?? block.block_type;
     const formatLabel = block.format ? ` [${block.format}]` : "";
-    lines.push("  --- " + title + formatLabel + (block.estimated_minutes != null ? " (~" + block.estimated_minutes + " min)" : "") + " ---");
+    const reason = compact && block.reasoning ? " — " + block.reasoning : "";
+    lines.push("  --- " + title + formatLabel + (block.estimated_minutes != null ? " ~" + block.estimated_minutes + "min" : "") + reason + " ---");
     const pairs = block.format === "superset" ? getSupersetPairsForBlock(block) : undefined;
     if (pairs && pairs.length > 0) {
       const labels = "ABCDEFGH".split("");
@@ -529,11 +554,13 @@ function formatWorkoutOutput(session: WorkoutSession): string[] {
         const label = labels[i] ?? String(i + 1);
         if (restAfterPair == null && (a.rest_seconds != null || (b && b.rest_seconds != null)))
           restAfterPair = a.rest_seconds ?? (b && b.rest_seconds) ?? null;
-        lines.push("    " + label + "1. " + (a.exercise_name ?? a.exercise_id) + ": " + formatItemPrescription(a));
-        if (a.coaching_cues) lines.push("      Cues: " + a.coaching_cues);
+        const tagA = compact && (a.reasoning_tags?.length ?? 0) > 0 ? " [" + (a.reasoning_tags ?? []).slice(0, 2).join(",") + "]" : "";
+        lines.push("    " + label + "1. " + (a.exercise_name ?? a.exercise_id) + ": " + formatItemPrescription(a) + tagA);
+        if (!compact && a.coaching_cues) lines.push("      Cues: " + a.coaching_cues);
         if (b) {
-          lines.push("    " + label + "2. " + (b.exercise_name ?? b.exercise_id) + ": " + formatItemPrescription(b));
-          if (b.coaching_cues) lines.push("      Cues: " + b.coaching_cues);
+          const tagB = compact && (b.reasoning_tags?.length ?? 0) > 0 ? " [" + (b.reasoning_tags ?? []).slice(0, 2).join(",") + "]" : "";
+          lines.push("    " + label + "2. " + (b.exercise_name ?? b.exercise_id) + ": " + formatItemPrescription(b) + tagB);
+          if (!compact && b.coaching_cues) lines.push("      Cues: " + b.coaching_cues);
         }
       }
       if (restAfterPair != null && restAfterPair > 0) {
@@ -544,8 +571,9 @@ function formatWorkoutOutput(session: WorkoutSession): string[] {
         const it = item as WorkoutItem;
         const presc = formatItemPrescription(it);
         const rest = it.rest_seconds != null && it.rest_seconds > 0 ? ", rest " + it.rest_seconds + " s" : "";
-        lines.push("    • " + (it.exercise_name ?? it.exercise_id) + ": " + presc + rest);
-        if (it.coaching_cues) lines.push("      Cues: " + it.coaching_cues);
+        const tagSuffix = compact && (it.reasoning_tags?.length ?? 0) > 0 ? " [" + (it.reasoning_tags ?? []).slice(0, 2).join(",") + "]" : "";
+        lines.push("    • " + (it.exercise_name ?? it.exercise_id) + ": " + presc + rest + tagSuffix);
+        if (!compact && it.coaching_cues) lines.push("      Cues: " + it.coaching_cues);
       }
     }
     lines.push("");
@@ -554,13 +582,15 @@ function formatWorkoutOutput(session: WorkoutSession): string[] {
 }
 
 export type FormatFullTestReportOptions = {
-  /** When provided, each exercise in "Why each exercise was chosen" includes body parts, movement types, and filter ties. */
+  /** When provided, each exercise in "Why each exercise was chosen" includes body parts, movement types, and filter ties (full format only). */
   exerciseLookup?: ExerciseLookup;
+  /** Shorter output: crisp reasoning bullets, inline tags, no cues, no timing subsection, one line per exercise for "why chosen". */
+  compact?: boolean;
 };
 
 /**
  * Format a full test report: user inputs, reasoning, workout structure, validation.
- * Use this as the main test output so you see what the user put in, why the algorithm decided what it did, and the full workout/week output.
+ * Use compact: true for shorter, crisper output (tags inline, brief reasoning, isolated test runs).
  */
 export function formatFullTestReport(
   report: DecisionReport,
@@ -569,26 +599,25 @@ export function formatFullTestReport(
   options?: FormatFullTestReportOptions
 ): string {
   const exerciseLookup = options?.exerciseLookup;
+  const compact = options?.compact ?? false;
   const sections: string[] = [
     "## " + scenarioName,
     "",
-    "### 1. User inputs (what the user would have put in)",
-    ...formatUserInputs(report),
+    "### 1. Inputs",
+    ...(compact ? [`  ${report.inputSummary.duration_minutes} min · ${report.inputSummary.primary_goal} · ${report.inputSummary.energy_level} · focus: ${report.inputSummary.focus_body_parts?.join(", ") ?? "any"} · injuries: ${report.inputSummary.injuries_or_constraints.join(", ") || "none"}`] : formatUserInputs(report)),
     "",
-    "### 2. Reasoning (how inputs were used to determine the output)",
-    ...formatReasoning(report),
+    "### 2. Reasoning",
+    ...(compact ? formatReasoningShort(report) : formatReasoning(report)),
     "",
-    "### 2b. Reasoning behind timing",
-    ...formatTimingReasoning(report, session),
-    "",
-    "### 3. Workout output (exercise structure and total session)",
-    ...formatWorkoutOutput(session),
-    "",
-    "### 3b. Why each exercise was chosen",
-    ...formatExerciseChoiceReasoning(session, report, exerciseLookup),
-    "### 4. Validation",
-    "  Valid: " + report.validation.valid + (report.validation.violationCount > 0 ? " | Violations: " + report.validation.violationCount : ""),
   ];
+  if (!compact) {
+    sections.push("### 2b. Timing");
+    sections.push(...formatTimingReasoning(report, session));
+    sections.push("");
+  }
+  sections.push("### 3. Workout", ...formatWorkoutOutput(session, compact), "");
+  sections.push("### 4. Why chosen", ...formatExerciseChoiceReasoning(session, report, compact ? undefined : exerciseLookup, compact), "");
+  sections.push("### 5. Validation", "  Valid: " + report.validation.valid + (report.validation.violationCount > 0 ? " | Violations: " + report.validation.violationCount : ""));
   if (report.validation.violations.length > 0) {
     report.validation.violations.forEach((v) => sections.push("  - [" + v.type + "] " + v.description));
   }

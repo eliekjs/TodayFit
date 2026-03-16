@@ -172,6 +172,7 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     restRange: { min: 0, max: 15 },
     preferredFormats: ["circuit"],
     conditioningStrategy: "optional_short",
+    conditioningOnlyIfHighEnergy: true,
     lightConditioningMaxMinutes: 5,
     mobilityTimePerMovement: 30,
     mobilitySets: 1,
@@ -187,6 +188,7 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     restRange: { min: 30, max: 60 },
     preferredFormats: ["circuit"],
     conditioningStrategy: "optional_short",
+    conditioningOnlyIfHighEnergy: true,
     lightConditioningMaxMinutes: 10,
     cueStyle: {
       mobility: "Mobility, breathing, stability. Light band work.",

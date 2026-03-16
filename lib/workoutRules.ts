@@ -116,14 +116,21 @@ const DEADLIFT_FAMILY_IDS = new Set([
   "rdl_dumbbell",
 ]);
 
+/** Battle rope variants: same implement, different names; do not suggest as swaps for each other. */
+const BATTLE_ROPE_FAMILY_IDS = new Set([
+  "battle_ropes",
+  "battle_rope_waves",
+]);
+
 /**
  * Returns a cluster id for "extremely similar" exercises. Same cluster => avoid 3+ in a row.
  * Deadlift variants (including RDL, trap bar, deficit, snatch grip) share "deadlift_family";
- * others use their own id so no consecutive cap applies.
+ * battle rope variants share "battle_rope_family"; others use their own id.
  */
 export function getSimilarExerciseClusterId(exercise: { id: string }): string {
   const id = exercise.id.toLowerCase().replace(/\s/g, "_");
   if (DEADLIFT_FAMILY_IDS.has(id)) return "deadlift_family";
+  if (BATTLE_ROPE_FAMILY_IDS.has(id)) return "battle_rope_family";
   return exercise.id;
 }
 

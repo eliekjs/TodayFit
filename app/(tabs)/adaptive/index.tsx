@@ -379,9 +379,6 @@ export default function AdaptiveModeScreen() {
                         >
                           {displayName}
                         </Text>
-                        <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                          Set days on next step
-                        </Text>
                       </View>
                       <Pressable
                         hitSlop={8}
@@ -480,7 +477,7 @@ export default function AdaptiveModeScreen() {
                 style={[styles.goalRowHeader, { marginTop: 12 }]}
               >
                 <Text style={[styles.subGoalsControlText, { color: theme.primary }]}>
-                  {expandedSportForSubFocus === "all" ? "− Sport sub-focus (optional)" : "+ Sport sub-focus (optional)"}
+                  {expandedSportForSubFocus === "all" ? "− Sport sub-focus" : "+ Sport sub-focus"}
                 </Text>
               </Pressable>
             )}
@@ -571,7 +568,7 @@ export default function AdaptiveModeScreen() {
 
         <SectionHeader
           title="Any additional goals"
-          subtitle="Pick 1–3 goals. Suggested split: 60/40 for 2 goals, 50/30/20 for 3 (editable in Advanced)."
+          subtitle="Pick 1–3 goals."
           style={{ marginTop: 20 }}
         />
 

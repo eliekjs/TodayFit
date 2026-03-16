@@ -105,7 +105,9 @@ export const EXERCISE_ROLES = [
   "isolation",
   "finisher",
   "cooldown",
+  "stretch",
   "mobility",
+  "breathing",
   "conditioning",
 ] as const;
 

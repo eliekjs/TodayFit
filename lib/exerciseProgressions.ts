@@ -14,18 +14,31 @@ export type ProgressionsRegressions = {
 
 const MIN_SUGGESTIONS = 3;
 
+/** Derive energy_fit from tags array (e.g. from DB tag slugs). */
+function energyFitFromTags(tags: string[] | undefined): ("low" | "medium" | "high")[] | undefined {
+  if (!tags?.length) return undefined;
+  const out: ("low" | "medium" | "high")[] = [];
+  if (tags.includes("energy_low")) out.push("low");
+  if (tags.includes("energy_medium")) out.push("medium");
+  if (tags.includes("energy_high")) out.push("high");
+  return out.length ? out : undefined;
+}
+
 /** Map ExerciseDefinition to ExerciseLike for getSubstitutes (movement_pattern not on def, use empty). */
 function definitionToExerciseLike(def: ExerciseDefinition): ExerciseLike {
+  const tags = Array.isArray(def.tags) ? def.tags : [];
+  const energy_fit = energyFitFromTags(tags);
   return {
     id: def.id,
     name: def.name,
     movement_pattern: "",
     muscle_groups: def.muscles,
     equipment_required: def.equipment,
-    modality: def.modalities[0],
+    modality: def.modalities?.[0],
     progressions: def.progressions,
     regressions: def.regressions,
     tags: def.contraindications?.length ? { contraindications: def.contraindications } : undefined,
+    energy_fit,
   };
 }
 
@@ -46,10 +59,16 @@ function resolveFromStatic(exerciseId: string): ProgressionsRegressions {
   };
 }
 
+export type ProgressionsRegressionsOptions = {
+  /** When provided, suggested substitutes are filtered to match this energy (e.g. low → no high-only). */
+  energyLevel?: "low" | "medium" | "high";
+};
+
 /** When DB is configured, pad result with similar exercises from the pool so we return at least MIN_SUGGESTIONS. */
 async function fillToAtLeastThree(
   result: ProgressionsRegressions,
-  exerciseId: string
+  exerciseId: string,
+  options?: ProgressionsRegressionsOptions
 ): Promise<ProgressionsRegressions> {
   const combined = [...result.regressions, ...result.progressions];
   if (combined.length >= MIN_SUGGESTIONS) return result;
@@ -65,6 +84,7 @@ async function fillToAtLeastThree(
     const substitutes = getSubstitutes(target, pool, {
       maxResults: MIN_SUGGESTIONS,
       excludeIds: existingIds,
+      energyLevel: options?.energyLevel,
     });
     const need = MIN_SUGGESTIONS - combined.length;
     const extra = substitutes
@@ -83,9 +103,11 @@ async function fillToAtLeastThree(
  * Get progressions (harder) and regressions (easier) for an exercise.
  * Uses DB when configured, otherwise static EXERCISES data.
  * When DB is configured but returns no rows (e.g. progressions not seeded), falls back to static EXERCISES.
+ * Optional energyLevel filters suggested substitutes to match session energy (e.g. low → no high-only).
  */
 export async function getProgressionsRegressionsForExercise(
-  exerciseId: string
+  exerciseId: string,
+  options?: ProgressionsRegressionsOptions
 ): Promise<ProgressionsRegressions> {
   // #region agent log
   const dbConfigured = isDbConfigured();
@@ -128,7 +150,7 @@ export async function getProgressionsRegressionsForExercise(
             }),
           }).catch(() => {});
           // #endregion
-          return fillToAtLeastThree(fallback, exerciseId);
+          return fillToAtLeastThree(fallback, exerciseId, options);
         }
         // Static also empty (e.g. DB-only exercise like "ytw"): suggest similar by muscles/modality from DB pool.
         try {
@@ -139,7 +161,7 @@ export async function getProgressionsRegressionsForExercise(
           if (!targetDef || !poolDefs?.length) return { progressions: [], regressions: [] };
           const target = definitionToExerciseLike(targetDef);
           const pool = poolDefs.map(definitionToExerciseLike);
-          const substitutes = getSubstitutes(target, pool, { maxResults: 5 });
+          const substitutes = getSubstitutes(target, pool, { maxResults: 5, energyLevel: options?.energyLevel });
           const similar = substitutes.map((s) => ({ id: s.exercise.id, name: s.exercise.name }));
           // #region agent log
           fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
@@ -155,7 +177,7 @@ export async function getProgressionsRegressionsForExercise(
             }),
           }).catch(() => {});
           // #endregion
-          return fillToAtLeastThree({ progressions: [], regressions: similar }, exerciseId);
+          return fillToAtLeastThree({ progressions: [], regressions: similar }, exerciseId, options);
         } catch {
           return { progressions: [], regressions: [] };
         }
@@ -179,7 +201,7 @@ export async function getProgressionsRegressionsForExercise(
         }),
       }).catch(() => {});
       // #endregion
-      return fillToAtLeastThree(res, exerciseId);
+      return fillToAtLeastThree(res, exerciseId, options);
     } catch (err) {
       // #region agent log
       fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {

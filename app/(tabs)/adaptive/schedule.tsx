@@ -82,7 +82,10 @@ export default function AdaptiveScheduleScreen() {
 
   useEffect(() => {
     if (!adaptiveSetup) {
-      router.replace("/adaptive");
+      // #region agent log
+      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f74579'},body:JSON.stringify({sessionId:'f74579',location:'schedule.tsx:navigate-adaptive',message:'Calling router.navigate(/adaptive) because adaptiveSetup is null',data:{adaptiveSetup:!!adaptiveSetup},timestamp:Date.now(),hypothesisId:'H2',runId:'post-fix'})}).catch(()=>{});
+      // #endregion
+      router.navigate("/adaptive");
     }
   }, [adaptiveSetup, router]);
 

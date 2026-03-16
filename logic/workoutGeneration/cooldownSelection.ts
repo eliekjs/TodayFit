@@ -5,7 +5,7 @@
 
 import type { Exercise } from "./types";
 
-/** Roles that are appropriate for cooldown/mobility/stretch blocks. */
+/** Roles that are appropriate for cooldown when we allow mobility (legacy). */
 export const COOLDOWN_ELIGIBLE_ROLES = new Set([
   "cooldown",
   "stretch",
@@ -13,6 +13,20 @@ export const COOLDOWN_ELIGIBLE_ROLES = new Set([
   "breathing",
   "prep", // activation/prep can double as light cooldown in some flows
 ]);
+
+/**
+ * Cooldown block is stretching only: include only exercises that have stretch_targets
+ * or explicit stretch/breathing role (breathing allowed for recovery emphasis).
+ * Excludes mobility-only exercises from cooldown.
+ */
+export function isStretchOnlyEligible(exercise: Exercise): boolean {
+  const role = exercise.exercise_role?.toLowerCase().replace(/\s/g, "_");
+  if (role === "breathing") return true;
+  if (role === "stretch") return true;
+  const hasStretchTargets = (exercise.stretch_targets?.length ?? 0) > 0;
+  if (hasStretchTargets) return true;
+  return false;
+}
 
 /** Roles that should NOT appear in main work (compound/accessory) blocks. */
 export const MAIN_WORK_EXCLUDED_ROLES = new Set([
@@ -77,14 +91,14 @@ function scoreTargetMatch(exercise: Exercise, preferredTargets: string[]): numbe
 }
 
 /**
- * Role priority for cooldown: explicit cooldown/stretch/mobility/breathing first.
+ * Role priority for cooldown (stretching only): stretch first, then cooldown, then breathing; mobility/prep not in pool.
  */
 function cooldownRolePriority(exercise: Exercise): number {
   const role = exercise.exercise_role?.toLowerCase().replace(/\s/g, "_");
-  if (!role) return 1; // legacy: modality only
-  if (role === "cooldown" || role === "breathing") return 3;
-  if (role === "stretch" || role === "mobility") return 2;
-  if (role === "prep") return 0;
+  if (!role) return 1; // has stretch_targets, no role
+  if (role === "stretch") return 3;
+  if (role === "cooldown") return 2; // legacy role for stretches
+  if (role === "breathing") return 2;
   return 1;
 }
 
@@ -112,9 +126,11 @@ export function selectCooldownMobilityExercises(
     maxItems = Math.max(minMobilityCount + 1, 4),
   } = options;
 
+  // Cooldown = stretching only: exclude mobility-only exercises (no stretch_targets and not stretch/breathing role).
   const pool = exercises.filter((e) => {
     if (alreadyUsedIds.has(e.id)) return false;
-    return isCooldownEligible(e);
+    if (!isCooldownEligible(e)) return false;
+    return isStretchOnlyEligible(e);
   });
 
   if (pool.length === 0) return [];

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
@@ -17,6 +18,8 @@ import type { PlannedDay } from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
 import { GOAL_SLUG_TO_LABEL } from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
+import { saveManualDay } from "../../../lib/db/weekPlanRepository";
+import { isDbConfigured } from "../../../lib/db";
 
 function humanizeSportSlug(slug: string): string {
   return slug
@@ -55,6 +58,7 @@ export default function AdaptiveWeekPlanScreen() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isReplanning, setIsReplanning] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
   /** Override preferences for the selected day when regenerating (goal, body, energy). */
@@ -332,7 +336,12 @@ export default function AdaptiveWeekPlanScreen() {
           <View style={{ marginTop: 16 }}>
             <PrimaryButton
               label="Set Training Priorities"
-              onPress={() => router.replace("/adaptive")}
+              onPress={() => {
+              // #region agent log
+              fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f74579'},body:JSON.stringify({sessionId:'f74579',location:'recommendation.tsx:navigate-adaptive',message:'User pressed back to adaptive',data:{},timestamp:Date.now(),hypothesisId:'H4',runId:'post-fix'})}).catch(()=>{});
+              // #endregion
+              router.navigate("/adaptive");
+            }}
             />
           </View>
         </View>
@@ -447,6 +456,80 @@ export default function AdaptiveWeekPlanScreen() {
     }
   };
 
+  const onSaveDay = async () => {
+    if (!selectedDay || !selectedWorkout || !userId || !isDbConfigured()) {
+      if (!userId || !isDbConfigured()) {
+        setError("Sign in and enable sync to save days.");
+      }
+      return;
+    }
+    setError(null);
+    setSavingDay(true);
+    try {
+      await saveManualDay(userId, selectedDay.date, selectedWorkout);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSavingDay(false);
+    }
+  };
+
+  /** Move session to previous day (up). */
+  const moveSessionUp = useCallback(
+    (day: PlannedDay) => {
+      if (!sportPrepWeekPlan) return;
+      const idx = weekDates.indexOf(day.date);
+      if (idx <= 0) return;
+      const newDate = weekDates[idx - 1];
+      const updatedDays = sportPrepWeekPlan.days.map((d) =>
+        d.id === day.id ? { ...d, date: newDate } : d
+      );
+      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+      const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
+      const updatedGuestWorkouts = { ...guestWorkouts };
+      if (workout) {
+        updatedGuestWorkouts[newDate] = workout;
+        updatedGuestWorkouts[day.id] = workout;
+        delete updatedGuestWorkouts[day.date];
+      }
+      setSportPrepWeekPlan({
+        ...sportPrepWeekPlan,
+        days: updatedDays,
+        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
+        guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
+      });
+    },
+    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
+  );
+
+  /** Move session to next day (down). */
+  const moveSessionDown = useCallback(
+    (day: PlannedDay) => {
+      if (!sportPrepWeekPlan) return;
+      const idx = weekDates.indexOf(day.date);
+      if (idx < 0 || idx >= weekDates.length - 1) return;
+      const newDate = weekDates[idx + 1];
+      const updatedDays = sportPrepWeekPlan.days.map((d) =>
+        d.id === day.id ? { ...d, date: newDate } : d
+      );
+      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+      const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
+      const updatedGuestWorkouts = { ...guestWorkouts };
+      if (workout) {
+        updatedGuestWorkouts[newDate] = workout;
+        updatedGuestWorkouts[day.id] = workout;
+        delete updatedGuestWorkouts[day.date];
+      }
+      setSportPrepWeekPlan({
+        ...sportPrepWeekPlan,
+        days: updatedDays,
+        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
+        guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
+      });
+    },
+    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
+  );
+
   const summaryLines: string[] = [];
   if (selectedWorkout?.focus?.length) {
     summaryLines.push(selectedWorkout.focus.join(" • "));
@@ -461,62 +544,90 @@ export default function AdaptiveWeekPlanScreen() {
 
   const weekOverviewContent = (
     <View>
-      {daySlots.map((slot) => (
-        <View key={slot.date}>
-          <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.dayHeaderText, { color: theme.text }]}>
-              {new Date(slot.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" })}
-            </Text>
-            {slot.date === todayIso && (
-              <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
-                Today
+      {daySlots.map((slot) => {
+        const dayIdx = weekDates.indexOf(slot.date);
+        const canMoveUp = dayIdx > 0;
+        const canMoveDown = dayIdx >= 0 && dayIdx < weekDates.length - 1;
+        return (
+          <View key={slot.date}>
+            <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.dayHeaderText, { color: theme.text }]}>
+                {new Date(slot.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" })}
               </Text>
-            )}
-          </View>
-          {slot.sessions.map((session) => {
-            const day = session;
-            const isSelected = selectedDay?.id === day.id;
-            const rawLabel = day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
-            const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
-            const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
-            return (
-              <View key={day.id} style={{ marginBottom: 6, marginLeft: 12 }}>
-                <Pressable
-                  onPress={() => onSelectSession(day)}
-                  style={[
-                    styles.dayRow,
-                    {
-                      flexDirection: "row",
-                      alignItems: "center",
-                      borderColor: isSelected ? theme.primary : theme.border,
-                      backgroundColor: isSelected ? theme.primarySoft : "transparent",
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-                      {label}
-                    </Text>
-                    {statusBadge ? (
-                      <Text
-                        style={[
-                          styles.todayBadge,
-                          {
-                            color: day.status === "completed" ? theme.success ?? theme.primary : theme.textMuted,
-                            borderColor: day.status === "completed" ? (theme.success ?? theme.primary) : theme.border,
-                          },
-                        ]}
-                      >
-                        {statusBadge}
-                      </Text>
-                    ) : null}
+              {slot.date === todayIso && (
+                <Text style={[styles.todayBadge, { color: theme.primary, borderColor: theme.primary, marginLeft: 8 }]}>
+                  Today
+                </Text>
+              )}
+            </View>
+            {slot.sessions.map((session) => {
+              const day = session;
+              const isSelected = selectedDay?.id === day.id;
+              const rawLabel = day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
+              const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
+              const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
+              return (
+                <View key={day.id} style={[styles.sessionRow, { marginLeft: 12 }]}>
+                  <View style={styles.moveButtons}>
+                    <Pressable
+                      onPress={() => canMoveUp && moveSessionUp(day)}
+                      disabled={!canMoveUp}
+                      style={({ pressed }) => ({
+                        padding: 8,
+                        opacity: canMoveUp ? (pressed ? 0.7 : 1) : 0.3,
+                      })}
+                    >
+                      <Ionicons name="chevron-up" size={20} color={theme.textMuted} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => canMoveDown && moveSessionDown(day)}
+                      disabled={!canMoveDown}
+                      style={({ pressed }) => ({
+                        padding: 8,
+                        opacity: canMoveDown ? (pressed ? 0.7 : 1) : 0.3,
+                      })}
+                    >
+                      <Ionicons name="chevron-down" size={20} color={theme.textMuted} />
+                    </Pressable>
                   </View>
-                </Pressable>
-              </View>
-            );
-          })}
-        </View>
-      ))}
+                  <Pressable
+                    onPress={() => onSelectSession(day)}
+                    style={[
+                      styles.dayRow,
+                      {
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        borderColor: isSelected ? theme.primary : theme.border,
+                        backgroundColor: isSelected ? theme.primarySoft : "transparent",
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
+                        {label}
+                      </Text>
+                      {statusBadge ? (
+                        <Text
+                          style={[
+                            styles.todayBadge,
+                            {
+                              color: day.status === "completed" ? theme.primary : theme.textMuted,
+                              borderColor: day.status === "completed" ? theme.primary : theme.border,
+                            },
+                          ]}
+                        >
+                          {statusBadge}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        );
+      })}
     </View>
   );
 
@@ -527,7 +638,7 @@ export default function AdaptiveWeekPlanScreen() {
         subtitle={`Week starting ${sportPrepWeekPlan.weekStartDate}`}
       >
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
-          Tap a day to view its session. Today is highlighted. You can
+          Tap a session to view it. Use the arrows to move sessions between days. You can
           regenerate an individual day without changing the rest of the plan.
         </Text>
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
@@ -548,7 +659,7 @@ export default function AdaptiveWeekPlanScreen() {
       <Card
         title="Week overview"
         style={{ marginTop: 16 }}
-        subtitle="Days list Mon–Sun. Tap a session to view or regenerate it."
+        subtitle="Use ↑↓ arrows to move sessions to different days. Tap a session to view or regenerate it."
       >
         {weekOverviewContent}
       </Card>
@@ -616,10 +727,24 @@ export default function AdaptiveWeekPlanScreen() {
             onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
             showChips={!!(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id])}
           />
+          {userId && isDbConfigured() && selectedWorkout ? (
+            <PrimaryButton
+              label={savingDay ? "Saving…" : "Save this day"}
+              variant="secondary"
+              onPress={onSaveDay}
+              disabled={savingDay}
+              style={{ marginTop: 8 }}
+            />
+          ) : null}
           <PrimaryButton
             label="Back to Setup"
             variant="ghost"
-            onPress={() => router.replace("/adaptive")}
+            onPress={() => {
+              // #region agent log
+              fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f74579'},body:JSON.stringify({sessionId:'f74579',location:'recommendation.tsx:navigate-adaptive',message:'User pressed back to adaptive',data:{},timestamp:Date.now(),hypothesisId:'H4',runId:'post-fix'})}).catch(()=>{});
+              // #endregion
+              router.navigate("/adaptive");
+            }}
             style={{ marginTop: 8 }}
           />
         </View>
@@ -689,6 +814,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 12,
     fontStyle: "italic",
+  },
+  sessionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+    gap: 4,
+  },
+  moveButtons: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
   },
   dayHeaderRow: {
     flexDirection: "row",

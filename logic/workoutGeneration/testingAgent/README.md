@@ -42,6 +42,11 @@ npx tsx logic/workoutGeneration/testingAgent/runFocusTests.ts body_part_focus --
 | `equipment_limits` | Limited equipment → only exercises using that equipment. |
 | `supersets` | `wants_supersets` and pairing rules; session may use superset format. |
 | `goals_and_conditioning` | Primary/secondary goals and optional conditioning; title reflects goal. |
+| `tags_and_filters_isolated` | **One scenario per tag/filter** so you can verify each in isolation: avoid_tags (overhead, hanging, shoulder_extension, knee_flexion), injuries (knee_pain, shoulder, lower_back), focus (upper_push, upper_pull, lower, full_body), equipment, energy, conditioning_minutes, wants_supersets. |
+
+## Output format (compact by default)
+
+Reports use **compact format** by default: short reasoning bullets, inline tags per exercise (e.g. `[warmup,mobility]`), one line per exercise for "why chosen", no timing subsection. For full detail (user inputs list, long reasoning, timing, filter ties per exercise), pass `compact: false` when calling `formatFullTestReport` programmatically.
 
 ## Decisioning (why the app produced this workout)
 

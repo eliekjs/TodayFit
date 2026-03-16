@@ -2,6 +2,7 @@ import { getSupabase } from "./client";
 import { saveGeneratedWorkout, getWorkout } from "./workoutRepository";
 import type { GeneratedWorkout } from "../types";
 import type { PlannedDay } from "../../services/sportPrepPlanner";
+import { parseLocalDate } from "../dateUtils";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -57,6 +58,61 @@ export async function saveManualWeek(
     });
     if (dayError) throw new Error(dayError.message);
   }
+
+  return instanceId;
+}
+
+/** Monday of the week containing the given ISO date (local timezone). */
+function weekStartMonday(isoDate: string): string {
+  const d = parseLocalDate(isoDate);
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - diff);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dayNum = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dayNum}`;
+}
+
+/**
+ * Save a single day as its own plan (one weekly_plan_instance with one weekly_plan_day).
+ * Stored with goals_snapshot { source: "manual", singleDay: true }. Appears in Library with other saved weeks.
+ */
+export async function saveManualDay(
+  userId: string,
+  date: string,
+  workout: GeneratedWorkout
+): Promise<string> {
+  const supabase = requireClient();
+  const weekStartDate = weekStartMonday(date);
+
+  const { data: instanceRow, error: instanceError } = await supabase
+    .from("weekly_plan_instances")
+    .insert({
+      user_id: userId,
+      week_start_date: weekStartDate,
+      plan_id: null,
+      goals_snapshot: { source: "manual", singleDay: true },
+      rationale: null,
+    })
+    .select("id")
+    .single();
+  if (instanceError) throw new Error(instanceError.message);
+  const instanceId = instanceRow.id as string;
+
+  const workoutId = await saveGeneratedWorkout(userId, workout);
+  const { error: dayError } = await supabase.from("weekly_plan_days").insert({
+    weekly_plan_instance_id: instanceId,
+    date,
+    intent_id: null,
+    intent_label: workout.focus?.join(" • ") ?? "Manual",
+    goal_contribution: {},
+    fatigue_score: null,
+    status: "planned",
+    generated_workout_id: workoutId,
+  });
+  if (dayError) throw new Error(dayError.message);
 
   return instanceId;
 }

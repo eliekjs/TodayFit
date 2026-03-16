@@ -199,7 +199,7 @@ function main() {
     const exerciseLookup = (id: string) => exercisePool.find((e) => e.id === id);
 
     for (const { scenario, report, session, passed } of reports) {
-      console.log(formatFullTestReport(report, session, scenario.name, { exerciseLookup }));
+      console.log(formatFullTestReport(report, session, scenario.name, { exerciseLookup, compact: true }));
       const status = scenario.expectedDecision ? (passed ? "PASS" : "FAIL") : "skip";
       console.log("\n  [" + status + "] " + scenario.name + "\n");
     }

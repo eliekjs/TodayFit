@@ -126,8 +126,8 @@ function testLowerBodyMobilityPreferTargets() {
   console.log("  OK: lower_body + mobility prefers hips/hamstrings/glutes when annotated");
 }
 
-// --- Non-annotated exercises: fallback to modality-based eligibility ---
-function testNonAnnotatedFallback() {
+// --- Cooldown = stretching only: mobility-only (no stretch_targets) is excluded ---
+function testCooldownStretchOnly() {
   const legacyMobility: Exercise = {
     id: "legacy_mob",
     name: "Legacy mobility",
@@ -139,13 +139,19 @@ function testNonAnnotatedFallback() {
     time_cost: "low",
     tags: { goal_tags: ["mobility"], energy_fit: ["low", "medium", "high"], joint_stress: [], stimulus: [] },
   };
-  assert(isCooldownEligible(legacyMobility), "legacy modality mobility is cooldown-eligible");
+  assert(isCooldownEligible(legacyMobility), "legacy modality mobility is cooldown-eligible (equipment/role)");
   const chosen = selectCooldownMobilityExercises(
     [legacyMobility],
     { minMobilityCount: 1, preferredTargets: [], alreadyUsedIds: new Set(), rng: () => 0.5 }
   );
-  assert(chosen.length === 1 && chosen[0].id === "legacy_mob", "non-annotated mobility exercise still selected");
-  console.log("  OK: non-annotated exercises still fall back to modality-based cooldown");
+  assert(chosen.length === 0, "cooldown is stretch-only: mobility-only exercise (no stretch_targets) is excluded");
+  const withStretch: Exercise = { ...legacyMobility, id: "stretch_anno", stretch_targets: ["hamstrings"] };
+  const chosen2 = selectCooldownMobilityExercises(
+    [withStretch],
+    { minMobilityCount: 1, preferredTargets: [], alreadyUsedIds: new Set(), rng: () => 0.5 }
+  );
+  assert(chosen2.length === 1 && chosen2[0].id === "stretch_anno", "exercise with stretch_targets is selected for cooldown");
+  console.log("  OK: cooldown is stretching only; mobility-only excluded");
 }
 
 // --- exercise_role: cooldown/stretch roles excluded from main work pool ---
@@ -194,7 +200,7 @@ function main() {
   testNoMobilityGoalLegacyCooldown();
   testUpperPushMobilityPreferTargets();
   testLowerBodyMobilityPreferTargets();
-  testNonAnnotatedFallback();
+  testCooldownStretchOnly();
   testExerciseRoleExcludedFromMainWork();
   console.log("All Phase 6 tests passed.");
 }

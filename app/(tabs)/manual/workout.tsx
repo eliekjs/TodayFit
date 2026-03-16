@@ -201,7 +201,6 @@ export default function ManualWorkoutScreen() {
           onSwap={(exerciseId, exerciseName) =>
             setSwapModal({ exerciseId, exerciseName })
           }
-          showTags
         />
 
         <View style={styles.footer}>

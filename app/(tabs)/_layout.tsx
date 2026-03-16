@@ -109,10 +109,16 @@ export default function TabsLayout() {
   const { savedWorkouts } = useAppState();
   const libraryBadgeCount = savedWorkouts.length;
 
+  // #region agent log
+  React.useEffect(() => {
+    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f74579'},body:JSON.stringify({sessionId:'f74579',location:'_layout.tsx:tabs-mount',message:'Tabs layout mounted',data:{visibleTabNames:VISIBLE_TAB_NAMES},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  }, []);
+  // #endregion
+
   return (
     <Tabs
       screenOptions={{
-        tabBar: (props) => <FilteredTabBar {...props} />,
+        tabBar: (props: BottomTabBarProps) => <FilteredTabBar {...props} />,
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
         tabBarActiveBackgroundColor: theme.primarySoft,
@@ -148,7 +154,7 @@ export default function TabsLayout() {
     >
       {/* ── 3 visible tabs: Library | Today (center, home) | Profile ── */}
       <Tabs.Screen
-        name="library"
+        name="library/index"
         options={{
           title: "Library",
           tabBarLabel: "Library",
@@ -178,7 +184,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="profiles"
+        name="profiles/index"
         options={{
           title: "Gym Profile",
           tabBarLabel: "Profile",
@@ -254,13 +260,6 @@ export default function TabsLayout() {
           headerLeft: () => <HeaderBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
-      />
-      {/* ── Other hidden ── */}
-      <Tabs.Screen name="build" options={{ href: null }} />
-      <Tabs.Screen name="factors" options={{ href: null }} />
-      <Tabs.Screen
-        name="sport-dev"
-        options={{ href: null, title: "Sport DB (Dev)" }}
       />
     </Tabs>
   );

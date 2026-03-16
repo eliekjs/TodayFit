@@ -26,6 +26,7 @@ import {
   BODY_RECOMP_CUES,
   BODY_RECOMP_REP_RANGE,
   isWarmupEligibleEquipment,
+  isCooldownEligibleEquipment,
   WARMUP_CARDIO_POSITION,
   WARMUP_ITEM_MAX_SECONDS,
   MAX_NON_CARDIO_CUE_SECONDS,
@@ -393,7 +394,11 @@ export function generateWorkout(
   const accessoryPool = eligible.filter((e) =>
     e.tags.includes("core stability")
   );
-  const cooldownPool = eligible.filter((e) => e.modalities.includes("mobility"));
+  // Cooldown: mobility only, no dumbbells/kettlebells/barbells/cables/machines (stretching/mobility only)
+  const cooldownPool = eligible.filter(
+    (e) =>
+      e.modalities.includes("mobility") && isCooldownEligibleEquipment(e.equipment ?? [])
+  );
 
   // Build prefer set: optional caller-provided preferred slugs + slugs from goal sub-focus tag scoring
   const subFocusPreferSlugs = buildPreferredSlugsFromSubFocus(

@@ -1,8 +1,11 @@
 /**
  * Exercise substitution intelligence: find the best alternative exercises
  * for a given target (same movement pattern, muscle groups, progressions/regressions),
- * ranked by similarity and compatibility.
+ * ranked by similarity and compatibility. Swaps must match intensity domain and modality
+ * (e.g. no mobility stretches as substitutes for high-intensity conditioning).
  */
+
+import { getSimilarExerciseClusterId } from "../workoutRules";
 
 /** Minimal exercise shape for substitution (compatible with generator Exercise). */
 export type ExerciseLike = {
@@ -17,6 +20,8 @@ export type ExerciseLike = {
   progressions?: string[];
   regressions?: string[];
   unilateral?: boolean;
+  /** When set, used to filter candidates by energy (e.g. low energy → exclude high-only). */
+  energy_fit?: ("low" | "medium" | "high")[];
 };
 
 export type SubstituteReason =
@@ -42,7 +47,25 @@ export type SubstitutionOptions = {
   preferRegressions?: boolean;
   /** Prefer progressions (harder) when true. */
   preferProgressions?: boolean;
+  /** Session energy level: candidates incompatible with this are excluded (e.g. low → no high-only). */
+  energyLevel?: "low" | "medium" | "high";
 };
+
+/** Domain for modality: conditioning vs mobility/recovery vs strength/power. Used to avoid cross-domain swaps. */
+function modalityDomain(modality: string | undefined): string {
+  if (!modality) return "other";
+  if (modality === "conditioning") return "conditioning";
+  if (modality === "mobility" || modality === "recovery") return "mobility";
+  return "strength";
+}
+
+function energyCompatible(
+  candidateFit: ("low" | "medium" | "high")[] | undefined,
+  sessionEnergy: "low" | "medium" | "high"
+): boolean {
+  const fit = candidateFit ?? ["low", "medium", "high"];
+  return fit.includes(sessionEnergy);
+}
 
 /**
  * Score how well a candidate substitutes for the target (higher = better).
@@ -96,8 +119,9 @@ function substituteScore(
 
 /**
  * Find ranked substitute exercises for a target. Candidate pool should already
- * be filtered by equipment and injuries (e.g. from filterByHardConstraints).
- * Does not include the target in results.
+ * be filtered by equipment and injuries. Swaps are constrained to same intensity
+ * domain and modality type (no mobility stretches for conditioning, no high-only
+ * exercises when energy is low). Does not include the target in results.
  */
 export function getSubstitutes(
   target: ExerciseLike,
@@ -110,12 +134,19 @@ export function getSubstitutes(
   const maxResults = options.maxResults ?? 10;
   const preferRegressions = options.preferRegressions ?? false;
   const preferProgressions = options.preferProgressions ?? false;
+  const energyLevel = options.energyLevel;
 
   const targetId = target.id.toLowerCase();
-  const candidates = candidatePool.filter(
-    (c) => c.id !== target.id && !excludeIds.has(c.id)
-  );
+  const targetCluster = getSimilarExerciseClusterId({ id: target.id });
 
+  const candidates = candidatePool.filter((c) => {
+    if (c.id === target.id || excludeIds.has(c.id)) return false;
+    if (getSimilarExerciseClusterId({ id: c.id }) === targetCluster) return false;
+    if (energyLevel && !energyCompatible(c.energy_fit, energyLevel)) return false;
+    return true;
+  });
+
+  const targetDomain = modalityDomain(target.modality);
   const scored: RankedSubstitute[] = [];
 
   for (const c of candidates) {
@@ -141,6 +172,11 @@ export function getSubstitutes(
       reason = "same_modality";
     } else {
       continue;
+    }
+
+    const cDomain = modalityDomain(c.modality);
+    if (reason === "same_muscles" || reason === "same_modality") {
+      if (targetDomain !== cDomain) continue;
     }
 
     if (preferRegressions && reason === "progression") continue;

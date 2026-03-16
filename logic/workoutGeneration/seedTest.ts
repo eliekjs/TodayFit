@@ -11,23 +11,14 @@ function printSession(session: WorkoutSession, label: string) {
   console.log("\n" + "=".repeat(60));
   console.log(label);
   console.log("=".repeat(60));
-  console.log(`Title: ${session.title}`);
-  console.log(`Estimated duration: ${session.estimated_duration_minutes} min`);
-  if (session.debug?.seed_used != null) {
-    console.log(`Seed: ${session.debug.seed_used}`);
-  }
+  console.log(`${session.title} · ${session.estimated_duration_minutes} min` + (session.debug?.seed_used != null ? ` (seed ${session.debug.seed_used})` : ""));
   for (const block of session.blocks) {
-    console.log("\n--- " + block.block_type.toUpperCase() + " (" + block.format + ") ---");
-    if (block.estimated_minutes) {
-      console.log(`  (~${block.estimated_minutes} min)`);
-    }
+    const header = block.block_type + (block.format ? ` [${block.format}]` : "") + (block.estimated_minutes != null ? ` ~${block.estimated_minutes}min` : "");
+    console.log("\n  " + header + (block.reasoning ? " — " + block.reasoning : ""));
     for (const item of block.items) {
-      const presc = item.reps != null ? `${item.sets} x ${item.reps} reps` : `${item.sets} x ${item.time_seconds}s`;
-      console.log(`  • ${item.exercise_name}: ${presc}, rest ${item.rest_seconds}s`);
-      console.log(`    Cues: ${item.coaching_cues}`);
-      if (item.reasoning_tags?.length) {
-        console.log(`    Tags: ${item.reasoning_tags.join(", ")}`);
-      }
+      const presc = item.reps != null ? `${item.sets}×${item.reps}` : `${item.sets}×${item.time_seconds}s`;
+      const tags = (item.reasoning_tags?.length ?? 0) > 0 ? " [" + (item.reasoning_tags ?? []).slice(0, 3).join(",") + "]" : "";
+      console.log(`    • ${item.exercise_name}: ${presc} rest${item.rest_seconds}s${tags}`);
     }
   }
   console.log("");
