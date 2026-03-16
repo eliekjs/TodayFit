@@ -14,9 +14,10 @@ import { STUB_EXERCISES } from "../exerciseStub";
 import type { GenerateWorkoutInput } from "../types";
 import {
   buildDecisionReport,
-  formatDecisionReport,
+  formatFullTestReport,
   type DecisionReport,
 } from "./decisionReport";
+import type { WorkoutSession } from "../types";
 import {
   FOCUS_AREAS,
   getFocusArea,
@@ -114,15 +115,19 @@ export type RunOptions = {
 };
 
 /**
- * Run all scenarios for a focus area; returns reports and assertion results.
+ * Run all scenarios for a focus area; returns reports, sessions, and assertion results.
  */
 export function runFocusArea(
   focusId: FocusAreaId,
   options: RunOptions = {}
-): { focus: FocusAreaId; reports: { scenario: Scenario; report: DecisionReport; passed: boolean }[] } {
+): {
+  focus: FocusAreaId;
+  reports: { scenario: Scenario; report: DecisionReport; session: WorkoutSession; passed: boolean }[];
+  exercisePool: import("../types").Exercise[];
+} {
   const scenarios = getScenarioInputsForFocus(focusId);
   const exercisePool = options.exercisePool ?? STUB_EXERCISES;
-  const reports: { scenario: Scenario; report: DecisionReport; passed: boolean }[] = [];
+  const reports: { scenario: Scenario; report: DecisionReport; session: WorkoutSession; passed: boolean }[] = [];
 
   for (const scenario of scenarios) {
     const input: GenerateWorkoutInput = { ...scenario.input, seed: scenario.input.seed ?? 100 };
@@ -140,10 +145,10 @@ export function runFocusArea(
         if (options.describeOnly === false) throw e;
       }
     }
-    reports.push({ scenario, report, passed });
+    reports.push({ scenario, report, session, passed });
   }
 
-  return { focus: focusId, reports };
+  return { focus: focusId, reports, exercisePool };
 }
 
 /**
@@ -152,9 +157,9 @@ export function runFocusArea(
 export function runAll(
   focusIds?: FocusAreaId[],
   options: RunOptions = {}
-): Map<FocusAreaId, { scenario: Scenario; report: DecisionReport; passed: boolean }[]> {
+): Map<FocusAreaId, { scenario: Scenario; report: DecisionReport; session: WorkoutSession; passed: boolean }[]> {
   const ids = focusIds ?? (FOCUS_AREAS.map((a) => a.id) as FocusAreaId[]);
-  const results = new Map<FocusAreaId, { scenario: Scenario; report: DecisionReport; passed: boolean }[]>();
+  const results = new Map<FocusAreaId, { scenario: Scenario; report: DecisionReport; session: WorkoutSession; passed: boolean }[]>();
 
   for (const id of ids) {
     const { reports } = runFocusArea(id, options);
@@ -166,7 +171,6 @@ export function runAll(
 function main() {
   const args = process.argv.slice(2);
   const listOnly = args.includes("--list");
-  const describeOnly = args.includes("--describe");
   const focusArgs = args.filter((a) => !a.startsWith("--"));
 
   if (listOnly) {
@@ -191,18 +195,16 @@ function main() {
     console.log(`Focus: ${area.label} — ${area.description}`);
     console.log("=".repeat(60));
 
-    const { reports } = runFocusArea(focusId, { describeOnly, includeDebug: false });
+    const { reports, exercisePool } = runFocusArea(focusId, { includeDebug: false });
+    const exerciseLookup = (id: string) => exercisePool.find((e) => e.id === id);
 
-    for (const { scenario, report, passed } of reports) {
-      if (describeOnly) {
-        console.log(formatDecisionReport(report, scenario.name));
-      } else {
-        const status = scenario.expectedDecision ? (passed ? "PASS" : "FAIL") : "skip";
-        console.log(`  [${status}] ${scenario.name}`);
-      }
+    for (const { scenario, report, session, passed } of reports) {
+      console.log(formatFullTestReport(report, session, scenario.name, { exerciseLookup }));
+      const status = scenario.expectedDecision ? (passed ? "PASS" : "FAIL") : "skip";
+      console.log("\n  [" + status + "] " + scenario.name + "\n");
     }
   }
-  console.log("\nDone.");
+  console.log("Done.");
 }
 
 main();

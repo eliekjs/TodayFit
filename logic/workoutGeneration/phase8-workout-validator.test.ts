@@ -52,7 +52,7 @@ const LOWER_EX: Exercise = {
 
 const MOBILITY_EX: Exercise = {
   id: "cat_camel",
-  name: "Cat-Camel",
+  name: "Cat Cow",
   movement_pattern: "rotate",
   muscle_groups: ["core"],
   modality: "mobility",
@@ -101,7 +101,7 @@ function testBodyPartFocusRepair() {
       },
       {
         block_type: "cooldown",
-        items: [{ exercise_id: "cat_camel", exercise_name: "Cat-Camel" }],
+        items: [{ exercise_id: "cat_camel", exercise_name: "Cat Cow" }],
       },
     ],
   };

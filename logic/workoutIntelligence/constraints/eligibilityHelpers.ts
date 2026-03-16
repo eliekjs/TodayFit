@@ -12,6 +12,7 @@ import type {
 import {
   getEffectivePairingFamilies,
   hasGripDemand as hasGripDemandPairing,
+  useDifferentBarbellStations,
 } from "../supersetPairing";
 
 const VALID_MOVEMENT_FAMILIES: MovementFamily[] = [
@@ -198,13 +199,15 @@ export function satisfiesBlockRequirement(
   };
 }
 
-/** Check if two exercises can be paired in a superset (ontology-aware: effective families, double grip). */
+/** Check if two exercises can be paired in a superset (ontology-aware: effective families, double grip, barbell stations). */
 export function canPairInSuperset(
   a: ExerciseWithQualities,
   b: ExerciseWithQualities,
   constraints: ResolvedWorkoutConstraints
 ): boolean {
   if (a.id === b.id) return false;
+  // Don't pair two barbell movements that need different setups (e.g. squat rack vs bench vs floor).
+  if (useDifferentBarbellStations(a, b)) return false;
   const pairing = constraints.superset_pairing;
   if (pairing) {
     if (pairing.forbidden_same_pattern && (a.movement_pattern === b.movement_pattern)) return false;

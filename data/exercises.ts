@@ -200,7 +200,7 @@ export const EXERCISES: ExerciseDefinition[] = [
   },
   {
     id: "cat_camel",
-    name: "Cat-Camel",
+    name: "Cat Cow",
     muscles: ["core"],
     modalities: ["mobility"],
     equipment: ["bodyweight"],

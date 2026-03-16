@@ -3,17 +3,37 @@
  * No React or DB dependencies.
  */
 
-/** Equipment allowed in warm-ups: bodyweight and bands only (activation/mobility, no weights). */
+/** Equipment allowed in warm-ups: bodyweight, bands, and cardio machines only. No weights, cables, or strength machines. */
 export const WARMUP_ALLOWED_EQUIPMENT = new Set<string>([
   "bodyweight",
   "bands",
   "resistance_band",
+  "treadmill",
+  "assault_bike",
+  "rower",
+  "ski_erg",
+  "stair_climber",
 ]);
 
 export function isWarmupEligibleEquipment(equipment: string[]): boolean {
   if (!equipment.length) return false;
   const normalized = equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
   return normalized.every((eq) => WARMUP_ALLOWED_EQUIPMENT.has(eq));
+}
+
+/** Equipment allowed in cooldown: stretching/mobility only. No cables, weights, or strength machines. */
+export const COOLDOWN_ALLOWED_EQUIPMENT = new Set<string>([
+  "bodyweight",
+  "bands",
+  "resistance_band",
+  "foam_roller",
+  "miniband",
+]);
+
+export function isCooldownEligibleEquipment(equipment: string[]): boolean {
+  if (!equipment.length) return false;
+  const normalized = equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
+  return normalized.every((eq) => COOLDOWN_ALLOWED_EQUIPMENT.has(eq));
 }
 
 /** Body recomp: high volume rep range. */

@@ -173,7 +173,7 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     preferredFormats: ["circuit"],
     conditioningStrategy: "optional_short",
     lightConditioningMaxMinutes: 5,
-    mobilityTimePerMovement: 50,
+    mobilityTimePerMovement: 30,
     mobilitySets: 1,
     cueStyle: {
       mobility: "Slow, controlled breathing.",
@@ -287,4 +287,90 @@ export function getConditioningDurationMinutes(
       (rules.conditioningWorkDuration.min + rules.conditioningWorkDuration.max) / 2
     );
   return null;
+}
+
+/**
+ * Equipment slugs that benefit from intervals when duration is long (rower, assault bike, ski erg).
+ * Research: 30 min straight on ergs is mentally and physically taxing; intervals improve adherence
+ * and match common programming (e.g. 4×6 min, 5×5 min). Zone 2 can be split into 3–4 chunks with
+ * short rest; HIIT-style uses shorter work bouts. Treadmill/outdoor run can stay continuous for
+ * true Zone 2 when desired.
+ */
+const ERG_EQUIPMENT = new Set(["rower", "assault_bike", "ski_erg", "bike", "indoor_bike"]);
+
+/**
+ * Minimum total conditioning minutes above which we use intervals for erg equipment (research:
+ * avoid one long continuous block on rower/ski/assault bike).
+ */
+const CONDITIONING_INTERVAL_THRESHOLD_MIN = 20;
+
+export type ConditioningIntervalStructure = {
+  /** Number of work intervals. */
+  sets: number;
+  /** Seconds of work per interval (use when reps not set). */
+  time_seconds?: number;
+  /** Reps per set for explosive/plyometric (use instead of time_seconds when set). */
+  reps?: number;
+  /** Rest between intervals (seconds). */
+  rest_seconds: number;
+  /** Use "circuit" when sets > 1 so UI shows intervals; "straight_sets" for one block. */
+  format: "straight_sets" | "circuit";
+  /** Short rationale for prescription (e.g. "Intervals to keep effort manageable."). */
+  reasoning?: string;
+};
+
+/**
+ * Decide whether to prescribe conditioning as one continuous block or as intervals.
+ * Research: HIIT and interval rowing are time-efficient and improve adherence; long continuous
+ * erg work (e.g. 30 min rower) is often replaced by 4–6 intervals (e.g. 4×6 min + 1 min rest) for
+ * endurance, or 5×4 min for body recomp. Zone 2 benefits can be achieved with 3–4 longer chunks.
+ */
+export function getConditioningIntervalStructure(
+  totalMinutes: number,
+  goal: string,
+  equipmentRequired: string[]
+): ConditioningIntervalStructure {
+  const isErg = equipmentRequired.some((eq) =>
+    ERG_EQUIPMENT.has(eq.toLowerCase().replace(/\s/g, "_"))
+  );
+  const useIntervals =
+    isErg && totalMinutes >= CONDITIONING_INTERVAL_THRESHOLD_MIN;
+
+  if (!useIntervals || totalMinutes < 10) {
+    return {
+      sets: 1,
+      time_seconds: Math.min(totalMinutes * 60, 45 * 60),
+      rest_seconds: 0,
+      format: "straight_sets",
+    };
+  }
+
+  // Interval structure: 4–6 rounds, work 4–8 min per round, 60 s rest (research: 1 min rest common).
+  const roundCount = totalMinutes <= 22 ? 3 : totalMinutes <= 28 ? 4 : totalMinutes <= 38 ? 5 : 6;
+  const restMin = 1;
+  const workMin = Math.round((totalMinutes - (roundCount - 1) * restMin) / roundCount);
+  const workMinClamped = Math.max(3, Math.min(10, workMin));
+
+  return {
+    sets: roundCount,
+    time_seconds: workMinClamped * 60,
+    rest_seconds: restMin * 60,
+    format: "circuit",
+    reasoning:
+      "Intervals keep effort manageable and match research on erg training (rower, bike, ski erg).",
+  };
+}
+
+/**
+ * Prescription for explosive/plyometric conditioning (e.g. box jumps, jump squats).
+ * Uses sets × reps or sets × short time so the athlete does brief efforts with rest, not one long block.
+ */
+export function getExplosiveConditioningStructure(): ConditioningIntervalStructure {
+  return {
+    sets: 4,
+    reps: 8,
+    rest_seconds: 60,
+    format: "circuit",
+    reasoning: "Explosive movements prescribed as sets of reps with rest between for quality and safety.",
+  };
 }

@@ -600,7 +600,7 @@ export const STUB_EXERCISES: Exercise[] = [
   // --- Mobility / warmup / cooldown ---
   {
     id: "cat_camel",
-    name: "Cat-Camel",
+    name: "Cat Cow",
     movement_pattern: "rotate",
     muscle_groups: ["core"],
     modality: "mobility",

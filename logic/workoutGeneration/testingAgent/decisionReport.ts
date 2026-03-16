@@ -4,8 +4,12 @@
  */
 
 import type { ResolvedWorkoutConstraints, WorkoutConstraint } from "../../workoutIntelligence/constraints/constraintTypes";
-import type { GenerateWorkoutInput, WorkoutSession, WorkoutBlock, WorkoutItem } from "../types";
+import type { GenerateWorkoutInput, WorkoutSession, WorkoutBlock, WorkoutItem, Exercise } from "../types";
 import type { ValidationResult } from "../../workoutIntelligence/validation/workoutValidator";
+import { getSupersetPairsForBlock } from "../../../lib/types";
+
+/** Optional: look up exercise by id to include body parts, movement types, and filter ties in the report. */
+export type ExerciseLookup = (id: string) => Exercise | undefined;
 
 export type DecisionReport = {
   /** Summary of user input (for readability). */
@@ -27,6 +31,8 @@ export type InputSummary = {
   focus_body_parts?: string[];
   energy_level: string;
   equipment_count: number;
+  /** Exact equipment list as inputted (for test output). */
+  available_equipment?: string[];
   injuries_or_constraints: string[];
   style_prefs?: { wants_supersets?: boolean; conditioning_minutes?: number; avoid_tags?: string[] };
 };
@@ -102,6 +108,7 @@ export function buildInputSummary(input: GenerateWorkoutInput): InputSummary {
     focus_body_parts: input.focus_body_parts,
     energy_level: input.energy_level,
     equipment_count: input.available_equipment?.length ?? 0,
+    available_equipment: input.available_equipment ? [...input.available_equipment] : undefined,
     injuries_or_constraints: input.injuries_or_constraints ?? [],
     style_prefs: input.style_prefs,
   };
@@ -194,6 +201,398 @@ export function buildDecisionReport(
     }));
   }
   return report;
+}
+
+/** Human-readable labels for user-facing input display. */
+const GOAL_LABELS: Record<string, string> = {
+  strength: "Strength",
+  hypertrophy: "Hypertrophy",
+  power: "Power",
+  body_recomp: "Body recomp",
+  endurance: "Endurance",
+  conditioning: "Conditioning",
+  mobility: "Mobility",
+  recovery: "Recovery",
+  athletic_performance: "Athletic performance",
+  calisthenics: "Calisthenics",
+};
+const FOCUS_LABELS: Record<string, string> = {
+  upper_push: "Upper push",
+  upper_pull: "Upper pull",
+  lower: "Lower",
+  core: "Core",
+  full_body: "Full body",
+};
+const ENERGY_LABELS: Record<string, string> = { low: "Low", medium: "Medium", high: "High" };
+
+/**
+ * Format "what the user would have put in" for the test output.
+ */
+function formatUserInputs(report: DecisionReport): string[] {
+  const i = report.inputSummary;
+  const goal = GOAL_LABELS[i.primary_goal] ?? i.primary_goal;
+  const secondary =
+    i.secondary_goals?.length ? i.secondary_goals.map((g) => GOAL_LABELS[g] ?? g).join(", ") : null;
+  const focus =
+    i.focus_body_parts?.length ?
+      i.focus_body_parts.map((f) => FOCUS_LABELS[f] ?? f).join(", ")
+    : "Any";
+  const energy = ENERGY_LABELS[i.energy_level] ?? i.energy_level;
+  const injuries = i.injuries_or_constraints.length ? i.injuries_or_constraints.join(", ") : "None";
+  const equipmentExact =
+    i.available_equipment?.length ?
+      i.available_equipment.join(", ")
+    : "None specified";
+  const lines: string[] = [
+    "  Duration: " + i.duration_minutes + " min",
+    "  Primary goal: " + goal,
+    ...(secondary ? ["  Secondary goal(s): " + secondary] : []),
+    "  Body focus: " + focus,
+    "  Energy level: " + energy,
+    "  Injuries / restrictions: " + injuries,
+    "  Equipment (exact): " + equipmentExact,
+  ];
+  if (i.style_prefs?.wants_supersets !== undefined) {
+    lines.push("  Supersets: " + (i.style_prefs.wants_supersets ? "Yes" : "No"));
+  }
+  if (i.style_prefs?.conditioning_minutes) {
+    lines.push("  Conditioning minutes: " + i.style_prefs.conditioning_minutes);
+  }
+  if (i.style_prefs?.avoid_tags?.length) {
+    lines.push("  Avoid: " + i.style_prefs.avoid_tags.join(", "));
+  }
+  return lines;
+}
+
+/**
+ * Format reasoning (why the algorithm produced this workout) from constraints.
+ */
+function formatReasoning(report: DecisionReport): string[] {
+  const c = report.constraintsSummary;
+  const lines: string[] = [];
+  if (c.excluded_exercise_id_count > 0 || c.excluded_joint_stress_tags.length || c.excluded_contraindication_keys.length) {
+    const parts: string[] = [];
+    if (c.excluded_contraindication_keys.length) parts.push("contraindications: " + c.excluded_contraindication_keys.join(", "));
+    if (c.excluded_joint_stress_tags.length) parts.push("joint stress: " + c.excluded_joint_stress_tags.join(", "));
+    if (c.excluded_exercise_id_count > 0) parts.push(c.excluded_exercise_id_count + " specific exercises excluded");
+    lines.push("  • Injuries/restrictions → hard exclude: " + parts.join("; ") + ". Only exercises that do not match these appear.");
+  }
+  lines.push("  • Equipment filter: only exercises that use the user’s selected equipment were considered.");
+  if (c.allowed_movement_families != null && c.allowed_movement_families.length > 0) {
+    lines.push("  • Body focus → hard include: working exercises must be from movement family/families: " + c.allowed_movement_families.join(", ") + ".");
+  } else {
+    lines.push("  • Body focus: none (full body or any); no movement-family restriction on working exercises.");
+  }
+  if (c.min_cooldown_mobility_exercises > 0) {
+    lines.push("  • Secondary goal (mobility/recovery) → cooldown must include at least " + c.min_cooldown_mobility_exercises + " mobility/stretch exercises.");
+  }
+  if (c.has_superset_pairing_rules) {
+    lines.push("  • Superset pairing rules applied (e.g. avoid same pattern or double grip when pairing exercises).");
+  }
+  lines.push("  • Superset pairs never combine two barbell movements that need different setups (e.g. squat rack vs bench vs floor).");
+  lines.push("  • Block template and prescription (sets/reps/rest) come from primary goal and duration.");
+  if (!report.validation.valid && report.validation.violationCount > 0) {
+    lines.push("  • Post-assembly validation reported issues (see Validation section).");
+  }
+  return lines;
+}
+
+/**
+ * Format reasoning behind session and block timing (why durations are what they are).
+ */
+function formatTimingReasoning(report: DecisionReport, session: WorkoutSession): string[] {
+  const duration = report.inputSummary.duration_minutes;
+  const blocks = session.blocks ?? [];
+  const lines: string[] = [];
+  lines.push("  • User-selected duration: " + duration + " min. The generator targets this total; estimated session time is the sum of block estimated minutes.");
+  const warmupBlock = blocks.find((b) => b.block_type === "warmup");
+  if (warmupBlock) {
+    lines.push("  • Warmup: " + warmupBlock.items.length + " item(s) (rule: ≤25 min → 1, ≤40 min → 2, else 3). Block time ≤ 1/10 of session, max min(10, 5 + items×2) min.");
+    if (warmupBlock.estimated_minutes != null) {
+      lines.push("    → This session: warmup ~" + warmupBlock.estimated_minutes + " min.");
+    }
+  }
+  const mainBlocks = blocks.filter(
+    (b) =>
+      b.block_type === "main_strength" ||
+      b.block_type === "main_hypertrophy" ||
+      b.block_type === "power" ||
+      b.block_type === "accessory"
+  );
+  if (mainBlocks.length > 0) {
+    lines.push("  • Main work: block count and exercise count depend on goal and duration. Each block’s estimated minutes = sets × (work time + rest/60) (goal and energy set sets/reps/rest).");
+    mainBlocks.forEach((b, i) => {
+      if (b.estimated_minutes != null) {
+        lines.push("    → " + (b.title ?? b.block_type) + ": ~" + b.estimated_minutes + " min.");
+      }
+    });
+  }
+  const condBlock = blocks.find((b) => b.block_type === "conditioning");
+  if (condBlock && condBlock.estimated_minutes != null) {
+    lines.push("  • Conditioning: added when goal or style_prefs request it; duration from conditioning_minutes or goal default. This session: ~" + condBlock.estimated_minutes + " min.");
+  }
+  const cooldownBlock = blocks.find((b) => b.block_type === "cooldown");
+  if (cooldownBlock) {
+    lines.push("  • Cooldown: block time ≤ 1/10 of session, max min(8, 2 + items×2) min; mobility secondary goal requires at least 2 mobility/stretch exercises.");
+    if (cooldownBlock.estimated_minutes != null) {
+      lines.push("    → This session: cooldown ~" + cooldownBlock.estimated_minutes + " min.");
+    }
+  }
+  const total = session.estimated_duration_minutes ?? 0;
+  lines.push("  • Total estimated duration: " + total + " min (sum of block estimated minutes).");
+  return lines;
+}
+
+function formatItemPrescription(it: WorkoutItem): string {
+  let presc: string;
+  if (it.time_seconds != null && it.time_seconds > 0) {
+    presc = (it.sets ?? 1) + " × " + Math.round(it.time_seconds / 60) + " min";
+  } else {
+    presc = (it.sets ?? 1) + " × " + (it.reps != null ? it.reps + " reps" : "—");
+  }
+  const unilateral = it.unilateral ? " (each leg/arm)" : "";
+  return presc + unilateral;
+}
+
+/** Human-readable phrase for why an exercise was chosen (from reasoning_tags set by the generator). */
+function formatExerciseReasoning(item: WorkoutItem, block: WorkoutBlock): string {
+  const tags = item.reasoning_tags ?? [];
+  if (tags.length === 0) {
+    return block.reasoning ?? "Selected for this block.";
+  }
+  const phrases: string[] = [];
+  if (tags.includes("main_lift")) phrases.push("main compound lift");
+  else if (tags.includes("warmup")) phrases.push("warmup / joint prep");
+  else if (tags.includes("cooldown")) phrases.push("cooldown / mobility");
+  else if (tags.includes("hypertrophy")) phrases.push("hypertrophy volume");
+  else if (tags.includes("superset")) phrases.push("part of superset pair");
+  else if (tags.includes("accessory")) phrases.push("accessory work");
+  else if (tags.includes("conditioning")) phrases.push("conditioning");
+  else if (tags.includes("endurance")) phrases.push("endurance");
+  else if (tags.includes("mobility") || tags.includes("recovery")) phrases.push("mobility / recovery");
+  const goalTags = tags.filter((t) => !["main_lift", "warmup", "cooldown", "hypertrophy", "superset", "accessory", "conditioning", "endurance", "mobility", "recovery", "strength"].includes(t));
+  if (goalTags.length) phrases.push("goal fit: " + goalTags.join(", ").replace(/_/g, " "));
+  if (tags.includes("strength") && !phrases.some((p) => p.includes("strength"))) phrases.push("strength goal");
+  return phrases.length ? phrases.join("; ") : tags.join(", ").replace(/_/g, " ");
+}
+
+/** Build body parts, movement types, and filter-tie lines for one exercise (when exercise metadata is available). */
+function formatExerciseDetailLines(
+  ex: Exercise,
+  report: DecisionReport
+): string[] {
+  const lines: string[] = [];
+  const i = report.inputSummary;
+  const c = report.constraintsSummary;
+
+  // Body parts
+  const bodyParts = [
+    ...(ex.muscle_groups ?? []),
+    ...(ex.primary_movement_family ? [ex.primary_movement_family.replace(/_/g, " ")] : []),
+  ];
+  if (bodyParts.length) {
+    lines.push("      Body parts: " + [...new Set(bodyParts)].join(", "));
+  }
+
+  // Movement types
+  const movementTypes = [
+    ex.movement_pattern,
+    ...(ex.movement_patterns ?? []),
+  ].filter(Boolean);
+  if (movementTypes.length) {
+    lines.push("      Movement types: " + movementTypes.join(", "));
+  }
+
+  // Filter ties
+  lines.push("      Filter ties:");
+  const allowedFamilies = c.allowed_movement_families;
+  const focusMatch =
+    allowedFamilies == null ||
+    allowedFamilies.length === 0 ||
+    (ex.primary_movement_family && allowedFamilies.includes(ex.primary_movement_family)) ||
+    (ex.secondary_movement_families?.some((f) => allowedFamilies.includes(f)));
+  lines.push(
+    "        • Body focus: " +
+      (i.focus_body_parts?.length
+        ? focusMatch
+          ? "matches (exercise in allowed families: " + (ex.primary_movement_family ?? "—") + ")"
+          : "allowed " + allowedFamilies.join(", ") + "; exercise family: " + (ex.primary_movement_family ?? "none")
+        : "any (no focus filter)")
+  );
+
+  const goalTags = ex.tags?.goal_tags ?? [];
+  const modalityMatch =
+    i.primary_goal === ex.modality ||
+    goalTags.includes(i.primary_goal as "strength" | "hypertrophy" | "endurance" | "power" | "mobility" | "recovery");
+  lines.push(
+    "        • Goal: " +
+      (modalityMatch ? "matches primary goal (" + i.primary_goal + ")" : "modality " + ex.modality + ", goal_tags " + (goalTags.join(", ") || "—"))
+  );
+
+  const equipment = ex.equipment_required ?? [];
+  const available = i.available_equipment ?? [];
+  const equipmentOk = equipment.length === 0 || equipment.every((e) => available.includes(e));
+  lines.push(
+    "        • Equipment: uses " + (equipment.join(", ") || "none") + "; all in user list: " + (equipmentOk ? "yes" : "no")
+  );
+
+  const contra = ex.contraindication_tags ?? ex.tags?.contraindications ?? [];
+  const jointStress = ex.joint_stress_tags ?? ex.tags?.joint_stress ?? [];
+  const excludedContra = new Set(c.excluded_contraindication_keys);
+  const excludedStress = new Set(c.excluded_joint_stress_tags);
+  const contraClear = contra.length === 0 || !contra.some((k) => excludedContra.has(k));
+  const stressClear = jointStress.length === 0 || !jointStress.some((t) => excludedStress.has(t));
+  lines.push(
+    "        • Injuries: " +
+      (contraClear && stressClear
+        ? "clear (no overlap with excluded contraindications/joint stress)"
+        : "excluded: " +
+          [...excludedContra, ...excludedStress].filter(Boolean).join(", ") +
+          "; exercise has: " +
+          [...contra, ...jointStress].filter(Boolean).join(", ") || "—")
+  );
+
+  const energyFit = ex.tags?.energy_fit ?? [];
+  const energyMatch = energyFit.length === 0 || energyFit.includes(i.energy_level as "low" | "medium" | "high");
+  lines.push(
+    "        • Energy level: " +
+      (energyMatch ? "fits " + i.energy_level : "exercise fit " + energyFit.join(", ") + "; user: " + i.energy_level)
+  );
+
+  return lines;
+}
+
+/**
+ * Format "why each exercise was chosen" for audit: block → exercise name → reasoning (from reasoning_tags).
+ * When exerciseLookup is provided, adds body parts, movement types, and ties to each filter (body focus, goal, equipment, injuries, energy).
+ */
+function formatExerciseChoiceReasoning(
+  session: WorkoutSession,
+  report: DecisionReport,
+  exerciseLookup?: ExerciseLookup
+): string[] {
+  const lines: string[] = [
+    "  (Reasoning comes from generator-assigned reasoning_tags and block context.)",
+    exerciseLookup
+      ? "  (Body parts, movement types, and filter ties below come from exercise metadata and user inputs.)"
+      : "  (Pass exerciseLookup to include body parts, movement types, and filter ties for each exercise.)",
+    "",
+  ];
+  if (report.scoringSample?.length) {
+    lines.push("  (First " + report.scoringSample.length + " main-work exercises have scoring breakdown when run with --includeDebug.)");
+    lines.push("");
+  }
+  for (const block of session.blocks ?? []) {
+    const title = block.title ?? block.block_type;
+    lines.push("  " + title + ":");
+    const pairs = block.format === "superset" ? getSupersetPairsForBlock(block) : undefined;
+    const itemsToExplain: WorkoutItem[] =
+      pairs && pairs.length > 0
+        ? pairs.flatMap(([a, b]) => (b ? [a, b] : [a]))
+        : (block.items ?? []).map((it) => it as WorkoutItem);
+    for (const it of itemsToExplain) {
+      const name = it.exercise_name ?? it.exercise_id;
+      const reason = formatExerciseReasoning(it, block);
+      lines.push("    • " + name + ": " + reason);
+      const ex = exerciseLookup?.(it.exercise_id);
+      if (ex) {
+        lines.push(...formatExerciseDetailLines(ex, report));
+      }
+    }
+    lines.push("");
+  }
+  return lines;
+}
+
+/**
+ * Format full workout output: every block and every exercise with structure.
+ * Superset blocks show A1/A2 pairs and "Rest X s after each pair" instead of per-exercise rest.
+ * (Single-session only; week plan is not generated in the current test runner.)
+ */
+function formatWorkoutOutput(session: WorkoutSession): string[] {
+  const lines: string[] = [
+    "  Session title: " + session.title,
+    "  Estimated total duration: " + (session.estimated_duration_minutes ?? 0) + " min",
+    "  (Single session; week plan not run in this test.)",
+    "",
+  ];
+  for (const block of session.blocks ?? []) {
+    const title = block.title ?? block.block_type;
+    const formatLabel = block.format ? ` [${block.format}]` : "";
+    lines.push("  --- " + title + formatLabel + (block.estimated_minutes != null ? " (~" + block.estimated_minutes + " min)" : "") + " ---");
+    const pairs = block.format === "superset" ? getSupersetPairsForBlock(block) : undefined;
+    if (pairs && pairs.length > 0) {
+      const labels = "ABCDEFGH".split("");
+      let restAfterPair: number | null = null;
+      for (let i = 0; i < pairs.length; i++) {
+        const [a, b] = pairs[i];
+        const label = labels[i] ?? String(i + 1);
+        if (restAfterPair == null && (a.rest_seconds != null || (b && b.rest_seconds != null)))
+          restAfterPair = a.rest_seconds ?? (b && b.rest_seconds) ?? null;
+        lines.push("    " + label + "1. " + (a.exercise_name ?? a.exercise_id) + ": " + formatItemPrescription(a));
+        if (a.coaching_cues) lines.push("      Cues: " + a.coaching_cues);
+        if (b) {
+          lines.push("    " + label + "2. " + (b.exercise_name ?? b.exercise_id) + ": " + formatItemPrescription(b));
+          if (b.coaching_cues) lines.push("      Cues: " + b.coaching_cues);
+        }
+      }
+      if (restAfterPair != null && restAfterPair > 0) {
+        lines.push("    Rest " + restAfterPair + " s after each pair.");
+      }
+    } else {
+      for (const item of block.items ?? []) {
+        const it = item as WorkoutItem;
+        const presc = formatItemPrescription(it);
+        const rest = it.rest_seconds != null && it.rest_seconds > 0 ? ", rest " + it.rest_seconds + " s" : "";
+        lines.push("    • " + (it.exercise_name ?? it.exercise_id) + ": " + presc + rest);
+        if (it.coaching_cues) lines.push("      Cues: " + it.coaching_cues);
+      }
+    }
+    lines.push("");
+  }
+  return lines;
+}
+
+export type FormatFullTestReportOptions = {
+  /** When provided, each exercise in "Why each exercise was chosen" includes body parts, movement types, and filter ties. */
+  exerciseLookup?: ExerciseLookup;
+};
+
+/**
+ * Format a full test report: user inputs, reasoning, workout structure, validation.
+ * Use this as the main test output so you see what the user put in, why the algorithm decided what it did, and the full workout/week output.
+ */
+export function formatFullTestReport(
+  report: DecisionReport,
+  session: WorkoutSession,
+  scenarioName: string,
+  options?: FormatFullTestReportOptions
+): string {
+  const exerciseLookup = options?.exerciseLookup;
+  const sections: string[] = [
+    "## " + scenarioName,
+    "",
+    "### 1. User inputs (what the user would have put in)",
+    ...formatUserInputs(report),
+    "",
+    "### 2. Reasoning (how inputs were used to determine the output)",
+    ...formatReasoning(report),
+    "",
+    "### 2b. Reasoning behind timing",
+    ...formatTimingReasoning(report, session),
+    "",
+    "### 3. Workout output (exercise structure and total session)",
+    ...formatWorkoutOutput(session),
+    "",
+    "### 3b. Why each exercise was chosen",
+    ...formatExerciseChoiceReasoning(session, report, exerciseLookup),
+    "### 4. Validation",
+    "  Valid: " + report.validation.valid + (report.validation.violationCount > 0 ? " | Violations: " + report.validation.violationCount : ""),
+  ];
+  if (report.validation.violations.length > 0) {
+    report.validation.violations.forEach((v) => sections.push("  - [" + v.type + "] " + v.description));
+  }
+  return sections.join("\n");
 }
 
 /**

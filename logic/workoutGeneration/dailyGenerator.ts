@@ -20,6 +20,7 @@ import type {
 import { STUB_EXERCISES } from "./exerciseStub";
 import {
   isWarmupEligibleEquipment,
+  isCooldownEligibleEquipment,
   WARMUP_CARDIO_POSITION,
   WARMUP_ITEM_MAX_SECONDS,
   getInjuryAvoidTags,
@@ -46,6 +47,8 @@ import {
   getGoalRules,
   scaleSetsByEnergy,
   getConditioningDurationMinutes,
+  getConditioningIntervalStructure,
+  getExplosiveConditioningStructure,
   type EnergyLevel,
 } from "../../lib/generation/prescriptionRules";
 import { getBestSubstitute } from "../../lib/generation/exerciseSubstitution";
@@ -475,12 +478,13 @@ function getPrescription(
     userLevel === "beginner" ? "Focus on form and control. Quality over weight." : fallback;
 
   if (blockType === "warmup" || blockType === "cooldown" || exercise.modality === "mobility" || exercise.modality === "recovery") {
-    const timeSec = rules.mobilityTimePerMovement ?? 45;
+    // ~30 sec per stretch/mobility (or use reps); 1 min is too long for a single stretch.
+    const timeSec = rules.mobilityTimePerMovement ?? 30;
     return {
       sets: rules.mobilitySets ?? 1,
       reps: 8,
       time_seconds: timeSec,
-      rest_seconds: 15,
+      rest_seconds: blockType === "warmup" ? 0 : 15,
       coaching_cues: beginnerCue(rules.cueStyle.mobility ?? "Controlled, full range of motion. Breathe steadily."),
     };
   }
@@ -730,9 +734,9 @@ function selectExercises(
   return { exercises: chosen.slice(0, count), scoringDebug: debugList };
 }
 
-// --- Build warmup block (5–8 min): 2–4 mobility/activation items ---
-// Warm-up: bodyweight or bands only (shared rules). Short cardio first or last (WARMUP_CARDIO_POSITION).
-// Phase 9: prefers prep/activation/mobility roles and targets relevant to focus when annotated.
+// --- Build warmup block: activation and joint mobility for the muscles/joints used in the workout ---
+// Warm-up: bodyweight or bands only. Focus on activation of focus muscles and movement of joints around them (no cables/weights, no conditioning).
+// Phase 9: prefers prep/activation/mobility roles and targets relevant to focus.
 function buildWarmup(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
@@ -742,9 +746,10 @@ function buildWarmup(
   fatigueState?: FatigueState,
   historyContext?: TrainingHistoryContext
 ): WorkoutBlock {
+  // Activation and joint prep only (no conditioning in warmup).
   const basePool = exercises.filter(
     (e) =>
-      (e.modality === "mobility" || e.modality === "recovery" || e.modality === "conditioning") &&
+      (e.modality === "mobility" || e.modality === "recovery") &&
       !used.has(e.id) &&
       e.id !== "breathing_cooldown"
   );
@@ -771,11 +776,8 @@ function buildWarmup(
       historyContext,
     }
   );
-  const sortedChosen = WARMUP_CARDIO_POSITION === "last"
-    ? [...chosen].sort((a, b) => (a.modality === "conditioning" ? 1 : 0) - (b.modality === "conditioning" ? 1 : 0))
-    : chosen;
 
-  const items: WorkoutItem[] = sortedChosen.map((e) => {
+  const items: WorkoutItem[] = chosen.map((e) => {
     used.add(e.id);
     let p = getPrescription(e, "warmup", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
     let timeSec = p.time_seconds;
@@ -795,13 +797,15 @@ function buildWarmup(
     };
   });
 
+  const totalMinutes = input.duration_minutes ?? 60;
+  const warmupCap = Math.max(1, Math.floor(totalMinutes / 10));
   return {
     block_type: "warmup",
     format: "circuit",
     title: "Warm-up",
-    reasoning: "Prepares your joints and elevates heart rate before the main work.",
+    reasoning: "Activation and joint mobility for the muscles and joints used in today's work.",
     items,
-    estimated_minutes: Math.min(10, 5 + items.length * 2),
+    estimated_minutes: Math.min(10, 5 + items.length * 2, warmupCap),
   };
 }
 
@@ -824,12 +828,15 @@ function buildCooldown(
     ) || input.primary_goal === "recovery";
   const preferredTargets = getPreferredCooldownTargetsFromFamilies(options.mainWorkFamilies);
 
+  // Cooldown = stretching/mobility only; no cables or weights.
+  const cooldownPool = exercises.filter((e) => isCooldownEligibleEquipment(e.equipment_required ?? []));
+
   let chosen: Exercise[];
   if (useOntologyCooldown) {
     const maxItems = recoveryEmphasis
       ? (input.duration_minutes <= 30 ? Math.max(minMobility, 4) : Math.max(minMobility, 6))
       : (input.duration_minutes <= 30 ? Math.max(minMobility, 3) : Math.max(minMobility, 4));
-    chosen = selectOntologyCooldown(exercises, {
+    chosen = selectOntologyCooldown(cooldownPool, {
       minMobilityCount: minMobility,
       preferredTargets,
       alreadyUsedIds: used,
@@ -838,7 +845,7 @@ function buildCooldown(
     });
     chosen.forEach((e) => used.add(e.id));
   } else {
-    const pool = exercises.filter(
+    const pool = cooldownPool.filter(
       (e) =>
         (e.modality === "mobility" || e.modality === "recovery") &&
         !used.has(e.id)
@@ -856,9 +863,10 @@ function buildCooldown(
     }
   }
 
-  if (chosen.length > 0 && !used.has("breathing_cooldown")) {
-    const breath = exercises.find((e) => e.id === "breathing_cooldown");
-    if (breath && chosen.length < (useOntologyCooldown ? 5 : 4)) {
+  // Breathing only when recovery was chosen (sometimes include breathing).
+  if (recoveryEmphasis && chosen.length > 0 && !used.has("breathing_cooldown")) {
+    const breath = cooldownPool.find((e) => e.id === "breathing_cooldown") ?? exercises.find((e) => e.id === "breathing_cooldown");
+    if (breath && isCooldownEligibleEquipment(breath.equipment_required ?? []) && chosen.length < (useOntologyCooldown ? 5 : 4)) {
       chosen.push(breath);
       used.add(breath.id);
     }
@@ -871,7 +879,7 @@ function buildCooldown(
       exercise_name: e.name,
       sets: p.sets,
       reps: p.reps,
-      time_seconds: p.time_seconds ?? 60,
+      time_seconds: p.time_seconds ?? 30,
       rest_seconds: p.rest_seconds,
       coaching_cues: p.coaching_cues,
       reasoning_tags: ["cooldown", "recovery", ...(e.tags.goal_tags ?? [])],
@@ -879,6 +887,8 @@ function buildCooldown(
     };
   });
 
+  const totalMinutes = input.duration_minutes ?? 60;
+  const cooldownCap = Math.max(1, Math.floor(totalMinutes / 10));
   const title = useOntologyCooldown ? "Cooldown & mobility" : undefined;
   const reasoning = useOntologyCooldown
     ? "Mobility and stretch to support recovery and range of motion (from your recovery or mobility goal)."
@@ -890,7 +900,7 @@ function buildCooldown(
     ...(title ? { title } : {}),
     ...(reasoning ? { reasoning } : {}),
     items,
-    estimated_minutes: Math.min(8, 2 + items.length * 2),
+    estimated_minutes: Math.min(8, 2 + items.length * 2, cooldownCap),
   };
 }
 
@@ -981,6 +991,9 @@ function buildMainStrength(
       reasoning_tags: ["main_lift", "strength", ...(b.tags.goal_tags ?? [])],
       unilateral: b.unilateral ?? false,
     };
+    // Superset: one rest per round (after the pair A→B), not rest_A + rest_B per round.
+    const restPerRoundSec = Math.max(pA.rest_seconds ?? 0, pB.rest_seconds ?? 0);
+    const workMinPerRound = 2; // ~1 min per set for both exercises
     blocks.push({
       block_type: "main_strength",
       format: "superset",
@@ -988,7 +1001,7 @@ function buildMainStrength(
       reasoning: "Compound lifts for strength; superset for efficiency.",
       items: [itemA, itemB],
       supersetPairs: [[itemA, itemB]],
-      estimated_minutes: Math.max(pA.sets, pB.sets) * (2 + ((pA.rest_seconds ?? 0) + (pB.rest_seconds ?? 0)) / 60),
+      estimated_minutes: Math.max(pA.sets, pB.sets) * (workMinPerRound + restPerRoundSec / 60),
     });
   } else {
     for (const mainLift of mainLifts) {
@@ -1064,14 +1077,36 @@ function buildMainStrength(
       for (let i = 0; i < pairs.length; i++) {
         supersetPairs.push([items[2 * i], items[2 * i + 1]]);
       }
+      // When high energy, add core to the accessory section.
+      const accessoryItems = [...items];
+      if (input.energy_level === "high") {
+        const coreFamily = (e: Exercise) =>
+          e.primary_movement_family?.toLowerCase().replace(/\s/g, "_") === "core" ||
+          e.movement_pattern === "rotate";
+        const coreCandidate = accessoryPool.find((e) => !used.has(e.id) && coreFamily(e));
+        if (coreCandidate) {
+          used.add(coreCandidate.id);
+          const pCore = getPrescription(coreCandidate, "main_strength", input.energy_level, input.primary_goal, true, fatigueVolumeScale, input.style_prefs?.user_level);
+          accessoryItems.push({
+            exercise_id: coreCandidate.id,
+            exercise_name: coreCandidate.name,
+            sets: pCore.sets,
+            reps: pCore.reps,
+            rest_seconds: pCore.rest_seconds,
+            coaching_cues: pCore.coaching_cues,
+            reasoning_tags: ["accessory", "core", ...(coreCandidate.tags.goal_tags ?? [])],
+            unilateral: coreCandidate.unilateral ?? false,
+          });
+        }
+      }
       blocks.push({
         block_type: "main_strength",
         format: "superset",
         title: "Accessory",
-        reasoning: "Superset for time efficiency.",
-        items,
+        reasoning: "Superset for time efficiency." + (input.energy_level === "high" ? " Core added for high energy." : ""),
+        items: accessoryItems,
         supersetPairs,
-        estimated_minutes: Math.ceil(items.length / 2) * 4,
+        estimated_minutes: Math.ceil(accessoryItems.length / 2) * 4,
       });
     }
   }
@@ -1106,6 +1141,14 @@ function pickConditioningExercise(
     }
   }
   return pool[Math.floor(rng() * pool.length)];
+}
+
+/** True when conditioning exercise is explosive/plyometric (box jumps, jump squats, etc.) — prescribe as sets of reps or short time, not one long block. */
+function isExplosiveConditioning(exercise: Exercise): boolean {
+  const stimulus = exercise.tags?.stimulus ?? [];
+  if (stimulus.some((s) => s.toLowerCase().replace(/\s/g, "_") === "plyometric")) return true;
+  if (exercise.impact_level === "high" && exercise.modality === "conditioning") return true;
+  return false;
 }
 
 // --- Main block: hypertrophy / body recomp / calisthenics (2–4 supersets) ---
@@ -1202,6 +1245,11 @@ function buildMainHypertrophy(
   const format: BlockFormat = wantsSupersets && pairs.every((p) => p.length === 2) ? "superset" : "straight_sets";
   const supersetPairs: [WorkoutItem, WorkoutItem][] | undefined =
     format === "superset" ? pairs.map((_, i) => [items[2 * i], items[2 * i + 1]]) : undefined;
+  const formulaMinutes = Math.ceil(items.length / 2) * 5;
+  const durationAwareMinutes =
+    input.duration_minutes != null && input.duration_minutes > 0
+      ? Math.min(Math.max(formulaMinutes, input.duration_minutes - 10), 75)
+      : formulaMinutes;
   return [
     {
       block_type: "main_hypertrophy",
@@ -1210,7 +1258,7 @@ function buildMainHypertrophy(
       reasoning: "Volume-focused work for muscle building.",
       items,
       ...(supersetPairs && supersetPairs.length > 0 ? { supersetPairs } : {}),
-      estimated_minutes: Math.ceil(items.length / 2) * 5,
+      estimated_minutes: durationAwareMinutes,
     },
   ];
 }
@@ -1294,25 +1342,32 @@ function buildEnduranceMain(
     if (c) {
       used.add(c.id);
       const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
-      const condFormat = (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ?? "straight_sets";
+      const interval = isExplosiveConditioning(c)
+        ? getExplosiveConditioningStructure()
+        : getConditioningIntervalStructure(condMins, input.primary_goal, c.equipment_required ?? []);
+      const condFormat = (interval.format as BlockFormat) ?? (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ?? "straight_sets";
+      const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
+      const estimatedMin = isExplosiveConditioning(c)
+        ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
+        : condMins;
       blocks.push({
         block_type: "conditioning",
-        format: condFormat as BlockFormat,
+        format: condFormat,
         title: "Conditioning",
-        reasoning: "Steady cardio to support endurance.",
+        reasoning: interval.reasoning ?? "Steady cardio to support endurance.",
         items: [
           {
             exercise_id: c.id,
             exercise_name: c.name,
-            sets: 1,
-            time_seconds: Math.min(condMins * 60, 45 * 60),
-            rest_seconds: 0,
+            sets: interval.sets,
+            ...(interval.reps != null ? { reps: interval.reps } : { time_seconds: interval.time_seconds }),
+            rest_seconds: interval.rest_seconds,
             coaching_cues: p.coaching_cues,
             reasoning_tags: ["endurance", ...(c.tags.goal_tags ?? [])],
             unilateral: c.unilateral ?? false,
           },
         ],
-        estimated_minutes: condMins,
+        estimated_minutes: Math.round(estimatedMin),
       });
     }
   }
@@ -1471,25 +1526,32 @@ export function generateWorkoutSession(
         if (c) {
           used.add(c.id);
           const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
-          const condFormat = (goalRules.conditioningFormats?.[0]) ?? "straight_sets";
+          const interval = isExplosiveConditioning(c)
+            ? getExplosiveConditioningStructure()
+            : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const condFormat = (interval.format as BlockFormat) ?? (goalRules.conditioningFormats?.[0]) ?? "straight_sets";
+          const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
+          const estimatedMin = isExplosiveConditioning(c)
+            ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
+            : conditioningMins;
           blocks.push({
             block_type: "conditioning",
-            format: condFormat as BlockFormat,
+            format: condFormat,
             title: "Conditioning",
-            reasoning: "Cardio finisher.",
+            reasoning: interval.reasoning ?? "Cardio finisher.",
             items: [
               {
                 exercise_id: c.id,
                 exercise_name: c.name,
-                sets: 1,
-                time_seconds: Math.min(conditioningMins * 60, 45 * 60),
-                rest_seconds: 0,
+                sets: interval.sets,
+                ...(interval.reps != null ? { reps: interval.reps } : { time_seconds: interval.time_seconds }),
+                rest_seconds: interval.rest_seconds,
                 coaching_cues: p.coaching_cues,
                 reasoning_tags: ["conditioning", ...(c.tags.goal_tags ?? [])],
                 unilateral: c.unilateral ?? false,
               },
             ],
-            estimated_minutes: conditioningMins,
+            estimated_minutes: Math.round(estimatedMin),
           });
         }
       }
@@ -1508,7 +1570,11 @@ export function generateWorkoutSession(
   attachRecommendationsToSession(blocks, filtered, historyContext, recentIds);
 
   // 8. Post-assembly validation and repair (Phase 8)
-  const estimated_duration_minutes = blocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
+  const sumBlockMinutes = blocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
+  const estimated_duration_minutes =
+    input.duration_minutes != null && input.duration_minutes > 0
+      ? input.duration_minutes
+      : sumBlockMinutes;
   const debug = includeDebug
     ? {
         scoring_breakdown: [] as ScoringDebug[],
@@ -1602,10 +1668,14 @@ function regenerateWithSubstitution(
     return { ...block, items };
   });
 
-  const estimated_duration_minutes = blocks.reduce(
+  const sumBlockMinutes = blocks.reduce(
     (sum, b) => sum + (b.estimated_minutes ?? 5),
     0
   );
+  const estimated_duration_minutes =
+    input.duration_minutes != null && input.duration_minutes > 0
+      ? input.duration_minutes
+      : sumBlockMinutes;
 
   return {
     title: previousSession.title,

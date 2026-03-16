@@ -26,7 +26,7 @@ Used when annotating exercises with ontology fields. Keeps classifications consi
 - Squat, leg press, goblet squat, front/back squat → `squat`.
 - RDL, deadlift, hip thrust, good morning, leg curl → `hinge`.
 - Band pull-apart, YTW, wall slide → `shoulder_stability`.
-- Cat-camel, T-spine rotation, thread the needle → `thoracic_mobility`.
+- Cat cow, T-spine rotation, thread the needle → `thoracic_mobility`.
 - Plank, dead bug, pallof, side plank, hollow hold → `anti_rotation` (anti-rotation / anti-extension).
 - Ab wheel, rollout → `horizontal_push` (arm motion) with lumbar_flexion_load.
 - Russian twist → `rotation`.
@@ -49,8 +49,8 @@ Used when annotating exercises with ontology fields. Keeps classifications consi
 
 **Rules:**
 - **prep**: Activation / light work before main (e.g. glute bridge, band pull-apart).
-- **mobility**: ROM / control drills (cat-camel, CARs, T-spine rotation).
-- **cooldown**: Static stretch, breathing, gentle mobility at end of session. If a drill is used in both mobility block and cooldown, pick the more common (e.g. cat-camel → cooldown).
+- **mobility**: ROM / control drills (cat cow, CARs, T-spine rotation).
+- **cooldown**: Static stretch, breathing, gentle mobility at end of session. If a drill is used in both mobility block and cooldown, pick the more common (e.g. cat cow → cooldown).
 - **main_compound**: Primary multi-joint lift (squat, deadlift, bench, OHP, pull-up, row as primary).
 - **accessory**: Secondary compound or support (RDL, split squat, face pull, chest-supported row).
 - **isolation**: Single-joint (leg curl, lateral raise, curl, tricep pushdown).
@@ -111,7 +111,7 @@ Used when annotating exercises with ontology fields. Keeps classifications consi
 - **Upper push**: bench_press_barbell, db_bench, oh_press, push_up, dips, incline_db_press, db_shoulder_press, lateral_raise, tricep_pushdown, close_grip_bench, skull_crusher, chest_press_machine, pike_push_up, seated_ohp.
 - **Upper pull**: pullup, lat_pulldown, db_row, cable_row, barbell_row, chinup, face_pull, band_pullapart, reverse_fly, barbell_curl, chest_supported_row, ytw.
 - **Core**: plank, dead_bug, pallof_hold, ab_wheel, hanging_leg_raise, russian_twist, side_plank, bird_dog, pallof_press, hollow_hold, farmer_carry, suitcase_carry.
-- **Mobility/cooldown**: cat_camel, t_spine_rotation, worlds_greatest_stretch, hip_90_90, inchworm, frog_stretch, thread_the_needle, quadruped_rockback, wall_slide, breathing_diaphragmatic.
+- **Mobility/cooldown**: cat_camel (display name: Cat Cow), t_spine_rotation, worlds_greatest_stretch, hip_90_90, inchworm, frog_stretch, thread_the_needle, quadruped_rockback, wall_slide, breathing_diaphragmatic.
 - **Conditioning**: zone2_bike, rower.
 - **Hybrid**: thruster.
 

@@ -12,6 +12,7 @@ export interface PairingInput {
   id: string;
   movement_pattern: string;
   muscle_groups?: string[];
+  equipment_required?: string[];
   primary_movement_family?: string;
   secondary_movement_families?: string[];
   movement_patterns?: string[];
@@ -21,6 +22,31 @@ export interface PairingInput {
   tags?: { stimulus?: string[] };
   /** When 'high' or 'medium', contributes to grip fatigue (forbid_double_grip). */
   grip_demand?: string;
+}
+
+/** Barbell station: which setup the bar uses. Different stations = can't share one rack (don't pair in superset). */
+export type BarbellStation = "squat_rack" | "bench" | "floor";
+
+/**
+ * Derive barbell station from equipment. Used to forbid pairing e.g. back squat + bench press
+ * (two different racks) or deadlift + bench press in the same superset.
+ * Order: bench (bench press) takes its own station; then squat_rack (squat, OHP); then floor (deadlift, row).
+ */
+export function getBarbellStation(equipment: string[] | undefined): BarbellStation | null {
+  if (!equipment?.length) return null;
+  const eq = new Set(equipment.map((e) => e.toLowerCase().replace(/\s/g, "_")));
+  if (!eq.has("barbell")) return null;
+  if (eq.has("bench")) return "bench";
+  if (eq.has("squat_rack")) return "squat_rack";
+  return "floor";
+}
+
+/** True when both exercises use the barbell at different stations (cannot share equipment in a superset). */
+export function useDifferentBarbellStations(a: PairingInput, b: PairingInput): boolean {
+  const sa = getBarbellStation(a.equipment_required);
+  const sb = getBarbellStation(b.equipment_required);
+  if (sa == null || sb == null) return false;
+  return sa !== sb;
 }
 
 /** Canonical pairing categories (ontology). Complementary within upper_push: chest, shoulders, triceps. */
@@ -156,6 +182,8 @@ export const PAIRING_SCORE_SAME_CATEGORY_PENALTY = -1.5;
 export const PAIRING_SCORE_FATIGUE_OVERLAP_PENALTY = -1;
 export const PAIRING_SCORE_DOUBLE_GRIP_PENALTY = -3;
 export const PAIRING_SCORE_SAME_PATTERN_PENALTY = -2;
+/** Two barbell movements that need different setups (e.g. squat rack vs bench vs floor) cannot share a superset. */
+export const PAIRING_SCORE_DIFFERENT_BARBELL_STATION = -10;
 
 /**
  * Returns a numeric score for pairing A with B. Higher = better.
@@ -163,6 +191,8 @@ export const PAIRING_SCORE_SAME_PATTERN_PENALTY = -2;
  */
 export function getSupersetPairingScore(a: PairingInput, b: PairingInput): number {
   if (a.id === b.id) return -10;
+
+  if (useDifferentBarbellStations(a, b)) return PAIRING_SCORE_DIFFERENT_BARBELL_STATION;
 
   let score = PAIRING_SCORE_NEUTRAL;
 
@@ -217,6 +247,7 @@ export function supersetCompatibility(
   a: PairingInput,
   b: PairingInput
 ): "good" | "neutral" | "bad" {
+  if (useDifferentBarbellStations(a, b)) return "bad";
   const score = getSupersetPairingScore(a, b);
   if (score >= PAIRING_SCORE_GOOD) return "good";
   if (score <= PAIRING_SCORE_SAME_PATTERN_PENALTY || score <= PAIRING_SCORE_DOUBLE_GRIP_PENALTY) return "bad";

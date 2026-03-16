@@ -119,7 +119,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `anti_rotation` | Resisting rotation | Pallof hold, band anti-rotation |
 | `locomotion` | Gait / cyclical lower | Walking lunge, step-up, running (conditioning) |
 | `shoulder_stability` | Scapular / shoulder control (mobility/prep) | Band pull-apart, shoulder CARs |
-| `thoracic_mobility` | T-spine / rib cage (mobility) | Cat-camel, T-spine rotation |
+| `thoracic_mobility` | T-spine / rib cage (mobility) | Cat cow, T-spine rotation |
 
 **Cardinality:** Multi (array). At least one for working exercises; mobility/conditioning can have one or more.  
 **Backward compatibility:** Legacy single `movement_pattern` (squat, hinge, push, pull, carry, rotate, locomotion) can be derived: e.g. horizontal_push → `push`, vertical_push → `push`, squat → `squat`. When `movement_patterns[]` is set, generator can use first or map to legacy for existing code.  
@@ -157,7 +157,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 
 **Cardinality:** Single. An exercise can have one **primary** role; some exercises are valid in multiple (e.g. glute bridge as prep or accessory). Use the **most common** placement.  
 **Storage:** DB `exercise_role` (text). Optional on Exercise.  
-**Guidance:** If used in both warmup and cooldown (e.g. cat-camel), pick the more common (e.g. `mobility` or `cooldown`).
+**Guidance:** If used in both warmup and cooldown (e.g. cat cow), pick the more common (e.g. `mobility` or `cooldown`).
 
 ---
 
@@ -220,7 +220,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 
 | Slug | Definition | When to use |
 |------|------------|-------------|
-| `thoracic_spine` | T-spine / rib cage | Cat-camel, T-spine rotation, open book |
+| `thoracic_spine` | T-spine / rib cage | Cat cow, T-spine rotation, open book |
 | `hip_flexors` | Hip flexor length / control | Hip flexor stretch, half-kneeling |
 | `hamstrings` | Hamstring length | Seated stretch, straight-leg |
 | `hip_internal_rotation` | Hip IR | 90/90, hip circles |
@@ -229,7 +229,7 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 | `calves` | Calf / ankle | Calf stretch, ankle mobility |
 | `quadriceps` | Quad / rectus femoris | Standing quad stretch |
 | `glutes` | Glute / piriformis | Figure-4, pigeon |
-| `lumbar` | Low back mobility (careful) | Child’s pose, cat-camel |
+| `lumbar` | Low back mobility (careful) | Child’s pose, cat cow |
 | `wrists` | Wrist mobility | Wrist circles, flexor stretch |
 
 **Cardinality:** Multi (array). **Storage:** DB `mobility_targets` (text[]). Optional on Exercise.
@@ -468,7 +468,7 @@ Use for: superset pairing in buildMainStrength/buildMainHypertrophy, block-type 
 - **Upper pull:** Pull-up, lat pulldown, DB row, face pull.
 - **Lower:** Back squat, RDL, hip thrust, lunge, leg press (mix knee_flexion and lumbar_shear).
 - **Core:** Plank, dead bug, pallof hold.
-- **Mobility/cooldown:** Cat-camel, T-spine rotation, band pull-apart, hamstring stretch.
+- **Mobility/cooldown:** Cat cow, T-spine rotation, band pull-apart, hamstring stretch.
 - **Conditioning:** Rower, bike (zone 2).
 - **Edge cases:** Thruster (lower + upper push), goblet squat (knee_flexion), deadlift (lumbar_shear, grip).
 

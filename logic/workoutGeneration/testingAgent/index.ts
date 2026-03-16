@@ -10,6 +10,7 @@ export {
   buildSessionSummary,
   buildValidationSummary,
   formatDecisionReport,
+  formatFullTestReport,
 } from "./decisionReport";
 export type {
   DecisionReport,
