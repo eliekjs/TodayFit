@@ -17,6 +17,7 @@ export type ExerciseRowWithOntology = {
   id: string;
   slug: string;
   name: string;
+  description?: string | null;
   primary_muscles: string[];
   secondary_muscles: string[];
   equipment: string[];
@@ -137,6 +138,7 @@ export function mapDbExerciseToGeneratorExercise(
   const exercise: Exercise = {
     id: row.slug,
     name: row.name,
+    ...(row.description != null && row.description !== "" ? { description: row.description } : {}),
     movement_pattern,
     muscle_groups,
     modality,

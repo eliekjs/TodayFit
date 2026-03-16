@@ -95,6 +95,8 @@ export type ExerciseOntology = {
 export type Exercise = {
   id: string;
   name: string;
+  /** User-facing description (optional). From DB or derived stub. */
+  description?: string;
   movement_pattern: MovementPattern;
   muscle_groups: string[];
   modality: Modality;

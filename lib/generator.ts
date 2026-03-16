@@ -193,6 +193,15 @@ function filterByInjuries(
   });
 }
 
+/** Canonical upper-push muscles (for body-part filter). */
+const PUSH_MUSCLES = ["chest", "triceps", "shoulders"];
+/** Canonical upper-pull muscles (for body-part filter). */
+const PULL_MUSCLES = ["lats", "biceps", "upper_back"];
+/** All canonical upper-body muscles (exclude from lower-body focus). */
+const UPPER_MUSCLES = [...PUSH_MUSCLES, ...PULL_MUSCLES];
+/** Lower-body muscles (legs, quads, glutes, hamstrings, calves). */
+const LOWER_MUSCLES = ["legs", "quads", "glutes", "hamstrings", "calves"];
+
 function filterByBodyPartFocus(
   exercises: ExerciseDefinition[],
   bodyPartFocus: string[]
@@ -210,23 +219,31 @@ function filterByBodyPartFocus(
   if (hasFull) return exercises;
 
   return exercises.filter((e) => {
-    // Upper: strictly no lower-body; when modifier (Push/Pull) is set, focus on that; otherwise push/pull/core (core = abs, not legs)
+    const muscles = e.muscles.map((m) => m.toLowerCase().replace(/\s/g, "_"));
+    const hasPushMuscle = PUSH_MUSCLES.some((m) => muscles.includes(m)) || muscles.includes("push");
+    const hasPullMuscle = PULL_MUSCLES.some((m) => muscles.includes(m)) || muscles.includes("pull");
+    const hasUpperMuscle = UPPER_MUSCLES.some((m) => muscles.includes(m)) || muscles.includes("push") || muscles.includes("pull");
+    const hasLowerMuscle = LOWER_MUSCLES.some((m) => muscles.includes(m));
+    const hasLegs = muscles.includes("legs") || hasLowerMuscle;
+    const hasCore = muscles.includes("core");
+
+    // Upper: strictly no lower-body; when modifier (Push/Pull) is set, focus on that; otherwise any upper or core
     if (hasUpper) {
-      if (e.muscles.includes("legs")) return false;
-      if (hasPush && !hasPull) return e.muscles.includes("push");
-      if (hasPull && !hasPush) return e.muscles.includes("pull");
-      return e.muscles.some((m) => m === "push" || m === "pull" || m === "core");
+      if (hasLegs) return false;
+      if (hasPush && !hasPull) return hasPushMuscle;
+      if (hasPull && !hasPush) return hasPullMuscle;
+      return hasUpperMuscle || hasCore;
     }
     // Lower: strictly no upper push/pull; when modifier (Quad/Posterior) is set, filter by tags; otherwise all legs
     if (hasLower) {
-      if (e.muscles.includes("push") || e.muscles.includes("pull")) return false;
+      if (hasUpperMuscle) return false;
       if (hasQuad && !hasPosterior)
-        return e.muscles.includes("legs") && e.tags.some((t) => t === "quad-focused");
+        return hasLegs && e.tags.some((t) => t === "quad-focused");
       if (hasPosterior && !hasQuad)
-        return e.muscles.includes("legs") && e.tags.some((t) => t === "posterior chain" || t === "glutes" || t === "hamstrings");
-      return e.muscles.includes("legs");
+        return hasLegs && e.tags.some((t) => t === "posterior chain" || t === "glutes" || t === "hamstrings");
+      return hasLegs;
     }
-    if (hasCoreOnly) return e.muscles.includes("core") && !e.muscles.includes("legs");
+    if (hasCoreOnly) return hasCore && !hasLegs;
     return false;
   });
 }
@@ -663,22 +680,22 @@ export function generateWorkout(
   };
 }
 
-/** Map UI body part focus to DB primary_muscles values. */
+/** Map UI body part focus to DB primary_muscles values (canonical slugs per EXERCISE_ONTOLOGY_DESIGN). */
 function bodyPartFocusToMuscles(bodyPartFocus: string[]): string[] {
   const out: string[] = [];
   for (const opt of bodyPartFocus) {
     if (opt === "Upper body") {
-      out.push("push", "pull", "core");
+      out.push("chest", "triceps", "shoulders", "lats", "biceps", "upper_back", "core");
     } else if (opt === "Lower body") {
-      out.push("legs");
+      out.push("legs", "quads", "glutes", "hamstrings", "calves");
     } else if (opt === "Full body") {
       return []; // no filter
     } else if (opt === "Core") {
       out.push("core");
     } else if (opt === "Push") {
-      out.push("push");
+      out.push("chest", "triceps", "shoulders");
     } else if (opt === "Pull") {
-      out.push("pull");
+      out.push("lats", "biceps", "upper_back");
     }
   }
   return [...new Set(out)];
