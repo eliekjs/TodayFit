@@ -255,10 +255,12 @@ export function getSupersetPairsForBlock(block: WorkoutBlock): [WorkoutItem, Wor
   // #endregion
 }
 
-/** One-line prescription string for display (e.g. "3 x 10 reps", "3 x 10 reps each leg", "20–40 min"). */
+/** One-line prescription string for display (e.g. "3 x 10 reps", "8 rounds × 1 min", "20–40 min"). */
 export function formatPrescription(item: WorkoutItem): string {
   if (item.time_seconds != null && item.time_seconds > 0) {
     const min = Math.round(item.time_seconds / 60);
+    const sets = item.sets ?? 1;
+    if (sets > 1) return `${sets} rounds × ${min} min`;
     return `${min} min`;
   }
   const reps = item.reps != null ? ` ${item.reps} reps` : "";

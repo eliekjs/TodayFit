@@ -34,6 +34,11 @@ import {
   getSimilarExerciseClusterId,
   BLOCKED_EXERCISE_IDS,
 } from "./workoutRules";
+import {
+  HIGH_INTENSITY_CONDITIONING_IDS,
+  MAX_HIGH_INTENSITY_WORK_SECONDS,
+  HIGH_INTENSITY_REST_SECONDS,
+} from "./generation/prescriptionRules";
 import { pickBestSupersetPairs } from "../logic/workoutIntelligence/supersetPairing";
 import type { PairingInput } from "../logic/workoutIntelligence/supersetPairing";
 
@@ -114,6 +119,17 @@ function prescriptionForExercise(
     if (isBodyRecomp) {
       const timeSeconds = Math.round((BODY_RECOMP_CARDIO_DURATION_MIN + BODY_RECOMP_CARDIO_DURATION_MAX) / 2) * 60;
       return { sets: 1, time_seconds: timeSeconds, rest_seconds: 0, coaching_cues: zone2Cue };
+    }
+    // High-intensity conditioning (burpees, KB swings, high knees, etc.): max 1 min per round, rounds + rest.
+    if (HIGH_INTENSITY_CONDITIONING_IDS.has(exercise.id)) {
+      const totalWorkMinutes = energy === "high" ? 8 : energy === "low" ? 5 : 6;
+      const rounds = Math.max(1, Math.min(20, totalWorkMinutes));
+      return {
+        sets: rounds,
+        time_seconds: MAX_HIGH_INTENSITY_WORK_SECONDS,
+        rest_seconds: HIGH_INTENSITY_REST_SECONDS,
+        coaching_cues: `High intensity. Rest ${HIGH_INTENSITY_REST_SECONDS} s between rounds.`,
+      };
     }
     const minutes = energy === "high" ? 12 : energy === "low" ? 6 : 8;
     const steadyCue = isZone2 ? `Steady effort. ${ZONE2_HR_GUIDANCE}` : "Steady effort. Keep heart rate in target zone.";

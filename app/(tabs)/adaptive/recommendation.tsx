@@ -338,7 +338,7 @@ export default function AdaptiveWeekPlanScreen() {
               label="Set Training Priorities"
               onPress={() => {
               // #region agent log
-              fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f74579'},body:JSON.stringify({sessionId:'f74579',location:'recommendation.tsx:navigate-adaptive',message:'User pressed back to adaptive',data:{},timestamp:Date.now(),hypothesisId:'H4',runId:'post-fix'})}).catch(()=>{});
+              fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'recommendation.tsx:button-SetPriorities',message:'User pressed Set Training Priorities -> navigate(/adaptive)',data:{},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
               // #endregion
               router.navigate("/adaptive");
             }}
@@ -542,9 +542,15 @@ export default function AdaptiveWeekPlanScreen() {
     summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
   }
 
+  /** Only show days that have at least one session (one-day plan shows 1 slot, full week shows N). */
+  const daySlotsWithSessions = useMemo(
+    () => daySlots.filter((slot) => slot.sessions.length > 0),
+    [daySlots]
+  );
+
   const weekOverviewContent = (
     <View>
-      {daySlots.map((slot) => {
+      {daySlotsWithSessions.map((slot) => {
         const dayIdx = weekDates.indexOf(slot.date);
         const canMoveUp = dayIdx > 0;
         const canMoveDown = dayIdx >= 0 && dayIdx < weekDates.length - 1;
@@ -634,12 +640,17 @@ export default function AdaptiveWeekPlanScreen() {
   const mainContent = (
     <>
       <Card
-        title="Your Week Plan"
-        subtitle={`Week starting ${sportPrepWeekPlan.weekStartDate}`}
+        title={daySlotsWithSessions.length === 1 ? "Your session" : "Your Week Plan"}
+        subtitle={
+          daySlotsWithSessions.length === 1
+            ? sportPrepWeekPlan.weekStartDate
+            : `Week starting ${sportPrepWeekPlan.weekStartDate}`
+        }
       >
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
-          Tap a session to view it. Use the arrows to move sessions between days. You can
-          regenerate an individual day without changing the rest of the plan.
+          {daySlotsWithSessions.length === 1
+            ? "Tap the session to view or regenerate it."
+            : "Tap a session to view it. Use the arrows to move sessions between days. You can regenerate an individual day without changing the rest of the plan."}
         </Text>
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
           <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
@@ -657,9 +668,13 @@ export default function AdaptiveWeekPlanScreen() {
       ) : null}
 
       <Card
-        title="Week overview"
+        title={daySlotsWithSessions.length === 1 ? "Session" : "Week overview"}
         style={{ marginTop: 16 }}
-        subtitle="Use ↑↓ arrows to move sessions to different days. Tap a session to view or regenerate it."
+        subtitle={
+          daySlotsWithSessions.length === 1
+            ? "Tap the session to view or regenerate it."
+            : "Use ↑↓ arrows to move sessions to different days. Tap a session to view or regenerate it."
+        }
       >
         {weekOverviewContent}
       </Card>
@@ -741,7 +756,7 @@ export default function AdaptiveWeekPlanScreen() {
             variant="ghost"
             onPress={() => {
               // #region agent log
-              fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f74579'},body:JSON.stringify({sessionId:'f74579',location:'recommendation.tsx:navigate-adaptive',message:'User pressed back to adaptive',data:{},timestamp:Date.now(),hypothesisId:'H4',runId:'post-fix'})}).catch(()=>{});
+              fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'recommendation.tsx:button-BackToSetup',message:'User pressed Back to Setup -> navigate(/adaptive)',data:{},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
               // #endregion
               router.navigate("/adaptive");
             }}

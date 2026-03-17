@@ -363,9 +363,92 @@ export function getConditioningIntervalStructure(
   };
 }
 
+/** Max work per round for high-intensity conditioning (burpees, KB swings, high knees, etc.). Nobody can sustain these for 8+ min straight. */
+export const MAX_HIGH_INTENSITY_WORK_SECONDS = 60;
+
+/** Rest between rounds of high-intensity work (research: 30–60 s common for HIIT). */
+export const HIGH_INTENSITY_REST_SECONDS = 45;
+
+/** Exercise IDs that cannot be sustained for many minutes — prescribe as rounds of max 1 min with rest. */
+export const HIGH_INTENSITY_CONDITIONING_IDS = new Set([
+  // Original list: burpees, KB swings, high knees, etc.
+  "burpee",
+  "burpee_box_jump",
+  "high_knee",
+  "kb_swing",
+  "kettlebell_swing",
+  "mountain_climber",
+  "jump_rope",
+  "double_unders",
+  "jump_squat",
+  "jump_squat_light",
+  "box_jump",
+  "battle_rope_waves",
+  "air_bike_sprint",
+  "rower_intervals_30_30",
+  "devils_press",
+  // Metcon / HIIT: thrusters, wall ball, devil's-press–style, sled, intervals
+  "thruster",
+  "wall_ball",
+  "medball_slam",
+  "bear_crawl",
+  "sled_push",
+  "sled_drag",
+  "row_calorie_burn",
+  "treadmill_intervals",
+  "ski_erg_intervals",
+  "rower_intervals",
+  "assault_bike_intervals",
+  // Battle ropes (both variants)
+  "battle_ropes",
+  // Plyometric / high-impact (can't sustain 8+ min)
+  "jump_lunge",
+  "lateral_bound",
+  "skater_jump",
+  "tuck_jump",
+  "broad_jump",
+  "bounding",
+  "sprint",
+  "single_leg_hop",
+  // Stair climb (bodyweight, often used in short bursts in circuits)
+  "stair_climb",
+  // Power throws (short bursts)
+  "medball_rotational_throw",
+  // Power movements often used in conditioning (cleans, snatches, press) — same cap, often cued as reps
+  "clean_and_press",
+  "db_snatch",
+  "push_press",
+  "kb_snatch",
+  "medicine_ball_chest_pass",
+  // Strength + conditioning and other conditioning: break up time (max 1 min per round + rest)
+  "farmer_carry",
+  "trap_bar_carry",
+  "sandbag_carry",
+  "walking_lunge",
+  "stepup",
+  "box_step_up",
+  "lateral_box_step",
+]);
+
+/**
+ * Subset of high-intensity exercises that are typically prescribed by reps (e.g. 4×8, 5×10)
+ * rather than time. When in conditioning, these get sets×reps + rest instead of rounds×1 min.
+ */
+export const REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS = new Set([
+  "thruster",
+  "wall_ball",
+  "medball_slam",
+  "devils_press",
+  "clean_and_press",
+  "db_snatch",
+  "push_press",
+  "kb_snatch",
+  "medicine_ball_chest_pass",
+]);
+
 /**
  * Prescription for explosive/plyometric conditioning (e.g. box jumps, jump squats).
- * Uses sets × reps or sets × short time so the athlete does brief efforts with rest, not one long block.
+ * Uses sets × reps with rest so the athlete does brief efforts, not one long block.
  */
 export function getExplosiveConditioningStructure(): ConditioningIntervalStructure {
   return {
@@ -374,5 +457,43 @@ export function getExplosiveConditioningStructure(): ConditioningIntervalStructu
     rest_seconds: 60,
     format: "circuit",
     reasoning: "Explosive movements prescribed as sets of reps with rest between for quality and safety.",
+  };
+}
+
+/**
+ * Prescription for high-intensity conditioning that cannot be sustained for many minutes
+ * (burpees, burpee box jumps, high knees, kettlebell swings, mountain climbers, etc.).
+ * Work is capped at 1 min per round; total work is achieved via rounds with rest between.
+ */
+export function getHighIntensityConditioningStructure(
+  totalWorkMinutes: number
+): ConditioningIntervalStructure {
+  const rounds = Math.max(1, Math.min(20, Math.round(totalWorkMinutes)));
+  const restSeconds = HIGH_INTENSITY_REST_SECONDS;
+  return {
+    sets: rounds,
+    time_seconds: MAX_HIGH_INTENSITY_WORK_SECONDS,
+    rest_seconds: restSeconds,
+    format: "circuit",
+    reasoning: `Short work bouts (max 1 min) with rest so you can sustain intensity. Rest ${restSeconds} s between rounds.`,
+  };
+}
+
+/**
+ * Prescription for high-intensity exercises that are typically cued by reps (thrusters, wall ball,
+ * cleans, snatches, etc.). Uses sets × reps with rest instead of time-based rounds.
+ */
+export function getRepBasedHighIntensityConditioningStructure(
+  totalWorkMinutes: number
+): ConditioningIntervalStructure {
+  const sets = Math.max(3, Math.min(6, Math.round(totalWorkMinutes / 2)));
+  const reps = 8;
+  const restSeconds = HIGH_INTENSITY_REST_SECONDS;
+  return {
+    sets,
+    reps,
+    rest_seconds: restSeconds,
+    format: "circuit",
+    reasoning: `Short sets with rest so you can sustain intensity. Rest ${restSeconds} s between sets.`,
   };
 }

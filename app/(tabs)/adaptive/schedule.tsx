@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { SectionHeader } from "../../../components/SectionHeader";
@@ -37,6 +37,7 @@ function toPreferredTrainingDays(selectedDows: number[]): number[] {
 export default function AdaptiveScheduleScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const {
     adaptiveSetup,
     setAdaptiveSetup,
@@ -83,7 +84,7 @@ export default function AdaptiveScheduleScreen() {
   useEffect(() => {
     if (!adaptiveSetup) {
       // #region agent log
-      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f74579'},body:JSON.stringify({sessionId:'f74579',location:'schedule.tsx:navigate-adaptive',message:'Calling router.navigate(/adaptive) because adaptiveSetup is null',data:{adaptiveSetup:!!adaptiveSetup},timestamp:Date.now(),hypothesisId:'H2',runId:'post-fix'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'schedule.tsx:useEffect-navigate',message:'Calling router.navigate(/adaptive) because adaptiveSetup is null',data:{adaptiveSetup:!!adaptiveSetup,pathname},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
       // #endregion
       router.navigate("/adaptive");
     }

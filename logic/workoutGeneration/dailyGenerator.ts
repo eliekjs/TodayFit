@@ -49,6 +49,10 @@ import {
   getConditioningDurationMinutes,
   getConditioningIntervalStructure,
   getExplosiveConditioningStructure,
+  getHighIntensityConditioningStructure,
+  getRepBasedHighIntensityConditioningStructure,
+  HIGH_INTENSITY_CONDITIONING_IDS,
+  REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS,
   type EnergyLevel,
 } from "../../lib/generation/prescriptionRules";
 import { getBestSubstitute } from "../../lib/generation/exerciseSubstitution";
@@ -1195,11 +1199,21 @@ function pickConditioningExercise(
   return pool[Math.floor(rng() * pool.length)];
 }
 
-/** True when conditioning exercise is explosive/plyometric (box jumps, jump squats, etc.) — prescribe as sets of reps or short time, not one long block. */
+/** True when conditioning exercise is explosive/plyometric (box jumps, jump squats) — prescribe as sets of reps or short time, not one long block. */
 function isExplosiveConditioning(exercise: Exercise): boolean {
   const stimulus = exercise.tags?.stimulus ?? [];
   if (stimulus.some((s) => s.toLowerCase().replace(/\s/g, "_") === "plyometric")) return true;
   if (exercise.impact_level === "high" && exercise.modality === "conditioning") return true;
+  return false;
+}
+
+/** True when conditioning cannot be sustained for 8+ min straight — use rounds of max 1 min work with rest (burpees, KB swings, high knees, etc.). */
+function isHighIntensityConditioning(exercise: Exercise): boolean {
+  if (exercise.modality !== "conditioning") return false;
+  if (HIGH_INTENSITY_CONDITIONING_IDS.has(exercise.id)) return true;
+  const stimulus = exercise.tags?.stimulus ?? [];
+  if (stimulus.some((s) => ["plyometric", "anaerobic"].includes(s.toLowerCase().replace(/\s/g, "_")))) return true;
+  if (exercise.impact_level === "high") return true;
   return false;
 }
 
@@ -1394,12 +1408,16 @@ function buildEnduranceMain(
     if (c) {
       used.add(c.id);
       const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
-      const interval = isExplosiveConditioning(c)
-        ? getExplosiveConditioningStructure()
-        : getConditioningIntervalStructure(condMins, input.primary_goal, c.equipment_required ?? []);
+      const interval = isHighIntensityConditioning(c)
+        ? REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS.has(c.id)
+          ? getRepBasedHighIntensityConditioningStructure(condMins)
+          : getHighIntensityConditioningStructure(condMins)
+        : isExplosiveConditioning(c)
+          ? getExplosiveConditioningStructure()
+          : getConditioningIntervalStructure(condMins, input.primary_goal, c.equipment_required ?? []);
       const condFormat = (interval.format as BlockFormat) ?? (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ?? "straight_sets";
       const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
-      const estimatedMin = isExplosiveConditioning(c)
+      const estimatedMin = isHighIntensityConditioning(c) || isExplosiveConditioning(c)
         ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
         : condMins;
       blocks.push({
@@ -1578,12 +1596,14 @@ export function generateWorkoutSession(
         if (c) {
           used.add(c.id);
           const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
-          const interval = isExplosiveConditioning(c)
-            ? getExplosiveConditioningStructure()
-            : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const interval = isHighIntensityConditioning(c)
+            ? getHighIntensityConditioningStructure(conditioningMins)
+            : isExplosiveConditioning(c)
+              ? getExplosiveConditioningStructure()
+              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
           const condFormat = (interval.format as BlockFormat) ?? (goalRules.conditioningFormats?.[0]) ?? "straight_sets";
           const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
-          const estimatedMin = isExplosiveConditioning(c)
+          const estimatedMin = isHighIntensityConditioning(c) || isExplosiveConditioning(c)
             ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
             : conditioningMins;
           blocks.push({

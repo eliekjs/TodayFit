@@ -404,13 +404,87 @@ function sessionIntentForSport(
   durationMinutes: number,
   energy: EnergyLevel
 ): SessionIntent {
+  // Vertical jump / dunk: bias toward power and lower-body so selection yields jump-specific exercises (plyos, squats, etc.).
+  const isVerticalJump = sportSlug === "vertical_jump";
+  // Road cycling: bias toward endurance and lower-body + core so selection yields cycling-support exercises (leg strength, core, zone 2).
+  const isCyclingRoad = sportSlug === "cycling_road";
+  // Mountain biking: same lower-body + core bias; single-leg and balance favored via tag map.
+  const isCyclingMtb = sportSlug === "cycling_mtb";
+  // Hiking / backpacking: lower-body, single-leg, ankle stability, load carriage.
+  const isHikingBackpacking = sportSlug === "hiking_backpacking";
+  // Backcountry skiing / ski touring: lower-body, uphill endurance, leg strength, core.
+  const isBackcountrySkiing = sportSlug === "backcountry_skiing";
+  // Alpine (downhill) skiing: lower-body, eccentric control, knee/ankle stability.
+  const isAlpineSkiing = sportSlug === "alpine_skiing";
+  // Snowboarding: lower-body, balance, core, lateral stability.
+  const isSnowboarding = sportSlug === "snowboarding";
+  // Ice climbing: upper-body pull, grip, shoulder, core.
+  const isIceClimbing = sportSlug === "ice_climbing";
+  // Road running: bias toward lower-body + core and leg resilience so selection yields running-support exercises.
+  const isRoadRunning = sportSlug === "road_running";
+  // Swimming: bias toward upper-body pull and core so selection yields swim-support exercises (pull, scapular, core).
+  const isSwimming = sportSlug === "swimming_open_water";
+  // Trail running: bias toward lower-body, single-leg, eccentric and ankle so selection yields trail-support exercises.
+  const isTrailRunning = sportSlug === "trail_running";
+  // Triathlon: full-body support (swim pull + bike/run legs + core); no strict body bias so tag ranking drives mix.
+  const isTriathlon = sportSlug === "triathlon";
+  // XC (Nordic) skiing: full-body (double pole + leg drive + core); no strict body bias so tag ranking drives mix.
+  const isXcSkiing = sportSlug === "xc_skiing";
+  // Hyrox: full-body (run + row, sled, burpees, carry, etc.); tag ranking drives mix.
+  const isHyrox = sportSlug === "hyrox";
+  // Rowing / erg: full-body (leg drive + pull + core); tag ranking drives mix.
+  const isRowingErg = sportSlug === "rowing_erg";
+  // Rucking: lower-body, load carriage, core (same as hiking/backpacking).
+  const isRucking = sportSlug === "rucking";
+  // Spartan / OCR: full-body (run, grip, carries, obstacles).
+  const isOcrSpartan = sportSlug === "ocr_spartan";
+  // Ultra running: lower-body, durability, leg resilience (same as road/trail).
+  const isUltraRunning = sportSlug === "ultra_running";
+  // Tactical fitness: full-body (run, push, pull, core, carry).
+  const isTacticalFitness = sportSlug === "tactical_fitness";
+  // CrossFit: full-body (WOD-style mixed modal).
+  const isCrossfit = sportSlug === "crossfit";
+  // Powerlifting (general_strength): full-body (squat, bench, deadlift, accessory).
+  const isGeneralStrength = sportSlug === "general_strength";
+  // Bodybuilding: full-body (push, pull, legs, arms, core).
+  const isBodybuilding = sportSlug === "bodybuilding";
+  // Track sprinting: lower-body power, plyometrics, hamstring/tendon.
+  const isTrackSprinting = sportSlug === "track_sprinting";
+  // Strongman: full-body (carries, overhead, deadlift, grip, trunk).
+  const isStrongman = sportSlug === "strongman";
   return {
     id: `session_${date}_sport_${sportSlug}`,
     label: sportLabel,
-    focus: ["Improve Endurance", "Sport Conditioning"],
+    focus: isVerticalJump
+      ? ["Power & Explosiveness", "Sport Conditioning"]
+      : ["Improve Endurance", "Sport Conditioning"],
     durationMinutes,
     energyLevel: energy,
     notes: `Sport-specific conditioning to support ${sportLabel}.`,
+    ...(isVerticalJump && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isCyclingRoad && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isCyclingMtb && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isHikingBackpacking && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isBackcountrySkiing && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isAlpineSkiing && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isSnowboarding && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isIceClimbing && { bodyRegionBias: { targetBody: "Upper", targetModifier: ["Pull"] } }),
+    ...(isRoadRunning && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isSwimming && { bodyRegionBias: { targetBody: "Upper", targetModifier: ["Pull"] } }),
+    ...(isTrailRunning && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isTriathlon && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isXcSkiing && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isHyrox && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isRowingErg && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isRucking && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isOcrSpartan && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isUltraRunning && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isTacticalFitness && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isCrossfit && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isGeneralStrength && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isBodybuilding && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isTrackSprinting && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isStrongman && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
   };
 }
 

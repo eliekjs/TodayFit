@@ -89,6 +89,36 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "eccentric_quad_strength", weight: 1 },
   ],
 
+  // --- Cross-Country Skiing (Nordic) ---
+  [key("xc_skiing", "aerobic_base")]: [
+    { tag_slug: "zone2_cardio", weight: 1.2 },
+    { tag_slug: "aerobic_base", weight: 1 },
+  ],
+  [key("xc_skiing", "double_pole_upper")]: [
+    { tag_slug: "pulling_strength", weight: 1.3 },
+    { tag_slug: "trunk_endurance", weight: 1.1 },
+    { tag_slug: "core_anti_extension", weight: 1.1 },
+    { tag_slug: "lats", weight: 1 },
+    { tag_slug: "back", weight: 0.9 },
+  ],
+  [key("xc_skiing", "leg_drive")]: [
+    { tag_slug: "single_leg_strength", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.1 },
+    { tag_slug: "squat_pattern", weight: 1 },
+    { tag_slug: "hinge_pattern", weight: 1 },
+  ],
+  [key("xc_skiing", "core_stability")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+  [key("xc_skiing", "durability")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1 },
+    { tag_slug: "core_stability", weight: 1 },
+  ],
+
   // --- Rock Climbing ---
   [key("rock_sport_lead", "finger_strength")]: [
     { tag_slug: "finger_strength", weight: 1.3 },
@@ -148,6 +178,62 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "plyometric", weight: 1 },
   ],
 
+  // --- Trad Climbing ---
+  [key("rock_trad", "finger_strength")]: [
+    { tag_slug: "finger_strength", weight: 1.3 },
+    { tag_slug: "grip", weight: 1 },
+    { tag_slug: "isometric_strength", weight: 0.9 },
+  ],
+  [key("rock_trad", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "vertical_pull", weight: 1 },
+    { tag_slug: "lats", weight: 1 },
+    { tag_slug: "back", weight: 1 },
+  ],
+  [key("rock_trad", "lockoff_strength")]: [
+    { tag_slug: "lockoff_strength", weight: 1.3 },
+    { tag_slug: "isometric_strength", weight: 1 },
+    { tag_slug: "pulling_strength", weight: 1 },
+  ],
+  [key("rock_trad", "core_tension")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1 },
+  ],
+  [key("rock_trad", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+  ],
+  [key("rock_trad", "trunk_endurance")]: [
+    { tag_slug: "core_stability", weight: 1.1 },
+    { tag_slug: "strength_endurance", weight: 1.1 },
+    { tag_slug: "aerobic_base", weight: 0.9 },
+  ],
+
+  // --- Ice Climbing ---
+  [key("ice_climbing", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.3 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "isometric_strength", weight: 0.9 },
+  ],
+  [key("ice_climbing", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "vertical_pull", weight: 1 },
+    { tag_slug: "lats", weight: 1 },
+  ],
+  [key("ice_climbing", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+    { tag_slug: "vertical_push", weight: 0.9 },
+  ],
+  [key("ice_climbing", "core_tension")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1 },
+  ],
+  [key("ice_climbing", "lockoff_strength")]: [
+    { tag_slug: "lockoff_strength", weight: 1.2 },
+    { tag_slug: "isometric_strength", weight: 1 },
+  ],
+
   // --- Road Running ---
   [key("road_running", "aerobic_base")]: [
     { tag_slug: "zone2_cardio", weight: 1.2 },
@@ -163,14 +249,19 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "speed", weight: 1 },
   ],
   [key("road_running", "running_economy")]: [
-    { tag_slug: "single_leg_strength", weight: 1 },
-    { tag_slug: "glute_strength", weight: 1 },
-    { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.1 },
+    { tag_slug: "squat_pattern", weight: 1 },
+    { tag_slug: "hinge_pattern", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 0.9 },
   ],
   [key("road_running", "leg_resilience")]: [
-    { tag_slug: "eccentric_quad_strength", weight: 1 },
-    { tag_slug: "knee_stability", weight: 1 },
-    { tag_slug: "calves", weight: 0.9 },
+    { tag_slug: "eccentric_quad_strength", weight: 1.2 },
+    { tag_slug: "knee_stability", weight: 1.2 },
+    { tag_slug: "calves", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 0.9 },
+    { tag_slug: "ankle_stability", weight: 0.9 },
   ],
 
   // --- Trail Running ---
@@ -179,22 +270,29 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "aerobic_base", weight: 1 },
   ],
   [key("trail_running", "uphill_endurance")]: [
-    { tag_slug: "zone2_cardio", weight: 1 },
-    { tag_slug: "single_leg_strength", weight: 1.2 },
-    { tag_slug: "glute_strength", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1.3 },
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1 },
+    { tag_slug: "zone2_cardio", weight: 0.9 },
+    { tag_slug: "posterior_chain", weight: 0.9 },
   ],
   [key("trail_running", "downhill_control")]: [
-    { tag_slug: "eccentric_quad_strength", weight: 1.2 },
-    { tag_slug: "knee_stability", weight: 1 },
+    { tag_slug: "eccentric_quad_strength", weight: 1.3 },
+    { tag_slug: "knee_stability", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "balance", weight: 0.9 },
   ],
   [key("trail_running", "ankle_stability")]: [
-    { tag_slug: "ankle_stability", weight: 1.2 },
-    { tag_slug: "balance", weight: 1 },
+    { tag_slug: "ankle_stability", weight: 1.3 },
+    { tag_slug: "balance", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "calves", weight: 0.9 },
   ],
   [key("trail_running", "terrain_adaptability")]: [
-    { tag_slug: "single_leg_strength", weight: 1 },
-    { tag_slug: "balance", weight: 1 },
-    { tag_slug: "ankle_stability", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1.2 },
+    { tag_slug: "balance", weight: 1.2 },
+    { tag_slug: "ankle_stability", weight: 1.1 },
+    { tag_slug: "glute_strength", weight: 0.9 },
   ],
 
   // --- Marathon Running ---
@@ -220,6 +318,35 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "calves", weight: 1 },
   ],
 
+  // --- Ultra Running ---
+  [key("ultra_running", "aerobic_base")]: [
+    { tag_slug: "zone2_cardio", weight: 1.3 },
+    { tag_slug: "aerobic_base", weight: 1.2 },
+  ],
+  [key("ultra_running", "durability")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1 },
+    { tag_slug: "core_stability", weight: 1.1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+  ],
+  [key("ultra_running", "leg_resilience")]: [
+    { tag_slug: "eccentric_quad_strength", weight: 1.2 },
+    { tag_slug: "knee_stability", weight: 1.2 },
+    { tag_slug: "calves", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+  ],
+  [key("ultra_running", "uphill_endurance")]: [
+    { tag_slug: "single_leg_strength", weight: 1.3 },
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 0.9 },
+  ],
+  [key("ultra_running", "core_stability")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+
   // --- Cycling ---
   [key("cycling_road", "aerobic_base")]: [
     { tag_slug: "zone2_cardio", weight: 1.2 },
@@ -234,13 +361,45 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "zone3_cardio", weight: 1 },
   ],
   [key("cycling_road", "leg_strength")]: [
-    { tag_slug: "glute_strength", weight: 1 },
-    { tag_slug: "quads", weight: 1 },
-    { tag_slug: "hinge_pattern", weight: 1 },
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "quads", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1.1 },
+    { tag_slug: "squat_pattern", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 0.9 },
   ],
   [key("cycling_road", "core_stability")]: [
-    { tag_slug: "core_anti_extension", weight: 1 },
-    { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+
+  // --- Cycling (Mountain) ---
+  [key("cycling_mtb", "aerobic_base")]: [
+    { tag_slug: "zone2_cardio", weight: 1.2 },
+    { tag_slug: "aerobic_base", weight: 1 },
+  ],
+  [key("cycling_mtb", "threshold")]: [
+    { tag_slug: "lactate_threshold", weight: 1.2 },
+    { tag_slug: "zone3_cardio", weight: 1 },
+  ],
+  [key("cycling_mtb", "power_endurance")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+  ],
+  [key("cycling_mtb", "leg_strength")]: [
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "quads", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1.1 },
+    { tag_slug: "squat_pattern", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1.1 },
+    { tag_slug: "posterior_chain", weight: 0.9 },
+  ],
+  [key("cycling_mtb", "core_stability")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
   ],
 
   // --- Triathlon ---
@@ -249,22 +408,146 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "aerobic_base", weight: 1 },
   ],
   [key("triathlon", "threshold")]: [
-    { tag_slug: "lactate_threshold", weight: 1 },
+    { tag_slug: "lactate_threshold", weight: 1.2 },
     { tag_slug: "zone3_cardio", weight: 1 },
   ],
   [key("triathlon", "swim_specific")]: [
-    { tag_slug: "scapular_control", weight: 1.2 },
-    { tag_slug: "shoulder_stability", weight: 1 },
+    { tag_slug: "scapular_control", weight: 1.3 },
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "pulling_strength", weight: 1.1 },
     { tag_slug: "core_anti_extension", weight: 1 },
   ],
   [key("triathlon", "bike_run_durability")]: [
-    { tag_slug: "strength_endurance", weight: 1 },
-    { tag_slug: "posterior_chain", weight: 1 },
-    { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "glute_strength", weight: 1 },
+    { tag_slug: "hinge_pattern", weight: 0.9 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
   ],
   [key("triathlon", "core_stability")]: [
     { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+
+  // --- Rucking ---
+  [key("rucking", "aerobic_base")]: [
+    { tag_slug: "zone2_cardio", weight: 1.2 },
+    { tag_slug: "aerobic_base", weight: 1 },
+  ],
+  [key("rucking", "load_carriage_durability")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.1 },
     { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "carry", weight: 1.2 },
+  ],
+  [key("rucking", "leg_strength")]: [
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "quads", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1.1 },
+    { tag_slug: "single_leg_strength", weight: 1.1 },
+    { tag_slug: "hinge_pattern", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 0.9 },
+  ],
+  [key("rucking", "core_stability")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+  [key("rucking", "ankle_stability")]: [
+    { tag_slug: "ankle_stability", weight: 1.3 },
+    { tag_slug: "balance", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "calves", weight: 0.9 },
+  ],
+
+  // --- Spartan / OCR ---
+  [key("ocr_spartan", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.3 },
+    { tag_slug: "lactate_threshold", weight: 1 },
+    { tag_slug: "zone3_cardio", weight: 1 },
+  ],
+  [key("ocr_spartan", "running_endurance")]: [
+    { tag_slug: "zone2_cardio", weight: 1 },
+    { tag_slug: "zone3_cardio", weight: 1.2 },
+    { tag_slug: "aerobic_base", weight: 1 },
+  ],
+  [key("ocr_spartan", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.3 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 1 },
+  ],
+  [key("ocr_spartan", "leg_strength")]: [
+    { tag_slug: "glute_strength", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1.1 },
+    { tag_slug: "lunge_pattern", weight: 1.1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 0.9 },
+  ],
+  [key("ocr_spartan", "core_stability")]: [
+    { tag_slug: "core_bracing", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+
+  // --- Tactical Fitness ---
+  [key("tactical_fitness", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.3 },
+    { tag_slug: "lactate_threshold", weight: 1 },
+    { tag_slug: "zone3_cardio", weight: 1 },
+  ],
+  [key("tactical_fitness", "running_endurance")]: [
+    { tag_slug: "zone2_cardio", weight: 1 },
+    { tag_slug: "zone3_cardio", weight: 1.2 },
+    { tag_slug: "aerobic_base", weight: 1 },
+  ],
+  [key("tactical_fitness", "strength_endurance")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "pushing_strength", weight: 1 },
+    { tag_slug: "pulling_strength", weight: 1 },
+    { tag_slug: "carry", weight: 1 },
+  ],
+  [key("tactical_fitness", "core_stability")]: [
+    { tag_slug: "core_bracing", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_extension", weight: 1 },
+  ],
+  [key("tactical_fitness", "durability")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1 },
+    { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "carry", weight: 1 },
+  ],
+
+  // --- Swimming (lap / open water) ---
+  [key("swimming_open_water", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.3 },
+    { tag_slug: "vertical_pull", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1.1 },
+    { tag_slug: "lats", weight: 1 },
+    { tag_slug: "back", weight: 0.9 },
+  ],
+  [key("swimming_open_water", "shoulder_scapular")]: [
+    { tag_slug: "scapular_control", weight: 1.3 },
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "core_anti_extension", weight: 0.9 },
+  ],
+  [key("swimming_open_water", "core_stability")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+  [key("swimming_open_water", "aerobic_base")]: [
+    { tag_slug: "zone2_cardio", weight: 1.2 },
+    { tag_slug: "aerobic_base", weight: 1 },
+  ],
+  [key("swimming_open_water", "leg_turn_power")]: [
+    { tag_slug: "explosive_power", weight: 1.1 },
+    { tag_slug: "squat_pattern", weight: 1 },
+    { tag_slug: "quads", weight: 1 },
+    { tag_slug: "glute_strength", weight: 0.9 },
   ],
 
   // --- Hyrox ---
@@ -319,6 +602,153 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "zone3_cardio", weight: 1 },
   ],
 
+  // --- Powerlifting (general_strength) ---
+  [key("general_strength", "squat_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "squat_pattern", weight: 1.2 },
+    { tag_slug: "quads", weight: 1 },
+    { tag_slug: "glute_strength", weight: 1 },
+  ],
+  [key("general_strength", "bench_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "horizontal_push", weight: 1.2 },
+    { tag_slug: "pushing_strength", weight: 1 },
+  ],
+  [key("general_strength", "deadlift_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "hinge_pattern", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1 },
+  ],
+  [key("general_strength", "accessory_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+    { tag_slug: "vertical_pull", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+  ],
+  [key("general_strength", "core_bracing")]: [
+    { tag_slug: "core_bracing", weight: 1.3 },
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1 },
+  ],
+
+  // --- Bodybuilding ---
+  [key("bodybuilding", "push_hypertrophy")]: [
+    { tag_slug: "hypertrophy", weight: 1.3 },
+    { tag_slug: "horizontal_push", weight: 1.2 },
+    { tag_slug: "vertical_push", weight: 1 },
+    { tag_slug: "pushing_strength", weight: 1 },
+  ],
+  [key("bodybuilding", "pull_hypertrophy")]: [
+    { tag_slug: "hypertrophy", weight: 1.3 },
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "vertical_pull", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+  ],
+  [key("bodybuilding", "legs_hypertrophy")]: [
+    { tag_slug: "hypertrophy", weight: 1.3 },
+    { tag_slug: "squat_pattern", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1.1 },
+    { tag_slug: "quads", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1.1 },
+  ],
+  [key("bodybuilding", "arms_shoulders")]: [
+    { tag_slug: "hypertrophy", weight: 1.2 },
+    { tag_slug: "vertical_push", weight: 1 },
+    { tag_slug: "horizontal_push", weight: 1 },
+    { tag_slug: "pulling_strength", weight: 1 },
+  ],
+  [key("bodybuilding", "core_physique")]: [
+    { tag_slug: "core_anti_extension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "hypertrophy", weight: 1 },
+  ],
+
+  // --- Track Sprinting ---
+  [key("track_sprinting", "acceleration_power")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1 },
+  ],
+  [key("track_sprinting", "max_velocity")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.1 },
+    { tag_slug: "tendon_resilience", weight: 1 },
+  ],
+  [key("track_sprinting", "plyometric_power")]: [
+    { tag_slug: "plyometric", weight: 1.3 },
+    { tag_slug: "explosive_power", weight: 1.2 },
+  ],
+  [key("track_sprinting", "leg_strength")]: [
+    { tag_slug: "max_strength", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1.1 },
+    { tag_slug: "glute_strength", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 1 },
+  ],
+  [key("track_sprinting", "hamstring_tendon_resilience")]: [
+    { tag_slug: "tendon_resilience", weight: 1.3 },
+    { tag_slug: "eccentric_strength", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 1 },
+  ],
+
+  // --- Track & Field (same sub-focuses as track_sprinting) ---
+  [key("track_field", "acceleration_power")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1 },
+  ],
+  [key("track_field", "max_velocity")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.1 },
+    { tag_slug: "tendon_resilience", weight: 1 },
+  ],
+  [key("track_field", "plyometric_power")]: [
+    { tag_slug: "plyometric", weight: 1.3 },
+    { tag_slug: "explosive_power", weight: 1.2 },
+  ],
+  [key("track_field", "leg_strength")]: [
+    { tag_slug: "max_strength", weight: 1.2 },
+    { tag_slug: "squat_pattern", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1.1 },
+    { tag_slug: "glute_strength", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 1 },
+  ],
+  [key("track_field", "hamstring_tendon_resilience")]: [
+    { tag_slug: "tendon_resilience", weight: 1.3 },
+    { tag_slug: "eccentric_strength", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 1 },
+  ],
+
+  // --- Strongman ---
+  [key("strongman", "carries_load")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "core_bracing", weight: 1 },
+  ],
+  [key("strongman", "overhead_pressing")]: [
+    { tag_slug: "max_strength", weight: 1.2 },
+    { tag_slug: "vertical_push", weight: 1.2 },
+    { tag_slug: "pushing_strength", weight: 1 },
+  ],
+  [key("strongman", "posterior_chain_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "hinge_pattern", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1 },
+  ],
+  [key("strongman", "grip_trunk")]: [
+    { tag_slug: "grip_strength", weight: 1.3 },
+    { tag_slug: "core_bracing", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1 },
+  ],
+  [key("strongman", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.3 },
+    { tag_slug: "conditioning", weight: 1 },
+  ],
+
   // --- Surfing ---
   [key("surfing", "paddle_endurance")]: [
     { tag_slug: "scapular_control", weight: 1 },
@@ -340,6 +770,31 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   [key("surfing", "balance")]: [
     { tag_slug: "balance", weight: 1.2 },
     { tag_slug: "single_leg_strength", weight: 1 },
+  ],
+
+  // --- Kitesurfing / Windsurfing ---
+  [key("kite_wind_surf", "balance")]: [
+    { tag_slug: "balance", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+  ],
+  [key("kite_wind_surf", "core_stability")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+    { tag_slug: "core_bracing", weight: 0.9 },
+  ],
+  [key("kite_wind_surf", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.2 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 0.9 },
+  ],
+  [key("kite_wind_surf", "leg_strength")]: [
+    { tag_slug: "squat_pattern", weight: 1.1 },
+    { tag_slug: "single_leg_strength", weight: 1.1 },
+    { tag_slug: "lunge_pattern", weight: 1 },
+  ],
+  [key("kite_wind_surf", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
   ],
 
   // --- Paddleboarding ---
@@ -404,6 +859,245 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "plyometric", weight: 1 },
   ],
 
+  // --- Flag Football ---
+  [key("flag_football", "speed")]: [
+    { tag_slug: "speed", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1 },
+  ],
+  [key("flag_football", "change_of_direction")]: [
+    { tag_slug: "agility", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "balance", weight: 0.9 },
+  ],
+  [key("flag_football", "leg_power")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "plyometric", weight: 1 },
+  ],
+  [key("flag_football", "hamstring_resilience")]: [
+    { tag_slug: "hamstrings", weight: 1.2 },
+    { tag_slug: "eccentric_strength", weight: 1 },
+  ],
+  [key("flag_football", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- Lacrosse ---
+  [key("lacrosse", "speed")]: [
+    { tag_slug: "speed", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1 },
+  ],
+  [key("lacrosse", "change_of_direction")]: [
+    { tag_slug: "agility", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "balance", weight: 0.9 },
+  ],
+  [key("lacrosse", "rotational_power")]: [
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1 },
+    { tag_slug: "core_anti_rotation", weight: 0.9 },
+  ],
+  [key("lacrosse", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+  ],
+  [key("lacrosse", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- Boxing ---
+  [key("boxing", "rotational_power")]: [
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+  [key("boxing", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+    { tag_slug: "conditioning", weight: 0.9 },
+  ],
+  [key("boxing", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+  ],
+  [key("boxing", "leg_power")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "plyometric", weight: 1 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
+  ],
+  [key("boxing", "core_stability")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_bracing", weight: 1 },
+    { tag_slug: "core_anti_extension", weight: 0.9 },
+  ],
+
+  // --- Brazilian Jiu-Jitsu ---
+  [key("bjj", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.3 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 0.9 },
+  ],
+  [key("bjj", "hip_stability")]: [
+    { tag_slug: "hip_stability", weight: 1.2 },
+    { tag_slug: "hips", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("bjj", "core_tension")]: [
+    { tag_slug: "core_tension", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_extension", weight: 1 },
+  ],
+  [key("bjj", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+    { tag_slug: "vertical_pull", weight: 1 },
+  ],
+  [key("bjj", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- Judo ---
+  [key("judo", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.3 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 0.9 },
+  ],
+  [key("judo", "hip_stability")]: [
+    { tag_slug: "hip_stability", weight: 1.2 },
+    { tag_slug: "hips", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+    { tag_slug: "glute_strength", weight: 0.9 },
+  ],
+  [key("judo", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+    { tag_slug: "vertical_pull", weight: 1 },
+  ],
+  [key("judo", "explosive_power")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 0.9 },
+  ],
+  [key("judo", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- MMA ---
+  [key("mma", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.3 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 0.9 },
+  ],
+  [key("mma", "hip_stability")]: [
+    { tag_slug: "hip_stability", weight: 1.2 },
+    { tag_slug: "hips", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+    { tag_slug: "glute_strength", weight: 0.9 },
+  ],
+  [key("mma", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+    { tag_slug: "vertical_pull", weight: 1 },
+  ],
+  [key("mma", "explosive_power")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 0.9 },
+  ],
+  [key("mma", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- Muay Thai ---
+  [key("muay_thai", "rotational_power")]: [
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+  [key("muay_thai", "hip_stability")]: [
+    { tag_slug: "hip_stability", weight: 1.2 },
+    { tag_slug: "hips", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+    { tag_slug: "glute_strength", weight: 0.9 },
+  ],
+  [key("muay_thai", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+    { tag_slug: "conditioning", weight: 0.9 },
+  ],
+  [key("muay_thai", "core_stability")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_bracing", weight: 1 },
+    { tag_slug: "core_anti_extension", weight: 0.9 },
+  ],
+  [key("muay_thai", "leg_power")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "plyometric", weight: 1 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
+  ],
+
+  // --- Wrestling ---
+  [key("wrestling", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.3 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 0.9 },
+  ],
+  [key("wrestling", "hip_stability")]: [
+    { tag_slug: "hip_stability", weight: 1.2 },
+    { tag_slug: "hips", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+    { tag_slug: "glute_strength", weight: 0.9 },
+  ],
+  [key("wrestling", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+    { tag_slug: "vertical_pull", weight: 1 },
+  ],
+  [key("wrestling", "explosive_power")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 0.9 },
+  ],
+  [key("wrestling", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- Rugby ---
+  [key("rugby", "max_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "compound", weight: 1 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
+    { tag_slug: "hinge_pattern", weight: 0.9 },
+    { tag_slug: "horizontal_push", weight: 0.8 },
+    { tag_slug: "horizontal_pull", weight: 0.8 },
+  ],
+  [key("rugby", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.3 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+    { tag_slug: "conditioning", weight: 0.9 },
+  ],
+  [key("rugby", "posterior_chain")]: [
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1 },
+    { tag_slug: "hamstrings", weight: 0.9 },
+  ],
+  [key("rugby", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.2 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 0.9 },
+  ],
+  [key("rugby", "speed_power")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "speed", weight: 1.2 },
+    { tag_slug: "plyometric", weight: 0.9 },
+  ],
+
   // --- Tennis ---
   [key("tennis", "lateral_speed")]: [
     { tag_slug: "agility", weight: 1.2 },
@@ -426,10 +1120,184 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "anaerobic_capacity", weight: 1 },
   ],
 
+  // --- Badminton ---
+  [key("badminton", "lateral_speed")]: [
+    { tag_slug: "agility", weight: 1.2 },
+    { tag_slug: "speed", weight: 1 },
+  ],
+  [key("badminton", "rotational_power")]: [
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1 },
+  ],
+  [key("badminton", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1 },
+  ],
+  [key("badminton", "core_rotation")]: [
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+  [key("badminton", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- Squash ---
+  [key("squash", "lateral_speed")]: [
+    { tag_slug: "agility", weight: 1.2 },
+    { tag_slug: "speed", weight: 1 },
+  ],
+  [key("squash", "rotational_power")]: [
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1 },
+  ],
+  [key("squash", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1 },
+  ],
+  [key("squash", "core_rotation")]: [
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+  ],
+  [key("squash", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
+  // --- Hockey ---
+  [key("hockey", "speed")]: [
+    { tag_slug: "speed", weight: 1.2 },
+    { tag_slug: "explosive_power", weight: 1 },
+  ],
+  [key("hockey", "change_of_direction")]: [
+    { tag_slug: "agility", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "balance", weight: 0.9 },
+  ],
+  [key("hockey", "leg_power")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "plyometric", weight: 1 },
+  ],
+  [key("hockey", "core_stability")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_extension", weight: 1 },
+  ],
+  [key("hockey", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "anaerobic_capacity", weight: 1 },
+  ],
+
   // --- Basketball ---
   [key("basketball", "vertical_jump")]: [
     { tag_slug: "explosive_power", weight: 1.3 },
     { tag_slug: "plyometric", weight: 1.2 },
+  ],
+
+  // --- Volleyball (Indoor) ---
+  [key("volleyball_indoor", "vertical_jump")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "power", weight: 1 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
+  ],
+  [key("volleyball_indoor", "landing_mechanics")]: [
+    { tag_slug: "eccentric_strength", weight: 1.2 },
+    { tag_slug: "knee_stability", weight: 1.2 },
+    { tag_slug: "reactive_power", weight: 1 },
+  ],
+  [key("volleyball_indoor", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+  ],
+  [key("volleyball_indoor", "core_stability")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_extension", weight: 1 },
+  ],
+  [key("volleyball_indoor", "knee_resilience")]: [
+    { tag_slug: "knee_stability", weight: 1.2 },
+    { tag_slug: "eccentric_quad_strength", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 0.9 },
+  ],
+
+  // --- Beach Volleyball ---
+  [key("volleyball_beach", "vertical_jump")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "power", weight: 1 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
+  ],
+  [key("volleyball_beach", "landing_mechanics")]: [
+    { tag_slug: "eccentric_strength", weight: 1.2 },
+    { tag_slug: "knee_stability", weight: 1.2 },
+    { tag_slug: "reactive_power", weight: 1 },
+  ],
+  [key("volleyball_beach", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+  ],
+  [key("volleyball_beach", "core_stability")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_extension", weight: 1 },
+  ],
+  [key("volleyball_beach", "knee_resilience")]: [
+    { tag_slug: "knee_stability", weight: 1.2 },
+    { tag_slug: "eccentric_quad_strength", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 0.9 },
+  ],
+
+  // --- Golf ---
+  [key("golf", "rotational_power")]: [
+    { tag_slug: "rotation", weight: 1.3 },
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1 },
+    { tag_slug: "power", weight: 0.9 },
+  ],
+  [key("golf", "core_rotation")]: [
+    { tag_slug: "core_anti_rotation", weight: 1.2 },
+    { tag_slug: "rotation", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1 },
+  ],
+  [key("golf", "thoracic_mobility")]: [
+    { tag_slug: "thoracic_mobility", weight: 1.3 },
+    { tag_slug: "t_spine", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("golf", "hip_mobility_stability")]: [
+    { tag_slug: "hip_stability", weight: 1.2 },
+    { tag_slug: "hips", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 0.9 },
+  ],
+  [key("golf", "core_stability")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_anti_extension", weight: 1 },
+    { tag_slug: "core_bracing", weight: 1 },
+  ],
+
+  // --- Vertical Jump / Dunk (standalone sport) ---
+  [key("vertical_jump", "vertical_jump")]: [
+    { tag_slug: "explosive_power", weight: 1.4 },
+    { tag_slug: "plyometric", weight: 1.3 },
+    { tag_slug: "explosive", weight: 1.2 },
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "reactive_power", weight: 1 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
+    { tag_slug: "hinge_pattern", weight: 0.9 },
+    { tag_slug: "single_leg_strength", weight: 0.8 },
+    { tag_slug: "knee_stability", weight: 0.7 },
+  ],
+  [key("vertical_jump", "strength_foundation")]: [
+    { tag_slug: "squat_pattern", weight: 1.3 },
+    { tag_slug: "hinge_pattern", weight: 1.2 },
+    { tag_slug: "max_strength", weight: 1.1 },
+    { tag_slug: "posterior_chain", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 0.9 },
+  ],
+  [key("vertical_jump", "reactive_landing")]: [
+    { tag_slug: "reactive_power", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "eccentric_strength", weight: 1.1 },
+    { tag_slug: "knee_stability", weight: 1 },
   ],
   [key("basketball", "lateral_speed")]: [
     { tag_slug: "agility", weight: 1.2 },

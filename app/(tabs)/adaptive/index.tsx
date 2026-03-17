@@ -10,7 +10,7 @@ import {
   Platform,
   UIManager,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { SectionHeader } from "../../../components/SectionHeader";
@@ -25,6 +25,8 @@ import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRe
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES } from "../../../data/sportSubFocus";
+import { planWeek } from "../../../services/sportPrepPlanner";
+import type { EnergyLevel } from "../../../lib/types";
 
 if (
   Platform.OS === "android" &&
@@ -78,11 +80,22 @@ const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { scope } = useLocalSearchParams<{ scope?: string }>();
   const {
     manualPreferences,
     updateManualPreferences,
     setAdaptiveSetup,
+    setSportPrepWeekPlan,
+    activeGymProfileId,
+    gymProfiles,
   } = useAppState();
+  const { userId } = useAuth();
+  const isOneDay = scope === "day";
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f90b2a'},body:JSON.stringify({sessionId:'f90b2a',location:'adaptive/index.tsx:mount',message:'Adaptive mount scope param',data:{scope:scope ?? null,isOneDay},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  }, [scope]);
+  // #endregion
 
   const [rankedGoals, setRankedGoals] = useState<(string | null)[]>([
     null,
@@ -119,6 +132,7 @@ export default function AdaptiveModeScreen() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
+  const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
 
   useEffect(() => {
     const loadSports = async () => {
@@ -219,6 +233,80 @@ export default function AdaptiveModeScreen() {
       sportFocusPct: [...sportFocusPct],
       sportVsGoalPct,
     };
+
+    if (isOneDay) {
+      // #region agent log
+      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f90b2a'},body:JSON.stringify({sessionId:'f90b2a',location:'adaptive/index.tsx:onNextOneDay',message:'One-day path: generating single session',data:{isOneDay},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
+      (async () => {
+        setIsGeneratingOneDay(true);
+        try {
+          const primary = rankedGoals[0] ?? "strength";
+          const secondary = rankedGoals[1] ?? null;
+          const tertiary = rankedGoals[2] ?? null;
+          const energyFromFatigue = (level: string): EnergyLevel => {
+            if (level === "Fresh") return "high";
+            if (level === "Fatigued") return "low";
+            return "medium";
+          };
+          const energyFromHorizon = (level: EnergyLevel, timeHorizon: string): EnergyLevel => {
+            if (timeHorizon === "in_season") return "low";
+            if (timeHorizon === "1_3_weeks" && level === "high") return "medium";
+            return level;
+          };
+          const energyBaseline = energyFromHorizon(energyFromFatigue(fatigue), horizon);
+          const activeProfile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+          const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
+          const todayDOW = (new Date().getDay() + 6) % 7;
+          const plan = await planWeek({
+            userId: userId ?? undefined,
+            primaryGoalSlug: primary,
+            secondaryGoalSlug: secondary,
+            tertiaryGoalSlug: tertiary,
+            sportSlug: rankedSportSlugs[0] ?? null,
+            sportSubFocusSlugs:
+              rankedSportSlugs[0] && SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
+                ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
+                : undefined,
+            sportQualitySlugs:
+              rankedSportSlugs[0] && !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
+                ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
+                : undefined,
+            gymDaysPerWeek: 1,
+            preferredTrainingDays: [todayDOW],
+            sportDaysAllocation: undefined,
+            rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
+            sportFocusPct: selectedSportSlugs.length === 2 ? sportFocusPct : undefined,
+            sportVsGoalPct: sportVsGoalPct ?? 50,
+            sportSubFocusSlugsBySport: Object.keys(subFocusBySport).length > 0 ? subFocusBySport : undefined,
+            defaultSessionDuration: 45,
+            energyBaseline,
+            recentLoad,
+            injuries:
+              injuryStatus === "No Concerns"
+                ? []
+                : injuryTypes.map((label) => label.toLowerCase().replace(/\s/g, "_")),
+            sportSessions: [],
+            gymProfile: activeProfile,
+            goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+            goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+            goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+          });
+          setSportPrepWeekPlan(plan);
+          setAdaptiveSetup(null);
+          router.replace("/adaptive/recommendation");
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e));
+        } finally {
+          setIsGeneratingOneDay(false);
+        }
+      })();
+      return;
+    }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f90b2a'},body:JSON.stringify({sessionId:'f90b2a',location:'adaptive/index.tsx:onNextToSchedule',message:'Week path: navigating to schedule',data:{isOneDay:false},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+    // #endregion
     setAdaptiveSetup(setup);
     router.push("/adaptive/schedule");
   };
@@ -323,10 +411,9 @@ export default function AdaptiveModeScreen() {
       >
         <Card title="How Sport Mode works">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Pick at least one goal (and optionally a second to balance your plan),
-            choose your sport(s) if any, and set your weekly availability. TodayFit
-            will generate a 7-day sport plan with smart intents and a concrete
-            workout for each training day.
+            {isOneDay
+              ? "Pick at least one goal (and optionally a sport), then get a single workout tailored to today."
+              : "Pick at least one goal (and optionally a second to balance your plan), choose your sport(s) if any, and set your weekly availability. TodayFit will generate a 7-day sport plan with smart intents and a concrete workout for each training day."}
           </Text>
         </Card>
 
@@ -981,9 +1068,13 @@ export default function AdaptiveModeScreen() {
 
         <View style={styles.footer}>
           <PrimaryButton
-            label="Next: Set your schedule"
+            label={
+              isOneDay
+                ? (isGeneratingOneDay ? "Generating…" : "Get today's workout")
+                : "Next: Set your schedule"
+            }
             onPress={onNextToSchedule}
-            disabled={!isDbConfigured()}
+            disabled={!isDbConfigured() || isGeneratingOneDay}
           />
         </View>
       </ScrollView>
