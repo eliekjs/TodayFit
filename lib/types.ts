@@ -56,7 +56,6 @@ export type SpecificBodyPartBehavior = "auto_apply" | "manual";
 
 export type WorkoutStyleKey =
   | "Compound Strength"
-  | "Hypertrophy Bias"
   | "Functional / Athletic"
   | "Calisthenics Focus"
   | "CrossFit-style / HIIT"

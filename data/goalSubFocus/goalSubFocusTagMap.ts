@@ -65,9 +65,14 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "plyometric", weight: 1.1 },
     { tag_slug: "compound", weight: 1 },
   ],
+  // Agility / change of direction: favor dynamic, lateral, and plyometric exercises (skaters, bounds, rotational jumps, lateral lunges) over static squats/lunges only.
   [key("strength", "agility_cod")]: [
-    { tag_slug: "balance", weight: 1.1 },
-    { tag_slug: "single_leg", weight: 1.2 },
+    { tag_slug: "agility", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "lateral_power", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1.1 },
+    { tag_slug: "balance", weight: 1 },
+    { tag_slug: "single_leg", weight: 1 },
     { tag_slug: "legs", weight: 1 },
   ],
   [key("strength", "core")]: [
@@ -90,6 +95,18 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
   ],
 
   // --- Calisthenics (goal_slug: strength) ---
+  // Full body calisthenics: core moves (pull-ups, push-ups, dips, L-hang, handstand, L-sit) with progressions/regressions.
+  [key("strength", "full_body_calisthenics")]: [
+    { tag_slug: "pull", weight: 1.2 },
+    { tag_slug: "push", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "lats", weight: 1 },
+    { tag_slug: "chest", weight: 1 },
+    { tag_slug: "triceps", weight: 1 },
+    { tag_slug: "upper_back", weight: 1 },
+    { tag_slug: "scapular_control", weight: 1 },
+    { tag_slug: "core", weight: 1 },
+  ],
   [key("strength", "pull_ups")]: [
     { tag_slug: "pull", weight: 1.3 },
     { tag_slug: "lats", weight: 1.2 },

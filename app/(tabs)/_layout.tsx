@@ -46,9 +46,18 @@ function HeaderBackButton() {
 /** Back from manual flow (week/workout/execute): go to first preference screen, not home. */
 function ManualFlowBackButton() {
   const router = useRouter();
+  const pathname = usePathname();
   const theme = useTheme();
   return (
-    <Pressable onPress={() => router.push("/manual/preferences")} style={{ paddingLeft: 16 }}>
+    <Pressable
+      onPress={() => {
+        // #region agent log
+        fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'_layout.tsx:ManualFlowBackButton',message:'Header back pressed',data:{pathname,targetUrl:'/manual/preferences'},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
+        router.push("/manual/preferences");
+      }}
+      style={{ paddingLeft: 16 }}
+    >
       <Ionicons name="chevron-back" size={24} color={theme.text} />
     </Pressable>
   );
@@ -106,15 +115,8 @@ function RestartFlowButton() {
 export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const pathname = usePathname();
   const { savedWorkouts } = useAppState();
   const libraryBadgeCount = savedWorkouts.length;
-
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'_layout.tsx:tabs-mount',message:'Tabs layout mounted',data:{pathname,visibleTabNames:VISIBLE_TAB_NAMES},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-  }, [pathname]);
-  // #endregion
 
   return (
     <Tabs
@@ -126,7 +128,7 @@ export default function TabsLayout() {
         tabBarInactiveBackgroundColor: "transparent",
         tabBarStyle: {
           borderTopColor: theme.border,
-          backgroundColor: theme.card,
+          backgroundColor: theme.cardOpaque,
           height: 88 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: 12,
@@ -150,6 +152,9 @@ export default function TabsLayout() {
           borderRadius: 16,
         },
         headerTitleAlign: "center",
+        headerStyle: { backgroundColor: theme.cardOpaque },
+        headerTintColor: theme.text,
+        headerTitleStyle: { color: theme.text, fontWeight: "600" },
       }}
       initialRouteName="index"
     >

@@ -465,7 +465,3 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   }
   return ordered;
 }
- }
-  }
-  return ordered;
-}

@@ -59,6 +59,8 @@ What sub-goals (sub-focus options) should users be able to select within each pr
 - **Before:** GOAL_SUB_FOCUS_OPTIONS and GOAL_SUB_FOCUS_TAG_MAP in data/goalSubFocus/; goal_sub_focus and goal_sub_focus_tag_map in DB (20250318000000); getExerciseTagsForGoalSubFocuses used in lib/generator.ts for Manual mode.
 - **After (this audit):** (1) Research note ties goal sub-goal concept and tag mapping to NSCA, ACSM, ExRx, NCSF. (2) Table comments reference this evidence doc (migration 20250331000010). (3) No change to sub-focus lists or tag map; documentation only.
 
+**Agility / change of direction (agility_cod) tag map (2025-03):** The goal sub-focus "Agility / Change of direction" originally mapped only to balance, single_leg, legs — which biased selection toward static squats and lunges. For athletic, dynamic COD goals we should favor exercises that involve jumping and changing direction (e.g. skater jumps, lateral bounds, rotational jumps, lateral lunges, ladder-style footwork). Tag map was updated to align with sport change_of_direction logic and NCSF speed/agility quality: added **agility** (1.3), **plyometric** (1.2), **lateral_power** (1.2), **single_leg_strength** (1.1), and kept balance, single_leg, legs. This surfaces lateral_bound, jump_squat, jump_lunge, box_jump and any DB exercises tagged agility/plyometric/lateral. Future enrichment: add or tag exercises such as skater jump, ladder drills, shuffle-to-sprint, and rotational jumps where they exist in the exercise DB.
+
 ---
 
 ## 5. Generator / app use

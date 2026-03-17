@@ -335,6 +335,13 @@ function getUserSelectedTagSlugs(
     for (const { tag_slug } of weights) slugs.add(tag_slug);
   }
 
+  // When only Calisthenics is selected and no sub-focus (e.g. user said "full body"), default to full-body calisthenics core moves (pull-ups, push-ups, dips, core).
+  const calisthenicsOnly = primaryFocus.length === 1 && primaryFocus[0] === "Calisthenics";
+  if (calisthenicsOnly && (!subFocusByGoal["Calisthenics"] || subFocusByGoal["Calisthenics"].length === 0)) {
+    const weights = getExerciseTagsForGoalSubFocuses("strength", ["full_body_calisthenics"]);
+    for (const { tag_slug } of weights) slugs.add(tag_slug);
+  }
+
   // Body part focus → tag slugs (so body-part choices count as "user selected" for match count)
   const hasUpper = bodyPartFocus.includes("Upper body");
   const hasLower = bodyPartFocus.includes("Lower body");
@@ -505,12 +512,27 @@ export function generateWorkout(
       isWarmupEligibleEquipment(e.equipment) &&
       (e.modalities.includes("mobility") || e.modalities.includes("conditioning"))
   );
-  const mainPool = eligible.filter((e) =>
+  let mainPool = eligible.filter((e) =>
     e.modalities.some((m) => focusModalities.includes(m))
   );
-  const accessoryPool = eligible.filter((e) =>
+  // When only Calisthenics is selected, dedicate the session to bodyweight/minimal-equipment calisthenics (pull-ups, push-ups, dips, core).
+  const calisthenicsOnly = preferences.primaryFocus.length === 1 && preferences.primaryFocus[0] === "Calisthenics";
+  const CALISTHENICS_EQUIPMENT = new Set(["bodyweight", "pullup_bar", "bench"]);
+  if (calisthenicsOnly && mainPool.length > 0) {
+    const calisthenicsPool = mainPool.filter(
+      (e) => (e.equipment ?? []).length > 0 && (e.equipment ?? []).every((eq) => CALISTHENICS_EQUIPMENT.has(eq))
+    );
+    if (calisthenicsPool.length >= 2) mainPool = calisthenicsPool;
+  }
+  let accessoryPool = eligible.filter((e) =>
     e.tags.includes("core stability")
   );
+  if (calisthenicsOnly && accessoryPool.length > 0) {
+    const calAccessory = accessoryPool.filter(
+      (e) => (e.equipment ?? []).length > 0 && (e.equipment ?? []).every((eq) => CALISTHENICS_EQUIPMENT.has(eq))
+    );
+    if (calAccessory.length >= 1) accessoryPool = calAccessory;
+  }
   // Cooldown: mobility only, no dumbbells/kettlebells/barbells/cables/machines (stretching/mobility only)
   const cooldownPool = eligible.filter(
     (e) =>

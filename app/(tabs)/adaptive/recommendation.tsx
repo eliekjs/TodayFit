@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -325,7 +327,8 @@ export default function AdaptiveWeekPlanScreen() {
 
   if (!sportPrepWeekPlan) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
         <View style={styles.centered}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>
             No week plan yet
@@ -345,7 +348,7 @@ export default function AdaptiveWeekPlanScreen() {
             />
           </View>
         </View>
-      </View>
+      </AppScreenWrapper>
     );
   }
 
@@ -777,22 +780,24 @@ export default function AdaptiveWeekPlanScreen() {
 
   if (isWeb) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {mainContent}
         </ScrollView>
-      </View>
+      </AppScreenWrapper>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NestableScrollContainer contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {mainContent}
         </NestableScrollContainer>
       </GestureHandlerRootView>
-    </View>
+    </AppScreenWrapper>
   );
 }
 

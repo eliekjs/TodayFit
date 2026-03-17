@@ -103,10 +103,9 @@ export const CONSTRAINT_OPTIONS_LOWER: readonly string[] = [
   "No restrictions",
 ];
 
-/** Refinements – Style (optional multi-select). */
+/** Refinements – Style (optional multi-select). Hypertrophy Bias omitted; use Build Muscle (Hypertrophy) goal instead. */
 export const WORKOUT_STYLE_OPTIONS: WorkoutStyleKey[] = [
   "Compound Strength",
-  "Hypertrophy Bias",
   "Functional / Athletic",
   "Calisthenics Focus",
   "CrossFit-style / HIIT",

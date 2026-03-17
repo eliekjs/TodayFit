@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../lib/theme";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { PrimaryButton } from "../../../components/Button";
@@ -94,6 +96,24 @@ export default function ManualWeekScreen() {
   const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollContentRef = useRef<View>(null);
+  const sessionCardRef = useRef<View>(null);
+  const scrollToSessionCard = useCallback(() => {
+    const content = scrollContentRef.current;
+    const card = sessionCardRef.current;
+    if (!content || !card) return;
+    card.measureLayout(
+      content as any,
+      (_x: number, y: number) => {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, y - 24),
+          animated: true,
+        });
+      }
+    );
+  }, []);
 
   const focusSectionsForModal = useMemo((): FocusSection[] => {
     const goals = manualPreferences.primaryFocus;
@@ -493,21 +513,27 @@ export default function ManualWeekScreen() {
 
   if (generating && !manualWeekPlan) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
+        <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.textMuted }]}>
           Generating this week's workouts…
         </Text>
       </View>
+      </AppScreenWrapper>
     );
   }
 
   if (error && !manualWeekPlan) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
+        <View style={[styles.container, styles.centered]}>
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
         <PrimaryButton label="Retry" onPress={generateWeek} />
       </View>
+      </AppScreenWrapper>
     );
   }
 
@@ -515,7 +541,8 @@ export default function ManualWeekScreen() {
 
   if (!plan || plan.days.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
         <ScrollView
           contentContainerStyle={[styles.scrollContent, styles.centered]}
           showsVerticalScrollIndicator={false}
@@ -545,7 +572,7 @@ export default function ManualWeekScreen() {
             style={{ marginTop: 16 }}
           />
         </ScrollView>
-      </View>
+      </AppScreenWrapper>
     );
   }
 
@@ -614,6 +641,7 @@ export default function ManualWeekScreen() {
                     onPress={(e) => {
                       e.stopPropagation();
                       onSelectSession(s.date, s.workout, s.displayTitle);
+                      setTimeout(scrollToSessionCard, 200);
                     }}
                     style={({ pressed }) => ({
                       paddingVertical: 6,
@@ -648,7 +676,7 @@ export default function ManualWeekScreen() {
   }
 
   const scrollContent = (
-    <>
+    <View ref={scrollContentRef} style={styles.scrollContent} collapsable={false}>
       <Card
         title="Your Week Plan"
         subtitle={`Week of ${parseLocalDate(plan.weekStartDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`}
@@ -690,18 +718,19 @@ export default function ManualWeekScreen() {
         {weekOverviewContent}
       </Card>
 
-      <Card
-        title={
-          selectedDay?.date === todayIso
-            ? "Today's session"
-            : selectedDay
-              ? `Session for ${formatDayOfWeek(selectedDay.date)}`
-              : "Session"
-        }
-        subtitle={summaryLines.join(" • ")}
-        style={{ marginTop: 16 }}
-      >
-        {selectedDay ? (
+      <View ref={sessionCardRef} collapsable={false}>
+        <Card
+          title={
+            selectedDay?.date === todayIso
+              ? "Today's session"
+              : selectedDay
+                ? `Session for ${formatDayOfWeek(selectedDay.date)}`
+                : "Session"
+          }
+          subtitle={summaryLines.join(" • ")}
+          style={{ marginTop: 16 }}
+        >
+          {selectedDay ? (
           <>
             <WorkoutBlockList
               workout={normalizeGeneratedWorkout(selectedDay.workout)}
@@ -738,17 +767,23 @@ export default function ManualWeekScreen() {
               <PrimaryButton
                 label="Back to Preferences"
                 variant="ghost"
-                onPress={() => router.push("/manual/preferences")}
+                onPress={() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'week.tsx:BackToPreferences',message:'Back to Preferences from week',data:{targetUrl:'/manual/preferences'},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+                  // #endregion
+                  router.push("/manual/preferences");
+                }}
                 style={{ marginTop: 8 }}
               />
             </View>
           </>
         ) : (
-          <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Tap a session above to view its details.
-          </Text>
-        )}
-      </Card>
+            <Text style={{ fontSize: 13, color: theme.textMuted }}>
+              Tap a session above to view its details.
+            </Text>
+          )}
+        </Card>
+      </View>
 
       <PrimaryButton
         label={saving ? "Saving…" : "Save week"}
@@ -765,12 +800,13 @@ export default function ManualWeekScreen() {
         onApply={handleAdjustFocusApply}
         title="Adjust focus areas and days"
       />
-    </>
+    </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
+      <ScrollView ref={scrollViewRef} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         {scrollContent}
       </ScrollView>
       <SwapExerciseModal
@@ -782,7 +818,7 @@ export default function ManualWeekScreen() {
         loading={swapLoading}
         onChoose={onSwapChoose}
       />
-    </View>
+    </AppScreenWrapper>
   );
 }
 

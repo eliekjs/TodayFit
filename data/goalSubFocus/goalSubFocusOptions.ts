@@ -76,6 +76,7 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "full_body", name: "Full-body" },
   ]),
   Calisthenics: entry("strength", [
+    { slug: "full_body_calisthenics", name: "Full body" },
     { slug: "pull_ups", name: "Pull-ups" },
     { slug: "push_ups", name: "Push-ups" },
     { slug: "dips", name: "Dips" },

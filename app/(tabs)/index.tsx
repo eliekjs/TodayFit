@@ -7,12 +7,14 @@ import {
   Pressable,
   useColorScheme,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
 import { PrimaryButton } from "../../components/Button";
+import { useWelcome } from "../../context/WelcomeContext";
+import { AppScreenWrapper } from "../../components/AppScreenWrapper";
 
 const LIGHT_PASTELS = {
   helpBg: "#B8D4F0",
@@ -98,6 +100,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const colorScheme = useColorScheme();
+  const { hasEntered, isHydrated } = useWelcome();
   const {
     manualPreferences,
     manualWeekPlan,
@@ -115,9 +118,16 @@ export default function HomeScreen() {
   const hasInProgress =
     manualWeekPlan != null || sportPrepWeekPlan != null || generatedWorkout != null;
 
+  if (!isHydrated) {
+    return null;
+  }
+  if (!hasEntered) {
+    return <Redirect href="/welcome" />;
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -196,14 +206,11 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-    </View>
+    </AppScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,

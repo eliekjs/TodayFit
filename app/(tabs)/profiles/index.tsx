@@ -12,11 +12,13 @@ import {
   Alert,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getSupabase } from "../../../lib/db";
 import { Card } from "../../../components/Card";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import {
@@ -119,7 +121,8 @@ export default function GymProfilesScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -519,7 +522,7 @@ export default function GymProfilesScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </AppScreenWrapper>
   );
 }
 

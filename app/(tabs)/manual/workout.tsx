@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
@@ -32,9 +34,9 @@ export default function ManualWorkoutScreen() {
 
   if (generatedWorkout == null) {
     return (
-      <View
-        style={[styles.container, { backgroundColor: theme.background }]}
-      >
+      <AppScreenWrapper>
+        <StatusBar style="light" />
+      <View style={styles.container}>
         <View style={styles.centered}>
           <Text style={[styles.emptyTitle, { color: theme.text }]}>
             No workout yet
@@ -58,6 +60,7 @@ export default function ManualWorkoutScreen() {
           )}
         </View>
       </View>
+      </AppScreenWrapper>
     );
   }
 
@@ -178,7 +181,8 @@ export default function ManualWorkoutScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -238,7 +242,7 @@ export default function ManualWorkoutScreen() {
         loading={swapLoading}
         onChoose={onSwapChoose}
       />
-    </View>
+    </AppScreenWrapper>
   );
 }
 

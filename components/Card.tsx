@@ -29,6 +29,7 @@ export function Card({
         {
           backgroundColor: theme.card,
           borderColor: theme.border,
+          borderWidth: 1,
         },
         style,
       ]}

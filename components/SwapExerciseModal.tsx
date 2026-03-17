@@ -187,7 +187,7 @@ export function SwapExerciseModal({
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.8)",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
@@ -199,6 +199,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
     maxHeight: "80%",
+    overflow: "hidden",
   },
   searchHeader: {
     flexDirection: "row",

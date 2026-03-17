@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { listWeeklyPlanInstances, saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import type { SavedWeekSummary } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
@@ -111,7 +113,8 @@ export default function LibraryScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -316,14 +319,11 @@ export default function LibraryScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </AppScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   content: {
     paddingHorizontal: 20,
     paddingVertical: 16,

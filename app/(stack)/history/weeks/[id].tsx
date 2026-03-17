@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../../lib/theme";
+import { AppScreenWrapper } from "../../../../components/AppScreenWrapper";
 import { useAppState } from "../../../../context/AppStateContext";
 import { useAuth } from "../../../../context/AuthContext";
 import { PrimaryButton } from "../../../../components/Button";
@@ -62,21 +64,27 @@ export default function SavedWeekDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
+        <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.textMuted }]}>
           Loading week…
         </Text>
       </View>
+      </AppScreenWrapper>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
+        <View style={[styles.container, styles.centered]}>
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
         <PrimaryButton label="Back" onPress={() => router.back()} />
       </View>
+      </AppScreenWrapper>
     );
   }
 

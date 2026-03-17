@@ -8,9 +8,11 @@ import {
   TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
@@ -188,7 +190,8 @@ export default function ExecuteScreen() {
 
   if (generatedWorkout == null) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
         <View style={styles.centered}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
             No workout loaded. Generate one first.
@@ -200,12 +203,13 @@ export default function ExecuteScreen() {
             />
           </View>
         </View>
-      </View>
+      </AppScreenWrapper>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -260,7 +264,7 @@ export default function ExecuteScreen() {
                       {
                         borderColor: theme.border,
                         color: theme.text,
-                        backgroundColor: theme.background,
+                        backgroundColor: theme.cardOpaque,
                       },
                     ]}
                     placeholder="Notes (optional)"
@@ -315,7 +319,7 @@ export default function ExecuteScreen() {
         loading={swapLoading}
         onChoose={onSwapChoose}
       />
-    </View>
+    </AppScreenWrapper>
   );
 }
 

@@ -12,12 +12,14 @@ import {
   UIManager,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import {
   useAppState,
   defaultManualPreferences,
 } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { SectionHeader } from "../../../components/SectionHeader";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { generateWorkoutAsync } from "../../../lib/generator";
@@ -89,6 +91,12 @@ export default function ManualPreferencesScreen() {
   const router = useRouter();
   const { scope } = useLocalSearchParams<{ scope?: string }>();
   const theme = useTheme();
+
+  // #region agent log
+  React.useEffect(() => {
+    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'preferences.tsx:scope-params',message:'Preferences mounted/params',data:{scope:scope ?? null},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  }, [scope]);
+  // #endregion
 
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
@@ -207,6 +215,9 @@ export default function ManualPreferencesScreen() {
     };
 
   const onGenerate = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'preferences.tsx:onGenerate',message:'Generate pressed',data:{scope:scope ?? null},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     if (scope === "week") {
       router.push("/manual/week");
       return;
@@ -273,7 +284,8 @@ export default function ManualPreferencesScreen() {
     : [];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: 160 }]}
         showsVerticalScrollIndicator={false}
@@ -698,6 +710,28 @@ export default function ManualPreferencesScreen() {
               </>
             )}
 
+            {/* Sport mode hint when user has athletic/sport goals */}
+            {hasPrimaryFocus &&
+            rankedGoals.some(
+              (g) => g === "Athletic Performance" || g === "Sport Conditioning"
+            ) ? (
+              <Pressable
+                onPress={() => router.push("/adaptive")}
+                style={({ pressed }) => [
+                  styles.sportModeHint,
+                  { opacity: pressed ? 0.8 : 1 },
+                ]}
+              >
+                <Text style={[styles.sportModeHintText, { color: theme.textMuted }]}>
+                  Looking for something else? Try{" "}
+                  <Text style={[styles.sportModeHintLink, { color: theme.primary }]}>
+                    Sport mode
+                  </Text>
+                  !
+                </Text>
+              </Pressable>
+            ) : null}
+
             {/* Constraints: single section; when target is Upper/Lower, only show relevant body areas */}
             <SectionHeader
               title="Constraints (injuries / soreness)"
@@ -1022,7 +1056,7 @@ export default function ManualPreferencesScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </AppScreenWrapper>
   );
 }
 
@@ -1133,6 +1167,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
+  },
+  sportModeHint: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  sportModeHintText: {
+    fontSize: 14,
+  },
+  sportModeHintLink: {
+    fontWeight: "600",
   },
   rankedChipLabelSmall: {
     fontSize: 12,

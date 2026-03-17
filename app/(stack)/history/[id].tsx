@@ -7,9 +7,11 @@ import {
   TextInput,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
@@ -29,13 +31,14 @@ export default function ViewCompletedWorkoutScreen() {
 
   if (!id || !item) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
         <View style={styles.centered}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
             Workout not found.
           </Text>
         </View>
-      </View>
+      </AppScreenWrapper>
     );
   }
 
@@ -45,13 +48,14 @@ export default function ViewCompletedWorkoutScreen() {
 
   if (!workout) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <AppScreenWrapper>
+        <StatusBar style="light" />
         <View style={styles.centered}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
             This completed workout has no plan saved (finished before this feature).
           </Text>
         </View>
-      </View>
+      </AppScreenWrapper>
     );
   }
 
@@ -70,7 +74,8 @@ export default function ViewCompletedWorkoutScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -135,7 +140,7 @@ export default function ViewCompletedWorkoutScreen() {
           exerciseNotes={notes}
         />
       </ScrollView>
-    </View>
+    </AppScreenWrapper>
   );
 }
 

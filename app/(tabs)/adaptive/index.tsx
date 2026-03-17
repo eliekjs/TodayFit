@@ -11,8 +11,10 @@ import {
   UIManager,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
+import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SectionHeader } from "../../../components/SectionHeader";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
@@ -404,7 +406,8 @@ export default function AdaptiveModeScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <AppScreenWrapper>
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -1078,7 +1081,7 @@ export default function AdaptiveModeScreen() {
           />
         </View>
       </ScrollView>
-    </View>
+    </AppScreenWrapper>
   );
 }
 
