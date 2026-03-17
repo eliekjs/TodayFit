@@ -12,7 +12,7 @@ export type { GoalSlug } from "./goalQualityWeights";
 export { getSportQualityWeights } from "./sportQualityWeights";
 export type { SportSlug } from "./sportQualityWeights";
 
-export { mergeTargetVector, alignmentScore } from "./targetVector";
+export { mergeTargetVector, alignmentScore, getQualityWeightsFromSportSubFocus } from "./targetVector";
 export type { MergeTargetInput } from "./targetVector";
 
 export { qualitiesFromTags } from "./tagToQualityMap";

@@ -72,7 +72,17 @@ export interface WeeklyPlanningInput {
     user_level?: "beginner" | "intermediate" | "advanced";
     wants_supersets?: boolean;
     conditioning_minutes?: number;
+    /** Exercise ids/slugs to prefer when scoring (e.g. from sport/goal ranking). */
+    preferred_exercise_ids?: string[];
   };
+  /** Goal slug -> sub-focus slugs for tag-based scoring. Passed through to daily generator. */
+  goal_sub_focus?: Record<string, string[]>;
+  /** Sport slug -> sub-focus slugs for tag-based scoring. Passed through to daily generator. */
+  sport_sub_focus?: Record<string, string[]>;
+  /** Weights for [primary, secondary, tertiary] goal (e.g. [0.5, 0.3, 0.2]). */
+  goal_weights?: number[];
+  /** When sports and goals both present: 0 = goals only, 1 = sport only. */
+  sport_weight?: number;
 }
 
 // ---------------------------------------------------------------------------

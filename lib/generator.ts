@@ -41,6 +41,12 @@ import {
 } from "./generation/prescriptionRules";
 import { pickBestSupersetPairs } from "../logic/workoutIntelligence/supersetPairing";
 import type { PairingInput } from "../logic/workoutIntelligence/supersetPairing";
+import { generateWorkoutSession } from "../logic/workoutGeneration/dailyGenerator";
+import {
+  manualPreferencesToGenerateWorkoutInput,
+  exerciseDefinitionToGeneratorExercise,
+  workoutSessionToGeneratedWorkout,
+} from "./dailyGeneratorAdapter";
 
 /** Convert ExerciseDefinition to PairingInput so we can use superset pairing rules (push+pull, chest+triceps, etc.). */
 function toPairingInput(e: ExerciseDefinition): PairingInput {
@@ -839,15 +845,17 @@ function bodyPartFocusToMuscles(bodyPartFocus: string[]): string[] {
 }
 
 /**
- * Async version: loads exercises from Supabase when configured, then generates.
+ * Async version: loads exercises from Supabase when configured, then generates via dailyGenerator.
  * Use this from UI so exercises are loaded from DB when available.
- * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when picking.
+ * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when scoring.
+ * When sportGoalContext is provided (e.g. from adaptive/sport-prep), sport_slugs, sport_sub_focus, goal_weights, and sport_weight are passed to the daily generator.
  */
 export async function generateWorkoutAsync(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
   seedExtra?: string | number,
-  preferredExerciseSlugsOrNames?: string[]
+  preferredExerciseSlugsOrNames?: string[],
+  sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext
 ): Promise<GeneratedWorkout> {
   let exercises: ExerciseDefinition[] | undefined;
   if (isDbConfigured()) {
@@ -871,5 +879,20 @@ export async function generateWorkoutAsync(
       exercises = undefined;
     }
   }
-  return generateWorkout(preferences, gymProfile, seedExtra, exercises, preferredExerciseSlugsOrNames);
+  const poolDefinitions = exercises ?? EXERCISES;
+  const pool = poolDefinitions
+    .filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id))
+    .map(exerciseDefinitionToGeneratorExercise);
+  if (pool.length === 0) {
+    return generateWorkout(preferences, gymProfile, seedExtra, poolDefinitions, preferredExerciseSlugsOrNames);
+  }
+  const input = manualPreferencesToGenerateWorkoutInput(
+    preferences,
+    gymProfile,
+    seedExtra,
+    preferredExerciseSlugsOrNames,
+    sportGoalContext
+  );
+  const session = generateWorkoutSession(input, pool, false);
+  return workoutSessionToGeneratedWorkout(session, preferences, `w_${Date.now()}`);
 }

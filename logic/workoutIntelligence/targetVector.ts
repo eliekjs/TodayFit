@@ -1,28 +1,70 @@
 /**
- * Merges goal and sport weights into a single session target vector.
+ * Merges goal, sport, and sport sub-focus weights into a single session target vector.
  * Used by the generator to score exercises against "what this session is for."
  */
 
-import { TRAINING_QUALITY_SLUGS } from "./trainingQualities";
 import type { TrainingQualitySlug } from "./trainingQualities";
 import type { SessionTargetVector } from "./types";
 import { getGoalQualityWeights } from "./goalQualityWeights";
 import { getSportQualityWeights } from "./sportQualityWeights";
+import { getExerciseTagsForSubFocuses } from "../../data/sportSubFocus";
+import { qualitiesFromTags } from "./tagToQualityMap";
 
 export type MergeTargetInput = {
   primary_goal: string;
   secondary_goals?: string[];
   sport_slugs?: string[];
+  /** Sport slug -> selected sub-focus slugs. Adds quality emphasis from sub-focus tag map. */
+  sport_sub_focus?: Record<string, string[]>;
   /** Weights for [primary, secondary, tertiary]; should sum to 1. Default [0.6, 0.3, 0.1]. */
   goal_weights?: number[];
   /** When sports present: weight for sport vector vs goal vector (0 = goals only, 1 = sport only). Default 0.5. */
   sport_weight?: number;
+  /** When sport_sub_focus present: weight for sub-focus quality vector (0–1). Blended on top of goal+sport. Default 0.4. */
+  sub_focus_weight?: number;
 };
 
 const DEFAULT_GOAL_WEIGHTS = [0.6, 0.3, 0.1];
+const DEFAULT_SUB_FOCUS_WEIGHT = 0.4;
 
 /**
- * Build a single normalized target vector from goals and optional sports.
+ * Convert sport sub-focus (sport -> sub-focus slugs) into training quality weights
+ * using the sub-focus tag map and tag->quality mapping. Returns 0–1 weights, max normalized to 1.
+ */
+export function getQualityWeightsFromSportSubFocus(
+  sport_sub_focus: Record<string, string[]>
+): Partial<Record<TrainingQualitySlug, number>> {
+  const byQuality = new Map<TrainingQualitySlug, number>();
+  for (const [sportSlug, subFocusSlugs] of Object.entries(sport_sub_focus)) {
+    if (!subFocusSlugs?.length) continue;
+    const tagEntries = getExerciseTagsForSubFocuses(sportSlug, subFocusSlugs);
+    for (const { tag_slug, weight } of tagEntries) {
+      const qualities = qualitiesFromTags([tag_slug]);
+      for (const [q, v] of Object.entries(qualities)) {
+        if (typeof v === "number" && v > 0) {
+          const scaled = v * weight;
+          byQuality.set(
+            q as TrainingQualitySlug,
+            (byQuality.get(q as TrainingQualitySlug) ?? 0) + scaled
+          );
+        }
+      }
+    }
+  }
+  let max = 0;
+  byQuality.forEach((v) => {
+    if (v > max) max = v;
+  });
+  if (max <= 0) return {};
+  const out: Partial<Record<TrainingQualitySlug, number>> = {};
+  byQuality.forEach((v, k) => {
+    out[k] = v / max;
+  });
+  return out;
+}
+
+/**
+ * Build a single normalized target vector from goals, optional sports, and optional sport sub-focus.
  * Each quality gets a 0–1 weight; vector is normalized so max weight is 1.
  */
 export function mergeTargetVector(input: MergeTargetInput): SessionTargetVector {
@@ -61,6 +103,20 @@ export function mergeTargetVector(input: MergeTargetInput): SessionTargetVector 
         if (typeof v === "number" && v > 0)
           out.set(q as TrainingQualitySlug, (out.get(q as TrainingQualitySlug) ?? 0) + perSport * v);
       }
+    }
+  }
+
+  // Sport sub-focus contribution: add quality weights from selected sub-focuses (tag map → qualities)
+  const hasSubFocus =
+    input.sport_sub_focus &&
+    Object.keys(input.sport_sub_focus).length > 0 &&
+    Object.values(input.sport_sub_focus).some((arr) => arr?.length > 0);
+  if (hasSubFocus && input.sport_sub_focus) {
+    const subFocusWeight = input.sub_focus_weight ?? DEFAULT_SUB_FOCUS_WEIGHT;
+    const subFocusQualities = getQualityWeightsFromSportSubFocus(input.sport_sub_focus);
+    for (const [q, v] of Object.entries(subFocusQualities)) {
+      if (typeof v === "number" && v > 0)
+        out.set(q as TrainingQualitySlug, (out.get(q as TrainingQualitySlug) ?? 0) + subFocusWeight * v);
     }
   }
 

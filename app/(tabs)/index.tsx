@@ -107,6 +107,8 @@ export default function HomeScreen() {
     sportPrepWeekPlan,
     generatedWorkout,
     savedWorkouts,
+    setGeneratedWorkout,
+    setManualWeekPlan,
   } = useAppState();
   const pastels = colorScheme === "dark" ? DARK_PASTELS : LIGHT_PASTELS;
 
@@ -117,6 +119,23 @@ export default function HomeScreen() {
 
   const hasInProgress =
     manualWeekPlan != null || sportPrepWeekPlan != null || generatedWorkout != null;
+
+  /** Single-day "week" is treated as one workout; no week view. */
+  const isSingleWorkout =
+    generatedWorkout != null ||
+    (manualWeekPlan != null && manualWeekPlan.days.length === 1);
+  const continueSingleWorkout = () => {
+    if (generatedWorkout != null) {
+      router.push("/manual/execute");
+      return;
+    }
+    if (manualWeekPlan != null && manualWeekPlan.days.length === 1) {
+      setGeneratedWorkout(manualWeekPlan.days[0].workout);
+      setManualWeekPlan(null);
+      router.push("/manual/execute");
+    }
+  };
+  const continueWeek = () => router.push("/manual/week");
 
   if (!isHydrated) {
     return null;
@@ -146,24 +165,28 @@ export default function HomeScreen() {
               { backgroundColor: theme.primarySoft ?? pastels.helpBg, opacity: pressed ? 0.9 : 1 },
             ]}
             onPress={() => {
-              if (manualWeekPlan != null) router.push("/manual/week");
+              if (isSingleWorkout) continueSingleWorkout();
+              else if (manualWeekPlan != null) continueWeek();
               else if (sportPrepWeekPlan != null) router.push("/adaptive/recommendation");
-              else if (generatedWorkout != null) router.push("/manual/execute");
             }}
           >
             <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
-              {manualWeekPlan != null
-                ? "Continue your week"
-                : sportPrepWeekPlan != null
-                  ? "Continue your sport plan"
-                  : "Continue workout"}
+              {isSingleWorkout
+                ? "Continue workout"
+                : manualWeekPlan != null
+                  ? "Continue your week"
+                  : sportPrepWeekPlan != null
+                    ? "Continue your sport plan"
+                    : "Continue workout"}
             </Text>
             <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
-              {manualWeekPlan != null
-                ? "Back to this week's workouts"
-                : sportPrepWeekPlan != null
-                  ? "Back to your sport plan"
-                  : "Back to workout in progress"}
+              {isSingleWorkout
+                ? "Back to workout in progress"
+                : manualWeekPlan != null
+                  ? "Back to this week's workouts"
+                  : sportPrepWeekPlan != null
+                    ? "Back to your sport plan"
+                    : "Back to workout in progress"}
             </Text>
           </Pressable>
         )}

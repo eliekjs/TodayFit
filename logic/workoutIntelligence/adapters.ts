@@ -26,6 +26,7 @@ export type GeneratorExercise = {
     joint_stress?: string[];
     contraindications?: string[];
     stimulus?: string[];
+    attribute_tags?: string[];
   };
   progressions?: string[];
   regressions?: string[];
@@ -64,6 +65,7 @@ export function toExerciseWithQualities(e: GeneratorExercise): ExerciseWithQuali
     ...(e.tags?.goal_tags ?? []),
     ...(e.tags?.stimulus ?? []),
     ...(e.tags?.sport_tags ?? []),
+    ...(e.tags?.attribute_tags ?? []),
     e.movement_pattern,
     e.modality,
   ];

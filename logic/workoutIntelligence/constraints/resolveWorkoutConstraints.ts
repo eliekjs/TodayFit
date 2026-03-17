@@ -5,7 +5,9 @@
  * 2) Equipment → stored as allowed_equipment; filter excludes exercises requiring unavailable equipment
  * 3) Body-part → hard_include + movement_distribution + superset_pairing
  * 4) Primary goal → drives block template/sequence (no explicit rule)
- * 5) Secondary goal (mobility/recovery) → required_block_type + required_finishers
+ * 5) Secondary goals: mobility/recovery → required_block_type + required_finishers;
+ *    conditioning/endurance → required conditioning block;
+ *    power → prefer power block; strength → prefer strength block; hypertrophy → prefer hypertrophy block
  * 6) Preferences → e.g. superset format (no extra rule)
  */
 
@@ -158,6 +160,44 @@ export function resolveWorkoutConstraints(
     } as RequiredFinishersRule);
   }
 
+  // 5b) Secondary goal — conditioning or endurance → require conditioning block
+  const conditioningSecondary = secondary.some(
+    (g) => {
+      const n = g.toLowerCase().replace(/\s/g, "_");
+      return n.includes("conditioning") || n.includes("endurance") || g.toLowerCase().includes("conditioning") || g.toLowerCase().includes("endurance");
+    }
+  );
+  if (conditioningSecondary) {
+    rules.push({
+      kind: "required_block_type",
+      block_types: ["conditioning"],
+      min_count: 1,
+    } as const);
+  }
+
+  // 5c) Secondary goal — power → prefer power block
+  const powerSecondary = secondary.some(
+    (g) =>
+      g.toLowerCase().replace(/\s/g, "_").includes("power") ||
+      g.toLowerCase().includes("power")
+  );
+
+  // 5d) Secondary goal — strength → prefer strength block
+  const strengthSecondary = secondary.some(
+    (g) =>
+      g.toLowerCase().replace(/\s/g, "_").includes("strength") ||
+      g.toLowerCase().includes("strength")
+  );
+
+  // 5e) Secondary goal — hypertrophy (or body_recomp / calisthenics) → prefer hypertrophy block
+  const hypertrophySecondary = secondary.some(
+    (g) => {
+      const n = g.toLowerCase().replace(/\s/g, "_");
+      return n.includes("hypertrophy") || n.includes("body_recomp") || n.includes("calisthenics") ||
+        g.toLowerCase().includes("hypertrophy") || g.toLowerCase().includes("calisthenics");
+    }
+  );
+
   // 6) Preferences — e.g. superset format is already in block format; no extra rule needed here
 
   return {
@@ -169,5 +209,9 @@ export function resolveWorkoutConstraints(
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
     allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,
+    required_conditioning_block: conditioningSecondary || undefined,
+    prefer_power_block: powerSecondary || undefined,
+    prefer_strength_block: strengthSecondary || undefined,
+    prefer_hypertrophy_block: hypertrophySecondary || undefined,
   };
 }

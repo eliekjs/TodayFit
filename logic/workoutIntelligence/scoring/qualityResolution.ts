@@ -22,6 +22,7 @@ export function resolveSessionQualities(
     primary_goal: input.primary_goal,
     secondary_goals: input.secondary_goals ?? [],
     sport_slugs: input.sports,
+    sport_sub_focus: input.sport_sub_focus,
     goal_weights: [0.6, 0.3, 0.1],
     sport_weight: input.sports?.length ? 0.5 : 0,
   });

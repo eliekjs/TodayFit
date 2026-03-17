@@ -34,6 +34,7 @@ export const SPORT_SUBFOCUS_EXERCISE_TAGS: ExerciseTagTaxonomyEntry[] = [
   // --- Athletic attributes ---
   { slug: "speed", tag_type: "athletic_attribute", display_name: "Speed" },
   { slug: "agility", tag_type: "athletic_attribute", display_name: "Agility" },
+  { slug: "lateral_power", tag_type: "athletic_attribute", display_name: "Lateral power" },
   { slug: "balance", tag_type: "athletic_attribute", display_name: "Balance" },
   { slug: "coordination", tag_type: "athletic_attribute", display_name: "Coordination" },
   { slug: "work_capacity", tag_type: "athletic_attribute", display_name: "Work capacity" },

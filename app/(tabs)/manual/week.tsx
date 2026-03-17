@@ -222,6 +222,14 @@ export default function ManualWeekScreen() {
         const displayTitle = formatDayTitle(goalLabel, bodyKey, specificForDay.length ? specificForDay : undefined);
         days.push({ date: dateToISO(date), workout, displayTitle });
       }
+      if (days.length === 1) {
+        setGeneratedWorkout(days[0].workout);
+        setResumeProgress(null);
+        setManualWeekPlan(null);
+        setGenerating(false);
+        router.push("/manual/workout");
+        return;
+      }
       setManualWeekPlan({ weekStartDate: weekStartStr, days });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -233,7 +241,10 @@ export default function ManualWeekScreen() {
     activeGymProfileId,
     gymProfiles,
     setManualWeekPlan,
+    setGeneratedWorkout,
+    setResumeProgress,
     selectedTrainingDays,
+    router,
   ]);
 
   const handleAdjustFocusApply = useCallback(

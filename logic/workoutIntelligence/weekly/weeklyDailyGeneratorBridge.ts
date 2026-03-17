@@ -73,6 +73,13 @@ export function weeklySessionToDailyInput(
   const energy = baseInput.energy_profile_by_day?.[planned.day_index] ?? "medium";
   const duration = clampDuration(planned.planned_duration_minutes);
 
+  const style_prefs = baseInput.style_prefs
+    ? {
+        ...baseInput.style_prefs,
+        preferred_exercise_ids: baseInput.style_prefs.preferred_exercise_ids,
+      }
+    : undefined;
+
   return {
     duration_minutes: duration,
     primary_goal,
@@ -83,7 +90,12 @@ export function weeklySessionToDailyInput(
     recent_history: rollingRecentHistory.length > 0 ? rollingRecentHistory : undefined,
     training_history: rollingTrainingHistory,
     seed: seedOffset + planned.day_index,
-    style_prefs: baseInput.style_prefs,
+    style_prefs,
+    sport_slugs: baseInput.sports,
+    goal_sub_focus: baseInput.goal_sub_focus,
+    sport_sub_focus: baseInput.sport_sub_focus,
+    goal_weights: baseInput.goal_weights,
+    sport_weight: baseInput.sport_weight,
   };
 }
 

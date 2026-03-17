@@ -101,6 +101,14 @@ function buildTags(
     ["eccentric", "isometric", "plyometric", "aerobic_zone2", "anaerobic", "grip", "scapular_control", "trunk_anti_rotation", "anti_flexion"].includes(t)
   );
   const sportTags = tagSlugs.filter((t) => t.startsWith("sport_"));
+  const used = new Set([
+    ...goalTags,
+    ...energySlugs,
+    ...(jointStress ?? []),
+    ...stimulus,
+    ...sportTags,
+  ]);
+  const attributeTags = tagSlugs.filter((t) => !used.has(t));
   return {
     ...(goalTags.length ? { goal_tags: goalTags as ExerciseTags["goal_tags"] } : {}),
     ...(sportTags.length ? { sport_tags: sportTags } : {}),
@@ -108,6 +116,7 @@ function buildTags(
     ...(jointStress?.length ? { joint_stress: jointStress } : {}),
     ...(contra?.length ? { contraindications: contra } : {}),
     ...(stimulus.length ? { stimulus: stimulus as ExerciseTags["stimulus"] } : {}),
+    ...(attributeTags.length ? { attribute_tags: attributeTags } : {}),
   };
 }
 

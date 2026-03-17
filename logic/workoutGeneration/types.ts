@@ -51,6 +51,8 @@ export type ExerciseTags = {
     | "trunk_anti_rotation"
     | "anti_flexion"
   )[];
+  /** Other tag slugs (e.g. sub-focus / quality tags: single_leg_strength, core_stability). Used for sport/goal sub-focus matching. */
+  attribute_tags?: string[];
 };
 
 /** Canonical relevance/demand levels (warmup, cooldown, stability, grip, impact). */
@@ -166,6 +168,8 @@ export type StylePrefs = {
   user_level?: UserLevel;
   /** Preferred Zone 2 / cardio modalities (e.g. "bike", "treadmill", "rower"); generator prefers these when picking conditioning. */
   preferred_zone2_cardio?: string[];
+  /** Exercise ids/slugs to prefer when scoring (e.g. from sport or goal ranking); app passes from getPreferredExerciseNamesForSportAndGoals. */
+  preferred_exercise_ids?: string[];
 };
 
 export type RecentSessionSummary = {
@@ -173,6 +177,11 @@ export type RecentSessionSummary = {
   muscle_groups: string[];
   modality: string;
 };
+
+/** Goal slug → sub-focus slugs for tag-based scoring (Option A: sub-focus in algorithm). */
+export type GoalSubFocusInput = Record<string, string[]>;
+/** Sport slug → sub-focus slugs for tag-based scoring. */
+export type SportSubFocusInput = Record<string, string[]>;
 
 export type GenerateWorkoutInput = {
   duration_minutes: 20 | 30 | 45 | 60 | 75;
@@ -187,6 +196,16 @@ export type GenerateWorkoutInput = {
   training_history?: import("./historyTypes").TrainingHistoryContext;
   style_prefs?: StylePrefs;
   seed?: number;
+  /** Goal sub-focus: goal slug → sub-focus slugs. Boosts exercises whose tags match sub-focus tag map. */
+  goal_sub_focus?: GoalSubFocusInput;
+  /** Sport sub-focus: sport slug → sub-focus slugs. Boosts exercises whose tags match sub-focus tag map. */
+  sport_sub_focus?: SportSubFocusInput;
+  /** Sport slugs (ordered; first = primary). Used for sport-tag scoring and quality blending. */
+  sport_slugs?: string[];
+  /** Weights for [primary, secondary, tertiary] goal (e.g. [0.5, 0.3, 0.2]). When set, scales goal alignment in scoring. */
+  goal_weights?: number[];
+  /** When sports and goals both present: 0 = goals only, 1 = sport only. Default 0.5. */
+  sport_weight?: number;
 };
 
 // --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
@@ -225,6 +244,12 @@ export type ScoringDebug = {
   primary_muscle_match_bonus?: number;
   /** Penalty when user has impact-sensitive injury and exercise has high impact_level. */
   impact_penalty?: number;
+  /** Sub-focus tag match: weighted sum when goal/sport sub-focus tags match exercise tags. */
+  sub_focus_tag_match?: number;
+  /** Sport tag match: bonus when exercise sport_tags match user's sport_slugs. */
+  sport_tag_match?: number;
+  /** Bonus when exercise is in style_prefs.preferred_exercise_ids (sport/goal ranking). */
+  preferred_exercise_bonus?: number;
   /** Bonus when exercise has fewer contraindications (tag priority: prefer broader applicability). */
   contraindication_priority_bonus?: number;
 };

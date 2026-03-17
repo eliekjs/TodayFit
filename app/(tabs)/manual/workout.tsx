@@ -112,7 +112,7 @@ export default function ManualWorkoutScreen() {
       workout: generatedWorkout,
     });
     setGeneratedWorkout(null);
-    router.back();
+    router.replace("/");
   };
 
   const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);

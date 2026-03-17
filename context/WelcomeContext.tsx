@@ -16,15 +16,33 @@ export function WelcomeProvider({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(HAS_ENTERED_KEY).then((value) => {
-      setHasEnteredState(value === "true");
+    // Guard against environments where AsyncStorage native module is unavailable
+    if (!AsyncStorage || typeof AsyncStorage.getItem !== "function") {
       setIsHydrated(true);
-    });
+      return;
+    }
+
+    AsyncStorage.getItem(HAS_ENTERED_KEY)
+      .then((value) => {
+        setHasEnteredState(value === "true");
+      })
+      .catch(() => {
+        // On any storage error, fall back to default state but still mark hydrated
+        setHasEnteredState(false);
+      })
+      .finally(() => {
+        setIsHydrated(true);
+      });
   }, []);
 
   const setHasEntered = () => {
     setHasEnteredState(true);
-    AsyncStorage.setItem(HAS_ENTERED_KEY, "true");
+    if (!AsyncStorage || typeof AsyncStorage.setItem !== "function") {
+      return;
+    }
+    AsyncStorage.setItem(HAS_ENTERED_KEY, "true").catch(() => {
+      // Ignore write errors for now
+    });
   };
 
   const value: WelcomeContextValue = { hasEntered, isHydrated, setHasEntered };

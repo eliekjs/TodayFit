@@ -551,6 +551,9 @@ export default function AdaptiveWeekPlanScreen() {
     [daySlots]
   );
 
+  /** Treat plans with a single training session as "one-day" for display. */
+  const isSingleSessionPlan = daySlotsWithSessions.length === 1;
+
   const weekOverviewContent = (
     <View>
       {daySlotsWithSessions.map((slot) => {
@@ -643,16 +646,16 @@ export default function AdaptiveWeekPlanScreen() {
   const mainContent = (
     <>
       <Card
-        title={daySlotsWithSessions.length === 1 ? "Your session" : "Your Week Plan"}
+        title={isSingleSessionPlan ? "Your session" : "Your Week Plan"}
         subtitle={
-          daySlotsWithSessions.length === 1
-            ? sportPrepWeekPlan.weekStartDate
+          isSingleSessionPlan && selectedDay
+            ? `${formatDayOfWeek(selectedDay.date)} • ${selectedDay.date}`
             : `Week starting ${sportPrepWeekPlan.weekStartDate}`
         }
       >
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
-          {daySlotsWithSessions.length === 1
-            ? "Tap the session to view or regenerate it."
+          {isSingleSessionPlan
+            ? "We'll focus on just this one session today. You can still tweak or regenerate it below."
             : "Tap a session to view it. Use the arrows to move sessions between days. You can regenerate an individual day without changing the rest of the plan."}
         </Text>
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
@@ -670,17 +673,15 @@ export default function AdaptiveWeekPlanScreen() {
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
       ) : null}
 
-      <Card
-        title={daySlotsWithSessions.length === 1 ? "Session" : "Week overview"}
-        style={{ marginTop: 16 }}
-        subtitle={
-          daySlotsWithSessions.length === 1
-            ? "Tap the session to view or regenerate it."
-            : "Use ↑↓ arrows to move sessions to different days. Tap a session to view or regenerate it."
-        }
-      >
-        {weekOverviewContent}
-      </Card>
+      {!isSingleSessionPlan && (
+        <Card
+          title="Week overview"
+          style={{ marginTop: 16 }}
+          subtitle="Use ↑↓ arrows to move sessions to different days. Tap a session to view or regenerate it."
+        >
+          {weekOverviewContent}
+        </Card>
+      )}
 
       <Card
         title={

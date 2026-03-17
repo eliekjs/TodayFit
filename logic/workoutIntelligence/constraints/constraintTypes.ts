@@ -126,4 +126,12 @@ export interface ResolvedWorkoutConstraints {
   superset_pairing: SupersetPairingRule | null;
   /** Equipment allowed for this session (from input; filters apply at filter time). */
   allowed_equipment?: string[];
+  /** When true, session must include at least one conditioning block (e.g. conditioning or endurance as secondary goal). */
+  required_conditioning_block?: boolean;
+  /** When true, generator should include a power block (e.g. power as secondary goal). */
+  prefer_power_block?: boolean;
+  /** When true, generator should include a main_strength block (e.g. strength as secondary goal). */
+  prefer_strength_block?: boolean;
+  /** When true, generator should include a main_hypertrophy or accessory block (e.g. hypertrophy as secondary goal). */
+  prefer_hypertrophy_block?: boolean;
 }

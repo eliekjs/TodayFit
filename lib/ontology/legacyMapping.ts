@@ -73,10 +73,16 @@ export function mergeContraindicationsForTags(options: {
   return options.contraindications?.length ? options.contraindications : undefined;
 }
 
+/** Map equipment slugs to app canonical form (EquipmentKey). Used so filtering matches gym profile options. */
+const EQUIPMENT_ALIASES: Record<string, string> = {
+  resistance_band: "bands",
+};
+
 /**
  * Normalize equipment string to canonical slug (lowercase, snake_case).
- * Does not validate against EQUIPMENT_SLUGS; use for consistent comparison.
+ * Maps known aliases (e.g. resistance_band → bands) so exercise equipment matches EquipmentKey.
  */
 export function normalizeEquipmentSlug(eq: string): string {
-  return normalizeSlug(eq);
+  const slug = normalizeSlug(eq);
+  return EQUIPMENT_ALIASES[slug] ?? slug;
 }

@@ -30,6 +30,7 @@ export function resolveWeeklyDemand(input: WeeklyPlanningInput): WeeklyDemandPro
     primary_goal: input.primary_goal,
     secondary_goals: input.secondary_goals?.length ? input.secondary_goals : undefined,
     sport_slugs: input.sports,
+    sport_sub_focus: input.sport_sub_focus,
     goal_weights: [0.6, 0.3, 0.1].slice(0, Math.max(1, allGoals.length)),
     sport_weight: input.sports?.length ? 0.5 : 0,
   });

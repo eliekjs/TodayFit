@@ -130,6 +130,7 @@ export function generateWeeklyPlanWithWorkouts(
         secondary_goals: genInput.secondary_goals,
         tertiary_goals: genInput.tertiary_goals,
         sports: genInput.sports,
+        sport_sub_focus: genInput.sport_sub_focus,
         target_training_qualities: genInput.target_training_qualities,
         available_equipment: genInput.available_equipment,
         duration_minutes: genInput.duration_minutes,

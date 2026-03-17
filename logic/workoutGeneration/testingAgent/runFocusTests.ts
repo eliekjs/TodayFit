@@ -32,6 +32,8 @@ function inputToSelectionInput(input: GenerateWorkoutInput): WorkoutSelectionInp
   return {
     primary_goal: input.primary_goal,
     secondary_goals: input.secondary_goals?.map((g) => g.toLowerCase().replace(/\s/g, "_")) ?? [],
+    sports: input.sport_slugs,
+    sport_sub_focus: input.sport_sub_focus,
     available_equipment: input.available_equipment,
     duration_minutes: input.duration_minutes,
     energy_level: input.energy_level,

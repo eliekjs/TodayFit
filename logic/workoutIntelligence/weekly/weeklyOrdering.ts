@@ -171,6 +171,7 @@ export function buildDownstreamInput(
     secondary_goals: input.secondary_goals,
     tertiary_goals: input.tertiary_goals,
     sports: input.sports,
+    sport_sub_focus: input.sport_sub_focus,
     preferred_session_type: planned.session_type,
     preferred_stimulus_profile: planned.stimulus_profile,
     target_training_qualities:

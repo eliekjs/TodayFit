@@ -43,7 +43,7 @@ function HeaderBackButton() {
   );
 }
 
-/** Back from manual flow (week/workout/execute): go to first preference screen, not home. */
+/** Back from manual flow (week/execute): go to first preference screen, not home. */
 function ManualFlowBackButton() {
   const router = useRouter();
   const pathname = usePathname();
@@ -56,6 +56,20 @@ function ManualFlowBackButton() {
         // #endregion
         router.push("/manual/preferences");
       }}
+      style={{ paddingLeft: 16 }}
+    >
+      <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
+
+/** Back from editing today's workout: go to Today screen (not preferences or library). */
+function EditWorkoutBackButton() {
+  const router = useRouter();
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => router.replace("/")}
       style={{ paddingLeft: 16 }}
     >
       <Ionicons name="chevron-back" size={24} color={theme.text} />
@@ -218,7 +232,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "Today's Workout",
-          headerLeft: () => <ManualFlowBackButton />,
+          headerLeft: () => <EditWorkoutBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
       />

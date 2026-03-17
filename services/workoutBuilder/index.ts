@@ -8,6 +8,7 @@ import type { GymProfile } from "../../data/gymProfiles";
 import { generateWorkoutAsync } from "../../lib/generator";
 import { isDbConfigured } from "../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../lib/db/starterExerciseRepository";
+import type { SportGoalContext } from "../../lib/dailyGeneratorAdapter";
 
 export type SessionIntent = {
   id: string;
@@ -96,11 +97,37 @@ export async function buildWorkoutForSessionIntent(
     }
   }
 
+  const sportGoalContext: SportGoalContext | undefined =
+    hasGoals || hasSport
+      ? {
+          sport_slugs:
+            (options?.rankedSportSlugs?.length ?? 0) > 0
+              ? options?.rankedSportSlugs
+              : options?.sportSlug
+                ? [options.sportSlug]
+                : undefined,
+          sport_sub_focus:
+            options?.sportSubFocusSlugsBySport &&
+            Object.keys(options.sportSubFocusSlugsBySport).length > 0
+              ? options.sportSubFocusSlugsBySport
+              : options?.sportSlug && (options?.sportSubFocusSlugs?.length ?? 0) > 0
+                ? { [options.sportSlug]: options.sportSubFocusSlugs }
+                : undefined,
+          goal_weights:
+            (options?.goalWeightsPct?.length ?? 0) > 0
+              ? options.goalWeightsPct!.map((p) => p / 100)
+              : undefined,
+          sport_weight:
+            options?.sportVsGoalPct != null ? options.sportVsGoalPct / 100 : undefined,
+        }
+      : undefined;
+
   const workout = await generateWorkoutAsync(
     basePreferences,
     gymProfile,
     seedExtra ?? intent.id,
-    preferredNames
+    preferredNames,
+    sportGoalContext
   );
 
   return {

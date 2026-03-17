@@ -20,6 +20,7 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "plates", label: "Plates" },
       { id: "bench", label: "Bench" },
       { id: "trap_bar", label: "Trap Bar" },
+      { id: "ez_bar", label: "EZ Bar" },
     ],
   },
   {
@@ -31,6 +32,7 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "chest_press", label: "Chest Press" },
       { id: "hamstring_curl", label: "Hamstring Curl" },
       { id: "leg_extension", label: "Leg Extension" },
+      { id: "machine", label: "Other Machine (Hack Squat, Pec Deck, etc.)" },
     ],
   },
   {
@@ -49,6 +51,7 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "rower", label: "Rower" },
       { id: "ski_erg", label: "Ski Erg" },
       { id: "stair_climber", label: "Stair Climber" },
+      { id: "elliptical", label: "Elliptical" },
     ],
   },
   {

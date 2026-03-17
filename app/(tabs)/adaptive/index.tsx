@@ -22,7 +22,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import type { AdaptiveSetup } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
-import { CONSTRAINT_OPTIONS, normalizeGoalMatchPct } from "../../../lib/preferencesConstants";
+import { CONSTRAINT_OPTIONS, DURATIONS, normalizeGoalMatchPct } from "../../../lib/preferencesConstants";
 import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
@@ -135,6 +135,7 @@ export default function AdaptiveModeScreen() {
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
+  const [oneDayDuration, setOneDayDuration] = useState<number>(45);
 
   useEffect(() => {
     const loadSports = async () => {
@@ -281,7 +282,7 @@ export default function AdaptiveModeScreen() {
             sportFocusPct: selectedSportSlugs.length === 2 ? sportFocusPct : undefined,
             sportVsGoalPct: sportVsGoalPct ?? 50,
             sportSubFocusSlugsBySport: Object.keys(subFocusBySport).length > 0 ? subFocusBySport : undefined,
-            defaultSessionDuration: 45,
+            defaultSessionDuration: oneDayDuration,
             energyBaseline,
             recentLoad,
             injuries:
@@ -655,6 +656,26 @@ export default function AdaptiveModeScreen() {
                   </View>
                 );
               })}
+
+        {isOneDay && (
+          <>
+            <SectionHeader
+              title="Session duration"
+              subtitle="Approximate length for today's workout."
+              style={{ marginTop: 20 }}
+            />
+            <View style={styles.chipGroup}>
+              {DURATIONS.map((minutes) => (
+                <Chip
+                  key={minutes}
+                  label={`${minutes} min`}
+                  selected={oneDayDuration === minutes}
+                  onPress={() => setOneDayDuration(minutes)}
+                />
+              ))}
+            </View>
+          </>
+        )}
 
         <SectionHeader
           title="Any additional goals"

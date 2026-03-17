@@ -47,6 +47,7 @@ export type ValidationIssueType =
   | "body_part_focus"
   | "injury_restriction"
   | "cooldown_mobility_required"
+  | "conditioning_block_required"
   | "block_role_placement"
   | "superset_pairing";
 
@@ -350,7 +351,22 @@ export function validateWorkoutAgainstConstraints(
     }
   }
 
-  // 5) Superset compatibility (pairs in superset blocks)
+  // 5) Required conditioning block (secondary goal)
+  if (constraints.required_conditioning_block) {
+    const hasConditioning = repaired.blocks.some((b) => b.block_type === "conditioning");
+    if (!hasConditioning) {
+      violations.push({
+        type: "conditioning_block_required",
+        block: repaired.blocks[repaired.blocks.length - 1]!,
+        blockIndex: repaired.blocks.length - 1,
+        description:
+          "Missing conditioning block; required when conditioning is a secondary goal.",
+        repaired: false,
+      });
+    }
+  }
+
+  // 6) Superset compatibility (pairs in superset blocks)
   for (let bi = 0; bi < repaired.blocks.length; bi++) {
     const block = repaired.blocks[bi]!;
     if (block.format !== "superset" || block.items.length < 2) continue;
