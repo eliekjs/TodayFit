@@ -523,7 +523,7 @@ export function generateWorkout(
   );
   // When only Calisthenics is selected, dedicate the session to bodyweight/minimal-equipment calisthenics (pull-ups, push-ups, dips, core).
   const calisthenicsOnly = preferences.primaryFocus.length === 1 && preferences.primaryFocus[0] === "Calisthenics";
-  const CALISTHENICS_EQUIPMENT = new Set(["bodyweight", "pullup_bar", "bench"]);
+  const CALISTHENICS_EQUIPMENT = new Set(["bodyweight", "pullup_bar", "bench", "trx"]);
   if (calisthenicsOnly && mainPool.length > 0) {
     const calisthenicsPool = mainPool.filter(
       (e) => (e.equipment ?? []).length > 0 && (e.equipment ?? []).every((eq) => CALISTHENICS_EQUIPMENT.has(eq))

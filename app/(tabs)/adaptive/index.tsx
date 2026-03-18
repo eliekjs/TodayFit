@@ -26,7 +26,7 @@ import { CONSTRAINT_OPTIONS, DURATIONS, normalizeGoalMatchPct } from "../../../l
 import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
-import { SPORTS_WITH_SUB_FOCUSES } from "../../../data/sportSubFocus";
+import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { EnergyLevel } from "../../../lib/types";
 
@@ -268,11 +268,11 @@ export default function AdaptiveModeScreen() {
             tertiaryGoalSlug: tertiary,
             sportSlug: rankedSportSlugs[0] ?? null,
             sportSubFocusSlugs:
-              rankedSportSlugs[0] && SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
+              rankedSportSlugs[0] && SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === getCanonicalSportSlug(rankedSportSlugs[0]!))
                 ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
                 : undefined,
             sportQualitySlugs:
-              rankedSportSlugs[0] && !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === rankedSportSlugs[0])
+              rankedSportSlugs[0] && !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === getCanonicalSportSlug(rankedSportSlugs[0]!))
                 ? (subFocusBySport[rankedSportSlugs[0]] ?? []).slice(0, 3)
                 : undefined,
             gymDaysPerWeek: 1,
@@ -575,7 +575,7 @@ export default function AdaptiveModeScreen() {
             {expandedSportForSubFocus === "all" &&
               selectedSportSlugs.map((slug) => {
                 const sport = sports.find((s) => s.slug === slug);
-                const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === slug);
+                const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === getCanonicalSportSlug(slug));
                 const optionsFromSubFocus = sportSubFocus?.sub_focuses ?? null;
                 const optionsFromQualities = qualitiesBySport[slug] ?? [];
                 const options = optionsFromSubFocus

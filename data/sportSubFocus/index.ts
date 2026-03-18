@@ -8,13 +8,16 @@ export type { SportSubFocus, SportWithSubFocuses, SubFocusTagMap, SubFocusTagMap
 export { SPORTS_WITH_SUB_FOCUSES } from "./sportsWithSubFocuses";
 export { SUB_FOCUS_TAG_MAP } from "./subFocusTagMap";
 export { SPORT_SUBFOCUS_EXERCISE_TAGS, NEW_TAGS_TO_ADD } from "./exerciseTagTaxonomy";
+export { getCanonicalSportSlug, LEGACY_TO_CANONICAL_SPORT } from "./canonicalSportSlug";
 
 import { SUB_FOCUS_TAG_MAP } from "./subFocusTagMap";
+import { getCanonicalSportSlug } from "./canonicalSportSlug";
 
 /**
  * Returns exercise tag slugs (with optional weights) for the given sport and
  * selected sub-focus slugs. Use the result to boost exercise selection toward
  * matching tags in the workout generator.
+ * Legacy sport slugs (e.g. rock_bouldering) are mapped to canonical (rock_climbing) for lookup.
  * @param subFocusWeights - Optional weights by rank (e.g. [0.5, 0.3, 0.2] for 50/30/20). If not provided, sub-focuses are weighted equally.
  */
 export function getExerciseTagsForSubFocuses(
@@ -22,6 +25,7 @@ export function getExerciseTagsForSubFocuses(
   subFocusSlugs: string[],
   subFocusWeights?: number[]
 ): { tag_slug: string; weight: number }[] {
+  const canonicalSlug = getCanonicalSportSlug(sportSlug);
   const byTag = new Map<string, number>();
   const weights = subFocusWeights?.length
     ? subFocusWeights
@@ -29,7 +33,7 @@ export function getExerciseTagsForSubFocuses(
   for (let i = 0; i < subFocusSlugs.length; i++) {
     const sub = subFocusSlugs[i];
     const rankWeight = weights[i] ?? 1;
-    const key = `${sportSlug}:${sub}`;
+    const key = `${canonicalSlug}:${sub}`;
     const entries = SUB_FOCUS_TAG_MAP[key];
     if (!entries) continue;
     for (const { tag_slug, weight = 1 } of entries) {

@@ -1,0 +1,6 @@
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":"week"},"timestamp":1773802914043,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":"week"},"timestamp":1773803046071,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":"week"},"timestamp":1773803121285,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"_layout.tsx:ManualFlowBackButton","message":"Header back pressed","data":{"pathname":"/manual/week","targetUrl":"/manual/preferences"},"timestamp":1773803228187,"hypothesisId":"H3"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773803228229,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":null},"timestamp":1773803231289,"hypothesisId":"H1"}

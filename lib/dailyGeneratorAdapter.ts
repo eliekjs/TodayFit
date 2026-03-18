@@ -35,6 +35,8 @@ function clampDuration(mins: number | null): AllowedDuration {
 
 /** Map primary focus label to generator PrimaryGoal. */
 function primaryFocusLabelToGoal(label: string): PrimaryGoal {
+  // Power & Explosiveness must map to power (its goal slug is "conditioning" for sub-focus tags only).
+  if (label.includes("Power")) return "power";
   const slug = PRIMARY_FOCUS_TO_GOAL_SLUG[label] ?? "strength";
   const slugToGoal: Record<string, PrimaryGoal> = {
     strength: "strength",
@@ -48,7 +50,6 @@ function primaryFocusLabelToGoal(label: string): PrimaryGoal {
   if (slugToGoal[slug]) return slugToGoal[slug];
   if (label.includes("Athletic")) return "athletic_performance";
   if (label.includes("Calisthenics")) return "calisthenics";
-  if (label.includes("Power")) return "power";
   return "strength";
 }
 

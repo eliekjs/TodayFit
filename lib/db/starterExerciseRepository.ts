@@ -1,5 +1,5 @@
 import { getSupabase } from "./client";
-import { getExerciseTagsForSubFocuses } from "../../data/sportSubFocus";
+import { getExerciseTagsForSubFocuses, getCanonicalSportSlug } from "../../data/sportSubFocus";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -258,19 +258,17 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   }
 
   const primarySlug = sportSlug ?? rankedSlugs[0];
+  const canonicalSlug = primarySlug ? getCanonicalSportSlug(primarySlug) : "";
   let subSlugs =
     primarySlug && (options?.sportSubFocusSlugsBySport?.[primarySlug] ?? sportSubFocusSlugs)?.length
       ? (options?.sportSubFocusSlugsBySport?.[primarySlug] ?? sportSubFocusSlugs)!
       : undefined;
-  // When sport is vertical_jump, cycling_road, golf, pickleball, rugby, volleyball_indoor, etc. and no sub-focus selected, default so tag-based ranking runs.
+  // When sport has no sub-focus selected, default so tag-based ranking runs. Use canonical slug for consolidated sports.
   if (primarySlug === "vertical_jump" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["vertical_jump"];
   }
-  if (primarySlug === "cycling_road" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["leg_strength", "core_stability"];
-  }
-  if (primarySlug === "cycling_mtb" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["leg_strength", "core_stability"];
+  if (canonicalSlug === "cycling" && (!subSlugs || subSlugs.length === 0)) {
+    subSlugs = ["aerobic_base", "leg_strength", "core_stability"];
   }
   if (primarySlug === "hiking_backpacking" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["uphill_endurance", "leg_strength", "ankle_stability"];
@@ -278,14 +276,8 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (primarySlug === "golf" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["rotational_power"];
   }
-  if (primarySlug === "pickleball" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["lateral_speed"];
-  }
-  if (primarySlug === "badminton" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["lateral_speed", "rotational_power"];
-  }
-  if (primarySlug === "squash" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["lateral_speed", "rotational_power"];
+  if (canonicalSlug === "court_racquet" && (!subSlugs || subSlugs.length === 0)) {
+    subSlugs = ["lateral_speed", "rotational_power", "shoulder_stability"];
   }
   if (primarySlug === "hockey" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["speed", "leg_power", "work_capacity"];
@@ -293,10 +285,7 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (primarySlug === "rugby" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["max_strength", "work_capacity"];
   }
-  if (primarySlug === "volleyball_indoor" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["vertical_jump", "landing_mechanics"];
-  }
-  if (primarySlug === "volleyball_beach" && (!subSlugs || subSlugs.length === 0)) {
+  if (canonicalSlug === "volleyball" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["vertical_jump", "landing_mechanics"];
   }
   if (primarySlug === "flag_football" && (!subSlugs || subSlugs.length === 0)) {
@@ -308,20 +297,11 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (primarySlug === "boxing" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["rotational_power", "work_capacity"];
   }
-  if (primarySlug === "bjj" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["grip_endurance", "hip_stability"];
-  }
-  if (primarySlug === "judo" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["grip_endurance", "explosive_power"];
-  }
-  if (primarySlug === "mma" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["explosive_power", "work_capacity"];
+  if (canonicalSlug === "grappling" && (!subSlugs || subSlugs.length === 0)) {
+    subSlugs = ["grip_endurance", "hip_stability", "work_capacity"];
   }
   if (primarySlug === "muay_thai" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["rotational_power", "work_capacity"];
-  }
-  if (primarySlug === "wrestling" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["explosive_power", "work_capacity"];
   }
   if (primarySlug === "surfing" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["pop_up_power", "paddle_endurance"];
@@ -332,14 +312,8 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (primarySlug === "sup" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["aerobic_base", "core_stability"];
   }
-  if (primarySlug === "rock_bouldering" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["pull_strength", "core_tension"];
-  }
-  if (primarySlug === "rock_sport_lead" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["pull_strength", "shoulder_stability"];
-  }
-  if (primarySlug === "rock_trad" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["pull_strength", "trunk_endurance"];
+  if (canonicalSlug === "rock_climbing" && (!subSlugs || subSlugs.length === 0)) {
+    subSlugs = ["pull_strength", "core_tension", "finger_strength"];
   }
   if (primarySlug === "ice_climbing" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["grip_endurance", "pull_strength"];
@@ -389,10 +363,7 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (primarySlug === "bodybuilding" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["push_hypertrophy", "pull_hypertrophy", "legs_hypertrophy"];
   }
-  if (primarySlug === "track_sprinting" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["acceleration_power", "plyometric_power", "leg_strength"];
-  }
-  if (primarySlug === "track_field" && (!subSlugs || subSlugs.length === 0)) {
+  if (canonicalSlug === "track_sprinting" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["acceleration_power", "plyometric_power", "leg_strength"];
   }
   if (primarySlug === "strongman" && (!subSlugs || subSlugs.length === 0)) {

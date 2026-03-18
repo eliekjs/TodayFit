@@ -911,7 +911,10 @@ export default function ManualPreferencesScreen() {
           },
         ]}
       >
-        <PrimaryButton label="Generate Workout" onPress={onGenerate} />
+        <PrimaryButton
+          label={scope === "week" ? "Next: Set training days" : "Generate Workout"}
+          onPress={onGenerate}
+        />
         <View style={styles.bottomBarRow}>
           <PrimaryButton
             label="Reset"

@@ -1,18 +1,18 @@
 import React, { useEffect } from "react";
 import { InteractionManager } from "react-native";
-import { useRouter, useRootNavigationState } from "expo-router";
+import { useRouter, usePathname } from "expo-router";
 
 export default function SavedWorkoutsScreen() {
   const router = useRouter();
-  const rootNavigationState = useRootNavigationState();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!rootNavigationState?.key) return;
+    if (pathname == null || pathname === "" || !pathname.startsWith("/saved")) return;
     const task = InteractionManager.runAfterInteractions(() => {
       router.replace("/library");
     });
     return () => task.cancel();
-  }, [router, rootNavigationState?.key]);
+  }, [router, pathname]);
 
   return null;
 }

@@ -11,7 +11,7 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
   // --- Mountain / Snow ---
   {
     slug: "backcountry_skiing",
-    name: "Backcountry Skiing",
+    name: "Backcountry Skiing or Splitboarding",
     category: "Mountain/Snow",
     sub_focuses: [
       { slug: "uphill_endurance", name: "Uphill Endurance", priority_weight: 1 },
@@ -60,7 +60,7 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
 
   // --- Climbing ---
   {
-    slug: "rock_sport_lead",
+    slug: "rock_climbing",
     name: "Rock Climbing",
     category: "Climbing",
     sub_focuses: [
@@ -70,32 +70,7 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
       { slug: "core_tension", name: "Core Tension", priority_weight: 4 },
       { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 5 },
       { slug: "power_dynamic", name: "Power / Dynamic Movement", priority_weight: 6 },
-    ],
-  },
-  {
-    slug: "rock_bouldering",
-    name: "Bouldering",
-    category: "Climbing",
-    sub_focuses: [
-      { slug: "finger_strength", name: "Finger Strength", priority_weight: 1 },
-      { slug: "pull_strength", name: "Pull Strength", priority_weight: 2 },
-      { slug: "lockoff_strength", name: "Lock-off Strength", priority_weight: 3 },
-      { slug: "core_tension", name: "Core Tension", priority_weight: 4 },
-      { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 5 },
-      { slug: "power_dynamic", name: "Power / Dynamic Movement", priority_weight: 6 },
-    ],
-  },
-  {
-    slug: "rock_trad",
-    name: "Trad Climbing",
-    category: "Climbing",
-    sub_focuses: [
-      { slug: "finger_strength", name: "Finger Strength", priority_weight: 1 },
-      { slug: "pull_strength", name: "Pull Strength", priority_weight: 2 },
-      { slug: "lockoff_strength", name: "Lock-off Strength", priority_weight: 3 },
-      { slug: "core_tension", name: "Core Tension", priority_weight: 4 },
-      { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 5 },
-      { slug: "trunk_endurance", name: "Trunk Endurance", priority_weight: 6 },
+      { slug: "trunk_endurance", name: "Trunk Endurance", priority_weight: 7 },
     ],
   },
   {
@@ -161,27 +136,16 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
     ],
   },
   {
-    slug: "cycling_road",
+    slug: "cycling",
     name: "Cycling",
     category: "Endurance",
     sub_focuses: [
       { slug: "aerobic_base", name: "Aerobic Base", priority_weight: 1 },
       { slug: "threshold", name: "Threshold", priority_weight: 2 },
       { slug: "vo2_intervals", name: "VO2 Intervals", priority_weight: 3 },
-      { slug: "leg_strength", name: "Leg Strength", priority_weight: 4 },
-      { slug: "core_stability", name: "Core Stability", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "cycling_mtb",
-    name: "Cycling (Mountain)",
-    category: "Endurance",
-    sub_focuses: [
-      { slug: "aerobic_base", name: "Aerobic Base", priority_weight: 1 },
-      { slug: "threshold", name: "Threshold", priority_weight: 2 },
-      { slug: "power_endurance", name: "Power Endurance", priority_weight: 3 },
-      { slug: "leg_strength", name: "Leg Strength", priority_weight: 4 },
-      { slug: "core_stability", name: "Core Stability", priority_weight: 5 },
+      { slug: "power_endurance", name: "Power Endurance", priority_weight: 4 },
+      { slug: "leg_strength", name: "Leg Strength", priority_weight: 5 },
+      { slug: "core_stability", name: "Core Stability", priority_weight: 6 },
     ],
   },
   {
@@ -284,19 +248,7 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
   },
   {
     slug: "track_sprinting",
-    name: "Track Sprinting",
-    category: "Strength/Power",
-    sub_focuses: [
-      { slug: "acceleration_power", name: "Acceleration", priority_weight: 1 },
-      { slug: "max_velocity", name: "Max Velocity", priority_weight: 2 },
-      { slug: "plyometric_power", name: "Plyometrics", priority_weight: 3 },
-      { slug: "leg_strength", name: "Leg Strength", priority_weight: 4 },
-      { slug: "hamstring_tendon_resilience", name: "Hamstring & Tendon Resilience", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "track_field",
-    name: "Track & Field",
+    name: "Track & Field / Sprinting",
     category: "Strength/Power",
     sub_focuses: [
       { slug: "acceleration_power", name: "Acceleration", priority_weight: 1 },
@@ -418,32 +370,8 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
     ],
   },
   {
-    slug: "bjj",
-    name: "Brazilian Jiu-Jitsu",
-    category: "Combat/Grappling",
-    sub_focuses: [
-      { slug: "grip_endurance", name: "Grip & Endurance", priority_weight: 1 },
-      { slug: "hip_stability", name: "Hip Stability & Mobility", priority_weight: 2 },
-      { slug: "core_tension", name: "Core Tension", priority_weight: 3 },
-      { slug: "pull_strength", name: "Pull Strength", priority_weight: 4 },
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "judo",
-    name: "Judo",
-    category: "Combat/Grappling",
-    sub_focuses: [
-      { slug: "grip_endurance", name: "Grip & Endurance", priority_weight: 1 },
-      { slug: "hip_stability", name: "Hip Stability & Power", priority_weight: 2 },
-      { slug: "pull_strength", name: "Pull Strength", priority_weight: 3 },
-      { slug: "explosive_power", name: "Explosive Power (throws)", priority_weight: 4 },
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "mma",
-    name: "MMA",
+    slug: "grappling",
+    name: "Grappling (BJJ, Judo, MMA, Wrestling)",
     category: "Combat/Grappling",
     sub_focuses: [
       { slug: "grip_endurance", name: "Grip & Endurance", priority_weight: 1 },
@@ -466,56 +394,8 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
     ],
   },
   {
-    slug: "wrestling",
-    name: "Wrestling",
-    category: "Combat/Grappling",
-    sub_focuses: [
-      { slug: "grip_endurance", name: "Grip & Endurance", priority_weight: 1 },
-      { slug: "hip_stability", name: "Hip Stability & Power", priority_weight: 2 },
-      { slug: "pull_strength", name: "Pull Strength", priority_weight: 3 },
-      { slug: "explosive_power", name: "Explosive Power", priority_weight: 4 },
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "tennis",
-    name: "Tennis",
-    category: "Court/Field",
-    sub_focuses: [
-      { slug: "lateral_speed", name: "Lateral Speed", priority_weight: 1 },
-      { slug: "rotational_power", name: "Rotational Power", priority_weight: 2 },
-      { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 3 },
-      { slug: "core_rotation", name: "Core & Rotation", priority_weight: 4 },
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "pickleball",
-    name: "Pickleball",
-    category: "Court/Field",
-    sub_focuses: [
-      { slug: "lateral_speed", name: "Lateral Speed", priority_weight: 1 },
-      { slug: "rotational_power", name: "Rotational Power", priority_weight: 2 },
-      { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 3 },
-      { slug: "core_rotation", name: "Core & Rotation", priority_weight: 4 },
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "badminton",
-    name: "Badminton",
-    category: "Court/Field",
-    sub_focuses: [
-      { slug: "lateral_speed", name: "Lateral Speed", priority_weight: 1 },
-      { slug: "rotational_power", name: "Rotational Power", priority_weight: 2 },
-      { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 3 },
-      { slug: "core_rotation", name: "Core & Rotation", priority_weight: 4 },
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "squash",
-    name: "Squash",
+    slug: "court_racquet",
+    name: "Racquet & Court Sports",
     category: "Court/Field",
     sub_focuses: [
       { slug: "lateral_speed", name: "Lateral Speed", priority_weight: 1 },
@@ -550,20 +430,8 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
     ],
   },
   {
-    slug: "volleyball_indoor",
-    name: "Volleyball (Indoor)",
-    category: "Court/Field",
-    sub_focuses: [
-      { slug: "vertical_jump", name: "Vertical Jump", priority_weight: 1 },
-      { slug: "landing_mechanics", name: "Landing Mechanics", priority_weight: 2 },
-      { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 3 },
-      { slug: "core_stability", name: "Core Stability", priority_weight: 4 },
-      { slug: "knee_resilience", name: "Knee Resilience", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "volleyball_beach",
-    name: "Beach Volleyball",
+    slug: "volleyball",
+    name: "Volleyball",
     category: "Court/Field",
     sub_focuses: [
       { slug: "vertical_jump", name: "Vertical Jump", priority_weight: 1 },

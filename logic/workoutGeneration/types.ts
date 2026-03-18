@@ -252,6 +252,13 @@ export type ScoringDebug = {
   preferred_exercise_bonus?: number;
   /** Bonus when exercise has fewer contraindications (tag priority: prefer broader applicability). */
   contraindication_priority_bonus?: number;
+  /** Calisthenics: bonus for bodyweight / penalty for non-bodyweight (~90% bodyweight focus). */
+  calisthenics_bodyweight_bonus?: number;
+  calisthenics_non_bodyweight_penalty?: number;
+  /** Calisthenics: bonus for advanced progressions (has regressions = not the easiest). */
+  calisthenics_advanced_bonus?: number;
+  /** Calisthenics + upper focus: bonus for push-up/handstand/pull-up pattern. */
+  calisthenics_upper_preferred_pattern_bonus?: number;
 };
 
 export type WorkoutSession = {

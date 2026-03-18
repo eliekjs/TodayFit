@@ -95,17 +95,30 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
   ],
 
   // --- Calisthenics (goal_slug: strength) ---
-  // Full body calisthenics: core moves (pull-ups, push-ups, dips, L-hang, handstand, L-sit) with progressions/regressions.
+  // Full body calisthenics: pull, push, core + legs (pistol, shrimp, single-leg) so lower body appears in full-body sessions.
   [key("strength", "full_body_calisthenics")]: [
     { tag_slug: "pull", weight: 1.2 },
     { tag_slug: "push", weight: 1.2 },
     { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "squat", weight: 1.1 },
+    { tag_slug: "legs", weight: 1 },
+    { tag_slug: "single_leg", weight: 1 },
     { tag_slug: "lats", weight: 1 },
     { tag_slug: "chest", weight: 1 },
     { tag_slug: "triceps", weight: 1 },
     { tag_slug: "upper_back", weight: 1 },
     { tag_slug: "scapular_control", weight: 1 },
     { tag_slug: "core", weight: 1 },
+  ],
+  // Legs / Pistol: pistol squats, shrimp squats, assisted (TRX/pole), elevated, dragon squat, BOSU (when exercises exist).
+  [key("strength", "legs_pistol")]: [
+    { tag_slug: "squat", weight: 1.3 },
+    { tag_slug: "legs", weight: 1.2 },
+    { tag_slug: "single_leg", weight: 1.2 },
+    { tag_slug: "balance", weight: 1.1 },
+    { tag_slug: "quads", weight: 1.1 },
+    { tag_slug: "glutes", weight: 1 },
+    { tag_slug: "core", weight: 0.9 },
   ],
   [key("strength", "pull_ups")]: [
     { tag_slug: "pull", weight: 1.3 },

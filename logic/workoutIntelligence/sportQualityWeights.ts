@@ -1,15 +1,14 @@
 /**
  * Sport → training quality weights (0–1).
  * Used to build session target vector when user is training for a sport.
- * Slugs should align with public.sports / sport_tag_profile where applicable.
+ * Slugs align with consolidated sports (see data/sportSubFocus/canonicalSportSlug for legacy mapping).
  */
 
 import type { TrainingQualitySlug } from "./trainingQualities";
+import { getCanonicalSportSlug } from "../../data/sportSubFocus";
 
 export type SportSlug =
-  | "rock_bouldering"
-  | "rock_sport_lead"
-  | "rock_trad"
+  | "rock_climbing"
   | "ice_climbing"
   | "backcountry_skiing"
   | "alpine_skiing"
@@ -21,35 +20,26 @@ export type SportSlug =
   | "road_running"
   | "marathon_running"
   | "trail_running"
-  | "cycling_road"
-  | "cycling_mtb"
+  | "cycling"
   | "swimming_open_water"
   | "triathlon"
   | "xc_skiing"
   | "rowing_erg"
   | "track_sprinting"
-  | "track_field"
   | "vertical_jump"
   | "olympic_weightlifting"
   | "crossfit"
-  | "bjj"
+  | "grappling"
   | "soccer"
   | "basketball"
-  | "tennis"
-  | "pickleball"
-  | "badminton"
-  | "squash"
+  | "court_racquet"
   | "hockey"
   | "rugby"
-  | "volleyball_indoor"
-  | "volleyball_beach"
+  | "volleyball"
   | "flag_football"
   | "lacrosse"
   | "boxing"
-  | "judo"
-  | "mma"
   | "muay_thai"
-  | "wrestling"
   | "golf"
   | "hiking_backpacking"
   | "mountaineering"
@@ -65,32 +55,18 @@ export const SPORT_QUALITY_WEIGHTS: Record<
   SportSlug,
   Partial<Record<TrainingQualitySlug, number>>
 > = {
-  rock_bouldering: {
-    pulling_strength: 0.9,
+  rock_climbing: {
+    pulling_strength: 0.88,
     grip_strength: 0.9,
     lockoff_strength: 0.85,
     scapular_stability: 0.8,
-    core_tension: 0.75,
-    forearm_endurance: 0.5,
+    core_tension: 0.72,
+    forearm_endurance: 0.65,
     power: 0.5,
     tendon_resilience: 0.5,
-  },
-  rock_sport_lead: {
-    pulling_strength: 0.85,
-    grip_strength: 0.9,
-    forearm_endurance: 0.8,
-    scapular_stability: 0.8,
-    core_tension: 0.7,
     aerobic_base: 0.35,
-    anaerobic_capacity: 0.4,
-  },
-  rock_trad: {
-    pulling_strength: 0.8,
-    grip_strength: 0.85,
-    forearm_endurance: 0.75,
-    scapular_stability: 0.75,
-    aerobic_base: 0.4,
-    trunk_endurance: 0.4,
+    anaerobic_capacity: 0.35,
+    trunk_endurance: 0.35,
   },
   ice_climbing: {
     grip_strength: 0.9,
@@ -115,6 +91,13 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     quad_hypertrophy: 0.6,
     trunk_anti_rotation: 0.5,
     balance: 0.5,
+  },
+  snowboarding: {
+    eccentric_strength: 0.8,
+    unilateral_strength: 0.7,
+    hip_stability: 0.7,
+    balance: 0.75,
+    core_tension: 0.5,
   },
   surfing: {
     paddling_endurance: 0.85,
@@ -161,25 +144,15 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     tendon_resilience: 0.6,
     trunk_endurance: 0.4,
   },
-  cycling_road: {
-    aerobic_base: 0.9,
-    aerobic_power: 0.5,
+  cycling: {
+    aerobic_base: 0.88,
+    aerobic_power: 0.52,
     posterior_chain_endurance: 0.6,
     trunk_endurance: 0.5,
-    core_tension: 0.5,
-    unilateral_strength: 0.4,
-    max_strength: 0.35,
-    recovery: 0.3,
-  },
-  cycling_mtb: {
-    aerobic_base: 0.85,
-    aerobic_power: 0.55,
-    posterior_chain_endurance: 0.6,
-    trunk_endurance: 0.5,
-    core_tension: 0.6,
-    unilateral_strength: 0.5,
-    max_strength: 0.4,
-    balance: 0.4,
+    core_tension: 0.55,
+    unilateral_strength: 0.45,
+    max_strength: 0.38,
+    balance: 0.35,
     recovery: 0.3,
   },
   swimming_open_water: {
@@ -221,6 +194,14 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     eccentric_strength: 0.5,
     hip_stability: 0.5,
   },
+  ultra_running: {
+    aerobic_base: 0.9,
+    unilateral_strength: 0.6,
+    posterior_chain_endurance: 0.5,
+    trunk_endurance: 0.5,
+    tendon_resilience: 0.55,
+    recovery: 0.3,
+  },
   hiking_backpacking: {
     aerobic_base: 0.85,
     unilateral_strength: 0.6,
@@ -229,6 +210,16 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     core_tension: 0.45,
     balance: 0.45,
     max_strength: 0.35,
+    recovery: 0.3,
+  },
+  mountaineering: {
+    aerobic_base: 0.85,
+    unilateral_strength: 0.65,
+    posterior_chain_endurance: 0.5,
+    trunk_endurance: 0.55,
+    core_tension: 0.5,
+    balance: 0.45,
+    max_strength: 0.4,
     recovery: 0.3,
   },
   ocr_spartan: {
@@ -304,13 +295,6 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     max_strength: 0.5,
     unilateral_strength: 0.45,
   },
-  track_field: {
-    power: 0.9,
-    rate_of_force_development: 0.85,
-    tendon_resilience: 0.6,
-    max_strength: 0.5,
-    unilateral_strength: 0.45,
-  },
   strongman: {
     max_strength: 0.9,
     power: 0.7,
@@ -319,13 +303,16 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     work_capacity: 0.7,
     core_tension: 0.6,
   },
-  bjj: {
-    grip_strength: 0.7,
-    hip_stability: 0.7,
-    core_tension: 0.65,
+  grappling: {
+    grip_strength: 0.8,
+    hip_stability: 0.75,
+    core_tension: 0.6,
     mobility: 0.5,
-    work_capacity: 0.5,
-    anaerobic_capacity: 0.5,
+    work_capacity: 0.7,
+    anaerobic_capacity: 0.6,
+    pulling_strength: 0.65,
+    power: 0.65,
+    rate_of_force_development: 0.6,
   },
   soccer: {
     aerobic_base: 0.7,
@@ -341,34 +328,13 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     unilateral_strength: 0.4,
     aerobic_base: 0.35,
   },
-  tennis: {
-    rotational_power: 0.8,
+  court_racquet: {
+    rotational_power: 0.78,
     rotational_control: 0.7,
-    scapular_stability: 0.6,
-    work_capacity: 0.5,
-    unilateral_strength: 0.4,
-  },
-  pickleball: {
-    rotational_power: 0.75,
-    rotational_control: 0.7,
-    scapular_stability: 0.65,
+    scapular_stability: 0.64,
     work_capacity: 0.55,
-    unilateral_strength: 0.5,
+    unilateral_strength: 0.45,
     balance: 0.4,
-  },
-  badminton: {
-    rotational_power: 0.8,
-    rotational_control: 0.7,
-    scapular_stability: 0.65,
-    work_capacity: 0.55,
-    unilateral_strength: 0.5,
-  },
-  squash: {
-    rotational_power: 0.8,
-    rotational_control: 0.7,
-    scapular_stability: 0.65,
-    work_capacity: 0.6,
-    unilateral_strength: 0.5,
   },
   hockey: {
     power: 0.8,
@@ -387,15 +353,7 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     pushing_strength: 0.5,
     pulling_strength: 0.5,
   },
-  volleyball_indoor: {
-    power: 0.75,
-    rate_of_force_development: 0.65,
-    scapular_stability: 0.6,
-    balance: 0.5,
-    unilateral_strength: 0.45,
-    core_tension: 0.4,
-  },
-  volleyball_beach: {
+  volleyball: {
     power: 0.75,
     rate_of_force_development: 0.65,
     scapular_stability: 0.6,
@@ -428,23 +386,6 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     scapular_stability: 0.6,
     core_tension: 0.55,
   },
-  judo: {
-    grip_strength: 0.85,
-    hip_stability: 0.75,
-    power: 0.7,
-    pulling_strength: 0.7,
-    work_capacity: 0.65,
-    rate_of_force_development: 0.6,
-  },
-  mma: {
-    grip_strength: 0.8,
-    hip_stability: 0.75,
-    power: 0.8,
-    pulling_strength: 0.7,
-    work_capacity: 0.8,
-    rate_of_force_development: 0.65,
-    rotational_power: 0.5,
-  },
   muay_thai: {
     rotational_power: 0.8,
     hip_stability: 0.75,
@@ -452,14 +393,6 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     work_capacity: 0.8,
     rate_of_force_development: 0.65,
     core_tension: 0.6,
-  },
-  wrestling: {
-    grip_strength: 0.85,
-    hip_stability: 0.8,
-    power: 0.8,
-    pulling_strength: 0.75,
-    work_capacity: 0.8,
-    rate_of_force_development: 0.65,
   },
   golf: {
     rotational_power: 0.85,
@@ -471,6 +404,7 @@ export const SPORT_QUALITY_WEIGHTS: Record<
 };
 
 export function getSportQualityWeights(sportSlug: string): Partial<Record<TrainingQualitySlug, number>> {
-  const normalized = sportSlug.toLowerCase().replace(/\s/g, "_") as SportSlug;
+  const canonical = getCanonicalSportSlug(sportSlug);
+  const normalized = canonical.toLowerCase().replace(/\s/g, "_") as SportSlug;
   return SPORT_QUALITY_WEIGHTS[normalized] ?? {};
 }

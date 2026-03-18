@@ -282,7 +282,14 @@ export default function AdaptiveWeekPlanScreen() {
   useEffect(() => {
     if (!sportPrepWeekPlan) return;
     if (!selectedSession) {
-      const first = sportPrepWeekPlan.days[0];
+      const plan = sportPrepWeekPlan;
+      const first = plan.days[0];
+      // #region agent log
+      const hasWorkout = (d: import("../../../services/sportPrepPlanner").PlannedDay) =>
+        d.generatedWorkoutId != null || (plan.guestWorkouts != null && plan.guestWorkouts[d.date] != null) || (plan.today?.id === d.id && plan.todayWorkout != null);
+      const firstWithWorkout = plan.days.find(hasWorkout);
+      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d73157'},body:JSON.stringify({sessionId:'d73157',location:'recommendation.tsx:setFirstSession',message:'Initial session selection',data:{days0Date:first?.date ?? null,todayDate:plan.today?.date ?? null,chosenDate:first?.date ?? null,days0HasWorkout:first ? hasWorkout(first) : false,todayHasWorkout:plan.today ? hasWorkout(plan.today) : false,firstWithWorkoutDate:firstWithWorkout?.date ?? null},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       setSelectedSession(first ?? null);
     }
   }, [sportPrepWeekPlan, selectedSession]);
@@ -343,7 +350,7 @@ export default function AdaptiveWeekPlanScreen() {
               // #region agent log
               fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'recommendation.tsx:button-SetPriorities',message:'User pressed Set Training Priorities -> navigate(/adaptive)',data:{},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
               // #endregion
-              router.navigate("/adaptive");
+              router.replace("/adaptive");
             }}
             />
           </View>
@@ -545,14 +552,37 @@ export default function AdaptiveWeekPlanScreen() {
     summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
   }
 
-  /** Only show days that have at least one session (one-day plan shows 1 slot, full week shows N). */
-  const daySlotsWithSessions = useMemo(
-    () => daySlots.filter((slot) => slot.sessions.length > 0),
-    [daySlots]
-  );
+  /** Only show days that have at least one session with an actual workout (not rest days). One-day plan = 1 such slot. */
+  const daySlotsWithSessions = useMemo(() => {
+    if (!sportPrepWeekPlan) return [];
+    const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+    return daySlots.filter((slot) =>
+      slot.sessions.some(
+        (s) =>
+          s.generatedWorkoutId != null ||
+          guestWorkouts[s.date] != null ||
+          (sportPrepWeekPlan.today?.id === s.id && sportPrepWeekPlan.todayWorkout != null)
+      )
+    );
+  }, [daySlots, sportPrepWeekPlan]);
 
   /** Treat plans with a single training session as "one-day" for display. */
   const isSingleSessionPlan = daySlotsWithSessions.length === 1;
+
+  // #region agent log
+  if (sportPrepWeekPlan && daySlots.length > 0) {
+    const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+    const slotsWithWorkout = daySlots.filter((slot) =>
+      slot.sessions.some(
+        (s) =>
+          s.generatedWorkoutId != null ||
+          guestWorkouts[s.date] != null ||
+          (sportPrepWeekPlan.today?.id === s.id && sportPrepWeekPlan.todayWorkout != null)
+      )
+    );
+    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'faf633'},body:JSON.stringify({sessionId:'faf633',location:'recommendation.tsx:daySlots',message:'Plan slot counts',data:{planDaysLength:sportPrepWeekPlan.days.length,daySlotsLength:daySlots.length,slotsWithAnySession:daySlots.filter((sl)=>sl.sessions.length>0).length,slotsWithWorkout:slotsWithWorkout.length,isSingleSessionPlan:slotsWithWorkout.length===1},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  }
+  // #endregion
 
   const weekOverviewContent = (
     <View>
@@ -762,7 +792,7 @@ export default function AdaptiveWeekPlanScreen() {
               // #region agent log
               fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'recommendation.tsx:button-BackToSetup',message:'User pressed Back to Setup -> navigate(/adaptive)',data:{},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
               // #endregion
-              router.navigate("/adaptive");
+              router.replace("/adaptive");
             }}
             style={{ marginTop: 8 }}
           />

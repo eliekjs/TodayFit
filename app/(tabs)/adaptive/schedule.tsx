@@ -17,7 +17,7 @@ import type { BodyEmphasisKey } from "../../../lib/types";
 import { DURATIONS } from "../../../lib/preferencesConstants";
 import { listSportsForPrep } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
-import { SPORTS_WITH_SUB_FOCUSES } from "../../../data/sportSubFocus";
+import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -86,9 +86,9 @@ export default function AdaptiveScheduleScreen() {
   useEffect(() => {
     if (!adaptiveSetup) {
       // #region agent log
-      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'schedule.tsx:useEffect-navigate',message:'Calling router.navigate(/adaptive) because adaptiveSetup is null',data:{adaptiveSetup:!!adaptiveSetup,pathname},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'schedule.tsx:useEffect-navigate',message:'Calling router.replace(/adaptive) because adaptiveSetup is null',data:{adaptiveSetup:!!adaptiveSetup,pathname},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
       // #endregion
-      router.navigate("/adaptive");
+      router.replace("/adaptive");
     }
   }, [adaptiveSetup, router]);
 
@@ -168,12 +168,12 @@ export default function AdaptiveScheduleScreen() {
         sportSlug: adaptiveSetup.rankedSportSlugs[0] ?? null,
         sportSubFocusSlugs:
           adaptiveSetup.rankedSportSlugs[0] &&
-          SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === adaptiveSetup.rankedSportSlugs[0])
+          SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === getCanonicalSportSlug(adaptiveSetup.rankedSportSlugs[0]!))
             ? (adaptiveSetup.subFocusBySport[adaptiveSetup.rankedSportSlugs[0]] ?? []).slice(0, 3)
             : undefined,
         sportQualitySlugs:
           adaptiveSetup.rankedSportSlugs[0] &&
-          !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === adaptiveSetup.rankedSportSlugs[0])
+          !SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === getCanonicalSportSlug(adaptiveSetup.rankedSportSlugs[0]!))
             ? (adaptiveSetup.subFocusBySport[adaptiveSetup.rankedSportSlugs[0]] ?? []).slice(0, 3)
             : undefined,
         gymDaysPerWeek: gymTrainingDays.length,

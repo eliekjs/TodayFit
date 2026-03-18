@@ -23,7 +23,7 @@ export function exampleClimbingHypertrophy5Days(): WeeklyPlan {
   const input: WeeklyPlanningInput = {
     primary_goal: "hypertrophy",
     secondary_goals: ["climbing"],
-    sports: ["rock_bouldering"],
+    sports: ["rock_climbing"],
     days_available_per_week: 5,
     default_session_duration: 55,
     available_equipment: BASE_EQUIPMENT,
@@ -63,7 +63,7 @@ export function exampleGeneralHypertrophy4Days(): WeeklyPlan {
 export function exampleWithPreferredDaysAndEnergy(): WeeklyPlan {
   const input: WeeklyPlanningInput = {
     primary_goal: "hypertrophy",
-    sports: ["rock_bouldering"],
+    sports: ["rock_climbing"],
     days_available_per_week: 5,
     preferred_training_days: [0, 1, 3, 4, 5],
     default_session_duration: 55,

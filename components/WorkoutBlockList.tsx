@@ -24,37 +24,42 @@ export function WorkoutBlockList({
 
   return (
     <>
-      {workout.blocks.map((block, blockIdx) => (
-        (() => {
-          const pairs = getSupersetPairsForBlock(block);
-          const hasSupersetExercises = !!(pairs && pairs.length > 0);
-          const hasBlockItems = (block.items?.length ?? 0) > 0;
-          const hasExercises = hasSupersetExercises || hasBlockItems;
+      {workout.blocks.map((block, blockIdx) => {
+        const pairs = getSupersetPairsForBlock(block);
+        const hasSupersetExercises = !!(pairs && pairs.length > 0);
+        const hasBlockItems = (block.items?.length ?? 0) > 0;
+        const hasExercises = hasSupersetExercises || hasBlockItems;
 
-          if (!hasExercises) {
-            return null;
-          }
+        if (!hasExercises) {
+          return null;
+        }
 
-          return (
-            <View
-              key={`${block.block_type}-${blockIdx}`}
-              style={styles.sectionBlock}
-            >
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>
-                {block.title ?? block.block_type}
+        return (
+          <View
+            key={`${block.block_type}-${blockIdx}`}
+            style={styles.sectionBlock}
+          >
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              {block.title ?? block.block_type}
+            </Text>
+            {block.reasoning && !hasSupersetExercises ? (
+              <Text
+                style={[styles.sectionReasoning, { color: theme.textMuted }]}
+              >
+                {block.reasoning}
               </Text>
-              {block.reasoning && !hasSupersetExercises ? (
-                <Text
-                  style={[styles.sectionReasoning, { color: theme.textMuted }]}
-                >
-                  {block.reasoning}
-                </Text>
-              ) : null}
-              {renderBlockContent(block, theme, showSwap, onSwap, showTags, exerciseNotes)}
-            </View>
-          );
-        })()
-      )}
+            ) : null}
+            {renderBlockContent(
+              block,
+              theme,
+              showSwap,
+              onSwap,
+              showTags,
+              exerciseNotes
+            )}
+          </View>
+        );
+      })}
     </>
   );
 }

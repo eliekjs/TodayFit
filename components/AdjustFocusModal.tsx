@@ -59,17 +59,41 @@ export function AdjustFocusModal({
   }, [visible, initialSections]);
 
   const updatePct = (sectionIdx: number, itemIdx: number, value: number) => {
+    const clamped = clampPct(value);
     setSections((prev) => {
-      const next = prev.map((sec, si) =>
-        si === sectionIdx
-          ? {
-              ...sec,
-              percentages: sec.percentages.map((p, ii) =>
-                ii === itemIdx ? clampPct(value) : p
-              ),
-            }
-          : sec
-      );
+      const next = prev.map((sec, si) => {
+        if (si !== sectionIdx) return sec;
+        const pcts = [...sec.percentages];
+        while (pcts.length < sec.items.length) pcts.push(0);
+        if (pcts.length > sec.items.length) pcts.length = sec.items.length;
+        const n = pcts.length;
+        if (n <= 1) {
+          pcts[0] = n === 1 ? clamped : 0;
+          return { ...sec, percentages: pcts };
+        }
+        const remaining = 100 - clamped;
+        const otherIndices = [...Array(n).keys()].filter((i) => i !== itemIdx);
+        const otherSum = otherIndices.reduce((s, i) => s + (pcts[i] ?? 0), 0);
+        if (otherSum <= 0) {
+          const each = Math.round(remaining / otherIndices.length);
+          otherIndices.forEach((i, idx) => {
+            pcts[i] = idx === 0 ? remaining - each * (otherIndices.length - 1) : each;
+          });
+        } else {
+          const newOthers = otherIndices.map((i) =>
+            Math.round((remaining * (pcts[i] ?? 0)) / otherSum)
+          );
+          const diff = remaining - newOthers.reduce((a, b) => a + b, 0);
+          if (diff !== 0 && newOthers.length > 0) {
+            newOthers[0] = Math.max(0, newOthers[0] + diff);
+          }
+          otherIndices.forEach((i, idx) => {
+            pcts[i] = newOthers[idx];
+          });
+        }
+        pcts[itemIdx] = clamped;
+        return { ...sec, percentages: pcts };
+      });
       return next;
     });
   };

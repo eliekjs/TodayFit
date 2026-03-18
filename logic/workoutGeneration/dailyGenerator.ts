@@ -442,6 +442,37 @@ export function scoreExercise(
     }
   }
 
+  // Calisthenics: ~90% bodyweight, prefer advanced progressions, upper = push-up/handstand/pull-up families
+  if (input.primary_goal === "calisthenics") {
+    const isBodyweight =
+      exercise.equipment_required.some((eq) => eq.toLowerCase() === "bodyweight") ||
+      exercise.tags.goal_tags?.includes("calisthenics");
+    if (isBodyweight) {
+      total += 1.5;
+      if (debug) debug.calisthenics_bodyweight_bonus = 1.5;
+    } else {
+      total -= 1.5;
+      if (debug) debug.calisthenics_non_bodyweight_penalty = -1.5;
+    }
+    const hasRegressions = (exercise.regressions?.length ?? 0) > 0;
+    if (hasRegressions) {
+      total += 0.5;
+      if (debug) debug.calisthenics_advanced_bonus = 0.5;
+    }
+    const focusPartsNorm = (input.focus_body_parts ?? []).map((f) => f.toLowerCase().replace(/\s/g, "_"));
+    const focusUpper =
+      (focusPartsNorm.includes("upper_push") || focusPartsNorm.includes("upper_pull")) &&
+      !focusPartsNorm.includes("lower") &&
+      !focusPartsNorm.includes("full_body");
+    if (focusUpper) {
+      const fine = getPrimaryFineMovementPattern(exercise);
+      if (fine && CALISTHENICS_UPPER_PREFERRED_FINE_PATTERNS.has(fine)) {
+        total += 0.8;
+        if (debug) debug.calisthenics_upper_preferred_pattern_bonus = 0.8;
+      }
+    }
+  }
+
   // Sub-focus (Option A: tag-based): boost exercises whose tags match goal/sport sub-focus tag map
   const goalSubFocus = input.goal_sub_focus;
   const sportSubFocus = input.sport_sub_focus;
@@ -631,6 +662,23 @@ function getPrescription(
       time_seconds: timeSec,
       rest_seconds: blockType === "warmup" ? 0 : 15,
       coaching_cues: beginnerCue(rules.cueStyle.mobility ?? "Controlled, full range of motion. Breathe steadily."),
+    };
+  }
+
+  // Power block: rep-based explosive prescription regardless of exercise modality (e.g. KB swing in power block).
+  if (blockType === "power" && goal === "power" && rules.setRange && rules.repRange && rules.restRange) {
+    const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
+    const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
+    const repRange = getEffectiveRepRange(exercise, rules.powerRepRange ?? rules.repRange);
+    const reps = Math.round((repRange.min + repRange.max) / 2);
+    const rest = rules.powerRestRange
+      ? Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2)
+      : Math.round((rules.restRange.min + rules.restRange.max) / 2);
+    return {
+      sets,
+      reps,
+      rest_seconds: rest,
+      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Explosive intent. Quality over volume."),
     };
   }
 
@@ -1196,10 +1244,11 @@ function buildMainStrength(
     }
   }
 
+  // Target ~3 supersets for 45 min (1 main + 2 accessory), ~15 min per superset; scale with duration.
   let pairCount =
     input.duration_minutes <= 30 ? 1
-    : input.duration_minutes <= 45 ? 1
-    : 2;
+    : input.duration_minutes <= 45 ? 2
+    : 3;
   if (input.energy_level === "low") pairCount = Math.min(pairCount, 1);
   if (pairCount && wantsSupersets) {
     const available = accessoryPool.filter((e) => !used.has(e.id));
@@ -1265,6 +1314,8 @@ function buildMainStrength(
           });
         }
       }
+      // ~15 min per superset (take or remove based on warmup/cooldown).
+      const supersetCount = supersetPairs.length;
       blocks.push({
         block_type: "main_strength",
         format: "superset",
@@ -1272,12 +1323,108 @@ function buildMainStrength(
         reasoning: "Superset for time efficiency." + (input.energy_level === "high" ? " Core added for high energy." : ""),
         items: accessoryItems,
         supersetPairs,
-        estimated_minutes: Math.ceil(accessoryItems.length / 2) * 4,
+        estimated_minutes: supersetCount * 15,
       });
     }
   }
 
   return blocks;
+}
+
+/** Power goal: build a dedicated Power block with 2–4 explosive/power exercises (lower body when focus is lower). */
+function buildPowerBlock(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  rng: () => number,
+  fatigueVolumeScale?: number,
+  fatigueState?: FatigueState,
+  sessionFatigueRegions?: Map<string, number>,
+  historyContext?: TrainingHistoryContext
+): WorkoutBlock[] {
+  const focus = input.focus_body_parts ?? [];
+  const isLower = focus.length === 0 || focus.some((f) => f.toLowerCase().replace(/\s/g, "_") === "lower" || f.toLowerCase() === "lower_body");
+  const lowerPatterns = new Set(["squat", "hinge", "locomotion"]);
+  const lowerMuscles = new Set(["legs", "quads", "glutes", "hamstrings", "calves"]);
+
+  const powerPool = exercises.filter((e) => {
+    if (used.has(e.id)) return false;
+    const hasPower = e.modality === "power" || (e.tags?.goal_tags ?? []).includes("power");
+    const isExplosiveConditioning =
+      e.modality === "conditioning" && (e.tags?.goal_tags ?? []).includes("power") && (e.tags?.stimulus ?? []).some((s) => String(s).toLowerCase().includes("plyometric"));
+    if (!hasPower && !isExplosiveConditioning) return false;
+    if (e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_"))) return false;
+    if (e.fatigue_cost === "high") return false;
+    if (isLower) {
+      const pattern = effectiveMainWorkPattern(e);
+      const muscles = new Set((e.muscle_groups ?? []).map((m) => m.toLowerCase()));
+      const family = (e.primary_movement_family ?? "").toLowerCase().replace(/\s/g, "_");
+      const isLowerBody =
+        lowerPatterns.has(pattern) ||
+        family === "lower_body" ||
+        muscles.has("legs") ||
+        muscles.has("quads") ||
+        muscles.has("glutes") ||
+        muscles.has("hamstrings");
+      if (!isLowerBody) return false;
+    }
+    return true;
+  });
+
+  const wantCount = input.duration_minutes <= 30 ? 2 : input.duration_minutes <= 45 ? 3 : 4;
+  const count = Math.min(wantCount, Math.max(2, powerPool.length));
+  if (count < 1 || powerPool.length < 1) return [];
+
+  const { exercises: chosen } = selectExercises(
+    powerPool,
+    input,
+    recentIds,
+    movementCounts,
+    count,
+    rng,
+    false,
+    fatigueState,
+    {
+      blockType: "power",
+      sessionFatigueRegions,
+      sessionMovementPatternCounts: movementCounts,
+      historyContext,
+    }
+  );
+
+  if (chosen.length === 0) return [];
+
+  const items: WorkoutItem[] = [];
+  let estMinutes = 0;
+  for (const e of chosen) {
+    used.add(e.id);
+    movementCounts.set(e.movement_pattern ?? "other", (movementCounts.get(e.movement_pattern ?? "other") ?? 0) + 1);
+    const p = getPrescription(e, "power", input.energy_level, "power", false, fatigueVolumeScale, input.style_prefs?.user_level);
+    items.push({
+      exercise_id: e.id,
+      exercise_name: e.name,
+      sets: p.sets,
+      reps: p.reps,
+      rest_seconds: p.rest_seconds,
+      coaching_cues: p.coaching_cues,
+      reasoning_tags: ["power", "explosive", ...(e.tags?.goal_tags ?? [])],
+      unilateral: e.unilateral ?? false,
+    });
+    estMinutes += (p.sets ?? 3) * (2 + (p.rest_seconds ?? 90) / 60);
+  }
+
+  return [
+    {
+      block_type: "power",
+      format: "straight_sets",
+      title: "Power",
+      reasoning: "Explosive intent; rate of force development. Full recovery between sets.",
+      items,
+      estimated_minutes: Math.min(Math.ceil(estMinutes), 35),
+    },
+  ];
 }
 
 /** Effective legacy movement pattern for main-work pool (ontology movement_patterns or legacy movement_pattern). */
@@ -1286,6 +1433,27 @@ function effectiveMainWorkPattern(e: Exercise): string {
     movement_patterns: e.movement_patterns,
     movement_pattern: e.movement_pattern,
   });
+}
+
+/** Primary fine movement pattern (horizontal_push, vertical_pull, etc.) when set; undefined otherwise. */
+function getPrimaryFineMovementPattern(e: Exercise): string | undefined {
+  const first = e.movement_patterns?.[0];
+  if (!first) return undefined;
+  return first.toLowerCase().replace(/\s/g, "_");
+}
+
+/** Upper-body calisthenics: push-up, handstand, pull-up families only (horizontal_push, vertical_push, vertical_pull). */
+const CALISTHENICS_UPPER_PREFERRED_FINE_PATTERNS = new Set([
+  "horizontal_push",
+  "vertical_push",
+  "vertical_pull",
+]);
+
+function isCalisthenicsUpperPreferredPattern(e: Exercise): boolean {
+  const fine = getPrimaryFineMovementPattern(e);
+  if (fine && CALISTHENICS_UPPER_PREFERRED_FINE_PATTERNS.has(fine)) return true;
+  const legacy = effectiveMainWorkPattern(e);
+  return legacy === "push" || legacy === "pull";
 }
 
 /** Pick conditioning exercise: prefer those matching preferred_zone2_cardio (e.g. bike, treadmill, rower), else random. */
@@ -1664,6 +1832,48 @@ function blockTitleForGoal(
   return name;
 }
 
+/** True when conditioning exercise is Zone 2 / steady-state cardio (treadmill, bike, rower at aerobic_zone2). */
+function isZone2Conditioning(exercise: Exercise): boolean {
+  if (exercise.tags?.stimulus?.includes("aerobic_zone2")) return true;
+  const id = (exercise.id ?? "").toLowerCase();
+  return id.startsWith("zone2_") || id.includes("zone2");
+}
+
+/** Normalize block title for comparison (so "Conditioning" and "conditioning" match). */
+function normalizedBlockTitle(block: WorkoutBlock): string {
+  const raw = block.title ?? block.block_type;
+  return raw.toLowerCase().replace(/_/g, " ").trim();
+}
+
+/** Merge consecutive blocks that share the same display title so we never show two blocks with the same name. */
+function mergeConsecutiveBlocksWithSameTitle(blocks: WorkoutBlock[]): WorkoutBlock[] {
+  if (blocks.length <= 1) return blocks;
+  const result: WorkoutBlock[] = [];
+  for (const block of blocks) {
+    const displayTitle = normalizedBlockTitle(block);
+    const last = result[result.length - 1];
+    const lastTitle = last ? normalizedBlockTitle(last) : "";
+    if (last && lastTitle === displayTitle) {
+      const merged: WorkoutBlock = {
+        block_type: last.block_type,
+        format: last.format,
+        title: last.title,
+        reasoning: last.reasoning,
+        items: [...last.items, ...block.items],
+        estimated_minutes: (last.estimated_minutes ?? 0) + (block.estimated_minutes ?? 0),
+        supersetPairs:
+          (last.supersetPairs?.length && block.supersetPairs?.length)
+            ? [...(last.supersetPairs ?? []), ...(block.supersetPairs ?? [])]
+            : last.supersetPairs ?? block.supersetPairs,
+      };
+      result[result.length - 1] = merged;
+    } else {
+      result.push({ ...block });
+    }
+  }
+  return result;
+}
+
 // --- Session title: body focus + goal + optional secondary + duration ---
 function sessionTitle(input: GenerateWorkoutInput): string {
   const goal = input.primary_goal.replace(/_/g, " ");
@@ -1766,7 +1976,54 @@ export function generateWorkoutSession(
   const sessionFatigueRegions = new Map<string, number>();
 
   // 4. Build main block (goal-specific); session fatigue regions improve later picks
-  if (primary === "strength" || primary === "power") {
+  if (primary === "power") {
+    blocks.push(...buildPowerBlock(filtered, input, used, recentIds, movementCounts, rng, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
+    if (input.duration_minutes >= 45) {
+      const accessoryPool = filtered.filter(
+        (e) =>
+          (e.modality === "strength" || e.modality === "hypertrophy") &&
+          !used.has(e.id) &&
+          !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
+      );
+      const pairs = pickBestSupersetPairs(accessoryPool, 1, used) as [Exercise, Exercise][];
+      if (pairs.length > 0) {
+        const [exA, exB] = pairs[0];
+        used.add(exA.id);
+        used.add(exB.id);
+        const pA = getPrescription(exA, "main_strength", input.energy_level, "power", true, fatigueVolumeScale, input.style_prefs?.user_level);
+        const pB = getPrescription(exB, "main_strength", input.energy_level, "power", true, fatigueVolumeScale, input.style_prefs?.user_level);
+        const itemA: WorkoutItem = {
+          exercise_id: exA.id,
+          exercise_name: exA.name,
+          sets: pA.sets,
+          reps: pA.reps,
+          rest_seconds: pA.rest_seconds,
+          coaching_cues: pA.coaching_cues,
+          reasoning_tags: ["accessory", ...(exA.tags?.goal_tags ?? [])],
+          unilateral: exA.unilateral ?? false,
+        };
+        const itemB: WorkoutItem = {
+          exercise_id: exB.id,
+          exercise_name: exB.name,
+          sets: pB.sets,
+          reps: pB.reps,
+          rest_seconds: pB.rest_seconds,
+          coaching_cues: pB.coaching_cues,
+          reasoning_tags: ["accessory", ...(exB.tags?.goal_tags ?? [])],
+          unilateral: exB.unilateral ?? false,
+        };
+        blocks.push({
+          block_type: "accessory",
+          format: "superset",
+          title: "Accessory",
+          reasoning: "Supporting work; controlled after power.",
+          items: [itemA, itemB],
+          supersetPairs: [[itemA, itemB]],
+          estimated_minutes: 8,
+        });
+      }
+    }
+  } else if (primary === "strength") {
     blocks.push(...buildMainStrength(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
   } else if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
     blocks.push(...buildMainHypertrophy(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
@@ -1973,12 +2230,19 @@ export function generateWorkoutSession(
           const estimatedMin = isHighIntensityConditioning(c) || isExplosiveConditioning(c)
             ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
             : conditioningMins;
+          const hasConditioningTitle = blocks.some((b) => b.title === "Conditioning");
+          const conditioningBlockTitle =
+            isZone2Conditioning(c)
+              ? "Zone 2"
+              : hasConditioningTitle
+                ? "Aerobic finisher"
+                : requiredConditioning
+                  ? blockTitleForGoal("conditioning", primary, true)
+                  : blockTitleForGoal("conditioning", primary, false);
           blocks.push({
             block_type: "conditioning",
             format: condFormat,
-            title: requiredConditioning
-              ? blockTitleForGoal("conditioning", primary, true)
-              : blockTitleForGoal("conditioning", primary, false),
+            title: conditioningBlockTitle,
             reasoning: requiredConditioning
               ? "Conditioning for secondary goal; shorter block to preserve primary focus."
               : (interval.reasoning ?? "Cardio finisher."),
@@ -2001,6 +2265,19 @@ export function generateWorkoutSession(
     }
   }
 
+  // 6b. Ensure no two blocks share the same title
+  const usedTitles = new Set<string>();
+  for (const b of blocks) {
+    let t = b.title ?? b.block_type.replace(/_/g, " ");
+    if (usedTitles.has(t)) {
+      let suffix = 2;
+      while (usedTitles.has(`${t} (${suffix})`)) suffix++;
+      t = `${t} (${suffix})`;
+      b.title = t;
+    }
+    usedTitles.add(t);
+  }
+
   // 7. Build cooldown (required-block: mobility secondary goal → min mobility exercises + visible block)
   const mainWorkFamilies = getMainWorkFamiliesFromBlocks(blocks, filtered);
   const cooldown = buildCooldown(filtered, input, used, rng, {
@@ -2009,11 +2286,14 @@ export function generateWorkoutSession(
   });
   blocks.push(cooldown);
 
+  // Merge consecutive blocks with the same title so we never show two blocks with the same name
+  const mergedBlocks = mergeConsecutiveBlocksWithSameTitle(blocks);
+
   // Phase 11: attach progress/maintain/regress/rotate and prescription influence
-  attachRecommendationsToSession(blocks, filtered, historyContext, recentIds);
+  attachRecommendationsToSession(mergedBlocks, filtered, historyContext, recentIds);
 
   // 8. Post-assembly validation and repair (Phase 8)
-  const sumBlockMinutes = blocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
+  const sumBlockMinutes = mergedBlocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
   const estimated_duration_minutes =
     input.duration_minutes != null && input.duration_minutes > 0
       ? input.duration_minutes
@@ -2028,7 +2308,7 @@ export function generateWorkoutSession(
   const session: WorkoutSession = {
     title: sessionTitle(input),
     estimated_duration_minutes,
-    blocks,
+    blocks: mergedBlocks,
     debug,
   };
 

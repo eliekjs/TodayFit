@@ -56,7 +56,7 @@ function testSessionTitleWithBodyFocus() {
   console.log("  OK: secondary mobility → title includes + Mobility");
 }
 
-// --- Power goal: main block uses power rep range and longer rest ---
+// --- Power goal: dedicated Power block with explosive exercises, power rep range and longer rest ---
 function testPowerPrescription() {
   const input: GenerateWorkoutInput = {
     duration_minutes: 45,
@@ -68,19 +68,17 @@ function testPowerPrescription() {
     seed: 201,
   };
   const session = generateWorkoutSession(input, STUB_EXERCISES, false);
-  const mainBlocks = session.blocks.filter(
-    (b) => b.block_type === "main_strength"
-  );
-  assert(mainBlocks.length >= 1, "power session has at least one main_strength block");
-  const mainBlock = mainBlocks[0];
-  assert(mainBlock?.items?.length >= 1, "main block has items");
-  const firstItem = mainBlock.items[0];
+  const powerBlocks = session.blocks.filter((b) => b.block_type === "power");
+  assert(powerBlocks.length >= 1, "power session has at least one power block");
+  const powerBlock = powerBlocks[0];
+  assert(powerBlock?.items?.length >= 1, "power block has items");
+  const firstItem = powerBlock.items[0];
   assert(firstItem != null, "first item exists");
   const reps = firstItem.reps ?? 0;
   const rest = firstItem.rest_seconds ?? 0;
   assert(reps >= 2 && reps <= 6, "power reps in 2–6 range (power rep range)");
   assert(rest >= 90, "power rest >= 90 s (power uses long rest)");
-  console.log("  OK: power goal → main block reps 2–6, rest ≥90 s");
+  console.log("  OK: power goal → power block reps 2–6, rest ≥90 s");
 }
 
 // --- Beginner: fewer sets and simpler cues ---

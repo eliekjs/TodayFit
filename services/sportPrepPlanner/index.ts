@@ -12,6 +12,7 @@ import {
 } from "./weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../lib/dayTitle";
 import { GOAL_SLUG_TO_LABEL, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../lib/preferencesConstants";
+import { getCanonicalSportSlug } from "../../data/sportSubFocus";
 
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
@@ -406,18 +407,18 @@ function sessionIntentForSport(
 ): SessionIntent {
   // Vertical jump / dunk: bias toward power and lower-body so selection yields jump-specific exercises (plyos, squats, etc.).
   const isVerticalJump = sportSlug === "vertical_jump";
-  // Road cycling: bias toward endurance and lower-body + core so selection yields cycling-support exercises (leg strength, core, zone 2).
-  const isCyclingRoad = sportSlug === "cycling_road";
-  // Mountain biking: same lower-body + core bias; single-leg and balance favored via tag map.
-  const isCyclingMtb = sportSlug === "cycling_mtb";
+  // Cycling (road + mountain): bias toward lower-body + core so selection yields cycling-support exercises (leg strength, core, zone 2).
+  const isCycling = sportSlug === "cycling" || sportSlug === "cycling_road" || sportSlug === "cycling_mtb";
   // Hiking / backpacking: lower-body, single-leg, ankle stability, load carriage.
   const isHikingBackpacking = sportSlug === "hiking_backpacking";
-  // Backcountry skiing / ski touring: lower-body, uphill endurance, leg strength, core.
-  const isBackcountrySkiing = sportSlug === "backcountry_skiing";
+  // Backcountry skiing / splitboarding: lower-body, uphill endurance, leg strength, core.
+  const isBackcountrySkiing = getCanonicalSportSlug(sportSlug) === "backcountry_skiing";
   // Alpine (downhill) skiing: lower-body, eccentric control, knee/ankle stability.
   const isAlpineSkiing = sportSlug === "alpine_skiing";
   // Snowboarding: lower-body, balance, core, lateral stability.
   const isSnowboarding = sportSlug === "snowboarding";
+  // Rock climbing (bouldering, sport/lead, trad): upper-body pull, grip, core.
+  const isRockClimbing = sportSlug === "rock_climbing" || sportSlug === "rock_bouldering" || sportSlug === "rock_sport_lead" || sportSlug === "rock_trad";
   // Ice climbing: upper-body pull, grip, shoulder, core.
   const isIceClimbing = sportSlug === "ice_climbing";
   // Road running: bias toward lower-body + core and leg resilience so selection yields running-support exercises.
@@ -448,8 +449,14 @@ function sessionIntentForSport(
   const isGeneralStrength = sportSlug === "general_strength";
   // Bodybuilding: full-body (push, pull, legs, arms, core).
   const isBodybuilding = sportSlug === "bodybuilding";
-  // Track sprinting: lower-body power, plyometrics, hamstring/tendon.
-  const isTrackSprinting = sportSlug === "track_sprinting";
+  // Track sprinting / track & field: lower-body power, plyometrics, hamstring/tendon.
+  const isTrackSprinting = sportSlug === "track_sprinting" || sportSlug === "track_field";
+  // Volleyball (indoor + beach): lower-body (jump, land), core, shoulder.
+  const isVolleyball = sportSlug === "volleyball" || sportSlug === "volleyball_indoor" || sportSlug === "volleyball_beach";
+  // Racquet & court (tennis, pickleball, badminton, squash): full-body (lateral, rotation, shoulder).
+  const isCourtRacquet = sportSlug === "court_racquet" || sportSlug === "tennis" || sportSlug === "pickleball" || sportSlug === "badminton" || sportSlug === "squash";
+  // Grappling (BJJ, Judo, MMA, Wrestling): full-body (grip, hip, pull, work capacity).
+  const isGrappling = sportSlug === "grappling" || sportSlug === "bjj" || sportSlug === "judo" || sportSlug === "mma" || sportSlug === "wrestling";
   // Strongman: full-body (carries, overhead, deadlift, grip, trunk).
   const isStrongman = sportSlug === "strongman";
   return {
@@ -462,12 +469,12 @@ function sessionIntentForSport(
     energyLevel: energy,
     notes: `Sport-specific conditioning to support ${sportLabel}.`,
     ...(isVerticalJump && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
-    ...(isCyclingRoad && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
-    ...(isCyclingMtb && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isCycling && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isHikingBackpacking && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isBackcountrySkiing && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isAlpineSkiing && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isSnowboarding && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isRockClimbing && { bodyRegionBias: { targetBody: "Upper", targetModifier: ["Pull"] } }),
     ...(isIceClimbing && { bodyRegionBias: { targetBody: "Upper", targetModifier: ["Pull"] } }),
     ...(isRoadRunning && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isSwimming && { bodyRegionBias: { targetBody: "Upper", targetModifier: ["Pull"] } }),
@@ -484,6 +491,9 @@ function sessionIntentForSport(
     ...(isGeneralStrength && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
     ...(isBodybuilding && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
     ...(isTrackSprinting && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isVolleyball && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
+    ...(isCourtRacquet && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...(isGrappling && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
     ...(isStrongman && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
   };
 }
@@ -758,6 +768,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const baseDate = input.weekStartDate ? new Date(input.weekStartDate) : today;
   const weekStart = startOfWeekMonday(baseDate);
   const weekStartIso = toIsoDate(weekStart);
+  // #region agent log
+  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d73157'},body:JSON.stringify({sessionId:'d73157',location:'sportPrepPlanner/planWeek:input',message:'planWeek input',data:{gymDaysPerWeek:input.gymDaysPerWeek,preferredTrainingDays:input.preferredTrainingDays ?? null,todayDOW:(today.getDay()+6)%7,hasUserId:!!input.userId},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+  // #endregion
 
   const userGoalWeights: [number, number, number] | undefined =
     input.goalMatchPrimaryPct != null
@@ -803,33 +816,63 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     }
   );
 
-  const totalTrainingDays = Math.max(
-    1,
-    daySlots.length > 0
-      ? Math.min(7, daySlots.length)
-      : Math.min(7, input.gymDaysPerWeek || 3)
-  );
-
   const weekDates: string[] = [];
   for (let i = 0; i < 7; i += 1) {
     weekDates.push(toIsoDate(addDays(weekStart, i)));
   }
 
   const hasSportSlots = daySlots.some((s) => s.type === "sport");
+  const orderedIntentsForSlots =
+    intentOrder.length > 0 ? intentOrder : (["strength"] as IntentKey[]);
+
+  // Prefer user-selected days: use all preferred days so no selected day is dropped.
+  const preferredUnique =
+    input.preferredTrainingDays && input.preferredTrainingDays.length > 0
+      ? Array.from(
+          new Set(
+            input.preferredTrainingDays.filter((idx) => idx >= 0 && idx < 7)
+          )
+        ).sort((a, b) => a - b)
+      : null;
+
   const trainingIndices: number[] = [];
-  if (input.preferredTrainingDays && input.preferredTrainingDays.length > 0) {
-    const unique = Array.from(
-      new Set(
-        input.preferredTrainingDays.filter((idx) => idx >= 0 && idx < 7)
-      )
-    );
-    trainingIndices.push(...unique.slice(0, totalTrainingDays));
-  } else if (hasSportSlots) {
-    for (let i = 0; i < totalTrainingDays && i < 7; i += 1) {
-      trainingIndices.push(i);
+  let totalTrainingDays: number;
+
+  if (preferredUnique && preferredUnique.length > 0) {
+    trainingIndices.push(...preferredUnique);
+    totalTrainingDays = trainingIndices.length;
+    // Ensure we have at least as many slots as training days (pad with gym slots if needed).
+    const needSlots = totalTrainingDays - daySlots.length;
+    if (needSlots > 0) {
+      for (let i = 0; i < needSlots; i++) {
+        const idx = daySlots.length + i;
+        const key = orderedIntentsForSlots[idx % orderedIntentsForSlots.length];
+        const targetBody = idx % 2 === 0 ? "Upper" : "Lower";
+        daySlots.push({
+          type: "gym",
+          key,
+          dayBias: {
+            targetBody,
+            targetModifier: [],
+            intentKey: key,
+          },
+        });
+      }
     }
   } else {
-    trainingIndices.push(...spreadTrainingDays(totalTrainingDays));
+    totalTrainingDays = Math.max(
+      1,
+      daySlots.length > 0
+        ? Math.min(7, daySlots.length)
+        : Math.min(7, input.gymDaysPerWeek || 3)
+    );
+    if (hasSportSlots) {
+      for (let i = 0; i < totalTrainingDays && i < 7; i += 1) {
+        trainingIndices.push(i);
+      }
+    } else {
+      trainingIndices.push(...spreadTrainingDays(totalTrainingDays));
+    }
   }
 
   const trainingIndexSet = new Set(trainingIndices);
@@ -978,6 +1021,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       });
     }
     const todayDay = plannedDays.find((d) => d.date === todayIso) ?? null;
+    // #region agent log
+    const hasTodayWorkout = todayDay ? (guestWorkouts[todayIso] != null) : false;
+    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d73157'},body:JSON.stringify({sessionId:'d73157',location:'sportPrepPlanner/planWeek:guest',message:'Guest one-day plan built',data:{todayIso,trainingIndices,todayDayDate:todayDay?.date ?? null,hasTodayWorkout,plannedDaysLength:plannedDays.length,daysWithWorkout:plannedDays.filter(d=>guestWorkouts[d.date]).length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     const scheduleSnapshot: ScheduleSnapshot = {
       weekStartDate: weekStartIso,
       primaryGoalSlug: input.primaryGoalSlug,
@@ -1208,6 +1255,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     todayDay && todayDay.generatedWorkoutId
       ? await getWorkout(input.userId, todayDay.generatedWorkoutId)
       : null;
+  // #region agent log
+  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d73157'},body:JSON.stringify({sessionId:'d73157',location:'sportPrepPlanner/planWeek:persisted',message:'Persisted plan built',data:{todayIso,trainingIndices,todayDayDate:todayDay?.date ?? null,hasTodayWorkout:!!todayWorkout,finalDaysLength:finalDays.length},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+  // #endregion
 
   const scheduleSnapshot: ScheduleSnapshot = {
     weekStartDate: weekStartIso,
