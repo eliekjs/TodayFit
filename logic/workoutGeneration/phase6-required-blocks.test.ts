@@ -28,7 +28,7 @@ function testMobilitySecondaryGoalCreatesCooldownBlock() {
     injuries_or_constraints: [],
     seed: 100,
   };
-  const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
   const last = session.blocks[session.blocks.length - 1];
   assert(last != null, "session has blocks");
   assert(last.block_type === "cooldown", "last block is cooldown");
@@ -50,7 +50,7 @@ function testNoMobilityGoalLegacyCooldown() {
     injuries_or_constraints: [],
     seed: 101,
   };
-  const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
   const last = session.blocks[session.blocks.length - 1];
   assert(last?.block_type === "cooldown", "last block is cooldown");
   assert(last.items.length >= 2, "cooldown has at least 2 items");
@@ -180,8 +180,7 @@ function testExerciseRoleExcludedFromMainWork() {
       injuries_or_constraints: [],
       seed: 200,
     },
-    poolWithCooldownRole,
-    false
+    poolWithCooldownRole
   );
   const mainBlocks = session.blocks.filter(
     (b) => b.block_type === "main_strength" || b.block_type === "main_hypertrophy"
@@ -194,6 +193,25 @@ function testExerciseRoleExcludedFromMainWork() {
   console.log("  OK: exercise_role cooldown excluded from main work selection");
 }
 
+// --- 45 min conditioning / HIIT: at least 6 main-work exercises (not only 2 + warmups) ---
+function test45MinConditioningHasSixExercises() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 45,
+    primary_goal: "conditioning",
+    energy_level: "medium",
+    available_equipment: ["barbell", "bench", "dumbbells", "bodyweight", "kettlebell"],
+    injuries_or_constraints: [],
+    seed: 300,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+  const mainBlocks = session.blocks.filter(
+    (b) => b.block_type === "conditioning" || b.block_type === "main_strength" || b.block_type === "main_hypertrophy"
+  );
+  const mainExerciseCount = mainBlocks.reduce((n, b) => n + b.items.length, 0);
+  assert(mainExerciseCount >= 6, `45 min conditioning should have at least 6 main exercises, got ${mainExerciseCount}`);
+  console.log("  OK: 45 min conditioning has at least 6 main-work exercises");
+}
+
 function main() {
   console.log("Phase 6 required-block and cooldown selection tests...");
   testMobilitySecondaryGoalCreatesCooldownBlock();
@@ -202,6 +220,7 @@ function main() {
   testLowerBodyMobilityPreferTargets();
   testCooldownStretchOnly();
   testExerciseRoleExcludedFromMainWork();
+  test45MinConditioningHasSixExercises();
   console.log("All Phase 6 tests passed.");
 }
 

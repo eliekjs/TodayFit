@@ -191,6 +191,7 @@ export function buildDecisionReport(
     sessionSummary: buildSessionSummary(session),
     validation: buildValidationSummary(validation),
   };
+  // Scoring breakdown was removed from session; use a separate helper if needed for tests/tooling.
   if (session.debug?.scoring_breakdown?.length) {
     report.scoringSample = session.debug.scoring_breakdown.slice(0, 5).map((s) => ({
       exercise_id: s.exercise_id,
@@ -505,7 +506,7 @@ function formatExerciseChoiceReasoning(
     "",
   ];
   if (report.scoringSample?.length) {
-    lines.push("  (First " + report.scoringSample.length + " main-work exercises have scoring breakdown when run with --includeDebug.)");
+    lines.push("  (First " + report.scoringSample.length + " main-work exercises have scoring breakdown.)");
     lines.push("");
   }
   for (const block of session.blocks ?? []) {

@@ -22,7 +22,7 @@ function testSessionTitleWithBodyFocus() {
     injuries_or_constraints: [],
     seed: 200,
   };
-  const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
   assert(session.title.includes("Push"), "title includes focus label (Push)");
   assert(session.title.includes("45"), "title includes duration");
   assert(session.title.includes("Strength"), "title includes goal");
@@ -32,7 +32,7 @@ function testSessionTitleWithBodyFocus() {
     ...input,
     focus_body_parts: ["full_body"],
   };
-  const sessionFull = generateWorkoutSession(fullBody, STUB_EXERCISES, false);
+  const sessionFull = generateWorkoutSession(fullBody, STUB_EXERCISES);
   assert(!sessionFull.title.includes("Full body") || sessionFull.title.includes("Strength"), "full_body does not add redundant focus or still shows goal");
   console.log("  OK: full_body focus → title is goal + duration");
 
@@ -41,7 +41,7 @@ function testSessionTitleWithBodyFocus() {
     focus_body_parts: ["lower"],
     primary_goal: "hypertrophy",
   };
-  const sessionLower = generateWorkoutSession(lowerInput, STUB_EXERCISES, false);
+  const sessionLower = generateWorkoutSession(lowerInput, STUB_EXERCISES);
   assert(sessionLower.title.includes("Lower"), "title includes Lower for lower focus");
   console.log("  OK: lower focus → title includes Lower");
 
@@ -51,7 +51,7 @@ function testSessionTitleWithBodyFocus() {
     focus_body_parts: [],
     secondary_goals: ["mobility"],
   };
-  const sessionMobility = generateWorkoutSession(withMobility, STUB_EXERCISES, false);
+  const sessionMobility = generateWorkoutSession(withMobility, STUB_EXERCISES);
   assert(sessionMobility.title.includes("Mobility"), "title includes + Mobility when mobility is secondary goal");
   console.log("  OK: secondary mobility → title includes + Mobility");
 }
@@ -67,7 +67,7 @@ function testPowerPrescription() {
     injuries_or_constraints: [],
     seed: 201,
   };
-  const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
   const powerBlocks = session.blocks.filter((b) => b.block_type === "power");
   assert(powerBlocks.length >= 1, "power session has at least one power block");
   const powerBlock = powerBlocks[0];
@@ -92,7 +92,7 @@ function testBeginnerPrescription() {
     seed: 202,
     style_prefs: { user_level: "beginner" },
   };
-  const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
   const mainBlock = session.blocks.find((b) => b.block_type === "main_strength");
   assert(mainBlock != null && mainBlock.items.length >= 1, "has main strength block");
   const item = mainBlock!.items[0];
@@ -115,8 +115,8 @@ function testWarmupCountByDuration() {
     seed: 203,
   };
   const long: GenerateWorkoutInput = { ...short, duration_minutes: 60, seed: 204 };
-  const sessionShort = generateWorkoutSession(short, STUB_EXERCISES, false);
-  const sessionLong = generateWorkoutSession(long, STUB_EXERCISES, false);
+  const sessionShort = generateWorkoutSession(short, STUB_EXERCISES);
+  const sessionLong = generateWorkoutSession(long, STUB_EXERCISES);
   const warmupShort = sessionShort.blocks.find((b) => b.block_type === "warmup");
   const warmupLong = sessionLong.blocks.find((b) => b.block_type === "warmup");
   assert(warmupShort != null && warmupLong != null, "both have warmup");
@@ -140,8 +140,8 @@ function testImpactPenaltyWithInjury() {
   };
   const movementCounts = new Map<string, number>();
   const recentIds = new Set<string>();
-  const scoreBox = scoreExercise(boxJump!, inputWithKnee, recentIds, movementCounts, false, undefined, {});
-  const scoreGoblet = scoreExercise(gobletSquat!, inputWithKnee, recentIds, movementCounts, false, undefined, {});
+  const scoreBox = scoreExercise(boxJump!, inputWithKnee, recentIds, movementCounts, undefined, {});
+  const scoreGoblet = scoreExercise(gobletSquat!, inputWithKnee, recentIds, movementCounts, undefined, {});
   assert(scoreBox.score < scoreGoblet.score, "with knee injury, high-impact box_jump scores below low-impact goblet_squat");
   console.log("  OK: knee injury → high-impact exercise down-ranked vs low-impact");
 }

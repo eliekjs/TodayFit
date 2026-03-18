@@ -893,6 +893,6 @@ export async function generateWorkoutAsync(
     preferredExerciseSlugsOrNames,
     sportGoalContext
   );
-  const session = generateWorkoutSession(input, pool, false);
+  const session = generateWorkoutSession(input, pool);
   return workoutSessionToGeneratedWorkout(session, preferences, `w_${Date.now()}`);
 }

@@ -23,8 +23,6 @@ import {
   isCooldownEligibleEquipment,
   WARMUP_CARDIO_POSITION,
   WARMUP_ITEM_MAX_SECONDS,
-  getInjuryAvoidTags,
-  getInjuryAvoidExerciseIds,
   normalizeInjuryKey,
   MAX_SAME_PATTERN_PER_SESSION,
   MAX_CONSECUTIVE_SAME_CLUSTER,
@@ -65,11 +63,15 @@ import {
   MAIN_WORK_EXCLUDED_ROLES,
 } from "./cooldownSelection";
 import { pickBestSupersetPairs, supersetCompatibility } from "../workoutIntelligence/supersetPairing";
+import {
+  isExerciseAllowedByInjuries,
+} from "../workoutIntelligence/constraints/eligibilityHelpers";
 import { validateWorkoutAgainstConstraints } from "../workoutIntelligence/validation/workoutValidator";
 import {
   computeOntologyScoreComponents,
   getEffectiveFatigueRegions,
   getPreferredWarmupTargetsFromFocus,
+  exerciseWarmupTargetsOverlap,
 } from "./ontologyScoring";
 import { buildHistoryContextFromLegacy, type TrainingHistoryContext } from "./historyTypes";
 import {
@@ -157,25 +159,6 @@ function getMainWorkFamiliesFromBlocks(blocks: WorkoutBlock[], exercises: Exerci
   return [...families];
 }
 
-/** Map focus_body_parts (generator input) to canonical movement families for strict filtering. */
-function focusToMovementFamilies(focus: string[]): Set<string> | null {
-  if (!focus?.length || focus.some((f) => f.toLowerCase() === "full_body")) return null;
-  const families = new Set<string>();
-  for (const f of focus) {
-    const key = f.toLowerCase().replace(/\s/g, "_");
-    if (key === "upper_push") families.add("upper_push");
-    else if (key === "upper_pull") families.add("upper_pull");
-    else if (key === "upper_body") {
-      families.add("upper_push");
-      families.add("upper_pull");
-    } else if (key === "lower" || key === "lower_body") families.add("lower_body");
-    else if (key === "core") families.add("core");
-    else if (key === "mobility") families.add("mobility");
-    else if (key === "conditioning") families.add("conditioning");
-  }
-  return families.size > 0 ? families : null;
-}
-
 /** Effective movement families for one exercise (ontology-first; fallback from pattern + muscles for generator Exercise). */
 function getEffectiveFamiliesForExercise(e: Exercise): string[] {
   const primary = e.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
@@ -197,8 +180,43 @@ function getEffectiveFamiliesForExercise(e: Exercise): string[] {
   return ["lower_body"];
 }
 
-// --- Hard constraints: filter out exercises that violate equipment, injuries, avoid, energy, time, body-part ---
-// Ontology-first: uses joint_stress_tags, contraindication_tags, primary_movement_family when present; fallback to tags/derivation.
+/**
+ * Adapter so eligibilityHelpers (which expect top-level joint_stress/contraindications) work with
+ * generator Exercise (which may have only tags.joint_stress / tags.contraindications).
+ */
+function toConstraintEligibilityShape(e: Exercise): Exercise & { joint_stress?: string[]; contraindications?: string[] } {
+  return {
+    ...e,
+    joint_stress: e.joint_stress_tags?.length ? e.joint_stress_tags : (e.tags?.joint_stress ?? []),
+    contraindications: e.contraindication_tags?.length ? e.contraindication_tags : (e.tags?.contraindications ?? []),
+  };
+}
+
+/**
+ * Filter pool by resolved constraints (single source of truth with validator).
+ * Injury/body-part rules come from constraints; equipment and energy stay in filterByHardConstraints.
+ * Allows mobility/recovery/conditioning exercises into the pool even when body-part focus is set (for warmup/cooldown/conditioning blocks).
+ */
+function filterByConstraintsForPool(
+  exercises: Exercise[],
+  constraints: ResolvedWorkoutConstraints
+): Exercise[] {
+  const allowedFamilies = constraints.allowed_movement_families;
+  const hasBodyFocus = allowedFamilies != null && allowedFamilies.length > 0;
+
+  return exercises.filter((e) => {
+    const shape = toConstraintEligibilityShape(e);
+    if (!isExerciseAllowedByInjuries(shape, constraints)) return false;
+    if (!hasBodyFocus) return true;
+    const families = getEffectiveFamiliesForExercise(e);
+    if (families.some((f) => allowedFamilies!.includes(f))) return true;
+    // Warmup/cooldown/conditioning exercises are allowed in pool regardless of body focus (used in non-working blocks).
+    if (e.modality === "mobility" || e.modality === "recovery" || e.modality === "conditioning") return true;
+    return false;
+  });
+}
+
+// --- Hard constraints: equipment, style avoid_tags, energy. Injury and body-part are in resolveWorkoutConstraints + filterByConstraintsForPool (single source of truth with validator). ---
 export function filterByHardConstraints(
   exercises: Exercise[],
   input: GenerateWorkoutInput
@@ -206,11 +224,9 @@ export function filterByHardConstraints(
   const equipmentSet = new Set(
     input.available_equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"))
   );
-  const injuryKeys = new Set(input.injuries_or_constraints.map((i) => normalizeInjuryKey(i)));
   const avoidTags = input.style_prefs?.avoid_tags ?? [];
-  const injuryAvoidTags = getInjuryAvoidTags(input.injuries_or_constraints);
-  const injuryAvoidIds = getInjuryAvoidExerciseIds(input.injuries_or_constraints);
-  const allowedFamilies = focusToMovementFamilies(input.focus_body_parts ?? []);
+  const jointStressFor = (e: Exercise) =>
+    (e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags?.joint_stress) ?? [];
 
   return exercises.filter((e) => {
     if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
@@ -218,31 +234,13 @@ export function filterByHardConstraints(
     const required = e.equipment_required.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
     if (required.some((eq) => !equipmentSet.has(eq))) return false;
 
-    // Ontology-first: contraindications (canonical body regions) vs normalized injury keys
-    const contra = (e.contraindication_tags?.length ? e.contraindication_tags : e.tags.contraindications) ?? [];
-    if (contra.some((c) => injuryKeys.has(c.toLowerCase().replace(/\s/g, "_")))) return false;
-
-    // Ontology-first: joint stress (canonical slugs)
-    const jointStress = (e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags.joint_stress) ?? [];
-    for (const avoid of injuryAvoidTags) {
-      if (jointStress.some((t) => t.toLowerCase().replace(/\s/g, "_") === avoid)) return false;
-    }
-    if (injuryAvoidIds.has(e.id)) return false;
-
-    // Joint stress: if user style prefs avoid certain patterns, exclude
+    // Style prefs: avoid certain joint-stress patterns (e.g. from upcoming events)
+    const jointStress = jointStressFor(e);
     for (const avoid of avoidTags) {
       const a = avoid.toLowerCase().replace(/\s/g, "_");
       if (jointStress.some((t) => t.toLowerCase().replace(/\s/g, "_") === a)) return false;
     }
-
-    // Avoid overhead / hanging when user specified
     if (exerciseHasOverheadOrHanging(e, avoidTags)) return false;
-
-    // Strict body-part focus: only allow exercises whose primary or secondary movement family is in the allowed set
-    if (allowedFamilies != null && allowedFamilies.size > 0) {
-      const families = getEffectiveFamiliesForExercise(e);
-      if (!families.some((f) => allowedFamilies!.has(f))) return false;
-    }
 
     // Energy: low energy → exclude exercises tagged only for high
     if (input.energy_level === "low") {
@@ -358,12 +356,10 @@ export function scoreExercise(
   input: GenerateWorkoutInput,
   recentExerciseIds: Set<string>,
   movementPatternCounts: Map<string, number>,
-  includeDebug: boolean,
   fatigueState?: FatigueState,
   options?: ScoreExerciseOptions
-): { score: number; debug?: Partial<ScoringDebug> } {
+): { score: number } {
   let total = 0;
-  const debug: Partial<ScoringDebug> | undefined = includeDebug ? { exercise_id: exercise.id } : undefined;
   const opts = options ?? {};
 
   // Goal alignment (optionally scaled by goal_weights when provided)
@@ -381,7 +377,6 @@ export function scoreExercise(
     else goalScore += gw ? WEIGHT_TERTIARY * 0.5 * (w2 / 0.1) : WEIGHT_TERTIARY * 0.5;
   }
   total += goalScore;
-  if (debug) debug.goal_alignment = goalScore;
 
   // Sport match: boost exercises whose sport_tags match user's ranked sport(s)
   const sportSlugs = input.sport_slugs;
@@ -391,7 +386,6 @@ export function scoreExercise(
       const slug = tagToSlug(sportSlugs[i]);
       if (exerciseSportTags.has(slug)) {
         total += i === 0 ? 2 : 1;
-        if (debug) debug.sport_tag_match = i === 0 ? 2 : 1;
         break;
       }
     }
@@ -408,7 +402,6 @@ export function scoreExercise(
     if (idx >= 0) {
       const bonus = Math.max(0.5, 2 - idx * 0.25);
       total += bonus;
-      if (debug) debug.preferred_exercise_bonus = bonus;
     }
   }
 
@@ -421,24 +414,20 @@ export function scoreExercise(
     const matchInAny = exercise.muscle_groups.some((m) => wantedMuscles.has(m));
     if (matchInAny) {
       total += WEIGHT_BODY_PART;
-      if (debug) debug.body_part = WEIGHT_BODY_PART;
     }
     // Primary muscle match bonus: exercise primarily targets the user's focus (ExRx primary movers)
     if (matchInPrimary) {
       total += 0.5;
-      if (debug) debug.primary_muscle_match_bonus = 0.5;
     }
     // Quad/Posterior emphasis: when Lower is selected with modifier, prefer matching pattern/category
     const focusSet = new Set(focusParts.map((f) => f.toLowerCase().replace(/\s/g, "_")));
-    const pattern = (exercise.movement_pattern ?? "").toLowerCase();
+    const patternFocus = (exercise.movement_pattern ?? "").toLowerCase();
     const pairing = (exercise.pairing_category ?? "").toLowerCase().replace(/\s/g, "_");
-    if (focusSet.has("quad") && (pattern === "squat" || pairing === "quads")) {
+    if (focusSet.has("quad") && (patternFocus === "squat" || pairing === "quads")) {
       total += 0.8;
-      if (debug) debug.body_part_emphasis_bonus = 0.8;
     }
-    if (focusSet.has("posterior") && (pattern === "hinge" || pairing === "posterior_chain")) {
+    if (focusSet.has("posterior") && (patternFocus === "hinge" || pairing === "posterior_chain")) {
       total += 0.8;
-      if (debug) debug.body_part_emphasis_bonus = (debug.body_part_emphasis_bonus ?? 0) + 0.8;
     }
   }
 
@@ -449,15 +438,12 @@ export function scoreExercise(
       exercise.tags.goal_tags?.includes("calisthenics");
     if (isBodyweight) {
       total += 1.5;
-      if (debug) debug.calisthenics_bodyweight_bonus = 1.5;
     } else {
       total -= 1.5;
-      if (debug) debug.calisthenics_non_bodyweight_penalty = -1.5;
     }
     const hasRegressions = (exercise.regressions?.length ?? 0) > 0;
     if (hasRegressions) {
       total += 0.5;
-      if (debug) debug.calisthenics_advanced_bonus = 0.5;
     }
     const focusPartsNorm = (input.focus_body_parts ?? []).map((f) => f.toLowerCase().replace(/\s/g, "_"));
     const focusUpper =
@@ -468,7 +454,6 @@ export function scoreExercise(
       const fine = getPrimaryFineMovementPattern(exercise);
       if (fine && CALISTHENICS_UPPER_PREFERRED_FINE_PATTERNS.has(fine)) {
         total += 0.8;
-        if (debug) debug.calisthenics_upper_preferred_pattern_bonus = 0.8;
       }
     }
   }
@@ -490,7 +475,6 @@ export function scoreExercise(
       const subFocusCoeff = 0.5;
       const subFocusContribution = subFocusScore * subFocusCoeff;
       total += subFocusContribution;
-      if (debug && subFocusContribution > 0) debug.sub_focus_tag_match = subFocusContribution;
     }
   }
 
@@ -499,7 +483,6 @@ export function scoreExercise(
   const impactSensitiveKeys = new Set(injuries.map(normalizeInjuryKey).filter((k) => ["knee", "knee_pain", "lower_back", "low_back_sensitive", "ankle"].includes(k)));
   if (impactSensitiveKeys.size > 0 && exercise.impact_level === "high") {
     total -= 2;
-    if (debug) debug.impact_penalty = -2;
   }
 
   // Contraindication priority: prefer exercises with fewer contraindications when otherwise equal
@@ -507,20 +490,16 @@ export function scoreExercise(
   const contraCount = (exercise.contraindication_tags?.length ?? exercise.tags.contraindications?.length ?? 0);
   if (contraCount === 0) {
     total += 0.3;
-    if (debug) debug.contraindication_priority_bonus = 0.3;
   } else if (contraCount === 1) {
     total += 0.2;
-    if (debug) debug.contraindication_priority_bonus = 0.2;
   } else if (contraCount === 2) {
     total += 0.1;
-    if (debug) debug.contraindication_priority_bonus = 0.1;
   }
 
   // Energy fit
   const energyFit = exercise.tags.energy_fit ?? ["low", "medium", "high"];
   if (energyFit.includes(input.energy_level)) {
     total += WEIGHT_ENERGY_FIT;
-    if (debug) debug.energy_fit = WEIGHT_ENERGY_FIT;
   }
 
   // Variety penalty: used recently
@@ -531,7 +510,6 @@ export function scoreExercise(
   if (samePatternCount >= 2) varietyPenalty += 1.5;
   if (samePatternCount >= 3) varietyPenalty += 2;
   total -= varietyPenalty;
-  if (debug && varietyPenalty) debug.variety_penalty = -varietyPenalty;
 
   // Balance bonus: movement-pattern balancing engine (prefer missing categories, then underrepresented)
   const balanceBonus = balanceBonusForExercise(
@@ -541,22 +519,18 @@ export function scoreExercise(
     [...BALANCE_CATEGORY_PATTERNS]
   );
   total += balanceBonus;
-  if (debug && balanceBonus) debug.balance_bonus = balanceBonus;
 
   // Fatigue management: slight penalty for re-hitting same muscle groups as last session
   if (fatigueState) {
     const fatiguePenalty = fatiguePenaltyForExercise(exercise.muscle_groups, fatigueState);
     total += fatiguePenalty;
-    if (debug && fatiguePenalty !== 0) debug.fatigue_penalty = fatiguePenalty;
   }
 
   // Duration practicality: short sessions prefer low time_cost
   if (input.duration_minutes <= 30 && exercise.time_cost === "high") {
     total -= 1;
-    if (debug) debug.duration_practicality = -1;
   } else if (input.duration_minutes <= 30 && exercise.time_cost === "low") {
     total += 0.5;
-    if (debug) debug.duration_practicality = 0.5;
   }
 
   // Phase 11: history-aware scoring (no effect when history absent)
@@ -572,13 +546,6 @@ export function scoreExercise(
       lastCompletionSuccess: lastSuccess,
     });
     total += historyTotal;
-    if (debug && historyBreakdown) {
-      if (historyBreakdown.recent_exposure_penalty != null) debug.history_recent_exposure_penalty = historyBreakdown.recent_exposure_penalty;
-      if (historyBreakdown.anchor_repeat_bonus != null) debug.history_anchor_repeat_bonus = historyBreakdown.anchor_repeat_bonus;
-      if (historyBreakdown.accessory_rotation_penalty != null) debug.history_accessory_rotation_penalty = historyBreakdown.accessory_rotation_penalty;
-      if (historyBreakdown.movement_family_rotation_bonus != null) debug.history_movement_family_rotation_bonus = historyBreakdown.movement_family_rotation_bonus;
-      if (historyBreakdown.joint_stress_sensitivity_penalty != null) debug.history_joint_stress_sensitivity_penalty = historyBreakdown.joint_stress_sensitivity_penalty;
-    }
   }
 
   // Phase 9/10: ontology-aware scoring (additive; fallback when ontology absent)
@@ -592,19 +559,8 @@ export function scoreExercise(
     sessionMovementPatternCounts: opts.sessionMovementPatternCounts,
   });
   total += ontologyTotal;
-  if (debug && ontologyBreakdown) {
-    if (ontologyBreakdown.role_fit != null) debug.ontology_role_fit = ontologyBreakdown.role_fit;
-    if (ontologyBreakdown.movement_family_fit != null) debug.ontology_movement_family_fit = ontologyBreakdown.movement_family_fit;
-    if (ontologyBreakdown.main_lift_anchor != null) debug.ontology_main_lift_anchor = ontologyBreakdown.main_lift_anchor;
-    if (ontologyBreakdown.fatigue_balance != null) debug.ontology_fatigue_balance = ontologyBreakdown.fatigue_balance;
-    if (ontologyBreakdown.joint_stress_soft != null) debug.ontology_joint_stress_soft = ontologyBreakdown.joint_stress_soft;
-    if (ontologyBreakdown.warmup_cooldown_relevance != null) debug.ontology_warmup_cooldown_relevance = ontologyBreakdown.warmup_cooldown_relevance;
-    if (ontologyBreakdown.unilateral_variety_bonus != null) debug.ontology_unilateral_variety_bonus = ontologyBreakdown.unilateral_variety_bonus;
-    if (ontologyBreakdown.movement_pattern_redundancy_penalty != null) debug.ontology_movement_pattern_redundancy_penalty = ontologyBreakdown.movement_pattern_redundancy_penalty;
-  }
 
-  if (debug) debug.total = total;
-  return { score: total, debug };
+  return { score: total };
 }
 
 /** Equipment slugs that count as "only dumbbells/kettlebells" for rep-range override (no barbell, cable, machine). */
@@ -845,7 +801,6 @@ function selectExercises(
   movementCounts: Map<string, number>,
   count: number,
   rng: () => number,
-  includeDebug: boolean,
   fatigueState?: FatigueState,
   selectionOptions?: {
     blockType?: string;
@@ -855,7 +810,7 @@ function selectExercises(
     sessionHasBilateralLowerBody?: boolean;
     historyContext?: TrainingHistoryContext;
   }
-): { exercises: Exercise[]; scoringDebug: ScoringDebug[] } {
+): { exercises: Exercise[] } {
   const opts = selectionOptions ?? {};
   const scoreOpts: ScoreExerciseOptions = {
     blockType: opts.blockType,
@@ -868,7 +823,7 @@ function selectExercises(
 
   const scored = pool.map((e) => ({
     exercise: e,
-    ...scoreExercise(e, input, recentIds, movementCounts, includeDebug, fatigueState, scoreOpts),
+    ...scoreExercise(e, input, recentIds, movementCounts, fatigueState, scoreOpts),
   }));
   scored.sort((a, b) => b.score - a.score);
   const topOverall = scored.slice(0, Math.min(60, scored.length));
@@ -879,7 +834,6 @@ function selectExercises(
   const randomPoolSize = Math.min(50, Math.max(25, topTier.length));
   const randomPool = topTier.slice(0, randomPoolSize);
   const chosen: Exercise[] = [];
-  const debugList: ScoringDebug[] = [];
 
   // Category-fill pass: ensure we hit MIN_MOVEMENT_CATEGORIES when possible (movement-pattern balancing engine)
   const patternsToPrefer = getPatternsToPrefer(movementCounts, MIN_MOVEMENT_CATEGORIES, [...BALANCE_CATEGORY_PATTERNS]);
@@ -912,7 +866,6 @@ function selectExercises(
     chosen.push(best.exercise);
     movementCounts.set(best.exercise.movement_pattern, (movementCounts.get(best.exercise.movement_pattern) ?? 0) + 1);
     if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, best.exercise);
-    if (best.debug && includeDebug) debugList.push(best.debug as ScoringDebug);
   }
 
   // Random selection from score-tier pool (no single exercise weighted more than others in same tier)
@@ -926,11 +879,10 @@ function selectExercises(
     chosen.push(item.exercise);
     movementCounts.set(item.exercise.movement_pattern, nextCount);
     if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, item.exercise);
-    if (item.debug && includeDebug) debugList.push(item.debug as ScoringDebug);
   }
 
   // If we didn't fill, add from top in order (respecting pattern cap and consecutive-cluster cap)
-  for (const { exercise, debug } of topOverall) {
+  for (const { exercise } of topOverall) {
     if (chosen.length >= count) break;
     if (chosen.some((c) => c.id === exercise.id)) continue;
     const nextCount = (movementCounts.get(exercise.movement_pattern) ?? 0) + 1;
@@ -939,21 +891,19 @@ function selectExercises(
     chosen.push(exercise);
     movementCounts.set(exercise.movement_pattern, nextCount);
     if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, exercise);
-    if (debug && includeDebug) debugList.push(debug as ScoringDebug);
   }
 
-  return { exercises: chosen.slice(0, count), scoringDebug: debugList };
+  return { exercises: chosen.slice(0, count) };
 }
 
-// --- Build warmup block: activation and joint mobility for the muscles/joints used in the workout ---
-// Warm-up: bodyweight or bands only. Focus on activation of focus muscles and movement of joints around them (no cables/weights, no conditioning).
-// Phase 9: prefers prep/activation/mobility roles and targets relevant to focus.
+// --- Build warmup block: activation for the specific body parts that are the focus of today's workout ---
+// Warm-up: bodyweight or bands only. We select mobility/activation that targets the day's focus (upper push, lower, etc.) so warmup prepares the muscles and joints for the main work.
+// Phase 9: prefers prep/activation/mobility roles and targets relevant to focus; when focus is set we restrict pool to focus-relevant exercises.
 function buildWarmup(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
   used: Set<string>,
   rng: () => number,
-  includeDebug: boolean,
   fatigueState?: FatigueState,
   historyContext?: TrainingHistoryContext
 ): WorkoutBlock {
@@ -965,11 +915,19 @@ function buildWarmup(
       e.id !== "breathing_cooldown"
   );
   const pool = basePool.filter((e) => isWarmupEligibleEquipment(e.equipment_required));
-  const finalPool = pool.length ? pool : basePool;
+  const equipmentPool = pool.length ? pool : basePool;
+
+  // Restrict to exercises that target the day's focus (activation for those body parts). Fall back to full pool if none match.
+  const preferredWarmupTargets = getPreferredWarmupTargetsFromFocus(input.focus_body_parts);
+  const focusRelevantPool =
+    preferredWarmupTargets.length > 0
+      ? equipmentPool.filter((e) => exerciseWarmupTargetsOverlap(e, preferredWarmupTargets))
+      : equipmentPool;
+  const finalPool = focusRelevantPool.length > 0 ? focusRelevantPool : equipmentPool;
+
   const count = input.duration_minutes <= 25 ? 1 : input.duration_minutes <= 40 ? 2 : 3;
   const movementCounts = new Map<string, number>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
-  const preferredWarmupTargets = getPreferredWarmupTargetsFromFocus(input.focus_body_parts);
   const { exercises: chosen } = selectExercises(
     finalPool,
     input,
@@ -977,7 +935,6 @@ function buildWarmup(
     movementCounts,
     Math.min(count, finalPool.length || 2),
     rng,
-    false,
     fatigueState,
     {
       blockType: "warmup",
@@ -1010,11 +967,17 @@ function buildWarmup(
 
   const totalMinutes = input.duration_minutes ?? 60;
   const warmupCap = Math.max(1, Math.floor(totalMinutes / 10));
+  const hasFocus = (input.focus_body_parts?.length ?? 0) > 0 && !input.focus_body_parts?.some((f) => f.toLowerCase().replace(/\s/g, "_") === "full_body");
+  const focusLabel = hasFocus && input.focus_body_parts?.length
+    ? input.focus_body_parts.map((f) => f.replace(/_/g, " ")).join(" / ")
+    : null;
   return {
     block_type: "warmup",
     format: "circuit",
-    title: "Warm-up",
-    reasoning: "Activation and joint mobility for the muscles and joints used in today's work.",
+    title: focusLabel ? `Warm-up (activation for ${focusLabel})` : "Warm-up",
+    reasoning: focusLabel
+      ? `Activation and mobility for today's focus: ${focusLabel}. Prepares those muscles and joints for the main work.`
+      : "Activation and joint mobility for the muscles and joints used in today's work.",
     items,
     estimated_minutes: Math.min(10, 5 + items.length * 2, warmupCap),
   };
@@ -1159,7 +1122,6 @@ function buildMainStrength(
     movementCounts,
     mainLiftCount,
     rng,
-    false,
     fatigueState,
     {
       blockType: "main_strength",
@@ -1384,7 +1346,6 @@ function buildPowerBlock(
     movementCounts,
     count,
     rng,
-    false,
     fatigueState,
     {
       blockType: "power",
@@ -1547,7 +1508,6 @@ function buildMainHypertrophy(
     movementCounts,
     wantCount,
     rng,
-    false,
     fatigueState,
     {
       blockType: "main_hypertrophy",
@@ -1607,7 +1567,8 @@ function buildMainHypertrophy(
   ];
 }
 
-// --- Endurance / conditioning: short strength superset + conditioning block ---
+// --- Endurance / conditioning: duration-scaled strength/conditioning supersets + optional cardio ---
+// Target main-work exercise count: 30 min → 3, 45 min → 6, 60+ min → 8 (so 45 min is never only 2 exercises).
 function buildEnduranceMain(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
@@ -1620,6 +1581,10 @@ function buildEnduranceMain(
   sessionFatigueRegions?: Map<string, number>,
   historyContext?: TrainingHistoryContext
 ): WorkoutBlock[] {
+  const duration = input.duration_minutes;
+  const targetMainExercises = duration <= 30 ? 3 : duration <= 45 ? 6 : 8;
+  const supersetPairCount = duration <= 30 ? 1 : duration <= 45 ? 3 : 4;
+
   const strengthPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "conditioning") &&
@@ -1627,48 +1592,62 @@ function buildEnduranceMain(
       e.time_cost !== "high" &&
       !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
-  const { exercises: two } = selectExercises(
-    strengthPool,
-    input,
-    recentIds,
-    movementCounts,
-    2,
-    rng,
-    false,
-    fatigueState,
-    {
-      sessionFatigueRegions,
-      sessionMovementPatternCounts: movementCounts,
-      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
-      historyContext,
-    }
-  );
   const blocks: WorkoutBlock[] = [];
-  if (two.length >= 2) {
-    two.forEach((e) => used.add(e.id));
+
+  // Build superset(s): pick pairs so we hit target exercise count (2 per pair).
+  const availableForPairs = strengthPool.filter((e) => !used.has(e.id));
+  const pairs = pickBestSupersetPairs(availableForPairs, supersetPairCount, used) as [Exercise, Exercise][];
+  if (pairs.length > 0) {
+    for (const [exA, exB] of pairs) {
+      used.add(exA.id);
+      used.add(exB.id);
+      if (sessionFatigueRegions) {
+        addExerciseFatigueRegionsToSession(sessionFatigueRegions, exA);
+        addExerciseFatigueRegionsToSession(sessionFatigueRegions, exB);
+      }
+    }
     const supportSets = Math.max(1, Math.round(2 * (fatigueVolumeScale ?? 1)));
-    const items: WorkoutItem[] = two.map((e) => {
-      const p = getPrescription(e, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
-      return {
-        exercise_id: e.id,
-        exercise_name: e.name,
-        sets: supportSets,
-        reps: p.reps ?? 10,
-        rest_seconds: 30,
-        coaching_cues: p.coaching_cues,
-        reasoning_tags: ["conditioning", "strength", ...(e.tags.goal_tags ?? [])],
-        unilateral: e.unilateral ?? false,
-      };
+    const items: WorkoutItem[] = pairs.flatMap(([exA, exB]) => {
+      const pA = getPrescription(exA, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+      const pB = getPrescription(exB, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+      return [
+        {
+          exercise_id: exA.id,
+          exercise_name: exA.name,
+          sets: supportSets,
+          reps: pA.reps ?? 10,
+          rest_seconds: 30,
+          coaching_cues: pA.coaching_cues,
+          reasoning_tags: ["conditioning", "strength", ...(exA.tags.goal_tags ?? [])],
+          unilateral: exA.unilateral ?? false,
+        },
+        {
+          exercise_id: exB.id,
+          exercise_name: exB.name,
+          sets: supportSets,
+          reps: pB.reps ?? 10,
+          rest_seconds: 30,
+          coaching_cues: pB.coaching_cues,
+          reasoning_tags: ["conditioning", "strength", ...(exB.tags.goal_tags ?? [])],
+          unilateral: exB.unilateral ?? false,
+        },
+      ];
     });
+    const supersetPairs: [WorkoutItem, WorkoutItem][] = [];
+    for (let i = 0; i < pairs.length; i++) {
+      supersetPairs.push([items[2 * i], items[2 * i + 1]]);
+    }
+    const estimatedMinutes = Math.min(supersetPairCount * 8, Math.max(10, duration - 20));
     blocks.push({
       block_type: "conditioning",
       format: "superset",
       items,
-      supersetPairs: items.length >= 2 ? [[items[0], items[1]]] : undefined,
-      estimated_minutes: 8,
+      supersetPairs,
+      estimated_minutes: estimatedMinutes,
     });
   }
 
+  // For 30 min keep one cardio block; for 45+ only add cardio if we're under target (e.g. few pairs found).
   const cardioPool = exercises.filter(
     (e) =>
       e.modality === "conditioning" &&
@@ -1677,7 +1656,12 @@ function buildEnduranceMain(
   const condMins = getConditioningDurationMinutes(input.primary_goal, input.energy_level)
     ?? input.style_prefs?.conditioning_minutes
     ?? (input.duration_minutes >= 60 ? 30 : 20);
-  if (cardioPool.length && condMins > 0) {
+  const mainExerciseCount = blocks.reduce((n, b) => n + b.items.length, 0);
+  const addCardioBlock =
+    cardioPool.length &&
+    condMins > 0 &&
+    mainExerciseCount < targetMainExercises;
+  if (addCardioBlock) {
     const c = pickConditioningExercise(
       cardioPool,
       input.style_prefs?.preferred_zone2_cardio,
@@ -1908,8 +1892,7 @@ function sessionTitle(input: GenerateWorkoutInput): string {
 // --- Main entry: 8-step generation flow ---
 export function generateWorkoutSession(
   input: GenerateWorkoutInput,
-  exercisePool: Exercise[] = STUB_EXERCISES,
-  includeDebug = false
+  exercisePool: Exercise[] = STUB_EXERCISES
 ): WorkoutSession {
   const seed = input.seed ?? 0;
   const rng = createSeededRng(seed);
@@ -1918,9 +1901,10 @@ export function generateWorkoutSession(
   const primary = input.primary_goal;
   const goalRules = getGoalRules(primary);
 
-  // 2. Filter exercises (equipment, injuries, avoid tags, energy)
-  const filtered = filterByHardConstraints(exercisePool, input);
+  // 2. Filter exercises: equipment + energy + avoid (filterByHardConstraints), then constraint-based injury/body-part (single source of truth with validator).
+  let filtered = filterByHardConstraints(exercisePool, input);
   const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
+  filtered = filterByConstraintsForPool(filtered, constraints);
   const used = new Set<string>();
   const historyContext = input.training_history ?? buildHistoryContextFromLegacy(input);
   const legacyRecentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
@@ -1969,7 +1953,7 @@ export function generateWorkoutSession(
   const fatigueVolumeScale = fatigueState.volumeScaleFactor;
 
   // 3. Build warmup
-  const warmup = buildWarmup(filtered, input, used, rng, false, fatigueState, historyContext);
+  const warmup = buildWarmup(filtered, input, used, rng, fatigueState, historyContext);
   const blocks: WorkoutBlock[] = [warmup];
 
   const wantsSupersets = input.style_prefs?.wants_supersets !== false;
@@ -2058,7 +2042,6 @@ export function generateWorkoutSession(
           movementCounts,
           count,
           rng,
-          false,
           fatigueState,
           { blockType: "main_strength", sessionFatigueRegions, sessionMovementPatternCounts: movementCounts, historyContext }
         );
@@ -2112,7 +2095,6 @@ export function generateWorkoutSession(
           movementCounts,
           count,
           rng,
-          false,
           fatigueState,
           { blockType: "main_hypertrophy", sessionFatigueRegions, sessionMovementPatternCounts: movementCounts, historyContext }
         );
@@ -2298,18 +2280,11 @@ export function generateWorkoutSession(
     input.duration_minutes != null && input.duration_minutes > 0
       ? input.duration_minutes
       : sumBlockMinutes;
-  const debug = includeDebug
-    ? {
-        scoring_breakdown: [] as ScoringDebug[],
-        seed_used: seed,
-      }
-    : undefined;
 
   const session: WorkoutSession = {
     title: sessionTitle(input),
     estimated_duration_minutes,
     blocks: mergedBlocks,
-    debug,
   };
 
   const validation = validateWorkoutAgainstConstraints(session, constraints, filtered);
@@ -2331,46 +2306,16 @@ export function regenerateWorkoutSession(
   input: GenerateWorkoutInput,
   previousSession: WorkoutSession,
   mode: RegenerateMode,
-  exercisePool: Exercise[] = STUB_EXERCISES,
-  includeDebug = false
+  exercisePool: Exercise[] = STUB_EXERCISES
 ): WorkoutSession {
   const seed = (input.seed ?? 0) + 1;
   const newInput: GenerateWorkoutInput = { ...input, seed };
 
-  // #region agent log
-  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Debug-Session-Id': '58db52',
-    },
-    body: JSON.stringify({
-      sessionId: '58db52',
-      runId: 'initial',
-      hypothesisId: 'H2',
-      location: 'logic/workoutGeneration/dailyGenerator.ts:regenerateWorkoutSession',
-      message: 'regenerateWorkoutSession entry',
-      data: {
-        primary_goal: input.primary_goal,
-        mode,
-        previous_block_count: previousSession?.blocks?.length ?? 0,
-        includeDebug,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   if (mode === "keep_structure_swap_exercises") {
-    return regenerateWithSubstitution(
-      input,
-      previousSession,
-      exercisePool,
-      includeDebug
-    );
+    return regenerateWithSubstitution(input, previousSession, exercisePool);
   }
 
-  return generateWorkoutSession(newInput, exercisePool, includeDebug);
+  return generateWorkoutSession(newInput, exercisePool);
 }
 
 /**
@@ -2380,8 +2325,7 @@ export function regenerateWorkoutSession(
 function regenerateWithSubstitution(
   input: GenerateWorkoutInput,
   previousSession: WorkoutSession,
-  exercisePool: Exercise[],
-  includeDebug: boolean
+  exercisePool: Exercise[]
 ): WorkoutSession {
   const filtered = filterByHardConstraints(exercisePool, input);
   const poolById = new Map(exercisePool.map((e) => [e.id, e]));
@@ -2428,6 +2372,5 @@ function regenerateWithSubstitution(
     title: previousSession.title,
     estimated_duration_minutes,
     blocks,
-    debug: includeDebug ? { seed_used: input.seed } : undefined,
   };
 }

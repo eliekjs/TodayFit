@@ -165,13 +165,12 @@ function testNoHistoryFallback() {
     energy_level: "medium" as const,
     seed: 42,
   };
-  const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
   assert(session.blocks.length >= 1, "session has blocks without history");
   assert(session.estimated_duration_minutes > 0, "duration set");
   const withHistory = generateWorkoutSession(
     { ...input, recent_history: [{ exercise_ids: ["goblet_squat"], muscle_groups: ["legs"], modality: "strength" }] },
-    STUB_EXERCISES,
-    false
+    STUB_EXERCISES
   );
   assert(withHistory.blocks.length >= 1, "session with legacy history still builds");
 }

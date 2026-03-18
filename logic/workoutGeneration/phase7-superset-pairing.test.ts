@@ -324,7 +324,7 @@ function testGeneratorUsesPairing() {
     injuries_or_constraints: [],
     seed: 77,
   };
-  const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
   const supersetBlocks = session.blocks.filter(
     (b) => b.block_type === "main_strength" && b.format === "superset"
   );

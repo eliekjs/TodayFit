@@ -160,7 +160,6 @@ export function generateAdaptiveWeekWithDailyGenerator(
     config?: WeeklyPlannerConfig;
     /** Exercise pool in generator shape (Exercise[] from workoutGeneration). */
     exercisePool: import("../../workoutGeneration/types").Exercise[];
-    includeDebug?: boolean;
   }
 ): WeeklyPlanWithWorkouts {
   const cfg = { ...DEFAULT_WEEKLY_PLANNER_CONFIG, ...options.config };
@@ -180,11 +179,7 @@ export function generateAdaptiveWeekWithDailyGenerator(
       trainingHistory,
       seedBase
     );
-    const workout = generateWorkoutSession(
-      dailyInput,
-      options.exercisePool,
-      options.includeDebug ?? false
-    );
+    const workout = generateWorkoutSession(dailyInput, options.exercisePool);
     const summary = workoutSessionToRecentSummary(workout, options.exercisePool);
     rollingSummaries.push(summary);
 

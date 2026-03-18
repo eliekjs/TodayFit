@@ -184,7 +184,6 @@ function runTests() {
     input,
     new Set(),
     new Map(),
-    true,
     undefined,
     { blockType: "main_strength" }
   );

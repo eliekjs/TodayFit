@@ -11,7 +11,7 @@ function printSession(session: WorkoutSession, label: string) {
   console.log("\n" + "=".repeat(60));
   console.log(label);
   console.log("=".repeat(60));
-  console.log(`${session.title} · ${session.estimated_duration_minutes} min` + (session.debug?.seed_used != null ? ` (seed ${session.debug.seed_used})` : ""));
+  console.log(`${session.title} · ${session.estimated_duration_minutes} min`);
   for (const block of session.blocks) {
     const header = block.block_type + (block.format ? ` [${block.format}]` : "") + (block.estimated_minutes != null ? ` ~${block.estimated_minutes}min` : "");
     console.log("\n  " + header + (block.reasoning ? " — " + block.reasoning : ""));
@@ -168,23 +168,21 @@ function main() {
   for (const ex of EXAMPLES) {
     const session = generateWorkoutSession(
       { ...ex.input, style_prefs: { ...ex.input.style_prefs } },
-      undefined,
-      false
+      undefined
     );
     printSession(session, ex.name);
   }
 
   // Regenerate example: same input, two modes
   const input = EXAMPLES[0].input;
-  const first = generateWorkoutSession({ ...input, seed: 100 }, undefined, false);
+  const first = generateWorkoutSession({ ...input, seed: 100 }, undefined);
   printSession(first, "Regenerate base (seed 100)");
 
   const swapped = regenerateWorkoutSession(
     { ...input, seed: 100 },
     first,
     "keep_structure_swap_exercises",
-    undefined,
-    false
+    undefined
   );
   printSession(swapped, "Regenerate: keep_structure_swap_exercises (seed 101)");
 
@@ -192,8 +190,7 @@ function main() {
     { ...input, seed: 100 },
     first,
     "new_structure",
-    undefined,
-    false
+    undefined
   );
   printSession(newStruct, "Regenerate: new_structure (seed 101)");
 

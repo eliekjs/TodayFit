@@ -110,8 +110,6 @@ function runAssertions(
 export type RunOptions = {
   /** If true, only print decision reports (no assertions). */
   describeOnly?: boolean;
-  /** Include scoring breakdown in session (slower). */
-  includeDebug?: boolean;
   /** Exercise pool; default STUB_EXERCISES. */
   exercisePool?: import("../types").Exercise[];
 };
@@ -134,7 +132,7 @@ export function runFocusArea(
   for (const scenario of scenarios) {
     const input: GenerateWorkoutInput = { ...scenario.input, seed: scenario.input.seed ?? 100 };
     const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
-    const session = generateWorkoutSession(input, exercisePool, options.includeDebug ?? false);
+    const session = generateWorkoutSession(input, exercisePool);
     const validation = validateWorkoutAgainstConstraints(session, constraints, exercisePool);
     const report = buildDecisionReport(input, constraints, session, validation);
 
@@ -197,7 +195,7 @@ function main() {
     console.log(`Focus: ${area.label} — ${area.description}`);
     console.log("=".repeat(60));
 
-    const { reports, exercisePool } = runFocusArea(focusId, { includeDebug: false });
+    const { reports, exercisePool } = runFocusArea(focusId, {});
     const exerciseLookup = (id: string) => exercisePool.find((e) => e.id === id);
 
     for (const { scenario, report, session, passed } of reports) {

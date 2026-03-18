@@ -103,7 +103,6 @@ describe("Phase 12: Weekly planning", () => {
     it("returns WeeklyPlanWithWorkouts with one workout per planned day", () => {
       const result = generateAdaptiveWeekWithDailyGenerator(baseInput({ days_available_per_week: 3 }), {
         exercisePool: STUB_EXERCISES,
-        includeDebug: false,
       });
       expect(result.days).toHaveLength(3);
       expect(result.week_summary).toBeDefined();
@@ -137,7 +136,7 @@ describe("Phase 12: Weekly planning", () => {
         available_equipment: BASE_EQUIPMENT,
         injuries_or_constraints: [] as string[],
       };
-      const session = generateWorkoutSession(input, STUB_EXERCISES, false);
+      const session = generateWorkoutSession(input, STUB_EXERCISES);
       expect(session).toBeDefined();
       expect(session.blocks).toBeDefined();
       expect(session.blocks.length).toBeGreaterThanOrEqual(1);

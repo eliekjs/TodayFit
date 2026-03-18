@@ -396,13 +396,15 @@ export function computeOntologyScoreComponents(
   return { total, breakdown };
 }
 
-/** Preferred mobility/stretch targets from focus body parts (for warmup/cooldown relevance). */
+/** Preferred mobility/stretch targets from focus body parts (for warmup activation and cooldown relevance). */
 export const FOCUS_TO_WARMUP_TARGETS: Record<string, string[]> = {
   upper_push: ["shoulders", "thoracic_spine", "pecs"],
   upper_pull: ["lats", "shoulders", "thoracic_spine"],
   lower: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
   lower_body: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
   core: ["thoracic_spine", "low_back", "hip_flexors"],
+  /** Full-body day: general activation for common areas used in compound work. */
+  full_body: ["thoracic_spine", "shoulders", "hip_flexors", "glutes"],
 };
 
 export function getPreferredWarmupTargetsFromFocus(focusBodyParts: string[] | undefined): string[] {
@@ -422,4 +424,19 @@ export function getPreferredWarmupTargetsFromFocus(focusBodyParts: string[] | un
     }
   }
   return out;
+}
+
+/** True if exercise has at least one mobility_target or stretch_target in the preferred set (for focus-specific warmup). */
+export function exerciseWarmupTargetsOverlap(
+  ex: ExerciseForScoring,
+  preferredTargets: string[]
+): boolean {
+  if (!preferredTargets?.length) return false;
+  const preferredSet = new Set(preferredTargets.map((t) => norm(t)));
+  const mobility = new Set(getCanonicalMobilityTargets(toNormalization(ex)));
+  const stretch = new Set(getCanonicalStretchTargets(toNormalization(ex)));
+  for (const t of preferredSet) {
+    if (mobility.has(t) || stretch.has(t)) return true;
+  }
+  return false;
 }
