@@ -14,6 +14,9 @@
     "test:phase5": "npx tsx logic/workoutIntelligence/constraints/eligibility.test.ts",
     "test:prescription-evidence": "npx tsx logic/workoutGeneration/prescription-evidence.test.ts",
     "test:exercise-frequency": "npx tsx scripts/exerciseFrequencyTest.ts",
+    "test:exercise-database-opportunity": "npx tsx logic/workoutGeneration/exerciseDatabaseOpportunity.test.ts",
+    "test:exercise-ontology-coverage": "npx tsx logic/workoutGeneration/exerciseOntologyCoverage.test.ts",
+    "audit:exercise-ontology-coverage:snapshot": "npx tsx scripts/auditExerciseTagCoverageSnapshot.ts",
     "validate:autonomous-pr": "node scripts/validate-autonomous-pr.js"
   },
   "dependencies": {
@@ -52,7 +55,8 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "xlsx": "^0.18.5"
   },
   "private": true
 }

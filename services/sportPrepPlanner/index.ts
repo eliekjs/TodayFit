@@ -934,6 +934,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     );
     if (focusLabel) {
       intent.focus = [focusLabel];
+    } else if (goalSlugs.length > 0) {
+      intent.focus = goalSlugs.map(
+        (g) => GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? GOAL_SLUG_TO_LABEL[g] ?? g
+      );
     }
     const bodyRegionBias =
       slot.dayBias
@@ -954,11 +958,14 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
-    const goalLabel = dayGoalSlug
-      ? (GOAL_SLUG_TO_LABEL[dayGoalSlug] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[dayGoalSlug] ?? dayGoalSlug)
-      : intent.focus?.[0] ?? "Workout";
+    const goalLabels =
+      dayGoalSlug
+        ? [GOAL_SLUG_TO_LABEL[dayGoalSlug] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[dayGoalSlug] ?? dayGoalSlug]
+        : goalSlugs.length > 0
+          ? goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
+          : (intent.focus?.length ? intent.focus : ["Workout"]);
     const displayTitle = formatDayTitle(
-      goalLabel,
+      goalLabels,
       bodyKey,
       slot.specificBodyFocus ?? null
     );
@@ -1360,11 +1367,14 @@ export async function regenerateDay(
       }
     );
     const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
-    const goalLabel = input.dailyPreferences?.goalBias
-      ? (GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ?? sessionIntent.focus?.[0] ?? "Workout")
-      : (sessionIntent.focus?.[0] ?? "Workout");
+    const goalLabelsForTitle =
+      input.dailyPreferences?.goalBias
+        ? [GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ?? sessionIntent.focus?.[0] ?? "Workout"]
+        : (input.goalSlugs?.length
+            ? input.goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
+            : (sessionIntent.focus?.length ? sessionIntent.focus : ["Workout"]));
     const displayTitle = formatDayTitle(
-      goalLabel,
+      goalLabelsForTitle,
       bodyKey,
       input.dailyPreferences?.specificBodyFocus ?? null
     );
@@ -1438,11 +1448,14 @@ export async function regenerateDay(
     }
   );
   const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
-  const goalLabel = input.dailyPreferences?.goalBias
-    ? (GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ?? sessionIntent.focus?.[0] ?? "Workout")
-    : (sessionIntent.focus?.[0] ?? (dayRow.intent_label as string) ?? "Workout");
+  const goalLabelsForTitle =
+    input.dailyPreferences?.goalBias
+      ? [GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ?? sessionIntent.focus?.[0] ?? "Workout"]
+      : (input.goalSlugs?.length
+          ? input.goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
+          : (sessionIntent.focus?.length ? sessionIntent.focus : [(dayRow.intent_label as string) ?? "Workout"]));
   const title = formatDayTitle(
-    goalLabel,
+    goalLabelsForTitle,
     bodyKey,
     input.dailyPreferences?.specificBodyFocus ?? null
   );

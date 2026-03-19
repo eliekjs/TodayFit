@@ -214,6 +214,7 @@ export const EQUIPMENT_SLUGS = [
   "bench",
   "squat_rack",
   "pullup_bar",
+  "rings",
   "leg_press",
   "leg_extension",
   "machine",
@@ -281,5 +282,9 @@ export function isLegacyMovementPattern(s: string): s is LegacyMovementPattern {
 
 /** Normalize string to snake_case for comparison. */
 export function normalizeSlug(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, "_").trim();
+  return s
+    .toLowerCase()
+    .replace(/[\s\-]+/g, "_")
+    .replace(/_+/g, "_")
+    .trim();
 }

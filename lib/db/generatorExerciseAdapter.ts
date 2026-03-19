@@ -10,7 +10,14 @@ import {
   mergeJointStressForTags,
   mergeContraindicationsForTags,
   normalizeEquipmentSlug,
+  normalizeMatchableTagSlugs,
+  normalizeSlug,
 } from "../ontology";
+
+import { SPORTS_WITH_SUB_FOCUSES } from "../../data/sportSubFocus/sportsWithSubFocuses";
+import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
+
+const CANONICAL_SPORT_SLUGS = new Set(SPORTS_WITH_SUB_FOCUSES.map((s) => normalizeSlug(s.slug)));
 
 /** DB exercise row including optional structured ontology columns. */
 export type ExerciseRowWithOntology = {
@@ -57,6 +64,21 @@ const VALID_MODALITIES: Modality[] = [
   "recovery",
 ];
 
+function modalitiesToGoalTags(modalities: string[] | undefined): ExerciseTags["goal_tags"] {
+  const m = (modalities ?? []).map((x) => x.toLowerCase().replace(/\s/g, "_"));
+  const out = new Set<NonNullable<ExerciseTags["goal_tags"]>[number]>();
+  for (const s of m) {
+    if (s === "strength") out.add("strength");
+    else if (s === "hypertrophy") out.add("hypertrophy");
+    else if (s === "conditioning") out.add("conditioning");
+    else if (s === "power") out.add("power");
+    else if (s === "mobility") out.add("mobility");
+    else if (s === "recovery") out.add("recovery");
+    else if (s === "skill") out.add("calisthenics");
+  }
+  return out.size ? ([...out] as ExerciseTags["goal_tags"]) : undefined;
+}
+
 function toModality(s: string | null | undefined): Modality {
   if (!s) return "strength";
   const n = s.toLowerCase().replace(/\s/g, "_");
@@ -89,9 +111,11 @@ function buildTags(
     contraindication_tags: row.contraindication_tags ?? undefined,
     contraindications: contraindicationsFromTable.length ? contraindicationsFromTable : undefined,
   });
-  const goalTags = tagSlugs.filter((t) =>
+  const goalTagsFromTags = tagSlugs.filter((t) =>
     ["strength", "hypertrophy", "endurance", "power", "mobility", "calisthenics", "recovery", "athleticism"].includes(t)
   );
+  const goalTagsFromModalities = modalitiesToGoalTags(row.modalities);
+  const goalTags = [...new Set([...(goalTagsFromTags ?? []), ...(goalTagsFromModalities ?? [])])] as ExerciseTags["goal_tags"];
   const energySlugs = tagSlugs.filter((t) => t === "energy_low" || t === "energy_medium" || t === "energy_high");
   const energyFit =
     energySlugs.length > 0
@@ -100,7 +124,17 @@ function buildTags(
   const stimulus = tagSlugs.filter((t) =>
     ["eccentric", "isometric", "plyometric", "aerobic_zone2", "anaerobic", "grip", "scapular_control", "trunk_anti_rotation", "anti_flexion"].includes(t)
   );
-  const sportTags = tagSlugs.filter((t) => t.startsWith("sport_"));
+  // Canonical sport tags: must match SPORTS_WITH_SUB_FOCUSES slugs (no `sport_` prefix).
+  const sportTags = [
+    ...new Set(
+      tagSlugs.flatMap((t) => {
+        const raw = normalizeSlug(t);
+        const withoutPrefix = raw.startsWith("sport_") ? raw.slice("sport_".length) : raw;
+        const canonical = normalizeSlug(getCanonicalSportSlug(withoutPrefix));
+        return CANONICAL_SPORT_SLUGS.has(canonical) ? [canonical] : [];
+      })
+    ),
+  ];
   const used = new Set([
     ...goalTags,
     ...energySlugs,
@@ -108,7 +142,26 @@ function buildTags(
     ...stimulus,
     ...sportTags,
   ]);
-  const attributeTags = tagSlugs.filter((t) => !used.has(t));
+  const rawAttribute = tagSlugs.filter((t) => !used.has(t));
+  const derivedMovementPattern = getLegacyMovementPattern({
+    movement_patterns: row.movement_patterns ?? undefined,
+    movement_pattern: row.movement_pattern ?? undefined,
+  }) as MovementPattern;
+  const derivedMuscleTags = [...(row.primary_muscles ?? []), ...(row.secondary_muscles ?? [])].map((m) =>
+    m.toLowerCase().replace(/\s/g, "_")
+  );
+  const derivedMovementTags = derivedMovementPattern
+    ? normalizeMatchableTagSlugs(derivedMovementPattern.toLowerCase().replace(/\s/g, "_"))
+    : [];
+
+  const attributeTags = [
+    ...new Set([
+      ...rawAttribute.flatMap((t) => normalizeMatchableTagSlugs(t)),
+      ...derivedMuscleTags,
+      ...derivedMovementTags,
+      ...energySlugs.map(normalizeSlug),
+    ]),
+  ];
   return {
     ...(goalTags.length ? { goal_tags: goalTags as ExerciseTags["goal_tags"] } : {}),
     ...(sportTags.length ? { sport_tags: sportTags } : {}),

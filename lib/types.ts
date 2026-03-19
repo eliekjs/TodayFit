@@ -116,6 +116,7 @@ export type EquipmentKey =
   | "bands"
   | "trx"
   | "pullup_bar"
+  | "rings"
   | "plyo_box"
   | "sled"
   | "bodyweight";

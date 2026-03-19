@@ -60,6 +60,7 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "bands", label: "Bands" },
       { id: "trx", label: "TRX" },
       { id: "pullup_bar", label: "Pull-up Bar" },
+      { id: "rings", label: "Gymnastic Rings" },
       { id: "plyo_box", label: "Plyo Box" },
       { id: "sled", label: "Sled" },
       { id: "bodyweight", label: "Bodyweight" },

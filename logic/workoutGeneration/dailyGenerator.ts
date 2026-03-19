@@ -197,7 +197,7 @@ function toConstraintEligibilityShape(e: Exercise): Exercise & { joint_stress?: 
  * Injury/body-part rules come from constraints; equipment and energy stay in filterByHardConstraints.
  * Allows mobility/recovery/conditioning exercises into the pool even when body-part focus is set (for warmup/cooldown/conditioning blocks).
  */
-function filterByConstraintsForPool(
+export function filterByConstraintsForPool(
   exercises: Exercise[],
   constraints: ResolvedWorkoutConstraints
 ): Exercise[] {
@@ -1858,6 +1858,59 @@ function mergeConsecutiveBlocksWithSameTitle(blocks: WorkoutBlock[]): WorkoutBlo
   return result;
 }
 
+/** Main block types for main vs accessory set ratio. */
+const MAIN_BLOCK_TYPES_FOR_RATIO = new Set<BlockType>([
+  "main_strength",
+  "main_hypertrophy",
+  "power",
+]);
+
+/**
+ * Enforce: (1) never more accessory sets than main sets,
+ * (2) when doing accessory, target 75% main / 25% accessory.
+ * Mutates blocks in place by reducing accessory block item set counts if needed.
+ */
+function enforceMainAccessoryRatioOnBlocks(blocks: WorkoutBlock[]): void {
+  let mainSets = 0;
+  const accessoryBlocks: WorkoutBlock[] = [];
+  let accessorySets = 0;
+
+  for (const block of blocks) {
+    const blockSets = block.items.reduce((s, item) => s + (item.sets ?? 0), 0);
+    if (MAIN_BLOCK_TYPES_FOR_RATIO.has(block.block_type)) {
+      mainSets += blockSets;
+    } else if (block.block_type === "accessory") {
+      accessorySets += blockSets;
+      accessoryBlocks.push(block);
+    }
+  }
+
+  if (accessoryBlocks.length === 0 || accessorySets === 0) return;
+
+  const maxAccessory = Math.min(mainSets, Math.floor(mainSets / 3));
+  if (accessorySets <= maxAccessory) return;
+
+  let toRemove = accessorySets - maxAccessory;
+  const itemsWithSets: { item: WorkoutItem }[] = [];
+  for (const block of accessoryBlocks) {
+    for (const item of block.items) {
+      const sets = item.sets ?? 0;
+      if (sets > 0) itemsWithSets.push({ item });
+    }
+  }
+  itemsWithSets.sort((a, b) => (b.item.sets ?? 0) - (a.item.sets ?? 0));
+
+  for (const { item } of itemsWithSets) {
+    if (toRemove <= 0) break;
+    const current = item.sets ?? 0;
+    const reduce = Math.min(toRemove, current - 1);
+    if (reduce > 0) {
+      item.sets = Math.max(1, current - reduce);
+      toRemove -= reduce;
+    }
+  }
+}
+
 // --- Session title: body focus + goal + optional secondary + duration ---
 function sessionTitle(input: GenerateWorkoutInput): string {
   const goal = input.primary_goal.replace(/_/g, " ");
@@ -2273,6 +2326,9 @@ export function generateWorkoutSession(
 
   // Phase 11: attach progress/maintain/regress/rotate and prescription influence
   attachRecommendationsToSession(mergedBlocks, filtered, historyContext, recentIds);
+
+  // Enforce main vs accessory set ratio: never more accessory than main; when doing accessory, 75% main / 25% accessory
+  enforceMainAccessoryRatioOnBlocks(mergedBlocks);
 
   // 8. Post-assembly validation and repair (Phase 8)
   const sumBlockMinutes = mergedBlocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);

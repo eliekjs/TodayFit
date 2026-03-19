@@ -100,11 +100,26 @@ export default function ManualWeekScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollContentRef = useRef<View>(null);
   const sessionCardRef = useRef<View>(null);
+  const dayFocusSectionRef = useRef<View>(null);
   const scrollToSessionCard = useCallback(() => {
     const content = scrollContentRef.current;
     const card = sessionCardRef.current;
     if (!content || !card) return;
     card.measureLayout(
+      content as any,
+      (_x: number, y: number) => {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, y - 24),
+          animated: true,
+        });
+      }
+    );
+  }, []);
+  const scrollToDayFocusSection = useCallback(() => {
+    const content = scrollContentRef.current;
+    const section = dayFocusSectionRef.current;
+    if (!content || !section) return;
+    section.measureLayout(
       content as any,
       (_x: number, y: number) => {
         scrollViewRef.current?.scrollTo({
@@ -218,8 +233,7 @@ export default function ManualWeekScreen() {
           dateToISO(date),
           preferredNames
         );
-        const goalLabel = dayFocus[0] ?? "Workout";
-        const displayTitle = formatDayTitle(goalLabel, bodyKey, specificForDay.length ? specificForDay : undefined);
+        const displayTitle = formatDayTitle(dayFocus.length ? dayFocus : ["Workout"], bodyKey, specificForDay.length ? specificForDay : undefined);
         days.push({ date: dateToISO(date), workout, displayTitle });
       }
       if (days.length === 1) {
@@ -460,7 +474,7 @@ export default function ManualWeekScreen() {
       const workout = await generateWorkoutAsync(dayPrefs, profile, selectedSession.date, preferredNames);
       const bodyKey = (dayPrefs.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
       const specificEmphasis = (dayPrefs.targetModifier ?? []).map((m) => m.toLowerCase()).filter(Boolean);
-      const displayTitle = formatDayTitle(dayPrefs.primaryFocus[0] ?? "Workout", bodyKey, specificEmphasis.length ? specificEmphasis : undefined);
+      const displayTitle = formatDayTitle(dayPrefs.primaryFocus.length ? dayPrefs.primaryFocus : ["Workout"], bodyKey, specificEmphasis.length ? specificEmphasis : undefined);
       const newDays = plan.days.map((d) =>
         d.date === selectedSession.date ? { ...d, workout, displayTitle } : d
       );
@@ -652,7 +666,7 @@ export default function ManualWeekScreen() {
                     onPress={(e) => {
                       e.stopPropagation();
                       onSelectSession(s.date, s.workout, s.displayTitle);
-                      setTimeout(scrollToSessionCard, 200);
+                      setTimeout(scrollToDayFocusSection, 200);
                     }}
                     style={({ pressed }) => ({
                       paddingVertical: 6,
@@ -752,6 +766,7 @@ export default function ManualWeekScreen() {
             />
             <View style={styles.footer}>
               <DayFocusOverrideChips
+                ref={dayFocusSectionRef}
                 dailyPrefsOverride={dailyPrefsOverride}
                 onOverrideChange={(update) =>
                   setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
@@ -759,7 +774,10 @@ export default function ManualWeekScreen() {
                 onRegenerate={onRegenerateDay}
                 isRegenerating={isRegenerating}
                 showAdjustFocusLink={focusSectionsForModal.length > 0}
-                onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
+                onAdjustFocusPress={() => {
+                  setShowAdjustFocusModal(true);
+                  setTimeout(scrollToDayFocusSection, 100);
+                }}
               />
               <PrimaryButton
                 label="Start"

@@ -6,6 +6,7 @@ export {
   generateWorkoutSession,
   regenerateWorkoutSession,
   filterByHardConstraints,
+  filterByConstraintsForPool,
   scoreExercise,
 } from "./dailyGenerator";
 export type { ScoreExerciseOptions } from "./dailyGenerator";

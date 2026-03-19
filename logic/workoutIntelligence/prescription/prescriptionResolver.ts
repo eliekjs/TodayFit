@@ -14,7 +14,10 @@ import { resolveSets, resolveReps, resolveRest, type ResolverContext } from "./s
 import { scaleSetsByDuration } from "./durationScaling";
 import { assignSupersetGroups } from "./supersetFormatter";
 import { getNumericFatigueBudget } from "../sessionShaping";
-import { reduceSetsToFitFatigue as reduceSetsForFatigue } from "./durationScaling";
+import {
+  reduceSetsToFitFatigue as reduceSetsForFatigue,
+  enforceMainAccessoryRatio,
+} from "./durationScaling";
 import type { StimulusProfileSlug } from "../types";
 
 /** Minimal exercise info for prescription (lookup by id). */
@@ -148,4 +151,5 @@ export function applyPrescriptions(
 
   const budget = getNumericFatigueBudget(workout.fatigue_budget);
   reduceSetsForFatigue(workout, budget);
+  enforceMainAccessoryRatio(workout);
 }

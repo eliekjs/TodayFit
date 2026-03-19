@@ -1,4 +1,4 @@
-import React from "react";
+import React, { forwardRef } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTheme } from "../lib/theme";
 import type { DailyWorkoutPreferences } from "../lib/types";
@@ -25,7 +25,7 @@ export type DayFocusOverrideChipsProps = {
   regenerateLabel?: string;
 };
 
-export function DayFocusOverrideChips({
+export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps>(function DayFocusOverrideChips({
   dailyPrefsOverride,
   onOverrideChange,
   onRegenerate,
@@ -35,11 +35,11 @@ export function DayFocusOverrideChips({
   showChips = true,
   helperText = "Then tap Regenerate to rebuild only this session.",
   regenerateLabel = "Regenerate this day",
-}: DayFocusOverrideChipsProps) {
+}, ref) {
   const theme = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View ref={ref} style={styles.container}>
       {showAdjustFocusLink && onAdjustFocusPress && (
         <Pressable
           onPress={onAdjustFocusPress}
@@ -57,7 +57,7 @@ export function DayFocusOverrideChips({
       {showChips && (
         <>
           <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
-            Change focus for this day (optional)
+            Change focus for this day
           </Text>
           <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
             {helperText}
@@ -118,7 +118,7 @@ export function DayFocusOverrideChips({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

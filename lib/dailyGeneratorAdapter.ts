@@ -10,6 +10,7 @@ import { deriveBodyPartFocus, deriveBodyPartFocusFromSubFocus, deriveSubFocus } 
 import { getAvoidTagSlugsFromUpcoming } from "./filterTagRules";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "./preferencesConstants";
 import { resolveGoalSubFocusSlugs } from "../data/goalSubFocus";
+import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
 import type {
   GenerateWorkoutInput,
   PrimaryGoal,
@@ -20,6 +21,9 @@ import type {
   Modality,
   MovementPattern,
 } from "../logic/workoutGeneration/types";
+
+import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
+import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
 
 const DURATIONS = [20, 30, 45, 60, 75] as const;
 type AllowedDuration = (typeof DURATIONS)[number];
@@ -219,13 +223,71 @@ const JOINT_STRESS_PREFIXES = [
   "elbow_stress", "wrist_stress", "hip_stress", "ankle_stress",
 ];
 
+import { normalizeMatchableTagSlugs, normalizeSlug } from "./ontology";
+
+const CANONICAL_SPORT_SLUGS = new Set(SPORTS_WITH_SUB_FOCUSES.map((s) => normalizeSlug(s.slug)));
+
+/**
+ * Sport tag inference:
+ * - Build anchor tag sets per sport from SUB_FOCUS_TAG_MAP (top-weighted tags only).
+ * - When an exercise contains any anchor tag, assign the sport tag to improve sport_slugs matching coverage.
+ *
+ * This is intentionally conservative (few anchor tags) to avoid broad/mere-hardness tagging.
+ */
+const SPORT_ANCHOR_TAGS: Map<string, Set<string>> = (() => {
+  const sportToTagWeights = new Map<string, Map<string, number>>();
+
+  for (const [compoundKey, entries] of Object.entries(SUB_FOCUS_TAG_MAP)) {
+    const [sportSlugRaw] = compoundKey.split(":");
+    if (!sportSlugRaw) continue;
+    const sportSlug = normalizeSlug(getCanonicalSportSlug(sportSlugRaw));
+    if (!CANONICAL_SPORT_SLUGS.has(sportSlug)) continue;
+
+    const byTag = sportToTagWeights.get(sportSlug) ?? new Map<string, number>();
+    for (const e of entries) {
+      const tagSlug = normalizeSlug(e.tag_slug);
+      const weight = typeof e.weight === "number" ? e.weight : 1;
+      const prev = byTag.get(tagSlug) ?? -Infinity;
+      byTag.set(tagSlug, Math.max(prev, weight));
+    }
+    sportToTagWeights.set(sportSlug, byTag);
+  }
+
+  const out = new Map<string, Set<string>>();
+  for (const [sportSlug, tagWeights] of sportToTagWeights.entries()) {
+    const top = [...tagWeights.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 4)
+      .map(([tag]) => tag);
+    out.set(sportSlug, new Set(top));
+  }
+  return out;
+})();
+
+function modalitiesToGoalTags(modalities: string[] | undefined): ExerciseTags["goal_tags"] {
+  const m = (modalities ?? []).map((x) => x.toLowerCase().replace(/\s/g, "_"));
+  const out = new Set<NonNullable<ExerciseTags["goal_tags"]>[number]>();
+  for (const s of m) {
+    if (s === "strength") out.add("strength");
+    else if (s === "hypertrophy") out.add("hypertrophy");
+    else if (s === "conditioning") out.add("conditioning");
+    else if (s === "power") out.add("power");
+    else if (s === "mobility") out.add("mobility");
+    else if (s === "recovery") out.add("recovery");
+    else if (s === "skill") out.add("calisthenics");
+  }
+  return out.size ? ([...out] as ExerciseTags["goal_tags"]) : undefined;
+}
+
 /** Build ExerciseTags from ExerciseDefinition tags and contraindications. Ties sport and sub-focus data to exercises for selection. */
 function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
   const tags = def.tags ?? [];
-  const toSlug = (t: string) => t.toLowerCase().replace(/\s/g, "_");
-  const goalTags = tags.filter((t) =>
+  const toSlug = (t: string) => normalizeSlug(t);
+  const goalTagsFromTags = tags.filter((t) =>
     ["strength", "hypertrophy", "endurance", "power", "mobility", "calisthenics", "recovery", "athleticism"].includes(toSlug(t))
   ) as ExerciseTags["goal_tags"];
+  const goalTagsFromModalities = modalitiesToGoalTags(def.modalities as unknown as string[] | undefined);
+  const goalTags = [...new Set([...(goalTagsFromTags ?? []), ...(goalTagsFromModalities ?? [])])] as ExerciseTags["goal_tags"];
   const energySlugs = tags.filter((t) => /^energy_(low|medium|high)$/.test(toSlug(t)));
   const energyFit = energySlugs.length
     ? (energySlugs.map((t) => t.replace("energy_", "") as "low" | "medium" | "high"))
@@ -236,7 +298,17 @@ function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
   });
   const contraindications = (def.contraindications ?? []).map(contraindicationToSlug);
   const stimulus = tags.filter((t) => STIMULUS_SLUGS.has(toSlug(t))) as ExerciseTags["stimulus"];
-  const sportTags = tags.filter((t) => toSlug(t).startsWith("sport_"));
+  // Canonical sport tags: must match SPORTS_WITH_SUB_FOCUSES slugs (no `sport_` prefix).
+  const sportTags = [
+    ...new Set(
+      tags.flatMap((t) => {
+        const raw = toSlug(t);
+        const withoutPrefix = raw.startsWith("sport_") ? raw.slice("sport_".length) : raw;
+        const canonical = normalizeSlug(getCanonicalSportSlug(withoutPrefix));
+        return CANONICAL_SPORT_SLUGS.has(canonical) ? [canonical] : [];
+      })
+    ),
+  ];
   const used = new Set([
     ...goalTags.map(toSlug),
     ...energySlugs.map(toSlug),
@@ -244,11 +316,107 @@ function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
     ...stimulus.map(toSlug),
     ...sportTags.map(toSlug),
   ]);
-  const attributeTags = tags.filter((t) => !used.has(toSlug(t)));
+  const rawAttribute = tags.filter((t) => !used.has(toSlug(t)));
+  const derivedMuscleTags = (def.muscles ?? []).map(toSlug);
+  const derivedMovementPattern = deriveMovementPattern(def);
+  const derivedMovementTags = derivedMovementPattern
+    ? normalizeMatchableTagSlugs(toSlug(derivedMovementPattern))
+    : [];
+  const normalizedRawAttributeTags = rawAttribute.flatMap((t) => normalizeMatchableTagSlugs(t));
+
+  // Lift canonical “strength qualities” from stimulus tags so sport sub-focus scoring can match them.
+  const inferredFromStimulus: string[] = [];
+  const hasQuads = normalizedRawAttributeTags.includes("quads");
+  const hasHamstrings = normalizedRawAttributeTags.includes("hamstrings");
+  const stimulusSlugs = stimulus.map(toSlug);
+  if (stimulusSlugs.includes("eccentric")) {
+    inferredFromStimulus.push("eccentric_strength");
+    if (hasHamstrings) inferredFromStimulus.push("tendon_resilience");
+
+    const idName = normalizeSlug(`${def.id} ${def.name}`);
+    if (hasQuads || idName.includes("quad") || idName.includes("knee_dominant")) inferredFromStimulus.push("eccentric_quad_strength");
+  }
+  if (stimulusSlugs.includes("isometric")) {
+    inferredFromStimulus.push("isometric_strength", "strength_endurance");
+  }
+  if (stimulusSlugs.includes("plyometric")) {
+    inferredFromStimulus.push("explosive_power");
+  }
+  if (stimulusSlugs.includes("grip")) {
+    inferredFromStimulus.push("grip_strength", "grip_endurance");
+  }
+
+  const modalitySlugs = (def.modalities ?? []).map(toSlug);
+  const equipmentSlugs = (def.equipment ?? []).map(toSlug);
+  const idName = normalizeSlug(`${def.id} ${def.name}`);
+  const inferredFromModalitiesAndEquipment: string[] = [];
+  if (modalitySlugs.includes("strength")) inferredFromModalitiesAndEquipment.push("max_strength");
+  if (modalitySlugs.includes("conditioning")) inferredFromModalitiesAndEquipment.push("work_capacity");
+
+  if (equipmentSlugs.includes("bodyweight")) inferredFromModalitiesAndEquipment.push("bodyweight");
+  if (equipmentSlugs.includes("sled") || idName.includes("sled")) inferredFromModalitiesAndEquipment.push("sled_strength");
+
+  // Eccentric inference from ids/names (FunctionalFitness exports often encode eccentricity in the slug, not tags).
+  if (idName.includes("eccentric")) {
+    inferredFromModalitiesAndEquipment.push("eccentric_strength");
+    if (hasQuads) inferredFromModalitiesAndEquipment.push("eccentric_quad_strength");
+    if (hasHamstrings) inferredFromModalitiesAndEquipment.push("tendon_resilience");
+  }
+
+  // High-intensity / threshold-ish heuristics (used by zone3/lactate/energy_high canonical tags).
+  const isSprintOrInterval = /sprint|interval|hiit|tempo|sprinter/.test(idName);
+  if (isSprintOrInterval) {
+    inferredFromModalitiesAndEquipment.push("energy_high", "zone3_cardio", "anaerobic_capacity", "lactate_threshold");
+  }
+
+  // Reactive / landing-ish
+  if (/reactive|landing|drop|drop_|jump_landing/.test(idName)) inferredFromModalitiesAndEquipment.push("reactive_power");
+
+  // Pattern inference from OTA slugs / ids.
+  if (idName.includes("lunge")) inferredFromModalitiesAndEquipment.push("lunge_pattern");
+  if (idName.includes("skater") || idName.includes("shuffle") || idName.includes("agility")) inferredFromModalitiesAndEquipment.push("agility");
+
+  // Climbing/grip inference (finger/lock-off)
+  if (idName.includes("finger") || idName.includes("two_finger") || idName.includes("planche")) inferredFromModalitiesAndEquipment.push("finger_strength");
+  if (idName.includes("lockoff") || idName.includes("lock-off") || idName.includes("front_lever")) inferredFromModalitiesAndEquipment.push("lockoff_strength");
+
+  // Hips / trunk / mobility inference
+  if (idName.includes("hip")) inferredFromModalitiesAndEquipment.push("hips");
+
+  const attributeTags = [
+    ...new Set([
+      ...normalizedRawAttributeTags,
+      ...derivedMuscleTags,
+      ...derivedMovementTags,
+      ...energySlugs.map(toSlug),
+      ...inferredFromStimulus,
+      ...inferredFromModalitiesAndEquipment,
+    ]),
+  ];
+
+  // Infer sport tags from the exercise's canonical selector tags.
+  // This improves generator compatibility for sport_slugs matching without requiring explicit `sport_*` tags in the DB.
+  const exerciseTagSetForSportInference = new Set<string>([
+    ...goalTags.map(toSlug),
+    ...stimulusSlugs,
+    ...attributeTags,
+  ]);
+  const inferredSportTags: string[] = [];
+  for (const [sportSlug, anchorTags] of SPORT_ANCHOR_TAGS.entries()) {
+    let matched = false;
+    for (const t of anchorTags) {
+      if (exerciseTagSetForSportInference.has(t)) {
+        matched = true;
+        break;
+      }
+    }
+    if (matched) inferredSportTags.push(sportSlug);
+  }
+  const sportTagsFinal = [...new Set([...sportTags, ...inferredSportTags])];
 
   return {
     ...(goalTags?.length ? { goal_tags: goalTags } : {}),
-    ...(sportTags.length ? { sport_tags: sportTags } : {}),
+    ...(sportTagsFinal.length ? { sport_tags: sportTagsFinal } : {}),
     ...(energyFit?.length ? { energy_fit: energyFit } : {}),
     ...(jointStress.length ? { joint_stress: jointStress } : {}),
     ...(contraindications.length ? { contraindications } : {}),

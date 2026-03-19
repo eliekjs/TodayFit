@@ -51,4 +51,5 @@ export {
   mergeJointStressForTags,
   mergeContraindicationsForTags,
   normalizeEquipmentSlug,
+  normalizeMatchableTagSlugs,
 } from "./legacyMapping";

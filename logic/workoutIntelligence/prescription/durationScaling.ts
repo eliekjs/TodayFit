@@ -86,3 +86,65 @@ export function reduceSetsToFitFatigue(
     }
   }
 }
+
+/** Block types that count as "main" work for main vs accessory ratio. */
+const MAIN_BLOCK_TYPES = new Set<BlockType>([
+  "main_strength",
+  "main_hypertrophy",
+  "power",
+]);
+
+/**
+ * Enforce: (1) never more accessory sets than main sets,
+ * (2) when doing accessory, target 75% main / 25% accessory.
+ * Mutates workout in place by reducing accessory block set counts if needed.
+ */
+export function enforceMainAccessoryRatio(workout: GeneratedWorkout): void {
+  let mainSets = 0;
+  let accessorySets = 0;
+  const accessoryBlocks: typeof workout.blocks = [];
+
+  for (const block of workout.blocks) {
+    let blockSets = 0;
+    for (const slot of block.exercises) {
+      const s = slot.prescription?.sets ?? 0;
+      blockSets += s;
+    }
+    if (MAIN_BLOCK_TYPES.has(block.block_type)) {
+      mainSets += blockSets;
+    } else if (block.block_type === "accessory") {
+      accessorySets += blockSets;
+      accessoryBlocks.push(block);
+    }
+  }
+
+  if (accessoryBlocks.length === 0 || accessorySets === 0) return;
+
+  // Never more accessory than main; when doing accessory, 75% main / 25% accessory → accessory ≤ main/3.
+  const maxAccessory = Math.min(mainSets, Math.floor(mainSets / 3));
+  if (accessorySets <= maxAccessory) return;
+
+  let toRemove = accessorySets - maxAccessory;
+  // Reduce sets in accessory blocks (slots with most sets first) until we're at or below maxAccessory.
+  const slotsWithSets: { block: (typeof workout.blocks)[0]; slot: (typeof workout.blocks)[0]["exercises"][0] }[] = [];
+  for (const block of accessoryBlocks) {
+    for (const slot of block.exercises) {
+      if (slot.prescription && slot.prescription.sets > 0) {
+        slotsWithSets.push({ block, slot });
+      }
+    }
+  }
+  slotsWithSets.sort(
+    (a, b) => (b.slot.prescription?.sets ?? 0) - (a.slot.prescription?.sets ?? 0)
+  );
+
+  for (const { slot } of slotsWithSets) {
+    if (toRemove <= 0) break;
+    const p = slot.prescription!;
+    const reduce = Math.min(toRemove, p.sets - 1);
+    if (reduce > 0) {
+      p.sets = Math.max(1, p.sets - reduce);
+      toRemove -= reduce;
+    }
+  }
+}

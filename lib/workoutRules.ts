@@ -8,6 +8,8 @@ export const WARMUP_ALLOWED_EQUIPMENT = new Set<string>([
   "bodyweight",
   "bands",
   "resistance_band",
+  "rings",
+  "pullup_bar",
   "treadmill",
   "assault_bike",
   "rower",
@@ -26,6 +28,8 @@ export const COOLDOWN_ALLOWED_EQUIPMENT = new Set<string>([
   "bodyweight",
   "bands",
   "resistance_band",
+  "rings",
+  "pullup_bar",
   "foam_roller",
   "miniband",
 ]);

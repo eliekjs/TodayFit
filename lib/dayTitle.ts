@@ -53,17 +53,21 @@ export function isSpecificFocusRelevantForBody(
 }
 
 /**
- * Format a day title: Goal - Body Emphasis (Specific Focus when relevant).
+ * Format a day title: Goal(s) - Body Emphasis (Specific Focus when relevant).
+ * When multiple goals/focuses are passed, they are joined with " + " (e.g. "Strength + Hypertrophy - Upper Body").
  * Examples:
  * - "Sports Conditioning - Upper Body"
+ * - "Strength + Hypertrophy - Upper Body"
  * - "Hypertrophy - Lower Body (Glute Focus)"
  * - "Strength - Full Body (Shoulder + Back Focus)"
  */
 export function formatDayTitle(
-  goalLabel: string,
+  goalLabelOrLabels: string | string[],
   bodyEmphasis: "upper" | "lower" | "full",
   specificFocusKeys?: string[] | null
 ): string {
+  const goalParts = Array.isArray(goalLabelOrLabels) ? goalLabelOrLabels : [goalLabelOrLabels];
+  const goalLabel = goalParts.filter(Boolean).join(" + ") || "Workout";
   const bodyLabel = BODY_EMPHASIS_LABELS[bodyEmphasis];
   const base = `${goalLabel} - ${bodyLabel}`;
   if (!specificFocusKeys?.length) return base;
