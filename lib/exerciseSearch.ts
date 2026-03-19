@@ -1,17 +1,33 @@
-import { EXERCISES } from "../data/exercises";
+import { isDbConfigured } from "./db";
+import { listExercises } from "./db/exerciseRepository";
 
 const MAX_SEARCH_RESULTS = 25;
 
 /**
  * Search exercises by name (case-insensitive substring).
- * Returns up to MAX_SEARCH_RESULTS matches for use in swap/search UI.
+ * Uses the database (single source of truth). When Supabase is not configured, returns [].
  */
-export function searchExercises(query: string): { id: string; name: string }[] {
+export async function searchExercisesAsync(query: string): Promise<{ id: string; name: string }[]> {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  return EXERCISES.filter(
-    (e) => e.name.toLowerCase().includes(q) || (e.id && e.id.toLowerCase().includes(q))
-  )
-    .slice(0, MAX_SEARCH_RESULTS)
-    .map((e) => ({ id: e.id, name: e.name }));
+  if (!isDbConfigured()) return [];
+  try {
+    const exercises = await listExercises();
+    return exercises
+      .filter(
+        (e) =>
+          e.name.toLowerCase().includes(q) || (e.id && e.id.toLowerCase().includes(q))
+      )
+      .slice(0, MAX_SEARCH_RESULTS)
+      .map((e) => ({ id: e.id, name: e.name }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * @deprecated Use searchExercisesAsync. Sync search for scripts/tests that load pool elsewhere.
+ */
+export function searchExercises(query: string): { id: string; name: string }[] {
+  return [];
 }

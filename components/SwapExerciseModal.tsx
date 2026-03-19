@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useTheme } from "../lib/theme";
 import { PrimaryButton } from "./Button";
-import { searchExercises } from "../lib/exerciseSearch";
+import { searchExercisesAsync } from "../lib/exerciseSearch";
 
 export type SwapOption = { id: string; name: string };
 
@@ -38,11 +38,25 @@ export function SwapExerciseModal({
   const theme = useTheme();
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; name: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const raw = searchExercises(searchQuery);
-    return raw.filter((e) => e.id !== exerciseId);
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    let cancelled = false;
+    setSearchLoading(true);
+    searchExercisesAsync(searchQuery).then((raw) => {
+      if (!cancelled) {
+        setSearchResults(raw.filter((e) => e.id !== exerciseId));
+        setSearchLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setSearchLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [searchQuery, exerciseId]);
 
   const suggestionsFiltered = useMemo(
@@ -113,7 +127,9 @@ export function SwapExerciseModal({
                 autoCorrect={false}
               />
               <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                {searchResults.length === 0 && searchQuery.trim() ? (
+                {searchLoading ? (
+                  <ActivityIndicator size="small" color={theme.primary} style={{ marginVertical: 24 }} />
+                ) : searchResults.length === 0 && searchQuery.trim() ? (
                   <Text style={[styles.emptyText, { color: theme.textMuted }]}>
                     No exercises match "{searchQuery}"
                   </Text>

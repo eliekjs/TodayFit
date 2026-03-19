@@ -29,3 +29,31 @@
 {"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773877123626,"hypothesisId":"H1"}
 {"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773877336670,"hypothesisId":"H1"}
 {"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773877456635,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773894357284,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773894941601,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773894954771,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773894971401,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773895001082,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773926719484,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":"week"},"timestamp":1773926757332,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":"week"},"timestamp":1773926773761,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"_layout.tsx:ManualFlowBackButton","message":"Header back pressed","data":{"pathname":"/manual/week","targetUrl":"/manual/preferences"},"timestamp":1773927226324,"hypothesisId":"H3"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773927226378,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":null},"timestamp":1773927238070,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":null},"timestamp":1773927247448,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773931857051,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":null},"timestamp":1773931871889,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773931990810,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":null},"timestamp":1773932001974,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933920564,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933925005,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933928246,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933931535,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933935067,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:onGenerate","message":"Generate pressed","data":{"scope":null},"timestamp":1773933937157,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933938361,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933941423,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933946056,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933955263,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"preferences.tsx:scope-params","message":"Preferences mounted/params","data":{"scope":null},"timestamp":1773933961578,"hypothesisId":"H1"}
+{"sessionId":"940c18","location":"_layout.tsx:ManualFlowBackButton","message":"Header back pressed","data":{"pathname":"/manual/execute","targetUrl":"/manual/preferences"},"timestamp":1773934126959,"hypothesisId":"H3"}

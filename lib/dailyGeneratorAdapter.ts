@@ -9,7 +9,10 @@ import type { GymProfile } from "../data/gymProfiles";
 import { deriveBodyPartFocus, deriveBodyPartFocusFromSubFocus, deriveSubFocus } from "./preferencesConstants";
 import { getAvoidTagSlugsFromUpcoming } from "./filterTagRules";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "./preferencesConstants";
-import { resolveGoalSubFocusSlugs } from "../data/goalSubFocus";
+import {
+  resolveGoalSubFocusSlugs,
+  resolveSubFocusProfile,
+} from "../data/goalSubFocus";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
 import type {
   GenerateWorkoutInput,
@@ -132,8 +135,15 @@ export function manualPreferencesToGenerateWorkoutInput(
     const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(label, subLabels);
     if (!goalSlug || !subFocusSlugs.length) continue;
     const existing = goal_sub_focus[goalSlug] ?? [];
-    const combined = [...new Set([...existing, ...subFocusSlugs])];
-    goal_sub_focus[goalSlug] = combined;
+    goal_sub_focus[goalSlug] = [...new Set([...existing, ...subFocusSlugs])];
+  }
+  // Resolver: rank-based weights (intent vs overlay, same-class conflict by user priority).
+  const goal_sub_focus_weights: Record<string, number[]> = {};
+  for (const [goalSlug, rankedSlugs] of Object.entries(goal_sub_focus)) {
+    if (!rankedSlugs?.length) continue;
+    const profile = resolveSubFocusProfile({ goalSlug, rankedSubFocusSlugs: rankedSlugs });
+    // Weights in same order as goal_sub_focus[goalSlug] for getExerciseTagsForGoalSubFocuses(goalSlug, slugs, weights).
+    goal_sub_focus_weights[goalSlug] = rankedSlugs.map((s) => profile.resolvedWeights[s] ?? 1 / rankedSlugs.length);
   }
 
   // Goal weights from match percentages (normalize to sum 1)
@@ -173,6 +183,7 @@ export function manualPreferencesToGenerateWorkoutInput(
     style_prefs: hasStylePrefs ? style_prefs : undefined,
     seed: seedNum,
     goal_sub_focus: Object.keys(goal_sub_focus).length ? goal_sub_focus : undefined,
+    goal_sub_focus_weights: Object.keys(goal_sub_focus_weights).length ? goal_sub_focus_weights : undefined,
     goal_weights: sportGoalContext?.goal_weights ?? goal_weights,
     sport_slugs: sportGoalContext?.sport_slugs,
     sport_sub_focus: sportGoalContext?.sport_sub_focus,

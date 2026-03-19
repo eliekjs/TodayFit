@@ -363,6 +363,56 @@ export function getConditioningIntervalStructure(
   };
 }
 
+/**
+ * Conditioning structure by sub-focus intent (direct slug). Used when conditioning path consumes
+ * resolved sub-focus profile: zone2 = sustained, intervals_hiit = rounds/EMOM, threshold = medium sustained, hills = current.
+ */
+export function getConditioningStructureByIntent(
+  totalMinutes: number,
+  conditioningIntent: string | undefined,
+  equipmentRequired: string[],
+  goal: string
+): ConditioningIntervalStructure {
+  const intent = conditioningIntent?.toLowerCase().replace(/\s/g, "_") ?? "";
+  if (intent === "zone2_aerobic_base" || intent === "zone2_block") {
+    return {
+      sets: 1,
+      time_seconds: Math.min(totalMinutes * 60, 45 * 60),
+      rest_seconds: 0,
+      format: "straight_sets",
+      reasoning: "Sustained steady-state; Zone 2 compatible.",
+    };
+  }
+  if (intent === "intervals_hiit" || intent === "hiit_intervals") {
+    // EMOM-style: each "set" is 1 minute.
+    // - 20–30 min: 20s work / 40s rest
+    // - 30–35 min: 30s work / 30s rest
+    // - 35+ min: 40s work / 20s rest
+    const workSeconds = totalMinutes <= 25 ? 20 : totalMinutes <= 35 ? 30 : 40;
+    const sets = Math.max(10, Math.min(40, Math.round(totalMinutes)));
+    return {
+      sets,
+      time_seconds: workSeconds,
+      rest_seconds: Math.max(5, 60 - workSeconds),
+      format: "circuit",
+      reasoning: "EMOM-style intervals (time-based work with defined rest).",
+    };
+  }
+  if (intent === "threshold_tempo") {
+    const workMin = Math.min(8, Math.max(4, Math.floor(totalMinutes / 2)));
+    const sets = totalMinutes >= 20 ? 2 : 1;
+    return {
+      sets,
+      time_seconds: workMin * 60,
+      rest_seconds: sets > 1 ? 60 : 0,
+      format: sets > 1 ? "circuit" : "straight_sets",
+      reasoning: "Medium sustained effort; threshold/tempo.",
+    };
+  }
+  // hills or unknown: use existing logic (lower-body/incline bias is in exercise selection, not structure)
+  return getConditioningIntervalStructure(totalMinutes, goal, equipmentRequired);
+}
+
 /** Max work per round for high-intensity conditioning (burpees, KB swings, high knees, etc.). Nobody can sustain these for 8+ min straight. */
 export const MAX_HIGH_INTENSITY_WORK_SECONDS = 60;
 

@@ -29,6 +29,7 @@ export type ExerciseTags = {
   goal_tags?: (
     | "strength"
     | "hypertrophy"
+    | "conditioning"
     | "endurance"
     | "power"
     | "mobility"
@@ -46,6 +47,7 @@ export type ExerciseTags = {
     | "plyometric"
     | "aerobic_zone2"
     | "anaerobic"
+    | "single_leg"
     | "grip"
     | "scapular_control"
     | "trunk_anti_rotation"
@@ -180,6 +182,8 @@ export type RecentSessionSummary = {
 
 /** Goal slug → sub-focus slugs for tag-based scoring (Option A: sub-focus in algorithm). */
 export type GoalSubFocusInput = Record<string, string[]>;
+/** Goal slug → weights for each sub-focus (same order as goal_sub_focus[goalSlug]). When set, rank-based scoring is used. */
+export type GoalSubFocusWeightsInput = Record<string, number[]>;
 /** Sport slug → sub-focus slugs for tag-based scoring. */
 export type SportSubFocusInput = Record<string, string[]>;
 
@@ -198,6 +202,8 @@ export type GenerateWorkoutInput = {
   seed?: number;
   /** Goal sub-focus: goal slug → sub-focus slugs. Boosts exercises whose tags match sub-focus tag map. */
   goal_sub_focus?: GoalSubFocusInput;
+  /** Optional rank-based weights per goal (same order as goal_sub_focus[goalSlug]). From sub-focus resolver. */
+  goal_sub_focus_weights?: GoalSubFocusWeightsInput;
   /** Sport sub-focus: sport slug → sub-focus slugs. Boosts exercises whose tags match sub-focus tag map. */
   sport_sub_focus?: SportSubFocusInput;
   /** Sport slugs (ordered; first = primary). Used for sport-tag scoring and quality blending. */

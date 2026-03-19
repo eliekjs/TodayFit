@@ -2,9 +2,11 @@
  * Integration tests for generateWorkoutAsync (app entrypoint using dailyGenerator).
  * Run with: npx tsx lib/generator.integration.test.ts
  *
- * Asserts that generateWorkoutAsync returns valid GeneratedWorkout for a few preference sets.
+ * Requires Supabase to be configured (EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY)
+ * and the exercise catalog to be seeded (scripts/seedExercisesToDb.ts).
  */
 
+import { isDbConfigured } from "./db";
 import { generateWorkoutAsync } from "./generator";
 import type { ManualPreferences } from "./types";
 
@@ -13,6 +15,10 @@ function assert(condition: boolean, message: string) {
 }
 
 async function run() {
+  if (!isDbConfigured()) {
+    console.log("Skipping generateWorkoutAsync integration tests: Supabase not configured.");
+    process.exit(0);
+  }
   console.log("generateWorkoutAsync integration tests\n");
 
   // Default-like preferences: strength, full body, 45 min

@@ -46,6 +46,7 @@ import {
   scaleSetsByEnergy,
   getConditioningDurationMinutes,
   getConditioningIntervalStructure,
+  getConditioningStructureByIntent,
   getExplosiveConditioningStructure,
   getHighIntensityConditioningStructure,
   getRepBasedHighIntensityConditioningStructure,
@@ -81,7 +82,26 @@ import {
 import { getRecommendation } from "./recommendationLayer";
 import { applyRecommendationToPrescription } from "./prescriptionHistory";
 import { getLegacyMovementPattern } from "../../lib/ontology/legacyMapping";
-import { getExerciseTagsForGoalSubFocuses } from "../../data/goalSubFocus";
+import {
+  getExerciseTagsForGoalSubFocuses,
+  resolveSubFocusProfile,
+  getStrengthIntentSlugs,
+  STRENGTH_INTENT_SLUGS,
+  STRENGTH_OVERLAY_SLUGS,
+  exerciseHasStrengthSubFocusSlug,
+  type SubFocusProfile,
+} from "../../data/goalSubFocus";
+import {
+  getPrimaryConditioningIntent,
+  getConditioningIntentSlugs,
+  filterPoolByDirectSubFocus,
+  filterPoolByOverlay,
+  exerciseHasSubFocusSlug,
+} from "../../data/goalSubFocus/conditioningSubFocus";
+import {
+  resolveConditioningIntentFormatFromIntent,
+  type ConditioningIntentFormat,
+} from "./conditioningFormatResolver";
 import { getExerciseTagsForSubFocuses } from "../../data/sportSubFocus";
 
 // --- Avoid tags that imply overhead / hanging / shoulder extension (safety) ---
@@ -98,6 +118,9 @@ const EXERCISE_IDS_OVERHEAD_OR_HANGING = new Set([
   "db_shoulder_press",
   "dips",
 ]);
+
+const STRENGTH_INTENT_SET = new Set<string>([...STRENGTH_INTENT_SLUGS]);
+const STRENGTH_OVERLAY_SET = new Set<string>([...STRENGTH_OVERLAY_SLUGS]);
 
 function exerciseHasOverheadOrHanging(e: Exercise, avoidTags: string[]): boolean {
   if (!avoidTags.length) return false;
@@ -281,14 +304,16 @@ function tagToSlug(tag: string): string {
   return tag.toLowerCase().replace(/\s/g, "_");
 }
 
-/** Build preferred tag weights from goal_sub_focus and sport_sub_focus input. Used for sub-focus tag-based scoring. */
+/** Build preferred tag weights from goal_sub_focus and sport_sub_focus input. Used for sub-focus tag-based scoring. Uses rank-based weights when goal_sub_focus_weights provided. */
 function buildPreferredTagWeightsFromSubFocus(input: GenerateWorkoutInput): Map<string, number> {
   const out = new Map<string, number>();
   const goalSubFocus = input.goal_sub_focus;
+  const goalSubFocusWeights = input.goal_sub_focus_weights;
   if (goalSubFocus && Object.keys(goalSubFocus).length > 0) {
     for (const [goalSlug, subFocusSlugs] of Object.entries(goalSubFocus)) {
       if (!subFocusSlugs?.length) continue;
-      const entries = getExerciseTagsForGoalSubFocuses(goalSlug, subFocusSlugs);
+      const weights = goalSubFocusWeights?.[goalSlug];
+      const entries = getExerciseTagsForGoalSubFocuses(goalSlug, subFocusSlugs, weights);
       for (const { tag_slug, weight } of entries) {
         const slug = tagToSlug(tag_slug);
         out.set(slug, (out.get(slug) ?? 0) + weight);
@@ -458,8 +483,42 @@ export function scoreExercise(
     }
   }
 
-  // Sub-focus (Option A: tag-based): boost exercises whose tags match goal/sport sub-focus tag map
+  // Conditioning/endurance: direct sub-focus slug match is first-class (strong); legacy tag match is weaker.
+  const primary = input.primary_goal;
   const goalSubFocus = input.goal_sub_focus;
+  const conditioningIntentSlugs =
+    (primary === "conditioning" || primary === "endurance") &&
+    goalSubFocus?.[primary]?.length
+      ? (goalSubFocus[primary] ?? []).filter(
+          (s) => !["upper", "lower", "core", "full_body"].includes(s)
+        )
+      : [];
+  if (conditioningIntentSlugs.length > 0) {
+    const directMatch = conditioningIntentSlugs.some((slug) =>
+      exerciseHasSubFocusSlug(exercise, slug)
+    );
+    if (directMatch) total += 3;
+  }
+
+  // Strength: direct intent sub-focus slug match drives primary selection and is stronger than legacy tags.
+  if (primary === "strength" && goalSubFocus?.[primary]?.length) {
+    const ranked = goalSubFocus[primary] ?? [];
+    const weightsArr = input.goal_sub_focus_weights?.[primary] ?? ranked.map(() => 1 / (ranked.length || 1));
+    const weightBySlug = new Map<string, number>();
+    ranked.forEach((s, i) => weightBySlug.set(s, weightsArr[i] ?? 1 / (ranked.length || 1)));
+
+    let intentBonus = 0;
+    let overlayBonus = 0;
+    for (const slug of ranked) {
+      if (!exerciseHasStrengthSubFocusSlug(exercise, slug)) continue;
+      const w = weightBySlug.get(slug) ?? 0;
+      if (STRENGTH_INTENT_SET.has(slug)) intentBonus += w * 5;
+      else if (STRENGTH_OVERLAY_SET.has(slug)) overlayBonus += w * 2;
+    }
+    total += intentBonus + overlayBonus;
+  }
+
+  // Sub-focus (tag-based): boost exercises whose tags match goal/sport sub-focus tag map. For conditioning, legacy tags (conditioning/compound/energy_high) are weaker than direct slug match above.
   const sportSubFocus = input.sport_sub_focus;
   const hasSubFocus =
     (goalSubFocus && Object.keys(goalSubFocus).length > 0) ||
@@ -472,7 +531,8 @@ export function scoreExercise(
       for (const [slug, weight] of preferredWeights) {
         if (exerciseSlugs.has(slug)) subFocusScore += weight;
       }
-      const subFocusCoeff = 0.5;
+      const subFocusCoeff =
+        primary === "conditioning" || primary === "endurance" ? 0.25 : primary === "strength" ? 0.2 : 0.5;
       const subFocusContribution = subFocusScore * subFocusCoeff;
       total += subFocusContribution;
     }
@@ -1092,31 +1152,67 @@ function buildMainStrength(
   fatigueVolumeScale?: number,
   fatigueState?: FatigueState,
   sessionFatigueRegions?: Map<string, number>,
-  historyContext?: TrainingHistoryContext
+  historyContext?: TrainingHistoryContext,
+  strengthProfile?: SubFocusProfile | null
 ): WorkoutBlock[] {
   const blocks: WorkoutBlock[] = [];
   const goalRules = getGoalRules(input.primary_goal);
   let compoundMin = goalRules.compoundLiftMin ?? 1;
   if (input.duration_minutes <= 30) compoundMin = Math.min(compoundMin, 1);
   if (input.energy_level === "low") compoundMin = Math.min(compoundMin, 1);
+
+  const intentSlugs = strengthProfile ? getStrengthIntentSlugs(strengthProfile) : [];
+  const overlayFilter = strengthProfile?.overlayFilter;
+
   const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
-  const mainPool = exercises.filter(
+  let mainPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "power") &&
       !used.has(e.id) &&
       mainStrengthPatterns.has(effectiveMainWorkPattern(e)) &&
       !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
-  const accessoryPool = exercises.filter(
+
+  let accessoryPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "hypertrophy") &&
       !used.has(e.id) &&
       !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
 
+  // Overlay filtering: only constrain when the overlay resolves to an explicit region.
+  if (overlayFilter && overlayFilter !== "full_body") {
+    mainPool = filterPoolByOverlay(mainPool, overlayFilter);
+    accessoryPool = filterPoolByOverlay(accessoryPool, overlayFilter);
+  }
+
   const mainLiftCount = Math.min(compoundMin, 2, mainPool.length);
+
+  // Intent direct-match pool: prefer matching intent slugs when we still have enough items.
+  const directIntentMainMatches =
+    intentSlugs.length > 0 ? mainPool.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug))) : [];
+  const mainSelectionPool =
+    directIntentMainMatches.length >= mainLiftCount ? directIntentMainMatches : mainPool;
+
+  const primaryIntent = intentSlugs[0];
+  const templateHint = strengthProfile?.templateHints?.[0];
+  const mainReasoning =
+    templateHint === "strength_emphasis_lower"
+      ? "Compound lifts with lower-body emphasis (squat intent)."
+      : templateHint === "strength_emphasis_posterior"
+        ? "Compound lifts with posterior-chain emphasis (hinge intent)."
+        : templateHint === "strength_emphasis_push"
+          ? "Compound lifts with upper-push emphasis (bench/press intent)."
+          : templateHint === "strength_emphasis_overhead_push"
+            ? "Compound lifts with overhead-push emphasis (overhead intent)."
+            : templateHint === "strength_emphasis_pull"
+              ? "Compound lifts with pull emphasis (pull intent)."
+              : primaryIntent
+                ? "Compound lifts with intent-driven selection."
+                : "Compound lifts for strength.";
+
   const { exercises: mainLifts } = selectExercises(
-    mainPool,
+    mainSelectionPool,
     input,
     recentIds,
     movementCounts,
@@ -1174,7 +1270,7 @@ function buildMainStrength(
       block_type: "main_strength",
       format: "superset",
       title: "Main strength",
-      reasoning: "Compound lifts for strength; superset for efficiency.",
+      reasoning: mainReasoning + " Superset for time efficiency.",
       items: [itemA, itemB],
       supersetPairs: [[itemA, itemB]],
       estimated_minutes: Math.max(pA.sets, pB.sets) * (workMinPerRound + restForEstimateSec / 60),
@@ -1188,7 +1284,7 @@ function buildMainStrength(
         block_type: "main_strength",
         format: "straight_sets",
         title: "Main strength",
-        reasoning: "Compound lift for strength.",
+          reasoning: mainReasoning,
         items: [
           {
             exercise_id: mainLift.id,
@@ -1214,7 +1310,15 @@ function buildMainStrength(
   if (input.energy_level === "low") pairCount = Math.min(pairCount, 1);
   if (pairCount && wantsSupersets) {
     const available = accessoryPool.filter((e) => !used.has(e.id));
-    const pairs = pickBestSupersetPairs(available, pairCount, used) as [Exercise, Exercise][];
+    const directIntentAccessoryMatches =
+      intentSlugs.length > 0
+        ? available.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)))
+        : [];
+    const pairNeededItems = pairCount * 2;
+    const poolForPairs =
+      directIntentAccessoryMatches.length >= pairNeededItems ? directIntentAccessoryMatches : available;
+
+    const pairs = pickBestSupersetPairs(poolForPairs, pairCount, used) as [Exercise, Exercise][];
     for (const [exA, exB] of pairs) {
       used.add(exA.id);
       used.add(exB.id);
@@ -1417,16 +1521,24 @@ function isCalisthenicsUpperPreferredPattern(e: Exercise): boolean {
   return legacy === "push" || legacy === "pull";
 }
 
-/** Pick conditioning exercise: prefer those matching preferred_zone2_cardio (e.g. bike, treadmill, rower), else random. */
+/** Pick conditioning exercise: prefer direct sub-focus slug match (intent), then preferred_zone2_cardio modalities, else random. */
 function pickConditioningExercise(
   pool: Exercise[],
   preferredModalities: string[] | undefined,
-  rng: () => number
+  rng: () => number,
+  preferredSubFocusSlugs?: string[]
 ): Exercise | undefined {
   if (!pool.length) return undefined;
+  let candidatePool = pool;
+  if (preferredSubFocusSlugs?.length) {
+    const directMatch = pool.filter((e) =>
+      preferredSubFocusSlugs.some((slug) => exerciseHasSubFocusSlug(e, slug))
+    );
+    if (directMatch.length > 0) candidatePool = directMatch;
+  }
   if (preferredModalities?.length) {
     const normalized = preferredModalities.map((m) => m.toLowerCase().replace(/\s/g, "_"));
-    const preferred = pool.filter((e) => {
+    const preferred = candidatePool.filter((e) => {
       const id = e.id.toLowerCase();
       const name = e.name.toLowerCase();
       return normalized.some((n) => id.includes(n) || name.includes(n));
@@ -1435,7 +1547,7 @@ function pickConditioningExercise(
       return preferred[Math.floor(rng() * preferred.length)];
     }
   }
-  return pool[Math.floor(rng() * pool.length)];
+  return candidatePool[Math.floor(rng() * candidatePool.length)];
 }
 
 /** True when conditioning exercise is explosive/plyometric (box jumps, jump squats) — prescribe as sets of reps or short time, not one long block. */
@@ -1569,6 +1681,430 @@ function buildMainHypertrophy(
 
 // --- Endurance / conditioning: duration-scaled strength/conditioning supersets + optional cardio ---
 // Target main-work exercise count: 30 min → 3, 45 min → 6, 60+ min → 8 (so 45 min is never only 2 exercises).
+// When conditioningProfile is set: intent sub-focuses drive primary selection/structure; overlays drive filtering and secondary scoring.
+
+function buildIntervalsHIITMain(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  rng: () => number,
+  conditioningProfile: SubFocusProfile
+): WorkoutBlock[] {
+  const intentSlugs = getConditioningIntentSlugs(conditioningProfile);
+  const primaryIntent = getPrimaryConditioningIntent(conditioningProfile) ?? "intervals_hiit";
+
+  // Strongly prefer conditioning exercises for HIIT structure.
+  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+
+  // Overlays constrain filtering only; they do not drive the interval structure.
+  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
+    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
+  }
+
+  // Direct sub-focus matching: keep direct matches if available.
+  const directMatches =
+    intentSlugs.length > 0
+      ? pool.filter((e) => intentSlugs.some((s) => exerciseHasSubFocusSlug(e, s)))
+      : [];
+  if (directMatches.length > 0) pool = directMatches;
+  if (!pool.length) return [];
+
+  const c = pickConditioningExercise(
+    pool,
+    input.style_prefs?.preferred_zone2_cardio,
+    rng,
+    intentSlugs.length ? intentSlugs : undefined
+  );
+  if (!c) return [];
+  used.add(c.id);
+
+  // Use conditioning duration minutes for a coherent time-based structure.
+  const condMins =
+    getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
+    Math.max(15, Math.round(input.duration_minutes / 2));
+
+  const interval = getConditioningStructureByIntent(
+    condMins,
+    primaryIntent,
+    c.equipment_required ?? [],
+    input.primary_goal
+  );
+
+  const p = getPrescription(
+    c,
+    "conditioning",
+    input.energy_level,
+    input.primary_goal,
+    undefined,
+    undefined,
+    input.style_prefs?.user_level
+  );
+
+  return [
+    {
+      block_type: "conditioning",
+      format: (interval.format as BlockFormat) ?? "circuit",
+      title: "HIIT intervals",
+      reasoning: interval.reasoning ?? "Time-based intervals with defined rest.",
+      items: [
+        {
+          exercise_id: c.id,
+          exercise_name: c.name,
+          sets: interval.sets,
+          time_seconds: interval.time_seconds ?? 30,
+          rest_seconds: interval.rest_seconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["conditioning", "hiit", ...(c.tags.goal_tags ?? [])],
+          unilateral: c.unilateral ?? false,
+        },
+      ],
+      estimated_minutes: condMins,
+    },
+  ];
+}
+
+function getConditioningIntentMainMinutes(input: GenerateWorkoutInput): number {
+  // Warm-up + cool-down take a chunk; reserve a clear, format-specific amount.
+  if (input.duration_minutes === 20) return 12;
+  if (input.duration_minutes === 30) return 20;
+  if (input.duration_minutes === 45) return 30;
+  if (input.duration_minutes === 60) return 40;
+  // 75m sessions: cap the intent work so it stays sustainable.
+  return 40;
+}
+
+function overlayEmphasisLabel(overlayFilter?: string): string | null {
+  const ov = (overlayFilter ?? "").toLowerCase();
+  if (!ov || ov === "full_body") return null;
+  if (ov === "lower") return "Lower-body emphasis";
+  if (ov === "upper") return "Upper-body emphasis";
+  if (ov === "core") return "Core emphasis";
+  return `${ov.replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} emphasis`;
+}
+
+function isHillBiasExercise(e: Exercise): boolean {
+  const id = (e.id ?? "").toLowerCase();
+  const name = (e.name ?? "").toLowerCase();
+  const eq = (e.equipment_required ?? []).map((x) => x.toLowerCase());
+  return (
+    id.includes("treadmill_incline") ||
+    id.includes("incline") ||
+    name.includes("incline") ||
+    name.includes("stair") ||
+    id.includes("stair") ||
+    id.includes("stair_climber") ||
+    id.includes("stepup") ||
+    id.includes("step_up") ||
+    id.includes("sled_push") ||
+    id.includes("sled_drag") ||
+    eq.includes("treadmill") ||
+    eq.includes("stair_climber") ||
+    eq.includes("sled")
+  );
+}
+
+function pickJointHealthSupportCandidates(pool: Exercise[]): Exercise[] {
+  const supportStimulus = new Set([
+    "scapular_control",
+    "trunk_anti_rotation",
+    "anti_flexion",
+    "isometric",
+    "grip",
+    "single_leg",
+  ]);
+  const supportAttribute = new Set([
+    "durability",
+    "ankle_stability",
+    "knee_load",
+    "hip_stability",
+    "core_stability",
+    "low_impact",
+  ]);
+
+  return pool.filter((e) => {
+    if (e.time_cost === "high") return false;
+    const stim = e.tags?.stimulus ?? [];
+    const attrs = e.tags?.attribute_tags ?? [];
+    const stimMatch = stim.some((s) => supportStimulus.has(s.toLowerCase().replace(/\s/g, "_")));
+    const attrMatch = attrs.some((a) => supportAttribute.has(a.toLowerCase().replace(/\s/g, "_")));
+    return stimMatch || attrMatch;
+  });
+}
+
+function pickBestFromPool(pool: Exercise[], rng: () => number): Exercise | undefined {
+  if (!pool.length) return undefined;
+  const timeRank = (tc: Exercise["time_cost"]) => (tc === "low" ? 0 : tc === "medium" ? 1 : 2);
+  const sorted = [...pool].sort((a, b) => timeRank(a.time_cost) - timeRank(b.time_cost) || a.difficulty - b.difficulty);
+  const topN = Math.min(sorted.length, 3);
+  const top = sorted.slice(0, topN);
+  return top[Math.floor(rng() * top.length)];
+}
+
+function buildConditioningIntentFormatMain(
+  format: ConditioningIntentFormat,
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  rng: () => number,
+  conditioningProfile: SubFocusProfile,
+  fatigueVolumeScale?: number
+): WorkoutBlock[] {
+  if (format === "zone2_sustained") {
+    return buildZone2SustainedMain(exercises, input, used, rng, conditioningProfile, fatigueVolumeScale);
+  }
+  if (format === "threshold_intervals") {
+    return buildThresholdIntervalsMain(exercises, input, used, rng, conditioningProfile);
+  }
+  return buildHillsRepeatsMain(exercises, input, used, rng, conditioningProfile);
+}
+
+function buildZone2SustainedMain(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  rng: () => number,
+  conditioningProfile: SubFocusProfile,
+  fatigueVolumeScale?: number
+): WorkoutBlock[] {
+  const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
+  const mainMins = getConditioningIntentMainMinutes(input);
+
+  // Main work pool: conditioning modality, then intent direct-match dominates.
+  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
+    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
+  }
+  const directPool = pool.filter((e) => exerciseHasSubFocusSlug(e, "zone2_aerobic_base"));
+  const pickPool = directPool.length ? directPool : pool;
+
+  const c = pickBestFromPool(pickPool, rng);
+  if (!c) return [];
+  used.add(c.id);
+
+  const sets = mainMins >= 30 ? 2 : 1;
+  const timePerSetSeconds = sets === 2 ? Math.floor((mainMins / 2) * 60) : Math.floor(mainMins * 60);
+  const restSeconds = sets === 2 ? 60 : 0;
+
+  const p = getPrescription(
+    c,
+    "conditioning",
+    input.energy_level,
+    input.primary_goal,
+    undefined,
+    undefined,
+    input.style_prefs?.user_level
+  );
+
+  const mainBlock: WorkoutBlock = {
+    block_type: "conditioning",
+    format: "straight_sets",
+    title: `Zone 2 sustained effort${overlayLabel ? ` (${overlayLabel})` : ""}`,
+    reasoning: "Sustained Zone 2 effort prescribed by time (no rep-based strength structure).",
+    items: [
+      {
+        exercise_id: c.id,
+        exercise_name: c.name,
+        sets,
+        time_seconds: timePerSetSeconds,
+        rest_seconds: restSeconds,
+        coaching_cues: p.coaching_cues,
+        reasoning_tags: ["conditioning", "zone2_sustained", ...(c.tags.goal_tags ?? [])],
+        unilateral: c.unilateral ?? false,
+      },
+    ],
+    estimated_minutes: mainMins,
+  };
+
+  // Optional accessory: short low-fatigue joint health/durability support.
+  const accessoryBlocks: WorkoutBlock[] = [];
+  const addAccessory = input.duration_minutes >= 45;
+  if (addAccessory) {
+    let supportPool = exercises.filter((e) => !used.has(e.id));
+    if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
+      supportPool = filterPoolByOverlay(supportPool, conditioningProfile.overlayFilter);
+    }
+    supportPool = pickJointHealthSupportCandidates(supportPool);
+
+    if (supportPool.length) {
+      const accessoryCount = input.duration_minutes >= 60 ? 2 : 1;
+      const chosen: Exercise[] = [];
+      const poolCopy = [...supportPool];
+      for (let i = 0; i < accessoryCount && poolCopy.length; i++) {
+        const pick = pickBestFromPool(poolCopy, rng);
+        if (!pick) break;
+        chosen.push(pick);
+        used.add(pick.id);
+        const idx = poolCopy.findIndex((x) => x.id === pick.id);
+        if (idx >= 0) poolCopy.splice(idx, 1);
+      }
+
+      if (chosen.length) {
+        const items: WorkoutItem[] = chosen.map((ex) => {
+          const isMobility = ex.modality === "mobility" || ex.modality === "recovery";
+          const p = getPrescription(
+            ex,
+            isMobility ? "cooldown" : "main_strength",
+            input.energy_level,
+            isMobility ? "recovery" : "strength",
+            !isMobility,
+            fatigueVolumeScale,
+            input.style_prefs?.user_level
+          );
+
+          // Ensure accessory stays light/short.
+          const cappedSets = p.sets > 2 ? 2 : p.sets;
+          return {
+            exercise_id: ex.id,
+            exercise_name: ex.name,
+            sets: cappedSets,
+            ...(p.reps != null ? { reps: p.reps } : {}),
+            ...(p.time_seconds != null ? { time_seconds: p.time_seconds } : {}),
+            rest_seconds: p.rest_seconds,
+            coaching_cues: p.coaching_cues,
+            reasoning_tags: ["durability", "joint_health", ...(ex.tags.goal_tags ?? [])],
+            unilateral: ex.unilateral ?? false,
+          };
+        });
+
+        accessoryBlocks.push({
+          block_type: "accessory",
+          format: "straight_sets",
+          title: `Joint health support${overlayLabel ? ` (${overlayLabel})` : ""}`,
+          reasoning: "Low-fatigue durability work to complement the sustained Zone 2 block.",
+          items,
+          estimated_minutes: Math.min(10, Math.max(6, Math.round(input.duration_minutes / 6))),
+        });
+      }
+    }
+  }
+
+  return [mainBlock, ...accessoryBlocks];
+}
+
+function buildThresholdIntervalsMain(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  rng: () => number,
+  conditioningProfile: SubFocusProfile
+): WorkoutBlock[] {
+  const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
+  const mainMins = getConditioningIntentMainMinutes(input);
+
+  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
+    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
+  }
+
+  // Direct intent slug dominates.
+  const directPool = pool.filter((e) => exerciseHasSubFocusSlug(e, "threshold_tempo"));
+  const pickPool = directPool.length ? directPool : pool;
+  const c = pickBestFromPool(pickPool, rng);
+  if (!c) return [];
+  used.add(c.id);
+
+  // Medium threshold/tempo intervals (not HIIT).
+  const workSeconds = mainMins <= 25 ? 180 : 240; // 3–4 min
+  const restSeconds = 90; // moderate rest
+  const unitMinutes = (workSeconds + restSeconds) / 60;
+  const sets = Math.max(3, Math.min(6, Math.round(mainMins / unitMinutes)));
+
+  const p = getPrescription(
+    c,
+    "conditioning",
+    input.energy_level,
+    input.primary_goal,
+    undefined,
+    undefined,
+    input.style_prefs?.user_level
+  );
+
+  return [
+    {
+      block_type: "conditioning",
+      format: "circuit",
+      title: `Threshold intervals${overlayLabel ? ` (${overlayLabel})` : ""}`,
+      reasoning: "Repeated medium-duration threshold/tempo efforts with defined rest.",
+      items: [
+        {
+          exercise_id: c.id,
+          exercise_name: c.name,
+          sets,
+          time_seconds: workSeconds,
+          rest_seconds: restSeconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["conditioning", "threshold_intervals", ...(c.tags.goal_tags ?? [])],
+          unilateral: c.unilateral ?? false,
+        },
+      ],
+      estimated_minutes: mainMins,
+    },
+  ];
+}
+
+function buildHillsRepeatsMain(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  rng: () => number,
+  conditioningProfile: SubFocusProfile
+): WorkoutBlock[] {
+  const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
+  const mainMins = getConditioningIntentMainMinutes(input);
+
+  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
+    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
+  }
+
+  const directPool = pool.filter((e) => exerciseHasSubFocusSlug(e, "hills"));
+  const pickBase = directPool.length ? directPool : pool;
+
+  // Strong hill bias for incline/stairs/sled patterns.
+  const hillBiasedPool = pickBase.filter((e) => isHillBiasExercise(e));
+  const pickPool = hillBiasedPool.length ? hillBiasedPool : pickBase;
+
+  const c = pickBestFromPool(pickPool, rng);
+  if (!c) return [];
+  used.add(c.id);
+
+  const workSeconds = 60;
+  const restSeconds = 90; // walk down / recover
+  const sets = input.duration_minutes <= 30 ? 5 : input.duration_minutes <= 45 ? 6 : 8;
+
+  const p = getPrescription(
+    c,
+    "conditioning",
+    input.energy_level,
+    input.primary_goal,
+    undefined,
+    undefined,
+    input.style_prefs?.user_level
+  );
+
+  return [
+    {
+      block_type: "conditioning",
+      format: "circuit",
+      title: `Hill repeats${overlayLabel ? ` (${overlayLabel})` : ""}`,
+      reasoning: "Repeated uphill / incline effort with recovery (time-based hill repeats).",
+      items: [
+        {
+          exercise_id: c.id,
+          exercise_name: c.name,
+          sets,
+          time_seconds: workSeconds,
+          rest_seconds: restSeconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["conditioning", "hills_repeats", ...(c.tags.goal_tags ?? [])],
+          unilateral: c.unilateral ?? false,
+        },
+      ],
+      estimated_minutes: mainMins,
+    },
+  ];
+}
+
 function buildEnduranceMain(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
@@ -1579,24 +2115,73 @@ function buildEnduranceMain(
   fatigueVolumeScale?: number,
   fatigueState?: FatigueState,
   sessionFatigueRegions?: Map<string, number>,
-  historyContext?: TrainingHistoryContext
+  historyContext?: TrainingHistoryContext,
+  conditioningProfile?: SubFocusProfile | null
 ): WorkoutBlock[] {
   const duration = input.duration_minutes;
   const targetMainExercises = duration <= 30 ? 3 : duration <= 45 ? 6 : 8;
   const supersetPairCount = duration <= 30 ? 1 : duration <= 45 ? 3 : 4;
 
-  const strengthPool = exercises.filter(
+  let strengthPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "conditioning") &&
       !used.has(e.id) &&
       e.time_cost !== "high" &&
       !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
   );
+  if (conditioningProfile?.overlayFilter) {
+    strengthPool = filterPoolByOverlay(strengthPool, conditioningProfile.overlayFilter);
+    if (strengthPool.length === 0) strengthPool = exercises.filter(
+      (e) =>
+        (e.modality === "strength" || e.modality === "conditioning") &&
+        !used.has(e.id) &&
+        e.time_cost !== "high" &&
+        !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
+    );
+  }
   const blocks: WorkoutBlock[] = [];
 
-  // Build superset(s): pick pairs so we hit target exercise count (2 per pair).
+  // HIIT structural override: if intent sub-focus is intervals_hiit, do not use standard superset+reps.
+  if (
+    conditioningProfile &&
+    (conditioningProfile.templateHints?.includes("hiit_intervals") ||
+      getPrimaryConditioningIntent(conditioningProfile) === "intervals_hiit")
+  ) {
+    const hiitBlocks = buildIntervalsHIITMain(exercises, input, used, rng, conditioningProfile);
+    if (hiitBlocks.length) return hiitBlocks;
+  }
+
+  // Explicit conditioning intent formats for remaining intents.
+  // These must not fall back to strength/hypertrophy superset construction.
+  if (conditioningProfile) {
+    const format = resolveConditioningIntentFormatFromIntent(conditioningProfile);
+    if (format) {
+      const formatBlocks = buildConditioningIntentFormatMain(
+        format,
+        exercises,
+        input,
+        used,
+        rng,
+        conditioningProfile,
+        fatigueVolumeScale
+      );
+      if (formatBlocks.length) return formatBlocks;
+    }
+  }
+
+  const intentSlugs = conditioningProfile
+    ? getConditioningIntentSlugs(conditioningProfile)
+    : [];
   const availableForPairs = strengthPool.filter((e) => !used.has(e.id));
-  const pairs = pickBestSupersetPairs(availableForPairs, supersetPairCount, used) as [Exercise, Exercise][];
+  const pairPool =
+    intentSlugs.length > 0
+      ? filterPoolByDirectSubFocus(availableForPairs, intentSlugs)
+      : availableForPairs;
+  const pairs = pickBestSupersetPairs(
+    pairPool.length >= 2 ? pairPool : availableForPairs,
+    supersetPairCount,
+    used
+  ) as [Exercise, Exercise][];
   if (pairs.length > 0) {
     for (const [exA, exB] of pairs) {
       used.add(exA.id);
@@ -1648,40 +2233,66 @@ function buildEnduranceMain(
   }
 
   // For 30 min keep one cardio block; for 45+ only add cardio if we're under target (e.g. few pairs found).
-  const cardioPool = exercises.filter(
-    (e) =>
-      e.modality === "conditioning" &&
-      !used.has(e.id)
+  let cardioPool = exercises.filter(
+    (e) => e.modality === "conditioning" && !used.has(e.id)
   );
-  const condMins = getConditioningDurationMinutes(input.primary_goal, input.energy_level)
-    ?? input.style_prefs?.conditioning_minutes
-    ?? (input.duration_minutes >= 60 ? 30 : 20);
+  const condMins =
+    getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
+    input.style_prefs?.conditioning_minutes ??
+    (input.duration_minutes >= 60 ? 30 : 20);
   const mainExerciseCount = blocks.reduce((n, b) => n + b.items.length, 0);
   const addCardioBlock =
-    cardioPool.length &&
-    condMins > 0 &&
-    mainExerciseCount < targetMainExercises;
+    cardioPool.length && condMins > 0 && mainExerciseCount < targetMainExercises;
   if (addCardioBlock) {
+    const preferredIntentSlugs =
+      intentSlugs.length > 0 ? intentSlugs : undefined;
     const c = pickConditioningExercise(
       cardioPool,
       input.style_prefs?.preferred_zone2_cardio,
-      rng
+      rng,
+      preferredIntentSlugs
     );
     if (c) {
       used.add(c.id);
-      const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
+      const p = getPrescription(
+        c,
+        "conditioning",
+        input.energy_level,
+        input.primary_goal,
+        undefined,
+        undefined,
+        input.style_prefs?.user_level
+      );
+      const primaryIntent = conditioningProfile
+        ? getPrimaryConditioningIntent(conditioningProfile)
+        : undefined;
       const interval = isHighIntensityConditioning(c)
         ? REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS.has(c.id)
           ? getRepBasedHighIntensityConditioningStructure(condMins)
           : getHighIntensityConditioningStructure(condMins)
         : isExplosiveConditioning(c)
           ? getExplosiveConditioningStructure()
-          : getConditioningIntervalStructure(condMins, input.primary_goal, c.equipment_required ?? []);
-      const condFormat = (interval.format as BlockFormat) ?? (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ?? "straight_sets";
+          : primaryIntent != null
+            ? getConditioningStructureByIntent(
+                condMins,
+                primaryIntent,
+                c.equipment_required ?? [],
+                input.primary_goal
+              )
+            : getConditioningIntervalStructure(
+                condMins,
+                input.primary_goal,
+                c.equipment_required ?? []
+              );
+      const condFormat =
+        (interval.format as BlockFormat) ??
+        (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ??
+        "straight_sets";
       const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
-      const estimatedMin = isHighIntensityConditioning(c) || isExplosiveConditioning(c)
-        ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
-        : condMins;
+      const estimatedMin =
+        isHighIntensityConditioning(c) || isExplosiveConditioning(c)
+          ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
+          : condMins;
       blocks.push({
         block_type: "conditioning",
         format: condFormat,
@@ -1692,7 +2303,9 @@ function buildEnduranceMain(
             exercise_id: c.id,
             exercise_name: c.name,
             sets: interval.sets,
-            ...(interval.reps != null ? { reps: interval.reps } : { time_seconds: interval.time_seconds }),
+            ...(interval.reps != null
+              ? { reps: interval.reps }
+              : { time_seconds: interval.time_seconds }),
             rest_seconds: interval.rest_seconds,
             coaching_cues: p.coaching_cues,
             reasoning_tags: ["endurance", ...(c.tags.goal_tags ?? [])],
@@ -2061,11 +2674,55 @@ export function generateWorkoutSession(
       }
     }
   } else if (primary === "strength") {
-    blocks.push(...buildMainStrength(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
+    const strengthProfile: SubFocusProfile | null =
+      (input.goal_sub_focus?.[primary]?.length ?? 0) > 0
+        ? resolveSubFocusProfile({
+            goalSlug: primary,
+            rankedSubFocusSlugs: input.goal_sub_focus[primary] ?? [],
+            rankWeights: input.goal_sub_focus_weights?.[primary],
+          })
+        : null;
+    blocks.push(
+      ...buildMainStrength(
+        filtered,
+        input,
+        used,
+        recentIds,
+        movementCounts,
+        rng,
+        wantsSupersets,
+        fatigueVolumeScale,
+        fatigueState,
+        sessionFatigueRegions,
+        historyContext,
+        strengthProfile
+      )
+    );
   } else if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
     blocks.push(...buildMainHypertrophy(filtered, input, used, recentIds, movementCounts, rng, wantsSupersets, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
   } else if (primary === "endurance" || primary === "conditioning") {
-    blocks.push(...buildEnduranceMain(filtered, input, used, recentIds, movementCounts, rng, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
+    const conditioningProfile: SubFocusProfile | null =
+      (input.goal_sub_focus?.[primary]?.length ?? 0) > 0
+        ? resolveSubFocusProfile({
+            goalSlug: primary,
+            rankedSubFocusSlugs: input.goal_sub_focus[primary] ?? [],
+          })
+        : null;
+    blocks.push(
+      ...buildEnduranceMain(
+        filtered,
+        input,
+        used,
+        recentIds,
+        movementCounts,
+        rng,
+        fatigueVolumeScale,
+        fatigueState,
+        sessionFatigueRegions,
+        historyContext,
+        conditioningProfile
+      )
+    );
   } else if (primary === "mobility" || primary === "recovery") {
     blocks.push(...buildMobilityRecoveryMain(filtered, input, used, rng));
   } else {

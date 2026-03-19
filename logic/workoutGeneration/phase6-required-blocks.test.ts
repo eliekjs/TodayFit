@@ -212,6 +212,117 @@ function test45MinConditioningHasSixExercises() {
   console.log("  OK: 45 min conditioning has at least 6 main-work exercises");
 }
 
+function testZone2AerobicBaseIntentCreatesTimeBasedZone2Block() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 45,
+    primary_goal: "conditioning",
+    energy_level: "medium",
+    available_equipment: [
+      "bodyweight",
+      "treadmill",
+      "assault_bike",
+      "rower",
+      "cable_machine",
+      "bench",
+      "dumbbells",
+      "kettlebells",
+      "pullup_bar",
+    ],
+    injuries_or_constraints: [],
+    goal_sub_focus: { conditioning: ["zone2_aerobic_base"] },
+    seed: 401,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+
+  const zone2Block = session.blocks.find(
+    (b) => b.block_type === "conditioning" && (b.title ?? "").toLowerCase().includes("zone 2")
+  );
+  assert(zone2Block != null, "zone2 intent creates a Zone 2 conditioning block");
+  assert(zone2Block!.format === "straight_sets", "Zone 2 block uses straight_sets time-based format");
+
+  const item = zone2Block!.items[0];
+  assert(item != null, "zone2 block has at least one item");
+  assert(item.time_seconds != null, "zone2 block item is time-based (time_seconds set)");
+  assert(item.reps == null, "zone2 block item is not rep-prescribed");
+
+  const jointSupport = session.blocks.find(
+    (b) => (b.title ?? "").toLowerCase().includes("joint health support") && b.block_type === "accessory"
+  );
+  assert(jointSupport != null, "zone2 intent adds optional Joint health support accessory block");
+
+  assert(
+    !session.blocks.some((b) => b.block_type === "main_strength" || b.block_type === "main_hypertrophy"),
+    "zone2 intent avoids strength/hypertrophy superset main blocks"
+  );
+  console.log("  OK: zone2_aerobic_base → time-based Zone 2 sustained effort structure");
+}
+
+function testThresholdTempoIntentCreatesTimeBasedThresholdIntervalsBlock() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 45,
+    primary_goal: "conditioning",
+    energy_level: "medium",
+    available_equipment: ["bodyweight", "rower"],
+    injuries_or_constraints: [],
+    goal_sub_focus: { conditioning: ["threshold_tempo"] },
+    seed: 402,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+
+  const block = session.blocks.find(
+    (b) => b.block_type === "conditioning" && (b.title ?? "").toLowerCase().includes("threshold intervals")
+  );
+  assert(block != null, "threshold_tempo intent creates a Threshold intervals block");
+  assert(block!.format === "circuit", "threshold intervals block uses circuit format");
+
+  const item = block!.items[0];
+  assert(item.time_seconds != null, "threshold intervals item is time-based");
+  assert(item.reps == null, "threshold intervals item is not rep-prescribed");
+
+  const ex = STUB_EXERCISES.find((e) => e.id === item.exercise_id);
+  assert(ex != null, "exercise exists in stub");
+  assert(
+    (ex!.tags.attribute_tags ?? []).includes("threshold_tempo"),
+    "threshold intervals block uses direct threshold_tempo sub-focus exercise"
+  );
+
+  assert(
+    !session.blocks.some((b) => b.block_type === "main_strength" || b.block_type === "main_hypertrophy"),
+    "threshold_tempo intent avoids strength/hypertrophy superset main blocks"
+  );
+  console.log("  OK: threshold_tempo → time-based Threshold intervals structure");
+}
+
+function testHillsIntentCreatesTimeBasedHillRepeatsBlock() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 45,
+    primary_goal: "conditioning",
+    energy_level: "medium",
+    available_equipment: ["bodyweight", "treadmill", "stair_climber", "sled"],
+    injuries_or_constraints: [],
+    goal_sub_focus: { conditioning: ["hills"] },
+    seed: 403,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+
+  const block = session.blocks.find(
+    (b) => b.block_type === "conditioning" && (b.title ?? "").toLowerCase().includes("hill repeats")
+  );
+  assert(block != null, "hills intent creates a Hill repeats block");
+  assert(block!.format === "circuit", "hill repeats block uses circuit format");
+
+  const item = block!.items[0];
+  assert(item.time_seconds != null, "hill repeats item is time-based");
+  assert(item.reps == null, "hill repeats item is not rep-prescribed");
+  assert(item.time_seconds === 60, "hill repeats uses 60s work bouts (stub-based expectation)");
+
+  const ex = STUB_EXERCISES.find((e) => e.id === item.exercise_id);
+  assert(ex != null, "exercise exists in stub");
+  assert((ex!.tags.attribute_tags ?? []).includes("hills"), "hill repeats uses direct hills exercise");
+
+  console.log("  OK: hills → time-based Hill repeats structure");
+}
+
 function main() {
   console.log("Phase 6 required-block and cooldown selection tests...");
   testMobilitySecondaryGoalCreatesCooldownBlock();
@@ -221,6 +332,9 @@ function main() {
   testCooldownStretchOnly();
   testExerciseRoleExcludedFromMainWork();
   test45MinConditioningHasSixExercises();
+  testZone2AerobicBaseIntentCreatesTimeBasedZone2Block();
+  testThresholdTempoIntentCreatesTimeBasedThresholdIntervalsBlock();
+  testHillsIntentCreatesTimeBasedHillRepeatsBlock();
   console.log("All Phase 6 tests passed.");
 }
 

@@ -1,4 +1,3 @@
-import { EXERCISES } from "../data/exercises";
 import type { ExerciseDefinition } from "./types";
 import { getSubstitutes } from "./generation/exerciseSubstitution";
 import type { ExerciseLike } from "./generation/exerciseSubstitution";
@@ -39,23 +38,6 @@ function definitionToExerciseLike(def: ExerciseDefinition): ExerciseLike {
     regressions: def.regressions,
     tags: def.contraindications?.length ? { contraindications: def.contraindications } : undefined,
     energy_fit,
-  };
-}
-
-/** Resolve progression/regression ids from static EXERCISES to { id, name } (for fallback when DB has no rows). */
-function resolveFromStatic(exerciseId: string): ProgressionsRegressions {
-  const exercise = EXERCISES.find((e) => e.id === exerciseId);
-  if (!exercise) return { progressions: [], regressions: [] };
-  const resolve = (ids: string[] | undefined): ProgressionsRegressionsOption[] =>
-    (ids ?? [])
-      .map((id) => {
-        const ex = EXERCISES.find((e) => e.id === id);
-        return ex ? { id: ex.id, name: ex.name } : null;
-      })
-      .filter((x): x is ProgressionsRegressionsOption => x != null);
-  return {
-    progressions: resolve(exercise.progressions),
-    regressions: resolve(exercise.regressions),
   };
 }
 
@@ -101,8 +83,8 @@ async function fillToAtLeastThree(
 
 /**
  * Get progressions (harder) and regressions (easier) for an exercise.
- * Uses DB when configured, otherwise static EXERCISES data.
- * When DB is configured but returns no rows (e.g. progressions not seeded), falls back to static EXERCISES.
+ * Uses the database (single source of truth). When Supabase is not configured, returns empty.
+ * When DB has no progressions/regressions for the exercise, suggests similar exercises from the catalog.
  * Optional energyLevel filters suggested substitutes to match session energy (e.g. low → no high-only).
  */
 export async function getProgressionsRegressionsForExercise(
@@ -129,30 +111,7 @@ export async function getProgressionsRegressionsForExercise(
       const res = await getProgressionsRegressions(exerciseId);
       const dbEmpty = res.progressions.length === 0 && res.regressions.length === 0;
       if (dbEmpty) {
-        const fallback = resolveFromStatic(exerciseId);
-        const staticHasAny = fallback.progressions.length > 0 || fallback.regressions.length > 0;
-        if (staticHasAny) {
-          // #region agent log
-          fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-            body: JSON.stringify({
-              sessionId: "305ec8",
-              location: "lib/exerciseProgressions.ts:getProgressionsRegressionsForExercise",
-              message: "swap DB empty, fallback to static",
-              data: {
-                exerciseId,
-                fallbackProgressions: fallback.progressions.length,
-                fallbackRegressions: fallback.regressions.length,
-              },
-              timestamp: Date.now(),
-              hypothesisId: "H4",
-            }),
-          }).catch(() => {});
-          // #endregion
-          return fillToAtLeastThree(fallback, exerciseId, options);
-        }
-        // Static also empty (e.g. DB-only exercise like "ytw"): suggest similar by muscles/modality from DB pool.
+        // No progressions/regressions in DB: suggest similar exercises from catalog (single source = DB).
         try {
           const [targetDef, poolDefs] = await Promise.all([
             getExercise(exerciseId),
@@ -220,24 +179,6 @@ export async function getProgressionsRegressionsForExercise(
       return { progressions: [], regressions: [] };
     }
   }
-  const result = resolveFromStatic(exerciseId);
-  // #region agent log
-  fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-    body: JSON.stringify({
-      sessionId: "305ec8",
-      location: "lib/exerciseProgressions.ts:getProgressionsRegressionsForExercise",
-      message: "swap static path result",
-      data: {
-        exerciseId,
-        progressionsCount: result.progressions.length,
-        regressionsCount: result.regressions.length,
-      },
-      timestamp: Date.now(),
-      hypothesisId: "H2-H5",
-    }),
-  }).catch(() => {});
-  // #endregion
-  return result;
+  // Single source = DB; when Supabase is not configured, no progressions/regressions.
+  return { progressions: [], regressions: [] };
 }

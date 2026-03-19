@@ -1,4 +1,3 @@
-import { EXERCISES } from "../data/exercises";
 import {
   getAvoidTagSlugsFromUpcoming,
   exerciseHasAnyAvoidTag,
@@ -19,7 +18,7 @@ import type {
 } from "./types";
 import type { GymProfile } from "../data/gymProfiles";
 import { isDbConfigured } from "../lib/db";
-import { listExercises } from "../lib/db/exerciseRepository";
+import { listExercisesForGenerator } from "../lib/db/exerciseRepository";
 import {
   BODY_RECOMP_CARDIO_DURATION_MAX,
   BODY_RECOMP_CARDIO_DURATION_MIN,
@@ -44,7 +43,6 @@ import type { PairingInput } from "../logic/workoutIntelligence/supersetPairing"
 import { generateWorkoutSession } from "../logic/workoutGeneration/dailyGenerator";
 import {
   manualPreferencesToGenerateWorkoutInput,
-  exerciseDefinitionToGeneratorExercise,
   workoutSessionToGeneratedWorkout,
 } from "./dailyGeneratorAdapter";
 
@@ -452,11 +450,15 @@ function buildPreferredSlugsFromSubFocus(
 
 const DEFAULT_DURATION_MINUTES = 45;
 
+/**
+ * Sync workout generation. Caller must supply the exercise pool (e.g. from listExercises or tests).
+ * For app use, prefer generateWorkoutAsync which loads the pool from the database.
+ */
 export function generateWorkout(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
   seedExtra?: string | number,
-  exercisesInput?: ExerciseDefinition[],
+  exercisesInput: ExerciseDefinition[],
   preferredExerciseSlugs?: string[]
 ): GeneratedWorkout {
   const durationMinutes = preferences.durationMinutes ?? DEFAULT_DURATION_MINUTES;
@@ -492,8 +494,7 @@ export function generateWorkout(
 
   const counts = pickCountByDuration(durationMinutes);
 
-  let exercises = exercisesInput ?? EXERCISES;
-  exercises = exercises.filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id));
+  let exercises = exercisesInput.filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id));
   const eligible = filterByUpcoming(
     filterByBodyPartFocus(
       filterByInjuries(
@@ -845,8 +846,8 @@ function bodyPartFocusToMuscles(bodyPartFocus: string[]): string[] {
 }
 
 /**
- * Async version: loads exercises from Supabase when configured, then generates via dailyGenerator.
- * Use this from UI so exercises are loaded from DB when available.
+ * Async version: loads exercise pool from Supabase (single source of truth), then generates via dailyGenerator.
+ * Requires Supabase to be configured; no static fallback. Seed the catalog via scripts/seedExercisesToDb.ts.
  * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when scoring.
  * When sportGoalContext is provided (e.g. from adaptive/sport-prep), sport_slugs, sport_sub_focus, goal_weights, and sport_weight are passed to the daily generator.
  */
@@ -857,34 +858,32 @@ export async function generateWorkoutAsync(
   preferredExerciseSlugsOrNames?: string[],
   sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext
 ): Promise<GeneratedWorkout> {
-  let exercises: ExerciseDefinition[] | undefined;
-  if (isDbConfigured()) {
-    try {
-      const injuryFilter =
-        preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
-          ? []
-          : preferences.injuries.filter((i) => i !== "No restrictions");
-      const injurySlugs = injuryFilter.map((i) => i.toLowerCase().replace(/ /g, "_"));
-      const bodyPartFocus = deriveBodyPartFocus(
-        preferences.targetBody,
-        preferences.targetModifier
-      );
-      const primaryMuscles = bodyPartFocusToMuscles(bodyPartFocus);
-      exercises = await listExercises({
-        equipment: gymProfile?.equipment,
-        injuries: injurySlugs,
-        primaryMuscles: primaryMuscles.length ? primaryMuscles : undefined,
-      });
-    } catch {
-      exercises = undefined;
-    }
+  if (!isDbConfigured()) {
+    throw new Error(
+      "Workout generation requires Supabase. Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY. See docs/SINGLE_EXERCISE_SOURCE.md."
+    );
   }
-  const poolDefinitions = exercises ?? EXERCISES;
-  const pool = poolDefinitions
-    .filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id))
-    .map(exerciseDefinitionToGeneratorExercise);
+  const injuryFilter =
+    preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
+      ? []
+      : preferences.injuries.filter((i) => i !== "No restrictions");
+  const injurySlugs = injuryFilter.map((i) => i.toLowerCase().replace(/ /g, "_"));
+  const bodyPartFocus = deriveBodyPartFocus(
+    preferences.targetBody,
+    preferences.targetModifier
+  );
+  const primaryMuscles = bodyPartFocusToMuscles(bodyPartFocus);
+
+  const pool = (await listExercisesForGenerator({
+    equipment: gymProfile?.equipment,
+    injuries: injurySlugs,
+    primaryMuscles: primaryMuscles.length ? primaryMuscles : undefined,
+  })).filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id));
+
   if (pool.length === 0) {
-    return generateWorkout(preferences, gymProfile, seedExtra, poolDefinitions, preferredExerciseSlugsOrNames);
+    throw new Error(
+      "No exercises found for your filters (equipment, injuries, body focus). Seed the exercise catalog: npx ts-node scripts/seedExercisesToDb.ts. See docs/SINGLE_EXERCISE_SOURCE.md."
+    );
   }
   const input = manualPreferencesToGenerateWorkoutInput(
     preferences,

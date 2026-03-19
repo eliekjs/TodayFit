@@ -1,11 +1,46 @@
 /**
  * Goal sub-focus: options and tag mapping for Manual mode sub-goals.
  * Use getExerciseTagsForGoalSubFocuses to get tag weights for exercise ranking.
+ * Sub-focus architecture: intent vs overlay, conflict handling, resolveSubFocusProfile.
  */
 
-export type { GoalSubFocusOption, GoalSubFocusOptionsEntry, GoalSubFocusTagMap, GoalSubFocusTagMapEntry } from "./types";
+export type {
+  GoalSubFocusOption,
+  GoalSubFocusOptionsEntry,
+  GoalSubFocusTagMap,
+  GoalSubFocusTagMapEntry,
+  SubFocusClass,
+  SubFocusProfile,
+  SubFocusResolverInput,
+  SubFocusClassMap,
+  SubFocusConflictConfig,
+  SubFocusConflictGroup,
+} from "./types";
 export { GOAL_SUB_FOCUS_OPTIONS } from "./goalSubFocusOptions";
 export { GOAL_SUB_FOCUS_TAG_MAP } from "./goalSubFocusTagMap";
+export { resolveSubFocusProfile, getTagWeightsFromProfile } from "./subFocusResolver";
+export { getSubFocusClass, getSubFocusConflictConfig, getSubFocusClassMap } from "./subFocusClassifications";
+export {
+  exerciseHasSubFocusSlug,
+  getConditioningIntentSlugs,
+  getPrimaryConditioningIntent,
+  filterPoolByDirectSubFocus,
+  filterPoolByOverlay,
+  CONDITIONING_INTENT_SLUGS,
+  CONDITIONING_OVERLAY_SLUGS,
+} from "./conditioningSubFocus";
+export type { ExerciseForSubFocus } from "./conditioningSubFocus";
+export {
+  STRENGTH_INTENT_SLUGS,
+  STRENGTH_OVERLAY_SLUGS,
+  exerciseHasStrengthSubFocusSlug,
+  getStrengthIntentSlugs,
+  getStrengthOverlayFilter,
+  filterPoolByDirectStrengthSubFocus,
+  exerciseMatchesAnyStrengthIntent,
+  exerciseMatchesAnyStrengthOverlay,
+} from "./strengthSubFocus";
+export type { ExerciseForStrengthSubFocus } from "./strengthSubFocus";
 
 import { GOAL_SUB_FOCUS_OPTIONS } from "./goalSubFocusOptions";
 import { GOAL_SUB_FOCUS_TAG_MAP } from "./goalSubFocusTagMap";
