@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabase } from "./client";
 import type { ExerciseDefinition } from "../types";
 import type { Exercise } from "../../logic/workoutGeneration/types";
@@ -326,79 +327,155 @@ export async function listExercisesByTags(tagSlugs: string[]): Promise<ExerciseD
 const EXERCISE_SELECT_WITH_ONTOLOGY =
   "id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral, rep_range_min, rep_range_max";
 
+/** PostgREST often caps a single response (~1000 rows); paginate so large catalogs (e.g. functional fitness) load fully. */
+const GENERATOR_EXERCISE_PAGE_SIZE = 1000;
+
+/** Chunk `.in(...)` queries so URL / param limits are not exceeded with large catalogs. */
+const IN_QUERY_CHUNK_SIZE = 200;
+
+async function selectInChunks<T extends Record<string, unknown>>(
+  supabase: SupabaseClient,
+  table: string,
+  columns: string,
+  filterColumn: string,
+  ids: string[],
+  chunkSize: number
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    if (chunk.length === 0) continue;
+    const { data, error } = await supabase.from(table).select(columns).in(filterColumn, chunk);
+    if (error) throw new Error(error.message);
+    out.push(...((data ?? []) as unknown as T[]));
+  }
+  return out;
+}
+
+async function fetchAllActiveExerciseRowsForGenerator(supabase: SupabaseClient): Promise<ExerciseRowWithOntology[]> {
+  const rows: ExerciseRowWithOntology[] = [];
+  let from = 0;
+  const page = GENERATOR_EXERCISE_PAGE_SIZE;
+  for (;;) {
+    const { data, error } = await supabase
+      .from("exercises")
+      .select(EXERCISE_SELECT_WITH_ONTOLOGY)
+      .eq("is_active", true)
+      .order("id", { ascending: true })
+      .range(from, from + page - 1);
+    if (error) throw new Error(error.message);
+    const batch = (data ?? []) as ExerciseRowWithOntology[];
+    rows.push(...batch);
+    if (batch.length < page) break;
+    from += page;
+  }
+  return rows;
+}
+
+export type ExerciseRelationMaps = {
+  rows: ExerciseRowWithOntology[];
+  tagsByExerciseId: Map<string, string[]>;
+  contraByExerciseId: Map<string, string[]>;
+  progressionsByExerciseId: Map<string, string[]>;
+  regressionsByExerciseId: Map<string, string[]>;
+};
+
 /**
- * List exercises in generator Exercise format with ontology fields when present.
- * Uses structured DB columns (primary_movement_family, joint_stress_tags, etc.) and
- * populates legacy movement_pattern and tags.joint_stress/contraindications for compat.
+ * Active exercises plus tag / contraindication / progression maps (paginated + chunked queries).
  */
-export async function listExercisesForGenerator(
-  filters?: ExerciseFilters
-): Promise<Exercise[]> {
-  const supabase = requireClient();
-  let query = supabase
-    .from("exercises")
-    .select(EXERCISE_SELECT_WITH_ONTOLOGY)
-    .eq("is_active", true);
-
-  if (filters?.equipment?.length) {
-    query = query.overlaps("equipment", filters.equipment);
-  }
-  if (filters?.primaryMuscles?.length) {
-    query = query.overlaps("primary_muscles", filters.primaryMuscles);
+export async function loadActiveExercisesWithRelationMaps(supabase: SupabaseClient): Promise<ExerciseRelationMaps> {
+  const rows = await fetchAllActiveExerciseRowsForGenerator(supabase);
+  if (!rows.length) {
+    return {
+      rows: [],
+      tagsByExerciseId: new Map(),
+      contraByExerciseId: new Map(),
+      progressionsByExerciseId: new Map(),
+      regressionsByExerciseId: new Map(),
+    };
   }
 
-  const { data: rows, error } = await query;
-  if (error) throw new Error(error.message);
-  if (!rows?.length) return [];
+  const exerciseIds = rows.map((r) => r.id);
 
-  const exerciseIds = rows.map((r: { id: string }) => r.id);
-
-  const [tagsRes, contraRes, progRes] = await Promise.all([
-    supabase.from("exercise_tag_map").select("exercise_id, tag_id").in("exercise_id", exerciseIds),
-    supabase.from("exercise_contraindications").select("exercise_id, contraindication").in("exercise_id", exerciseIds),
-    supabase.from("exercise_progressions").select("exercise_id, related_exercise_id, relationship").in("exercise_id", exerciseIds),
+  const [tagsRows, contraRows, progRows] = await Promise.all([
+    selectInChunks<{ exercise_id: string; tag_id: string }>(
+      supabase,
+      "exercise_tag_map",
+      "exercise_id, tag_id",
+      "exercise_id",
+      exerciseIds,
+      IN_QUERY_CHUNK_SIZE
+    ),
+    selectInChunks<{ exercise_id: string; contraindication: string }>(
+      supabase,
+      "exercise_contraindications",
+      "exercise_id, contraindication",
+      "exercise_id",
+      exerciseIds,
+      IN_QUERY_CHUNK_SIZE
+    ),
+    selectInChunks<{ exercise_id: string; related_exercise_id: string; relationship: string }>(
+      supabase,
+      "exercise_progressions",
+      "exercise_id, related_exercise_id, relationship",
+      "exercise_id",
+      exerciseIds,
+      IN_QUERY_CHUNK_SIZE
+    ),
   ]);
 
-  const tagIds = [...new Set((tagsRes.data ?? []).map((r: { tag_id: string }) => r.tag_id))];
-  const tagRows = tagIds.length
-    ? await supabase.from("exercise_tags").select("id, slug, name").in("id", tagIds)
-    : { data: [] };
-  const tagById = new Map((tagRows.data ?? []).map((t: { id: string; slug: string; name: string }) => [t.id, t]));
+  const tagIds = [...new Set(tagsRows.map((r) => r.tag_id))];
+  const tagRowList = tagIds.length
+    ? await selectInChunks<{ id: string; slug: string; name: string }>(
+        supabase,
+        "exercise_tags",
+        "id, slug, name",
+        "id",
+        tagIds,
+        IN_QUERY_CHUNK_SIZE
+      )
+    : [];
+  const tagById = new Map(tagRowList.map((t) => [t.id, t]));
 
   const tagsByExerciseId = new Map<string, string[]>();
-  for (const r of tagsRes.data ?? []) {
-    const t = tagById.get((r as { tag_id: string }).tag_id);
+  for (const r of tagsRows) {
+    const t = tagById.get(r.tag_id);
     if (t) {
-      const list = tagsByExerciseId.get((r as { exercise_id: string }).exercise_id) ?? [];
+      const list = tagsByExerciseId.get(r.exercise_id) ?? [];
       list.push(t.slug);
-      tagsByExerciseId.set((r as { exercise_id: string }).exercise_id, list);
+      tagsByExerciseId.set(r.exercise_id, list);
     }
   }
 
   const contraByExerciseId = new Map<string, string[]>();
-  for (const r of contraRes.data ?? []) {
-    const eid = (r as { exercise_id: string }).exercise_id;
-    const c = (r as { contraindication: string }).contraindication;
-    const list = contraByExerciseId.get(eid) ?? [];
-    list.push(c);
-    contraByExerciseId.set(eid, list);
+  for (const r of contraRows) {
+    const list = contraByExerciseId.get(r.exercise_id) ?? [];
+    list.push(r.contraindication);
+    contraByExerciseId.set(r.exercise_id, list);
   }
 
-  const relatedIds = [...new Set((progRes.data ?? []).map((r: { related_exercise_id: string }) => r.related_exercise_id))];
+  const relatedIds = [...new Set(progRows.map((r) => r.related_exercise_id))];
   const relatedSlugById = new Map<string, string>();
   if (relatedIds.length > 0) {
-    const { data: relatedRows } = await supabase.from("exercises").select("id, slug").in("id", relatedIds);
-    for (const e of relatedRows ?? []) {
-      relatedSlugById.set((e as { id: string }).id, (e as { slug: string }).slug);
+    const relatedRows = await selectInChunks<{ id: string; slug: string }>(
+      supabase,
+      "exercises",
+      "id, slug",
+      "id",
+      relatedIds,
+      IN_QUERY_CHUNK_SIZE
+    );
+    for (const e of relatedRows) {
+      relatedSlugById.set(e.id, e.slug);
     }
   }
   const progressionsByExerciseId = new Map<string, string[]>();
   const regressionsByExerciseId = new Map<string, string[]>();
-  for (const r of progRes.data ?? []) {
-    const eid = (r as { exercise_id: string }).exercise_id;
-    const slug = relatedSlugById.get((r as { related_exercise_id: string }).related_exercise_id);
+  for (const r of progRows) {
+    const eid = r.exercise_id;
+    const slug = relatedSlugById.get(r.related_exercise_id);
     if (!slug) continue;
-    if ((r as { relationship: string }).relationship === "progression") {
+    if (r.relationship === "progression") {
       const list = progressionsByExerciseId.get(eid) ?? [];
       list.push(slug);
       progressionsByExerciseId.set(eid, list);
@@ -408,6 +485,128 @@ export async function listExercisesForGenerator(
       regressionsByExerciseId.set(eid, list);
     }
   }
+
+  return {
+    rows,
+    tagsByExerciseId,
+    contraByExerciseId,
+    progressionsByExerciseId,
+    regressionsByExerciseId,
+  };
+}
+
+/** JSON-serializable row from Supabase for catalog export (merged with static in tooling). */
+export type SupabaseCatalogExerciseRow = {
+  supabase_row_id: string;
+  id: string;
+  name: string;
+  description: string | null;
+  primary_muscles: string[];
+  secondary_muscles: string[];
+  muscles: string[];
+  modalities: string[];
+  equipment: string[];
+  movement_pattern: string | null;
+  tags: string[];
+  contraindications: string[];
+  progressions: string[];
+  regressions: string[];
+  ontology: {
+    primary_movement_family?: string | null;
+    secondary_movement_families?: string[] | null;
+    movement_patterns?: string[] | null;
+    joint_stress_tags?: string[] | null;
+    contraindication_tags?: string[] | null;
+    exercise_role?: string | null;
+    pairing_category?: string | null;
+    fatigue_regions?: string[] | null;
+    mobility_targets?: string[] | null;
+    stretch_targets?: string[] | null;
+    unilateral?: boolean | null;
+    rep_range_min?: number | null;
+    rep_range_max?: number | null;
+  };
+};
+
+function mergedMuscleGroups(primary: string[], secondary: string[]): string[] {
+  return [...primary, ...secondary].filter((m, i, a) => a.indexOf(m) === i);
+}
+
+function contraindicationsForCatalogRow(
+  row: ExerciseRowWithOntology,
+  contraTable: string[]
+): string[] {
+  const fromOntology = (row.contraindication_tags ?? []).map((c) => c.toLowerCase().replace(/\s/g, "_"));
+  return [...new Set([...contraTable, ...fromOntology])];
+}
+
+/**
+ * All active Supabase exercises with relations, for catalog export. Returns null if Supabase is not configured.
+ */
+export async function listSupabaseCatalogExerciseRows(): Promise<SupabaseCatalogExerciseRow[] | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { rows, tagsByExerciseId, contraByExerciseId, progressionsByExerciseId, regressionsByExerciseId } =
+    await loadActiveExercisesWithRelationMaps(supabase);
+
+  const out: SupabaseCatalogExerciseRow[] = [];
+  for (const row of rows) {
+    if (BLOCKED_EXERCISE_IDS.has(row.slug)) continue;
+    const primary = row.primary_muscles ?? [];
+    const secondary = row.secondary_muscles ?? [];
+    const contraTable = contraByExerciseId.get(row.id) ?? [];
+    out.push({
+      supabase_row_id: row.id,
+      id: row.slug,
+      name: row.name,
+      description: row.description ?? null,
+      primary_muscles: primary,
+      secondary_muscles: secondary,
+      muscles: mergedMuscleGroups(primary, secondary),
+      modalities: row.modalities ?? [],
+      equipment: row.equipment ?? [],
+      movement_pattern: row.movement_pattern ?? null,
+      tags: tagsByExerciseId.get(row.id) ?? [],
+      contraindications: contraindicationsForCatalogRow(row, contraTable),
+      progressions: progressionsByExerciseId.get(row.id) ?? [],
+      regressions: regressionsByExerciseId.get(row.id) ?? [],
+      ontology: {
+        primary_movement_family: row.primary_movement_family ?? null,
+        secondary_movement_families: row.secondary_movement_families ?? null,
+        movement_patterns: row.movement_patterns ?? null,
+        joint_stress_tags: row.joint_stress_tags ?? null,
+        contraindication_tags: row.contraindication_tags ?? null,
+        exercise_role: row.exercise_role ?? null,
+        pairing_category: row.pairing_category ?? null,
+        fatigue_regions: row.fatigue_regions ?? null,
+        mobility_targets: row.mobility_targets ?? null,
+        stretch_targets: row.stretch_targets ?? null,
+        unilateral: row.unilateral ?? null,
+        rep_range_min: row.rep_range_min ?? null,
+        rep_range_max: row.rep_range_max ?? null,
+      },
+    });
+  }
+  return out;
+}
+
+/**
+ * List exercises in generator Exercise format with ontology fields when present.
+ * Uses structured DB columns (primary_movement_family, joint_stress_tags, etc.) and
+ * populates legacy movement_pattern and tags.joint_stress/contraindications for compat.
+ *
+ * Fetches the **full** active catalog in pages (not a single capped query). Does **not** filter by
+ * gym equipment here — `generateWorkoutSession` applies `filterByHardConstraints` so equipment matching
+ * stays consistent with the merged static+DB pool in `generateWorkoutAsync`.
+ */
+export async function listExercisesForGenerator(
+  filters?: Pick<ExerciseFilters, "injuries" | "tagSlugs">
+): Promise<Exercise[]> {
+  const supabase = requireClient();
+  const { rows, tagsByExerciseId, contraByExerciseId, progressionsByExerciseId, regressionsByExerciseId } =
+    await loadActiveExercisesWithRelationMaps(supabase);
+  if (!rows.length) return [];
 
   const result: Exercise[] = [];
   for (const row of rows as ExerciseRowWithOntology[]) {

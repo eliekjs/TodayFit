@@ -263,6 +263,9 @@ const SET_MOVEMENT_FAMILY = new Set<string>(MOVEMENT_FAMILIES);
 const SET_JOINT_STRESS = new Set<string>(JOINT_STRESS_TAGS);
 const SET_CONTRAINDICATION = new Set<string>(CONTRAINDICATION_TAGS);
 const SET_LEGACY_PATTERN = new Set<string>(LEGACY_MOVEMENT_PATTERNS);
+const SET_EXERCISE_ROLE = new Set<string>(EXERCISE_ROLES);
+const SET_PAIRING_CATEGORY = new Set<string>(PAIRING_CATEGORIES);
+const SET_FATIGUE_REGION = new Set<string>(FATIGUE_REGIONS);
 
 export function isMovementFamily(s: string): s is MovementFamily {
   return SET_MOVEMENT_FAMILY.has(s);
@@ -278,6 +281,18 @@ export function isContraindicationTag(s: string): s is ContraindicationTag {
 
 export function isLegacyMovementPattern(s: string): s is LegacyMovementPattern {
   return SET_LEGACY_PATTERN.has(s);
+}
+
+export function isExerciseRole(s: string): s is ExerciseRole {
+  return SET_EXERCISE_ROLE.has(s);
+}
+
+export function isPairingCategory(s: string): s is PairingCategory {
+  return SET_PAIRING_CATEGORY.has(s);
+}
+
+export function isFatigueRegion(s: string): s is FatigueRegion {
+  return SET_FATIGUE_REGION.has(s);
 }
 
 /** Normalize string to snake_case for comparison. */

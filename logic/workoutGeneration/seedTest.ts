@@ -5,6 +5,7 @@
  */
 
 import { generateWorkoutSession, regenerateWorkoutSession } from "./dailyGenerator";
+import { STUB_EXERCISES } from "./exerciseStub";
 import type { GenerateWorkoutInput, WorkoutSession } from "./types";
 
 function printSession(session: WorkoutSession, label: string) {
@@ -168,21 +169,21 @@ function main() {
   for (const ex of EXAMPLES) {
     const session = generateWorkoutSession(
       { ...ex.input, style_prefs: { ...ex.input.style_prefs } },
-      undefined
+      STUB_EXERCISES
     );
     printSession(session, ex.name);
   }
 
   // Regenerate example: same input, two modes
   const input = EXAMPLES[0].input;
-  const first = generateWorkoutSession({ ...input, seed: 100 }, undefined);
+  const first = generateWorkoutSession({ ...input, seed: 100 }, STUB_EXERCISES);
   printSession(first, "Regenerate base (seed 100)");
 
   const swapped = regenerateWorkoutSession(
     { ...input, seed: 100 },
     first,
     "keep_structure_swap_exercises",
-    undefined
+    STUB_EXERCISES
   );
   printSession(swapped, "Regenerate: keep_structure_swap_exercises (seed 101)");
 
@@ -190,7 +191,7 @@ function main() {
     { ...input, seed: 100 },
     first,
     "new_structure",
-    undefined
+    STUB_EXERCISES
   );
   printSession(newStruct, "Regenerate: new_structure (seed 101)");
 

@@ -42,7 +42,7 @@ function main() {
     const prefs: ManualPreferences = { ...DEFAULT_PREFS, ...preset.prefs };
     const runsPerPreset = Math.ceil(totalRuns / PRESETS.length);
     for (let i = 0; i < runsPerPreset; i++) {
-      const workout = generateWorkout(prefs, undefined, `${preset.name}-${i}`, EXERCISES);
+      const workout = generateWorkout(prefs, EXERCISES, undefined, `${preset.name}-${i}`);
       for (const block of workout.blocks) {
         for (const item of block.items) {
           const id = item.exercise_id;

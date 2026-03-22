@@ -20,6 +20,9 @@ export {
   isJointStressTag,
   isContraindicationTag,
   isLegacyMovementPattern,
+  isExerciseRole,
+  isPairingCategory,
+  isFatigueRegion,
   normalizeSlug,
 } from "./vocabularies";
 

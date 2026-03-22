@@ -235,6 +235,17 @@ const JOINT_STRESS_PREFIXES = [
 ];
 
 import { normalizeMatchableTagSlugs, normalizeSlug } from "./ontology";
+import {
+  exerciseInferenceInputFromDefinition,
+  mergePhase1MovementOntologyIntoExercise,
+} from "./exerciseMetadata/phase1MovementInference";
+import { mergePhase2SafetyOntologyIntoExercise } from "./exerciseMetadata/phase2SafetyInference";
+import { mergePhase3SessionOntologyIntoExercise } from "./exerciseMetadata/phase3SessionRoleInference";
+import { mergePhase4ConditioningIntentOntologyIntoExercise } from "./exerciseMetadata/phase4ConditioningIntentInference";
+import { mergePhase5MobilityStretchOntologyIntoExercise } from "./exerciseMetadata/phase5MobilityStretchInference";
+import { mergePhase6RepRangeOntologyIntoExercise } from "./exerciseMetadata/phase6RepRangeInference";
+import { mergePhase7WarmupCooldownRelevanceIntoExercise } from "./exerciseMetadata/phase7WarmupCooldownRelevanceInference";
+import { mergePhase8UnilateralOntologyIntoExercise } from "./exerciseMetadata/phase8UnilateralInference";
 
 const CANONICAL_SPORT_SLUGS = new Set(SPORTS_WITH_SUB_FOCUSES.map((s) => normalizeSlug(s.slug)));
 
@@ -455,7 +466,7 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
   );
   const tags = buildExerciseTags(def);
 
-  return {
+  const exercise: Exercise = {
     id: def.id,
     name: def.name,
     movement_pattern: deriveMovementPattern(def),
@@ -468,6 +479,42 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
     ...(def.progressions?.length ? { progressions: def.progressions } : {}),
     ...(def.regressions?.length ? { regressions: def.regressions } : {}),
   };
+
+  // Phase 1: research-aligned movement family + fine patterns when static/DB omits ontology
+  // (see docs/research/exercise-metadata-phase1-movement-patterns.md).
+  mergePhase1MovementOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  // Phase 2: joint stress, contraindications, impact (see docs/research/exercise-metadata-phase2-safety-layer.md).
+  mergePhase2SafetyOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def), {
+    movement_patterns: exercise.movement_patterns ?? [],
+    primary_movement_family: exercise.primary_movement_family,
+  });
+
+  // Phase 3: role, pairing, fatigue regions (see docs/research/exercise-metadata-phase3-session-structure.md).
+  mergePhase3SessionOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def), {
+    movement_patterns: exercise.movement_patterns ?? [],
+    primary_movement_family: exercise.primary_movement_family,
+    movement_pattern: exercise.movement_pattern,
+    modality: exercise.modality,
+    joint_stress_tags: exercise.joint_stress_tags,
+  });
+
+  // Phase 4: conditioning intent slugs for sub-focus / template matching (conditioningSubFocus.ts).
+  mergePhase4ConditioningIntentOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  // Phase 5: mobility_targets + stretch_targets for warmup/cooldown target matching.
+  mergePhase5MobilityStretchOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  // Phase 6: rep_range bounds for getEffectiveRepRange (see docs/research/exercise-metadata-phase6-rep-range-bounds.md).
+  mergePhase6RepRangeOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  // Phase 7: warmup_relevance / cooldown_relevance for ontologyScoring (after Phase 5 targets).
+  mergePhase7WarmupCooldownRelevanceIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  // Phase 8: unilateral flag for variety scoring (docs/research/exercise-metadata-phase8-unilateral.md).
+  mergePhase8UnilateralOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  return exercise;
 }
 
 /**

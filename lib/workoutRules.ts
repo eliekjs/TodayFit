@@ -167,13 +167,27 @@ export type InjuryConstraintKey =
 
 /** Injury → joint_stress tags to avoid (canonical slugs; see lib/ontology JOINT_STRESS_TAGS). Includes legacy "shoulder_extension" for backward compat. */
 export const INJURY_AVOID_TAGS: Record<string, string[]> = {
-  shoulder: ["shoulder_overhead", "shoulder_extension_load", "shoulder_extension", "grip_hanging"],
-  rotator_cuff_irritation: ["shoulder_overhead", "shoulder_extension_load", "shoulder_extension", "grip_hanging"],
+  shoulder: [
+    "shoulder_overhead",
+    "shoulder_extension_load",
+    "shoulder_extension",
+    "shoulder_abduction_load",
+    "shoulder_external_rotation_load",
+    "grip_hanging",
+  ],
+  rotator_cuff_irritation: [
+    "shoulder_overhead",
+    "shoulder_extension_load",
+    "shoulder_extension",
+    "shoulder_abduction_load",
+    "shoulder_external_rotation_load",
+    "grip_hanging",
+  ],
   shoulder_overhead: ["shoulder_overhead", "grip_hanging"],
   knee: ["knee_flexion", "deep_knee_flexion"],
   knee_pain: ["knee_flexion", "deep_knee_flexion"],
-  lower_back: ["lumbar_shear", "spinal_axial_load"],
-  low_back_sensitive: ["lumbar_shear", "spinal_axial_load"],
+  lower_back: ["lumbar_shear", "spinal_axial_load", "lumbar_flexion_load"],
+  low_back_sensitive: ["lumbar_shear", "spinal_axial_load", "lumbar_flexion_load"],
   elbow: ["elbow_stress"],
   wrist: ["wrist_stress", "wrist_extension_load"],
   hip: ["hip_stress"],

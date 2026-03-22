@@ -4,7 +4,7 @@
  * - movement_pattern legacy fallback works from movement_patterns
  * - tags.joint_stress and tags.contraindications are populated from ontology when present
  * - structured ontology fields are on the mapped generator Exercise
- * - non-annotated exercises still work (legacy movement_pattern, no ontology fields)
+ * - non-annotated exercises still work (legacy movement_pattern + Phase 1–3 inferred ontology when DB columns absent)
  */
 
 import type { ExerciseRowWithOntology } from "../lib/db/generatorExerciseAdapter";
@@ -136,20 +136,24 @@ function run() {
     console.log("OK: non-annotated tags.contraindications from contraindications table");
   }
 
-  // 6) Non-annotated: no structured ontology fields
+  // 6) Non-annotated: Phase 1–3 inference fills ontology when DB columns are absent
   if (
-    nonAnnotated.primary_movement_family != null ||
-    (nonAnnotated.movement_patterns?.length ?? 0) > 0 ||
-    (nonAnnotated.joint_stress_tags?.length ?? 0) > 0
+    nonAnnotated.primary_movement_family !== "lower_body" ||
+    !(nonAnnotated.movement_patterns ?? []).includes("squat") ||
+    !(nonAnnotated.joint_stress_tags ?? []).includes("knee_flexion") ||
+    nonAnnotated.exercise_role !== "main_compound" ||
+    nonAnnotated.pairing_category !== "quads"
   ) {
-    console.error("FAIL: non-annotated should not have ontology fields", {
+    console.error("FAIL: non-annotated should get Phase 1–3 inferred ontology", {
       primary_movement_family: nonAnnotated.primary_movement_family,
       movement_patterns: nonAnnotated.movement_patterns,
       joint_stress_tags: nonAnnotated.joint_stress_tags,
+      exercise_role: nonAnnotated.exercise_role,
+      pairing_category: nonAnnotated.pairing_category,
     });
     ok = false;
   } else {
-    console.log("OK: non-annotated exercise has no structured ontology fields");
+    console.log("OK: non-annotated exercise has Phase 1–3 inferred ontology");
   }
 
   if (ok) {

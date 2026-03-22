@@ -17,7 +17,6 @@ import type {
   PrimaryGoal,
   UserLevel,
 } from "./types";
-import { STUB_EXERCISES } from "./exerciseStub";
 import {
   isWarmupEligibleEquipment,
   isCooldownEligibleEquipment,
@@ -204,6 +203,20 @@ function getEffectiveFamiliesForExercise(e: Exercise): string[] {
 }
 
 /**
+ * When the user sets a body-part focus, mobility/recovery entries must match those movement
+ * families or be core/trunk prep (common on upper/lower days). Conditioning stays unrestricted
+ * so cardio/HIIT blocks still have options.
+ */
+function mobilityRecoveryPassesBodyFocus(
+  families: string[],
+  allowedFamilies: NonNullable<ResolvedWorkoutConstraints["allowed_movement_families"]>
+): boolean {
+  if (families.some((f) => allowedFamilies.some((af) => af === f))) return true;
+  const hasNonCoreFocus = allowedFamilies.some((f) => f !== "core");
+  return hasNonCoreFocus && families.includes("core");
+}
+
+/**
  * Adapter so eligibilityHelpers (which expect top-level joint_stress/contraindications) work with
  * generator Exercise (which may have only tags.joint_stress / tags.contraindications).
  */
@@ -218,7 +231,9 @@ function toConstraintEligibilityShape(e: Exercise): Exercise & { joint_stress?: 
 /**
  * Filter pool by resolved constraints (single source of truth with validator).
  * Injury/body-part rules come from constraints; equipment and energy stay in filterByHardConstraints.
- * Allows mobility/recovery/conditioning exercises into the pool even when body-part focus is set (for warmup/cooldown/conditioning blocks).
+ * Conditioning exercises stay in the pool on body-part days (main conditioning / cardio blocks).
+ * Mobility and recovery must match the day's movement families or qualify as core prep on
+ * upper/lower-focused sessions (activation aligns with the selected body region).
  */
 export function filterByConstraintsForPool(
   exercises: Exercise[],
@@ -232,9 +247,11 @@ export function filterByConstraintsForPool(
     if (!isExerciseAllowedByInjuries(shape, constraints)) return false;
     if (!hasBodyFocus) return true;
     const families = getEffectiveFamiliesForExercise(e);
-    if (families.some((f) => allowedFamilies!.includes(f))) return true;
-    // Warmup/cooldown/conditioning exercises are allowed in pool regardless of body focus (used in non-working blocks).
-    if (e.modality === "mobility" || e.modality === "recovery" || e.modality === "conditioning") return true;
+    if (families.some((f) => allowedFamilies!.some((af) => af === f))) return true;
+    if (e.modality === "conditioning") return true;
+    if (e.modality === "mobility" || e.modality === "recovery") {
+      return mobilityRecoveryPassesBodyFocus(families, allowedFamilies!);
+    }
     return false;
   });
 }
@@ -302,6 +319,57 @@ function goalToTags(goal: string): string[] {
 /** Normalize tag or muscle string to slug for sub-focus tag matching (lowercase, spaces to underscore). */
 function tagToSlug(tag: string): string {
   return tag.toLowerCase().replace(/\s/g, "_");
+}
+
+// Hypertrophy sub-focus: treat selected body-part slugs as first-class match signals.
+// We intentionally keep this direct + localized (no hidden ontology layer).
+const HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS: Record<string, string[]> = {
+  // Keep this inference direct + simple, based on what already exists in the exercise fields.
+  // We include a few region-level proxies (legs/posterior_chain/push/pull) so the “direct match”
+  // signal actually triggers on unbackfilled DBs / stubs.
+  glutes: ["glutes", "hamstrings", "legs", "posterior_chain"],
+  back: ["back", "lats", "upper_back", "pull"],
+  chest: ["chest", "pecs", "push"],
+  arms: ["biceps", "triceps"],
+  shoulders: ["shoulders", "push"],
+  legs: ["legs", "quads", "glutes", "hamstrings", "calves"],
+  core: ["core", "core_stability"],
+  balanced: [],
+};
+
+function getSelectedHypertrophySubFocusRanked(input: GenerateWorkoutInput): { slugs: string[]; weights: number[] } {
+  const ranked =
+    input.goal_sub_focus?.muscle ??
+    input.goal_sub_focus?.hypertrophy ??
+    [];
+  const weights =
+    input.goal_sub_focus_weights?.muscle ??
+    input.goal_sub_focus_weights?.hypertrophy ??
+    [];
+  const n = ranked.length || 1;
+  return {
+    slugs: ranked,
+    weights: ranked.map((_, i) => weights[i] ?? 1 / n),
+  };
+}
+
+function exerciseMatchesHypertrophySubFocusSlug(exercise: Exercise, slug: string): boolean {
+  const norm = tagToSlug(slug);
+  if (norm === "balanced") return false;
+
+  const matchSet = new Set(
+    (HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS[norm] ?? [norm]).map((s) => tagToSlug(s))
+  );
+
+  const muscleSet = new Set((exercise.muscle_groups ?? []).map((m) => tagToSlug(m)));
+  const attrSet = new Set((exercise.tags?.attribute_tags ?? []).map((a) => tagToSlug(a)));
+  const fatigueSet = new Set((exercise.fatigue_regions ?? []).map((f) => tagToSlug(f)));
+  const pairing = tagToSlug(exercise.pairing_category ?? "");
+
+  for (const m of matchSet) {
+    if (muscleSet.has(m) || attrSet.has(m) || fatigueSet.has(m) || pairing === m) return true;
+  }
+  return false;
 }
 
 /** Build preferred tag weights from goal_sub_focus and sport_sub_focus input. Used for sub-focus tag-based scoring. Uses rank-based weights when goal_sub_focus_weights provided. */
@@ -518,6 +586,22 @@ export function scoreExercise(
     total += intentBonus + overlayBonus;
   }
 
+  // Hypertrophy: direct selected hypertrophy sub-focus slug match is first-class (strong).
+  if (primary === "hypertrophy") {
+    const { slugs: ranked, weights } = getSelectedHypertrophySubFocusRanked(input);
+    const directSlugs = ranked.filter((s) => tagToSlug(s) !== "balanced");
+    for (let i = 0; i < ranked.length; i++) {
+      const slug = ranked[i];
+      if (tagToSlug(slug) === "balanced") continue;
+      const w = weights[i] ?? (directSlugs.length ? 1 / directSlugs.length : 0);
+      if (w <= 0) continue;
+      if (exerciseMatchesHypertrophySubFocusSlug(exercise, slug)) {
+        // Scale so direct match beats legacy tag overlap.
+        total += w * 6;
+      }
+    }
+  }
+
   // Sub-focus (tag-based): boost exercises whose tags match goal/sport sub-focus tag map. For conditioning, legacy tags (conditioning/compound/energy_high) are weaker than direct slug match above.
   const sportSubFocus = input.sport_sub_focus;
   const hasSubFocus =
@@ -532,7 +616,13 @@ export function scoreExercise(
         if (exerciseSlugs.has(slug)) subFocusScore += weight;
       }
       const subFocusCoeff =
-        primary === "conditioning" || primary === "endurance" ? 0.25 : primary === "strength" ? 0.2 : 0.5;
+        primary === "conditioning" || primary === "endurance"
+          ? 0.25
+          : primary === "strength"
+            ? 0.2
+            : primary === "hypertrophy"
+              ? 0.15
+              : 0.5;
       const subFocusContribution = subFocusScore * subFocusCoeff;
       total += subFocusContribution;
     }
@@ -965,7 +1055,8 @@ function buildWarmup(
   used: Set<string>,
   rng: () => number,
   fatigueState?: FatigueState,
-  historyContext?: TrainingHistoryContext
+  historyContext?: TrainingHistoryContext,
+  strengthProfile?: SubFocusProfile | null
 ): WorkoutBlock {
   // Activation and joint prep only (no conditioning in warmup).
   const basePool = exercises.filter(
@@ -977,8 +1068,44 @@ function buildWarmup(
   const pool = basePool.filter((e) => isWarmupEligibleEquipment(e.equipment_required));
   const equipmentPool = pool.length ? pool : basePool;
 
+  // When building strength workouts with an intent sub-focus, align warm-up selection
+  // to the primary movement pattern and trunk stability requirements.
+  const basePreferredWarmupTargets = getPreferredWarmupTargetsFromFocus(input.focus_body_parts);
+  const strengthIntentSlugs = strengthProfile ? getStrengthIntentSlugs(strengthProfile) : [];
+  const primaryStrengthIntent = strengthIntentSlugs[0];
+
+  // Focus body parts -> canonical warmup targets (mobility_targets/stretch_targets).
+  const primaryWarmupFocusBodyParts: string[] = [];
+  if (primaryStrengthIntent === "deadlift_hinge") primaryWarmupFocusBodyParts.push("lower", "core");
+  if (primaryStrengthIntent === "squat") primaryWarmupFocusBodyParts.push("lower", "core");
+  if (primaryStrengthIntent === "bench_press") primaryWarmupFocusBodyParts.push("upper_push");
+  if (primaryStrengthIntent === "overhead_press") primaryWarmupFocusBodyParts.push("upper_push", "core");
+  if (primaryStrengthIntent === "pull") primaryWarmupFocusBodyParts.push("upper_pull");
+
+  const overlayWarmupFocusBodyParts: string[] = [];
+  const ov = (strengthProfile?.overlayFilter ?? "").toLowerCase();
+  if (ov === "upper") overlayWarmupFocusBodyParts.push("upper_push", "upper_pull");
+  if (ov === "lower") overlayWarmupFocusBodyParts.push("lower");
+  if (ov === "core") overlayWarmupFocusBodyParts.push("core");
+  const strengthPreferredWarmupTargets = [...primaryWarmupFocusBodyParts, ...overlayWarmupFocusBodyParts].length
+    ? getPreferredWarmupTargetsFromFocus([...primaryWarmupFocusBodyParts, ...overlayWarmupFocusBodyParts])
+    : [];
+
+  const preferredWarmupTargets = [
+    ...new Set([...basePreferredWarmupTargets, ...strengthPreferredWarmupTargets]),
+  ];
+
+  const primaryPreferredWarmupTargets =
+    primaryWarmupFocusBodyParts.length > 0
+      ? getPreferredWarmupTargetsFromFocus(primaryWarmupFocusBodyParts)
+      : [];
+
+  const primaryMatchPool =
+    primaryPreferredWarmupTargets.length > 0
+      ? equipmentPool.filter((e) => exerciseWarmupTargetsOverlap(e, primaryPreferredWarmupTargets))
+      : [];
+
   // Restrict to exercises that target the day's focus (activation for those body parts). Fall back to full pool if none match.
-  const preferredWarmupTargets = getPreferredWarmupTargetsFromFocus(input.focus_body_parts);
   const focusRelevantPool =
     preferredWarmupTargets.length > 0
       ? equipmentPool.filter((e) => exerciseWarmupTargetsOverlap(e, preferredWarmupTargets))
@@ -988,12 +1115,16 @@ function buildWarmup(
   const count = input.duration_minutes <= 25 ? 1 : input.duration_minutes <= 40 ? 2 : 3;
   const movementCounts = new Map<string, number>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
+  const warmupTargetCount = Math.min(count, finalPool.length || 2);
+  const candidatePoolForWarmup =
+    primaryMatchPool.length >= warmupTargetCount ? primaryMatchPool : finalPool;
+
   const { exercises: chosen } = selectExercises(
-    finalPool,
+    candidatePoolForWarmup,
     input,
     recentIds,
     movementCounts,
-    Math.min(count, finalPool.length || 2),
+    warmupTargetCount,
     rng,
     fatigueState,
     {
@@ -1034,10 +1165,10 @@ function buildWarmup(
   return {
     block_type: "warmup",
     format: "circuit",
-    title: focusLabel ? `Warm-up (activation for ${focusLabel})` : "Warm-up",
+    title: focusLabel ? `Activation (${focusLabel})` : "Activation",
     reasoning: focusLabel
-      ? `Activation and mobility for today's focus: ${focusLabel}. Prepares those muscles and joints for the main work.`
-      : "Activation and joint mobility for the muscles and joints used in today's work.",
+      ? `Movement prep for today's focus: ${focusLabel}. Prepares those muscles and joints for the main work.`
+      : "Movement prep and joint mobility for the muscles and joints used in today's work.",
     items,
     estimated_minutes: Math.min(10, 5 + items.length * 2, warmupCap),
   };
@@ -1188,13 +1319,17 @@ function buildMainStrength(
 
   const mainLiftCount = Math.min(compoundMin, 2, mainPool.length);
 
-  // Intent direct-match pool: prefer matching intent slugs when we still have enough items.
-  const directIntentMainMatches =
-    intentSlugs.length > 0 ? mainPool.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug))) : [];
-  const mainSelectionPool =
-    directIntentMainMatches.length >= mainLiftCount ? directIntentMainMatches : mainPool;
-
   const primaryIntent = intentSlugs[0];
+  const getComplementaryStrengthIntents = (intent?: string): string[] => {
+    if (!intent) return [];
+    if (intent === "deadlift_hinge") return ["squat"];
+    if (intent === "squat") return ["deadlift_hinge"];
+    if (intent === "bench_press") return ["overhead_press", "pull"];
+    if (intent === "overhead_press") return ["bench_press", "pull"];
+    if (intent === "pull") return ["bench_press", "overhead_press"];
+    return [];
+  };
+
   const templateHint = strengthProfile?.templateHints?.[0];
   const mainReasoning =
     templateHint === "strength_emphasis_lower"
@@ -1211,22 +1346,71 @@ function buildMainStrength(
                 ? "Compound lifts with intent-driven selection."
                 : "Compound lifts for strength.";
 
-  const { exercises: mainLifts } = selectExercises(
-    mainSelectionPool,
-    input,
-    recentIds,
-    movementCounts,
-    mainLiftCount,
-    rng,
-    fatigueState,
-    {
-      blockType: "main_strength",
-      sessionFatigueRegions,
-      sessionMovementPatternCounts: movementCounts,
-      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
-      historyContext,
+  // Sub-focus anchoring (critical): at least one main lift must match the primary intent slug,
+  // and it should be the primary main lift when present.
+  const makeMainSelectOpts = () => ({
+    blockType: "main_strength",
+    sessionFatigueRegions,
+    sessionMovementPatternCounts: movementCounts,
+    sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+    historyContext,
+  });
+
+  let mainLifts: Exercise[] = [];
+  if (primaryIntent && intentSlugs.length > 0) {
+    const directIntentMainMatches = mainPool.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)));
+    const primaryMatches = directIntentMainMatches.filter((e) => exerciseHasStrengthSubFocusSlug(e, primaryIntent));
+
+    if (primaryMatches.length > 0) {
+      // 1) Anchor: force primary intent into the first main lift when possible.
+      const { exercises: anchorChosen } = selectExercises(primaryMatches, input, recentIds, movementCounts, 1, rng, fatigueState, makeMainSelectOpts());
+      const anchor = anchorChosen[0];
+      if (anchor) mainLifts.push(anchor);
+
+      // 2) Fill remaining main-lift slots with intent-complementary movements (but keep anchor first).
+      const remainingCount = mainLiftCount - mainLifts.length;
+      if (remainingCount > 0 && anchor) {
+        const remainingPoolBase = mainPool.filter((e) => e.id !== anchor.id);
+        const complementaryIntents = getComplementaryStrengthIntents(primaryIntent);
+        const remainingPrimaryOrComplementMatches = remainingPoolBase.filter(
+          (e) =>
+            exerciseHasStrengthSubFocusSlug(e, primaryIntent) ||
+            complementaryIntents.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug))
+        );
+        const remainingAnyIntentMatches = remainingPoolBase.filter((e) =>
+          intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug))
+        );
+
+        const remainingPool =
+          remainingAnyIntentMatches.length >= remainingCount
+            ? remainingAnyIntentMatches
+            : remainingPrimaryOrComplementMatches.length >= remainingCount
+              ? remainingPrimaryOrComplementMatches
+              : remainingPoolBase;
+
+        const { exercises: restChosen } = selectExercises(remainingPool, input, recentIds, movementCounts, remainingCount, rng, fatigueState, makeMainSelectOpts());
+        mainLifts.push(...restChosen);
+      }
+    } else if (directIntentMainMatches.length > 0) {
+      // If the primary intent has no direct matches, still keep all main lifts within direct intent matches.
+      const { exercises: chosen } = selectExercises(
+        directIntentMainMatches,
+        input,
+        recentIds,
+        movementCounts,
+        mainLiftCount,
+        rng,
+        fatigueState,
+        makeMainSelectOpts()
+      );
+      mainLifts = chosen;
     }
-  );
+  }
+
+  if (mainLifts.length === 0) {
+    const { exercises: chosen } = selectExercises(mainPool, input, recentIds, movementCounts, mainLiftCount, rng, fatigueState, makeMainSelectOpts());
+    mainLifts = chosen;
+  }
 
   // When we have exactly 2 main lifts and supersets are wanted, pair them if they're a good superset (push+pull, squat+hinge, etc.)
   const pairMainLifts =
@@ -1302,21 +1486,45 @@ function buildMainStrength(
     }
   }
 
-  // Target ~3 supersets for 45 min (1 main + 2 accessory), ~15 min per superset; scale with duration.
-  let pairCount =
-    input.duration_minutes <= 30 ? 1
-    : input.duration_minutes <= 45 ? 2
-    : 3;
+  // Accessory block control:
+  // - cap to 1–2 accessory supersets (instead of letting accessories dominate)
+  // - keep accessory exercise sets lighter than the main lift sets
+  const mainItemSets = blocks.flatMap((b) => b.items.map((i) => i.sets ?? 0));
+  const mainItemSetsMax = Math.max(1, ...mainItemSets);
+  const accessoryItemSetsCapByDuration = input.duration_minutes <= 30 ? 2 : 3;
+  const accessoryItemSetsCap = Math.max(1, Math.min(accessoryItemSetsCapByDuration, mainItemSetsMax - 1));
+
+  const accessoryPairCountTarget = input.duration_minutes <= 30 ? 1 : 2;
+  let pairCount = accessoryPairCountTarget;
   if (input.energy_level === "low") pairCount = Math.min(pairCount, 1);
   if (pairCount && wantsSupersets) {
     const available = accessoryPool.filter((e) => !used.has(e.id));
-    const directIntentAccessoryMatches =
+    const pairNeededItems = pairCount * 2;
+
+    const primaryIntentAccessoryMatches = primaryIntent
+      ? available.filter((e) => exerciseHasStrengthSubFocusSlug(e, primaryIntent))
+      : [];
+    const complementaryIntents = getComplementaryStrengthIntents(primaryIntent);
+    const complementaryIntentMatches =
+      primaryIntent && complementaryIntents.length
+        ? available.filter((e) => complementaryIntents.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)))
+        : [];
+    const anyIntentMatches =
       intentSlugs.length > 0
         ? available.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)))
         : [];
-    const pairNeededItems = pairCount * 2;
-    const poolForPairs =
-      directIntentAccessoryMatches.length >= pairNeededItems ? directIntentAccessoryMatches : available;
+
+    const poolForPairsCandidates =
+      primaryIntentAccessoryMatches.length >= pairNeededItems
+        ? primaryIntentAccessoryMatches
+        : primaryIntentAccessoryMatches.length > 0 &&
+            primaryIntentAccessoryMatches.length + complementaryIntentMatches.length >= pairNeededItems
+          ? [...primaryIntentAccessoryMatches, ...complementaryIntentMatches]
+          : anyIntentMatches.length >= pairNeededItems
+            ? anyIntentMatches
+            : available;
+
+    const poolForPairs = poolForPairsCandidates.slice(0, Math.min(poolForPairsCandidates.length, pairNeededItems * 2));
 
     const pairs = pickBestSupersetPairs(poolForPairs, pairCount, used) as [Exercise, Exercise][];
     for (const [exA, exB] of pairs) {
@@ -1334,21 +1542,21 @@ function buildMainStrength(
         {
           exercise_id: exA.id,
           exercise_name: exA.name,
-          sets: pA.sets,
+          sets: Math.max(1, Math.min(pA.sets ?? 1, accessoryItemSetsCap)),
           reps: pA.reps,
           rest_seconds: pA.rest_seconds,
           coaching_cues: pA.coaching_cues,
-          reasoning_tags: ["superset", "accessory", ...(exA.tags.goal_tags ?? [])],
+          reasoning_tags: ["superset", "secondary_strength", "accessory", ...(exA.tags.goal_tags ?? [])],
           unilateral: exA.unilateral ?? false,
         },
         {
           exercise_id: exB.id,
           exercise_name: exB.name,
-          sets: pB.sets,
+          sets: Math.max(1, Math.min(pB.sets ?? 1, accessoryItemSetsCap)),
           reps: pB.reps,
           rest_seconds: pB.rest_seconds,
           coaching_cues: pB.coaching_cues,
-          reasoning_tags: ["superset", "accessory", ...(exB.tags.goal_tags ?? [])],
+          reasoning_tags: ["superset", "secondary_strength", "accessory", ...(exB.tags.goal_tags ?? [])],
           unilateral: exB.unilateral ?? false,
         },
       ];
@@ -1360,7 +1568,7 @@ function buildMainStrength(
       }
       // When high energy, add core to the accessory section.
       const accessoryItems = [...items];
-      if (input.energy_level === "high") {
+      if (input.energy_level === "high" && pairCount === 1) {
         const coreFamily = (e: Exercise) =>
           e.primary_movement_family?.toLowerCase().replace(/\s/g, "_") === "core" ||
           e.movement_pattern === "rotate";
@@ -1371,11 +1579,11 @@ function buildMainStrength(
           accessoryItems.push({
             exercise_id: coreCandidate.id,
             exercise_name: coreCandidate.name,
-            sets: pCore.sets,
+            sets: Math.max(1, Math.min(pCore.sets ?? 1, accessoryItemSetsCap)),
             reps: pCore.reps,
             rest_seconds: pCore.rest_seconds,
             coaching_cues: pCore.coaching_cues,
-            reasoning_tags: ["accessory", "core", ...(coreCandidate.tags.goal_tags ?? [])],
+            reasoning_tags: ["secondary_strength", "accessory", "core", ...(coreCandidate.tags.goal_tags ?? [])],
             unilateral: coreCandidate.unilateral ?? false,
           });
         }
@@ -1383,10 +1591,10 @@ function buildMainStrength(
       // ~15 min per superset (take or remove based on warmup/cooldown).
       const supersetCount = supersetPairs.length;
       blocks.push({
-        block_type: "main_strength",
+        block_type: "accessory",
         format: "superset",
-        title: "Accessory",
-        reasoning: "Superset for time efficiency." + (input.energy_level === "high" ? " Core added for high energy." : ""),
+        title: "Secondary strength",
+        reasoning: "Supporting strength work aligned to the selected intent.",
         items: accessoryItems,
         supersetPairs,
         estimated_minutes: supersetCount * 15,
@@ -1613,22 +1821,77 @@ function buildMainHypertrophy(
     maxExercises,
     pool.length
   );
-  const { exercises: chosen } = selectExercises(
-    pool,
-    input,
-    recentIds,
-    movementCounts,
-    wantCount,
-    rng,
-    fatigueState,
-    {
-      blockType: "main_hypertrophy",
-      sessionFatigueRegions,
-      sessionMovementPatternCounts: movementCounts,
-      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
-      historyContext,
+
+  const isHypertrophyPrimary = input.primary_goal === "hypertrophy";
+  const muscleSubFocusRanked = isHypertrophyPrimary ? (input.goal_sub_focus?.muscle ?? []) : [];
+  const hasBalanced = muscleSubFocusRanked.includes("balanced");
+  const directSubFocusSlugs = muscleSubFocusRanked.filter((s) => s !== "balanced");
+  const dominantSlug = directSubFocusSlugs[0];
+
+  const selectionOptions = {
+    blockType: "main_hypertrophy",
+    sessionFatigueRegions,
+    sessionMovementPatternCounts: movementCounts,
+    sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+    historyContext,
+  } as const;
+
+  let chosen: Exercise[] = [];
+  if (dominantSlug && isHypertrophyPrimary && directSubFocusSlugs.length > 0 && wantCount > 0) {
+    const desiredDirectRatio = hasBalanced ? 0.45 : 0.65;
+    const desiredDirectCount = Math.max(1, Math.round(wantCount * desiredDirectRatio));
+    const directDominantPool = pool.filter((e) => exerciseMatchesHypertrophySubFocusSlug(e, dominantSlug));
+
+    if (directDominantPool.length > 0) {
+      const firstCount = Math.min(desiredDirectCount, directDominantPool.length, wantCount);
+      const firstPick = selectExercises(
+        directDominantPool,
+        input,
+        recentIds,
+        movementCounts,
+        firstCount,
+        rng,
+        fatigueState,
+        selectionOptions
+      );
+
+      firstPick.exercises.forEach((e) => used.add(e.id));
+      chosen = [...firstPick.exercises];
+
+      const remaining = wantCount - chosen.length;
+      if (remaining > 0) {
+        const remainingPool = pool.filter((e) => !used.has(e.id));
+        if (remainingPool.length > 0) {
+          const secondPick = selectExercises(
+            remainingPool,
+            input,
+            recentIds,
+            movementCounts,
+            remaining,
+            rng,
+            fatigueState,
+            selectionOptions
+          );
+          chosen = [...chosen, ...secondPick.exercises];
+        }
+      }
     }
-  );
+  }
+
+  // Fallback: no dominant match pool (or balanced-only) → standard selection.
+  if (chosen.length === 0) {
+    const picked = selectExercises(
+      pool,
+      input,
+      recentIds,
+      movementCounts,
+      wantCount,
+      rng,
+      fatigueState,
+      selectionOptions
+    );
+    chosen = picked.exercises;
+  }
 
   const targetPairCount = Math.floor(chosen.length / 2);
   const rawPairs: Exercise[][] =
@@ -1670,8 +1933,31 @@ function buildMainHypertrophy(
     {
       block_type: "main_hypertrophy",
       format,
-      title: "Main hypertrophy",
-      reasoning: "Volume-focused work for muscle building.",
+      title: (() => {
+        if (!isHypertrophyPrimary) return "Main hypertrophy";
+        if (dominantSlug) {
+          const pretty: Record<string, string> = {
+            glutes: "Glutes",
+            back: "Back",
+            chest: "Chest",
+            arms: "Arms",
+            shoulders: "Shoulders",
+            legs: "Legs",
+            core: "Core",
+            balanced: "Balanced",
+          };
+          const suffix = pretty[dominantSlug] ?? dominantSlug;
+          return `Main hypertrophy (${suffix})`;
+        }
+        if (hasBalanced) return "Main hypertrophy (Balanced)";
+        return "Main hypertrophy";
+      })(),
+      reasoning: (() => {
+        if (!isHypertrophyPrimary) return "Volume-focused work for muscle building.";
+        if (dominantSlug) return `${dominantSlug} dominant volume for muscle building.`;
+        if (hasBalanced) return "Evenly distributed hypertrophy volume for a balanced muscle-building session.";
+        return "Volume-focused work for muscle building.";
+      })(),
       items,
       ...(supersetPairs && supersetPairs.length > 0 ? { supersetPairs } : {}),
       estimated_minutes: durationAwareMinutes,
@@ -2414,7 +2700,7 @@ function blockTitleForGoal(
   isSecondaryGoalBlock: boolean
 ): string {
   const base: Record<string, string> = {
-    warmup: "Warm-up",
+    warmup: "Activation",
     main_strength: "Main strength",
     main_hypertrophy: "Main hypertrophy",
     power: "Power",
@@ -2479,8 +2765,9 @@ const MAIN_BLOCK_TYPES_FOR_RATIO = new Set<BlockType>([
 ]);
 
 /**
- * Enforce: (1) never more accessory sets than main sets,
- * (2) when doing accessory, target 75% main / 25% accessory.
+ * Enforce main > accessory:
+ * - never more accessory sets than main sets
+ * - keep at least one set worth of dominance for main work (when possible)
  * Mutates blocks in place by reducing accessory block item set counts if needed.
  */
 function enforceMainAccessoryRatioOnBlocks(blocks: WorkoutBlock[]): void {
@@ -2500,7 +2787,7 @@ function enforceMainAccessoryRatioOnBlocks(blocks: WorkoutBlock[]): void {
 
   if (accessoryBlocks.length === 0 || accessorySets === 0) return;
 
-  const maxAccessory = Math.min(mainSets, Math.floor(mainSets / 3));
+  const maxAccessory = Math.max(0, mainSets - 1);
   if (accessorySets <= maxAccessory) return;
 
   let toRemove = accessorySets - maxAccessory;
@@ -2556,9 +2843,10 @@ function sessionTitle(input: GenerateWorkoutInput): string {
 }
 
 // --- Main entry: 8-step generation flow ---
+/** @param exercisePool Full catalog for this request (e.g. from `listExercisesForGenerator`). No default — avoids accidentally using the tiny test stub in production. */
 export function generateWorkoutSession(
   input: GenerateWorkoutInput,
-  exercisePool: Exercise[] = STUB_EXERCISES
+  exercisePool: Exercise[]
 ): WorkoutSession {
   const seed = input.seed ?? 0;
   const rng = createSeededRng(seed);
@@ -2618,8 +2906,18 @@ export function generateWorkoutSession(
   });
   const fatigueVolumeScale = fatigueState.volumeScaleFactor;
 
+  // Resolve strength profile early so warm-up can align with intent.
+  let strengthProfileForWarmup: SubFocusProfile | null = null;
+  if (primary === "strength" && (input.goal_sub_focus?.[primary]?.length ?? 0) > 0) {
+    strengthProfileForWarmup = resolveSubFocusProfile({
+      goalSlug: primary,
+      rankedSubFocusSlugs: input.goal_sub_focus[primary] ?? [],
+      rankWeights: input.goal_sub_focus_weights?.[primary],
+    });
+  }
+
   // 3. Build warmup
-  const warmup = buildWarmup(filtered, input, used, rng, fatigueState, historyContext);
+  const warmup = buildWarmup(filtered, input, used, rng, fatigueState, historyContext, strengthProfileForWarmup);
   const blocks: WorkoutBlock[] = [warmup];
 
   const wantsSupersets = input.style_prefs?.wants_supersets !== false;
@@ -2674,14 +2972,6 @@ export function generateWorkoutSession(
       }
     }
   } else if (primary === "strength") {
-    const strengthProfile: SubFocusProfile | null =
-      (input.goal_sub_focus?.[primary]?.length ?? 0) > 0
-        ? resolveSubFocusProfile({
-            goalSlug: primary,
-            rankedSubFocusSlugs: input.goal_sub_focus[primary] ?? [],
-            rankWeights: input.goal_sub_focus_weights?.[primary],
-          })
-        : null;
     blocks.push(
       ...buildMainStrength(
         filtered,
@@ -2695,7 +2985,7 @@ export function generateWorkoutSession(
         fatigueState,
         sessionFatigueRegions,
         historyContext,
-        strengthProfile
+        strengthProfileForWarmup
       )
     );
   } else if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
@@ -3019,7 +3309,7 @@ export function regenerateWorkoutSession(
   input: GenerateWorkoutInput,
   previousSession: WorkoutSession,
   mode: RegenerateMode,
-  exercisePool: Exercise[] = STUB_EXERCISES
+  exercisePool: Exercise[]
 ): WorkoutSession {
   const seed = (input.seed ?? 0) + 1;
   const newInput: GenerateWorkoutInput = { ...input, seed };

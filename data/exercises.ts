@@ -2,7 +2,8 @@ import type { ExerciseDefinition } from "../lib/types";
 import { EXERCISES_FUNCTIONAL_FITNESS } from "./exercisesFunctionalFitness";
 import { OTA_MOVEMENTS } from "./otaMovements";
 
-const EXERCISES_BUILTIN: ExerciseDefinition[] = [
+/** Hand-authored core catalog; re-exported for tooling (e.g. catalog export scripts). */
+export const EXERCISES_BUILTIN: ExerciseDefinition[] = [
   {
     id: "goblet_squat",
     name: "Goblet Squat",
@@ -261,6 +262,17 @@ const EXERCISES_BUILTIN: ExerciseDefinition[] = [
     equipment: ["stair_climber"],
     contraindications: ["knee"],
     tags: ["endurance", "low impact", "zone2"],
+    regressions: [],
+    progressions: [],
+  },
+  {
+    id: "treadmill_sprint_intervals",
+    name: "Treadmill Sprint Intervals",
+    muscles: ["legs"],
+    modalities: ["conditioning"],
+    equipment: ["treadmill"],
+    contraindications: ["knee"],
+    tags: ["endurance", "anaerobic"],
     regressions: [],
     progressions: [],
   },

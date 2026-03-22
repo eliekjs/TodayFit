@@ -6,6 +6,17 @@
 
 import type { Exercise, ExerciseTags, Modality, MovementPattern, TimeCost } from "../../logic/workoutGeneration/types";
 import {
+  exerciseInferenceInputFromDbRow,
+  mergePhase1MovementOntologyIntoExercise,
+} from "../exerciseMetadata/phase1MovementInference";
+import { mergePhase2SafetyOntologyIntoExercise } from "../exerciseMetadata/phase2SafetyInference";
+import { mergePhase3SessionOntologyIntoExercise } from "../exerciseMetadata/phase3SessionRoleInference";
+import { mergePhase4ConditioningIntentOntologyIntoExercise } from "../exerciseMetadata/phase4ConditioningIntentInference";
+import { mergePhase5MobilityStretchOntologyIntoExercise } from "../exerciseMetadata/phase5MobilityStretchInference";
+import { mergePhase6RepRangeOntologyIntoExercise } from "../exerciseMetadata/phase6RepRangeInference";
+import { mergePhase7WarmupCooldownRelevanceIntoExercise } from "../exerciseMetadata/phase7WarmupCooldownRelevanceInference";
+import { mergePhase8UnilateralOntologyIntoExercise } from "../exerciseMetadata/phase8UnilateralInference";
+import {
   getLegacyMovementPattern,
   mergeJointStressForTags,
   mergeContraindicationsForTags,
@@ -270,6 +281,43 @@ export function mapDbExerciseToGeneratorExercise(
   } else if (secondary.length) {
     exercise.secondary_muscle_groups = secondary;
   }
+
+  const inferenceInput = exerciseInferenceInputFromDbRow(
+    {
+      slug: row.slug,
+      name: row.name,
+      primary_muscles: row.primary_muscles ?? [],
+      secondary_muscles: row.secondary_muscles ?? [],
+      modalities: row.modalities ?? [],
+      equipment: row.equipment ?? [],
+    },
+    tagSlugs
+  );
+
+  mergePhase1MovementOntologyIntoExercise(exercise, inferenceInput);
+
+  mergePhase2SafetyOntologyIntoExercise(exercise, inferenceInput, {
+    movement_patterns: exercise.movement_patterns ?? [],
+    primary_movement_family: exercise.primary_movement_family,
+  });
+
+  mergePhase3SessionOntologyIntoExercise(exercise, inferenceInput, {
+    movement_patterns: exercise.movement_patterns ?? [],
+    primary_movement_family: exercise.primary_movement_family,
+    movement_pattern: exercise.movement_pattern,
+    modality: exercise.modality,
+    joint_stress_tags: exercise.joint_stress_tags,
+  });
+
+  mergePhase4ConditioningIntentOntologyIntoExercise(exercise, inferenceInput);
+
+  mergePhase5MobilityStretchOntologyIntoExercise(exercise, inferenceInput);
+
+  mergePhase6RepRangeOntologyIntoExercise(exercise, inferenceInput);
+
+  mergePhase7WarmupCooldownRelevanceIntoExercise(exercise, inferenceInput);
+
+  mergePhase8UnilateralOntologyIntoExercise(exercise, inferenceInput);
 
   return exercise;
 }

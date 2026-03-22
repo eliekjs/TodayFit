@@ -12,6 +12,7 @@
 
 import { EXERCISES } from "../../data/exercises";
 import { GOAL_SUB_FOCUS_TAG_MAP } from "../../data/goalSubFocus";
+import { CONDITIONING_INTENT_SLUGS } from "../../data/goalSubFocus/conditioningSubFocus";
 import { SPORTS_WITH_SUB_FOCUSES } from "../../data/sportSubFocus/sportsWithSubFocuses";
 import { SUB_FOCUS_TAG_MAP } from "../../data/sportSubFocus/subFocusTagMap";
 import { exerciseDefinitionToGeneratorExercise } from "../../lib/dailyGeneratorAdapter";
@@ -65,6 +66,11 @@ function buildMatchableUniverse(): Set<string> {
 
   for (const sport of SPORTS_WITH_SUB_FOCUSES) {
     u.add(tagToSlug(sport.slug));
+  }
+
+  // Phase 4: conditioning intent slugs live in attribute_tags for direct sub-focus matching.
+  for (const s of CONDITIONING_INTENT_SLUGS) {
+    u.add(tagToSlug(s));
   }
 
   return u;

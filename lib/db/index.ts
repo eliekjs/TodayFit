@@ -16,8 +16,9 @@ export {
   listTags,
   listExercisesByTags,
   listExercisesForGenerator,
+  listSupabaseCatalogExerciseRows,
 } from "./exerciseRepository";
-export type { ExerciseFilters } from "./exerciseRepository";
+export type { ExerciseFilters, SupabaseCatalogExerciseRow } from "./exerciseRepository";
 export { mapDbExerciseToGeneratorExercise } from "./generatorExerciseAdapter";
 export type { ExerciseRowWithOntology } from "./generatorExerciseAdapter";
 

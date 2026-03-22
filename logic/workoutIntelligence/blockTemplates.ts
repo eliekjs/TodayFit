@@ -18,8 +18,8 @@ import { getStimulusProfile } from "./stimulusProfiles";
 const BLOCK_TEMPLATE_DEFAULTS: Partial<Record<BlockType, Omit<WorkoutBlockTemplate, "block_type">>> = {
   warmup: {
     format: "circuit",
-    title: "Warm-up",
-    purpose: "Elevate heart rate, mobilize joints, prepare for main work",
+    title: "Activation",
+    purpose: "Movement prep, mobilize joints, prepare for main work",
     exercise_count_min: 2,
     exercise_count_max: 5,
     fatigue_budget_share: 0,

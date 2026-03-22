@@ -213,11 +213,54 @@ export function deriveBodyPartFocusFromSubFocus(
   subFocus: string[]
 ): BodyPartFocusKey[] {
   const out: BodyPartFocusKey[] = [];
+
+  const addUnique = (v: BodyPartFocusKey) => {
+    if (!out.includes(v)) out.push(v);
+  };
+
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+  // Special-case full-body so warm-up stays generic and balanced across compounds.
+  if (subFocus.some((s) => {
+    const n = norm(s);
+    return n === "balanced" || n === "full-body" || n === "full body";
+  })) {
+    return ["Full body"];
+  }
+
   for (const s of subFocus) {
     if (s === "Full-body") return ["Full body"];
-    if ((s === "Upper" || s === "Upper body") && !out.includes("Upper body")) out.push("Upper body");
-    if ((s === "Lower" || s === "Lower body") && !out.includes("Lower body")) out.push("Lower body");
-    if (s === "Core" && !out.includes("Core")) out.push("Core");
+
+    // Legacy body-area sub-focus mapping (used by other goal types).
+    if ((s === "Upper" || s === "Upper body") && !out.includes("Upper body")) addUnique("Upper body");
+    if ((s === "Lower" || s === "Lower body") && !out.includes("Lower body")) addUnique("Lower body");
+    if (s === "Core" && !out.includes("Core")) addUnique("Core");
+
+    // Hypertrophy (muscle) sub-focus mapping for warm-up alignment.
+    // We intentionally keep this direct + simple (no hidden ontology).
+    const n = norm(s);
+    if (n === "glutes" || n === "legs") {
+      addUnique("Lower body");
+    } else if (n === "back") {
+      addUnique("Upper body");
+      addUnique("Pull");
+    } else if (n === "chest") {
+      addUnique("Upper body");
+      addUnique("Push");
+    } else if (n === "arms") {
+      addUnique("Upper body");
+      addUnique("Push");
+      addUnique("Pull");
+    } else if (n === "shoulders") {
+      addUnique("Upper body");
+      addUnique("Push");
+    } else if (n === "core") {
+      addUnique("Core");
+    }
   }
+
+  // If the user picked both upper and lower hypertrophy sub-focuses, warm-up should be full-body.
+  if (out.includes("Upper body") && out.includes("Lower body")) return ["Full body"];
+
   return out;
 }
