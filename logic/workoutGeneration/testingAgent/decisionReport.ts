@@ -41,6 +41,8 @@ export type ConstraintsSummary = {
   /** Human-readable rule descriptions in precedence order. */
   ruleDescriptions: string[];
   allowed_movement_families: string[] | null;
+  /** Lower-body quad vs posterior emphasis when body focus includes those modifiers. */
+  allowed_lower_body_emphasis?: "quad" | "posterior" | null;
   min_cooldown_mobility_exercises: number;
   excluded_exercise_id_count: number;
   excluded_joint_stress_tags: string[];
@@ -118,6 +120,7 @@ export function buildConstraintsSummary(constraints: ResolvedWorkoutConstraints)
   return {
     ruleDescriptions: constraints.rules.map(describeRule),
     allowed_movement_families: constraints.allowed_movement_families ? [...constraints.allowed_movement_families] : null,
+    allowed_lower_body_emphasis: constraints.allowed_lower_body_emphasis,
     min_cooldown_mobility_exercises: constraints.min_cooldown_mobility_exercises ?? 0,
     excluded_exercise_id_count: constraints.excluded_exercise_ids?.size ?? 0,
     excluded_joint_stress_tags: constraints.excluded_joint_stress_tags ? [...constraints.excluded_joint_stress_tags] : [],

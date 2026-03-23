@@ -159,11 +159,15 @@ export function manualPreferencesToGenerateWorkoutInput(
       ? preferences.preferredZone2Cardio
       : undefined,
     preferred_exercise_ids: preferredExerciseIds?.length ? preferredExerciseIds : undefined,
+    user_level: preferences.workoutTier ?? "intermediate",
+    include_creative_variations: preferences.includeCreativeVariations === true,
   };
   const hasStylePrefs =
     !!style_prefs.avoid_tags?.length ||
     !!style_prefs.preferred_zone2_cardio?.length ||
-    !!style_prefs.preferred_exercise_ids?.length;
+    !!style_prefs.preferred_exercise_ids?.length ||
+    style_prefs.user_level != null ||
+    style_prefs.include_creative_variations === true;
 
   const seedNum =
     typeof seedExtra === "number"
@@ -235,6 +239,7 @@ const JOINT_STRESS_PREFIXES = [
 ];
 
 import { normalizeMatchableTagSlugs, normalizeSlug } from "./ontology";
+import { inferCreativeVariationFromSource, inferWorkoutLevelsFromSource } from "./workoutLevel";
 import {
   exerciseInferenceInputFromDefinition,
   mergePhase1MovementOntologyIntoExercise,
@@ -513,6 +518,17 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
 
   // Phase 8: unilateral flag for variety scoring (docs/research/exercise-metadata-phase8-unilateral.md).
   mergePhase8UnilateralOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  const levelSource = {
+    id: def.id,
+    name: def.name,
+    tags: def.tags ?? [],
+    workout_levels: def.workout_levels,
+  };
+  exercise.workout_level_tags = inferWorkoutLevelsFromSource(levelSource);
+  if (inferCreativeVariationFromSource(levelSource)) {
+    exercise.creative_variation = true;
+  }
 
   return exercise;
 }

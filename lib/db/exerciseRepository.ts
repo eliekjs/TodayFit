@@ -59,7 +59,7 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
   const supabase = requireClient();
   let query = supabase
     .from("exercises")
-    .select("id, slug, name, primary_muscles, secondary_muscles, equipment, modalities, is_active")
+    .select("id, slug, name, primary_muscles, secondary_muscles, equipment, modalities, is_active, aliases")
     .eq("is_active", true);
 
   if (filters?.equipment?.length) {
@@ -140,6 +140,7 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
     secondary_muscles: string[];
     equipment: string[];
     modalities: string[];
+    aliases?: string[] | null;
   }>) {
     if (filters?.injuries?.length) {
       const contra = contraByExerciseId.get(row.id) ?? [];
@@ -149,7 +150,7 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
       const exTags = tagsByExerciseId.get(row.id) ?? [];
       if (!filters.tagSlugs.some((t) => exTags.includes(t))) continue;
     }
-    result.push({
+    const def: ExerciseDefinition = {
       id: row.slug,
       name: row.name,
       muscles: row.primary_muscles as ExerciseDefinition["muscles"],
@@ -159,7 +160,9 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
       contraindications: (contraByExerciseId.get(row.id) ?? []) as ExerciseDefinition["contraindications"],
       progressions: progressionsByExerciseId.get(row.id) ?? [],
       regressions: regressionsByExerciseId.get(row.id) ?? [],
-    });
+    };
+    if (row.aliases?.length) def.aliases = row.aliases;
+    result.push(def);
   }
   return result;
 }
@@ -183,25 +186,6 @@ export async function getProgressionsRegressions(
     ? supabase.from("exercises").select("id").eq("id", idOrSlug)
     : supabase.from("exercises").select("id").eq("slug", idOrSlug);
   const { data: exerciseRow, error: exError } = await exerciseQuery.single();
-  // #region agent log
-  fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-    body: JSON.stringify({
-      sessionId: "305ec8",
-      location: "lib/db/exerciseRepository.ts:getProgressionsRegressions",
-      message: "swap DB exercise lookup",
-      data: {
-        idOrSlug,
-        found: Boolean(exerciseRow),
-        exError: exError?.message ?? null,
-        exCode: exError?.code ?? null,
-      },
-      timestamp: Date.now(),
-      hypothesisId: "H3",
-    }),
-  }).catch(() => {});
-  // #endregion
   if (exError || !exerciseRow) {
     return { progressions: [], regressions: [] };
   }
@@ -212,24 +196,6 @@ export async function getProgressionsRegressions(
     .select("relationship, related_exercise_id")
     .eq("exercise_id", exerciseId);
 
-  // #region agent log
-  fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-    body: JSON.stringify({
-      sessionId: "305ec8",
-      location: "lib/db/exerciseRepository.ts:getProgressionsRegressions",
-      message: "swap exercise_progressions query",
-      data: {
-        idOrSlug,
-        rowsCount: rows?.length ?? 0,
-        error: error?.message ?? null,
-      },
-      timestamp: Date.now(),
-      hypothesisId: "H4",
-    }),
-  }).catch(() => {});
-  // #endregion
   if (error || !rows?.length) {
     return { progressions: [], regressions: [] };
   }
@@ -379,6 +345,27 @@ export type ExerciseRelationMaps = {
   progressionsByExerciseId: Map<string, string[]>;
   regressionsByExerciseId: Map<string, string[]>;
 };
+
+/**
+ * Cached full catalog + relation maps for workout generation (many paginated Supabase calls).
+ * Cleared on load failure so the next generate can retry. Call `clearGeneratorExerciseCatalogCache()` after
+ * catalog migrations or in tests that need a fresh fetch in the same JS runtime.
+ */
+let generatorRelationMapsPromise: Promise<ExerciseRelationMaps> | null = null;
+
+export function clearGeneratorExerciseCatalogCache(): void {
+  generatorRelationMapsPromise = null;
+}
+
+function getCachedGeneratorRelationMaps(supabase: SupabaseClient): Promise<ExerciseRelationMaps> {
+  if (!generatorRelationMapsPromise) {
+    generatorRelationMapsPromise = loadActiveExercisesWithRelationMaps(supabase).catch((err) => {
+      generatorRelationMapsPromise = null;
+      throw err;
+    });
+  }
+  return generatorRelationMapsPromise;
+}
 
 /**
  * Active exercises plus tag / contraindication / progression maps (paginated + chunked queries).
@@ -605,7 +592,7 @@ export async function listExercisesForGenerator(
 ): Promise<Exercise[]> {
   const supabase = requireClient();
   const { rows, tagsByExerciseId, contraByExerciseId, progressionsByExerciseId, regressionsByExerciseId } =
-    await loadActiveExercisesWithRelationMaps(supabase);
+    await getCachedGeneratorRelationMaps(supabase);
   if (!rows.length) return [];
 
   const result: Exercise[] = [];

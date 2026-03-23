@@ -4,6 +4,7 @@
  * we match directly — no large hidden ontology. Minimal legacy helpers only where needed.
  */
 
+import { normalizedMusclesIntersect } from "../../lib/ontology/muscleSlugs";
 import type { SubFocusProfile } from "./types";
 
 /** Minimal exercise shape for direct sub-focus matching (avoids data -> logic dependency). */
@@ -94,7 +95,7 @@ export function filterPoolByOverlay<T extends ExerciseForSubFocus>(pool: T[], ov
     return false;
   };
   const muscleMatch = (e: ExerciseForSubFocus): boolean =>
-    (e.muscle_groups ?? []).some((m) => wantedMuscles.has(toSlug(m)));
+    normalizedMusclesIntersect(e.muscle_groups, wantedMuscles);
   const filtered = pool.filter((e) => familyMatch(e) || muscleMatch(e));
   return filtered.length > 0 ? filtered : pool;
 }

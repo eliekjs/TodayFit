@@ -64,6 +64,20 @@ const MOBILITY_EX: Exercise = {
   mobility_targets: ["thoracic_spine"],
 };
 
+const MOBILITY_EX_2: Exercise = {
+  id: "hip_circles",
+  name: "Hip Circles",
+  movement_pattern: "rotate",
+  muscle_groups: ["legs"],
+  modality: "mobility",
+  equipment_required: ["bodyweight"],
+  difficulty: 1,
+  time_cost: "low",
+  tags: {},
+  exercise_role: "mobility",
+  mobility_targets: ["hips"],
+};
+
 function makeConstraints(overrides: Partial<{
   allowed_movement_families: string[] | null;
   excluded_exercise_ids: Set<string>;
@@ -77,6 +91,7 @@ function makeConstraints(overrides: Partial<{
     excluded_joint_stress_tags: overrides.excluded_joint_stress_tags ?? new Set(),
     excluded_contraindication_keys: overrides.excluded_contraindication_keys ?? new Set(),
     allowed_movement_families: overrides.allowed_movement_families ?? null,
+    allowed_lower_body_emphasis: undefined,
     min_cooldown_mobility_exercises: overrides.min_cooldown_mobility_exercises ?? 0,
     superset_pairing: null,
   };
@@ -178,7 +193,7 @@ function testCooldownMobilityRepair() {
     ],
   };
   const constraints = makeConstraints({ min_cooldown_mobility_exercises: 2 });
-  const exercises: Exercise[] = [UPPER_PUSH_EX, MOBILITY_EX];
+  const exercises: Exercise[] = [UPPER_PUSH_EX, MOBILITY_EX, MOBILITY_EX_2];
   const result = validateWorkoutAgainstConstraints(workout, constraints, exercises);
   if (result.repairedWorkout) {
     const cooldown = result.repairedWorkout.blocks.find((b) => b.block_type === "cooldown");
@@ -264,7 +279,34 @@ function testSupersetPairingRepair() {
   console.log("  OK: superset pairing repair attempt");
 }
 
-// 6. no valid repair candidate → violation logged but workout still returned
+// 6. same exercise twice in one session → duplicate repair swaps later slot
+function testDuplicateExerciseRepair() {
+  const workout = {
+    title: "Test",
+    estimated_duration_minutes: 45,
+    blocks: [
+      { block_type: "warmup", items: [] },
+      {
+        block_type: "main_strength",
+        items: [
+          { exercise_id: "bench", exercise_name: "Bench" },
+          { exercise_id: "bench", exercise_name: "Bench" },
+        ],
+      },
+      { block_type: "cooldown", items: [] },
+    ],
+  };
+  const constraints = makeConstraints({});
+  const exercises: Exercise[] = [UPPER_PUSH_EX, UPPER_PULL_EX, LOWER_EX];
+  const result = validateWorkoutAgainstConstraints(workout, constraints, exercises);
+  assert(result.repairedWorkout != null, "duplicate repair returns repaired workout");
+  const allIds = result.repairedWorkout!.blocks.flatMap((b) => b.items.map((i) => i.exercise_id));
+  const unique = new Set(allIds);
+  assert(unique.size === allIds.length, "no duplicate exercise_id in session after repair");
+  console.log("  OK: duplicate exercise repair");
+}
+
+// 7. no valid repair candidate → violation logged but workout still returned
 function testNoRepairCandidateReturnsWorkout() {
   const workout = {
     title: "Test",
@@ -292,6 +334,7 @@ function main() {
   testCooldownMobilityRepair();
   testBlockRolePlacementRepair();
   testSupersetPairingRepair();
+  testDuplicateExerciseRepair();
   testNoRepairCandidateReturnsWorkout();
   console.log("All Phase 8 tests passed.");
 }

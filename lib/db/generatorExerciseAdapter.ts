@@ -16,6 +16,7 @@ import { mergePhase5MobilityStretchOntologyIntoExercise } from "../exerciseMetad
 import { mergePhase6RepRangeOntologyIntoExercise } from "../exerciseMetadata/phase6RepRangeInference";
 import { mergePhase7WarmupCooldownRelevanceIntoExercise } from "../exerciseMetadata/phase7WarmupCooldownRelevanceInference";
 import { mergePhase8UnilateralOntologyIntoExercise } from "../exerciseMetadata/phase8UnilateralInference";
+import { inferCreativeVariationFromSource, inferWorkoutLevelsFromSource } from "../workoutLevel";
 import {
   getLegacyMovementPattern,
   mergeJointStressForTags,
@@ -147,7 +148,7 @@ function buildTags(
     ),
   ];
   const used = new Set([
-    ...goalTags,
+    ...(goalTags ?? []),
     ...energySlugs,
     ...(jointStress ?? []),
     ...stimulus,
@@ -318,6 +319,12 @@ export function mapDbExerciseToGeneratorExercise(
   mergePhase7WarmupCooldownRelevanceIntoExercise(exercise, inferenceInput);
 
   mergePhase8UnilateralOntologyIntoExercise(exercise, inferenceInput);
+
+  const levelSource = { id: row.slug, name: row.name, tags: tagSlugs };
+  exercise.workout_level_tags = inferWorkoutLevelsFromSource(levelSource);
+  if (inferCreativeVariationFromSource(levelSource)) {
+    exercise.creative_variation = true;
+  }
 
   return exercise;
 }

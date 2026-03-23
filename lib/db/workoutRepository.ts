@@ -177,17 +177,13 @@ export async function getWorkout(userId: string, workoutId: string): Promise<Gen
         ...(p.unilateral === true ? { unilateral: true } : {}),
       };
     });
-    // #region agent log
-    const blk = {
+    blocks.push({
       block_type: block.block_type as WorkoutBlock["block_type"],
       format: "circuit" as const,
       title: block.title,
       reasoning: block.reasoning ?? undefined,
       items,
-    };
-    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/db/workoutRepository.ts:getWorkout',message:'getWorkout block restored from DB',data:{block_type:blk.block_type,format:blk.format,itemsLen:blk.items.length,hasSupersetPairs:false},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    blocks.push(blk);
-    // #endregion
+    });
   }
 
   return {

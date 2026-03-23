@@ -1,20 +1,19 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { useRouter, usePathname } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, ScrollView, LayoutAnimation } from "react-native";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
-import { SectionHeader } from "../../../components/SectionHeader";
+import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { Chip } from "../../../components/Chip";
+import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
-import type { EnergyLevel } from "../../../lib/types";
-import type { BodyEmphasisKey } from "../../../lib/types";
-import { DURATIONS } from "../../../lib/preferencesConstants";
+import type { EnergyLevel, BodyEmphasisKey } from "../../../lib/types";
 import { listSportsForPrep } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
@@ -39,7 +38,6 @@ function toPreferredTrainingDays(selectedDows: number[]): number[] {
 export default function AdaptiveScheduleScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const pathname = usePathname();
   const {
     adaptiveSetup,
     setAdaptiveSetup,
@@ -57,6 +55,10 @@ export default function AdaptiveScheduleScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sports, setSports] = useState<Sport[]>([]);
+  const [sectionGymOpen, setSectionGymOpen] = useState(false);
+  const [sectionSportOpen, setSectionSportOpen] = useState(false);
+  const [sectionEmphasisOpen, setSectionEmphasisOpen] = useState(false);
+  const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
 
   useEffect(() => {
     if (!adaptiveSetup) return;
@@ -68,7 +70,7 @@ export default function AdaptiveScheduleScreen() {
       });
       return next;
     });
-  }, [adaptiveSetup?.rankedSportSlugs.join(",")]);
+  }, [adaptiveSetup]);
 
   useEffect(() => {
     const load = async () => {
@@ -85,9 +87,6 @@ export default function AdaptiveScheduleScreen() {
 
   useEffect(() => {
     if (!adaptiveSetup) {
-      // #region agent log
-      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9e7ef6'},body:JSON.stringify({sessionId:'9e7ef6',location:'schedule.tsx:useEffect-navigate',message:'Calling router.replace(/adaptive) because adaptiveSetup is null',data:{adaptiveSetup:!!adaptiveSetup,pathname},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       router.replace("/adaptive");
     }
   }, [adaptiveSetup, router]);
@@ -199,6 +198,8 @@ export default function AdaptiveScheduleScreen() {
         goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
         goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
         emphasis: weeklyEmphasis ?? undefined,
+        workoutTier: manualPreferences.workoutTier ?? "intermediate",
+        includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
       });
       setSportPrepWeekPlan(plan);
       setAdaptiveSetup(null);
@@ -223,9 +224,45 @@ export default function AdaptiveScheduleScreen() {
     router,
   ]);
 
-  const selectedSportSlugs = adaptiveSetup
-    ? adaptiveSetup.rankedSportSlugs.filter((s): s is string => s != null)
-    : [];
+  const selectedSportSlugs = useMemo(
+    () =>
+      adaptiveSetup
+        ? adaptiveSetup.rankedSportSlugs.filter((s): s is string => s != null)
+        : [],
+    [adaptiveSetup]
+  );
+
+  const gymDaysSummary = useMemo(() => {
+    if (gymTrainingDays.length === 0) return "Tap to choose";
+    return [...gymTrainingDays]
+      .sort((a, b) => a - b)
+      .map((d) => WEEKDAY_LABELS[d])
+      .join(", ");
+  }, [gymTrainingDays]);
+
+  const sportDaysSummary = useMemo(() => {
+    if (selectedSportSlugs.length === 0) return "—";
+    const parts = selectedSportSlugs.map((slug) => {
+      const sport = sports.find((s) => s.slug === slug);
+      const days = sportDaysBySlug[slug] ?? [];
+      const dayStr =
+        days.length === 0
+          ? "none"
+          : [...days]
+              .sort((a, b) => a - b)
+              .map((d) => WEEKDAY_LABELS[d])
+              .join(", ");
+      return `${sport?.name ?? slug}: ${dayStr}`;
+    });
+    return parts.join(" · ");
+  }, [selectedSportSlugs, sportDaysBySlug, sports]);
+
+  const emphasisSummary = useMemo(() => {
+    if (weeklyEmphasis == null) return "None";
+    return EMPHASIS_OPTIONS.find((o) => o.id === weeklyEmphasis)?.label ?? "Custom";
+  }, [weeklyEmphasis]);
+
+  const durationSummary = `${defaultDuration} min`;
 
   return (
     <AppScreenWrapper>
@@ -235,37 +272,48 @@ export default function AdaptiveScheduleScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Card
-          title="Set your weekly schedule"
-          subtitle="Choose which days you want gym and sport sessions. Same pattern as the manual week planner."
+          title="Your schedule"
+          subtitle="Pick gym days, optional sport days, and defaults—each section expands on tap."
         />
 
         {error ? (
           <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
         ) : null}
 
-        <SectionHeader
+        <CollapsiblePreferenceSection
           title="Gym days"
           subtitle="Which days do you want gym workouts?"
-          style={{ marginTop: 20 }}
-        />
-        <View style={styles.chipGroup}>
-          {WEEKDAY_LABELS.map((label, dow) => (
-            <Chip
-              key={dow}
-              label={label}
-              selected={gymTrainingDays.includes(dow)}
-              onPress={() => toggleGymDay(dow)}
-            />
-          ))}
-        </View>
+          summary={gymDaysSummary}
+          expanded={sectionGymOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGymOpen((v) => !v);
+          }}
+          marginTop={16}
+        >
+          <View style={styles.chipGroup}>
+            {WEEKDAY_LABELS.map((label, dow) => (
+              <Chip
+                key={dow}
+                label={label}
+                selected={gymTrainingDays.includes(dow)}
+                onPress={() => toggleGymDay(dow)}
+              />
+            ))}
+          </View>
+        </CollapsiblePreferenceSection>
 
-        {selectedSportSlugs.length > 0 && (
-          <>
-            <SectionHeader
-              title="Sport days"
-              subtitle="Which days for each sport? You can overlap with gym days."
-              style={{ marginTop: 24 }}
-            />
+        {selectedSportSlugs.length > 0 ? (
+          <CollapsiblePreferenceSection
+            title="Sport days"
+            subtitle="Which days for each sport? You can overlap with gym days."
+            summary={sportDaysSummary}
+            expanded={sectionSportOpen}
+            onToggle={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setSectionSportOpen((v) => !v);
+            }}
+          >
             {selectedSportSlugs.map((slug) => {
               const sport = sports.find((s) => s.slug === slug);
               const days = sportDaysBySlug[slug] ?? [];
@@ -289,44 +337,51 @@ export default function AdaptiveScheduleScreen() {
                 </View>
               );
             })}
-          </>
-        )}
+          </CollapsiblePreferenceSection>
+        ) : null}
 
-        <SectionHeader
-          title="Which area should we emphasize this week?"
-          subtitle="Workouts will still train the whole body, but we'll prioritize this area more."
-          style={{ marginTop: 24 }}
-        />
-        <View style={styles.chipGroup}>
-          {EMPHASIS_OPTIONS.map((opt) => (
-            <Chip
-              key={opt.id}
-              label={opt.label}
-              selected={weeklyEmphasis === opt.id || (opt.id === "none" && weeklyEmphasis == null)}
-              onPress={() => setWeeklyEmphasis(opt.id === "none" ? null : opt.id)}
-            />
-          ))}
-        </View>
+        <CollapsiblePreferenceSection
+          title="Weekly body emphasis"
+          subtitle="Still full-body—we’ll lean a bit more on this area."
+          summary={emphasisSummary}
+          expanded={sectionEmphasisOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionEmphasisOpen((v) => !v);
+          }}
+        >
+          <View style={styles.chipGroup}>
+            {EMPHASIS_OPTIONS.map((opt) => (
+              <Chip
+                key={opt.id}
+                label={opt.label}
+                selected={weeklyEmphasis === opt.id || (opt.id === "none" && weeklyEmphasis == null)}
+                onPress={() => setWeeklyEmphasis(opt.id === "none" ? null : opt.id)}
+              />
+            ))}
+          </View>
+        </CollapsiblePreferenceSection>
 
-        <SectionHeader
-          title="Session duration"
+        <CollapsiblePreferenceSection
+          title="Session length"
           subtitle="Default length for each session."
-          style={{ marginTop: 24 }}
-        />
-        <View style={styles.chipGroup}>
-          {DURATIONS.map((minutes) => (
-            <Chip
-              key={minutes}
-              label={`${minutes} min`}
-              selected={defaultDuration === minutes}
-              onPress={() => setDefaultDuration(minutes)}
-            />
-          ))}
-        </View>
+          summary={durationSummary}
+          expanded={sectionDurationOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionDurationOpen((v) => !v);
+          }}
+        >
+          <DurationSlider
+            valueMinutes={defaultDuration}
+            onValueChange={setDefaultDuration}
+            theme={theme}
+          />
+        </CollapsiblePreferenceSection>
 
         <View style={styles.footer}>
           <PrimaryButton
-            label={isSubmitting ? "Planning your week…" : "Generate Week Plan"}
+            label={isSubmitting ? "Planning your week…" : "Generate week plan"}
             onPress={onGenerate}
             disabled={isSubmitting || gymTrainingDays.length === 0}
           />

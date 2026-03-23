@@ -129,6 +129,11 @@ function runTests() {
     energy_level: "medium",
     available_equipment: availableEquipment,
     injuries_or_constraints: [],
+    // Permissive tier + creative so advanced-only and tagged-variation exercises stay eligible.
+    style_prefs: {
+      user_level: "advanced",
+      include_creative_variations: true,
+    },
   };
 
   const selectionInput = {

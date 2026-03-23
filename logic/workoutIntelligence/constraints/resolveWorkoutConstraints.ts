@@ -90,10 +90,23 @@ export function resolveWorkoutConstraints(
 
   // 3) Body-part strictness → hard_include + movement_distribution
   const bodyFocus = input.body_region_focus ?? [];
+  let allowedLowerBodyEmphasis: "quad" | "posterior" | null | undefined = undefined;
   if (bodyFocus.length > 0) {
     const families = new Set<MovementFamily>();
+    let quadModifier = false;
+    let posteriorModifier = false;
     for (const f of bodyFocus) {
       const key = f.toLowerCase().replace(/\s/g, "_");
+      if (key === "quad" || key === "quad_focused") {
+        quadModifier = true;
+        families.add("lower_body");
+        continue;
+      }
+      if (key === "posterior" || key === "posterior_chain") {
+        posteriorModifier = true;
+        families.add("lower_body");
+        continue;
+      }
       if (key === "upper_body") {
         families.add("upper_push");
         families.add("upper_pull");
@@ -133,6 +146,11 @@ export function resolveWorkoutConstraints(
           forbidden_same_pattern: true,
           forbid_double_grip: true,
         };
+      }
+      if (allowedMovementFamilies.includes("lower_body")) {
+        if (quadModifier && !posteriorModifier) allowedLowerBodyEmphasis = "quad";
+        else if (posteriorModifier && !quadModifier) allowedLowerBodyEmphasis = "posterior";
+        else allowedLowerBodyEmphasis = null;
       }
     }
   }
@@ -206,6 +224,7 @@ export function resolveWorkoutConstraints(
     excluded_joint_stress_tags: excludedJointStress,
     excluded_contraindication_keys: excludedContraindicationKeys,
     allowed_movement_families: allowedMovementFamilies,
+    allowed_lower_body_emphasis: allowedLowerBodyEmphasis,
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
     allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,

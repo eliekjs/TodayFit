@@ -3,6 +3,7 @@ import type {
   EnergyLevel,
   ManualPreferences,
   TargetBody,
+  WorkoutTierPreference,
 } from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
 import { generateWorkoutAsync } from "../../lib/generator";
@@ -45,6 +46,10 @@ export type SportGoalOptions = {
   injuries?: string[];
   /** Body-region bias for this session (emphasis; generator uses as targetBody/targetModifier). */
   bodyRegionBias?: { targetBody: TargetBody | null; targetModifier: string[] };
+  /** Experience tier for exercise pool filtering (default intermediate when omitted). */
+  workoutTier?: WorkoutTierPreference;
+  /** When true, allow exercises tagged as creative/complex variations. */
+  includeCreativeVariations?: boolean;
 };
 
 /**
@@ -71,6 +76,8 @@ export async function buildWorkoutForSessionIntent(
     upcoming: options?.recentLoad ? [options.recentLoad] : [],
     subFocusByGoal: {},
     workoutStyle: [],
+    workoutTier: options?.workoutTier ?? "intermediate",
+    includeCreativeVariations: options?.includeCreativeVariations === true,
   };
 
   let preferredNames: string[] | undefined;

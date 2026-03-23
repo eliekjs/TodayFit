@@ -60,6 +60,9 @@ export type ExerciseTags = {
 /** Canonical relevance/demand levels (warmup, cooldown, stability, grip, impact). */
 export type DemandLevelSlug = "none" | "low" | "medium" | "high";
 
+/** Experience tier for exercise appropriateness and user workout-level preference. */
+export type UserLevel = "beginner" | "intermediate" | "advanced";
+
 // --- Ontology (optional; when present, source of truth for filtering/rules) ---
 // Canonical slugs from lib/ontology. Legacy tags.joint_stress / tags.contraindications
 // can be populated from joint_stress_tags / contraindication_tags by adapters.
@@ -137,6 +140,10 @@ export type Exercise = {
   /** Primary muscles (ExRx-style; ordered most→least contribution). When set, used for body-part focus priority scoring. */
   primary_muscle_groups?: string[];
   secondary_muscle_groups?: string[];
+  /** Non-empty when set: which experience tiers this movement is appropriate for. */
+  workout_level_tags?: UserLevel[];
+  /** Complex / novelty variation — excluded unless user enables creative variations. */
+  creative_variation?: boolean;
 };
 
 // --- Input contract ---
@@ -161,13 +168,13 @@ export type FocusBodyPart =
 
 export type EnergyLevel = "low" | "medium" | "high";
 
-export type UserLevel = "beginner" | "intermediate" | "advanced";
-
 export type StylePrefs = {
   wants_supersets?: boolean;
   conditioning_minutes?: number;
   avoid_tags?: string[];
   user_level?: UserLevel;
+  /** When false (default), exercises marked creative_variation are excluded from the pool. */
+  include_creative_variations?: boolean;
   /** Preferred Zone 2 / cardio modalities (e.g. "bike", "treadmill", "rower"); generator prefers these when picking conditioning. */
   preferred_zone2_cardio?: string[];
   /** Exercise ids/slugs to prefer when scoring (e.g. from sport or goal ranking); app passes from getPreferredExerciseNamesForSportAndGoals. */

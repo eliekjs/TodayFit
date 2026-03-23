@@ -16,7 +16,7 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
+import { getSwapSuggestionsPage } from "../../../lib/exerciseProgressions";
 
 type ExerciseProgress = {
   completed: boolean;
@@ -27,6 +27,7 @@ type ExerciseProgress = {
 export default function ExecuteScreen() {
   const {
     generatedWorkout,
+    manualPreferences,
     addCompletedWorkout,
     addSavedWorkout,
     setGeneratedWorkout,
@@ -81,6 +82,8 @@ export default function ExecuteScreen() {
   } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
+  const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
+  const [swapNumPages, setSwapNumPages] = useState(1);
 
   useEffect(() => {
     if (resumeProgress != null && Object.keys(resumeProgress).length > 0) {
@@ -122,18 +125,25 @@ export default function ExecuteScreen() {
   useEffect(() => {
     if (!swapModal) {
       setSwapSuggested([]);
+      setSwapSuggestionPage(0);
+      setSwapNumPages(1);
       return;
     }
     let cancelled = false;
     setSwapLoading(true);
-    getProgressionsRegressionsForExercise(swapModal.exerciseId).then((res) => {
-      if (cancelled) return;
-      const combined = [...res.regressions, ...res.progressions].slice(0, 3);
-      setSwapSuggested(combined);
-      setSwapLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [swapModal?.exerciseId]);
+    const energyLevel = manualPreferences.energyLevel ?? undefined;
+    getSwapSuggestionsPage(swapModal.exerciseId, { energyLevel }, swapSuggestionPage).then(
+      ({ suggestions, numPages }) => {
+        if (cancelled) return;
+        setSwapSuggested(suggestions);
+        setSwapNumPages(numPages);
+        setSwapLoading(false);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [swapModal?.exerciseId, manualPreferences.energyLevel, swapSuggestionPage]);
 
   const onSwapChoose = (optionId: string, optionName: string) => {
     if (!generatedWorkout || !swapModal) return;
@@ -316,8 +326,11 @@ export default function ExecuteScreen() {
         exerciseId={swapModal?.exerciseId ?? ""}
         exerciseName={swapModal?.exerciseName ?? ""}
         suggested={swapSuggested}
-        loading={swapLoading}
+        loading={swapLoading && swapSuggestionPage === 0}
         onChoose={onSwapChoose}
+        moreSuggestionsAvailable={swapNumPages > 1}
+        onMoreSuggestions={() => setSwapSuggestionPage((p) => p + 1)}
+        loadingMoreSuggestions={swapLoading && swapSuggestionPage > 0}
       />
     </AppScreenWrapper>
   );

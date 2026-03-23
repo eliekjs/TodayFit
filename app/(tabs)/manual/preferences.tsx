@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Switch,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import {
   useAppState,
@@ -19,14 +21,15 @@ import {
 } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { SectionHeader } from "../../../components/SectionHeader";
+import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Chip } from "../../../components/Chip";
+import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import {
   PRIMARY_FOCUS_OPTIONS,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
-  DURATIONS,
   ENERGY_LEVELS,
   TARGET_OPTIONS,
   MODIFIERS_BY_TARGET,
@@ -37,12 +40,17 @@ import {
   UPCOMING_OPTIONS,
   ZONE2_CARDIO_OPTIONS,
   SUB_FOCUS_BY_PRIMARY,
-  deriveSubFocus,
   normalizeGoalMatchPct,
 } from "../../../lib/preferencesConstants";
 import { isDbConfigured } from "../../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
-import type { TargetBody } from "../../../lib/types";
+import type { TargetBody, WorkoutTierPreference } from "../../../lib/types";
+
+const WORKOUT_TIER_OPTIONS: { tier: WorkoutTierPreference; label: string }[] = [
+  { tier: "beginner", label: "Beginner" },
+  { tier: "intermediate", label: "Intermediate" },
+  { tier: "advanced", label: "Advanced" },
+];
 
 if (
   Platform.OS === "android" &&
@@ -55,21 +63,7 @@ const MAX_GOALS = 3;
 const MAX_SUB_GOALS_PER_GOAL = 3;
 const MAX_UPCOMING = 3;
 
-function buildSelectionSummary(prefs: typeof defaultManualPreferences): string {
-  const parts: string[] = [];
-  if (prefs.primaryFocus.length) parts.push(prefs.primaryFocus[0]);
-  if (prefs.durationMinutes != null) parts.push(`${prefs.durationMinutes} min`);
-  if (prefs.energyLevel)
-    parts.push(prefs.energyLevel.charAt(0).toUpperCase() + prefs.energyLevel.slice(1));
-  if (prefs.targetBody) {
-    const mod =
-      prefs.targetModifier.length > 0 ? ` (${prefs.targetModifier[0]})` : "";
-    parts.push(`${prefs.targetBody}${mod}`);
-  }
-  const flatSub = deriveSubFocus(prefs.primaryFocus, prefs.subFocusByGoal);
-  if (flatSub.length) parts.push(flatSub[0]);
-  return parts.join(" • ") || "Set your preferences below";
-}
+const DEFAULT_SESSION_MINUTES = 45 as const;
 
 export default function ManualPreferencesScreen() {
   const {
@@ -82,6 +76,13 @@ export default function ManualPreferencesScreen() {
     addPreferencePreset,
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
+  const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
+  const [sectionGoalOpen, setSectionGoalOpen] = useState(false);
+  const [sectionBodyOpen, setSectionBodyOpen] = useState(false);
+  const [sectionGymOpen, setSectionGymOpen] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollContentRef = useRef<View>(null);
+  const advancedSectionRef = useRef<View>(null);
   const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
@@ -89,19 +90,67 @@ export default function ManualPreferencesScreen() {
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const router = useRouter();
+  const navigation = useNavigation();
   const { scope } = useLocalSearchParams<{ scope?: string }>();
   const theme = useTheme();
+  const isWeek = scope === "week";
 
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'preferences.tsx:scope-params',message:'Preferences mounted/params',data:{scope:scope ?? null},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  }, [scope]);
-  // #endregion
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: isWeek ? "Plan your week" : "Build workout",
+    });
+  }, [navigation, isWeek]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const updates: Partial<typeof defaultManualPreferences> = {};
+      if (manualPreferences.durationMinutes == null) {
+        updates.durationMinutes = DEFAULT_SESSION_MINUTES;
+      }
+      if (!isWeek && manualPreferences.targetBody == null) {
+        updates.targetBody = "Full";
+      }
+      if (Object.keys(updates).length > 0) {
+        updateManualPreferences(updates);
+      }
+    }, [
+      isWeek,
+      manualPreferences.durationMinutes,
+      manualPreferences.targetBody,
+      updateManualPreferences,
+    ])
+  );
+
+  const rankedGoals = manualPreferences.primaryFocus;
+  const hasPrimaryFocus = rankedGoals.length > 0;
 
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
-  const rankedGoals = manualPreferences.primaryFocus;
-  const hasPrimaryFocus = rankedGoals.length > 0;
+
+  const hasGoal = manualPreferences.primaryFocus.length >= 1;
+  const hasDuration = manualPreferences.durationMinutes != null;
+  const hasBodyEmphasis = manualPreferences.targetBody != null;
+  const canProceed =
+    isWeek ? hasGoal && hasDuration : hasGoal && hasDuration && hasBodyEmphasis;
+
+  const durationSummary =
+    manualPreferences.durationMinutes != null
+      ? `${manualPreferences.durationMinutes} min`
+      : "Tap to choose";
+  const goalSummary = !hasGoal
+    ? "Tap to choose"
+    : rankedGoals.length > 1
+      ? `${rankedGoals[0]} +${rankedGoals.length - 1} more`
+      : rankedGoals[0];
+  const bodySummary = !manualPreferences.targetBody
+    ? "Tap to choose"
+    : manualPreferences.targetBody === "Full"
+      ? "Full body"
+      : manualPreferences.targetModifier.length > 0
+        ? `${manualPreferences.targetBody} (${manualPreferences.targetModifier[0]})`
+        : manualPreferences.targetBody;
+  const gymSummary =
+    activeProfile != null ? activeProfile.name : "Tap to choose";
 
   const togglePrimaryFocus = (option: string) => {
     const current = manualPreferences.primaryFocus;
@@ -125,6 +174,37 @@ export default function ManualPreferencesScreen() {
       const nextFocus = [...current, option];
       const norm = normalizeGoalMatchPct(p1, p2, p3, nextFocus.length);
       updateManualPreferences({ primaryFocus: nextFocus, ...norm });
+    }
+  };
+
+  /** Move goal to first rank (or add then place first). */
+  const promoteGoalToPrimary = (option: string) => {
+    const current = manualPreferences.primaryFocus;
+    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+    const without = current.filter((g) => g !== option);
+    const nextFocus = current.includes(option)
+      ? [option, ...without]
+      : [option, ...current].slice(0, MAX_GOALS);
+    const norm = normalizeGoalMatchPct(p1, p2, p3, nextFocus.length);
+    const nextSub = { ...manualPreferences.subFocusByGoal };
+    current.forEach((g) => {
+      if (!nextFocus.includes(g)) delete nextSub[g];
+    });
+    updateManualPreferences({
+      primaryFocus: nextFocus,
+      subFocusByGoal: nextSub,
+      ...norm,
+    });
+  };
+
+  const onGoalEssentialChipPress = (option: string) => {
+    if (manualPreferences.primaryFocus.includes(option)) {
+      promoteGoalToPrimary(option);
+    } else {
+      if (manualPreferences.primaryFocus.length >= MAX_GOALS) return;
+      togglePrimaryFocus(option);
     }
   };
 
@@ -215,9 +295,7 @@ export default function ManualPreferencesScreen() {
     };
 
   const onGenerate = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'preferences.tsx:onGenerate',message:'Generate pressed',data:{scope:scope ?? null},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
+    if (!canProceed) return;
     if (scope === "week") {
       router.push("/manual/week");
       return;
@@ -279,6 +357,24 @@ export default function ManualPreferencesScreen() {
     setRefinementsOpen((v) => !v);
   };
 
+  const openAdvancedAndScroll = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setRefinementsOpen(true);
+    requestAnimationFrame(() => {
+      const scroll = scrollViewRef.current;
+      const content = scrollContentRef.current;
+      const section = advancedSectionRef.current;
+      if (!scroll || !content || !section) return;
+      section.measureLayout(
+        content as unknown as View,
+        (_x: number, y: number) => {
+          scroll.scrollTo({ y: Math.max(0, y - 12), animated: true });
+        },
+        () => {}
+      );
+    });
+  }, []);
+
   const modifierOptions = manualPreferences.targetBody
     ? MODIFIERS_BY_TARGET[manualPreferences.targetBody]
     : [];
@@ -287,142 +383,160 @@ export default function ManualPreferencesScreen() {
     <AppScreenWrapper>
       <StatusBar style="light" />
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={[styles.content, { paddingBottom: 160 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text
-          style={[styles.summary, { color: theme.textMuted }]}
-          numberOfLines={1}
-        >
-          {buildSelectionSummary(manualPreferences)}
+        <View ref={scrollContentRef} collapsable={false}>
+        <Text style={[styles.screenTitle, { color: theme.text }]}>
+          {isWeek ? "Plan your week" : "Build today’s workout"}
+        </Text>
+        <Text style={[styles.screenSubtitle, { color: theme.textMuted }]}>
+          {isWeek
+            ? "Two quick choices, then pick your training days. Fine-tune anytime in Advanced options."
+            : "Three quick choices. You can fine-tune later."}
         </Text>
 
-        {/* ——— Core: Ranked goals (up to 3) ——— */}
-        <SectionHeader
-          title="Primary Focus"
-          subtitle="Pick up to 3, ranked."
-          style={{ marginTop: 20 }}
-        />
-        {rankedGoals.length > 0 && (
+        <CollapsiblePreferenceSection
+          title="Session length"
+          subtitle="About how long you want to train."
+          summary={durationSummary}
+          expanded={sectionDurationOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionDurationOpen((v) => !v);
+          }}
+          marginTop={12}
+        >
+          <DurationSlider
+            valueMinutes={manualPreferences.durationMinutes}
+            onValueChange={(minutes) => updateManualPreferences({ durationMinutes: minutes })}
+            theme={theme}
+          />
+        </CollapsiblePreferenceSection>
+
+        <CollapsiblePreferenceSection
+          title="Training goal"
+          subtitle="Tap a goal to set or prioritize it. Add up to two more in Advanced options."
+          summary={goalSummary}
+          expanded={sectionGoalOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGoalOpen((v) => !v);
+          }}
+        >
+          {rankedGoals.length > 1 ? (
+            <Text style={[styles.helperHint, { color: theme.textMuted }]}>
+              Your main goal is first in the list. Tap a chip to make it primary, or remove extras with ×.
+            </Text>
+          ) : null}
+          {rankedGoals.length > 0 && (
+            <View style={styles.chipGroup}>
+              {rankedGoals.map((goal, idx) => (
+                <View key={goal} style={styles.rankedChipWrap}>
+                  <View
+                    style={[
+                      styles.rankBadge,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
+                    >
+                      {idx + 1}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.rankedChipInner,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                      numberOfLines={1}
+                    >
+                      {goal}
+                    </Text>
+                  </View>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => togglePrimaryFocus(goal)}
+                    style={styles.rankedChipRemove}
+                  >
+                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
           <View style={styles.chipGroup}>
-            {rankedGoals.map((goal, idx) => (
-              <View key={goal} style={styles.rankedChipWrap}>
-                <View
-                  style={[
-                    styles.rankBadge,
-                    {
-                      backgroundColor: theme.chipSelectedBackground,
-                      borderWidth: 1,
-                      borderColor: theme.primary,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
-                  >
-                    {idx + 1}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.rankedChipInner,
-                    {
-                      backgroundColor: theme.chipSelectedBackground,
-                      borderWidth: 1,
-                      borderColor: theme.primary,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                    numberOfLines={1}
-                  >
-                    {goal}
-                  </Text>
-                </View>
-                <Pressable
-                  hitSlop={8}
-                  onPress={() => togglePrimaryFocus(goal)}
-                  style={styles.rankedChipRemove}
-                >
-                  <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
-                </Pressable>
-              </View>
+            {PRIMARY_FOCUS_OPTIONS.map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                selected={manualPreferences.primaryFocus.includes(option)}
+                onPress={() => onGoalEssentialChipPress(option)}
+              />
             ))}
           </View>
-        )}
-        <View style={styles.chipGroup}>
-          {PRIMARY_FOCUS_OPTIONS.filter(
-            (option) => !manualPreferences.primaryFocus.includes(option)
-          ).map((option) => (
-            <Chip
-              key={option}
-              label={option}
-              selected={false}
-              onPress={() => togglePrimaryFocus(option)}
-            />
-          ))}
-        </View>
+        </CollapsiblePreferenceSection>
 
-        <SectionHeader
-          title="Duration"
-          subtitle="Approximate total session length."
-          style={{ marginTop: 24 }}
-        />
-        <View style={styles.chipGroup}>
-          {DURATIONS.map((minutes) => (
-            <Chip
-              key={minutes}
-              label={`${minutes} min`}
-              selected={manualPreferences.durationMinutes === minutes}
-              onPress={() =>
-                updateManualPreferences({ durationMinutes: minutes })
-              }
-            />
-          ))}
-        </View>
-
-        {/* ——— Body emphasis (optional) ——— */}
-        <SectionHeader
-          title="Emphasize this area?"
-          subtitle="Workouts will still train the whole body, but we'll prioritize this area more."
-          style={{ marginTop: 24 }}
-        />
-        <View style={styles.chipGroup}>
-          {TARGET_OPTIONS.map((opt) => (
-            <Chip
-              key={opt}
-              label={opt}
-              selected={manualPreferences.targetBody === opt}
-              onPress={() =>
-                setTargetBody(
-                  manualPreferences.targetBody === opt ? null : opt
-                )
-              }
-            />
-          ))}
-        </View>
-        {modifierOptions.length > 0 && (
-          <>
-            <Text
-              style={[styles.modifierLabel, { color: theme.textMuted }]}
-            >
-              Optional modifier
-            </Text>
+        {!isWeek ? (
+          <CollapsiblePreferenceSection
+            title="Body emphasis"
+            subtitle="Still full-body—we’ll lean a bit more on this area."
+            summary={bodySummary}
+            expanded={sectionBodyOpen}
+            onToggle={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setSectionBodyOpen((v) => !v);
+            }}
+          >
             <View style={styles.chipGroup}>
-              {modifierOptions.map((mod) => (
+              {TARGET_OPTIONS.map((opt) => (
                 <Chip
-                  key={mod}
-                  label={mod}
-                  selected={manualPreferences.targetModifier.includes(mod)}
-                  onPress={() => toggleTargetModifier(mod)}
+                  key={opt}
+                  label={opt}
+                  selected={manualPreferences.targetBody === opt}
+                  onPress={() =>
+                    setTargetBody(
+                      manualPreferences.targetBody === opt ? null : opt
+                    )
+                  }
                 />
               ))}
             </View>
-          </>
-        )}
+            {modifierOptions.length > 0 && (
+              <>
+                <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
+                  Optional modifier
+                </Text>
+                <View style={styles.chipGroup}>
+                  {modifierOptions.map((mod) => (
+                    <Chip
+                      key={mod}
+                      label={mod}
+                      selected={manualPreferences.targetModifier.includes(mod)}
+                      onPress={() => toggleTargetModifier(mod)}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+          </CollapsiblePreferenceSection>
+        ) : null}
 
-        {/* ——— Advanced filters (collapsible) ——— */}
+        <View ref={advancedSectionRef} collapsable={false}>
+        {/* ——— Advanced options (collapsible) ——— */}
         <Pressable
           style={[
             styles.advancedFiltersHeader,
@@ -433,7 +547,7 @@ export default function ManualPreferencesScreen() {
           <Text
             style={[styles.advancedFiltersTitle, { color: theme.textMuted }]}
           >
-            Advanced filters
+            Advanced options
           </Text>
           <Text
             style={[styles.advancedFiltersChevron, { color: theme.textMuted }]}
@@ -452,10 +566,10 @@ export default function ManualPreferencesScreen() {
               },
             ]}
           >
-            {/* Energy Level (moved here from main flow) */}
+            {/* Energy (advanced) */}
             <SectionHeader
-              title="Energy Level"
-              subtitle="How much you have in the tank."
+              title="How hard do you want to go today?"
+              subtitle="Low, medium, or high affects sets and conditioning length."
               style={{ marginTop: 0 }}
             />
             <View style={styles.chipGroup}>
@@ -473,6 +587,45 @@ export default function ManualPreferencesScreen() {
                   }
                 />
               ))}
+            </View>
+
+            <SectionHeader
+              title="Exercise difficulty"
+              subtitle="We’ll match movements to your comfort level. Advanced includes all movements."
+              style={{ marginTop: 20 }}
+            />
+            <View style={styles.chipGroup}>
+              {WORKOUT_TIER_OPTIONS.map(({ tier, label }) => (
+                <Chip
+                  key={tier}
+                  label={label}
+                  selected={(manualPreferences.workoutTier ?? "intermediate") === tier}
+                  onPress={() => updateManualPreferences({ workoutTier: tier })}
+                />
+              ))}
+            </View>
+
+            <View
+              style={{
+                marginTop: 16,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modifierLabel, { color: theme.text }]}>
+                  Creative / complex variations
+                </Text>
+                <Text style={{ color: theme.textMuted, fontSize: 13, marginTop: 4 }}>
+                  Unusual or advanced exercise variations (off by default).
+                </Text>
+              </View>
+              <Switch
+                value={manualPreferences.includeCreativeVariations === true}
+                onValueChange={(v) => updateManualPreferences({ includeCreativeVariations: v })}
+              />
             </View>
 
             {/* Goal match % — linked to the ranked goals shown above; edit here in Advanced */}
@@ -732,10 +885,10 @@ export default function ManualPreferencesScreen() {
               </Pressable>
             ) : null}
 
-            {/* Constraints: single section; when target is Upper/Lower, only show relevant body areas */}
+            {/* Injuries / soreness */}
             <SectionHeader
-              title="Constraints (injuries / soreness)"
-              subtitle="Areas to avoid. No restrictions clears others."
+              title="Avoid or protect"
+              subtitle="We’ll skip exercises that bother these areas. “No restrictions” clears others."
               style={{ marginTop: 20 }}
             />
             <View style={styles.chipGroup}>
@@ -872,32 +1025,63 @@ export default function ManualPreferencesScreen() {
                 </View>
               </>
             ) : null}
+
+            {hasPrimaryFocus && rankedGoals.length < MAX_GOALS ? (
+              <>
+                <SectionHeader
+                  title="Additional goals (optional)"
+                  subtitle="Second or third ranked goal. Reorder from Training goal above."
+                  style={{ marginTop: 20 }}
+                />
+                <View style={styles.chipGroup}>
+                  {PRIMARY_FOCUS_OPTIONS.filter(
+                    (option) => !manualPreferences.primaryFocus.includes(option)
+                  ).map((option) => (
+                    <Chip
+                      key={option}
+                      label={option}
+                      selected={false}
+                      onPress={() => togglePrimaryFocus(option)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
           </View>
         )}
 
-        {/* ——— Gym profile ——— */}
-        <SectionHeader
-          title="Gym profile"
-          style={{ marginTop: 24 }}
+        </View>
+
+        <CollapsiblePreferenceSection
+          title="Where you train"
           subtitle={
             activeProfile != null
-              ? `Workouts use equipment from: ${activeProfile.name}`
-              : "No profile selected. Add one in Profile."
+              ? `Equipment from: ${activeProfile.name}`
+              : "Choose a gym profile for equipment."
           }
-        />
-        <View style={[styles.gymProfileActions, { marginBottom: 32 }]}>
-          <PrimaryButton
-            label="Change gym profile"
-            variant="secondary"
-            onPress={() => setShowChangeProfileModal(true)}
-            style={styles.gymProfileBtn}
-          />
-          <PrimaryButton
-            label="Edit gym profiles"
-            variant="secondary"
-            onPress={() => router.push("/profiles?from=workout")}
-            style={styles.gymProfileBtn}
-          />
+          summary={gymSummary}
+          expanded={sectionGymOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGymOpen((v) => !v);
+          }}
+          marginTop={8}
+        >
+          <View style={[styles.gymProfileActions, { marginBottom: 8 }]}>
+            <PrimaryButton
+              label="Change gym profile"
+              variant="secondary"
+              onPress={() => setShowChangeProfileModal(true)}
+              style={styles.gymProfileBtn}
+            />
+            <PrimaryButton
+              label="Edit gym profiles"
+              variant="secondary"
+              onPress={() => router.push("/profiles?from=workout")}
+              style={styles.gymProfileBtn}
+            />
+          </View>
+        </CollapsiblePreferenceSection>
         </View>
       </ScrollView>
 
@@ -912,9 +1096,22 @@ export default function ManualPreferencesScreen() {
         ]}
       >
         <PrimaryButton
-          label={scope === "week" ? "Next: Set training days" : "Generate Workout"}
+          label={isWeek ? "Next: Choose training days" : "Build workout"}
           onPress={onGenerate}
+          disabled={!canProceed}
         />
+        {!canProceed ? (
+          <Text style={[styles.ctaHint, { color: theme.textMuted }]}>
+            {isWeek
+              ? "Choose a session length and training goal to continue."
+              : "Choose session length, training goal, and body emphasis to continue."}
+          </Text>
+        ) : null}
+        <Pressable onPress={openAdvancedAndScroll} style={styles.advancedLinkWrap}>
+          <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
+            Advanced options (energy, injuries, extra goals…)
+          </Text>
+        </Pressable>
         <View style={styles.bottomBarRow}>
           <PrimaryButton
             label="Reset"
@@ -1070,6 +1267,36 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingVertical: 24,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  screenSubtitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    marginBottom: 8,
+  },
+  helperHint: {
+    fontSize: 13,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  ctaHint: {
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 4,
+    paddingHorizontal: 8,
+  },
+  advancedLinkWrap: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  advancedLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
   summary: {
     fontSize: 13,

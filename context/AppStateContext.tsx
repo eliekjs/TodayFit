@@ -47,6 +47,8 @@ export const defaultManualPreferences: ManualPreferences = {
   goalMatchPrimaryPct: 50,
   goalMatchSecondaryPct: 30,
   goalMatchTertiaryPct: 20,
+  workoutTier: "intermediate",
+  includeCreativeVariations: false,
 };
 
 type AppStateContextValue = {

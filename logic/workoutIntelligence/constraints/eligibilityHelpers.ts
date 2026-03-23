@@ -4,20 +4,21 @@
  */
 
 import type { ExerciseWithQualities } from "../types";
-import type {
-  ResolvedWorkoutConstraints,
-  MovementFamily,
-  JointStressTag,
-} from "./constraintTypes";
+import type { ResolvedWorkoutConstraints, MovementFamily } from "./constraintTypes";
 import {
   getEffectivePairingFamilies,
   hasGripDemand as hasGripDemandPairing,
   useDifferentBarbellStations,
 } from "../supersetPairing";
+import { normalizedMuscleSlugSet } from "../../../lib/ontology/muscleSlugs";
 
 const VALID_MOVEMENT_FAMILIES: MovementFamily[] = [
   "upper_push", "upper_pull", "lower_body", "core", "mobility", "conditioning",
 ];
+
+function normSlug(s: string): string {
+  return s.toLowerCase().replace(/\s/g, "_");
+}
 
 /** Derive primary movement family from existing exercise fields (or use DB primary_movement_family when set). */
 export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily {
@@ -25,25 +26,29 @@ export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily 
   if (fromDb && VALID_MOVEMENT_FAMILIES.includes(fromDb as MovementFamily))
     return fromDb as MovementFamily;
 
+  const fine = new Set((ex.movement_patterns ?? []).map(normSlug));
+  if (fine.has("horizontal_push") || fine.has("vertical_push")) return "upper_push";
+  if (fine.has("horizontal_pull") || fine.has("vertical_pull")) return "upper_pull";
+  if (fine.has("squat") || fine.has("hinge") || fine.has("lunge") || fine.has("locomotion")) return "lower_body";
+  if (fine.has("carry")) {
+    const ms = normalizedMuscleSlugSet(ex.muscle_groups);
+    if (ms.has("core") && !ms.has("legs") && !ms.has("quads") && !ms.has("glutes")) return "core";
+    return "lower_body";
+  }
+  if (fine.has("rotation") || fine.has("anti_rotation") || fine.has("thoracic_mobility") || fine.has("shoulder_stability"))
+    return "core";
+
   const pattern = (ex.movement_pattern ?? "").toLowerCase();
-  const muscles = new Set((ex.muscle_groups ?? []).map((m) => m.toLowerCase()));
+  const muscles = normalizedMuscleSlugSet(ex.muscle_groups);
   const modality = (ex.modality ?? "").toLowerCase();
 
   if (modality === "mobility" || modality === "recovery") return "mobility";
   if (modality === "conditioning") return "conditioning";
 
-  if (pattern === "push") {
-    if (muscles.has("chest") || muscles.has("triceps") || muscles.has("push") || muscles.has("shoulders"))
-      return "upper_push";
-    return "upper_push";
-  }
-  if (pattern === "pull") {
-    if (muscles.has("back") || muscles.has("biceps") || muscles.has("pull") || muscles.has("lats"))
-      return "upper_pull";
-    return "upper_pull";
-  }
+  if (pattern === "push") return "upper_push";
+  if (pattern === "pull") return "upper_pull";
   if (pattern === "squat" || pattern === "hinge" || pattern === "locomotion") {
-    if (muscles.has("legs") || muscles.has("quad") || muscles.has("glutes") || muscles.has("hamstrings"))
+    if (muscles.has("legs") || muscles.has("quads") || muscles.has("glutes") || muscles.has("hamstrings"))
       return "lower_body";
     if (muscles.has("core") || muscles.has("abs")) return "core";
     return "lower_body";
@@ -52,11 +57,79 @@ export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily 
     if (muscles.has("core") && !muscles.has("legs")) return "core";
     return "lower_body";
   }
-  if (pattern === "rotate") {
-    if (muscles.has("core") || muscles.has("abs")) return "core";
-    return "core";
+  if (pattern === "rotate") return "core";
+
+  const hasLower =
+    muscles.has("legs") || muscles.has("quads") || muscles.has("glutes") || muscles.has("hamstrings") || muscles.has("calves");
+  const hasUpper =
+    muscles.has("chest") ||
+    muscles.has("triceps") ||
+    muscles.has("shoulders") ||
+    muscles.has("lats") ||
+    muscles.has("biceps") ||
+    muscles.has("back") ||
+    muscles.has("push") ||
+    muscles.has("pull");
+  if (hasUpper && !hasLower) return pattern === "pull" ? "upper_pull" : "upper_push";
+  if (hasLower) return "lower_body";
+  if (muscles.has("core") || muscles.has("abs")) return "core";
+  return "core";
+}
+
+function finePatternSet(ex: ExerciseWithQualities): Set<string> {
+  return new Set((ex.movement_patterns ?? []).map(normSlug));
+}
+
+function fatigueNormSet(ex: ExerciseWithQualities): Set<string> {
+  return new Set((ex.fatigue_regions ?? []).map(normSlug));
+}
+
+function attributeNormSet(ex: ExerciseWithQualities): Set<string> {
+  return new Set((ex.attribute_tags ?? []).map(normSlug));
+}
+
+/** Knee-dominant lower match (quad emphasis), aligned with legacy quad-focused tagging. */
+export function matchesQuadLowerEmphasis(ex: ExerciseWithQualities): boolean {
+  const fine = finePatternSet(ex);
+  const legacy = normSlug(ex.movement_pattern ?? "");
+  const muscles = normalizedMuscleSlugSet(ex.muscle_groups);
+  const fatigue = fatigueNormSet(ex);
+  const attrs = attributeNormSet(ex);
+
+  if (attrs.has("quad_focused")) return true;
+  if (fine.has("squat") || fine.has("lunge")) return true;
+  if (legacy === "squat") return true;
+  if (muscles.has("quads")) return true;
+  if (fatigue.has("quads") || fatigue.has("quad")) return true;
+  if (legacy === "locomotion" && (muscles.has("quads") || muscles.has("calves") || muscles.has("legs"))) return true;
+  if (fine.has("hinge") && !fine.has("squat") && !fine.has("lunge")) {
+    return muscles.has("quads");
   }
-  return "lower_body";
+  return false;
+}
+
+/** Hip-dominant / posterior chain match, aligned with legacy posterior-chain tagging. */
+export function matchesPosteriorLowerEmphasis(ex: ExerciseWithQualities): boolean {
+  const fine = finePatternSet(ex);
+  const legacy = normSlug(ex.movement_pattern ?? "");
+  const muscles = normalizedMuscleSlugSet(ex.muscle_groups);
+  const fatigue = fatigueNormSet(ex);
+  const attrs = attributeNormSet(ex);
+
+  if (attrs.has("posterior_chain") || attrs.has("posterior")) return true;
+  if (attrs.has("deadlift_hinge")) return true;
+  if (fine.has("hinge")) return true;
+  if (legacy === "hinge") return true;
+  if (muscles.has("hamstrings") || muscles.has("glutes")) return true;
+  if (fatigue.has("hamstrings") || fatigue.has("glutes") || fatigue.has("posterior_chain")) return true;
+  return false;
+}
+
+export function matchesLowerBodyEmphasis(
+  exercise: ExerciseWithQualities,
+  emphasis: "quad" | "posterior"
+): boolean {
+  return emphasis === "quad" ? matchesQuadLowerEmphasis(exercise) : matchesPosteriorLowerEmphasis(exercise);
 }
 
 /** Ontology-first: joint stress tags to check (prefer structured, fallback to legacy). */
@@ -155,7 +228,15 @@ export function matchesBodyPartFocus(
   if (constraints.allowed_movement_families == null || constraints.allowed_movement_families.length === 0)
     return true;
   const families = getEffectiveMovementFamilies(exercise);
-  return families.some((f) => constraints.allowed_movement_families!.includes(f));
+  if (!families.some((f) => constraints.allowed_movement_families!.includes(f))) return false;
+
+  const emphasis = constraints.allowed_lower_body_emphasis;
+  if (emphasis === "quad" || emphasis === "posterior") {
+    const lowerAllowed = constraints.allowed_movement_families!.includes("lower_body");
+    if (lowerAllowed && families.includes("lower_body") && !matchesLowerBodyEmphasis(exercise, emphasis))
+      return false;
+  }
+  return true;
 }
 
 /** Roles that count as mobility/stretch for required_finishers (ontology). */

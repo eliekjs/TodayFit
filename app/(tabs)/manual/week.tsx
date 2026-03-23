@@ -26,7 +26,7 @@ import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
+import { getSwapSuggestionsPage } from "../../../lib/exerciseProgressions";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../../lib/preferencesConstants";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
@@ -96,6 +96,8 @@ export default function ManualWeekScreen() {
   const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
+  const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
+  const [swapNumPages, setSwapNumPages] = useState(1);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollContentRef = useRef<View>(null);
@@ -366,19 +368,25 @@ export default function ManualWeekScreen() {
   useEffect(() => {
     if (!swapModal) {
       setSwapSuggested([]);
+      setSwapSuggestionPage(0);
+      setSwapNumPages(1);
       return;
     }
     let cancelled = false;
     setSwapLoading(true);
     const energyLevel = manualPreferences.energyLevel ?? undefined;
-    getProgressionsRegressionsForExercise(swapModal.exerciseId, { energyLevel }).then((res) => {
-      if (cancelled) return;
-      const combined = [...res.regressions, ...res.progressions].slice(0, 3);
-      setSwapSuggested(combined);
-      setSwapLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [swapModal?.exerciseId, manualPreferences.energyLevel]);
+    getSwapSuggestionsPage(swapModal.exerciseId, { energyLevel }, swapSuggestionPage).then(
+      ({ suggestions, numPages }) => {
+        if (cancelled) return;
+        setSwapSuggested(suggestions);
+        setSwapNumPages(numPages);
+        setSwapLoading(false);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [swapModal?.exerciseId, manualPreferences.energyLevel, swapSuggestionPage]);
 
   const onSwapChoose = useCallback(
     (optionId: string, optionName: string) => {
@@ -543,7 +551,7 @@ export default function ManualWeekScreen() {
         <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.textMuted }]}>
-          Generating this week's workouts…
+          Building your week…
         </Text>
       </View>
       </AppScreenWrapper>
@@ -572,9 +580,12 @@ export default function ManualWeekScreen() {
           contentContainerStyle={[styles.scrollContent, styles.centered]}
           showsVerticalScrollIndicator={false}
         >
-          <Card title="Generate your week" subtitle="Choose which days you want workouts for. You can change this and regenerate anytime.">
+          <Card
+            title="Which days are you training?"
+            subtitle="We’ll balance upper, lower, and full body across the week. Change days anytime."
+          >
             <Text style={{ fontSize: 13, marginBottom: 10, color: theme.textMuted }}>
-              Training days
+              Your training days
             </Text>
             <View style={styles.chipGroup}>
               {WEEKDAY_LABELS.map((label, dow) => (
@@ -715,7 +726,11 @@ export default function ManualWeekScreen() {
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
       ) : null}
 
-      <Card title="Training days" subtitle="Change which days get sessions, then tap Regenerate week." style={{ marginTop: 0 }}>
+      <Card
+        title="Your training days"
+        subtitle="Toggle days, then regenerate the week to apply changes."
+        style={{ marginTop: 0 }}
+      >
         <View style={styles.chipGroup}>
           {WEEKDAY_LABELS.map((label, dow) => (
             <Chip
@@ -797,9 +812,6 @@ export default function ManualWeekScreen() {
                 label="Back to Preferences"
                 variant="ghost"
                 onPress={() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'week.tsx:BackToPreferences',message:'Back to Preferences from week',data:{targetUrl:'/manual/preferences'},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-                  // #endregion
                   router.push("/manual/preferences");
                 }}
                 style={{ marginTop: 8 }}
@@ -844,8 +856,11 @@ export default function ManualWeekScreen() {
         exerciseId={swapModal?.exerciseId ?? ""}
         exerciseName={swapModal?.exerciseName ?? ""}
         suggested={swapSuggested}
-        loading={swapLoading}
+        loading={swapLoading && swapSuggestionPage === 0}
         onChoose={onSwapChoose}
+        moreSuggestionsAvailable={swapNumPages > 1}
+        onMoreSuggestions={() => setSwapSuggestionPage((p) => p + 1)}
+        loadingMoreSuggestions={swapLoading && swapSuggestionPage > 0}
       />
     </AppScreenWrapper>
   );

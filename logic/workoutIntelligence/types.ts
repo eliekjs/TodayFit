@@ -44,6 +44,8 @@ export interface ExerciseWithQualities {
   mobility_targets?: string[];
   stretch_targets?: string[];
   unilateral?: boolean;
+  /** Sub-focus / attribute slugs from generator tags (e.g. quad_focused, zone2_aerobic_base). */
+  attribute_tags?: string[];
 }
 
 /** Input for merging goal + sport into a session target. */

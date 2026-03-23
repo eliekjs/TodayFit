@@ -24,6 +24,11 @@ type Props = {
   suggested: SwapOption[];
   loading?: boolean;
   onChoose: (id: string, name: string) => void;
+  /** When true, show a control to load another set of 3 suggestions from the same candidate pool. */
+  moreSuggestionsAvailable?: boolean;
+  /** Request the next page of suggestions (parent increments page and refetches). */
+  onMoreSuggestions?: () => void;
+  loadingMoreSuggestions?: boolean;
 };
 
 export function SwapExerciseModal({
@@ -34,6 +39,9 @@ export function SwapExerciseModal({
   suggested,
   loading = false,
   onChoose,
+  moreSuggestionsAvailable = false,
+  onMoreSuggestions,
+  loadingMoreSuggestions = false,
 }: Props) {
   const theme = useTheme();
   const [showSearch, setShowSearch] = useState(false);
@@ -171,6 +179,21 @@ export function SwapExerciseModal({
                       ))}
                     </View>
                   )}
+                  {moreSuggestionsAvailable && onMoreSuggestions && (
+                    <Pressable
+                      style={[styles.moreCta, { borderColor: theme.border }]}
+                      onPress={onMoreSuggestions}
+                      disabled={loadingMoreSuggestions || loading}
+                    >
+                      {loadingMoreSuggestions ? (
+                        <ActivityIndicator size="small" color={theme.primary} />
+                      ) : (
+                        <Text style={[styles.moreCtaText, { color: theme.primary }]}>
+                          Show 3 different suggestions
+                        </Text>
+                      )}
+                    </Pressable>
+                  )}
                   <Pressable
                     style={[styles.searchCta, { borderColor: theme.primary }]}
                     onPress={() => setShowSearch(true)}
@@ -276,6 +299,21 @@ const styles = StyleSheet.create({
   searchCtaText: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  moreCta: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
+  },
+  moreCtaText: {
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
   },
   emptyText: {
     fontSize: 14,

@@ -11,7 +11,7 @@ import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getProgressionsRegressionsForExercise } from "../../../lib/exerciseProgressions";
+import { getSwapSuggestionsPage } from "../../../lib/exerciseProgressions";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
 import { isDbConfigured } from "../../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
@@ -118,55 +118,31 @@ export default function ManualWorkoutScreen() {
   const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
+  const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
+  const [swapNumPages, setSwapNumPages] = useState(1);
 
   useEffect(() => {
     if (!swapModal) {
       setSwapSuggested([]);
+      setSwapSuggestionPage(0);
+      setSwapNumPages(1);
       return;
     }
     let cancelled = false;
     setSwapLoading(true);
-    // #region agent log
-    fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-      body: JSON.stringify({
-        sessionId: "305ec8",
-        location: "app/(tabs)/manual/workout.tsx:useEffect swap",
-        message: "swap modal opened requesting suggestions",
-        data: { exerciseId: swapModal.exerciseId, exerciseName: swapModal.exerciseName },
-        timestamp: Date.now(),
-        hypothesisId: "H5",
-      }),
-    }).catch(() => {});
-    // #endregion
-    getProgressionsRegressionsForExercise(swapModal.exerciseId).then((res) => {
-      if (cancelled) return;
-      const combined = [...res.regressions, ...res.progressions].slice(0, 3);
-      // #region agent log
-      fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-        body: JSON.stringify({
-          sessionId: "305ec8",
-          location: "app/(tabs)/manual/workout.tsx:useEffect swap then",
-          message: "swap combined suggestions set",
-          data: {
-            exerciseId: swapModal.exerciseId,
-            combinedLength: combined.length,
-            progressionsLength: res.progressions.length,
-            regressionsLength: res.regressions.length,
-          },
-          timestamp: Date.now(),
-          hypothesisId: "H5",
-        }),
-      }).catch(() => {});
-      // #endregion
-      setSwapSuggested(combined);
-      setSwapLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [swapModal?.exerciseId]);
+    const energyLevel = manualPreferences.energyLevel ?? undefined;
+    getSwapSuggestionsPage(swapModal.exerciseId, { energyLevel }, swapSuggestionPage).then(
+      ({ suggestions, numPages }) => {
+        if (cancelled) return;
+        setSwapSuggested(suggestions);
+        setSwapNumPages(numPages);
+        setSwapLoading(false);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [swapModal?.exerciseId, manualPreferences.energyLevel, swapSuggestionPage]);
 
   const onSwapChoose = (optionId: string, optionName: string) => {
     if (generatedWorkout == null || swapModal == null) return;
@@ -239,8 +215,11 @@ export default function ManualWorkoutScreen() {
         exerciseId={swapModal?.exerciseId ?? ""}
         exerciseName={swapModal?.exerciseName ?? ""}
         suggested={swapSuggested}
-        loading={swapLoading}
+        loading={swapLoading && swapSuggestionPage === 0}
         onChoose={onSwapChoose}
+        moreSuggestionsAvailable={swapNumPages > 1}
+        onMoreSuggestions={() => setSwapSuggestionPage((p) => p + 1)}
+        loadingMoreSuggestions={swapLoading && swapSuggestionPage > 0}
       />
     </AppScreenWrapper>
   );

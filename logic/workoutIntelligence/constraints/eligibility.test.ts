@@ -9,12 +9,13 @@ import {
   getEffectiveMovementFamilies,
   isExerciseAllowedByInjuries,
   matchesBodyPartFocus,
+  matchesQuadLowerEmphasis,
+  matchesPosteriorLowerEmphasis,
   isExerciseEligibleByConstraints,
   isMobilityOrStretchExercise,
   satisfiesBlockRequirement,
 } from "./eligibilityHelpers";
 import type { ExerciseWithQualities } from "../types";
-import type { ResolvedWorkoutConstraints } from "./constraintTypes";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
@@ -187,6 +188,67 @@ function testHybridEligibility() {
   assert(!matchesBodyPartFocus(THRUSTER, upperPullOnly), "thruster not allowed for upper_pull only");
 }
 
+function testQuadPosteriorLowerEmphasis() {
+  const squat: ExerciseWithQualities = {
+    id: "back_squat",
+    name: "Back Squat",
+    movement_pattern: "squat",
+    muscle_groups: ["quads", "glutes"],
+    equipment_required: ["barbell"],
+    training_quality_weights: {},
+    primary_movement_family: "lower_body",
+    movement_patterns: ["squat"],
+  };
+  const rdl: ExerciseWithQualities = {
+    id: "rdl",
+    name: "RDL",
+    movement_pattern: "hinge",
+    muscle_groups: ["hamstrings", "glutes"],
+    equipment_required: ["barbell"],
+    training_quality_weights: {},
+    primary_movement_family: "lower_body",
+    movement_patterns: ["hinge"],
+  };
+  const legExtension: ExerciseWithQualities = {
+    id: "leg_extension",
+    name: "Leg Extension",
+    movement_pattern: "squat",
+    muscle_groups: ["quads"],
+    equipment_required: ["machine"],
+    training_quality_weights: {},
+    primary_movement_family: "lower_body",
+    movement_patterns: [],
+  };
+
+  assert(matchesQuadLowerEmphasis(squat), "squat matches quad emphasis");
+  assert(!matchesQuadLowerEmphasis(rdl), "RDL does not match quad emphasis");
+  assert(matchesPosteriorLowerEmphasis(rdl), "RDL matches posterior emphasis");
+  assert(!matchesPosteriorLowerEmphasis(legExtension), "leg extension is not posterior-dominant");
+
+  const quadFocus = resolveWorkoutConstraints({
+    primary_goal: "strength",
+    body_region_focus: ["lower", "quad"],
+    available_equipment: ["barbell"],
+    duration_minutes: 45,
+    energy_level: "medium",
+  });
+  assert(quadFocus.allowed_lower_body_emphasis === "quad", "lower+quad sets emphasis");
+  assert(matchesBodyPartFocus(squat, quadFocus), "squat allowed on quad day");
+  assert(matchesBodyPartFocus(legExtension, quadFocus), "leg extension allowed on quad day");
+  assert(!matchesBodyPartFocus(rdl, quadFocus), "RDL excluded on quad day");
+
+  const postFocus = resolveWorkoutConstraints({
+    primary_goal: "strength",
+    body_region_focus: ["posterior"],
+    available_equipment: ["barbell"],
+    duration_minutes: 45,
+    energy_level: "medium",
+  });
+  assert(postFocus.allowed_lower_body_emphasis === "posterior", "posterior alone sets emphasis");
+  assert(matchesBodyPartFocus(rdl, postFocus), "RDL allowed on posterior day");
+  assert(!matchesBodyPartFocus(legExtension, postFocus), "leg extension excluded on posterior-only day");
+}
+
 function testGetEffectiveMovementFamilies() {
   const thrusterFamilies = getEffectiveMovementFamilies(THRUSTER);
   assert(thrusterFamilies.includes("lower_body"), "thruster has lower_body");
@@ -273,6 +335,8 @@ function main() {
   console.log("  OK: non-annotated fallback");
   testHybridEligibility();
   console.log("  OK: hybrid eligibility");
+  testQuadPosteriorLowerEmphasis();
+  console.log("  OK: quad/posterior lower emphasis");
   testGetEffectiveMovementFamilies();
   console.log("  OK: getEffectiveMovementFamilies");
   testIsExerciseEligibleByConstraints();

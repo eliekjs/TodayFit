@@ -14,6 +14,9 @@ export {
   deriveMovementFamily,
   matchesEquipmentConstraints,
   isExerciseEligibleByConstraints,
+  matchesLowerBodyEmphasis,
+  matchesQuadLowerEmphasis,
+  matchesPosteriorLowerEmphasis,
 } from "./eligibilityHelpers";
 export { validateWorkoutAgainstConstraints } from "./validateWorkout";
 export type { ValidationResult } from "./validateWorkout";

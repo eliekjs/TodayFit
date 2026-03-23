@@ -46,6 +46,78 @@ export type ProgressionsRegressionsOptions = {
   energyLevel?: "low" | "medium" | "high";
 };
 
+const SWAP_PAGE_SIZE = 3;
+/** Pad candidate list so users can cycle through several sets of 3 without repeats until the pool wraps. */
+const MIN_EXPANDED_CANDIDATES = 12;
+
+function dedupeById(items: ProgressionsRegressionsOption[]): ProgressionsRegressionsOption[] {
+  const seen = new Set<string>();
+  const out: ProgressionsRegressionsOption[] = [];
+  for (const x of items) {
+    if (seen.has(x.id)) continue;
+    seen.add(x.id);
+    out.push(x);
+  }
+  return out;
+}
+
+/**
+ * Build a longer ordered list of swap candidates (progressions + regressions + similar substitutes)
+ * so we can paginate in pages of 3.
+ */
+async function expandSwapCandidatesList(
+  exerciseId: string,
+  options: ProgressionsRegressionsOptions | undefined,
+  seed: ProgressionsRegressions
+): Promise<ProgressionsRegressionsOption[]> {
+  let combined = dedupeById([...seed.regressions, ...seed.progressions]);
+  if (!isDbConfigured() || combined.length >= MIN_EXPANDED_CANDIDATES) return combined;
+  try {
+    const [targetDef, poolDefs] = await Promise.all([
+      getExercise(exerciseId),
+      listExercises(),
+    ]);
+    if (!targetDef || !poolDefs?.length) return combined;
+    const target = definitionToExerciseLike(targetDef);
+    const pool = poolDefs.map(definitionToExerciseLike);
+    const existingIds = new Set<string>([exerciseId, ...combined.map((x) => x.id)]);
+    const substitutes = getSubstitutes(target, pool, {
+      maxResults: 40,
+      excludeIds: existingIds,
+      energyLevel: options?.energyLevel,
+    });
+    for (const s of substitutes) {
+      if (existingIds.has(s.exercise.id)) continue;
+      existingIds.add(s.exercise.id);
+      combined.push({ id: s.exercise.id, name: s.exercise.name });
+      if (combined.length >= MIN_EXPANDED_CANDIDATES) break;
+    }
+  } catch {
+    /* keep combined */
+  }
+  return combined;
+}
+
+/**
+ * Returns one page (up to 3) of swap suggestions for the exercise swap modal.
+ * Increment `page` and call again to show the next 3 candidates; wraps with modulo when `page >= numPages`.
+ */
+export async function getSwapSuggestionsPage(
+  exerciseId: string,
+  options: ProgressionsRegressionsOptions | undefined,
+  page: number
+): Promise<{ suggestions: ProgressionsRegressionsOption[]; numPages: number }> {
+  const res = await getProgressionsRegressionsForExercise(exerciseId, options);
+  const expanded = await expandSwapCandidatesList(exerciseId, options, res);
+  const numPages = Math.max(1, Math.ceil(expanded.length / SWAP_PAGE_SIZE));
+  const safePage = ((page % numPages) + numPages) % numPages;
+  const start = safePage * SWAP_PAGE_SIZE;
+  return {
+    suggestions: expanded.slice(start, start + SWAP_PAGE_SIZE),
+    numPages,
+  };
+}
+
 /** When DB is configured, pad result with similar exercises from the pool so we return at least MIN_SUGGESTIONS. */
 async function fillToAtLeastThree(
   result: ProgressionsRegressions,
@@ -91,21 +163,7 @@ export async function getProgressionsRegressionsForExercise(
   exerciseId: string,
   options?: ProgressionsRegressionsOptions
 ): Promise<ProgressionsRegressions> {
-  // #region agent log
   const dbConfigured = isDbConfigured();
-  fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-    body: JSON.stringify({
-      sessionId: "305ec8",
-      location: "lib/exerciseProgressions.ts:getProgressionsRegressionsForExercise",
-      message: "swap getProgressionsRegressionsForExercise entry",
-      data: { exerciseId, isDbConfigured: dbConfigured },
-      timestamp: Date.now(),
-      hypothesisId: "H1-H2",
-    }),
-  }).catch(() => {});
-  // #endregion
   if (dbConfigured) {
     try {
       const res = await getProgressionsRegressions(exerciseId);
@@ -122,60 +180,13 @@ export async function getProgressionsRegressionsForExercise(
           const pool = poolDefs.map(definitionToExerciseLike);
           const substitutes = getSubstitutes(target, pool, { maxResults: 5, energyLevel: options?.energyLevel });
           const similar = substitutes.map((s) => ({ id: s.exercise.id, name: s.exercise.name }));
-          // #region agent log
-          fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-            body: JSON.stringify({
-              sessionId: "305ec8",
-              location: "lib/exerciseProgressions.ts:getProgressionsRegressionsForExercise",
-              message: "swap substitution fallback",
-              data: { exerciseId, similarCount: similar.length },
-              timestamp: Date.now(),
-              hypothesisId: "H4",
-            }),
-          }).catch(() => {});
-          // #endregion
           return fillToAtLeastThree({ progressions: [], regressions: similar }, exerciseId, options);
         } catch {
           return { progressions: [], regressions: [] };
         }
       }
-      // #region agent log
-      fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-        body: JSON.stringify({
-          sessionId: "305ec8",
-          location: "lib/exerciseProgressions.ts:getProgressionsRegressionsForExercise",
-          message: "swap DB path result",
-          data: {
-            exerciseId,
-            source: "db",
-            progressionsCount: res.progressions.length,
-            regressionsCount: res.regressions.length,
-          },
-          timestamp: Date.now(),
-          hypothesisId: "H4-H5",
-        }),
-      }).catch(() => {});
-      // #endregion
       return fillToAtLeastThree(res, exerciseId, options);
-    } catch (err) {
-      // #region agent log
-      fetch("http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "305ec8" },
-        body: JSON.stringify({
-          sessionId: "305ec8",
-          location: "lib/exerciseProgressions.ts:getProgressionsRegressionsForExercise",
-          message: "swap DB path threw",
-          data: { exerciseId, error: String(err) },
-          timestamp: Date.now(),
-          hypothesisId: "H1",
-        }),
-      }).catch(() => {});
-      // #endregion
+    } catch {
       return { progressions: [], regressions: [] };
     }
   }

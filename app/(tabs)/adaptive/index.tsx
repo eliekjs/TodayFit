@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SectionHeader } from "../../../components/SectionHeader";
+import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
@@ -93,11 +94,6 @@ export default function AdaptiveModeScreen() {
   } = useAppState();
   const { userId } = useAuth();
   const isOneDay = scope === "day";
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f90b2a'},body:JSON.stringify({sessionId:'f90b2a',location:'adaptive/index.tsx:mount',message:'Adaptive mount scope param',data:{scope:scope ?? null,isOneDay},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  }, [scope]);
-  // #endregion
 
   const [rankedGoals, setRankedGoals] = useState<(string | null)[]>([
     null,
@@ -132,6 +128,12 @@ export default function AdaptiveModeScreen() {
   /** Cached qualities per sport (loaded when sport is selected). */
   const [qualitiesBySport, setQualitiesBySport] = useState<Record<string, SportQuality[]>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [sectionGoalOpen, setSectionGoalOpen] = useState(false);
+  const [sectionSportOpen, setSectionSportOpen] = useState(false);
+  const [sectionSessionOpen, setSectionSessionOpen] = useState(false);
+  const adaptiveScrollRef = useRef<ScrollView>(null);
+  const adaptiveContentRef = useRef<View>(null);
+  const adaptiveAdvancedRef = useRef<View>(null);
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
@@ -224,6 +226,15 @@ export default function AdaptiveModeScreen() {
       setError("Configure Supabase (env vars) to use Sport Mode.");
       return;
     }
+    const goalCount = rankedGoals.filter((g): g is string => g != null).length;
+    if (goalCount < 1) {
+      setError("Choose at least one training goal.");
+      return;
+    }
+    if (isOneDay && !(oneDayDuration > 0)) {
+      setError("Choose a session length.");
+      return;
+    }
     const setup: AdaptiveSetup = {
       rankedGoals: [...rankedGoals],
       horizon,
@@ -238,9 +249,6 @@ export default function AdaptiveModeScreen() {
     };
 
     if (isOneDay) {
-      // #region agent log
-      fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f90b2a'},body:JSON.stringify({sessionId:'f90b2a',location:'adaptive/index.tsx:onNextOneDay',message:'One-day path: generating single session',data:{isOneDay},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
       (async () => {
         setIsGeneratingOneDay(true);
         try {
@@ -294,6 +302,8 @@ export default function AdaptiveModeScreen() {
             goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
             goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
             goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+            workoutTier: manualPreferences.workoutTier ?? "intermediate",
+            includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
           });
           setSportPrepWeekPlan(plan);
           setAdaptiveSetup(null);
@@ -307,9 +317,6 @@ export default function AdaptiveModeScreen() {
       return;
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f90b2a'},body:JSON.stringify({sessionId:'f90b2a',location:'adaptive/index.tsx:onNextToSchedule',message:'Week path: navigating to schedule',data:{isOneDay:false},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-    // #endregion
     setAdaptiveSetup(setup);
     router.push("/adaptive/schedule");
   };
@@ -406,18 +413,56 @@ export default function AdaptiveModeScreen() {
     updateManualPreferences(norm);
   };
 
+  const filledAdaptiveGoals = rankedGoals.filter((g): g is string => g != null);
+  const primaryGoalMeta = filledAdaptiveGoals[0]
+    ? ADAPTIVE_GOALS.find((g) => g.id === filledAdaptiveGoals[0])
+    : undefined;
+  const goalSectionSummary =
+    filledAdaptiveGoals.length === 0
+      ? "Tap to choose"
+      : filledAdaptiveGoals.length > 1
+        ? `${primaryGoalMeta?.label ?? filledAdaptiveGoals[0]} +${filledAdaptiveGoals.length - 1} more`
+        : primaryGoalMeta?.label ?? filledAdaptiveGoals[0];
+  const sportSectionSummary = hasNoSpecificSport
+    ? "General fitness"
+    : [primarySport?.name, secondarySport?.name].filter(Boolean).join(" · ") || "Tap to choose";
+  const sessionSectionSummary = `${oneDayDuration} min`;
+
+  const openAdaptiveAdvancedAndScroll = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setAdvancedOpen(true);
+    requestAnimationFrame(() => {
+      const scroll = adaptiveScrollRef.current;
+      const content = adaptiveContentRef.current;
+      const section = adaptiveAdvancedRef.current;
+      if (!scroll || !content || !section) return;
+      section.measureLayout(
+        content as unknown as View,
+        (_x: number, y: number) => {
+          scroll.scrollTo({ y: Math.max(0, y - 12), animated: true });
+        },
+        () => {}
+      );
+    });
+  }, []);
+
+  const canContinueAdaptive =
+    isDbConfigured() && filledAdaptiveGoals.length >= 1 && (!isOneDay || oneDayDuration > 0);
+
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
       <ScrollView
+        ref={adaptiveScrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Card title="How Sport Mode works">
+        <View ref={adaptiveContentRef} collapsable={false}>
+        <Card title="Sport Mode">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             {isOneDay
-              ? "Pick at least one goal (and optionally a sport), then get a single workout tailored to today."
-              : "Pick at least one goal (and optionally a second to balance your plan), choose your sport(s) if any, and set your weekly availability. TodayFit will generate a 7-day sport plan with smart intents and a concrete workout for each training day."}
+              ? "Pick a training goal, session length, and optionally a sport—then get one tailored workout."
+              : "Pick your main goal, optional sport, then your schedule. Open Advanced options for fatigue, injuries, and more."}
           </Text>
         </Card>
 
@@ -427,11 +472,99 @@ export default function AdaptiveModeScreen() {
           </Text>
         ) : null}
 
-        <SectionHeader
-          title="Rank your sport(s)"
-          subtitle="Pick up to 2, ranked. Optional: leave empty for general fitness. Sport days in Advanced."
-          style={{ marginTop: 20 }}
-        />
+        <CollapsiblePreferenceSection
+          title="Training goal"
+          subtitle="Pick at least one. Add more in Advanced options to balance your plan."
+          summary={goalSectionSummary}
+          expanded={sectionGoalOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGoalOpen((v) => !v);
+          }}
+          marginTop={16}
+        >
+        {rankedGoals.filter((g): g is string => g != null).length > 0 && (
+          <View style={styles.chipGroup}>
+            {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
+              const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+              const pct =
+                idx === 0
+                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                  : idx === 1
+                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
+              return (
+                <View key={goalId} style={styles.rankedChipWrap}>
+                  <View
+                    style={[
+                      styles.rankBadge,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                      {idx + 1}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.rankedChipInner,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                      numberOfLines={1}
+                    >
+                      {goal?.label ?? goalId}
+                    </Text>
+                    <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
+                      {pct}%
+                    </Text>
+                  </View>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => removeGoal(goalId)}
+                    style={styles.rankedChipRemove}
+                  >
+                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        <View style={styles.chipGroup}>
+          {ADAPTIVE_GOALS.filter(
+            (g) => !rankedGoals.includes(g.id)
+          ).map((goal) => (
+            <Chip
+              key={goal.id}
+              label={goal.label}
+              selected={false}
+              onPress={() => addGoal(goal.id)}
+            />
+          ))}
+        </View>
+        </CollapsiblePreferenceSection>
+
+        <CollapsiblePreferenceSection
+          title="Your sport (optional)"
+          subtitle="Up to two sports, ranked. Leave empty for general fitness."
+          summary={sportSectionSummary}
+          expanded={sectionSportOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionSportOpen((v) => !v);
+          }}
+        >
 
         {selectedSportSlugs.length > 0 && (
               <View style={styles.rankedSportRow}>
@@ -656,14 +789,19 @@ export default function AdaptiveModeScreen() {
                   </View>
                 );
               })}
+        </CollapsiblePreferenceSection>
 
-        {isOneDay && (
-          <>
-            <SectionHeader
-              title="Session duration"
-              subtitle="Approximate length for today's workout."
-              style={{ marginTop: 20 }}
-            />
+        {isOneDay ? (
+          <CollapsiblePreferenceSection
+            title="Session length"
+            subtitle="About how long you want to train today."
+            summary={sessionSectionSummary}
+            expanded={sectionSessionOpen}
+            onToggle={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setSectionSessionOpen((v) => !v);
+            }}
+          >
             <View style={styles.chipGroup}>
               {DURATIONS.map((minutes) => (
                 <Chip
@@ -674,86 +812,10 @@ export default function AdaptiveModeScreen() {
                 />
               ))}
             </View>
-          </>
-        )}
+          </CollapsiblePreferenceSection>
+        ) : null}
 
-        <SectionHeader
-          title="Any additional goals"
-          subtitle="Pick 1–3 goals."
-          style={{ marginTop: 20 }}
-        />
-
-        {rankedGoals.filter((g): g is string => g != null).length > 0 && (
-          <View style={styles.chipGroup}>
-            {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
-              const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
-              const pct =
-                idx === 0
-                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                  : idx === 1
-                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
-              return (
-                <View key={goalId} style={styles.rankedChipWrap}>
-                  <View
-                    style={[
-                      styles.rankBadge,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
-                      {idx + 1}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.rankedChipInner,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                      numberOfLines={1}
-                    >
-                      {goal?.label ?? goalId}
-                    </Text>
-                    <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                      {pct}%
-                    </Text>
-                  </View>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => removeGoal(goalId)}
-                    style={styles.rankedChipRemove}
-                  >
-                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        )}
-        <View style={styles.chipGroup}>
-          {ADAPTIVE_GOALS.filter(
-            (g) => !rankedGoals.includes(g.id)
-          ).map((goal) => (
-            <Chip
-              key={goal.id}
-              label={goal.label}
-              selected={false}
-              onPress={() => addGoal(goal.id)}
-            />
-          ))}
-        </View>
-
+        <View ref={adaptiveAdvancedRef} collapsable={false}>
         <Pressable
           style={[
             styles.advancedFiltersHeader,
@@ -765,7 +827,7 @@ export default function AdaptiveModeScreen() {
           }}
         >
           <Text style={[styles.advancedFiltersTitle, { color: theme.textMuted }]}>
-            Advanced
+            Advanced options
           </Text>
           <Text style={[styles.advancedFiltersChevron, { color: theme.textMuted }]}>
             {advancedOpen ? "▼" : "▶"}
@@ -1090,16 +1152,30 @@ export default function AdaptiveModeScreen() {
           </View>
         )}
 
+        </View>
+
         <View style={styles.footer}>
           <PrimaryButton
             label={
               isOneDay
                 ? (isGeneratingOneDay ? "Generating…" : "Get today's workout")
-                : "Next: Set your schedule"
+                : "Next: Choose your schedule"
             }
             onPress={onNextToSchedule}
-            disabled={!isDbConfigured() || isGeneratingOneDay}
+            disabled={!canContinueAdaptive || isGeneratingOneDay}
           />
+          {!canContinueAdaptive && isDbConfigured() ? (
+            <Text style={[styles.footerHint, { color: theme.textMuted }]}>
+              Choose at least one training goal
+              {isOneDay ? " and a session length" : ""} to continue.
+            </Text>
+          ) : null}
+          <Pressable onPress={openAdaptiveAdvancedAndScroll} style={styles.advancedLinkWrap}>
+            <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
+              Advanced options (fatigue, injuries, goal weights…)
+            </Text>
+          </Pressable>
+        </View>
         </View>
       </ScrollView>
     </AppScreenWrapper>
@@ -1278,5 +1354,18 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 24,
     marginBottom: 24,
+  },
+  footerHint: {
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 10,
+  },
+  advancedLinkWrap: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  advancedLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

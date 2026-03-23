@@ -14,10 +14,11 @@ export async function searchExercisesAsync(query: string): Promise<{ id: string;
   try {
     const exercises = await listExercises();
     return exercises
-      .filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) || (e.id && e.id.toLowerCase().includes(q))
-      )
+      .filter((e) => {
+        if (e.name.toLowerCase().includes(q) || (e.id && e.id.toLowerCase().includes(q))) return true;
+        const aliases = e.aliases ?? [];
+        return aliases.some((a) => a.toLowerCase().includes(q));
+      })
       .slice(0, MAX_SEARCH_RESULTS)
       .map((e) => ({ id: e.id, name: e.name }));
   } catch {

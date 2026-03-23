@@ -102,5 +102,6 @@ export function toExerciseWithQualities(e: GeneratorExercise): ExerciseWithQuali
   if (e.mobility_targets?.length) out.mobility_targets = e.mobility_targets;
   if (e.stretch_targets?.length) out.stretch_targets = e.stretch_targets;
   if (e.unilateral === true) out.unilateral = true;
+  if (e.tags?.attribute_tags?.length) out.attribute_tags = e.tags.attribute_tags;
   return out;
 }

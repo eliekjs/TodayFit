@@ -35,6 +35,9 @@ export type SpecificBodyFocusKey =
   | "pull"
   | "core";
 
+/** User’s preferred workout difficulty / complexity (manual + adaptive). */
+export type WorkoutTierPreference = "beginner" | "intermediate" | "advanced";
+
 /** Per-workout preferences when editing a single day in a week (goal/body/energy/style bias). */
 export type DailyWorkoutPreferences = {
   goalBias?: "strength" | "hypertrophy" | "endurance" | "mobility" | "recovery" | "power";
@@ -43,6 +46,9 @@ export type DailyWorkoutPreferences = {
   specificBodyFocus?: SpecificBodyFocusKey[];
   energyLevel?: EnergyLevel;
   stylePreference?: string;
+  /** Override global workout tier for this day’s regeneration. */
+  workoutTier?: WorkoutTierPreference;
+  includeCreativeVariations?: boolean;
 };
 
 /** How to distribute primary/secondary goals across the week. */
@@ -88,6 +94,13 @@ export type ManualPreferences = {
   weeklyBodyEmphasisStyle?: WeeklyBodyEmphasisStyle;
   /** Weekly programming: auto-apply specific body-part focus to relevant days vs manual (future). */
   specificBodyPartBehavior?: SpecificBodyPartBehavior;
+  /**
+   * Experience tier for exercise selection (ordered: beginner < intermediate < advanced).
+   * Creative / complex variations are controlled separately via includeCreativeVariations.
+   */
+  workoutTier?: WorkoutTierPreference;
+  /** When true, allow exercises marked as creative/complex variations in the catalog. Default false. */
+  includeCreativeVariations?: boolean;
 };
 
 export type EquipmentKey =
@@ -147,10 +160,16 @@ export type ExerciseDefinition = {
   contraindications?: ContraindicationKey[];
   equipment: EquipmentKey[];
   tags: string[];
+  /** DB alternate names; used for swap / catalog search when present. */
+  aliases?: string[];
   /** Exercise ids (slugs) of harder variants. */
   progressions?: string[];
   /** Exercise ids (slugs) of easier variants. */
   regressions?: string[];
+  /**
+   * Explicit experience tiers for generator filtering. When omitted, tiers are inferred from tags/metadata.
+   */
+  workout_levels?: WorkoutTierPreference[];
 };
 
 /** @deprecated Legacy: use WorkoutItem in blocks. */
@@ -239,24 +258,19 @@ export type ManualWeekPlan = {
  * derives pairs from block.items when format is "superset" (items 0-1, 2-3, ...).
  */
 export function getSupersetPairsForBlock(block: WorkoutBlock): [WorkoutItem, WorkoutItem][] | undefined {
-  // #region agent log
-  let result: [WorkoutItem, WorkoutItem][] | undefined;
   if (block.supersetPairs && block.supersetPairs.length > 0) {
-    result = block.supersetPairs;
-  } else if (block.format === "superset" && block.items.length >= 2) {
+    return block.supersetPairs;
+  }
+  if (block.format === "superset" && block.items.length >= 2) {
     const pairs: [WorkoutItem, WorkoutItem][] = [];
     for (let i = 0; i < block.items.length - 1; i += 2) {
       const a = block.items[i];
       const b = block.items[i + 1];
       if (a && b) pairs.push([a, b]);
     }
-    result = pairs.length ? pairs : undefined;
-  } else {
-    result = undefined;
+    return pairs.length ? pairs : undefined;
   }
-  fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/types.ts:getSupersetPairsForBlock',message:'getSupersetPairsForBlock',data:{format:block.format,supersetPairsLen:block.supersetPairs?.length,itemsLen:block.items?.length,resultPairsLen:result?.length},timestamp:Date.now(),hypothesisId:'H2-H3'})}).catch(()=>{});
-  return result;
-  // #endregion
+  return undefined;
 }
 
 /** One-line prescription string for display (e.g. "3 x 10 reps", "8 rounds × 1 min", "20–40 min"). */
@@ -294,11 +308,7 @@ export function normalizeGeneratedWorkout(
   workout: { id: string; focus: string[]; durationMinutes: number | null; energyLevel: EnergyLevel | null; notes?: string; sections?: WorkoutSection[]; blocks?: WorkoutBlock[] }
 ): GeneratedWorkout {
   if (workout.blocks?.length) {
-    // #region agent log
-    const blockFormats = workout.blocks.map((b) => ({ format: b.format, supersetPairsLen: b.supersetPairs?.length, itemsLen: b.items?.length }));
-    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/types.ts:normalizeGeneratedWorkout',message:'normalizeGeneratedWorkout pass-through blocks',data:{blocksLen:workout.blocks.length,blockFormats},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
     return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks: workout.blocks };
-    // #endregion
   }
   if (workout.sections?.length) {
     const blocks: WorkoutBlock[] = workout.sections.map((sec) => ({

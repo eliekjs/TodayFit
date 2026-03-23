@@ -120,6 +120,11 @@ export interface ResolvedWorkoutConstraints {
   excluded_contraindication_keys: Set<string>;
   /** When body-part is strict: only these movement families allowed for working blocks. */
   allowed_movement_families: MovementFamily[] | null;
+  /**
+   * When set with lower_body in allowed_movement_families: restrict lower exercises to
+   * knee-dominant (quad) vs hip-dominant (posterior) emphasis. Undefined = any lower exercise.
+   */
+  allowed_lower_body_emphasis?: "quad" | "posterior" | null;
   /** Secondary goal mobility: min mobility/stretch exercises in cooldown. */
   min_cooldown_mobility_exercises: number;
   /** Superset pairing rules (forbidden pairs, preferred pairs). */

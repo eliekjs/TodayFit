@@ -20,6 +20,7 @@ export function PrimaryButton({
   label,
   variant = "primary",
   style,
+  disabled,
   ...rest
 }: Props) {
   const theme = useTheme();
@@ -42,11 +43,12 @@ export function PrimaryButton({
         styles.base,
         {
           backgroundColor: backgroundByVariant[variant],
-          opacity: pressed ? 0.85 : 1,
+          opacity: disabled ? 0.45 : pressed ? 0.85 : 1,
           borderColor: variant === "ghost" ? theme.border : "transparent",
         },
         style,
       ]}
+      disabled={disabled}
       {...rest}
     >
       <Text

@@ -550,13 +550,6 @@ export function generateWorkout(
     preferences.upcoming
   );
 
-  // #region agent log
-  const hasUpper = bodyPartFocus.includes("Upper body");
-  const eligibleIds = eligible.map((e) => e.id);
-  const anyLegsInEligible = eligible.some((e) => e.muscles.includes("legs"));
-  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'67622d'},body:JSON.stringify({sessionId:'67622d',location:'lib/generator.ts:generateWorkout',message:'body-part filter result',data:{bodyPartFocus,hasUpper,eligibleCount:eligible.length,anyLegsInEligible,sampleIds:eligibleIds.slice(0,12)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
-
   // Warm-up: bodyweight or bands only — activation, mobility, getting the body moving (no weights)
   const warmupPool = eligible.filter(
     (e) =>
@@ -731,11 +724,14 @@ export function generateWorkout(
     }
 
     const reordered = reorderPairsToAvoidThreeInARow(pairs);
-    // #region agent log
-    const out = { block_type: blockType, format: "superset" as const, title, reasoning, items: reordered.flat(), supersetPairs: reordered };
-    fetch('',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'3f6292'},body:JSON.stringify({sessionId:'3f6292',location:'lib/generator.ts:buildMainSupersetBlock',message:'generator returning superset block',data:{format:out.format,supersetPairsLen:out.supersetPairs.length,itemsLen:out.items.length},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-    return out;
-    // #endregion
+    return {
+      block_type: blockType,
+      format: "superset" as const,
+      title,
+      reasoning,
+      items: reordered.flat(),
+      supersetPairs: reordered,
+    };
   };
 
   const usedExerciseIds = new Set<string>();

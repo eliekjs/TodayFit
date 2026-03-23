@@ -49,7 +49,8 @@ export type ValidationIssueType =
   | "cooldown_mobility_required"
   | "conditioning_block_required"
   | "block_role_placement"
-  | "superset_pairing";
+  | "superset_pairing"
+  | "duplicate_exercise";
 
 export interface ValidationIssue {
   type: ValidationIssueType;
@@ -97,10 +98,9 @@ function findReplacement(
   constraints: ResolvedWorkoutConstraints,
   exercisesById: Map<string, ExerciseWithQualities>,
   usedIds: Set<string>,
-  options: { forMainWork?: boolean; forCooldown?: boolean }
+  options: { forMainWork?: boolean; forCooldown?: boolean; forWarmup?: boolean }
 ): ExerciseWithQualities | null {
   const isMain = WORKING_BLOCK_TYPES.has(blockType);
-  const isCooldown = blockType === "cooldown" || blockType === "mobility" || blockType === "recovery";
 
   for (const ex of exercisesById.values()) {
     if (ex.id === currentId || usedIds.has(ex.id)) continue;
@@ -111,6 +111,28 @@ function findReplacement(
     const role = ex.exercise_role?.toLowerCase().replace(/\s/g, "_");
     if (options.forMainWork && role && MAIN_WORK_EXCLUDED_ROLES.has(role)) continue;
     if (options.forCooldown && !isMobilityOrStretchExercise(ex)) continue;
+    if (options.forWarmup) {
+      const mod = (ex.modality ?? "").toLowerCase();
+      if (mod !== "mobility" && mod !== "recovery") continue;
+    }
+    return ex;
+  }
+  return null;
+}
+
+/**
+ * Last-resort swap for duplicate removal: injury-safe and not already in workout.
+ * Used when strict block-role replacement has no candidate (e.g. cooldown needs mobility but all mobility IDs are taken).
+ */
+function findLooseDuplicateReplacement(
+  currentId: string,
+  constraints: ResolvedWorkoutConstraints,
+  exercisesById: Map<string, ExerciseWithQualities>,
+  usedIds: Set<string>
+): ExerciseWithQualities | null {
+  for (const ex of exercisesById.values()) {
+    if (ex.id === currentId || usedIds.has(ex.id)) continue;
+    if (!isExerciseAllowedByInjuries(ex, constraints)) continue;
     return ex;
   }
   return null;
@@ -366,7 +388,45 @@ export function validateWorkoutAgainstConstraints(
     }
   }
 
-  // 6) Superset compatibility (pairs in superset blocks)
+  // 6) Duplicate exercise IDs (session-wide): each exercise_id may appear at most once per workout
+  usedIds = usedExerciseIds(repaired);
+  const seenInOrder = new Set<string>();
+  for (let bi = 0; bi < repaired.blocks.length; bi++) {
+    const block = repaired.blocks[bi]!;
+    for (let ii = 0; ii < block.items.length; ii++) {
+      const item = block.items[ii]!;
+      const id = item.exercise_id;
+      if (!seenInOrder.has(id)) {
+        seenInOrder.add(id);
+        continue;
+      }
+      const isMain = WORKING_BLOCK_TYPES.has(block.block_type);
+      const replacement =
+        findReplacement(id, block.block_type, constraints, exercisesById, usedIds, {
+          forMainWork: isMain,
+          forCooldown: block.block_type === "cooldown",
+          forWarmup: block.block_type === "warmup",
+        }) ?? findLooseDuplicateReplacement(id, constraints, exercisesById, usedIds);
+      if (replacement) {
+        replaceItem(block, ii, replacement);
+        seenInOrder.add(replacement.id);
+        usedIds = usedExerciseIds(repaired);
+        anyRepair = true;
+      } else {
+        violations.push({
+          type: "duplicate_exercise",
+          block,
+          blockIndex: bi,
+          exercise: item,
+          exerciseId: id,
+          description: `Exercise "${item.exercise_name ?? id}" appears more than once in this workout; no unused replacement found in catalog.`,
+          repaired: false,
+        });
+      }
+    }
+  }
+
+  // 7) Superset compatibility (pairs in superset blocks)
   for (let bi = 0; bi < repaired.blocks.length; bi++) {
     const block = repaired.blocks[bi]!;
     if (block.format !== "superset" || block.items.length < 2) continue;

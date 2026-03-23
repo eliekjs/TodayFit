@@ -64,8 +64,14 @@ import {
 } from "./cooldownSelection";
 import { pickBestSupersetPairs, supersetCompatibility } from "../workoutIntelligence/supersetPairing";
 import {
+  exerciseBlockedByCreativePreference,
+  exerciseMatchesWorkoutTier,
+} from "../../lib/workoutLevel";
+import {
   isExerciseAllowedByInjuries,
+  matchesBodyPartFocus,
 } from "../workoutIntelligence/constraints/eligibilityHelpers";
+import { toExerciseWithQualities, type GeneratorExercise } from "../workoutIntelligence/adapters";
 import { validateWorkoutAgainstConstraints } from "../workoutIntelligence/validation/workoutValidator";
 import {
   computeOntologyScoreComponents,
@@ -246,13 +252,12 @@ export function filterByConstraintsForPool(
     const shape = toConstraintEligibilityShape(e);
     if (!isExerciseAllowedByInjuries(shape, constraints)) return false;
     if (!hasBodyFocus) return true;
-    const families = getEffectiveFamiliesForExercise(e);
-    if (families.some((f) => allowedFamilies!.some((af) => af === f))) return true;
     if (e.modality === "conditioning") return true;
     if (e.modality === "mobility" || e.modality === "recovery") {
+      const families = getEffectiveFamiliesForExercise(e);
       return mobilityRecoveryPassesBodyFocus(families, allowedFamilies!);
     }
-    return false;
+    return matchesBodyPartFocus(toExerciseWithQualities(e as GeneratorExercise), constraints);
   });
 }
 
@@ -265,11 +270,16 @@ export function filterByHardConstraints(
     input.available_equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"))
   );
   const avoidTags = input.style_prefs?.avoid_tags ?? [];
+  const userWorkoutTier = input.style_prefs?.user_level ?? "intermediate";
+  const includeCreativeVariations = input.style_prefs?.include_creative_variations === true;
   const jointStressFor = (e: Exercise) =>
     (e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags?.joint_stress) ?? [];
 
   return exercises.filter((e) => {
     if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
+    if (!exerciseMatchesWorkoutTier(e.workout_level_tags, userWorkoutTier)) return false;
+    if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations))
+      return false;
     // Equipment: every required piece must be available
     const required = e.equipment_required.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
     if (required.some((eq) => !equipmentSet.has(eq))) return false;
@@ -2626,30 +2636,6 @@ function buildMobilityRecoveryMain(
   const chosen = shuffleWithSeed([...mobilityPool], rng).slice(0, count);
   chosen.forEach((e) => used.add(e.id));
 
-  // #region agent log
-  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Debug-Session-Id': '58db52',
-    },
-    body: JSON.stringify({
-      sessionId: '58db52',
-      runId: 'initial',
-      hypothesisId: 'H3',
-      location: 'logic/workoutGeneration/dailyGenerator.ts:buildMobilityRecoveryMain',
-      message: 'mobility/recovery main block pools',
-      data: {
-        primary_goal: input.primary_goal,
-        duration_minutes: input.duration_minutes,
-        mobility_pool_count: mobilityPool.length,
-        chosen_count: chosen.length,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   const items: WorkoutItem[] = chosen.map((e) => {
     const p = getPrescription(e, "cooldown", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
     return {
@@ -2864,41 +2850,6 @@ export function generateWorkoutSession(
   const legacyRecentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
   const recentIds = getEffectiveRecentIds(legacyRecentIds, historyContext);
   const movementCounts = new Map<string, number>();
-
-  // #region agent log
-  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Debug-Session-Id': '58db52',
-    },
-    body: JSON.stringify({
-      sessionId: '58db52',
-      runId: 'initial',
-      hypothesisId: 'H1_H3',
-      location: 'logic/workoutGeneration/dailyGenerator.ts:generateWorkoutSession',
-      message: 'generateWorkoutSession input + filtered',
-      data: {
-        primary_goal: input.primary_goal,
-        secondary_goals: input.secondary_goals,
-        focus_body_parts: input.focus_body_parts,
-        duration_minutes: input.duration_minutes,
-        energy_level: input.energy_level,
-        injuries_or_constraints: input.injuries_or_constraints,
-        available_equipment_count: input.available_equipment?.length ?? 0,
-        filtered_count: filtered.length,
-        constraints_summary: {
-          prefer_strength_block: constraints.prefer_strength_block,
-          prefer_hypertrophy_block: constraints.prefer_hypertrophy_block,
-          prefer_power_block: constraints.prefer_power_block,
-          required_conditioning_block: constraints.required_conditioning_block,
-          min_cooldown_mobility_exercises: constraints.min_cooldown_mobility_exercises ?? 0,
-        },
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   // Fatigue management: volume scale and fatigued muscle groups from recent history
   const fatigueState = getFatigueState(input.recent_history, {

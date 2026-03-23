@@ -46,6 +46,10 @@ export type PlanWeekInput = {
   /** Recent load (e.g. "Long Run", "Heavy Lower") so each workout avoids exercises that add strain. */
   recentLoad?: string;
   injuries?: string[];
+  /** Experience tier for exercise pool filtering (default intermediate). */
+  workoutTier?: import("../../lib/types").WorkoutTierPreference;
+  /** Allow creative/complex variation exercises when true. */
+  includeCreativeVariations?: boolean;
   sportSessions?: { date: string; goalSlug: string; sessionType?: string }[];
   gymProfile?: GymProfile;
   /** Match % for 1st / 2nd / 3rd goal (defaults 50, 30, 20). */
@@ -112,6 +116,8 @@ export type ScheduleSnapshot = {
   injuries?: string[];
   emphasis?: import("../../lib/types").BodyEmphasisKey | null;
   gymProfile?: GymProfile;
+  workoutTier?: import("../../lib/types").WorkoutTierPreference;
+  includeCreativeVariations?: boolean;
   goalDistributionStyle?: import("../../lib/types").GoalDistributionStyle | null;
   weeklyBodyEmphasisStyle?: import("../../lib/types").WeeklyBodyEmphasisStyle | null;
   specificBodyPartBehavior?: import("../../lib/types").SpecificBodyPartBehavior | null;
@@ -171,6 +177,10 @@ export type RegenerateDayInput = {
   recentLoad?: string;
   /** Injury/constraint labels (normalized or display) so generation excludes contraindicated exercises. */
   injuries?: string[];
+  /** Plan-level tier when dailyPreferences does not override workoutTier. */
+  workoutTier?: import("../../lib/types").WorkoutTierPreference;
+  /** Plan-level creative variations when dailyPreferences does not override. */
+  includeCreativeVariations?: boolean;
   /** Override preferences for this single workout (goal, body region, energy, style). */
   dailyPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
 };
@@ -768,9 +778,6 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const baseDate = input.weekStartDate ? new Date(input.weekStartDate) : today;
   const weekStart = startOfWeekMonday(baseDate);
   const weekStartIso = toIsoDate(weekStart);
-  // #region agent log
-  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d73157'},body:JSON.stringify({sessionId:'d73157',location:'sportPrepPlanner/planWeek:input',message:'planWeek input',data:{gymDaysPerWeek:input.gymDaysPerWeek,preferredTrainingDays:input.preferredTrainingDays ?? null,todayDOW:(today.getDay()+6)%7,hasUserId:!!input.userId},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-  // #endregion
 
   const userGoalWeights: [number, number, number] | undefined =
     input.goalMatchPrimaryPct != null
@@ -913,6 +920,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
           recentLoad: input.recentLoad,
           injuries: input.injuries,
+          workoutTier: input.workoutTier ?? "intermediate",
+          includeCreativeVariations: input.includeCreativeVariations === true,
         }
       );
       const title = getWorkoutDescriptor(workout);
@@ -955,6 +964,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
+        workoutTier: input.workoutTier ?? "intermediate",
+        includeCreativeVariations: input.includeCreativeVariations === true,
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1028,10 +1039,6 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       });
     }
     const todayDay = plannedDays.find((d) => d.date === todayIso) ?? null;
-    // #region agent log
-    const hasTodayWorkout = todayDay ? (guestWorkouts[todayIso] != null) : false;
-    fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d73157'},body:JSON.stringify({sessionId:'d73157',location:'sportPrepPlanner/planWeek:guest',message:'Guest one-day plan built',data:{todayIso,trainingIndices,todayDayDate:todayDay?.date ?? null,hasTodayWorkout,plannedDaysLength:plannedDays.length,daysWithWorkout:plannedDays.filter(d=>guestWorkouts[d.date]).length},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     const scheduleSnapshot: ScheduleSnapshot = {
       weekStartDate: weekStartIso,
       primaryGoalSlug: input.primaryGoalSlug,
@@ -1053,6 +1060,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       injuries: input.injuries,
       emphasis: input.emphasis ?? null,
       gymProfile: input.gymProfile,
+      workoutTier: input.workoutTier ?? "intermediate",
+      includeCreativeVariations: input.includeCreativeVariations === true,
     };
     return {
       weeklyPlanInstanceId: `guest-${weekStartIso}-${Date.now()}`,
@@ -1262,9 +1271,6 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     todayDay && todayDay.generatedWorkoutId
       ? await getWorkout(input.userId, todayDay.generatedWorkoutId)
       : null;
-  // #region agent log
-  fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d73157'},body:JSON.stringify({sessionId:'d73157',location:'sportPrepPlanner/planWeek:persisted',message:'Persisted plan built',data:{todayIso,trainingIndices,todayDayDate:todayDay?.date ?? null,hasTodayWorkout:!!todayWorkout,finalDaysLength:finalDays.length},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-  // #endregion
 
   const scheduleSnapshot: ScheduleSnapshot = {
     weekStartDate: weekStartIso,
@@ -1287,6 +1293,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     injuries: input.injuries,
     emphasis: input.emphasis ?? null,
     gymProfile: input.gymProfile,
+    workoutTier: input.workoutTier ?? "intermediate",
+    includeCreativeVariations: input.includeCreativeVariations === true,
     goalDistributionStyle: input.goalDistributionStyle ?? undefined,
     weeklyBodyEmphasisStyle: input.weeklyBodyEmphasisStyle ?? undefined,
     specificBodyPartBehavior: input.specificBodyPartBehavior ?? undefined,
@@ -1331,6 +1339,11 @@ export async function regenerateDay(
     throw new Error("Supabase client is not available.");
   }
 
+  const resolvedWorkoutTier =
+    input.dailyPreferences?.workoutTier ?? input.workoutTier ?? "intermediate";
+  const resolvedIncludeCreative =
+    (input.dailyPreferences?.includeCreativeVariations ?? input.includeCreativeVariations) === true;
+
   // Guest mode: regenerate in memory only using intentLabel or dailyPreferences
   if (!input.userId) {
     const key = input.dailyPreferences
@@ -1364,6 +1377,8 @@ export async function regenerateDay(
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
+        workoutTier: resolvedWorkoutTier,
+        includeCreativeVariations: resolvedIncludeCreative,
       }
     );
     const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1445,6 +1460,8 @@ export async function regenerateDay(
       recentLoad: input.recentLoad,
       injuries: input.injuries,
       bodyRegionBias,
+      workoutTier: resolvedWorkoutTier,
+      includeCreativeVariations: resolvedIncludeCreative,
     }
   );
   const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";

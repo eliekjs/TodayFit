@@ -15,7 +15,8 @@ import {
   normalizeInjuryKey,
 } from "../../../lib/workoutRules";
 import type { ResolvedWorkoutConstraints } from "../constraints/constraintTypes";
-import { getEffectiveMovementFamilies } from "../constraints/eligibilityHelpers";
+import { matchesBodyPartFocus, matchesLowerBodyEmphasis } from "../constraints/eligibilityHelpers";
+import { hasUpperPullMuscleSignal, normalizedMuscleSlugSet } from "../../../lib/ontology/muscleSlugs";
 
 export type FilterResult = { pass: boolean; reason?: string };
 
@@ -188,8 +189,7 @@ export function filterByConstraints(
     constraints.allowed_movement_families.length > 0 &&
     workingBlockTypes.has(blockSpec.block_type)
   ) {
-    const families = getEffectiveMovementFamilies(exercise);
-    if (!families.some((f) => constraints.allowed_movement_families!.includes(f)))
+    if (!matchesBodyPartFocus(exercise, constraints, blockSpec.block_type))
       return { pass: false, reason: "constraint_body_part_focus" };
   }
   return { pass: true };

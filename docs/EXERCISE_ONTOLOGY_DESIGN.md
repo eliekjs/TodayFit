@@ -82,6 +82,14 @@ Each row is one **ontology field**: what it answers, allowed values, cardinality
 
 ---
 
+### C.1b Primary muscle slug normalization (filters)
+
+**Purpose:** One canonical spelling per muscle in the DB where possible (`hamstrings`, `quads`, `glutes`, `lats`, `upper_back`, …). Filters and overlays still see legacy variants (`hamstring`, `quad`, `back`); normalize at comparison time so exercises are not dropped between subsystems.
+
+**Implementation:** `lib/ontology/muscleSlugs.ts` — `normalizePrimaryMuscleSlug`, `normalizedMuscleSlugSet`, `normalizedMusclesIntersect`, `hasUpperPullMuscleSignal` (treats `back` / `lats` / `upper_back` / `biceps` as upper-pull signals for regional matching).
+
+---
+
 ### C.2 Movement family (primary + secondary)
 
 **Purpose:** User-facing body-part / emphasis. Drives strict body-part focus (hard_include) and “what did we train today”.

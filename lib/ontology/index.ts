@@ -56,3 +56,10 @@ export {
   normalizeEquipmentSlug,
   normalizeMatchableTagSlugs,
 } from "./legacyMapping";
+
+export {
+  normalizePrimaryMuscleSlug,
+  normalizedMuscleSlugSet,
+  normalizedMusclesIntersect,
+  hasUpperPullMuscleSignal,
+} from "./muscleSlugs";

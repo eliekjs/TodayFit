@@ -1,6 +1,6 @@
 import React from "react";
 import { Platform, Pressable, Text } from "react-native";
-import { Tabs, useRouter, usePathname } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomTabBar } from "@react-navigation/bottom-tabs";
@@ -46,14 +46,10 @@ function HeaderBackButton() {
 /** Back from manual flow (week/execute): go to first preference screen, not home. */
 function ManualFlowBackButton() {
   const router = useRouter();
-  const pathname = usePathname();
   const theme = useTheme();
   return (
     <Pressable
       onPress={() => {
-        // #region agent log
-        fetch('http://127.0.0.1:7432/ingest/35ca614a-496d-4b67-8b19-4e79a0489437',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'940c18'},body:JSON.stringify({sessionId:'940c18',location:'_layout.tsx:ManualFlowBackButton',message:'Header back pressed',data:{pathname,targetUrl:'/manual/preferences'},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
         router.push("/manual/preferences");
       }}
       style={{ paddingLeft: 16 }}
@@ -217,7 +213,7 @@ export default function TabsLayout() {
         name="manual/preferences"
         options={{
           href: null,
-          title: "Workout Preferences",
+          title: "Build workout",
           headerLeft: () => <HeaderBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
