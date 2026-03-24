@@ -1,5 +1,6 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
 import type { DailyWorkoutPreferences } from "../lib/types";
 import { Chip } from "./Chip";
@@ -37,76 +38,116 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   regenerateLabel = "Regenerate this day",
 }, ref) {
   const theme = useTheme();
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View ref={ref} style={styles.container}>
-      {showAdjustFocusLink && onAdjustFocusPress && (
-        <Pressable
-          onPress={onAdjustFocusPress}
-          style={({ pressed }) => ({
-            marginBottom: 12,
-            paddingVertical: 6,
-            opacity: pressed ? 0.7 : 1,
-          })}
-        >
-          <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
-            Adjust focus areas and weighting
-          </Text>
-        </Pressable>
-      )}
-      {showChips && (
+      {!showChips ? (
         <>
-          <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 8 }]}>
-            Change focus for this day
-          </Text>
-          <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
-            {helperText}
-          </Text>
-          <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-            <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
-            {GOAL_OPTIONS.map((g) => (
-              <Chip
-                key={g}
-                label={g.charAt(0).toUpperCase() + g.slice(1)}
-                selected={dailyPrefsOverride?.goalBias === g}
-                onPress={() =>
-                  onOverrideChange({
-                    goalBias: dailyPrefsOverride?.goalBias === g ? undefined : g,
-                  })
-                }
-              />
-            ))}
-          </View>
-          <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-            <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
-            {BODY_OPTIONS.map((b) => (
-              <Chip
-                key={b}
-                label={b.charAt(0).toUpperCase() + b.slice(1)}
-                selected={dailyPrefsOverride?.bodyRegionBias === b}
-                onPress={() =>
-                  onOverrideChange({
-                    bodyRegionBias: dailyPrefsOverride?.bodyRegionBias === b ? undefined : b,
-                  })
-                }
-              />
-            ))}
-          </View>
-          <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-            <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
-            {ENERGY_OPTIONS.map((e) => (
-              <Chip
-                key={e}
-                label={e.charAt(0).toUpperCase() + e.slice(1)}
-                selected={dailyPrefsOverride?.energyLevel === e}
-                onPress={() =>
-                  onOverrideChange({
-                    energyLevel: dailyPrefsOverride?.energyLevel === e ? undefined : e,
-                  })
-                }
-              />
-            ))}
-          </View>
+          {showAdjustFocusLink && onAdjustFocusPress && (
+            <Pressable
+              onPress={onAdjustFocusPress}
+              style={({ pressed }) => ({
+                marginBottom: 12,
+                paddingVertical: 6,
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
+                Adjust focus areas and weighting
+              </Text>
+            </Pressable>
+          )}
+        </>
+      ) : (
+        <>
+          <Pressable
+            onPress={() => setExpanded((v) => !v)}
+            style={({ pressed }) => ({
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingVertical: 8,
+              opacity: pressed ? 0.85 : 1,
+            })}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: "600", color: theme.text }}>
+              Change focus for this day
+            </Text>
+            <Ionicons
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={20}
+              color={theme.textMuted}
+            />
+          </Pressable>
+          {expanded && (
+            <>
+              {showAdjustFocusLink && onAdjustFocusPress && (
+                <Pressable
+                  onPress={onAdjustFocusPress}
+                  style={({ pressed }) => ({
+                    marginBottom: 12,
+                    paddingVertical: 6,
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, color: theme.primary, fontWeight: "500" }}>
+                    Adjust focus areas and weighting
+                  </Text>
+                </Pressable>
+              )}
+              <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
+                {helperText}
+              </Text>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
+                {GOAL_OPTIONS.map((g) => (
+                  <Chip
+                    key={g}
+                    label={g.charAt(0).toUpperCase() + g.slice(1)}
+                    selected={dailyPrefsOverride?.goalBias === g}
+                    onPress={() =>
+                      onOverrideChange({
+                        goalBias: dailyPrefsOverride?.goalBias === g ? undefined : g,
+                      })
+                    }
+                  />
+                ))}
+              </View>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
+                {BODY_OPTIONS.map((b) => (
+                  <Chip
+                    key={b}
+                    label={b.charAt(0).toUpperCase() + b.slice(1)}
+                    selected={dailyPrefsOverride?.bodyRegionBias === b}
+                    onPress={() =>
+                      onOverrideChange({
+                        bodyRegionBias: dailyPrefsOverride?.bodyRegionBias === b ? undefined : b,
+                      })
+                    }
+                  />
+                ))}
+              </View>
+              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>
+                {ENERGY_OPTIONS.map((e) => (
+                  <Chip
+                    key={e}
+                    label={e.charAt(0).toUpperCase() + e.slice(1)}
+                    selected={dailyPrefsOverride?.energyLevel === e}
+                    onPress={() =>
+                      onOverrideChange({
+                        energyLevel: dailyPrefsOverride?.energyLevel === e ? undefined : e,
+                      })
+                    }
+                  />
+                ))}
+              </View>
+            </>
+          )}
         </>
       )}
       <PrimaryButton
@@ -114,7 +155,7 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
         variant="secondary"
         onPress={onRegenerate}
         disabled={isRegenerating}
-        style={{ marginTop: 8 }}
+        style={{ marginTop: showChips ? 4 : 8 }}
       />
     </View>
   );
@@ -123,10 +164,6 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
 const styles = StyleSheet.create({
   container: {
     marginTop: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
   },
   sectionReasoning: {
     fontSize: 13,

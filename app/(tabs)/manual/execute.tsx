@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -7,22 +7,50 @@ import {
   Pressable,
   TextInput,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
-import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../../../lib/types";
+import {
+  formatPrescription,
+  formatSupersetPairLabel,
+  getSupersetPairsForBlock,
+  type BlockType,
+  type ExecutionProgress,
+} from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getSwapSuggestionsPage } from "../../../lib/exerciseProgressions";
+import {
+  blockTypeToSwapBlockRole,
+  getSwapSuggestionsPage,
+} from "../../../lib/exerciseProgressions";
 
 type ExerciseProgress = {
   completed: boolean;
   setsCompleted: number;
   notes?: string;
 };
+
+function buildProgressMap(
+  exerciseIds: string[],
+  saved: ExecutionProgress | null
+): Record<string, ExerciseProgress> {
+  const out: Record<string, ExerciseProgress> = {};
+  for (const id of exerciseIds) {
+    const s = saved?.[id];
+    out[id] =
+      s != null
+        ? {
+            completed: Boolean(s.completed),
+            setsCompleted: s.setsCompleted ?? 0,
+            notes: s.notes,
+          }
+        : { completed: false, setsCompleted: 0 };
+  }
+  return out;
+}
 
 export default function ExecuteScreen() {
   const {
@@ -34,6 +62,9 @@ export default function ExecuteScreen() {
     setResumeProgress,
     resumeProgress,
     removeSavedWorkoutByWorkoutId,
+    manualSessionProgress,
+    setManualSessionProgress,
+    setManualExecutionStarted,
   } = useAppState();
   const router = useRouter();
   const theme = useTheme();
@@ -51,6 +82,7 @@ export default function ExecuteScreen() {
                   name: item.exercise_name,
                   prescription: formatPrescription(item),
                   sectionTitle: `${block.title ?? block.block_type} • Pair ${idx + 1} (${formatSupersetPairLabel(pair)})`,
+                  blockType: block.block_type,
                 }))
               );
             }
@@ -60,25 +92,44 @@ export default function ExecuteScreen() {
               name: item.exercise_name,
               prescription: formatPrescription(item),
               sectionTitle: block.title ?? block.block_type,
+              blockType: block.block_type,
             }));
           })
         : [],
     [generatedWorkout]
   );
 
-  const [progress, setProgress] = useState<Record<string, ExerciseProgress>>(
-    () =>
-      allExercises.reduce<Record<string, ExerciseProgress>>(
-        (acc, ex) => ({
-          ...acc,
-          [ex.exercise_id]: { completed: false, setsCompleted: 0 },
-        }),
-        {}
-      )
+  const [progress, setProgress] = useState<Record<string, ExerciseProgress>>({});
+
+  const manualProgressRef = useRef(manualSessionProgress);
+  manualProgressRef.current = manualSessionProgress;
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
+  /** When null, blur must not write session progress back (finish / save / discard). */
+  const lastPersistWorkoutIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (generatedWorkout == null) {
+      lastPersistWorkoutIdRef.current = null;
+    }
+  }, [generatedWorkout]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!generatedWorkout) return;
+      lastPersistWorkoutIdRef.current = generatedWorkout.id;
+      const ids = allExercises.map((e) => e.exercise_id);
+      setProgress(buildProgressMap(ids, manualProgressRef.current));
+      return () => {
+        if (lastPersistWorkoutIdRef.current == null) return;
+        setManualSessionProgress(progressRef.current);
+      };
+    }, [allExercises, generatedWorkout, setManualSessionProgress])
   );
   const [swapModal, setSwapModal] = useState<{
     exerciseId: string;
     exerciseName: string;
+    blockType: BlockType;
   } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
@@ -132,7 +183,14 @@ export default function ExecuteScreen() {
     let cancelled = false;
     setSwapLoading(true);
     const energyLevel = manualPreferences.energyLevel ?? undefined;
-    getSwapSuggestionsPage(swapModal.exerciseId, { energyLevel }, swapSuggestionPage).then(
+    getSwapSuggestionsPage(
+      swapModal.exerciseId,
+      {
+        energyLevel,
+        swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+      },
+      swapSuggestionPage
+    ).then(
       ({ suggestions, numPages }) => {
         if (cancelled) return;
         setSwapSuggested(suggestions);
@@ -143,7 +201,7 @@ export default function ExecuteScreen() {
     return () => {
       cancelled = true;
     };
-  }, [swapModal?.exerciseId, manualPreferences.energyLevel, swapSuggestionPage]);
+  }, [swapModal?.exerciseId, swapModal?.blockType, manualPreferences.energyLevel, swapSuggestionPage]);
 
   const onSwapChoose = (optionId: string, optionName: string) => {
     if (!generatedWorkout || !swapModal) return;
@@ -171,6 +229,7 @@ export default function ExecuteScreen() {
       router.replace("/manual/preferences");
       return;
     }
+    lastPersistWorkoutIdRef.current = null;
     const exerciseNotes: Record<string, string> = {};
     Object.entries(progress).forEach(([exId, p]) => {
       if (p.notes?.trim()) exerciseNotes[exId] = p.notes.trim();
@@ -183,11 +242,16 @@ export default function ExecuteScreen() {
       exerciseNotes: Object.keys(exerciseNotes).length > 0 ? exerciseNotes : undefined,
     });
     removeSavedWorkoutByWorkoutId(generatedWorkout.id);
+    setGeneratedWorkout(null);
+    setManualSessionProgress(null);
+    setManualExecutionStarted(false);
+    setResumeProgress(null);
     router.replace("/history/complete");
   };
 
   const onSaveForLater = () => {
     if (generatedWorkout == null) return;
+    lastPersistWorkoutIdRef.current = null;
     addSavedWorkout({
       savedAt: new Date().toISOString(),
       workout: generatedWorkout,
@@ -195,6 +259,8 @@ export default function ExecuteScreen() {
     });
     setGeneratedWorkout(null);
     setResumeProgress(null);
+    setManualSessionProgress(null);
+    setManualExecutionStarted(false);
     router.replace("/library");
   };
 
@@ -289,6 +355,7 @@ export default function ExecuteScreen() {
                     setSwapModal({
                       exerciseId: exercise.exercise_id,
                       exerciseName: exercise.exercise_name,
+                      blockType: exercise.blockType,
                     })
                   }
                   style={[styles.swapButton, { borderColor: theme.border }]}

@@ -43,14 +43,15 @@ function HeaderBackButton() {
   );
 }
 
-/** Back from manual flow (week/execute): go to first preference screen, not home. */
-function ManualFlowBackButton() {
+/** Back from week plan: previous screen when possible, else preferences. */
+function ManualWeekBackButton() {
   const router = useRouter();
   const theme = useTheme();
   return (
     <Pressable
       onPress={() => {
-        router.push("/manual/preferences");
+        if (router.canGoBack()) router.back();
+        else router.push("/manual/preferences");
       }}
       style={{ paddingLeft: 16 }}
     >
@@ -59,13 +60,34 @@ function ManualFlowBackButton() {
   );
 }
 
-/** Back from editing today's workout: go to Today screen (not preferences or library). */
+/** Back from execute: week overview if this session came from a week plan, else workout editor. */
+function ManualExecuteBackButton() {
+  const router = useRouter();
+  const theme = useTheme();
+  const { manualWeekPlan } = useAppState();
+  return (
+    <Pressable
+      onPress={() => {
+        if (manualWeekPlan != null) router.push("/manual/week");
+        else router.push("/manual/workout");
+      }}
+      style={{ paddingLeft: 16 }}
+    >
+      <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
+
+/** Back from editing today's workout: previous screen (usually preferences), not Today home. */
 function EditWorkoutBackButton() {
   const router = useRouter();
   const theme = useTheme();
   return (
     <Pressable
-      onPress={() => router.replace("/")}
+      onPress={() => {
+        if (router.canGoBack()) router.back();
+        else router.push("/manual/preferences");
+      }}
       style={{ paddingLeft: 16 }}
     >
       <Ionicons name="chevron-back" size={24} color={theme.text} />
@@ -102,6 +124,8 @@ function RestartFlowButton() {
     setManualWeekPlan,
     setGeneratedWorkout,
     setResumeProgress,
+    setManualSessionProgress,
+    setManualExecutionStarted,
     setSportPrepWeekPlan,
     setAdaptiveSetup,
   } = useAppState();
@@ -109,6 +133,8 @@ function RestartFlowButton() {
     setManualWeekPlan(null);
     setGeneratedWorkout(null);
     setResumeProgress(null);
+    setManualSessionProgress(null);
+    setManualExecutionStarted(false);
     setSportPrepWeekPlan(null);
     setAdaptiveSetup(null);
     router.replace("/");
@@ -130,8 +156,8 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      tabBar={(props: BottomTabBarProps) => <FilteredTabBar {...props} />}
       screenOptions={{
-        tabBar: (props: BottomTabBarProps) => <FilteredTabBar {...props} />,
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
         tabBarActiveBackgroundColor: theme.primarySoft,
@@ -232,7 +258,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "Execute",
-          headerLeft: () => <ManualFlowBackButton />,
+          headerLeft: () => <ManualExecuteBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
       />
@@ -241,7 +267,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "This week's workouts",
-          headerLeft: () => <ManualFlowBackButton />,
+          headerLeft: () => <ManualWeekBackButton />,
           headerRight: () => <RestartFlowButton />,
         }}
       />

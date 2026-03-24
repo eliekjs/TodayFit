@@ -9,7 +9,7 @@ import type { GymProfile } from "../../data/gymProfiles";
 import { generateWorkoutAsync } from "../../lib/generator";
 import { isDbConfigured } from "../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../lib/db/starterExerciseRepository";
-import type { SportGoalContext } from "../../lib/dailyGeneratorAdapter";
+import { hashString, type SportGoalContext } from "../../lib/dailyGeneratorAdapter";
 
 export type SessionIntent = {
   id: string;
@@ -50,6 +50,8 @@ export type SportGoalOptions = {
   workoutTier?: WorkoutTierPreference;
   /** When true, allow exercises tagged as creative/complex variations. */
   includeCreativeVariations?: boolean;
+  /** Per–primary-focus sub-goal labels (Manual `subFocusByGoal` keys). Biases exercise selection. */
+  subFocusByGoal?: Record<string, string[]>;
 };
 
 /**
@@ -74,7 +76,10 @@ export async function buildWorkoutForSessionIntent(
     energyLevel: intent.energyLevel,
     injuries: options?.injuries ?? [],
     upcoming: options?.recentLoad ? [options.recentLoad] : [],
-    subFocusByGoal: {},
+    subFocusByGoal:
+      options?.subFocusByGoal && Object.keys(options.subFocusByGoal).length > 0
+        ? { ...options.subFocusByGoal }
+        : {},
     workoutStyle: [],
     workoutTier: options?.workoutTier ?? "intermediate",
     includeCreativeVariations: options?.includeCreativeVariations === true,
@@ -129,10 +134,29 @@ export async function buildWorkoutForSessionIntent(
         }
       : undefined;
 
+  const baseSeed = seedExtra ?? intent.id;
+  const resolvedSeed: string | number =
+    hasGoals || hasSport
+      ? hashString(
+          JSON.stringify({
+            base: baseSeed,
+            focus: intent.focus,
+            goalSlugs: options?.goalSlugs ?? [],
+            goalWeightsPct: options?.goalWeightsPct ?? [],
+            sportSlug: options?.sportSlug ?? null,
+            rankedSportSlugs: options?.rankedSportSlugs ?? [],
+            sportVsGoalPct: options?.sportVsGoalPct ?? null,
+            sportFocusPct: options?.sportFocusPct ?? null,
+            sportSubFocusSlugs: options?.sportSubFocusSlugs ?? null,
+            sportSubFocusSlugsBySport: options?.sportSubFocusSlugsBySport ?? null,
+          })
+        )
+      : baseSeed;
+
   const workout = await generateWorkoutAsync(
     basePreferences,
     gymProfile,
-    seedExtra ?? intent.id,
+    resolvedSeed,
     preferredNames,
     sportGoalContext
   );

@@ -12,7 +12,6 @@ import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
-import { PrimaryButton } from "../../components/Button";
 import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
 
@@ -106,9 +105,10 @@ export default function HomeScreen() {
     manualWeekPlan,
     sportPrepWeekPlan,
     generatedWorkout,
-    savedWorkouts,
     setGeneratedWorkout,
     setManualWeekPlan,
+    manualExecutionStarted,
+    setManualExecutionStarted,
   } = useAppState();
   const pastels = colorScheme === "dark" ? DARK_PASTELS : LIGHT_PASTELS;
 
@@ -124,7 +124,12 @@ export default function HomeScreen() {
   const isSingleWorkout =
     generatedWorkout != null ||
     (manualWeekPlan != null && manualWeekPlan.days.length === 1);
-  const continueSingleWorkout = () => {
+  const continueEditingManualWorkout = () => {
+    router.push("/manual/workout");
+  };
+
+  const continueOrStartManualExecution = () => {
+    setManualExecutionStarted(true);
     if (generatedWorkout != null) {
       router.push("/manual/execute");
       return;
@@ -159,36 +164,100 @@ export default function HomeScreen() {
         </Text>
 
         {hasInProgress && (
-          <Pressable
-            style={({ pressed }) => [
+          <View
+            style={[
               styles.continueCard,
-              { backgroundColor: theme.primarySoft ?? pastels.helpBg, opacity: pressed ? 0.9 : 1 },
+              { backgroundColor: theme.primarySoft ?? pastels.helpBg },
             ]}
-            onPress={() => {
-              if (isSingleWorkout) continueSingleWorkout();
-              else if (manualWeekPlan != null) continueWeek();
-              else if (sportPrepWeekPlan != null) router.push("/adaptive/recommendation");
-            }}
           >
-            <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
-              {isSingleWorkout
-                ? "Continue workout"
-                : manualWeekPlan != null
-                  ? "Continue your week"
-                  : sportPrepWeekPlan != null
-                    ? "Continue your sport plan"
-                    : "Continue workout"}
-            </Text>
-            <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
-              {isSingleWorkout
-                ? "Back to workout in progress"
-                : manualWeekPlan != null
-                  ? "Back to this week's workouts"
-                  : sportPrepWeekPlan != null
-                    ? "Back to your sport plan"
-                    : "Back to workout in progress"}
-            </Text>
-          </Pressable>
+            {isSingleWorkout && generatedWorkout != null ? (
+              <>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.continueCardRow,
+                    { opacity: pressed ? 0.88 : 1 },
+                  ]}
+                  onPress={continueEditingManualWorkout}
+                >
+                  <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
+                    Continue editing workout
+                  </Text>
+                  <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
+                    Adjust exercises, regenerate, or change preferences
+                  </Text>
+                </Pressable>
+                {manualExecutionStarted ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.continueCardRow,
+                      styles.continueCardRowSecond,
+                      {
+                        opacity: pressed ? 0.88 : 1,
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                        borderTopColor: theme.border,
+                      },
+                    ]}
+                    onPress={continueOrStartManualExecution}
+                  >
+                    <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
+                      {"Continue today's workout"}
+                    </Text>
+                    <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
+                      Resume sets and checkboxes where you left off
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.continueCardRow,
+                      styles.continueCardRowSecond,
+                      {
+                        opacity: pressed ? 0.88 : 1,
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                        borderTopColor: theme.border,
+                      },
+                    ]}
+                    onPress={continueOrStartManualExecution}
+                  >
+                    <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
+                      Start workout
+                    </Text>
+                    <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
+                      Open the execution screen and log your session
+                    </Text>
+                  </Pressable>
+                )}
+              </>
+            ) : (
+              <Pressable
+                style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}
+                onPress={() => {
+                  if (isSingleWorkout) continueOrStartManualExecution();
+                  else if (manualWeekPlan != null) continueWeek();
+                  else if (sportPrepWeekPlan != null) router.push("/adaptive/recommendation");
+                }}
+              >
+                <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
+                  {isSingleWorkout
+                    ? "Continue workout"
+                    : manualWeekPlan != null
+                      ? "Continue your week"
+                      : sportPrepWeekPlan != null
+                        ? "Continue your sport plan"
+                        : "Continue workout"}
+                </Text>
+                <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
+                  {isSingleWorkout
+                    ? "Back to workout in progress"
+                    : manualWeekPlan != null
+                      ? "Back to this week's workouts"
+                      : sportPrepWeekPlan != null
+                        ? "Back to your sport plan"
+                        : "Back to workout in progress"}
+                </Text>
+              </Pressable>
+            )}
+          </View>
         )}
 
         <ActionCard
@@ -251,11 +320,18 @@ const styles = StyleSheet.create({
   },
   continueCard: {
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "transparent",
+  },
+  continueCardRow: {
+    paddingVertical: 10,
+  },
+  continueCardRowSecond: {
+    marginTop: 4,
+    paddingTop: 14,
   },
   continueCardTitle: {
     fontSize: 16,

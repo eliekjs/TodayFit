@@ -20,6 +20,9 @@ import {
   getEffectiveFatigueRegionsForQualities,
 } from "./fatigueTracking";
 import { DEFAULT_SELECTION_CONFIG } from "./scoringConfig";
+import { getCanonicalSportSlug } from "../../../data/sportSubFocus";
+import { SUB_FOCUS_TAG_MAP } from "../../../data/sportSubFocus/subFocusTagMap";
+import { getSportQualityWeights } from "../sportQualityWeights";
 
 /** Convert DesiredQualityProfile to Map for alignmentScore. */
 function profileToMap(p: DesiredQualityProfile): Map<string, number> {
@@ -182,11 +185,190 @@ function ontologyJointStressSoftScore(ex: ExerciseWithQualities): number {
   return tags.length ? -0.2 : 0;
 }
 
+function normalizedMuscles(ex: ExerciseWithQualities): Set<string> {
+  return new Set((ex.muscle_groups ?? []).map((m) => m.toLowerCase()));
+}
+
+function isUpperPullFocused(ex: ExerciseWithQualities): boolean {
+  const pattern = norm(ex.movement_pattern);
+  if (pattern === "pull" || pattern === "vertical_pull" || pattern === "horizontal_pull") return true;
+  const patterns = (ex.movement_patterns ?? []).map(norm);
+  if (patterns.includes("vertical_pull") || patterns.includes("horizontal_pull")) return true;
+  const muscles = normalizedMuscles(ex);
+  return (
+    muscles.has("back") ||
+    muscles.has("lats") ||
+    muscles.has("biceps") ||
+    muscles.has("forearms")
+  );
+}
+
+function isCoreOrScapSupport(ex: ExerciseWithQualities): boolean {
+  const q = ex.training_quality_weights ?? {};
+  return Boolean(
+    q.core_tension ||
+    q.trunk_endurance ||
+    q.scapular_stability ||
+    q.lockoff_strength ||
+    q.grip_strength ||
+    q.forearm_endurance
+  );
+}
+
+function isLowerBodyPattern(ex: ExerciseWithQualities): boolean {
+  const pattern = norm(ex.movement_pattern);
+  if (pattern === "squat" || pattern === "hinge" || pattern === "lunge" || pattern === "locomotion") return true;
+  const muscles = normalizedMuscles(ex);
+  return (
+    muscles.has("quads") ||
+    muscles.has("quad") ||
+    muscles.has("hamstrings") ||
+    muscles.has("hamstring") ||
+    muscles.has("glutes") ||
+    muscles.has("legs")
+  );
+}
+
+function isPosteriorLowerSupport(ex: ExerciseWithQualities): boolean {
+  const pattern = norm(ex.movement_pattern);
+  const q = ex.training_quality_weights ?? {};
+  const muscles = normalizedMuscles(ex);
+  return (
+    pattern === "hinge" ||
+    Boolean(q.posterior_chain_endurance || q.unilateral_strength || q.hip_stability) ||
+    muscles.has("hamstrings") ||
+    muscles.has("hamstring") ||
+    muscles.has("glutes")
+  );
+}
+
+function addTag(tagSet: Set<string>, raw: string | undefined): void {
+  const t = norm(raw);
+  if (t) tagSet.add(t);
+}
+
+function addWithAliases(tagSet: Set<string>, raw: string | undefined): void {
+  const t = norm(raw);
+  if (!t) return;
+  tagSet.add(t);
+  if (t === "squat" || t === "hinge" || t === "lunge" || t === "pull" || t === "push") {
+    tagSet.add(`${t}_pattern`);
+  }
+  if (t === "vertical_pull" || t === "horizontal_pull") {
+    tagSet.add("pulling_strength");
+    tagSet.add("pull_strength");
+  }
+  if (t === "vertical_push" || t === "horizontal_push") {
+    tagSet.add("pushing_strength");
+  }
+}
+
+function getExerciseAssociationTags(ex: ExerciseWithQualities): Set<string> {
+  const tags = new Set<string>();
+  addWithAliases(tags, ex.movement_pattern);
+  for (const p of ex.movement_patterns ?? []) addWithAliases(tags, p);
+  for (const m of ex.muscle_groups ?? []) addWithAliases(tags, m);
+  for (const q of Object.keys(ex.training_quality_weights ?? {})) addWithAliases(tags, q);
+  for (const a of ex.attribute_tags ?? []) addWithAliases(tags, a);
+  addWithAliases(tags, ex.modality);
+
+  if (isUpperPullFocused(ex)) {
+    addTag(tags, "upper_pull");
+    addTag(tags, "pull_strength");
+  }
+  if (isCoreOrScapSupport(ex)) {
+    addTag(tags, "core_stability");
+    addTag(tags, "scapular_control");
+  }
+  if (isLowerBodyPattern(ex)) {
+    addTag(tags, "lower_body");
+  }
+  if (isPosteriorLowerSupport(ex)) {
+    addTag(tags, "posterior_chain");
+  }
+  return tags;
+}
+
+function getSportDemandTags(
+  sports?: string[],
+  sportSubFocus?: Record<string, string[]>
+): Map<string, number> {
+  const demand = new Map<string, number>();
+  const addDemand = (tag: string, weight: number) => {
+    const t = norm(tag);
+    if (!t || weight <= 0) return;
+    demand.set(t, (demand.get(t) ?? 0) + weight);
+  };
+
+  const subFocusByCanonical = new Map<string, Set<string>>();
+  for (const [sportSlug, subFocuses] of Object.entries(sportSubFocus ?? {})) {
+    const canonical = getCanonicalSportSlug(sportSlug);
+    const set = subFocusByCanonical.get(canonical) ?? new Set<string>();
+    for (const sf of subFocuses ?? []) set.add(sf);
+    subFocusByCanonical.set(canonical, set);
+  }
+  for (const sportSlug of sports ?? []) {
+    const canonical = getCanonicalSportSlug(sportSlug);
+    if (!subFocusByCanonical.has(canonical)) subFocusByCanonical.set(canonical, new Set<string>());
+  }
+
+  for (const [sportSlug, subFocuses] of subFocusByCanonical.entries()) {
+    if (subFocuses.size > 0) {
+      for (const subFocus of subFocuses) {
+        const key = `${sportSlug}:${subFocus}`;
+        for (const entry of SUB_FOCUS_TAG_MAP[key] ?? []) {
+          addDemand(entry.tag_slug, entry.weight ?? 1);
+        }
+      }
+      continue;
+    }
+
+    // Fallback when the sport is selected without explicit sub-focuses:
+    // lean on the sport's quality weights as demand tags.
+    for (const [quality, weight] of Object.entries(getSportQualityWeights(sportSlug))) {
+      if (typeof weight === "number" && weight > 0) addDemand(quality, weight);
+    }
+  }
+
+  return demand;
+}
+
+function sportTransferScore(
+  ex: ExerciseWithQualities,
+  sports?: string[],
+  sportSubFocus?: Record<string, string[]>,
+  blockType?: string
+): number {
+  const demandTags = getSportDemandTags(sports, sportSubFocus);
+  if (!demandTags.size) return 0;
+
+  const exerciseTags = getExerciseAssociationTags(ex);
+  let matchedWeight = 0;
+  let totalWeight = 0;
+  for (const [tag, weight] of demandTags.entries()) {
+    totalWeight += weight;
+    if (exerciseTags.has(tag)) matchedWeight += weight;
+  }
+  if (totalWeight <= 0) return 0;
+
+  const matchRatio = matchedWeight / totalWeight;
+  const block = norm(blockType);
+  const inMainWork = block === "main_strength" || block === "main_hypertrophy" || block === "accessory";
+  const scale = inMainWork ? 3.4 : 2.2;
+  const noMatchPenalty = inMainWork ? -1.2 : -0.4;
+  if (matchRatio < 0.08) return noMatchPenalty;
+  return scale * (matchRatio - 0.2);
+}
+
 export interface ScoreExerciseInput {
   exercise: ExerciseWithQualities;
   blockQualities: DesiredQualityProfile;
   blockType: string;
   targetMovementPatterns?: string[];
+  /** Optional selected sports for sport-specific transfer scoring. */
+  sports?: string[];
+  /** Optional selected sport sub-focuses; used when explicit sports are absent. */
+  sportSubFocus?: Record<string, string[]>;
   stimulusProfile: StimulusProfileSlug;
   state: SessionSelectionState;
   config?: SelectionConfig;
@@ -219,6 +401,8 @@ export function scoreExerciseForSelection(input: ScoreExerciseInput): {
     avoidTags = new Set(),
     avoidExerciseIds = new Set(),
     includeBreakdown,
+    sports,
+    sportSubFocus,
   } = input;
 
   const cfg = input.config ?? DEFAULT_SELECTION_CONFIG;
@@ -277,6 +461,7 @@ export function scoreExerciseForSelection(input: ScoreExerciseInput): {
     [...BALANCE_CATEGORY_PATTERNS]
   );
   const balanceVal = w.balance_bonus * balance;
+  const transferVal = sportTransferScore(exercise, sports, sportSubFocus, blockType);
 
   let fatiguePenalty = 0;
   if (fatigueState) {
@@ -308,6 +493,7 @@ export function scoreExerciseForSelection(input: ScoreExerciseInput): {
     (breakdown.novelty_fit ?? 0) +
     (breakdown.equipment_fit ?? 0) +
     balanceVal +
+    transferVal +
     fatiguePenalty +
     (breakdown.ontology_role_fit ?? 0) +
     (breakdown.ontology_fatigue_balance ?? 0) +

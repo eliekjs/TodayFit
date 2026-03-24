@@ -283,13 +283,13 @@ export async function getPreferredExerciseNamesForSportAndGoals(
     subSlugs = ["speed", "leg_power", "work_capacity"];
   }
   if (primarySlug === "rugby" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["max_strength", "work_capacity"];
+    subSlugs = ["speed_power", "work_capacity", "posterior_chain"];
   }
   if (canonicalSlug === "volleyball" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["vertical_jump", "landing_mechanics"];
   }
-  if (primarySlug === "flag_football" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["speed", "change_of_direction"];
+  if (primarySlug === "american_football" && (!subSlugs || subSlugs.length === 0)) {
+    subSlugs = ["speed_power", "change_of_direction", "work_capacity"];
   }
   if (primarySlug === "lacrosse" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["speed", "rotational_power"];
@@ -309,20 +309,11 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (primarySlug === "kite_wind_surf" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["balance", "core_stability"];
   }
-  if (primarySlug === "sup" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["aerobic_base", "core_stability"];
-  }
   if (canonicalSlug === "rock_climbing" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["pull_strength", "core_tension", "finger_strength"];
   }
-  if (primarySlug === "ice_climbing" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["grip_endurance", "pull_strength"];
-  }
-  if (primarySlug === "road_running" && (!subSlugs || subSlugs.length === 0)) {
+  if (canonicalSlug === "road_running" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["running_economy", "leg_resilience"];
-  }
-  if (primarySlug === "marathon_running" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["aerobic_base", "leg_resilience"];
   }
   if (primarySlug === "rowing_erg" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["aerobic_base", "posterior_chain"];
@@ -347,9 +338,6 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   }
   if (primarySlug === "ocr_spartan" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["work_capacity", "grip_endurance", "core_stability"];
-  }
-  if (primarySlug === "ultra_running" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["durability", "leg_resilience", "core_stability"];
   }
   if (primarySlug === "tactical_fitness" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["work_capacity", "strength_endurance", "core_stability"];

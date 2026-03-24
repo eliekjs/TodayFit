@@ -5,6 +5,7 @@
 
 import { filterByHardConstraints } from "./dailyGenerator";
 import type { Exercise, GenerateWorkoutInput } from "./types";
+import { inferCreativeVariationFromSource } from "../../lib/workoutLevel";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
@@ -46,7 +47,16 @@ function runTests() {
     id: "creative_move",
     creative_variation: true,
   });
-  const pool = [advancedOnly, beginnerOk, creative];
+  const inferredCreative = minimalExercise({
+    id: "ff_double_clubbell_side_shoulder_cast_to_side_flag_press",
+    name: "Double Clubbell Side Shoulder Cast to Side Flag Press",
+    creative_variation: inferCreativeVariationFromSource({
+      id: "ff_double_clubbell_side_shoulder_cast_to_side_flag_press",
+      name: "Double Clubbell Side Shoulder Cast to Side Flag Press",
+      tags: ["Upper Body", "shoulder_abduction", "intermediate"],
+    }),
+  });
+  const pool = [advancedOnly, beginnerOk, creative, inferredCreative];
 
   const beginnerFiltered = filterByHardConstraints(pool, {
     ...baseInput,
@@ -55,7 +65,10 @@ function runTests() {
   assert(
     beginnerFiltered.some((e) => e.id === "beginner_ok") &&
       !beginnerFiltered.some((e) => e.id === "adv_only") &&
-      !beginnerFiltered.some((e) => e.id === "creative_move"),
+      !beginnerFiltered.some((e) => e.id === "creative_move") &&
+      !beginnerFiltered.some(
+        (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
+      ),
     "beginner: only beginner-tagged, no advanced-only, no creative"
   );
 
@@ -66,7 +79,10 @@ function runTests() {
   assert(
     intermediateFiltered.some((e) => e.id === "beginner_ok") &&
       !intermediateFiltered.some((e) => e.id === "adv_only") &&
-      !intermediateFiltered.some((e) => e.id === "creative_move"),
+      !intermediateFiltered.some((e) => e.id === "creative_move") &&
+      !intermediateFiltered.some(
+        (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
+      ),
     "intermediate: no advanced-only tier, no creative when off"
   );
 
@@ -77,7 +93,10 @@ function runTests() {
   assert(
     advancedAllTiers.some((e) => e.id === "adv_only") &&
       advancedAllTiers.some((e) => e.id === "beginner_ok") &&
-      !advancedAllTiers.some((e) => e.id === "creative_move"),
+      !advancedAllTiers.some((e) => e.id === "creative_move") &&
+      !advancedAllTiers.some(
+        (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
+      ),
     "advanced tier keeps advanced-only; creative still off"
   );
 
@@ -86,7 +105,7 @@ function runTests() {
     style_prefs: { user_level: "advanced", include_creative_variations: true },
   });
   assert(
-    advancedCreative.length === 3,
+    advancedCreative.length === 4,
     "advanced + creative on keeps full pool"
   );
 

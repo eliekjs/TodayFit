@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { GymProfile, initialGymProfiles } from "../data/gymProfiles";
 import type {
   ManualPreferences,
@@ -60,6 +68,10 @@ type AppStateContextValue = {
   workoutHistory: WorkoutHistoryItem[];
   savedWorkouts: SavedWorkout[];
   resumeProgress: ExecutionProgress | null;
+  /** In-memory execution progress for the current `generatedWorkout` (survives leaving Execute). */
+  manualSessionProgress: ExecutionProgress | null;
+  /** True after user opens Execute for this workout (from Start / week / library / etc.). */
+  manualExecutionStarted: boolean;
   /** Sports Prep (adaptive) weekly plan; kept separate from manual mode state. */
   sportPrepWeekPlan: PlanWeekResult | null;
   /** Manual flow: generated week of 7 workouts (before save). */
@@ -77,6 +89,8 @@ type AppStateContextValue = {
   updateManualPreferences: (update: Partial<ManualPreferences>) => void;
   setGeneratedWorkout: (workout: GeneratedWorkout | null) => void;
   setResumeProgress: (progress: ExecutionProgress | null) => void;
+  setManualSessionProgress: (progress: ExecutionProgress | null) => void;
+  setManualExecutionStarted: (started: boolean) => void;
   addCompletedWorkout: (summary: Omit<WorkoutHistoryItem, "id">) => void;
   updateWorkoutHistoryItem: (id: string, update: Partial<Pick<WorkoutHistoryItem, "name">>) => void;
   addSavedWorkout: (item: Omit<SavedWorkout, "id">) => void;
@@ -106,10 +120,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryItem[]>([]);
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
   const [resumeProgress, setResumeProgress] = useState<ExecutionProgress | null>(null);
+  const [manualSessionProgress, setManualSessionProgress] =
+    useState<ExecutionProgress | null>(null);
+  const [manualExecutionStarted, setManualExecutionStarted] = useState(false);
   const [preferencePresets, setPreferencePresets] = useState<PreferencePreset[]>([]);
   const [sportPrepWeekPlan, setSportPrepWeekPlan] = useState<PlanWeekResult | null>(null);
   const [manualWeekPlan, setManualWeekPlan] = useState<ManualWeekPlan | null>(null);
   const [adaptiveSetup, setAdaptiveSetup] = useState<AdaptiveSetup | null>(null);
+
+  const prevGeneratedWorkoutIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = generatedWorkout?.id ?? null;
+    const prevId = prevGeneratedWorkoutIdRef.current;
+    if (id === prevId) return;
+    prevGeneratedWorkoutIdRef.current = id;
+    setManualSessionProgress(null);
+    if (prevId != null) {
+      setManualExecutionStarted(false);
+    }
+  }, [generatedWorkout?.id]);
 
   // Load from Supabase when user is available and DB configured
   useEffect(() => {
@@ -292,6 +321,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       workoutHistory,
       savedWorkouts,
       resumeProgress,
+      manualSessionProgress,
+      manualExecutionStarted,
       sportPrepWeekPlan,
       manualWeekPlan,
       adaptiveSetup,
@@ -309,6 +340,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       updateManualPreferences,
       setGeneratedWorkout,
       setResumeProgress,
+      setManualSessionProgress,
+      setManualExecutionStarted,
       addCompletedWorkout,
       updateWorkoutHistoryItem,
       addSavedWorkout,
@@ -327,6 +360,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       workoutHistory,
       savedWorkouts,
       resumeProgress,
+      manualSessionProgress,
+      manualExecutionStarted,
       sportPrepWeekPlan,
       manualWeekPlan,
       adaptiveSetup,
@@ -344,6 +379,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       removeSavedWorkout,
       removeSavedWorkoutByWorkoutId,
       setSportPrepWeekPlan,
+      setManualWeekPlan,
     ]
   );
 

@@ -17,6 +17,7 @@ import type { EnergyLevel, BodyEmphasisKey } from "../../../lib/types";
 import { listSportsForPrep } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
+import { goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesConstants";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -159,11 +160,16 @@ export default function AdaptiveScheduleScreen() {
 
     setIsSubmitting(true);
     try {
+      const rankedGoalIds = adaptiveSetup.rankedGoals.filter((g): g is string => g != null);
       const plan = await planWeek({
         userId: userId ?? undefined,
         primaryGoalSlug: primary,
         secondaryGoalSlug: secondary,
         tertiaryGoalSlug: tertiary,
+        goalSubFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
+          rankedGoalIds,
+          manualPreferences.subFocusByGoal
+        ),
         sportSlug: adaptiveSetup.rankedSportSlugs[0] ?? null,
         sportSubFocusSlugs:
           adaptiveSetup.rankedSportSlugs[0] &&

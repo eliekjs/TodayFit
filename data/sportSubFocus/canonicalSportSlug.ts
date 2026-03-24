@@ -6,10 +6,15 @@
 export const LEGACY_TO_CANONICAL_SPORT: Record<string, string> = {
   // Backcountry: splitboarding → backcountry_skiing (name updated to "Backcountry Skiing or Splitboarding")
   splitboarding: "backcountry_skiing",
+  // Running: marathon-specific slug merged into road_running
+  marathon_running: "road_running",
+  ultra_running: "road_running",
   // Rock climbing: bouldering, sport/lead, trad → rock_climbing
   rock_bouldering: "rock_climbing",
   rock_sport_lead: "rock_climbing",
   rock_trad: "rock_climbing",
+  ice_climbing: "rock_climbing",
+  bouldering: "rock_climbing",
   // Volleyball: indoor + beach → volleyball
   volleyball_indoor: "volleyball",
   volleyball_beach: "volleyball",
@@ -28,6 +33,9 @@ export const LEGACY_TO_CANONICAL_SPORT: Record<string, string> = {
   judo: "grappling",
   mma: "grappling",
   wrestling: "grappling",
+  // Field football codes → american_football (shared sub-goals with rugby-style training)
+  flag_football: "american_football",
+  football: "american_football",
 };
 
 /**

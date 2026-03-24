@@ -26,13 +26,16 @@ import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../
 import { isDbConfigured } from "../../../lib/db";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getSwapSuggestionsPage } from "../../../lib/exerciseProgressions";
+import {
+  blockTypeToSwapBlockRole,
+  getSwapSuggestionsPage,
+} from "../../../lib/exerciseProgressions";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../../lib/preferencesConstants";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
-import type { DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
+import type { BlockType, DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 
 const isWeb = Platform.OS === "web";
@@ -78,6 +81,7 @@ export default function ManualWeekScreen() {
     setManualWeekPlan,
     setGeneratedWorkout,
     setResumeProgress,
+    setManualExecutionStarted,
   } = useAppState();
   const { userId } = useAuth();
 
@@ -93,7 +97,11 @@ export default function ManualWeekScreen() {
   const [selectedTrainingDays, setSelectedTrainingDays] = useState<number[]>([0, 2, 4]);
   /** Selected session (date + workout) for detail view, matching adaptive mode. */
   const [selectedSession, setSelectedSession] = useState<{ date: string; workout: ManualWeekPlan["days"][0]["workout"]; displayTitle?: string } | null>(null);
-  const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);
+  const [swapModal, setSwapModal] = useState<{
+    exerciseId: string;
+    exerciseName: string;
+    blockType: BlockType;
+  } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
@@ -101,22 +109,7 @@ export default function ManualWeekScreen() {
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollContentRef = useRef<View>(null);
-  const sessionCardRef = useRef<View>(null);
   const dayFocusSectionRef = useRef<View>(null);
-  const scrollToSessionCard = useCallback(() => {
-    const content = scrollContentRef.current;
-    const card = sessionCardRef.current;
-    if (!content || !card) return;
-    card.measureLayout(
-      content as any,
-      (_x: number, y: number) => {
-        scrollViewRef.current?.scrollTo({
-          y: Math.max(0, y - 24),
-          animated: true,
-        });
-      }
-    );
-  }, []);
   const scrollToDayFocusSection = useCallback(() => {
     const content = scrollContentRef.current;
     const section = dayFocusSectionRef.current;
@@ -353,9 +346,10 @@ export default function ManualWeekScreen() {
     (date: string, workout: ManualWeekPlan["days"][0]["workout"]) => {
       setGeneratedWorkout(workout);
       setResumeProgress(null);
+      setManualExecutionStarted(true);
       router.push("/manual/execute");
     },
-    [setGeneratedWorkout, setResumeProgress, router]
+    [setGeneratedWorkout, setResumeProgress, setManualExecutionStarted, router]
   );
 
   const onSelectSession = useCallback(
@@ -375,7 +369,14 @@ export default function ManualWeekScreen() {
     let cancelled = false;
     setSwapLoading(true);
     const energyLevel = manualPreferences.energyLevel ?? undefined;
-    getSwapSuggestionsPage(swapModal.exerciseId, { energyLevel }, swapSuggestionPage).then(
+    getSwapSuggestionsPage(
+      swapModal.exerciseId,
+      {
+        energyLevel,
+        swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+      },
+      swapSuggestionPage
+    ).then(
       ({ suggestions, numPages }) => {
         if (cancelled) return;
         setSwapSuggested(suggestions);
@@ -386,7 +387,7 @@ export default function ManualWeekScreen() {
     return () => {
       cancelled = true;
     };
-  }, [swapModal?.exerciseId, manualPreferences.energyLevel, swapSuggestionPage]);
+  }, [swapModal?.exerciseId, swapModal?.blockType, manualPreferences.energyLevel, swapSuggestionPage]);
 
   const onSwapChoose = useCallback(
     (optionId: string, optionName: string) => {
@@ -758,73 +759,72 @@ export default function ManualWeekScreen() {
         {weekOverviewContent}
       </Card>
 
-      <View ref={sessionCardRef} collapsable={false}>
-        <Card
-          title={
-            selectedDay?.date === todayIso
-              ? "Today's session"
-              : selectedDay
-                ? `Session for ${formatDayOfWeek(selectedDay.date)}`
-                : "Session"
-          }
-          subtitle={summaryLines.join(" • ")}
-          style={{ marginTop: 16 }}
-        >
-          {selectedDay ? (
-          <>
-            <WorkoutBlockList
-              workout={normalizeGeneratedWorkout(selectedDay.workout)}
-              showSwap
-              onSwap={(exerciseId, exerciseName) =>
-                setSwapModal({ exerciseId, exerciseName })
+      {selectedDay ? (
+        <View style={{ marginTop: 16, gap: 16 }}>
+          <Card
+            title="Summary"
+            subtitle={summaryLines.join(" • ")}
+            style={styles.summaryCard}
+          >
+            {selectedDay.workout.notes != null ? (
+              <Text style={[styles.notes, { color: theme.textMuted }]}>
+                {selectedDay.workout.notes}
+              </Text>
+            ) : null}
+          </Card>
+
+          <WorkoutBlockList
+            workout={normalizeGeneratedWorkout(selectedDay.workout)}
+            showSwap
+            onSwap={(exerciseId, exerciseName, blockType) =>
+              setSwapModal({ exerciseId, exerciseName, blockType })
+            }
+          />
+
+          <View style={styles.footer}>
+            <DayFocusOverrideChips
+              ref={dayFocusSectionRef}
+              dailyPrefsOverride={dailyPrefsOverride}
+              onOverrideChange={(update) =>
+                setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
               }
+              onRegenerate={onRegenerateDay}
+              isRegenerating={isRegenerating}
+              showAdjustFocusLink={focusSectionsForModal.length > 0}
+              onAdjustFocusPress={() => {
+                setShowAdjustFocusModal(true);
+                setTimeout(scrollToDayFocusSection, 100);
+              }}
             />
-            <View style={styles.footer}>
-              <DayFocusOverrideChips
-                ref={dayFocusSectionRef}
-                dailyPrefsOverride={dailyPrefsOverride}
-                onOverrideChange={(update) =>
-                  setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
-                }
-                onRegenerate={onRegenerateDay}
-                isRegenerating={isRegenerating}
-                showAdjustFocusLink={focusSectionsForModal.length > 0}
-                onAdjustFocusPress={() => {
-                  setShowAdjustFocusModal(true);
-                  setTimeout(scrollToDayFocusSection, 100);
-                }}
-              />
+            <PrimaryButton
+              label="Start"
+              onPress={() => onStartDay(selectedDay.date, selectedDay.workout)}
+              style={{ marginTop: 16 }}
+            />
+            {userId && isDbConfigured() ? (
               <PrimaryButton
-                label="Start"
-                onPress={() => onStartDay(selectedDay.date, selectedDay.workout)}
-                style={{ marginTop: 16 }}
-              />
-              {userId && isDbConfigured() ? (
-                <PrimaryButton
-                  label={savingDay ? "Saving…" : "Save this day"}
-                  variant="secondary"
-                  onPress={onSaveDay}
-                  disabled={savingDay}
-                  style={{ marginTop: 8 }}
-                />
-              ) : null}
-              <PrimaryButton
-                label="Back to Preferences"
-                variant="ghost"
-                onPress={() => {
-                  router.push("/manual/preferences");
-                }}
+                label={savingDay ? "Saving…" : "Save this day"}
+                variant="secondary"
+                onPress={onSaveDay}
+                disabled={savingDay}
                 style={{ marginTop: 8 }}
               />
-            </View>
-          </>
-        ) : (
-            <Text style={{ fontSize: 13, color: theme.textMuted }}>
-              Tap a session above to view its details.
-            </Text>
-          )}
-        </Card>
-      </View>
+            ) : null}
+            <PrimaryButton
+              label="Back to Preferences"
+              variant="ghost"
+              onPress={() => {
+                router.push("/manual/preferences");
+              }}
+              style={{ marginTop: 8 }}
+            />
+          </View>
+        </View>
+      ) : (
+        <Text style={[styles.sessionHint, { color: theme.textMuted, marginTop: 16 }]}>
+          Tap a session above to view its details.
+        </Text>
+      )}
 
       <PrimaryButton
         label={saving ? "Saving…" : "Save week"}
@@ -939,6 +939,16 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 16,
+    marginBottom: 24,
+  },
+  summaryCard: {
+    marginBottom: 8,
+  },
+  notes: {
+    fontSize: 13,
+  },
+  sessionHint: {
+    fontSize: 13,
   },
   saveWeekBtn: {
     marginTop: 24,

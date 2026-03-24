@@ -1,6 +1,7 @@
-import type { ExerciseDefinition } from "./types";
+import type { BlockType, ExerciseDefinition } from "./types";
 import { getSubstitutes } from "./generation/exerciseSubstitution";
 import type { ExerciseLike } from "./generation/exerciseSubstitution";
+import { isCooldownEligibleEquipment } from "./workoutRules";
 import { isDbConfigured } from "./db";
 import { getExercise, getProgressionsRegressions, listExercises } from "./db/exerciseRepository";
 
@@ -41,10 +42,77 @@ function definitionToExerciseLike(def: ExerciseDefinition): ExerciseLike {
   };
 }
 
+/** Warmup/cooldown swap lists are restricted (mobility+activation BW vs stretch-only). Main = normal substitution. */
+export type SwapBlockRole = "warmup" | "cooldown" | "main";
+
 export type ProgressionsRegressionsOptions = {
   /** When provided, suggested substitutes are filtered to match this energy (e.g. low → no high-only). */
   energyLevel?: "low" | "medium" | "high";
+  /** Block context for swap UI: warmup = bodyweight mobility/activation only; cooldown = stretching only. */
+  swapBlockRole?: SwapBlockRole;
 };
+
+/** Map workout block type to swap filtering (main work blocks use normal substitution rules). */
+export function blockTypeToSwapBlockRole(blockType: BlockType | string): SwapBlockRole {
+  if (blockType === "warmup") return "warmup";
+  if (blockType === "cooldown") return "cooldown";
+  return "main";
+}
+
+function tagSlugsLower(tags: string[] | undefined): string[] {
+  return (tags ?? []).map((t) => t.toLowerCase());
+}
+
+/** Bodyweight-only equipment (no bands, no machines) for warmup swap suggestions. */
+function isBodyweightOnlyEquipment(equipment: string[] | undefined): boolean {
+  const eq = equipment ?? [];
+  if (eq.length === 0) return false;
+  return eq.every((e) => e.toLowerCase().replace(/\s/g, "_") === "bodyweight");
+}
+
+/**
+ * Warmup swaps: mobility / activation, bodyweight only (no bands, no cardio conditioning).
+ */
+export function exerciseMatchesWarmupSwapRules(def: ExerciseDefinition): boolean {
+  if (!isBodyweightOnlyEquipment(def.equipment)) return false;
+  if (def.modalities?.includes("conditioning")) return false;
+  const tags = tagSlugsLower(def.tags);
+  const hasMobilityMod = def.modalities?.includes("mobility");
+  const hasPrepOrWarmupRole = tags.some((t) =>
+    ["role_prep", "role_warmup", "role_mobility"].includes(t)
+  );
+  return hasMobilityMod || hasPrepOrWarmupRole;
+}
+
+/**
+ * Cooldown swaps: stretching-focused only (stretch tags / stretch role), eligible cooldown equipment.
+ */
+export function exerciseMatchesCooldownStretchSwapRules(def: ExerciseDefinition): boolean {
+  if (!isCooldownEligibleEquipment(def.equipment)) return false;
+  const tags = tagSlugsLower(def.tags);
+  if (tags.some((t) => t === "role_stretch")) return true;
+  if (tags.some((t) => t.startsWith("stretch_"))) return true;
+  const n = def.name.toLowerCase();
+  if (n.includes("stretch")) return true;
+  return false;
+}
+
+export function exerciseMatchesSwapBlockRole(
+  def: ExerciseDefinition,
+  role: SwapBlockRole | undefined
+): boolean {
+  if (role == null || role === "main") return true;
+  if (role === "warmup") return exerciseMatchesWarmupSwapRules(def);
+  if (role === "cooldown") return exerciseMatchesCooldownStretchSwapRules(def);
+  return true;
+}
+
+function buildSlugToDefMap(pool: ExerciseDefinition[], target: ExerciseDefinition | null): Map<string, ExerciseDefinition> {
+  const m = new Map<string, ExerciseDefinition>();
+  for (const d of pool) m.set(d.id, d);
+  if (target) m.set(target.id, target);
+  return m;
+}
 
 const SWAP_PAGE_SIZE = 3;
 /** Pad candidate list so users can cycle through several sets of 3 without repeats until the pool wraps. */
@@ -71,6 +139,21 @@ async function expandSwapCandidatesList(
   seed: ProgressionsRegressions
 ): Promise<ProgressionsRegressionsOption[]> {
   let combined = dedupeById([...seed.regressions, ...seed.progressions]);
+  const role = options?.swapBlockRole;
+  if (isDbConfigured() && role != null && role !== "main") {
+    try {
+      const [targetDef, poolDefs] = await Promise.all([getExercise(exerciseId), listExercises()]);
+      if (targetDef && poolDefs?.length) {
+        const byId = buildSlugToDefMap(poolDefs, targetDef);
+        combined = combined.filter((o) => {
+          const def = byId.get(o.id);
+          return def != null && exerciseMatchesSwapBlockRole(def, role);
+        });
+      }
+    } catch {
+      /* keep combined */
+    }
+  }
   if (!isDbConfigured() || combined.length >= MIN_EXPANDED_CANDIDATES) return combined;
   try {
     const [targetDef, poolDefs] = await Promise.all([
@@ -79,7 +162,11 @@ async function expandSwapCandidatesList(
     ]);
     if (!targetDef || !poolDefs?.length) return combined;
     const target = definitionToExerciseLike(targetDef);
-    const pool = poolDefs.map(definitionToExerciseLike);
+    let poolForSubs = poolDefs;
+    if (role != null && role !== "main") {
+      poolForSubs = poolDefs.filter((d) => exerciseMatchesSwapBlockRole(d, role));
+    }
+    const pool = poolForSubs.map(definitionToExerciseLike);
     const existingIds = new Set<string>([exerciseId, ...combined.map((x) => x.id)]);
     const substitutes = getSubstitutes(target, pool, {
       maxResults: 40,
@@ -124,17 +211,44 @@ async function fillToAtLeastThree(
   exerciseId: string,
   options?: ProgressionsRegressionsOptions
 ): Promise<ProgressionsRegressions> {
-  const combined = [...result.regressions, ...result.progressions];
-  if (combined.length >= MIN_SUGGESTIONS) return result;
+  const role = options?.swapBlockRole;
+  let regressions = result.regressions;
+  let progressions = result.progressions;
+  if (isDbConfigured() && role != null && role !== "main") {
+    try {
+      const [targetDef, poolDefs] = await Promise.all([getExercise(exerciseId), listExercises()]);
+      if (targetDef && poolDefs?.length) {
+        const byId = buildSlugToDefMap(poolDefs, targetDef);
+        regressions = regressions.filter((o) => {
+          const def = byId.get(o.id);
+          return def != null && exerciseMatchesSwapBlockRole(def, role);
+        });
+        progressions = progressions.filter((o) => {
+          const def = byId.get(o.id);
+          return def != null && exerciseMatchesSwapBlockRole(def, role);
+        });
+      }
+    } catch {
+      /* keep */
+    }
+  }
+  const combined = [...regressions, ...progressions];
+  if (combined.length >= MIN_SUGGESTIONS) {
+    return { progressions, regressions };
+  }
   try {
     const [targetDef, poolDefs] = await Promise.all([
       getExercise(exerciseId),
       listExercises(),
     ]);
-    if (!targetDef || !poolDefs?.length) return result;
+    if (!targetDef || !poolDefs?.length) return { progressions, regressions };
     const existingIds = new Set(combined.map((x) => x.id));
     const target = definitionToExerciseLike(targetDef);
-    const pool = poolDefs.map(definitionToExerciseLike);
+    let poolForSubs = poolDefs;
+    if (role != null && role !== "main") {
+      poolForSubs = poolDefs.filter((d) => exerciseMatchesSwapBlockRole(d, role));
+    }
+    const pool = poolForSubs.map(definitionToExerciseLike);
     const substitutes = getSubstitutes(target, pool, {
       maxResults: MIN_SUGGESTIONS,
       excludeIds: existingIds,
@@ -145,11 +259,11 @@ async function fillToAtLeastThree(
       .slice(0, need)
       .map((s) => ({ id: s.exercise.id, name: s.exercise.name }));
     return {
-      progressions: result.progressions,
-      regressions: [...result.regressions, ...extra],
+      progressions,
+      regressions: [...regressions, ...extra],
     };
   } catch {
-    return result;
+    return { progressions, regressions };
   }
 }
 
@@ -177,7 +291,11 @@ export async function getProgressionsRegressionsForExercise(
           ]);
           if (!targetDef || !poolDefs?.length) return { progressions: [], regressions: [] };
           const target = definitionToExerciseLike(targetDef);
-          const pool = poolDefs.map(definitionToExerciseLike);
+          let poolForSubs = poolDefs;
+          if (options?.swapBlockRole && options.swapBlockRole !== "main") {
+            poolForSubs = poolDefs.filter((d) => exerciseMatchesSwapBlockRole(d, options.swapBlockRole));
+          }
+          const pool = poolForSubs.map(definitionToExerciseLike);
           const substitutes = getSubstitutes(target, pool, { maxResults: 5, energyLevel: options?.energyLevel });
           const similar = substitutes.map((s) => ({ id: s.exercise.id, name: s.exercise.name }));
           return fillToAtLeastThree({ progressions: [], regressions: similar }, exerciseId, options);

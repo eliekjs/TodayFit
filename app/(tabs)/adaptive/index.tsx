@@ -15,7 +15,6 @@ import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
-import { SectionHeader } from "../../../components/SectionHeader";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
@@ -23,7 +22,14 @@ import { useAppState } from "../../../context/AppStateContext";
 import type { AdaptiveSetup } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
-import { CONSTRAINT_OPTIONS, DURATIONS, normalizeGoalMatchPct } from "../../../lib/preferencesConstants";
+import {
+  CONSTRAINT_OPTIONS,
+  DURATIONS,
+  normalizeGoalMatchPct,
+  SUB_FOCUS_BY_PRIMARY,
+  ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
+  goalSubFocusPayloadForAdaptiveGoals,
+} from "../../../lib/preferencesConstants";
 import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
@@ -80,6 +86,18 @@ const INJURY_TYPE_OPTIONS = CONSTRAINT_OPTIONS.filter((o) => o !== "No restricti
 
 const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 
+const MAX_SUB_GOALS_PER_GOAL = 3;
+
+type AdaptiveAdvNestedKey =
+  | "sportVsGoals"
+  | "goalMatch"
+  | "goalSubGoals"
+  | "sportFocus"
+  | "recentLoad"
+  | "injury"
+  | "fatigue"
+  | "timeHorizon";
+
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -117,7 +135,7 @@ export default function AdaptiveModeScreen() {
   const [sports, setSports] = useState<Sport[]>([]);
   const [sportsError, setSportsError] = useState<string | null>(null);
   const [sportsSearch, setSportsSearch] = useState("");
-  /** Ranked sports (up to 2). Empty = no specific sport. */
+  /** Ranked sports (up to 2). At least one required in Sport Mode. */
   const [rankedSportSlugs, setRankedSportSlugs] = useState<(string | null)[]>([null, null]);
   /** Sub-focus (qualities) per sport: sportSlug -> quality slugs (max 3 per sport). */
   const [subFocusBySport, setSubFocusBySport] = useState<Record<string, string[]>>({});
@@ -134,6 +152,12 @@ export default function AdaptiveModeScreen() {
   const adaptiveScrollRef = useRef<ScrollView>(null);
   const adaptiveContentRef = useRef<View>(null);
   const adaptiveAdvancedRef = useRef<View>(null);
+  const [adaptiveAdvNestedOpen, setAdaptiveAdvNestedOpen] = useState<
+    Partial<Record<AdaptiveAdvNestedKey, boolean>>
+  >({});
+  const toggleAdaptiveAdvNested = useCallback((key: AdaptiveAdvNestedKey) => {
+    setAdaptiveAdvNestedOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
@@ -226,9 +250,9 @@ export default function AdaptiveModeScreen() {
       setError("Configure Supabase (env vars) to use Sport Mode.");
       return;
     }
-    const goalCount = rankedGoals.filter((g): g is string => g != null).length;
-    if (goalCount < 1) {
-      setError("Choose at least one training goal.");
+    const selectedSportCount = rankedSportSlugs.filter((s): s is string => s != null).length;
+    if (selectedSportCount < 1) {
+      setError("Choose at least one sport.");
       return;
     }
     if (isOneDay && !(oneDayDuration > 0)) {
@@ -269,11 +293,16 @@ export default function AdaptiveModeScreen() {
           const activeProfile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
           const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
           const todayDOW = (new Date().getDay() + 6) % 7;
+          const rankedGoalIds = rankedGoals.filter((g): g is string => g != null);
           const plan = await planWeek({
             userId: userId ?? undefined,
             primaryGoalSlug: primary,
             secondaryGoalSlug: secondary,
             tertiaryGoalSlug: tertiary,
+            goalSubFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
+              rankedGoalIds,
+              manualPreferences.subFocusByGoal
+            ),
             sportSlug: rankedSportSlugs[0] ?? null,
             sportSubFocusSlugs:
               rankedSportSlugs[0] && SPORTS_WITH_SUB_FOCUSES.some((s) => s.slug === getCanonicalSportSlug(rankedSportSlugs[0]!))
@@ -321,60 +350,26 @@ export default function AdaptiveModeScreen() {
     router.push("/adaptive/schedule");
   };
 
-  const canonicalCategoryOrder = [
-    "Endurance",
-    "Strength/Power",
-    "Mountain/Snow/Board",
-    "Court/Field",
-    "Combat/Grappling",
-    "Water/Wind",
-    "Climbing",
-  ];
-
-  const filteredSportsByCategory = useMemo(() => {
-    if (!sports.length) return new Map<string, Sport[]>();
+  const filteredSportsFlat = useMemo(() => {
     const q = sportsSearch.trim().toLowerCase();
-    const byCategory = new Map<string, Sport[]>();
-    for (const s of sports) {
-      if (q && !s.name.toLowerCase().includes(q)) continue;
-      const list = byCategory.get(s.category) ?? [];
-      list.push(s);
-      byCategory.set(s.category, list);
-    }
-    return byCategory;
+    return sports
+      .filter((s) => !q || s.name.toLowerCase().includes(q))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [sports, sportsSearch]);
-
-  const categoriesToShow = useMemo(() => {
-    const keys = Array.from(filteredSportsByCategory.keys());
-    if (!keys.length) return [];
-    const canonicalFirst = canonicalCategoryOrder.filter((c) => keys.includes(c));
-    const rest = keys.filter((k) => !canonicalCategoryOrder.includes(k)).sort();
-    return [...canonicalFirst, ...rest];
-  }, [filteredSportsByCategory]);
 
   const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
 
-  /** Available sports to show in the picker (excludes already selected). Normalize slugs for comparison. */
+  /** Available sports to show in the picker (excludes already selected), A–Z by name. */
   const availableSportsForPicker = useMemo(() => {
     const selected = new Set(selectedSportSlugs.map((s) => s.toLowerCase().trim()));
-    return categoriesToShow.flatMap((cat) =>
-      (filteredSportsByCategory.get(cat) ?? []).filter(
-        (s) => !selected.has((s.slug ?? "").toLowerCase().trim())
-      )
+    return filteredSportsFlat.filter(
+      (s) => !selected.has((s.slug ?? "").toLowerCase().trim())
     );
-  }, [categoriesToShow, filteredSportsByCategory, selectedSportSlugs]);
-  const hasNoSpecificSport = selectedSportSlugs.length === 0;
+  }, [filteredSportsFlat, selectedSportSlugs]);
   const primarySlug = rankedSportSlugs[0] ?? null;
   const secondarySlug = rankedSportSlugs[1] ?? null;
   const primarySport = primarySlug ? sports.find((s) => s.slug === primarySlug) : null;
   const secondarySport = secondarySlug ? sports.find((s) => s.slug === secondarySlug) : null;
-
-  const clearAllSports = () => {
-    setRankedSportSlugs([null, null]);
-    setSubFocusBySport({});
-    setExpandedSportForSubFocus(null);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  };
 
   const addGoal = (goalId: string) => {
     const currentCount = rankedGoals.filter((g): g is string => g != null).length;
@@ -410,7 +405,31 @@ export default function AdaptiveModeScreen() {
     const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
     const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
     const norm = normalizeGoalMatchPct(p1, p2, p3, Math.max(0, currentCount - 1));
-    updateManualPreferences(norm);
+    const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
+    const nextSub = { ...manualPreferences.subFocusByGoal };
+    if (manualLabel) delete nextSub[manualLabel];
+    updateManualPreferences({ ...norm, subFocusByGoal: nextSub });
+  };
+
+  const toggleAdaptiveGoalSubGoal = (manualPrimaryLabel: string, subOpt: string) => {
+    const current = manualPreferences.subFocusByGoal[manualPrimaryLabel] ?? [];
+    const exists = current.includes(subOpt);
+    if (exists) {
+      updateManualPreferences({
+        subFocusByGoal: {
+          ...manualPreferences.subFocusByGoal,
+          [manualPrimaryLabel]: current.filter((v) => v !== subOpt),
+        },
+      });
+    } else {
+      if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
+      updateManualPreferences({
+        subFocusByGoal: {
+          ...manualPreferences.subFocusByGoal,
+          [manualPrimaryLabel]: [...current, subOpt],
+        },
+      });
+    }
   };
 
   const filledAdaptiveGoals = rankedGoals.filter((g): g is string => g != null);
@@ -423,8 +442,8 @@ export default function AdaptiveModeScreen() {
       : filledAdaptiveGoals.length > 1
         ? `${primaryGoalMeta?.label ?? filledAdaptiveGoals[0]} +${filledAdaptiveGoals.length - 1} more`
         : primaryGoalMeta?.label ?? filledAdaptiveGoals[0];
-  const sportSectionSummary = hasNoSpecificSport
-    ? "General fitness"
+  const sportSectionSummary = selectedSportSlugs.length === 0
+    ? "Tap to choose"
     : [primarySport?.name, secondarySport?.name].filter(Boolean).join(" · ") || "Tap to choose";
   const sessionSectionSummary = `${oneDayDuration} min`;
 
@@ -447,7 +466,37 @@ export default function AdaptiveModeScreen() {
   }, []);
 
   const canContinueAdaptive =
-    isDbConfigured() && filledAdaptiveGoals.length >= 1 && (!isOneDay || oneDayDuration > 0);
+    isDbConfigured() && selectedSportSlugs.length >= 1 && (!isOneDay || oneDayDuration > 0);
+
+  const adaptiveAdvSportVsSummary = `${sportVsGoalPct}% sport · ${100 - sportVsGoalPct}% goals`;
+  const agw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+  const agw2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+  const agw3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+  const adaptiveAdvGoalMatchSummary =
+    filledAdaptiveGoals.length === 0
+      ? "—"
+      : filledAdaptiveGoals.length === 1
+        ? `${agw1}%`
+        : filledAdaptiveGoals.length === 2
+          ? `${agw1}/${agw2}%`
+          : `${agw1}/${agw2}/${agw3}%`;
+  const adaptiveAdvGoalSubGoalsSummary = (() => {
+    const labels = filledAdaptiveGoals
+      .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+      .filter(Boolean);
+    let n = 0;
+    for (const lab of labels) {
+      n += (manualPreferences.subFocusByGoal[lab] ?? []).length;
+    }
+    return n === 0 ? "None" : `${n} selected`;
+  })();
+  const adaptiveAdvSportFocusSummary = `${sportFocusPct[0]}/${sportFocusPct[1]}%`;
+  const adaptiveAdvInjurySummary =
+    injuryStatus === "No Concerns"
+      ? "No concerns"
+      : `${injuryStatus}${injuryTypes.length > 0 ? ` · ${injuryTypes.length} area(s)` : ""}`;
+  const horizonLabel =
+    TIME_HORIZON_OPTIONS.find((o) => o.id === horizon)?.label ?? horizon;
 
   return (
     <AppScreenWrapper>
@@ -461,8 +510,8 @@ export default function AdaptiveModeScreen() {
         <Card title="Sport Mode">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             {isOneDay
-              ? "Pick a training goal, session length, and optionally a sport—then get one tailored workout."
-              : "Pick your main goal, optional sport, then your schedule. Open Advanced options for fatigue, injuries, and more."}
+              ? "Pick your sport, optional training goals, and session length—then get one tailored workout."
+              : "Pick your sport and optional training goals, then your schedule. Open Advanced options for fatigue, injuries, and more."}
           </Text>
         </Card>
 
@@ -473,97 +522,15 @@ export default function AdaptiveModeScreen() {
         ) : null}
 
         <CollapsiblePreferenceSection
-          title="Training goal"
-          subtitle="Pick at least one. Add more in Advanced options to balance your plan."
-          summary={goalSectionSummary}
-          expanded={sectionGoalOpen}
-          onToggle={() => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSectionGoalOpen((v) => !v);
-          }}
-          marginTop={16}
-        >
-        {rankedGoals.filter((g): g is string => g != null).length > 0 && (
-          <View style={styles.chipGroup}>
-            {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
-              const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
-              const pct =
-                idx === 0
-                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                  : idx === 1
-                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
-              return (
-                <View key={goalId} style={styles.rankedChipWrap}>
-                  <View
-                    style={[
-                      styles.rankBadge,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
-                      {idx + 1}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.rankedChipInner,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                      numberOfLines={1}
-                    >
-                      {goal?.label ?? goalId}
-                    </Text>
-                    <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                      {pct}%
-                    </Text>
-                  </View>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => removeGoal(goalId)}
-                    style={styles.rankedChipRemove}
-                  >
-                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        )}
-        <View style={styles.chipGroup}>
-          {ADAPTIVE_GOALS.filter(
-            (g) => !rankedGoals.includes(g.id)
-          ).map((goal) => (
-            <Chip
-              key={goal.id}
-              label={goal.label}
-              selected={false}
-              onPress={() => addGoal(goal.id)}
-            />
-          ))}
-        </View>
-        </CollapsiblePreferenceSection>
-
-        <CollapsiblePreferenceSection
-          title="Your sport (optional)"
-          subtitle="Up to two sports, ranked. Leave empty for general fitness."
+          title="Your sport"
+          subtitle="Choose at least one (up to two), ranked."
           summary={sportSectionSummary}
           expanded={sectionSportOpen}
           onToggle={() => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setSectionSportOpen((v) => !v);
           }}
+          marginTop={16}
         >
 
         {selectedSportSlugs.length > 0 && (
@@ -641,20 +608,13 @@ export default function AdaptiveModeScreen() {
             No sports loaded yet. Confirm Supabase is configured and migrations/seeds have run.
           </Text>
         )}
-        {sports.length > 0 && Array.from(filteredSportsByCategory.keys()).length === 0 && (
+        {sports.length > 0 && filteredSportsFlat.length === 0 && (
           <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
             No sports match “{sportsSearch}”.
           </Text>
         )}
 
                 <View style={styles.chipGroup} key={`sport-picker-${selectedSportSlugs.join(",")}`}>
-                  {selectedSportSlugs.length === 0 && (
-                    <Chip
-                      label="No specific sport"
-                      selected={hasNoSpecificSport}
-                      onPress={clearAllSports}
-                    />
-                  )}
                   {availableSportsForPicker.map((sport) => (
                     <Chip
                       key={sport.id}
@@ -791,6 +751,89 @@ export default function AdaptiveModeScreen() {
               })}
         </CollapsiblePreferenceSection>
 
+        <CollapsiblePreferenceSection
+          title="Training goal"
+          subtitle="Pick at least one. Add more in Advanced options to balance your plan."
+          summary={goalSectionSummary}
+          expanded={sectionGoalOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGoalOpen((v) => !v);
+          }}
+          marginTop={16}
+        >
+        {rankedGoals.filter((g): g is string => g != null).length > 0 && (
+          <View style={styles.chipGroup}>
+            {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
+              const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+              const pct =
+                idx === 0
+                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                  : idx === 1
+                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
+              return (
+                <View key={goalId} style={styles.rankedChipWrap}>
+                  <View
+                    style={[
+                      styles.rankBadge,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                      {idx + 1}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.rankedChipInner,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderWidth: 1,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                      numberOfLines={1}
+                    >
+                      {goal?.label ?? goalId}
+                    </Text>
+                    <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
+                      {pct}%
+                    </Text>
+                  </View>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => removeGoal(goalId)}
+                    style={styles.rankedChipRemove}
+                  >
+                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
+        <View style={styles.chipGroup}>
+          {ADAPTIVE_GOALS.filter(
+            (g) => !rankedGoals.includes(g.id)
+          ).map((goal) => (
+            <Chip
+              key={goal.id}
+              label={goal.label}
+              selected={false}
+              onPress={() => addGoal(goal.id)}
+            />
+          ))}
+        </View>
+        </CollapsiblePreferenceSection>
+
         {isOneDay ? (
           <CollapsiblePreferenceSection
             title="Session length"
@@ -846,13 +889,17 @@ export default function AdaptiveModeScreen() {
               },
             ]}
           >
-            {selectedSportSlugs.length > 0 && rankedGoals.filter((g): g is string => g != null).length > 0 && (
-              <>
-                <SectionHeader
-                  title="Sport(s) vs Additional goals"
-                  subtitle="What % of the workout should favor sport(s) vs your additional goals. Sum = 100%."
-                  style={{ marginTop: 0 }}
-                />
+            {selectedSportSlugs.length > 0 &&
+            rankedGoals.filter((g): g is string => g != null).length > 0 ? (
+              <CollapsiblePreferenceSection
+                nested
+                title="Sport(s) vs goals"
+                subtitle="What % of the workout should favor sport(s) vs your additional goals. Sum = 100%."
+                summary={adaptiveAdvSportVsSummary}
+                expanded={adaptiveAdvNestedOpen.sportVsGoals === true}
+                onToggle={() => toggleAdaptiveAdvNested("sportVsGoals")}
+                marginTop={0}
+              >
                 <View style={[styles.chipGroup, { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }]}>
                   <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
                     <Text style={{ fontSize: 13, color: theme.textMuted }}>Sport(s)</Text>
@@ -902,13 +949,16 @@ export default function AdaptiveModeScreen() {
                     <Text style={{ fontSize: 13, color: theme.textMuted }}>%</Text>
                   </View>
                 </View>
-              </>
-            )}
-            <SectionHeader
+              </CollapsiblePreferenceSection>
+            ) : null}
+            <CollapsiblePreferenceSection
+              nested
               title="Goal match %"
               subtitle="What % of the workout should match each ranked goal. Sum = 100%."
-              style={{ marginTop: 0 }}
-            />
+              summary={adaptiveAdvGoalMatchSummary}
+              expanded={adaptiveAdvNestedOpen.goalMatch === true}
+              onToggle={() => toggleAdaptiveAdvNested("goalMatch")}
+            >
             {rankedGoals.filter((g): g is string => g != null).length === 2 && (
               <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
                 Suggested: 60% / 40%
@@ -999,18 +1049,134 @@ export default function AdaptiveModeScreen() {
                   );
                 })}
             </View>
+            </CollapsiblePreferenceSection>
 
-            {selectedSportSlugs.length === 2 && (
-              <>
-                <SectionHeader
-                  title="Sport focus %"
-                  subtitle="What % of sport-focused training should match each sport. Sum = 100%. Sub-focuses use auto 50 / 30 / 20 by rank."
-                  style={{ marginTop: 20 }}
-                />
+            {filledAdaptiveGoals.length > 0 ? (
+              <CollapsiblePreferenceSection
+                nested
+                title="Goal sub-focus"
+                subtitle="Up to 3 per goal, ranked. Same options as Build workout."
+                summary={adaptiveAdvGoalSubGoalsSummary}
+                expanded={adaptiveAdvNestedOpen.goalSubGoals === true}
+                onToggle={() => toggleAdaptiveAdvNested("goalSubGoals")}
+              >
+                {filledAdaptiveGoals.map((goalId, goalIdx) => {
+                  const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
+                  const goalMeta = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+                  const subOptions = manualLabel ? SUB_FOCUS_BY_PRIMARY[manualLabel] ?? [] : [];
+                  const selectedSubs =
+                    manualLabel != null
+                      ? manualPreferences.subFocusByGoal[manualLabel] ?? []
+                      : [];
+                  const canAddSub = selectedSubs.length < MAX_SUB_GOALS_PER_GOAL;
+                  return (
+                    <View
+                      key={goalId}
+                      style={[styles.goalRow, { borderColor: theme.border, marginTop: goalIdx === 0 ? 0 : 12 }]}
+                    >
+                      <View style={styles.goalRowHeader}>
+                        <View
+                          style={[
+                            styles.rankBadgeSmall,
+                            {
+                              backgroundColor: theme.chipSelectedBackground,
+                              borderWidth: 1,
+                              borderColor: theme.primary,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
+                            {goalIdx + 1}
+                          </Text>
+                        </View>
+                        <Text style={[styles.goalRowLabel, { color: theme.text }]} numberOfLines={2}>
+                          {goalMeta?.label ?? goalId}
+                        </Text>
+                      </View>
+                      {manualLabel && subOptions.length > 0 ? (
+                        <View style={[styles.subGoalsBlock, { borderTopColor: theme.border }]}>
+                          {selectedSubs.length > 0 && (
+                            <View style={styles.chipGroup}>
+                              {selectedSubs.map((sub, subIdx) => (
+                                <Pressable
+                                  key={sub}
+                                  style={styles.rankedChipWrap}
+                                  onPress={() => toggleAdaptiveGoalSubGoal(manualLabel, sub)}
+                                >
+                                  <View
+                                    style={[
+                                      styles.rankBadgeSmall,
+                                      {
+                                        backgroundColor: theme.chipSelectedBackground,
+                                        borderWidth: 1,
+                                        borderColor: theme.primary,
+                                      },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                    >
+                                      {subIdx + 1}
+                                    </Text>
+                                  </View>
+                                  <View
+                                    style={[
+                                      styles.rankedChipInner,
+                                      {
+                                        backgroundColor: theme.chipSelectedBackground,
+                                        borderWidth: 1,
+                                        borderColor: theme.primary,
+                                      },
+                                    ]}
+                                  >
+                                    <Text
+                                      style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                                      numberOfLines={1}
+                                    >
+                                      {sub}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              ))}
+                            </View>
+                          )}
+                          <View style={styles.chipGroup}>
+                            {subOptions
+                              .filter((opt) => !selectedSubs.includes(opt))
+                              .map((opt) => (
+                                <Chip
+                                  key={opt}
+                                  label={opt}
+                                  selected={false}
+                                  disabled={!canAddSub}
+                                  onPress={() => toggleAdaptiveGoalSubGoal(manualLabel, opt)}
+                                />
+                              ))}
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
+                          No sub-focus options for this goal.
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </CollapsiblePreferenceSection>
+            ) : null}
+
+            {selectedSportSlugs.length === 2 ? (
+              <CollapsiblePreferenceSection
+                nested
+                title="Sport focus %"
+                subtitle="What % of sport-focused training should match each sport. Sum = 100%. Sub-focuses use auto 50 / 30 / 20 by rank."
+                summary={adaptiveAdvSportFocusSummary}
+                expanded={adaptiveAdvNestedOpen.sportFocus === true}
+                onToggle={() => toggleAdaptiveAdvNested("sportFocus")}
+              >
                 <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
                   {[0, 1].map((idx) => {
                     const value = sportFocusPct[idx];
-                    const otherValue = sportFocusPct[1 - idx];
                     const setPct = (raw: number) => {
                       const v = Math.max(0, Math.min(100, Math.round(raw)));
                       const other = 100 - v;
@@ -1055,100 +1221,122 @@ export default function AdaptiveModeScreen() {
                     );
                   })}
                 </View>
-              </>
-            )}
+              </CollapsiblePreferenceSection>
+            ) : null}
 
-            <SectionHeader
+            <CollapsiblePreferenceSection
+              nested
               title="Recent load"
               subtitle="Past 3–5 days."
-              style={{ marginTop: 20 }}
-            />
-            <View style={styles.chipGroup}>
-              {RECENT_LOAD_OPTIONS.map((load) => (
-                <Chip
-                  key={load}
-                  label={load}
-                  selected={recentLoad === load}
-                  onPress={() => setRecentLoad(load)}
-                />
-              ))}
-            </View>
+              summary={recentLoad}
+              expanded={adaptiveAdvNestedOpen.recentLoad === true}
+              onToggle={() => toggleAdaptiveAdvNested("recentLoad")}
+            >
+              <View style={styles.chipGroup}>
+                {RECENT_LOAD_OPTIONS.map((load) => (
+                  <Chip
+                    key={load}
+                    label={load}
+                    selected={recentLoad === load}
+                    onPress={() => setRecentLoad(load)}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
 
-            <SectionHeader
-              title="Injury status"
-              subtitle="Rebuilding, managing, or no concerns."
-              style={{ marginTop: 20 }}
-            />
-            <View style={styles.chipGroup}>
-              {INJURY_STATUS_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt}
-                  label={opt}
-                  selected={injuryStatus === opt}
-                  onPress={() => {
-                    setInjuryStatus(opt);
-                    if (opt === "No Concerns") setInjuryTypes([]);
-                  }}
-                />
-              ))}
-            </View>
-            {(injuryStatus === "Managing" || injuryStatus === "Rebuilding") && (
-              <>
-                <SectionHeader
-                  title="Injury areas"
-                  subtitle="Select any areas to protect. We'll avoid exercises that stress them."
-                  style={{ marginTop: 16 }}
-                />
-                <View style={styles.chipGroup}>
-                  {INJURY_TYPE_OPTIONS.map((label) => (
-                    <Chip
-                      key={label}
-                      label={label}
-                      selected={injuryTypes.includes(label)}
-                      onPress={() => {
-                        setInjuryTypes((prev) =>
-                          prev.includes(label)
-                            ? prev.filter((x) => x !== label)
-                            : [...prev, label]
-                        );
-                      }}
-                    />
-                  ))}
-                </View>
-              </>
-            )}
+            <CollapsiblePreferenceSection
+              nested
+              title="Injuries & protection"
+              subtitle="Status and areas to protect in generated workouts."
+              summary={adaptiveAdvInjurySummary}
+              expanded={adaptiveAdvNestedOpen.injury === true}
+              onToggle={() => toggleAdaptiveAdvNested("injury")}
+            >
+              <View style={styles.chipGroup}>
+                {INJURY_STATUS_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt}
+                    label={opt}
+                    selected={injuryStatus === opt}
+                    onPress={() => {
+                      setInjuryStatus(opt);
+                      if (opt === "No Concerns") setInjuryTypes([]);
+                    }}
+                  />
+                ))}
+              </View>
+              {(injuryStatus === "Managing" || injuryStatus === "Rebuilding") && (
+                <>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: "600",
+                      color: theme.textMuted,
+                      marginTop: 14,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Injury areas
+                  </Text>
+                  <View style={styles.chipGroup}>
+                    {INJURY_TYPE_OPTIONS.map((label) => (
+                      <Chip
+                        key={label}
+                        label={label}
+                        selected={injuryTypes.includes(label)}
+                        onPress={() => {
+                          setInjuryTypes((prev) =>
+                            prev.includes(label)
+                              ? prev.filter((x) => x !== label)
+                              : [...prev, label]
+                          );
+                        }}
+                      />
+                    ))}
+                  </View>
+                </>
+              )}
+            </CollapsiblePreferenceSection>
 
-            <SectionHeader
+            <CollapsiblePreferenceSection
+              nested
               title="Fatigue"
               subtitle="How you generally feel heading into this week."
-              style={{ marginTop: 20 }}
-            />
-            <View style={styles.chipGroup}>
-              {FATIGUE_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt}
-                  label={opt}
-                  selected={fatigue === opt}
-                  onPress={() => setFatigue(opt)}
-                />
-              ))}
-            </View>
+              summary={fatigue}
+              expanded={adaptiveAdvNestedOpen.fatigue === true}
+              onToggle={() => toggleAdaptiveAdvNested("fatigue")}
+            >
+              <View style={styles.chipGroup}>
+                {FATIGUE_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt}
+                    label={opt}
+                    selected={fatigue === opt}
+                    onPress={() => setFatigue(opt)}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
 
-            <SectionHeader
+            <CollapsiblePreferenceSection
+              nested
               title="Time horizon"
               subtitle="Farther from your event = we can push intensity more. Closer = lighter so you're fresh."
-              style={{ marginTop: 20 }}
-            />
-            <View style={styles.chipGroup}>
-              {TIME_HORIZON_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt.id}
-                  label={opt.label}
-                  selected={horizon === opt.id}
-                  onPress={() => setHorizon(opt.id)}
-                />
-              ))}
-            </View>
+              summary={horizonLabel}
+              expanded={adaptiveAdvNestedOpen.timeHorizon === true}
+              onToggle={() => toggleAdaptiveAdvNested("timeHorizon")}
+            >
+              <View style={styles.chipGroup}>
+                {TIME_HORIZON_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt.id}
+                    label={opt.label}
+                    selected={horizon === opt.id}
+                    onPress={() => setHorizon(opt.id)}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
           </View>
         )}
 
@@ -1166,7 +1354,7 @@ export default function AdaptiveModeScreen() {
           />
           {!canContinueAdaptive && isDbConfigured() ? (
             <Text style={[styles.footerHint, { color: theme.textMuted }]}>
-              Choose at least one training goal
+              Choose at least one sport
               {isOneDay ? " and a session length" : ""} to continue.
             </Text>
           ) : null}

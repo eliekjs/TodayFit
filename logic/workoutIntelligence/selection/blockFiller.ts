@@ -66,6 +66,8 @@ export function fillBlock(inp: FillBlockInput): BlockSelectionResult {
       blockQualities: inp.blockQualities,
       blockType: inp.blockSpec.block_type,
       targetMovementPatterns: blockTmpl.target_movement_patterns,
+      sports: inp.input.sports,
+      sportSubFocus: inp.input.sport_sub_focus,
       stimulusProfile: inp.stimulusProfile,
       state: inp.state,
       recentExerciseIds: recentIds,

@@ -141,6 +141,34 @@ export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = (() => {
 })();
 
 /**
+ * Sport Mode training goal ids (same as `primaryGoalSlug` in planWeek) → Manual primary focus
+ * label. Used to read/write `subFocusByGoal` for goal sub-focus chips.
+ */
+export const ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY: Record<string, string> = {
+  strength: "Build Strength",
+  muscle: "Build Muscle (Hypertrophy)",
+  endurance: "Improve Endurance",
+  mobility: "Mobility & Joint Health",
+  physique: "Body Recomposition",
+  resilience: "Recovery",
+};
+
+/** Build goal sub-focus map for `planWeek` / workout builder from Sport Mode goals + saved preferences. */
+export function goalSubFocusPayloadForAdaptiveGoals(
+  rankedGoalIds: string[],
+  subFocusByGoal: Record<string, string[]>
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const id of rankedGoalIds) {
+    const label = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id];
+    if (label && (subFocusByGoal[label]?.length ?? 0) > 0) {
+      out[label] = [...(subFocusByGoal[label] ?? [])];
+    }
+  }
+  return out;
+}
+
+/**
  * Normalize goal match percentages so the first `goalCount` goals sum to 100.
  * Returns { goalMatchPrimaryPct, goalMatchSecondaryPct, goalMatchTertiaryPct }.
  */

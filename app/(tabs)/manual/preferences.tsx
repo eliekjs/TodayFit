@@ -20,7 +20,6 @@ import {
   defaultManualPreferences,
 } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
-import { SectionHeader } from "../../../components/SectionHeader";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Chip } from "../../../components/Chip";
@@ -86,7 +85,6 @@ export default function ManualPreferencesScreen() {
   const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
-  const [expandedSubGoalsForGoal, setExpandedSubGoalsForGoal] = useState<string | null>(null);
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const router = useRouter();
@@ -168,7 +166,6 @@ export default function ManualPreferencesScreen() {
         subFocusByGoal: nextSub,
         ...norm,
       });
-      if (expandedSubGoalsForGoal === option) setExpandedSubGoalsForGoal(null);
     } else {
       if (current.length >= MAX_GOALS) return;
       const nextFocus = [...current, option];
@@ -379,6 +376,76 @@ export default function ManualPreferencesScreen() {
     ? MODIFIERS_BY_TARGET[manualPreferences.targetBody]
     : [];
 
+  type ManualAdvNestedKey =
+    | "energy"
+    | "difficulty"
+    | "goalWeights"
+    | "subGoals"
+    | "extraGoals"
+    | "avoid"
+    | "style"
+    | "upcoming"
+    | "zone2";
+  const [manualAdvNestedOpen, setManualAdvNestedOpen] = useState<
+    Partial<Record<ManualAdvNestedKey, boolean>>
+  >({});
+  const toggleManualAdvNested = useCallback((key: ManualAdvNestedKey) => {
+    setManualAdvNestedOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const manualAdvEnergySummary =
+    manualPreferences.energyLevel != null
+      ? manualPreferences.energyLevel.charAt(0).toUpperCase() +
+        manualPreferences.energyLevel.slice(1)
+      : "Default (medium)";
+  const tierLabel = manualPreferences.workoutTier ?? "intermediate";
+  const manualAdvDifficultySummary = `${tierLabel.charAt(0).toUpperCase() + tierLabel.slice(1)}${
+    manualPreferences.includeCreativeVariations ? " · Creative on" : ""
+  }`;
+  const gw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+  const gw2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+  const gw3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+  const manualAdvGoalWeightsSummary =
+    rankedGoals.length === 0
+      ? "—"
+      : rankedGoals.length === 1
+        ? `${gw1}%`
+        : rankedGoals.length === 2
+          ? `${gw1}/${gw2}%`
+          : `${gw1}/${gw2}/${gw3}%`;
+  const subGoalsTotalCount = Object.values(manualPreferences.subFocusByGoal).reduce(
+    (n, arr) => n + arr.length,
+    0
+  );
+  const manualAdvSubGoalsSummary =
+    subGoalsTotalCount === 0 ? "None" : `${subGoalsTotalCount} selected`;
+  const manualAdvExtraGoalsSummary =
+    rankedGoals.length >= MAX_GOALS ? "Full" : `${MAX_GOALS - rankedGoals.length} slot(s)`;
+  const manualAdvAvoidSummary = (() => {
+    const inj = manualPreferences.injuries;
+    if (inj.includes("No restrictions") || inj.length === 0) return "No restrictions";
+    if (inj.length <= 2) return inj.join(", ");
+    return `${inj[0]}, +${inj.length - 1}`;
+  })();
+  const manualAdvStyleSummary =
+    manualPreferences.workoutStyle.length === 0
+      ? "None"
+      : manualPreferences.workoutStyle.length === 1
+        ? manualPreferences.workoutStyle[0]
+        : `${manualPreferences.workoutStyle[0]} +${manualPreferences.workoutStyle.length - 1}`;
+  const manualAdvUpcomingSummary =
+    manualPreferences.upcoming.length === 0
+      ? "None"
+      : `${manualPreferences.upcoming.length} picked`;
+  const showZone2Advanced = manualPreferences.primaryFocus.some(
+    (g) =>
+      g === "Body Recomposition" ||
+      g === "Improve Endurance" ||
+      g === "Sport Conditioning"
+  );
+  const z2Count = manualPreferences.preferredZone2Cardio?.length ?? 0;
+  const manualAdvZone2Summary = z2Count === 0 ? "Any" : `${z2Count} picked`;
+
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
@@ -566,168 +633,19 @@ export default function ManualPreferencesScreen() {
               },
             ]}
           >
-            {/* Energy (advanced) */}
-            <SectionHeader
-              title="How hard do you want to go today?"
-              subtitle="Low, medium, or high affects sets and conditioning length."
-              style={{ marginTop: 0 }}
-            />
-            <View style={styles.chipGroup}>
-              {ENERGY_LEVELS.map((level) => (
-                <Chip
-                  key={level}
-                  label={level}
-                  selected={
-                    manualPreferences.energyLevel === level.toLowerCase()
-                  }
-                  onPress={() =>
-                    updateManualPreferences({
-                      energyLevel: level.toLowerCase() as "low" | "medium" | "high",
-                    })
-                  }
-                />
-              ))}
-            </View>
-
-            <SectionHeader
-              title="Exercise difficulty"
-              subtitle="We’ll match movements to your comfort level. Advanced includes all movements."
-              style={{ marginTop: 20 }}
-            />
-            <View style={styles.chipGroup}>
-              {WORKOUT_TIER_OPTIONS.map(({ tier, label }) => (
-                <Chip
-                  key={tier}
-                  label={label}
-                  selected={(manualPreferences.workoutTier ?? "intermediate") === tier}
-                  onPress={() => updateManualPreferences({ workoutTier: tier })}
-                />
-              ))}
-            </View>
-
-            <View
-              style={{
-                marginTop: 16,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.modifierLabel, { color: theme.text }]}>
-                  Creative / complex variations
-                </Text>
-                <Text style={{ color: theme.textMuted, fontSize: 13, marginTop: 4 }}>
-                  Unusual or advanced exercise variations (off by default).
-                </Text>
-              </View>
-              <Switch
-                value={manualPreferences.includeCreativeVariations === true}
-                onValueChange={(v) => updateManualPreferences({ includeCreativeVariations: v })}
-              />
-            </View>
-
-            {/* Goal match % — linked to the ranked goals shown above; edit here in Advanced */}
             {hasPrimaryFocus && (
-              <>
-                <SectionHeader
-                  title="Goal match %"
-                  subtitle="What % of the workout should match each ranked goal. Sum = 100%."
-                  style={{ marginTop: 20 }}
-                />
-                <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
-                  {rankedGoals.slice(0, 3).map((goal, idx) => {
-                    const rank = (idx + 1) as 1 | 2 | 3;
-                    const value =
-                      rank === 1
-                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                        : rank === 2
-                          ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                          : (manualPreferences.goalMatchTertiaryPct ?? 20);
-                    const isEditing = editingGoalMatchRank === rank;
-                    const displayValue = isEditing ? editingGoalMatchValue : String(value);
-                    const commitWeight = (raw: number) => {
-                      const v = Math.max(0, Math.min(100, Math.round(raw)));
-                      let p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
-                      let p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
-                      let p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
-                      if (rank === 1) p1 = v;
-                      else if (rank === 2) p2 = v;
-                      else p3 = v;
-                      const norm = normalizeGoalMatchPct(
-                        p1,
-                        p2,
-                        p3,
-                        rankedGoals.length,
-                      );
-                      updateManualPreferences(norm);
-                    };
-                    return (
-                      <View
-                        key={goal}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <Text
-                          style={[styles.modifierLabel, { color: theme.text }]}
-                          numberOfLines={1}
-                        >
-                          {goal}
-                        </Text>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                          <TextInput
-                            style={[
-                              styles.goalMatchInput,
-                              {
-                                color: theme.text,
-                                borderColor: theme.border,
-                              },
-                            ]}
-                            keyboardType="number-pad"
-                            value={displayValue}
-                            onFocus={() => {
-                              setEditingGoalMatchRank(rank);
-                              setEditingGoalMatchValue(String(value));
-                            }}
-                            onBlur={() => {
-                              const n = parseInt(editingGoalMatchValue.replace(/\D/g, ""), 10);
-                              if (!Number.isNaN(n) && n >= 0 && n <= 100) {
-                                commitWeight(n);
-                              }
-                              setEditingGoalMatchRank(null);
-                              setEditingGoalMatchValue("");
-                            }}
-                            onChangeText={(t) => {
-                              if (!isEditing) return;
-                              const digits = t.replace(/\D/g, "");
-                              setEditingGoalMatchValue(digits);
-                            }}
-                          />
-                          <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>%</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-
-            {/* Sub-goals per ranked goal */}
-            {hasPrimaryFocus && (
-              <>
-                <SectionHeader
-                  title="Sub-goals"
-                  subtitle="Up to 3 per goal, ranked."
-                  style={{ marginTop: 0 }}
-                />
+              <CollapsiblePreferenceSection
+                nested
+                title="Sub-goals"
+                subtitle="Up to 3 per goal, ranked."
+                summary={manualAdvSubGoalsSummary}
+                expanded={manualAdvNestedOpen.subGoals === true}
+                onToggle={() => toggleManualAdvNested("subGoals")}
+                marginTop={0}
+              >
                 {rankedGoals.map((goal, goalIdx) => {
                   const subOptions = SUB_FOCUS_BY_PRIMARY[goal] ?? [];
                   const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
-                  const isExpanded = expandedSubGoalsForGoal === goal;
                   const canAddSub = selectedSubs.length < MAX_SUB_GOALS_PER_GOAL;
                   return (
                     <View
@@ -760,25 +678,8 @@ export default function ManualPreferencesScreen() {
                         >
                           {goal}
                         </Text>
-                        <Pressable
-                          onPress={() =>
-                            setExpandedSubGoalsForGoal(
-                              isExpanded ? null : goal
-                            )
-                          }
-                          style={styles.subGoalsControl}
-                        >
-                          <Text
-                            style={[
-                              styles.subGoalsControlText,
-                              { color: theme.primary },
-                            ]}
-                          >
-                            {isExpanded ? "− Sub-goals" : "+ Sub-goals"}
-                          </Text>
-                        </Pressable>
                       </View>
-                      {isExpanded && subOptions.length > 0 && (
+                      {subOptions.length > 0 ? (
                         <View
                           style={[
                             styles.subGoalsBlock,
@@ -856,11 +757,177 @@ export default function ManualPreferencesScreen() {
                               ))}
                           </View>
                         </View>
+                      ) : (
+                        <Text
+                          style={[
+                            styles.modifierLabel,
+                            { color: theme.textMuted, marginTop: 4 },
+                          ]}
+                        >
+                          No sub-focus options for this goal.
+                        </Text>
                       )}
                     </View>
                   );
                 })}
-              </>
+              </CollapsiblePreferenceSection>
+            )}
+
+            <CollapsiblePreferenceSection
+              nested
+              title="How hard to train"
+              subtitle="Low, medium, or high affects sets and conditioning length."
+              summary={manualAdvEnergySummary}
+              expanded={manualAdvNestedOpen.energy === true}
+              onToggle={() => toggleManualAdvNested("energy")}
+            >
+              <View style={styles.chipGroup}>
+                {ENERGY_LEVELS.map((level) => (
+                  <Chip
+                    key={level}
+                    label={level}
+                    selected={
+                      manualPreferences.energyLevel === level.toLowerCase()
+                    }
+                    onPress={() =>
+                      updateManualPreferences({
+                        energyLevel: level.toLowerCase() as "low" | "medium" | "high",
+                      })
+                    }
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
+
+            <CollapsiblePreferenceSection
+              nested
+              title="Exercise difficulty & variations"
+              subtitle="Difficulty filters movements; creative allows unusual variations."
+              summary={manualAdvDifficultySummary}
+              expanded={manualAdvNestedOpen.difficulty === true}
+              onToggle={() => toggleManualAdvNested("difficulty")}
+            >
+              <View style={styles.chipGroup}>
+                {WORKOUT_TIER_OPTIONS.map(({ tier, label }) => (
+                  <Chip
+                    key={tier}
+                    label={label}
+                    selected={(manualPreferences.workoutTier ?? "intermediate") === tier}
+                    onPress={() => updateManualPreferences({ workoutTier: tier })}
+                  />
+                ))}
+              </View>
+              <View
+                style={{
+                  marginTop: 16,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.modifierLabel, { color: theme.text }]}>
+                    Creative / complex variations
+                  </Text>
+                  <Text style={{ color: theme.textMuted, fontSize: 13, marginTop: 4 }}>
+                    Unusual or advanced exercise variations (off by default).
+                  </Text>
+                </View>
+                <Switch
+                  value={manualPreferences.includeCreativeVariations === true}
+                  onValueChange={(v) => updateManualPreferences({ includeCreativeVariations: v })}
+                />
+              </View>
+            </CollapsiblePreferenceSection>
+
+            {hasPrimaryFocus && (
+              <CollapsiblePreferenceSection
+                nested
+                title="Goal match %"
+                subtitle="What % of the workout should match each ranked goal. Sum = 100%."
+                summary={manualAdvGoalWeightsSummary}
+                expanded={manualAdvNestedOpen.goalWeights === true}
+                onToggle={() => toggleManualAdvNested("goalWeights")}
+              >
+                <View style={[styles.chipGroup, { flexDirection: "column", gap: 12 }]}>
+                  {rankedGoals.slice(0, 3).map((goal, idx) => {
+                    const rank = (idx + 1) as 1 | 2 | 3;
+                    const value =
+                      rank === 1
+                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                        : rank === 2
+                          ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                          : (manualPreferences.goalMatchTertiaryPct ?? 20);
+                    const isEditing = editingGoalMatchRank === rank;
+                    const displayValue = isEditing ? editingGoalMatchValue : String(value);
+                    const commitWeight = (raw: number) => {
+                      const v = Math.max(0, Math.min(100, Math.round(raw)));
+                      let p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+                      let p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+                      let p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+                      if (rank === 1) p1 = v;
+                      else if (rank === 2) p2 = v;
+                      else p3 = v;
+                      const norm = normalizeGoalMatchPct(
+                        p1,
+                        p2,
+                        p3,
+                        rankedGoals.length,
+                      );
+                      updateManualPreferences(norm);
+                    };
+                    return (
+                      <View
+                        key={goal}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text
+                          style={[styles.modifierLabel, { color: theme.text }]}
+                          numberOfLines={1}
+                        >
+                          {goal}
+                        </Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                          <TextInput
+                            style={[
+                              styles.goalMatchInput,
+                              {
+                                color: theme.text,
+                                borderColor: theme.border,
+                              },
+                            ]}
+                            keyboardType="number-pad"
+                            value={displayValue}
+                            onFocus={() => {
+                              setEditingGoalMatchRank(rank);
+                              setEditingGoalMatchValue(String(value));
+                            }}
+                            onBlur={() => {
+                              const n = parseInt(editingGoalMatchValue.replace(/\D/g, ""), 10);
+                              if (!Number.isNaN(n) && n >= 0 && n <= 100) {
+                                commitWeight(n);
+                              }
+                              setEditingGoalMatchRank(null);
+                              setEditingGoalMatchValue("");
+                            }}
+                            onChangeText={(t) => {
+                              if (!isEditing) return;
+                              const digits = t.replace(/\D/g, "");
+                              setEditingGoalMatchValue(digits);
+                            }}
+                          />
+                          <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>%</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </CollapsiblePreferenceSection>
             )}
 
             {/* Sport mode hint when user has athletic/sport goals */}
@@ -885,51 +952,59 @@ export default function ManualPreferencesScreen() {
               </Pressable>
             ) : null}
 
-            {/* Injuries / soreness */}
-            <SectionHeader
+            <CollapsiblePreferenceSection
+              nested
               title="Avoid or protect"
               subtitle="We’ll skip exercises that bother these areas. “No restrictions” clears others."
-              style={{ marginTop: 20 }}
-            />
-            <View style={styles.chipGroup}>
-              {(manualPreferences.targetBody === "Upper"
-                ? CONSTRAINT_OPTIONS_UPPER
-                : manualPreferences.targetBody === "Lower"
-                  ? CONSTRAINT_OPTIONS_LOWER
-                  : [...CONSTRAINT_OPTIONS]
-              ).map((opt) => (
-                <Chip
-                  key={opt}
-                  label={opt}
-                  selected={manualPreferences.injuries.includes(opt)}
-                  onPress={() => toggleConstraint(opt)}
-                />
-              ))}
-            </View>
+              summary={manualAdvAvoidSummary}
+              expanded={manualAdvNestedOpen.avoid === true}
+              onToggle={() => toggleManualAdvNested("avoid")}
+            >
+              <View style={styles.chipGroup}>
+                {(manualPreferences.targetBody === "Upper"
+                  ? CONSTRAINT_OPTIONS_UPPER
+                  : manualPreferences.targetBody === "Lower"
+                    ? CONSTRAINT_OPTIONS_LOWER
+                    : [...CONSTRAINT_OPTIONS]
+                ).map((opt) => (
+                  <Chip
+                    key={opt}
+                    label={opt}
+                    selected={manualPreferences.injuries.includes(opt)}
+                    onPress={() => toggleConstraint(opt)}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
 
-            {/* Style */}
-            <SectionHeader
+            <CollapsiblePreferenceSection
+              nested
               title="Style"
-              subtitle="Optional."
-              style={{ marginTop: 20 }}
-            />
-            <View style={styles.chipGroup}>
-              {WORKOUT_STYLE_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt}
-                  label={opt}
-                  selected={manualPreferences.workoutStyle.includes(opt)}
-                  onPress={() => toggleFromArray("workoutStyle")(opt)}
-                />
-              ))}
-            </View>
+              subtitle="Optional workout style tags."
+              summary={manualAdvStyleSummary}
+              expanded={manualAdvNestedOpen.style === true}
+              onToggle={() => toggleManualAdvNested("style")}
+            >
+              <View style={styles.chipGroup}>
+                {WORKOUT_STYLE_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt}
+                    label={opt}
+                    selected={manualPreferences.workoutStyle.includes(opt)}
+                    onPress={() => toggleFromArray("workoutStyle")(opt)}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
 
-            {/* Upcoming 1–3 days (ranked) */}
-            <SectionHeader
+            <CollapsiblePreferenceSection
+              nested
               title="Upcoming (1–3 days)"
               subtitle="Protect big days. Pick up to 3, ranked."
-              style={{ marginTop: 20 }}
-            />
+              summary={manualAdvUpcomingSummary}
+              expanded={manualAdvNestedOpen.upcoming === true}
+              onToggle={() => toggleManualAdvNested("upcoming")}
+            >
             {manualPreferences.upcoming.length > 0 && (
               <View style={styles.chipGroup}>
                 {manualPreferences.upcoming.map((u, idx) => (
@@ -993,20 +1068,17 @@ export default function ManualPreferencesScreen() {
                 />
               ))}
             </View>
+            </CollapsiblePreferenceSection>
 
-            {/* Zone 2 cardio preference — show when goals include recomp / endurance / conditioning */}
-            {manualPreferences.primaryFocus.some(
-              (g) =>
-                g === "Body Recomposition" ||
-                g === "Improve Endurance" ||
-                g === "Sport Conditioning"
-            ) ? (
-              <>
-                <SectionHeader
-                  title="Zone 2 cardio"
-                  subtitle="Choose modalities for the cardio finisher (e.g. run, bike, rower, stair climber). Leave empty for any."
-                  style={{ marginTop: 20 }}
-                />
+            {showZone2Advanced ? (
+              <CollapsiblePreferenceSection
+                nested
+                title="Zone 2 cardio"
+                subtitle="Choose modalities for the cardio finisher (e.g. run, bike, rower, stair climber). Leave empty for any."
+                summary={manualAdvZone2Summary}
+                expanded={manualAdvNestedOpen.zone2 === true}
+                onToggle={() => toggleManualAdvNested("zone2")}
+              >
                 <View style={styles.chipGroup}>
                   {ZONE2_CARDIO_OPTIONS.map((opt) => (
                     <Chip
@@ -1023,16 +1095,18 @@ export default function ManualPreferencesScreen() {
                     />
                   ))}
                 </View>
-              </>
+              </CollapsiblePreferenceSection>
             ) : null}
 
             {hasPrimaryFocus && rankedGoals.length < MAX_GOALS ? (
-              <>
-                <SectionHeader
-                  title="Additional goals (optional)"
-                  subtitle="Second or third ranked goal. Reorder from Training goal above."
-                  style={{ marginTop: 20 }}
-                />
+              <CollapsiblePreferenceSection
+                nested
+                title="Additional goals (optional)"
+                subtitle="Second or third ranked goal. Reorder from Training goal above."
+                summary={manualAdvExtraGoalsSummary}
+                expanded={manualAdvNestedOpen.extraGoals === true}
+                onToggle={() => toggleManualAdvNested("extraGoals")}
+              >
                 <View style={styles.chipGroup}>
                   {PRIMARY_FOCUS_OPTIONS.filter(
                     (option) => !manualPreferences.primaryFocus.includes(option)
@@ -1045,7 +1119,7 @@ export default function ManualPreferencesScreen() {
                     />
                   ))}
                 </View>
-              </>
+              </CollapsiblePreferenceSection>
             ) : null}
           </View>
         )}
@@ -1384,14 +1458,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flex: 1,
     minWidth: 0,
-  },
-  subGoalsControl: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-  subGoalsControlText: {
-    fontSize: 13,
-    fontWeight: "600",
   },
   subGoalsBlock: {
     marginTop: 12,

@@ -44,7 +44,20 @@ export function inferWorkoutLevelsFromSource(src: WorkoutLevelSource): UserLevel
 
 export function inferCreativeVariationFromSource(src: WorkoutLevelSource): boolean {
   const slugs = new Set((src.tags ?? []).map(slugifyTag));
-  return slugs.has("creative") || slugs.has("complex_variation");
+  if (slugs.has("creative") || slugs.has("complex_variation")) return true;
+
+  const identity = `${src.id} ${src.name}`.toLowerCase().replace(/-/g, "_");
+
+  // Guardrail for "creative off": technical novelty names that are often mislabeled in source tags.
+  const complexNamePattern =
+    /\b(clubbell|mace|gada|steel_mace)\b.*\b(cast|mill|circle|flag_press|torch_press|inside_circle|outside_circle|gamma_cast|shield_cast)\b|\b(cast|mill|flag_press|torch_press|gamma_cast|shield_cast)\b.*\b(clubbell|mace|gada|steel_mace)\b/;
+  if (complexNamePattern.test(identity)) return true;
+
+  const comboChainPattern = /\b(to|and)\b.*\b(flag_press|cast|mill|clean)\b/;
+  if (comboChainPattern.test(identity) && /\b(clubbell|mace|gada|steel_mace)\b/.test(identity))
+    return true;
+
+  return false;
 }
 
 /** Tiers an exercise is tagged for (must be non-empty when filtering runs). */

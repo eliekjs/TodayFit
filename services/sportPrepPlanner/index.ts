@@ -56,6 +56,8 @@ export type PlanWeekInput = {
   goalMatchPrimaryPct?: number;
   goalMatchSecondaryPct?: number;
   goalMatchTertiaryPct?: number;
+  /** Goal sub-focus labels keyed by Manual primary focus (from Sport Mode or advanced prefs). */
+  goalSubFocusByGoal?: Record<string, string[]>;
   /** Weekly body emphasis: more volume on this area; week still trains full body. */
   emphasis?: import("../../lib/types").BodyEmphasisKey | null;
   /** Goal distribution: dedicate entire days to goals vs blend. Default blend. */
@@ -922,6 +924,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           injuries: input.injuries,
           workoutTier: input.workoutTier ?? "intermediate",
           includeCreativeVariations: input.includeCreativeVariations === true,
+          subFocusByGoal: input.goalSubFocusByGoal,
         }
       );
       const title = getWorkoutDescriptor(workout);
@@ -966,6 +969,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         bodyRegionBias,
         workoutTier: input.workoutTier ?? "intermediate",
         includeCreativeVariations: input.includeCreativeVariations === true,
+        subFocusByGoal: input.goalSubFocusByGoal,
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";

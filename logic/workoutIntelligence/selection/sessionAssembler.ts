@@ -12,9 +12,9 @@ import { createSessionSelectionState } from "../scoring/fatigueTracking";
 import { getFatigueBudgetForStimulus, getNumericFatigueBudget } from "../sessionShaping";
 import { resolveWorkoutConstraints } from "../constraints/resolveWorkoutConstraints";
 import { fillBlock } from "./blockFiller";
-import { getBlockTemplate } from "../blockTemplates";
 import { DEFAULT_SELECTION_CONFIG } from "../scoring/scoringConfig";
 import type { GeneratedWorkout } from "../workoutTypes";
+import { getCanonicalSportSlug } from "../../../data/sportSubFocus";
 
 export interface AssembleSessionInput {
   /** User/context input. */
@@ -29,11 +29,32 @@ export interface AssembleSessionInput {
   workoutId?: string;
 }
 
+function hasClimbingDemand(input: WorkoutSelectionInput): boolean {
+  if (input.sports?.some((sport) => getCanonicalSportSlug(sport) === "rock_climbing")) return true;
+  const subFocusSports = Object.keys(input.sport_sub_focus ?? {});
+  return subFocusSports.some((sport) => getCanonicalSportSlug(sport) === "rock_climbing");
+}
+
+function getSelectionConfig(input: WorkoutSelectionInput) {
+  if (!hasClimbingDemand(input)) return DEFAULT_SELECTION_CONFIG;
+  return {
+    ...DEFAULT_SELECTION_CONFIG,
+    // Climbing support sessions should allow repeated pull patterns instead of forcing full-body balance.
+    max_same_pattern_per_session: 4,
+    max_heavy_compounds_per_session: 2,
+    weights: {
+      ...DEFAULT_SELECTION_CONFIG.weights,
+      balance_bonus: 0.2,
+    },
+  };
+}
+
 /**
  * Assemble a session: resolve qualities, create state, fill each block in order, return GeneratedWorkout.
  */
 export function assembleSession(inp: AssembleSessionInput): GeneratedWorkout {
-  const config = DEFAULT_SELECTION_CONFIG;
+  const config = getSelectionConfig(inp.input);
+  const constraints = resolveWorkoutConstraints(inp.input);
   const { session_qualities, block_qualities } = resolveSessionContext(inp.input, inp.template);
 
   const fatigueBudget = getFatigueBudgetForStimulus(

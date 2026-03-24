@@ -1,13 +1,13 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTheme } from "../lib/theme";
-import type { GeneratedWorkout, WorkoutBlock } from "../lib/types";
+import type { BlockType, GeneratedWorkout, WorkoutBlock } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 
 export type WorkoutBlockListProps = {
   workout: GeneratedWorkout;
   showSwap?: boolean;
-  onSwap?: (exerciseId: string, exerciseName: string) => void;
+  onSwap?: (exerciseId: string, exerciseName: string, blockType: BlockType) => void;
   showTags?: boolean;
   /** Optional notes per exercise id (e.g. from completed workout history). */
   exerciseNotes?: Record<string, string>;
@@ -51,6 +51,7 @@ export function WorkoutBlockList({
             ) : null}
             {renderBlockContent(
               block,
+              block.block_type,
               theme,
               showSwap,
               onSwap,
@@ -66,9 +67,10 @@ export function WorkoutBlockList({
 
 function renderBlockContent(
   block: WorkoutBlock,
+  blockType: BlockType,
   theme: ReturnType<typeof useTheme>,
   showSwap: boolean,
-  onSwap: ((exerciseId: string, exerciseName: string) => void) | undefined,
+  onSwap: ((exerciseId: string, exerciseName: string, blockType: BlockType) => void) | undefined,
   showTags: boolean,
   exerciseNotes?: Record<string, string>
 ) {
@@ -127,7 +129,7 @@ function renderBlockContent(
                   </View>
                   {showSwap && onSwap && (
                     <Pressable
-                      onPress={() => onSwap(item.exercise_id, item.exercise_name)}
+                      onPress={() => onSwap(item.exercise_id, item.exercise_name, blockType)}
                       style={[styles.swapBtn, { borderColor: theme.border }]}
                     >
                       <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>
@@ -173,7 +175,7 @@ function renderBlockContent(
           </View>
           {showSwap && onSwap && (
             <Pressable
-              onPress={() => onSwap(item.exercise_id, item.exercise_name)}
+              onPress={() => onSwap(item.exercise_id, item.exercise_name, blockType)}
               style={[styles.swapBtn, { borderColor: theme.border }]}
             >
               <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>

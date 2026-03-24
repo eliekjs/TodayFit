@@ -107,7 +107,11 @@ import {
   resolveConditioningIntentFormatFromIntent,
   type ConditioningIntentFormat,
 } from "./conditioningFormatResolver";
-import { getExerciseTagsForSubFocuses } from "../../data/sportSubFocus";
+import {
+  getCanonicalSportSlug,
+  getExerciseTagsForSubFocuses,
+} from "../../data/sportSubFocus";
+import { hashString } from "../../lib/dailyGeneratorAdapter";
 
 // --- Avoid tags that imply overhead / hanging / shoulder extension (safety) ---
 const OVERHEAD_HANGING_PATTERNS = new Set([
@@ -484,9 +488,13 @@ export function scoreExercise(
   // Sport match: boost exercises whose sport_tags match user's ranked sport(s)
   const sportSlugs = input.sport_slugs;
   if (sportSlugs?.length) {
-    const exerciseSportTags = new Set((exercise.tags.sport_tags ?? []).map((s) => tagToSlug(s)));
+    const exerciseSportTags = new Set(
+      (exercise.tags.sport_tags ?? []).map((s) =>
+        tagToSlug(getCanonicalSportSlug(s))
+      )
+    );
     for (let i = 0; i < sportSlugs.length; i++) {
-      const slug = tagToSlug(sportSlugs[i]);
+      const slug = tagToSlug(getCanonicalSportSlug(sportSlugs[i]));
       if (exerciseSportTags.has(slug)) {
         total += i === 0 ? 2 : 1;
         break;
@@ -998,7 +1006,14 @@ function selectExercises(
   // Category-fill pass: ensure we hit MIN_MOVEMENT_CATEGORIES when possible (movement-pattern balancing engine)
   const patternsToPrefer = getPatternsToPrefer(movementCounts, MIN_MOVEMENT_CATEGORIES, [...BALANCE_CATEGORY_PATTERNS]);
   const state = getBalanceState(movementCounts, [...BALANCE_CATEGORY_PATTERNS]);
-  const needCategories = Math.min(MIN_MOVEMENT_CATEGORIES - state.categoryCount, patternsToPrefer.length);
+  // Warmup/cooldown are prep and mobility — not mini strength sessions. The main-work
+  // category pre-pass (squat/hinge/push/pull) forces the same top-scored exercise per
+  // pattern whenever the pool includes those patterns, ignoring goal and wasting RNG.
+  const skipCategoryBalancePreface =
+    opts.blockType === "warmup" || opts.blockType === "cooldown";
+  const needCategories = skipCategoryBalancePreface
+    ? 0
+    : Math.min(MIN_MOVEMENT_CATEGORIES - state.categoryCount, patternsToPrefer.length);
 
   for (let k = 0; k < needCategories && chosen.length < count; k++) {
     const targetPattern = patternsToPrefer[k];
@@ -2835,7 +2850,16 @@ export function generateWorkoutSession(
   exercisePool: Exercise[]
 ): WorkoutSession {
   const seed = input.seed ?? 0;
-  const rng = createSeededRng(seed);
+  const rngSeed = hashString(
+    JSON.stringify({
+      seed,
+      primary_goal: input.primary_goal,
+      focus_body_parts: input.focus_body_parts ?? null,
+      duration_minutes: input.duration_minutes,
+      secondary_goals: input.secondary_goals ?? [],
+    })
+  );
+  const rng = createSeededRng(rngSeed);
 
   // 1. Determine goal rules (from prescriptionRules)
   const primary = input.primary_goal;

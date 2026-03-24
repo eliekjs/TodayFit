@@ -9,16 +9,14 @@ import { getCanonicalSportSlug } from "../../data/sportSubFocus";
 
 export type SportSlug =
   | "rock_climbing"
-  | "ice_climbing"
   | "backcountry_skiing"
   | "alpine_skiing"
   | "snowboarding"
   | "surfing"
   | "kite_wind_surf"
-  | "sup"
   | "hyrox"
   | "road_running"
-  | "marathon_running"
+  | "american_football"
   | "trail_running"
   | "cycling"
   | "swimming_open_water"
@@ -36,7 +34,6 @@ export type SportSlug =
   | "hockey"
   | "rugby"
   | "volleyball"
-  | "flag_football"
   | "lacrosse"
   | "boxing"
   | "muay_thai"
@@ -44,7 +41,6 @@ export type SportSlug =
   | "hiking_backpacking"
   | "mountaineering"
   | "ocr_spartan"
-  | "ultra_running"
   | "tactical_fitness"
   | "general_strength"
   | "bodybuilding"
@@ -67,13 +63,6 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     aerobic_base: 0.35,
     anaerobic_capacity: 0.35,
     trunk_endurance: 0.35,
-  },
-  ice_climbing: {
-    grip_strength: 0.9,
-    pulling_strength: 0.85,
-    forearm_endurance: 0.8,
-    scapular_stability: 0.8,
-    core_tension: 0.7,
   },
   backcountry_skiing: {
     aerobic_base: 0.85,
@@ -115,12 +104,6 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     work_capacity: 0.6,
     unilateral_strength: 0.55,
   },
-  sup: {
-    aerobic_base: 0.85,
-    balance: 0.75,
-    core_tension: 0.7,
-    paddling_endurance: 0.65,
-  },
   hyrox: {
     aerobic_power: 0.85,
     lactate_tolerance: 0.8,
@@ -131,18 +114,23 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     pulling_strength: 0.4,
   },
   road_running: {
-    aerobic_base: 0.9,
-    aerobic_power: 0.5,
-    posterior_chain_endurance: 0.4,
-    tendon_resilience: 0.5,
+    aerobic_base: 0.95,
+    aerobic_power: 0.48,
+    posterior_chain_endurance: 0.48,
+    tendon_resilience: 0.58,
+    trunk_endurance: 0.42,
     recovery: 0.35,
   },
-  marathon_running: {
-    aerobic_base: 0.95,
-    aerobic_power: 0.4,
-    posterior_chain_endurance: 0.5,
-    tendon_resilience: 0.6,
-    trunk_endurance: 0.4,
+  american_football: {
+    max_strength: 0.85,
+    work_capacity: 0.82,
+    anaerobic_capacity: 0.72,
+    rate_of_force_development: 0.7,
+    unilateral_strength: 0.55,
+    hip_stability: 0.55,
+    posterior_chain_endurance: 0.6,
+    grip_strength: 0.55,
+    trunk_endurance: 0.55,
   },
   cycling: {
     aerobic_base: 0.88,
@@ -193,14 +181,6 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     balance: 0.6,
     eccentric_strength: 0.5,
     hip_stability: 0.5,
-  },
-  ultra_running: {
-    aerobic_base: 0.9,
-    unilateral_strength: 0.6,
-    posterior_chain_endurance: 0.5,
-    trunk_endurance: 0.5,
-    tendon_resilience: 0.55,
-    recovery: 0.3,
   },
   hiking_backpacking: {
     aerobic_base: 0.85,
@@ -352,6 +332,8 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     grip_strength: 0.5,
     pushing_strength: 0.5,
     pulling_strength: 0.5,
+    rate_of_force_development: 0.65,
+    unilateral_strength: 0.55,
   },
   volleyball: {
     power: 0.75,
@@ -361,14 +343,6 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     unilateral_strength: 0.45,
     core_tension: 0.4,
     work_capacity: 0.35,
-  },
-  flag_football: {
-    anaerobic_capacity: 0.75,
-    rate_of_force_development: 0.7,
-    unilateral_strength: 0.55,
-    hip_stability: 0.5,
-    work_capacity: 0.5,
-    balance: 0.4,
   },
   lacrosse: {
     rotational_power: 0.75,

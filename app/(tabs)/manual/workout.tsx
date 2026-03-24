@@ -11,7 +11,11 @@ import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getSwapSuggestionsPage } from "../../../lib/exerciseProgressions";
+import {
+  blockTypeToSwapBlockRole,
+  getSwapSuggestionsPage,
+} from "../../../lib/exerciseProgressions";
+import type { BlockType } from "../../../lib/types";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
 import { isDbConfigured } from "../../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
@@ -23,6 +27,7 @@ export default function ManualWorkoutScreen() {
     activeGymProfileId,
     gymProfiles,
     setGeneratedWorkout,
+    setManualExecutionStarted,
     addSavedWorkout,
     savedWorkouts,
   } = useAppState();
@@ -115,7 +120,11 @@ export default function ManualWorkoutScreen() {
     router.replace("/");
   };
 
-  const [swapModal, setSwapModal] = useState<{ exerciseId: string; exerciseName: string } | null>(null);
+  const [swapModal, setSwapModal] = useState<{
+    exerciseId: string;
+    exerciseName: string;
+    blockType: BlockType;
+  } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
@@ -131,7 +140,14 @@ export default function ManualWorkoutScreen() {
     let cancelled = false;
     setSwapLoading(true);
     const energyLevel = manualPreferences.energyLevel ?? undefined;
-    getSwapSuggestionsPage(swapModal.exerciseId, { energyLevel }, swapSuggestionPage).then(
+    getSwapSuggestionsPage(
+      swapModal.exerciseId,
+      {
+        energyLevel,
+        swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+      },
+      swapSuggestionPage
+    ).then(
       ({ suggestions, numPages }) => {
         if (cancelled) return;
         setSwapSuggested(suggestions);
@@ -142,7 +158,7 @@ export default function ManualWorkoutScreen() {
     return () => {
       cancelled = true;
     };
-  }, [swapModal?.exerciseId, manualPreferences.energyLevel, swapSuggestionPage]);
+  }, [swapModal?.exerciseId, swapModal?.blockType, manualPreferences.energyLevel, swapSuggestionPage]);
 
   const onSwapChoose = (optionId: string, optionName: string) => {
     if (generatedWorkout == null || swapModal == null) return;
@@ -178,8 +194,8 @@ export default function ManualWorkoutScreen() {
         <WorkoutBlockList
           workout={generatedWorkout}
           showSwap
-          onSwap={(exerciseId, exerciseName) =>
-            setSwapModal({ exerciseId, exerciseName })
+          onSwap={(exerciseId, exerciseName, blockType) =>
+            setSwapModal({ exerciseId, exerciseName, blockType })
           }
         />
 
@@ -203,7 +219,10 @@ export default function ManualWorkoutScreen() {
           />
           <PrimaryButton
             label="Start Workout"
-            onPress={() => router.push("/manual/execute")}
+            onPress={() => {
+              setManualExecutionStarted(true);
+              router.push("/manual/execute");
+            }}
             style={{ marginTop: 16 }}
           />
         </View>

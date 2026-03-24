@@ -174,7 +174,20 @@ export function manualPreferencesToGenerateWorkoutInput(
       ? seedExtra
       : typeof seedExtra === "string"
         ? hashString(seedExtra)
-        : hashString(JSON.stringify({ p: preferences.primaryFocus, b: bodyPartFocus, d: durationMinutes }));
+        : hashString(
+            JSON.stringify({
+              p: preferences.primaryFocus,
+              b: bodyPartFocus,
+              d: durationMinutes,
+              primary_goal,
+              subFocusByGoal,
+              goalWeightsPct: [
+                preferences.goalMatchPrimaryPct ?? 50,
+                preferences.goalMatchSecondaryPct ?? 30,
+                preferences.goalMatchTertiaryPct ?? 20,
+              ],
+            })
+          );
 
   return {
     duration_minutes: durationMinutes,
@@ -195,7 +208,8 @@ export function manualPreferencesToGenerateWorkoutInput(
   };
 }
 
-function hashString(s: string): number {
+/** Stable string hash for generation seeds (manual default seed + sport/goal composite seeds). */
+export function hashString(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return Math.abs(h);
@@ -337,10 +351,10 @@ function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
     ),
   ];
   const used = new Set([
-    ...goalTags.map(toSlug),
+    ...(goalTags ?? []).map(toSlug),
     ...energySlugs.map(toSlug),
     ...jointStress.map(toSlug),
-    ...stimulus.map(toSlug),
+    ...(stimulus ?? []).map(toSlug),
     ...sportTags.map(toSlug),
   ]);
   const rawAttribute = tags.filter((t) => !used.has(toSlug(t)));

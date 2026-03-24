@@ -23,6 +23,7 @@ export default function ViewCompletedWorkoutScreen() {
     workoutHistory,
     setGeneratedWorkout,
     setResumeProgress,
+    setManualExecutionStarted,
     updateWorkoutHistoryItem,
   } = useAppState();
   const theme = useTheme();
@@ -70,6 +71,7 @@ export default function ViewCompletedWorkoutScreen() {
   const onDoAgain = () => {
     setGeneratedWorkout({ ...workout, id: `workout_${Date.now()}` });
     setResumeProgress(null);
+    setManualExecutionStarted(true);
     router.push("/manual/execute");
   };
 

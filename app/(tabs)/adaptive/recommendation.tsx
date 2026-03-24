@@ -18,7 +18,7 @@ import { regenerateDay, updateDayStatus, planWeek, deriveDailyPreferencesFromDay
 import { Chip } from "../../../components/Chip";
 import type { PlannedDay } from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
-import { GOAL_SLUG_TO_LABEL } from "../../../lib/preferencesConstants";
+import { GOAL_SLUG_TO_LABEL, goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
@@ -52,6 +52,10 @@ export default function AdaptiveWeekPlanScreen() {
     updateManualPreferences,
     activeGymProfileId,
     gymProfiles,
+    setGeneratedWorkout,
+    setResumeProgress,
+    setManualSessionProgress,
+    setManualExecutionStarted,
   } = useAppState();
 
   const [selectedSession, setSelectedSession] = useState<PlannedDay | null>(null);
@@ -135,12 +139,21 @@ export default function AdaptiveWeekPlanScreen() {
           gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
         setIsReplanning(true);
         try {
+          const snapshotGoalIds = [
+            snapshot.primaryGoalSlug,
+            snapshot.secondaryGoalSlug,
+            snapshot.tertiaryGoalSlug,
+          ].filter((g): g is string => g != null && g !== "");
           const newPlan = await planWeek({
             userId: userId ?? undefined,
             weekStartDate: snapshot.weekStartDate,
             primaryGoalSlug: snapshot.primaryGoalSlug,
             secondaryGoalSlug: snapshot.secondaryGoalSlug ?? null,
             tertiaryGoalSlug: snapshot.tertiaryGoalSlug ?? null,
+            goalSubFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
+              snapshotGoalIds,
+              manualPreferences.subFocusByGoal
+            ),
             sportSlug: snapshot.sportSlug ?? null,
             sportQualitySlugs: snapshot.sportQualitySlugs,
             sportSubFocusSlugs: snapshot.sportSubFocusSlugs,
@@ -547,7 +560,10 @@ export default function AdaptiveWeekPlanScreen() {
 
   const summaryLines: string[] = [];
   if (selectedWorkout?.focus?.length) {
-    summaryLines.push(selectedWorkout.focus.join(" • "));
+    const raw =
+      selectedDay?.dayLevelFocus?.displayTitle ?? selectedWorkout.focus.join(" • ");
+    const cleaned = raw.replace(/\s*\(sport-specific\)\s*/gi, "").trim();
+    summaryLines.push(cleaned || raw);
   }
   if (selectedWorkout?.durationMinutes != null) {
     summaryLines.push(`${selectedWorkout.durationMinutes} min`);
@@ -703,88 +719,105 @@ export default function AdaptiveWeekPlanScreen() {
         </Card>
       )}
 
-      <Card
-        title={
-          selectedDay?.date === todayIso
-            ? "Today's session"
-            : selectedDay
-              ? `Session for ${formatDayOfWeek(selectedDay.date)}`
-              : "Session"
-        }
-        subtitle={summaryLines.join(" • ")}
-        style={{ marginTop: 16 }}
-      >
-        {isLoadingWorkout && (
-          <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            Loading session…
-          </Text>
-        )}
-        {!isLoadingWorkout && !selectedWorkout && (
-          <Text style={{ fontSize: 13, color: theme.textMuted }}>
-            No session generated for this day (rest / low-load day).
-          </Text>
-        )}
-        {!isLoadingWorkout && selectedWorkout && (
-          <WorkoutBlockList
-            workout={normalizeGeneratedWorkout(selectedWorkout)}
-          />
-        )}
+      {isLoadingWorkout && (
+        <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 16 }}>
+          Loading session…
+        </Text>
+      )}
+      {!isLoadingWorkout && !selectedWorkout && (
+        <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 16 }}>
+          No session generated for this day (rest / low-load day).
+        </Text>
+      )}
+      {!isLoadingWorkout && selectedWorkout && (
+        <View style={{ marginTop: 16, gap: 16 }}>
+          <Card
+            title="Summary"
+            subtitle={summaryLines.join(" • ")}
+            style={styles.summaryCard}
+          >
+            {selectedWorkout.notes != null ? (
+              <Text style={[styles.notes, { color: theme.textMuted }]}>
+                {selectedWorkout.notes}
+              </Text>
+            ) : null}
+          </Card>
 
-        <View style={styles.footer}>
-          {selectedDay.status === "planned" ? (
-            <>
+          <WorkoutBlockList workout={normalizeGeneratedWorkout(selectedWorkout)} />
+
+          <View style={styles.footer}>
+            {selectedDay.status === "planned" ? (
+              <>
+                <PrimaryButton
+                  label={isUpdatingStatus ? "Updating…" : "Mark completed"}
+                  variant="secondary"
+                  onPress={() => onUpdateDayStatus("completed")}
+                  disabled={isUpdatingStatus}
+                />
+                <PrimaryButton
+                  label="Skip"
+                  variant="ghost"
+                  onPress={() => onUpdateDayStatus("skipped")}
+                  disabled={isUpdatingStatus}
+                  style={{ marginTop: 8 }}
+                />
+              </>
+            ) : (
               <PrimaryButton
-                label={isUpdatingStatus ? "Updating…" : "Mark completed"}
-                variant="secondary"
-                onPress={() => onUpdateDayStatus("completed")}
+                label={isUpdatingStatus ? "Updating…" : "Mark as planned"}
+                variant="ghost"
+                onPress={() => onUpdateDayStatus("planned")}
                 disabled={isUpdatingStatus}
               />
+            )}
+            <DayFocusOverrideChips
+              dailyPrefsOverride={dailyPrefsOverride}
+              onOverrideChange={(update) =>
+                setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
+              }
+              onRegenerate={onRegenerate}
+              isRegenerating={isRegenerating}
+              showAdjustFocusLink={focusSectionsForModal.length > 0}
+              onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
+              showChips={!!(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id])}
+            />
+            {userId && isDbConfigured() && selectedWorkout ? (
               <PrimaryButton
-                label="Skip"
-                variant="ghost"
-                onPress={() => onUpdateDayStatus("skipped")}
-                disabled={isUpdatingStatus}
+                label={savingDay ? "Saving…" : "Save this day"}
+                variant="secondary"
+                onPress={onSaveDay}
+                disabled={savingDay}
                 style={{ marginTop: 8 }}
               />
-            </>
-          ) : (
+            ) : null}
+            {selectedWorkout && selectedDay?.status === "planned" ? (
+              <PrimaryButton
+                label={
+                  selectedDay.date === todayIso
+                    ? "Start today's workout"
+                    : "Start this session"
+                }
+                onPress={() => {
+                  setGeneratedWorkout(normalizeGeneratedWorkout(selectedWorkout));
+                  setResumeProgress(null);
+                  setManualSessionProgress(null);
+                  setManualExecutionStarted(true);
+                  router.push("/manual/execute");
+                }}
+                style={{ marginTop: 8 }}
+              />
+            ) : null}
             <PrimaryButton
-              label={isUpdatingStatus ? "Updating…" : "Mark as planned"}
+              label="Back to Setup"
               variant="ghost"
-              onPress={() => onUpdateDayStatus("planned")}
-              disabled={isUpdatingStatus}
-            />
-          )}
-          <DayFocusOverrideChips
-            dailyPrefsOverride={dailyPrefsOverride}
-            onOverrideChange={(update) =>
-              setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
-            }
-            onRegenerate={onRegenerate}
-            isRegenerating={isRegenerating}
-            showAdjustFocusLink={focusSectionsForModal.length > 0}
-            onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
-            showChips={!!(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id])}
-          />
-          {userId && isDbConfigured() && selectedWorkout ? (
-            <PrimaryButton
-              label={savingDay ? "Saving…" : "Save this day"}
-              variant="secondary"
-              onPress={onSaveDay}
-              disabled={savingDay}
+              onPress={() => {
+                router.replace("/adaptive");
+              }}
               style={{ marginTop: 8 }}
             />
-          ) : null}
-          <PrimaryButton
-            label="Back to Setup"
-            variant="ghost"
-            onPress={() => {
-              router.replace("/adaptive");
-            }}
-            style={{ marginTop: 8 }}
-          />
+          </View>
         </View>
-      </Card>
+      )}
 
       <AdjustFocusModal
         visible={showAdjustFocusModal}
@@ -903,5 +936,12 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 16,
+    marginBottom: 24,
+  },
+  summaryCard: {
+    marginBottom: 8,
+  },
+  notes: {
+    fontSize: 13,
   },
 });

@@ -120,6 +120,20 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- Rock Climbing (bouldering, sport/lead, trad combined) ---
+  [key("rock_climbing", "strength_power")]: [
+    { tag_slug: "finger_strength", weight: 1.2 },
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "lockoff_strength", weight: 1.1 },
+    { tag_slug: "explosive_power", weight: 1.1 },
+    { tag_slug: "power", weight: 1 },
+  ],
+  [key("rock_climbing", "endurance_stamina")]: [
+    { tag_slug: "grip_endurance", weight: 1.2 },
+    { tag_slug: "forearm_endurance", weight: 1.1 },
+    { tag_slug: "trunk_endurance", weight: 1.1 },
+    { tag_slug: "strength_endurance", weight: 1 },
+    { tag_slug: "aerobic_base", weight: 0.85 },
+  ],
   [key("rock_climbing", "finger_strength")]: [
     { tag_slug: "finger_strength", weight: 1.3 },
     { tag_slug: "grip", weight: 1 },
@@ -209,6 +223,16 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "single_leg_strength", weight: 0.9 },
     { tag_slug: "ankle_stability", weight: 0.9 },
   ],
+  [key("road_running", "marathon_pace")]: [
+    { tag_slug: "zone3_cardio", weight: 1 },
+    { tag_slug: "aerobic_base", weight: 1 },
+    { tag_slug: "strength_endurance", weight: 0.95 },
+  ],
+  [key("road_running", "durability")]: [
+    { tag_slug: "strength_endurance", weight: 1.1 },
+    { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "posterior_chain", weight: 0.95 },
+  ],
 
   // --- Trail Running ---
   [key("trail_running", "aerobic_base")]: [
@@ -239,29 +263,6 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "balance", weight: 1.2 },
     { tag_slug: "ankle_stability", weight: 1.1 },
     { tag_slug: "glute_strength", weight: 0.9 },
-  ],
-
-  // --- Marathon Running ---
-  [key("marathon_running", "aerobic_base")]: [
-    { tag_slug: "zone2_cardio", weight: 1.3 },
-    { tag_slug: "aerobic_base", weight: 1.2 },
-  ],
-  [key("marathon_running", "threshold")]: [
-    { tag_slug: "lactate_threshold", weight: 1.2 },
-    { tag_slug: "zone3_cardio", weight: 1 },
-  ],
-  [key("marathon_running", "marathon_pace")]: [
-    { tag_slug: "zone3_cardio", weight: 1 },
-    { tag_slug: "aerobic_base", weight: 1 },
-  ],
-  [key("marathon_running", "durability")]: [
-    { tag_slug: "strength_endurance", weight: 1 },
-    { tag_slug: "core_stability", weight: 1 },
-  ],
-  [key("marathon_running", "leg_resilience")]: [
-    { tag_slug: "eccentric_quad_strength", weight: 1 },
-    { tag_slug: "knee_stability", weight: 1 },
-    { tag_slug: "calves", weight: 1 },
   ],
 
   // --- Ultra Running ---
@@ -753,27 +754,40 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "plyometric", weight: 1 },
   ],
 
-  // --- Flag Football ---
-  [key("flag_football", "speed")]: [
+  // --- American Football (tackle & flag; legacy flag_football slug maps here) ---
+  [key("american_football", "speed_power")]: [
+    { tag_slug: "explosive_power", weight: 1.2 },
     { tag_slug: "speed", weight: 1.2 },
-    { tag_slug: "explosive_power", weight: 1 },
+    { tag_slug: "plyometric", weight: 0.9 },
   ],
-  [key("flag_football", "change_of_direction")]: [
+  [key("american_football", "change_of_direction")]: [
     { tag_slug: "agility", weight: 1.2 },
     { tag_slug: "single_leg_strength", weight: 1 },
     { tag_slug: "balance", weight: 0.9 },
   ],
-  [key("flag_football", "leg_power")]: [
-    { tag_slug: "explosive_power", weight: 1.2 },
-    { tag_slug: "plyometric", weight: 1 },
+  [key("american_football", "max_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "compound", weight: 1 },
+    { tag_slug: "squat_pattern", weight: 0.9 },
+    { tag_slug: "hinge_pattern", weight: 0.9 },
+    { tag_slug: "horizontal_push", weight: 0.8 },
+    { tag_slug: "horizontal_pull", weight: 0.8 },
   ],
-  [key("flag_football", "hamstring_resilience")]: [
-    { tag_slug: "hamstrings", weight: 1.2 },
-    { tag_slug: "eccentric_strength", weight: 1 },
-  ],
-  [key("flag_football", "work_capacity")]: [
-    { tag_slug: "work_capacity", weight: 1.2 },
+  [key("american_football", "work_capacity")]: [
+    { tag_slug: "work_capacity", weight: 1.3 },
     { tag_slug: "anaerobic_capacity", weight: 1 },
+    { tag_slug: "conditioning", weight: 0.9 },
+  ],
+  [key("american_football", "posterior_chain")]: [
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1 },
+    { tag_slug: "hamstrings", weight: 0.9 },
+  ],
+  [key("american_football", "grip_endurance")]: [
+    { tag_slug: "grip_endurance", weight: 1.2 },
+    { tag_slug: "grip", weight: 1.2 },
+    { tag_slug: "carry", weight: 0.9 },
   ],
 
   // --- Lacrosse ---
@@ -881,7 +895,12 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "squat_pattern", weight: 0.9 },
   ],
 
-  // --- Rugby ---
+  // --- Rugby (aligned sub-goals with American football) ---
+  [key("rugby", "change_of_direction")]: [
+    { tag_slug: "agility", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "balance", weight: 0.9 },
+  ],
   [key("rugby", "max_strength")]: [
     { tag_slug: "max_strength", weight: 1.3 },
     { tag_slug: "compound", weight: 1 },

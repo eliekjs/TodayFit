@@ -31,6 +31,7 @@ export default function LibraryScreen() {
     savedWorkouts,
     setGeneratedWorkout,
     setResumeProgress,
+    setManualExecutionStarted,
     removeSavedWorkout,
     manualWeekPlan,
     sportPrepWeekPlan,
@@ -62,6 +63,7 @@ export default function LibraryScreen() {
   const onResumeSaved = (saved: (typeof savedWorkouts)[0]) => {
     setGeneratedWorkout(saved.workout);
     setResumeProgress(saved.progress ?? null);
+    setManualExecutionStarted(true);
     router.push("/manual/execute");
   };
 
