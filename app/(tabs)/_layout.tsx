@@ -1,5 +1,5 @@
 import React from "react";
-import { Platform, Pressable, Text } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,6 +38,32 @@ function HeaderBackButton() {
   const theme = useTheme();
   return (
     <Pressable onPress={() => router.back()} style={{ paddingLeft: 16 }}>
+      <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
+
+/** Sport prep one-day flow uses replace(); blind back can land on Library. Send user to Sport setup instead. */
+function AdaptiveRecommendationBackButton() {
+  const router = useRouter();
+  const theme = useTheme();
+  const { sportPrepWeekPlan } = useAppState();
+  return (
+    <Pressable
+      onPress={() => {
+        const oneDay = sportPrepWeekPlan?.scheduleSnapshot?.gymDaysPerWeek === 1;
+        if (oneDay) {
+          router.replace("/adaptive?scope=day");
+          return;
+        }
+        if (router.canGoBack()) {
+          router.back();
+          return;
+        }
+        router.replace("/adaptive");
+      }}
+      style={{ paddingLeft: 16 }}
+    >
       <Ionicons name="chevron-back" size={24} color={theme.text} />
     </Pressable>
   );
@@ -148,6 +174,15 @@ function RestartFlowButton() {
   );
 }
 
+function FlowHeaderRight() {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <HeaderGymProfileButton />
+      <RestartFlowButton />
+    </View>
+  );
+}
+
 export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -241,7 +276,7 @@ export default function TabsLayout() {
           href: null,
           title: "Build workout",
           headerLeft: () => <HeaderBackButton />,
-          headerRight: () => <RestartFlowButton />,
+          headerRight: () => <FlowHeaderRight />,
         }}
       />
       <Tabs.Screen
@@ -250,7 +285,7 @@ export default function TabsLayout() {
           href: null,
           title: "Today's Workout",
           headerLeft: () => <EditWorkoutBackButton />,
-          headerRight: () => <RestartFlowButton />,
+          headerRight: () => <FlowHeaderRight />,
         }}
       />
       <Tabs.Screen
@@ -259,7 +294,7 @@ export default function TabsLayout() {
           href: null,
           title: "Execute",
           headerLeft: () => <ManualExecuteBackButton />,
-          headerRight: () => <RestartFlowButton />,
+          headerRight: () => <FlowHeaderRight />,
         }}
       />
       <Tabs.Screen
@@ -268,7 +303,7 @@ export default function TabsLayout() {
           href: null,
           title: "This week's workouts",
           headerLeft: () => <ManualWeekBackButton />,
-          headerRight: () => <RestartFlowButton />,
+          headerRight: () => <FlowHeaderRight />,
         }}
       />
       <Tabs.Screen
@@ -277,7 +312,7 @@ export default function TabsLayout() {
           href: null,
           title: "Sport Mode",
           headerLeft: () => <HeaderBackButton />,
-          headerRight: () => <RestartFlowButton />,
+          headerRight: () => <FlowHeaderRight />,
         }}
       />
       <Tabs.Screen
@@ -286,7 +321,7 @@ export default function TabsLayout() {
           href: null,
           title: "Set your schedule",
           headerLeft: () => <HeaderBackButton />,
-          headerRight: () => <RestartFlowButton />,
+          headerRight: () => <FlowHeaderRight />,
         }}
       />
       <Tabs.Screen
@@ -294,8 +329,8 @@ export default function TabsLayout() {
         options={{
           href: null,
           title: "Recommended Session",
-          headerLeft: () => <HeaderBackButton />,
-          headerRight: () => <RestartFlowButton />,
+          headerLeft: () => <AdaptiveRecommendationBackButton />,
+          headerRight: () => <FlowHeaderRight />,
         }}
       />
     </Tabs>

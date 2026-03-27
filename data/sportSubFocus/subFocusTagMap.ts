@@ -668,19 +668,29 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- Kitesurfing / Windsurfing ---
+  // Upper body is rig-dominant (pulling, scapular control, shoulder stability) alongside trunk stiffness.
   [key("kite_wind_surf", "balance")]: [
     { tag_slug: "balance", weight: 1.2 },
     { tag_slug: "single_leg_strength", weight: 1 },
+    { tag_slug: "scapular_control", weight: 0.95 },
+    { tag_slug: "horizontal_pull", weight: 0.85 },
   ],
   [key("kite_wind_surf", "core_stability")]: [
     { tag_slug: "core_stability", weight: 1.2 },
     { tag_slug: "core_anti_rotation", weight: 1 },
     { tag_slug: "core_bracing", weight: 0.9 },
+    { tag_slug: "scapular_control", weight: 1.1 },
+    { tag_slug: "shoulder_stability", weight: 1.05 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+    { tag_slug: "vertical_pull", weight: 1 },
+    { tag_slug: "pulling_strength", weight: 1 },
   ],
   [key("kite_wind_surf", "grip_endurance")]: [
     { tag_slug: "grip_endurance", weight: 1.2 },
     { tag_slug: "grip", weight: 1.2 },
     { tag_slug: "carry", weight: 0.9 },
+    { tag_slug: "horizontal_pull", weight: 0.9 },
+    { tag_slug: "scapular_control", weight: 0.85 },
   ],
   [key("kite_wind_surf", "leg_strength")]: [
     { tag_slug: "squat_pattern", weight: 1.1 },
@@ -690,6 +700,8 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   [key("kite_wind_surf", "work_capacity")]: [
     { tag_slug: "work_capacity", weight: 1.2 },
     { tag_slug: "anaerobic_capacity", weight: 1 },
+    { tag_slug: "strength_endurance", weight: 0.95 },
+    { tag_slug: "scapular_control", weight: 0.85 },
   ],
 
   // --- Paddleboarding ---

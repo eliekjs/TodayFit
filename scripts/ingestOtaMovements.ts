@@ -71,6 +71,9 @@ function uniq<T>(xs: T[]): T[] {
   return [...new Set(xs)];
 }
 
+/** Partner-only / very niche OTA drills: keep out of default pools unless user enables creative variations. */
+const CREATIVE_VARIATION_IDS = new Set<string>(["partner_lean_start"]);
+
 function toIdFromUrl(url: string): string {
   const u = new URL(url);
   const parts = u.pathname.split("/").filter(Boolean);
@@ -263,6 +266,7 @@ async function main() {
       "ota_movements",
       ...kindTags,
       ...new URL(url).pathname.split("/").filter(Boolean).slice(0, 3).map((s) => s.replace(/-2$/, "").replace(/-/g, " ")),
+      ...(CREATIVE_VARIATION_IDS.has(id) ? (["creative"] as const) : []),
     ]);
 
     exercises.push({

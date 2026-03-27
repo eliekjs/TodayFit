@@ -468,6 +468,15 @@ export default function ManualWeekScreen() {
         }
       }
       if (dailyPrefsOverride.energyLevel) dayPrefs = { ...dayPrefs, energyLevel: dailyPrefsOverride.energyLevel };
+      if (dailyPrefsOverride.workoutTier != null) {
+        dayPrefs = { ...dayPrefs, workoutTier: dailyPrefsOverride.workoutTier };
+      }
+      if (dailyPrefsOverride.includeCreativeVariations != null) {
+        dayPrefs = {
+          ...dayPrefs,
+          includeCreativeVariations: dailyPrefsOverride.includeCreativeVariations,
+        };
+      }
     }
     let preferredNames: string[] | undefined;
     if (isDbConfigured() && dayPrefs.primaryFocus.length > 0) {
@@ -795,6 +804,8 @@ export default function ManualWeekScreen() {
                 setShowAdjustFocusModal(true);
                 setTimeout(scrollToDayFocusSection, 100);
               }}
+              baseWorkoutTier={manualPreferences.workoutTier ?? "intermediate"}
+              baseIncludeCreativeVariations={manualPreferences.includeCreativeVariations === true}
             />
             <PrimaryButton
               label="Start"

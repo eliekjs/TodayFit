@@ -10,6 +10,7 @@ import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
 import { useAppState } from "../../../context/AppStateContext";
+import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
@@ -280,6 +281,13 @@ export default function AdaptiveScheduleScreen() {
         <Card
           title="Your schedule"
           subtitle="Pick gym days, optional sport days, and defaults—each section expands on tap."
+        />
+
+        <ExperienceLevelToggle
+          marginTop={16}
+          workoutTier={manualPreferences.workoutTier ?? "intermediate"}
+          includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
+          onChange={(patch) => updateManualPreferences(patch)}
         />
 
         {error ? (

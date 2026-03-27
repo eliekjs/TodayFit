@@ -107,8 +107,16 @@ export default function GymProfilesScreen() {
     setSaveAsName("");
   };
 
-  const goBackToWorkout = () => {
-    router.push("/manual/preferences");
+  const goBackToFlow = () => {
+    if (from === "adaptive") {
+      router.push("/adaptive");
+      return;
+    }
+    if (from === "manual" || from === "workout") {
+      router.push("/manual/preferences");
+      return;
+    }
+    router.push("/");
   };
 
   const onApplyPreset = (presetId: string) => {
@@ -132,7 +140,27 @@ export default function GymProfilesScreen() {
             <PrimaryButton
               label="Continue workout creation"
               variant="secondary"
-              onPress={goBackToWorkout}
+              onPress={goBackToFlow}
+            />
+          </View>
+        )}
+
+        {from === "manual" && (
+          <View style={styles.backToWorkout}>
+            <PrimaryButton
+              label="Continue workout creation"
+              variant="secondary"
+              onPress={goBackToFlow}
+            />
+          </View>
+        )}
+
+        {from === "adaptive" && (
+          <View style={styles.backToWorkout}>
+            <PrimaryButton
+              label="Continue Sport Mode setup"
+              variant="secondary"
+              onPress={goBackToFlow}
             />
           </View>
         )}

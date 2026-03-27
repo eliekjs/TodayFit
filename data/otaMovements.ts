@@ -7647,7 +7647,8 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "hypertrophy"
     ],
     "equipment": [
-      "bodyweight"
+      "barbell",
+      "plates"
     ],
     "contraindications": [
       "wrist",
@@ -7906,7 +7907,8 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "hypertrophy"
     ],
     "equipment": [
-      "bodyweight"
+      "barbell",
+      "plates"
     ],
     "tags": [
       "ota_movements",
@@ -7928,7 +7930,8 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "hypertrophy"
     ],
     "equipment": [
-      "bodyweight"
+      "barbell",
+      "plates"
     ],
     "contraindications": [
       "wrist",
@@ -7954,7 +7957,8 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "hypertrophy"
     ],
     "equipment": [
-      "bodyweight"
+      "barbell",
+      "plates"
     ],
     "tags": [
       "ota_movements",
@@ -10447,6 +10451,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "speed",
       "athleticism",
       "acceleration",
+      "creative",
       "partner lean start"
     ],
     "regressions": [],
@@ -13611,7 +13616,8 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "hypertrophy"
     ],
     "equipment": [
-      "bodyweight"
+      "barbell",
+      "plates"
     ],
     "contraindications": [
       "wrist",
@@ -13630,15 +13636,15 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "id": "single_arm_landmine_row",
     "name": "Single Arm Landmine Row",
     "muscles": [
-      "push"
+      "pull"
     ],
     "modalities": [
       "strength",
       "hypertrophy"
     ],
     "equipment": [
-      "bodyweight",
-      "rower"
+      "barbell",
+      "plates"
     ],
     "contraindications": [
       "shoulder",

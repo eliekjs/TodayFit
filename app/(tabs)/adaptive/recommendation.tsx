@@ -16,7 +16,7 @@ import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/typ
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 import { regenerateDay, updateDayStatus, planWeek, deriveDailyPreferencesFromDay } from "../../../services/sportPrepPlanner";
 import { Chip } from "../../../components/Chip";
-import type { PlannedDay } from "../../../services/sportPrepPlanner";
+import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
 import { GOAL_SLUG_TO_LABEL, goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
@@ -34,6 +34,29 @@ function formatDayOfWeek(isoDate: string): string {
   return parseLocalDate(isoDate).toLocaleDateString(undefined, {
     weekday: "long",
   });
+}
+
+/**
+ * Prefer the day that actually has a generated workout. Defaulting to days[0] breaks one-day plans
+ * where the session lands on e.g. Wednesday while Mon–Tue are rest rows — user would see an empty session.
+ */
+function pickDefaultPlannedDay(plan: PlanWeekResult): PlannedDay | null {
+  if (!plan.days.length) return null;
+  const gw = plan.guestWorkouts ?? {};
+  const hasWorkoutForDay = (d: PlannedDay) =>
+    d.generatedWorkoutId != null ||
+    gw[d.date] != null ||
+    gw[d.id] != null ||
+    (plan.today?.id === d.id && plan.todayWorkout != null);
+
+  const todayIso = getTodayLocalDateString();
+  const todayRow = plan.days.find((d) => d.date === todayIso);
+  if (todayRow && hasWorkoutForDay(todayRow)) return todayRow;
+
+  const withWorkout = plan.days.find(hasWorkoutForDay);
+  if (withWorkout) return withWorkout;
+
+  return plan.days[0] ?? null;
 }
 
 const isWeb = Platform.OS === "web";
@@ -301,10 +324,13 @@ export default function AdaptiveWeekPlanScreen() {
 
   useEffect(() => {
     if (!sportPrepWeekPlan) return;
-    if (!selectedSession) {
-      const plan = sportPrepWeekPlan;
-      const first = plan.days[0];
-      setSelectedSession(first ?? null);
+    const validIds = new Set(sportPrepWeekPlan.days.map((d) => d.id));
+    if (selectedSession != null && !validIds.has(selectedSession.id)) {
+      setSelectedSession(pickDefaultPlannedDay(sportPrepWeekPlan));
+      return;
+    }
+    if (selectedSession == null) {
+      setSelectedSession(pickDefaultPlannedDay(sportPrepWeekPlan));
     }
   }, [sportPrepWeekPlan, selectedSession]);
 
@@ -726,7 +752,9 @@ export default function AdaptiveWeekPlanScreen() {
       )}
       {!isLoadingWorkout && !selectedWorkout && (
         <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 16 }}>
-          No session generated for this day (rest / low-load day).
+          {daySlotsWithSessions.length > 1
+            ? "No session for this day — tap another day in the week overview above."
+            : "No session generated for this day (rest / low-load day). Try Regenerate or Back to Setup."}
         </Text>
       )}
       {!isLoadingWorkout && selectedWorkout && (
@@ -780,6 +808,15 @@ export default function AdaptiveWeekPlanScreen() {
               showAdjustFocusLink={focusSectionsForModal.length > 0}
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
               showChips={!!(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id])}
+              baseWorkoutTier={
+                sportPrepWeekPlan.scheduleSnapshot?.workoutTier ??
+                manualPreferences.workoutTier ??
+                "intermediate"
+              }
+              baseIncludeCreativeVariations={
+                (sportPrepWeekPlan.scheduleSnapshot?.includeCreativeVariations ??
+                  manualPreferences.includeCreativeVariations) === true
+              }
             />
             {userId && isDbConfigured() && selectedWorkout ? (
               <PrimaryButton

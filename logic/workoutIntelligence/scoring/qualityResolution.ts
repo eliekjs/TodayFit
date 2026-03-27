@@ -33,6 +33,29 @@ export function resolveSessionQualities(
   return { weights };
 }
 
+function resolvePrimaryGoalDominantQualities(
+  input: WorkoutSelectionInput
+): DesiredQualityProfile {
+  if (input.target_training_qualities && Object.keys(input.target_training_qualities).length > 0) {
+    // If the user explicitly specifies qualities, treat that as the "primary intent" too.
+    return { weights: normalizeWeights(input.target_training_qualities) };
+  }
+  const targetVector = mergeTargetVector({
+    primary_goal: input.primary_goal,
+    // Intentionally ignore secondary/tertiary goals for the main block anchor.
+    secondary_goals: [],
+    sport_slugs: input.sports,
+    sport_sub_focus: input.sport_sub_focus,
+    goal_weights: [1],
+    sport_weight: input.sports?.length ? 0.5 : 0,
+  });
+  const weights: Partial<Record<TrainingQualitySlug, number>> = {};
+  targetVector.forEach((v, k) => {
+    weights[k] = v;
+  });
+  return { weights };
+}
+
 /**
  * Resolve desired qualities for a specific block.
  * Merges session qualities with block-level quality_focus from block spec/template.
@@ -61,6 +84,10 @@ export function resolveBlockQualities(
   return { weights: normalizeWeights(weights) };
 }
 
+function isMainBlockType(blockType: string): boolean {
+  return blockType === "main_strength" || blockType === "main_hypertrophy" || blockType === "power";
+}
+
 /**
  * Build full resolved context: session + per-block qualities.
  */
@@ -72,6 +99,19 @@ export function resolveSessionContext(
   const block_qualities = template.block_specs.map((spec, i) =>
     resolveBlockQualities(spec, i, session_qualities, template)
   );
+
+  // Ensure the earliest "main" block feels anchored to the #1 goal (and sport sub-focus),
+  // rather than a blended compromise across multiple goals.
+  const mainIdx = template.block_specs.findIndex((b) => isMainBlockType(b.block_type));
+  if (mainIdx >= 0) {
+    const primary = resolvePrimaryGoalDominantQualities(input);
+    block_qualities[mainIdx] = resolveBlockQualities(
+      template.block_specs[mainIdx],
+      mainIdx,
+      primary,
+      template
+    );
+  }
   return { session_qualities, block_qualities };
 }
 

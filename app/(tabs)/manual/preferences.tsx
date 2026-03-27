@@ -10,7 +10,6 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
-  Switch,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
@@ -25,6 +24,7 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
+import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { generateWorkoutAsync } from "../../../lib/generator";
 import {
   PRIMARY_FOCUS_OPTIONS,
@@ -43,13 +43,7 @@ import {
 } from "../../../lib/preferencesConstants";
 import { isDbConfigured } from "../../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
-import type { TargetBody, WorkoutTierPreference } from "../../../lib/types";
-
-const WORKOUT_TIER_OPTIONS: { tier: WorkoutTierPreference; label: string }[] = [
-  { tier: "beginner", label: "Beginner" },
-  { tier: "intermediate", label: "Intermediate" },
-  { tier: "advanced", label: "Advanced" },
-];
+import type { TargetBody } from "../../../lib/types";
 
 if (
   Platform.OS === "android" &&
@@ -128,8 +122,11 @@ export default function ManualPreferencesScreen() {
   const hasGoal = manualPreferences.primaryFocus.length >= 1;
   const hasDuration = manualPreferences.durationMinutes != null;
   const hasBodyEmphasis = manualPreferences.targetBody != null;
+  const hasGymProfile = activeProfile != null;
   const canProceed =
-    isWeek ? hasGoal && hasDuration : hasGoal && hasDuration && hasBodyEmphasis;
+    isWeek
+      ? hasGoal && hasDuration && hasGymProfile
+      : hasGoal && hasDuration && hasBodyEmphasis && hasGymProfile;
 
   const durationSummary =
     manualPreferences.durationMinutes != null
@@ -378,7 +375,6 @@ export default function ManualPreferencesScreen() {
 
   type ManualAdvNestedKey =
     | "energy"
-    | "difficulty"
     | "goalWeights"
     | "subGoals"
     | "extraGoals"
@@ -398,10 +394,6 @@ export default function ManualPreferencesScreen() {
       ? manualPreferences.energyLevel.charAt(0).toUpperCase() +
         manualPreferences.energyLevel.slice(1)
       : "Default (medium)";
-  const tierLabel = manualPreferences.workoutTier ?? "intermediate";
-  const manualAdvDifficultySummary = `${tierLabel.charAt(0).toUpperCase() + tierLabel.slice(1)}${
-    manualPreferences.includeCreativeVariations ? " · Creative on" : ""
-  }`;
   const gw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
   const gw2 = manualPreferences.goalMatchSecondaryPct ?? 30;
   const gw3 = manualPreferences.goalMatchTertiaryPct ?? 20;
@@ -463,6 +455,13 @@ export default function ManualPreferencesScreen() {
             ? "Two quick choices, then pick your training days. Fine-tune anytime in Advanced options."
             : "Three quick choices. You can fine-tune later."}
         </Text>
+
+        <ExperienceLevelToggle
+          marginTop={16}
+          workoutTier={manualPreferences.workoutTier ?? "intermediate"}
+          includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
+          onChange={(patch) => updateManualPreferences(patch)}
+        />
 
         <CollapsiblePreferenceSection
           title="Session length"
@@ -554,6 +553,37 @@ export default function ManualPreferencesScreen() {
                 onPress={() => onGoalEssentialChipPress(option)}
               />
             ))}
+          </View>
+        </CollapsiblePreferenceSection>
+
+        <CollapsiblePreferenceSection
+          title="Where you train"
+          subtitle={
+            activeProfile != null
+              ? `Equipment from: ${activeProfile.name}`
+              : "Choose a gym profile for equipment."
+          }
+          summary={gymSummary}
+          expanded={sectionGymOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGymOpen((v) => !v);
+          }}
+          marginTop={12}
+        >
+          <View style={[styles.gymProfileActions, { marginBottom: 8 }]}>
+            <PrimaryButton
+              label="Change gym profile"
+              variant="secondary"
+              onPress={() => setShowChangeProfileModal(true)}
+              style={styles.gymProfileBtn}
+            />
+            <PrimaryButton
+              label="Edit gym profiles"
+              variant="secondary"
+              onPress={() => router.push("/profiles?from=manual")}
+              style={styles.gymProfileBtn}
+            />
           </View>
         </CollapsiblePreferenceSection>
 
@@ -796,48 +826,6 @@ export default function ManualPreferencesScreen() {
                     }
                   />
                 ))}
-              </View>
-            </CollapsiblePreferenceSection>
-
-            <CollapsiblePreferenceSection
-              nested
-              title="Exercise difficulty & variations"
-              subtitle="Difficulty filters movements; creative allows unusual variations."
-              summary={manualAdvDifficultySummary}
-              expanded={manualAdvNestedOpen.difficulty === true}
-              onToggle={() => toggleManualAdvNested("difficulty")}
-            >
-              <View style={styles.chipGroup}>
-                {WORKOUT_TIER_OPTIONS.map(({ tier, label }) => (
-                  <Chip
-                    key={tier}
-                    label={label}
-                    selected={(manualPreferences.workoutTier ?? "intermediate") === tier}
-                    onPress={() => updateManualPreferences({ workoutTier: tier })}
-                  />
-                ))}
-              </View>
-              <View
-                style={{
-                  marginTop: 16,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.modifierLabel, { color: theme.text }]}>
-                    Creative / complex variations
-                  </Text>
-                  <Text style={{ color: theme.textMuted, fontSize: 13, marginTop: 4 }}>
-                    Unusual or advanced exercise variations (off by default).
-                  </Text>
-                </View>
-                <Switch
-                  value={manualPreferences.includeCreativeVariations === true}
-                  onValueChange={(v) => updateManualPreferences({ includeCreativeVariations: v })}
-                />
               </View>
             </CollapsiblePreferenceSection>
 
@@ -1125,37 +1113,6 @@ export default function ManualPreferencesScreen() {
         )}
 
         </View>
-
-        <CollapsiblePreferenceSection
-          title="Where you train"
-          subtitle={
-            activeProfile != null
-              ? `Equipment from: ${activeProfile.name}`
-              : "Choose a gym profile for equipment."
-          }
-          summary={gymSummary}
-          expanded={sectionGymOpen}
-          onToggle={() => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSectionGymOpen((v) => !v);
-          }}
-          marginTop={8}
-        >
-          <View style={[styles.gymProfileActions, { marginBottom: 8 }]}>
-            <PrimaryButton
-              label="Change gym profile"
-              variant="secondary"
-              onPress={() => setShowChangeProfileModal(true)}
-              style={styles.gymProfileBtn}
-            />
-            <PrimaryButton
-              label="Edit gym profiles"
-              variant="secondary"
-              onPress={() => router.push("/profiles?from=workout")}
-              style={styles.gymProfileBtn}
-            />
-          </View>
-        </CollapsiblePreferenceSection>
         </View>
       </ScrollView>
 
@@ -1178,7 +1135,7 @@ export default function ManualPreferencesScreen() {
           <Text style={[styles.ctaHint, { color: theme.textMuted }]}>
             {isWeek
               ? "Choose a session length and training goal to continue."
-              : "Choose session length, training goal, and body emphasis to continue."}
+              : "Choose session length, training goal, body emphasis, and gym profile to continue."}
           </Text>
         ) : null}
         <Pressable onPress={openAdvancedAndScroll} style={styles.advancedLinkWrap}>

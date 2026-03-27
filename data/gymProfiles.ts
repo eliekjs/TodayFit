@@ -40,6 +40,11 @@ export const EQUIPMENT_BY_CATEGORY: {
     options: [
       { id: "dumbbells", label: "Dumbbells (max weight)", hasInput: "dumbbell_max" },
       { id: "kettlebells", label: "Kettlebells" },
+      { id: "clubbell", label: "Clubbell(s)" },
+      { id: "macebell", label: "Macebell" },
+      { id: "steel_mace", label: "Steel mace" },
+      { id: "indian_club", label: "Indian club(s)" },
+      { id: "gada", label: "Gada" },
       { id: "adjustable_bench", label: "Adjustable Bench" },
     ],
   },

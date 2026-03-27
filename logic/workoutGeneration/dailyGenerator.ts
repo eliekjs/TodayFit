@@ -472,7 +472,10 @@ export function scoreExercise(
   // Goal alignment (optionally scaled by goal_weights when provided)
   const goalTags = exercise.tags.goal_tags ?? [];
   const primaryTags = goalToTags(input.primary_goal);
-  const secondaryTags = (input.secondary_goals ?? []).flatMap(goalToTags);
+  const secondaryGoal = input.secondary_goals?.[0];
+  const tertiaryGoal = input.secondary_goals?.[1];
+  const secondaryTags = secondaryGoal ? goalToTags(secondaryGoal) : [];
+  const tertiaryTags = tertiaryGoal ? goalToTags(tertiaryGoal) : [];
   const gw = input.goal_weights;
   const w0 = gw?.[0] ?? 0.6;
   const w1 = gw?.[1] ?? 0.3;
@@ -481,7 +484,7 @@ export function scoreExercise(
   for (const t of goalTags) {
     if (primaryTags.includes(t)) goalScore += gw ? WEIGHT_PRIMARY_GOAL * (w0 / 0.6) : WEIGHT_PRIMARY_GOAL;
     else if (secondaryTags.includes(t)) goalScore += gw ? WEIGHT_SECONDARY_GOAL * (w1 / 0.3) : WEIGHT_SECONDARY_GOAL;
-    else goalScore += gw ? WEIGHT_TERTIARY * 0.5 * (w2 / 0.1) : WEIGHT_TERTIARY * 0.5;
+    else if (tertiaryTags.includes(t)) goalScore += gw ? WEIGHT_TERTIARY * (w2 / 0.1) : WEIGHT_TERTIARY;
   }
   total += goalScore;
 
@@ -507,9 +510,13 @@ export function scoreExercise(
   if (preferredIds?.length) {
     const exIdNorm = tagToSlug(exercise.id);
     const exNameNorm = exercise.name ? tagToSlug(exercise.name) : "";
-    const idx = preferredIds.findIndex(
-      (id) => tagToSlug(id) === exIdNorm || tagToSlug(id) === exNameNorm || id === exercise.id || id === exercise.name
-    );
+    const aliasNorms = (exercise.aliases ?? []).map((a) => tagToSlug(a));
+    const idx = preferredIds.findIndex((id) => {
+      const idNorm = tagToSlug(id);
+      if (idNorm === exIdNorm || id === exercise.id) return true;
+      if (exNameNorm && (idNorm === exNameNorm || id === exercise.name)) return true;
+      return aliasNorms.some((an) => an === idNorm);
+    });
     if (idx >= 0) {
       const bonus = Math.max(0.5, 2 - idx * 0.25);
       total += bonus;

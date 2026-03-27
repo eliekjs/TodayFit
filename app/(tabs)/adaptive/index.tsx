@@ -18,6 +18,7 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
+import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAppState } from "../../../context/AppStateContext";
 import type { AdaptiveSetup } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -89,6 +90,7 @@ const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 const MAX_SUB_GOALS_PER_GOAL = 3;
 
 type AdaptiveAdvNestedKey =
+  | "additionalGoals"
   | "sportVsGoals"
   | "goalMatch"
   | "goalSubGoals"
@@ -146,7 +148,6 @@ export default function AdaptiveModeScreen() {
   /** Cached qualities per sport (loaded when sport is selected). */
   const [qualitiesBySport, setQualitiesBySport] = useState<Record<string, SportQuality[]>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [sectionGoalOpen, setSectionGoalOpen] = useState(false);
   const [sectionSportOpen, setSectionSportOpen] = useState(false);
   const [sectionSessionOpen, setSectionSessionOpen] = useState(false);
   const adaptiveScrollRef = useRef<ScrollView>(null);
@@ -359,6 +360,10 @@ export default function AdaptiveModeScreen() {
 
   const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
 
+  const activeGymProfile =
+    gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+  const gymSummary = activeGymProfile != null ? activeGymProfile.name : "Tap to choose";
+
   /** Available sports to show in the picker (excludes already selected), A–Z by name. */
   const availableSportsForPicker = useMemo(() => {
     const selected = new Set(selectedSportSlugs.map((s) => s.toLowerCase().trim()));
@@ -436,9 +441,9 @@ export default function AdaptiveModeScreen() {
   const primaryGoalMeta = filledAdaptiveGoals[0]
     ? ADAPTIVE_GOALS.find((g) => g.id === filledAdaptiveGoals[0])
     : undefined;
-  const goalSectionSummary =
+  const adaptiveAdvAdditionalGoalsSummary =
     filledAdaptiveGoals.length === 0
-      ? "Tap to choose"
+      ? "None"
       : filledAdaptiveGoals.length > 1
         ? `${primaryGoalMeta?.label ?? filledAdaptiveGoals[0]} +${filledAdaptiveGoals.length - 1} more`
         : primaryGoalMeta?.label ?? filledAdaptiveGoals[0];
@@ -466,7 +471,10 @@ export default function AdaptiveModeScreen() {
   }, []);
 
   const canContinueAdaptive =
-    isDbConfigured() && selectedSportSlugs.length >= 1 && (!isOneDay || oneDayDuration > 0);
+    isDbConfigured() &&
+    activeGymProfile != null &&
+    selectedSportSlugs.length >= 1 &&
+    (!isOneDay || oneDayDuration > 0);
 
   const adaptiveAdvSportVsSummary = `${sportVsGoalPct}% sport · ${100 - sportVsGoalPct}% goals`;
   const agw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
@@ -510,10 +518,30 @@ export default function AdaptiveModeScreen() {
         <Card title="Sport Mode">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             {isOneDay
-              ? "Pick your sport, optional training goals, and session length—then get one tailored workout."
-              : "Pick your sport and optional training goals, then your schedule. Open Advanced options for fatigue, injuries, and more."}
+              ? "Pick your sport and session length—then get one tailored workout. Optional additional goals live in Advanced options."
+              : "Pick your sport, then your schedule. Additional goals, fatigue, injuries, and more are in Advanced options."}
           </Text>
         </Card>
+
+        <ExperienceLevelToggle
+          marginTop={16}
+          workoutTier={manualPreferences.workoutTier ?? "intermediate"}
+          includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
+          onChange={(patch) => updateManualPreferences(patch)}
+        />
+
+        <CollapsiblePreferenceSection
+          title="Where you train"
+          subtitle={
+            activeGymProfile != null
+              ? `Equipment from: ${activeGymProfile.name}`
+              : "Choose a gym profile for equipment."
+          }
+          summary={gymSummary}
+          expanded={false}
+          onToggle={() => router.push("/profiles?from=adaptive")}
+          marginTop={12}
+        />
 
         {error ? (
           <Text style={{ fontSize: 13, color: theme.danger, marginTop: 8 }}>
@@ -751,89 +779,6 @@ export default function AdaptiveModeScreen() {
               })}
         </CollapsiblePreferenceSection>
 
-        <CollapsiblePreferenceSection
-          title="Training goal"
-          subtitle="Pick at least one. Add more in Advanced options to balance your plan."
-          summary={goalSectionSummary}
-          expanded={sectionGoalOpen}
-          onToggle={() => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSectionGoalOpen((v) => !v);
-          }}
-          marginTop={16}
-        >
-        {rankedGoals.filter((g): g is string => g != null).length > 0 && (
-          <View style={styles.chipGroup}>
-            {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
-              const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
-              const pct =
-                idx === 0
-                  ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                  : idx === 1
-                    ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                    : (manualPreferences.goalMatchTertiaryPct ?? 20);
-              return (
-                <View key={goalId} style={styles.rankedChipWrap}>
-                  <View
-                    style={[
-                      styles.rankBadge,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
-                      {idx + 1}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.rankedChipInner,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.primary,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                      numberOfLines={1}
-                    >
-                      {goal?.label ?? goalId}
-                    </Text>
-                    <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                      {pct}%
-                    </Text>
-                  </View>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => removeGoal(goalId)}
-                    style={styles.rankedChipRemove}
-                  >
-                    <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
-                  </Pressable>
-                </View>
-              );
-            })}
-          </View>
-        )}
-        <View style={styles.chipGroup}>
-          {ADAPTIVE_GOALS.filter(
-            (g) => !rankedGoals.includes(g.id)
-          ).map((goal) => (
-            <Chip
-              key={goal.id}
-              label={goal.label}
-              selected={false}
-              onPress={() => addGoal(goal.id)}
-            />
-          ))}
-        </View>
-        </CollapsiblePreferenceSection>
-
         {isOneDay ? (
           <CollapsiblePreferenceSection
             title="Session length"
@@ -889,6 +834,85 @@ export default function AdaptiveModeScreen() {
               },
             ]}
           >
+            <CollapsiblePreferenceSection
+              nested
+              title="Additional goals"
+              subtitle="Optional — rank up to 3 training goals to blend with your sport(s). Leave empty for sport-focused plans."
+              summary={adaptiveAdvAdditionalGoalsSummary}
+              expanded={adaptiveAdvNestedOpen.additionalGoals === true}
+              onToggle={() => toggleAdaptiveAdvNested("additionalGoals")}
+              marginTop={0}
+            >
+              {rankedGoals.filter((g): g is string => g != null).length > 0 && (
+                <View style={styles.chipGroup}>
+                  {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
+                    const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+                    const pct =
+                      idx === 0
+                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
+                        : idx === 1
+                          ? (manualPreferences.goalMatchSecondaryPct ?? 30)
+                          : (manualPreferences.goalMatchTertiaryPct ?? 20);
+                    return (
+                      <View key={goalId} style={styles.rankedChipWrap}>
+                        <View
+                          style={[
+                            styles.rankBadge,
+                            {
+                              backgroundColor: theme.chipSelectedBackground,
+                              borderWidth: 1,
+                              borderColor: theme.primary,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                            {idx + 1}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.rankedChipInner,
+                            {
+                              backgroundColor: theme.chipSelectedBackground,
+                              borderWidth: 1,
+                              borderColor: theme.primary,
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                            numberOfLines={1}
+                          >
+                            {goal?.label ?? goalId}
+                          </Text>
+                          <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
+                            {pct}%
+                          </Text>
+                        </View>
+                        <Pressable
+                          hitSlop={8}
+                          onPress={() => removeGoal(goalId)}
+                          style={styles.rankedChipRemove}
+                        >
+                          <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+              <View style={styles.chipGroup}>
+                {ADAPTIVE_GOALS.filter((g) => !rankedGoals.includes(g.id)).map((goal) => (
+                  <Chip
+                    key={goal.id}
+                    label={goal.label}
+                    selected={false}
+                    onPress={() => addGoal(goal.id)}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
+
             {selectedSportSlugs.length > 0 &&
             rankedGoals.filter((g): g is string => g != null).length > 0 ? (
               <CollapsiblePreferenceSection
@@ -951,10 +975,11 @@ export default function AdaptiveModeScreen() {
                 </View>
               </CollapsiblePreferenceSection>
             ) : null}
+            {filledAdaptiveGoals.length > 0 ? (
             <CollapsiblePreferenceSection
               nested
               title="Goal match %"
-              subtitle="What % of the workout should match each ranked goal. Sum = 100%."
+              subtitle="What % of the workout should match each ranked additional goal. Sum = 100%."
               summary={adaptiveAdvGoalMatchSummary}
               expanded={adaptiveAdvNestedOpen.goalMatch === true}
               onToggle={() => toggleAdaptiveAdvNested("goalMatch")}
@@ -1050,6 +1075,7 @@ export default function AdaptiveModeScreen() {
                 })}
             </View>
             </CollapsiblePreferenceSection>
+            ) : null}
 
             {filledAdaptiveGoals.length > 0 ? (
               <CollapsiblePreferenceSection
@@ -1360,7 +1386,7 @@ export default function AdaptiveModeScreen() {
           ) : null}
           <Pressable onPress={openAdaptiveAdvancedAndScroll} style={styles.advancedLinkWrap}>
             <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-              Advanced options (fatigue, injuries, goal weights…)
+              Advanced options (additional goals, fatigue, injuries…)
             </Text>
           </Pressable>
         </View>

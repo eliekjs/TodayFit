@@ -2,9 +2,10 @@ import React, { forwardRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
-import type { DailyWorkoutPreferences } from "../lib/types";
+import type { DailyWorkoutPreferences, WorkoutTierPreference } from "../lib/types";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./Button";
+import { ExperienceLevelToggle } from "./ExperienceLevelToggle";
 
 const GOAL_OPTIONS = ["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const;
 const BODY_OPTIONS = ["upper", "lower", "full", "pull", "push", "core"] as const;
@@ -24,6 +25,9 @@ export type DayFocusOverrideChipsProps = {
   helperText?: string;
   /** Optional custom regenerate button label. Default: "Regenerate this day" */
   regenerateLabel?: string;
+  /** Plan / global defaults when the day override does not set tier or creative. */
+  baseWorkoutTier?: WorkoutTierPreference;
+  baseIncludeCreativeVariations?: boolean;
 };
 
 export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps>(function DayFocusOverrideChips({
@@ -36,9 +40,15 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   showChips = true,
   helperText = "Then tap Regenerate to rebuild only this session.",
   regenerateLabel = "Regenerate this day",
+  baseWorkoutTier = "intermediate",
+  baseIncludeCreativeVariations = false,
 }, ref) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
+
+  const effectiveTier = dailyPrefsOverride?.workoutTier ?? baseWorkoutTier;
+  const effectiveCreative =
+    (dailyPrefsOverride?.includeCreativeVariations ?? baseIncludeCreativeVariations) === true;
 
   return (
     <View ref={ref} style={styles.container}>
@@ -61,6 +71,12 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
         </>
       ) : (
         <>
+          <ExperienceLevelToggle
+            marginTop={0}
+            workoutTier={effectiveTier}
+            includeCreativeVariations={effectiveCreative}
+            onChange={(patch) => onOverrideChange(patch)}
+          />
           <Pressable
             onPress={() => setExpanded((v) => !v)}
             style={({ pressed }) => ({
