@@ -60,14 +60,21 @@ export function exerciseHasStrengthSubFocusSlug(exercise: ExerciseForStrengthSub
   const muscles = new Set((exercise.muscle_groups ?? []).map(toSlug));
   const pairing = toSlug(exercise.pairing_category ?? "");
 
-  // Intent: lower body / squat-dominant
+  // Intent: lower body / squat-dominant (avoid matching hinges via glutes-only — systemic double-count with deadlift_hinge)
   if (norm === "squat") {
-    return movementPattern === "squat" || family === "lower_body" || muscles.has("quads") || muscles.has("glutes");
+    if (movementPattern === "hinge") return false;
+    return (
+      movementPattern === "squat" ||
+      finePatterns.some((p) => ["squat", "lunge", "split_squat"].includes(p)) ||
+      muscles.has("quads") ||
+      (family === "lower_body" && muscles.has("quads"))
+    );
   }
 
-  // Intent: hinge / posterior chain
+  // Intent: hinge / posterior chain (glutes alone also matches many squats; require hinge shape or hamstrings / chain tag)
   if (norm === "deadlift_hinge") {
-    return movementPattern === "hinge" || pairing === "posterior_chain" || muscles.has("hamstrings") || muscles.has("glutes");
+    if (movementPattern === "squat") return false;
+    return movementPattern === "hinge" || pairing === "posterior_chain" || muscles.has("hamstrings");
   }
 
   // Intent: bench / horizontal press

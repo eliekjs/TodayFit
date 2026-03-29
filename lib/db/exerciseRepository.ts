@@ -587,6 +587,21 @@ export async function listSupabaseCatalogExerciseRows(): Promise<SupabaseCatalog
  * gym equipment here — `generateWorkoutSession` applies `filterByHardConstraints` so equipment matching
  * stays consistent with the merged static+DB pool in `generateWorkoutAsync`.
  */
+/**
+ * Cheap count of active exercises (no relation joins). Used to decide if Supabase is the
+ * production catalog vs merging static fallback — see `lib/exerciseCatalogPolicy.ts`.
+ */
+export async function countActiveCatalogExercises(): Promise<number> {
+  const supabase = getSupabase();
+  if (!supabase) return 0;
+  const { count, error } = await supabase
+    .from("exercises")
+    .select("id", { count: "exact", head: true })
+    .eq("is_active", true);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
 export async function listExercisesForGenerator(
   filters?: Pick<ExerciseFilters, "injuries" | "tagSlugs">
 ): Promise<Exercise[]> {

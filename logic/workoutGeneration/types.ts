@@ -3,6 +3,8 @@
  * Input is built from the active mode’s filters; same generator runs for one session or per day in a week.
  */
 
+import type { TrainingQualitySlug } from "../workoutIntelligence/trainingQualities";
+
 // --- Movement & modality ---
 export type MovementPattern =
   | "squat"
@@ -219,10 +221,20 @@ export type GenerateWorkoutInput = {
   goal_weights?: number[];
   /** When sports and goals both present: 0 = goals only, 1 = sport only. Default 0.5. */
   sport_weight?: number;
+  /** Per-day training qualities from weekly planner; merged into session target vector for scoring. */
+  session_target_qualities?: Partial<Record<TrainingQualitySlug, number>>;
+  /** Weight for blending `session_target_qualities` in `mergeTargetVector`. Default 0.35. */
+  session_target_qualities_weight?: number;
+  /**
+   * Exercise IDs already used as main work (main_strength / main_hypertrophy blocks) earlier in the same
+   * programmed week. Selection excludes them when possible (pool fallback if no alternatives).
+   */
+  week_main_strength_lift_ids_used?: string[];
 };
 
 // --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
 import type { WorkoutBlock as LibWorkoutBlock } from "../../lib/types";
+import type { HikingSessionEnforcementSnapshot } from "./sportPatternTransfer/types";
 export type { BlockType, BlockFormat, WorkoutItem, WorkoutBlock } from "../../lib/types";
 
 export type ScoringDebug = {
@@ -261,6 +273,10 @@ export type ScoringDebug = {
   sub_focus_tag_match?: number;
   /** Sport tag match: bonus when exercise sport_tags match user's sport_slugs. */
   sport_tag_match?: number;
+  /** Alignment of exercise training qualities to merged session target vector (sports / weekly session). */
+  sport_quality_alignment?: number;
+  /** Multiplier applied to goal tag score when sports are present (sport vs goal emphasis). */
+  goal_score_sport_dampening?: number;
   /** Bonus when exercise is in style_prefs.preferred_exercise_ids (sport/goal ranking). */
   preferred_exercise_bonus?: number;
   /** Bonus when exercise has fewer contraindications (tag priority: prefer broader applicability). */
@@ -281,6 +297,48 @@ export type WorkoutSession = {
   debug?: {
     scoring_breakdown?: ScoringDebug[];
     seed_used?: number;
+    /** Sport pattern transfer (hiking_backpacking | trail_running): categories, slot rule, tier, coverage. */
+    sport_pattern_transfer?: {
+      sport_slug: "hiking_backpacking" | "trail_running" | string;
+      coverage_ok: boolean;
+      violations?: { ruleId: string; description: string }[];
+      /** Slot gating outcomes (main, accessory, hypertrophy, secondary strength). */
+      enforcement_snapshot?: HikingSessionEnforcementSnapshot;
+      /** Aggregated category + overlap counts for tuning and cross-sport comparison (see sportPatternSessionAudit). */
+      session_summary?: {
+        sport_slug: "hiking_backpacking" | "trail_running";
+        main_category_hits: Record<string, number>;
+        accessory_category_hits: Record<string, number>;
+        conditioning_exercise_ids: string[];
+        signature_pattern_selections: number;
+        non_signature_selections: number;
+        overlap_families: {
+          lunge_split_family: number;
+          step_stair_family: number;
+          carry_family: number;
+          calf_ankle_family: number;
+          conditioning_treadmill_run: number;
+          conditioning_stair_incline: number;
+          conditioning_bike_row_ski: number;
+        };
+      };
+      items: Array<{
+        exercise_id: string;
+        block_type: string;
+        categories_matched: string[];
+        slot_rule_id: string;
+        tier: "required" | "preferred" | "fallback";
+        note?: string;
+        enforcement?: {
+          main_work_pool_mode?: "gated" | "full_pool_fallback";
+          passed_hiking_gate_categories?: boolean;
+          excluded_from_hiking_main_work?: boolean;
+          passed_trail_gate_categories?: boolean;
+          excluded_from_trail_main_work?: boolean;
+          item_used_full_pool_fallback_session: boolean;
+        };
+      }>;
+    };
   };
 };
 

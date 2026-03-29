@@ -3,7 +3,7 @@
  */
 
 import assert from "assert";
-import { EXERCISES } from "../../data/exercises";
+import { EXERCISES } from "../../data/exercisesMerged";
 import { exerciseDefinitionToGeneratorExercise } from "../dailyGeneratorAdapter";
 import {
   inferPhase5MobilityStretchFromInput,

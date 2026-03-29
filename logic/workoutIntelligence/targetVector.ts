@@ -22,6 +22,10 @@ export type MergeTargetInput = {
   sport_weight?: number;
   /** When sport_sub_focus present: weight for sub-focus quality vector (0–1). Blended on top of goal+sport. Default 0.4. */
   sub_focus_weight?: number;
+  /** Per-day qualities from weekly planner; blended before final normalize. */
+  session_target_qualities?: Partial<Record<TrainingQualitySlug, number>>;
+  /** Weight for `session_target_qualities` (0–1). Default 0.35. */
+  session_target_qualities_weight?: number;
 };
 
 const DEFAULT_GOAL_WEIGHTS = [0.6, 0.3, 0.1];
@@ -117,6 +121,15 @@ export function mergeTargetVector(input: MergeTargetInput): SessionTargetVector 
     for (const [q, v] of Object.entries(subFocusQualities)) {
       if (typeof v === "number" && v > 0)
         out.set(q as TrainingQualitySlug, (out.get(q as TrainingQualitySlug) ?? 0) + subFocusWeight * v);
+    }
+  }
+
+  const sess = input.session_target_qualities;
+  if (sess && Object.keys(sess).length > 0) {
+    const w = input.session_target_qualities_weight ?? 0.35;
+    for (const [q, v] of Object.entries(sess)) {
+      if (typeof v === "number" && v > 0)
+        out.set(q as TrainingQualitySlug, (out.get(q as TrainingQualitySlug) ?? 0) + w * v);
     }
   }
 

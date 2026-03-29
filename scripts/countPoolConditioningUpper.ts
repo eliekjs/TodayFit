@@ -5,7 +5,7 @@
  * npx tsx scripts/countPoolConditioningUpper.ts
  */
 
-import { EXERCISES } from "../data/exercises";
+import { EXERCISES } from "../data/exercisesMerged";
 import { manualPreferencesToGenerateWorkoutInput } from "../lib/dailyGeneratorAdapter";
 import type { ManualPreferences } from "../lib/types";
 import type { GymProfile } from "../data/gymProfiles";

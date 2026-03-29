@@ -1,4 +1,5 @@
 import { getSupabase } from "./client";
+import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
 import type {
   Sport,
   SportCategory,
@@ -6,6 +7,20 @@ import type {
   UserSportProfile,
   SportEvent,
 } from "./types";
+
+/**
+ * Resolve a row from the active Sports Prep list when the stored slug may be a
+ * legacy alias (deactivated in DB) that maps to a canonical slug.
+ */
+export function resolveActiveSportForSlug(sports: Sport[], slug: string): Sport | undefined {
+  const canonical = getCanonicalSportSlug(slug);
+  const lower = slug.toLowerCase().trim();
+  const canonLower = canonical.toLowerCase();
+  return (
+    sports.find((s) => (s.slug ?? "").toLowerCase() === canonLower) ??
+    sports.find((s) => (s.slug ?? "").toLowerCase() === lower)
+  );
+}
 
 function requireClient() {
   const supabase = getSupabase();

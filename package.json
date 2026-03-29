@@ -4,10 +4,13 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:dev": "CI=false expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "web:dev": "CI=false expo start --web",
+    "web:dev:clear": "CI=false expo start --web --clear",
     "lint": "expo lint",
     "test:generator": "npx tsx logic/workoutGeneration/seedTest.ts",
     "test:generator-async": "npx tsx lib/generator.integration.test.ts",
@@ -17,7 +20,9 @@
     "test:exercise-database-opportunity": "npx tsx logic/workoutGeneration/exerciseDatabaseOpportunity.test.ts",
     "test:exercise-ontology-coverage": "npx tsx logic/workoutGeneration/exerciseOntologyCoverage.test.ts",
     "audit:exercise-ontology-coverage:snapshot": "npx tsx scripts/auditExerciseTagCoverageSnapshot.ts",
-    "validate:autonomous-pr": "node scripts/validate-autonomous-pr.js"
+    "validate:autonomous-pr": "node scripts/validate-autonomous-pr.js",
+    "test:exercise-catalog-policy": "npx tsx lib/exerciseCatalogPolicy.test.ts",
+    "test:sport-tailored-scoring": "npx tsx logic/workoutGeneration/sportTailoredScoring.test.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

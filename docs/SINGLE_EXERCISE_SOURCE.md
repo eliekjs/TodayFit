@@ -1,11 +1,18 @@
-# Single exercise source: database
+# Single exercise source: database (production)
 
-The app uses **Supabase as the single source of truth** for the exercise catalog. There is no static fallback pool at runtime.
+In **production**, the seeded **Supabase** catalog is the source of truth for workout generation.
 
-## Runtime behavior
+## Runtime behavior (`generateWorkoutAsync`)
 
-- **Workout generation** (`generateWorkoutAsync`) loads the exercise pool from Supabase via `listExercisesForGenerator()`. Supabase must be configured (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`). If the catalog is empty or filters match nothing, generation throws a clear error.
-- **Sync generator** (`generateWorkout`) does not use a default pool; callers must pass an explicit `exercisesInput` (e.g. tests or scripts that load from DB first).
+1. **Supabase configured and seeded** — If the number of **active** rows in `public.exercises` is at least the policy minimum (default **50**, see `lib/exerciseCatalogPolicy.ts`), the generator uses **only** the DB pool from `listExercisesForGenerator()`. Static TypeScript catalogs are **not** merged or loaded, which keeps the bundle fast once the DB is authoritative.
+
+2. **Supabase missing, empty, or below threshold** — The app merges whatever the DB returns (if any) with the lazy-loaded static catalogs (`data/exercises.ts` builtin + functional fitness + OTA) so local development and partially seeded projects still work.
+
+3. **Override** — Set `EXPO_PUBLIC_MIN_DB_EXERCISES_FOR_SOURCE_OF_TRUTH` to an integer ≥ 1 to change the threshold (e.g. stricter production gates).
+
+4. **Errors** — If the pool is empty after loading (e.g. injury filters exclude every exercise, or nothing is seeded), generation throws a clear error.
+
+- **Sync generator** (`generateWorkout`) does not use a default pool; callers must pass an explicit `exercisesInput` (e.g. tests or scripts).
 
 ## Adding or updating exercises
 
@@ -32,14 +39,16 @@ The app uses **Supabase as the single source of truth** for the exercise catalog
 3. **Optional: run audits**  
    Scripts like `scripts/auditExerciseTagMatchability.ts` can run against the static `EXERCISES` array (for CI or offline checks) or you can add a path that uses `listExercises()` against a configured DB.
 
-## Why one source
+## Why database-first in production
 
-- **Single source of truth** — No drift between “static pool” and “DB pool”; the generator always sees the same catalog.
-- **Clear failure mode** — If Supabase is missing or the catalog isn’t seeded, the app fails with a clear message instead of silently using a different set.
-- **Tag enrichment** — Goal tags, normalized attribute tags, and derived tags (muscles, movement pattern) are applied at read time in `mapDbExerciseToGeneratorExercise` and `exerciseDefinitionToGeneratorExercise`; the DB can store a minimal set and the adapters expand it for the generator.
+- **Single source of truth** — Seeded Supabase rows drive generation; no drift with a second full catalog in memory.
+- **Performance** — Below-threshold or offline builds still merge static data; above the threshold, large static modules are not loaded at generation time.
+- **Clear failure mode** — Empty pool after load surfaces an explicit error (seed catalog or relax filters).
+- **Tag enrichment** — Goal tags, normalized attribute tags, and derived tags are applied at read time in `mapDbExerciseToGeneratorExercise` and `exerciseDefinitionToGeneratorExercise`.
 
 ## Related
 
-- Generator: `lib/generator.ts` (`generateWorkoutAsync`, `generateWorkout`).
-- DB listing: `lib/db/exerciseRepository.ts` (`listExercisesForGenerator`, `listExercises`).
+- Policy: `lib/exerciseCatalogPolicy.ts` (threshold for DB-as-source-of-truth).
+- Generator: `lib/generator.ts` (`loadMergedExercisePoolForGenerator`, `generateWorkoutAsync`).
+- DB: `lib/db/exerciseRepository.ts` (`countActiveCatalogExercises`, `listExercisesForGenerator`, `listExercises`).
 - Seed script: `scripts/seedExercisesToDb.ts`.

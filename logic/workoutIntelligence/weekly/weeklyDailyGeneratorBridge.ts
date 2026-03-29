@@ -63,7 +63,8 @@ export function weeklySessionToDailyInput(
   baseInput: WeeklyPlanningInput,
   rollingRecentHistory: { exercise_ids: string[]; muscle_groups: string[]; modality: string }[],
   rollingTrainingHistory: TrainingHistoryContext | undefined,
-  seedOffset: number
+  seedOffset: number,
+  weekMainLiftIdsUsedSoFar: string[] = []
 ): GenerateWorkoutInput {
   const { primary_goal, focus_body_parts } = sessionIntentToGoalAndFocus(
     planned.session_type,
@@ -96,6 +97,7 @@ export function weeklySessionToDailyInput(
     sport_sub_focus: baseInput.sport_sub_focus,
     goal_weights: baseInput.goal_weights,
     sport_weight: baseInput.sport_weight,
+    session_target_qualities: planned.target_qualities,
   };
 }
 

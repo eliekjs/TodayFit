@@ -10,7 +10,8 @@
 
 import { writeFileSync } from "fs";
 import { join } from "path";
-import { EXERCISES, EXERCISES_BUILTIN } from "../data/exercises";
+import { EXERCISES_BUILTIN } from "../data/exercises";
+import { EXERCISES } from "../data/exercisesMerged";
 import { EXERCISES_FUNCTIONAL_FITNESS } from "../data/exercisesFunctionalFitness";
 import { OTA_MOVEMENTS } from "../data/otaMovements";
 import { listSupabaseCatalogExerciseRows, type SupabaseCatalogExerciseRow } from "../lib/db/exerciseRepository";

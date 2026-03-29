@@ -81,12 +81,18 @@ const ANCHOR_EXERCISE: Exercise = {
 } as Exercise;
 
 function testAnchorRepeatBonus() {
-  const bonus = scoreAnchorRepeatBonus(ANCHOR_EXERCISE, 1, "main_strength", true);
-  assert(bonus.score > 0, "anchor repeat bonus when exposure 1 and completion success");
-  const noBonus = scoreAnchorRepeatBonus(ANCHOR_EXERCISE, 0, "main_strength");
-  assert(noBonus.score === 0, "no bonus when exposure 0");
-  const noBonusPoor = scoreAnchorRepeatBonus(ANCHOR_EXERCISE, 1, "main_strength", false);
-  assert(noBonusPoor.score === 0, "no bonus when last completion poor");
+  assert(
+    scoreAnchorRepeatBonus(ANCHOR_EXERCISE, 1, "main_strength", true).score === 0,
+    "main block selection does not reward anchor repeats (variety over hub compounds)"
+  );
+  assert(
+    scoreAnchorRepeatBonus(ANCHOR_EXERCISE, 0, "main_strength").score === 0,
+    "no bonus when exposure 0"
+  );
+  assert(
+    scoreAnchorRepeatBonus(ANCHOR_EXERCISE, 1, "accessory", true).score === 0,
+    "anchor repeat hook only applies to main block types"
+  );
 }
 
 // --- Accessory rotation after high recent exposure ---
@@ -203,7 +209,7 @@ function runTests() {
   console.log("  OK: recent exact exercise repeat penalty");
 
   testAnchorRepeatBonus();
-  console.log("  OK: anchor repeat allowed when progression appropriate");
+  console.log("  OK: no anchor repeat bonus on main selection (variety)");
 
   testAccessoryRotationPenalty();
   console.log("  OK: accessory rotation after high exposure");

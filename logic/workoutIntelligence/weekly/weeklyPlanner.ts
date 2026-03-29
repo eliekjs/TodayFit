@@ -28,6 +28,7 @@ import {
   buildRollingTrainingHistory,
   buildWeeklyStateSnapshot,
 } from "./weeklyDailyGeneratorBridge";
+import { collectWeekMainLiftExerciseIds } from "../../workoutGeneration/collectWeekMainLiftExerciseIds";
 import { generateWorkoutSession } from "../../workoutGeneration/dailyGenerator";
 import {
   pushPullBalanceOk,
@@ -169,6 +170,7 @@ export function generateAdaptiveWeekWithDailyGenerator(
   const rollingSummaries: { exercise_ids: string[]; muscle_groups: string[]; modality: string }[] = [];
   const days: WeeklyDayWithWorkout[] = [];
   const seedBase = typeof input.variation_seed === "number" ? input.variation_seed : (input.variation_seed ?? "").toString().length * 1000;
+  const weekMainLiftIds: string[] = [];
 
   for (const session of sessionsByDay) {
     const trainingHistory = rollingSummaries.length > 0 ? buildRollingTrainingHistory(rollingSummaries) : undefined;
@@ -177,9 +179,11 @@ export function generateAdaptiveWeekWithDailyGenerator(
       input,
       rollingSummaries,
       trainingHistory,
-      seedBase
+      seedBase,
+      weekMainLiftIds
     );
     const workout = generateWorkoutSession(dailyInput, options.exercisePool);
+    weekMainLiftIds.push(...collectWeekMainLiftExerciseIds(workout));
     const summary = workoutSessionToRecentSummary(workout, options.exercisePool);
     rollingSummaries.push(summary);
 

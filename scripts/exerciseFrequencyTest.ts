@@ -10,7 +10,7 @@
 
 import { generateWorkout } from "../lib/generator";
 import type { ManualPreferences } from "../lib/types";
-import { EXERCISES } from "../data/exercises";
+import { EXERCISES } from "../data/exercisesMerged";
 
 const DEFAULT_PREFS: ManualPreferences = {
   primaryFocus: ["Strength"],

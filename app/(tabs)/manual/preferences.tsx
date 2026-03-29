@@ -25,7 +25,7 @@ import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
-import { generateWorkoutAsync } from "../../../lib/generator";
+import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import {
   PRIMARY_FOCUS_OPTIONS,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
@@ -315,6 +315,7 @@ export default function ManualPreferencesScreen() {
         preferredNames = undefined;
       }
     }
+    const { generateWorkoutAsync } = await loadGeneratorModule();
     const workout = await generateWorkoutAsync(
       manualPreferences,
       profile,

@@ -8,8 +8,23 @@ export {
   filterByHardConstraints,
   filterByConstraintsForPool,
   scoreExercise,
+  buildSessionTargetVectorFromInput,
 } from "./dailyGenerator";
+export { collectWeekMainLiftExerciseIds } from "./collectWeekMainLiftExerciseIds";
 export type { ScoreExerciseOptions } from "./dailyGenerator";
+export type {
+  SportPatternGateResult,
+  SportPatternSlotRule,
+  SportPatternPoolMode,
+  SportPatternSlotScoreWeights,
+} from "./sportPattern/framework/types";
+export {
+  gatePoolForSportSlot,
+  computeSportPatternSlotScoreAdjustment,
+  getSportPatternSlotRuleForBlockType,
+  collectBlocksExerciseIdsByType,
+  buildSportCoverageContext,
+} from "./sportPattern/framework";
 export {
   computeOntologyScoreComponents,
   getEffectiveFatigueRegions,

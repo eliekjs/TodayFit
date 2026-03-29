@@ -17,10 +17,14 @@ import type {
   WorkoutItem,
 } from "./types";
 import type { Exercise } from "../logic/workoutGeneration/types";
-import { EXERCISES } from "../data/exercises";
 import type { GymProfile } from "../data/gymProfiles";
-import { isDbConfigured } from "../lib/db";
-import { listExercisesForGenerator } from "../lib/db/exerciseRepository";
+import { loadStaticExerciseDefinitions } from "./staticExerciseCatalog";
+import { isDbCatalogAuthoritative } from "./exerciseCatalogPolicy";
+import {
+  countActiveCatalogExercises,
+  listExercisesForGenerator,
+} from "./db/exerciseRepository";
+import { isDbConfigured } from "./db/client";
 import {
   BODY_RECOMP_CARDIO_DURATION_MAX,
   BODY_RECOMP_CARDIO_DURATION_MIN,
@@ -61,32 +65,49 @@ function exerciseConflictsWithInjuries(ex: Exercise, injurySlugs: string[]): boo
 }
 
 /**
- * Union of Supabase-backed exercises (full paginated load + ontology) and static `EXERCISES`
- * (includes functional fitness / OTA). DB rows win on slug collision; static fills gaps when
- * the catalog is not fully seeded or a row is missing.
+ * Exercise pool for generation:
+ * - **Production (seeded Supabase):** when active row count ≥ policy threshold, use **only** the DB
+ *   (no static merge) — Supabase is the source of truth; avoids loading ~1MB+ static chunks.
+ * - **Dev / empty DB / errors:** merge DB rows (DB wins on id) with lazy-loaded static catalog.
  */
 async function loadMergedExercisePoolForGenerator(injurySlugs: string[]): Promise<Exercise[]> {
   const byId = new Map<string, Exercise>();
 
-  if (isDbConfigured()) {
-    try {
-      const fromDb = await listExercisesForGenerator({ injuries: injurySlugs });
-      for (const e of fromDb) {
-        if (!BLOCKED_EXERCISE_IDS.has(e.id)) byId.set(e.id, e);
-      }
-    } catch {
-      // Misconfig, RLS, or network — still merge static catalog below.
-    }
+  if (!isDbConfigured()) {
+    const staticDefs = await loadStaticExerciseDefinitions();
+    return mergeStaticIntoPool(byId, staticDefs, injurySlugs);
   }
 
-  for (const def of EXERCISES) {
+  try {
+    const activeCount = await countActiveCatalogExercises();
+    const dbAuthoritative = isDbCatalogAuthoritative(activeCount);
+    const fromDb = await listExercisesForGenerator({ injuries: injurySlugs });
+    for (const e of fromDb) {
+      if (!BLOCKED_EXERCISE_IDS.has(e.id)) byId.set(e.id, e);
+    }
+    if (dbAuthoritative) {
+      return [...byId.values()];
+    }
+  } catch {
+    // Misconfig, RLS, or network — merge static catalog below.
+  }
+
+  const staticDefs = await loadStaticExerciseDefinitions();
+  return mergeStaticIntoPool(byId, staticDefs, injurySlugs);
+}
+
+function mergeStaticIntoPool(
+  byId: Map<string, Exercise>,
+  staticDefs: ExerciseDefinition[],
+  injurySlugs: string[]
+): Exercise[] {
+  for (const def of staticDefs) {
     if (BLOCKED_EXERCISE_IDS.has(def.id)) continue;
     if (byId.has(def.id)) continue;
     const ex = exerciseDefinitionToGeneratorExercise(def);
     if (exerciseConflictsWithInjuries(ex, injurySlugs)) continue;
     byId.set(def.id, ex);
   }
-
   return [...byId.values()];
 }
 
@@ -550,11 +571,11 @@ export function generateWorkout(
     preferences.upcoming
   );
 
-  // Warm-up: bodyweight or bands only — activation, mobility, getting the body moving (no weights)
+  // Activation: easy bodyweight or band prep only (no conditioning here — cardio uses the conditioning block)
   const warmupPool = eligible.filter(
     (e) =>
       isWarmupEligibleEquipment(e.equipment) &&
-      (e.modalities.includes("mobility") || e.modalities.includes("conditioning"))
+      (e.modalities.includes("mobility") || e.modalities.includes("recovery"))
   );
   let mainPool = eligible.filter((e) =>
     e.modalities.some((m) => focusModalities.includes(m))
@@ -865,7 +886,7 @@ export function generateWorkout(
 }
 
 /**
- * Async version: builds a merged exercise pool (Supabase when configured + static `EXERCISES`), then generates via dailyGenerator.
+ * Async version: builds the exercise pool (Supabase when configured and seeded; otherwise merges static catalog), then generates via dailyGenerator.
  * Supabase rows are loaded in pages so large catalogs are not truncated by default row limits; equipment and body-part
  * filtering happen inside `generateWorkoutSession` (`filterByHardConstraints` + constraints).
  * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when scoring.
@@ -888,7 +909,7 @@ export async function generateWorkoutAsync(
 
   if (pool.length === 0) {
     throw new Error(
-      "No exercises available for generation. If using Supabase, seed the catalog: npx ts-node scripts/seedExercisesToDb.ts. Otherwise ensure data/exercises.ts includes exercises. See docs/SINGLE_EXERCISE_SOURCE.md."
+      "No exercises available for generation. With Supabase, seed the catalog (npx tsx scripts/seedExercisesToDb.ts) or check injury filters. Without Supabase, static data should load. See docs/SINGLE_EXERCISE_SOURCE.md."
     );
   }
   const input = manualPreferencesToGenerateWorkoutInput(

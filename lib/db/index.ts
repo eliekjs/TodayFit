@@ -16,6 +16,7 @@ export {
   listTags,
   listExercisesByTags,
   listExercisesForGenerator,
+  countActiveCatalogExercises,
   listSupabaseCatalogExerciseRows,
   clearGeneratorExerciseCatalogCache,
 } from "./exerciseRepository";

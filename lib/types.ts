@@ -101,6 +101,11 @@ export type ManualPreferences = {
   workoutTier?: WorkoutTierPreference;
   /** When true, allow exercises marked as creative/complex variations in the catalog. Default false. */
   includeCreativeVariations?: boolean;
+  /**
+   * When generating a multi-day week, pass IDs from prior days' main blocks so the engine avoids repeating
+   * the same main compound across the week (see GenerateWorkoutInput.week_main_strength_lift_ids_used).
+   */
+  weekMainStrengthLiftIdsUsed?: string[];
 };
 
 export type EquipmentKey =

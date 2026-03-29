@@ -31,7 +31,7 @@ import {
   ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
   goalSubFocusPayloadForAdaptiveGoals,
 } from "../../../lib/preferencesConstants";
-import { listSportsForPrep, getQualitiesForSport } from "../../../lib/db/sportRepository";
+import { listSportsForPrep, getQualitiesForSport, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
@@ -367,14 +367,21 @@ export default function AdaptiveModeScreen() {
   /** Available sports to show in the picker (excludes already selected), A–Z by name. */
   const availableSportsForPicker = useMemo(() => {
     const selected = new Set(selectedSportSlugs.map((s) => s.toLowerCase().trim()));
-    return filteredSportsFlat.filter(
-      (s) => !selected.has((s.slug ?? "").toLowerCase().trim())
+    const selectedCanonical = new Set(
+      selectedSportSlugs.map((s) => getCanonicalSportSlug(s).toLowerCase().trim())
     );
+    return filteredSportsFlat.filter((s) => {
+      const sl = (s.slug ?? "").toLowerCase().trim();
+      if (selected.has(sl)) return false;
+      const canon = getCanonicalSportSlug(s.slug ?? "").toLowerCase().trim();
+      if (selectedCanonical.has(canon)) return false;
+      return true;
+    });
   }, [filteredSportsFlat, selectedSportSlugs]);
   const primarySlug = rankedSportSlugs[0] ?? null;
   const secondarySlug = rankedSportSlugs[1] ?? null;
-  const primarySport = primarySlug ? sports.find((s) => s.slug === primarySlug) : null;
-  const secondarySport = secondarySlug ? sports.find((s) => s.slug === secondarySlug) : null;
+  const primarySport = primarySlug ? resolveActiveSportForSlug(sports, primarySlug) : null;
+  const secondarySport = secondarySlug ? resolveActiveSportForSlug(sports, secondarySlug) : null;
 
   const addGoal = (goalId: string) => {
     const currentCount = rankedGoals.filter((g): g is string => g != null).length;
@@ -564,7 +571,7 @@ export default function AdaptiveModeScreen() {
         {selectedSportSlugs.length > 0 && (
               <View style={styles.rankedSportRow}>
                 {selectedSportSlugs.map((slug, idx) => {
-                  const sport = sports.find((s) => (s.slug ?? "").toLowerCase() === (slug ?? "").toLowerCase()) ?? sports.find((s) => s.slug === slug);
+                  const sport = resolveActiveSportForSlug(sports, slug);
                   const displayName = sport?.name ?? slug;
                   return (
                     <View key={`${slug}-${idx}`} style={styles.rankedChipWrap}>
@@ -695,7 +702,7 @@ export default function AdaptiveModeScreen() {
             )}
             {expandedSportForSubFocus === "all" &&
               selectedSportSlugs.map((slug) => {
-                const sport = sports.find((s) => s.slug === slug);
+                const sport = resolveActiveSportForSlug(sports, slug);
                 const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === getCanonicalSportSlug(slug));
                 const optionsFromSubFocus = sportSubFocus?.sub_focuses ?? null;
                 const optionsFromQualities = qualitiesBySport[slug] ?? [];
@@ -1208,7 +1215,8 @@ export default function AdaptiveModeScreen() {
                       const other = 100 - v;
                       setSportFocusPct(idx === 0 ? [v, other] : [other, v]);
                     };
-                    const sport = sports.find((s) => s.slug === selectedSportSlugs[idx]);
+                    const slug = selectedSportSlugs[idx];
+                    const sport = slug ? resolveActiveSportForSlug(sports, slug) : null;
                     return (
                       <View
                         key={idx}

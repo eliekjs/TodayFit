@@ -1,5 +1,5 @@
 /**
- * Seed the Supabase exercise catalog from the static EXERCISES array (single source of truth).
+ * Seed the Supabase exercise catalog from `data/exercisesMerged` (full static EXERCISES list).
  * Run after setting EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY for write).
  *
  * Usage:
@@ -10,7 +10,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { getSupabase } from "../lib/db/client";
-import { EXERCISES } from "../data/exercises";
+import { EXERCISES } from "../data/exercisesMerged";
 import type { ExerciseDefinition } from "../lib/types";
 
 const BATCH = 80;

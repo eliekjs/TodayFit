@@ -15,7 +15,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { EnergyLevel, BodyEmphasisKey } from "../../../lib/types";
-import { listSportsForPrep } from "../../../lib/db/sportRepository";
+import { listSportsForPrep, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
 import { goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesConstants";
@@ -250,7 +250,7 @@ export default function AdaptiveScheduleScreen() {
   const sportDaysSummary = useMemo(() => {
     if (selectedSportSlugs.length === 0) return "—";
     const parts = selectedSportSlugs.map((slug) => {
-      const sport = sports.find((s) => s.slug === slug);
+      const sport = resolveActiveSportForSlug(sports, slug);
       const days = sportDaysBySlug[slug] ?? [];
       const dayStr =
         days.length === 0
@@ -329,7 +329,7 @@ export default function AdaptiveScheduleScreen() {
             }}
           >
             {selectedSportSlugs.map((slug) => {
-              const sport = sports.find((s) => s.slug === slug);
+              const sport = resolveActiveSportForSlug(sports, slug);
               const days = sportDaysBySlug[slug] ?? [];
               return (
                 <View key={slug} style={{ marginBottom: 16 }}>

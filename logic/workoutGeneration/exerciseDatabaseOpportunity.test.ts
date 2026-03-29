@@ -4,7 +4,7 @@
  * Run with: npx tsx logic/workoutGeneration/exerciseDatabaseOpportunity.test.ts
  */
 
-import { EXERCISES } from "../../data/exercises";
+import { EXERCISES } from "../../data/exercisesMerged";
 import type { ExerciseDefinition, MuscleGroup, Modality, EquipmentKey } from "../../lib/types";
 import { exerciseDefinitionToGeneratorExercise } from "../../lib/dailyGeneratorAdapter";
 import { BLOCKED_EXERCISE_IDS } from "../../lib/workoutRules";

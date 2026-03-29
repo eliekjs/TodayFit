@@ -1,6 +1,4 @@
 import type { ExerciseDefinition } from "../lib/types";
-import { EXERCISES_FUNCTIONAL_FITNESS } from "./exercisesFunctionalFitness";
-import { OTA_MOVEMENTS } from "./otaMovements";
 
 /** Hand-authored core catalog; re-exported for tooling (e.g. catalog export scripts). */
 export const EXERCISES_BUILTIN: ExerciseDefinition[] = [
@@ -1175,8 +1173,4 @@ export const EXERCISES_BUILTIN: ExerciseDefinition[] = [
   },
 ];
 
-export const EXERCISES: ExerciseDefinition[] = [
-  ...EXERCISES_BUILTIN,
-  ...EXERCISES_FUNCTIONAL_FITNESS,
-  ...OTA_MOVEMENTS,
-];
+/** Merged static list (builtin + functional fitness + OTA): `data/exercisesMerged.ts`. */

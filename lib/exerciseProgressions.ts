@@ -1,7 +1,7 @@
 import type { BlockType, ExerciseDefinition } from "./types";
 import { getSubstitutes } from "./generation/exerciseSubstitution";
 import type { ExerciseLike } from "./generation/exerciseSubstitution";
-import { isCooldownEligibleEquipment } from "./workoutRules";
+import { isCooldownEligibleEquipment, isWarmupEligibleEquipment } from "./workoutRules";
 import { isDbConfigured } from "./db";
 import { getExercise, getProgressionsRegressions, listExercises } from "./db/exerciseRepository";
 
@@ -48,7 +48,7 @@ export type SwapBlockRole = "warmup" | "cooldown" | "main";
 export type ProgressionsRegressionsOptions = {
   /** When provided, suggested substitutes are filtered to match this energy (e.g. low → no high-only). */
   energyLevel?: "low" | "medium" | "high";
-  /** Block context for swap UI: warmup = bodyweight mobility/activation only; cooldown = stretching only. */
+  /** Block context for swap UI: warmup = bodyweight/band activation only; cooldown = stretching only. */
   swapBlockRole?: SwapBlockRole;
 };
 
@@ -63,18 +63,11 @@ function tagSlugsLower(tags: string[] | undefined): string[] {
   return (tags ?? []).map((t) => t.toLowerCase());
 }
 
-/** Bodyweight-only equipment (no bands, no machines) for warmup swap suggestions. */
-function isBodyweightOnlyEquipment(equipment: string[] | undefined): boolean {
-  const eq = equipment ?? [];
-  if (eq.length === 0) return false;
-  return eq.every((e) => e.toLowerCase().replace(/\s/g, "_") === "bodyweight");
-}
-
 /**
- * Warmup swaps: mobility / activation, bodyweight only (no bands, no cardio conditioning).
+ * Warmup swaps: mobility / activation — same equipment policy as generated activation (bodyweight + bands only).
  */
 export function exerciseMatchesWarmupSwapRules(def: ExerciseDefinition): boolean {
-  if (!isBodyweightOnlyEquipment(def.equipment)) return false;
+  if (!isWarmupEligibleEquipment(def.equipment ?? [])) return false;
   if (def.modalities?.includes("conditioning")) return false;
   const tags = tagSlugsLower(def.tags);
   const hasMobilityMod = def.modalities?.includes("mobility");

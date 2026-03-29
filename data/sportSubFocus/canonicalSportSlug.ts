@@ -9,6 +9,14 @@ export const LEGACY_TO_CANONICAL_SPORT: Record<string, string> = {
   // Running: marathon-specific slug merged into road_running
   marathon_running: "road_running",
   ultra_running: "road_running",
+  /** Legacy sport_mode seed (`20250301000001`) — same as canonical road_running */
+  marathon: "road_running",
+  /** Legacy sport_mode seed — same as canonical swimming_open_water */
+  swimming: "swimming_open_water",
+  /** Legacy sport_mode seed — same as canonical rowing_erg */
+  rowing_racing: "rowing_erg",
+  /** Legacy sport_mode seed — same as canonical xc_skiing */
+  cross_country_skiing: "xc_skiing",
   // Rock climbing: bouldering, sport/lead, trad → rock_climbing
   rock_bouldering: "rock_climbing",
   rock_sport_lead: "rock_climbing",

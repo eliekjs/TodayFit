@@ -24,7 +24,6 @@ export const HISTORY_WEIGHTS = {
   joint_stress_sensitivity_penalty: 1.0,
 };
 
-const ANCHOR_ROLES = new Set(["main_compound", "secondary_compound"]);
 const ACCESSORY_ROLES = new Set(["accessory", "isolation"]);
 const WARMUP_COOLDOWN_ROLES = new Set(["warmup", "prep", "cooldown", "mobility"]);
 
@@ -67,26 +66,19 @@ export function scoreRecentExposurePenalty(
 }
 
 /**
- * Bonus for repeating an anchor (main compound) when progression is beneficial.
- * Applied when exercise is anchor role and was done recently but not too often (e.g. 1–2x in window).
+ * Legacy hook for anchor repeat scoring on main blocks. Always returns 0: selection must not bias
+ * toward repeating the same compound (hub exercises dominated when this rewarded repeats).
+ * Progression signals stay in the recommendation / prescription layer.
  */
 export function scoreAnchorRepeatBonus(
-  exercise: Exercise,
-  exposureCount: number,
+  _exercise: Exercise,
+  _exposureCount: number,
   blockType: string | undefined,
-  lastCompletionSuccess?: boolean
+  _lastCompletionSuccess?: boolean
 ): { score: number; reason?: string } {
   const bt = blockType?.toLowerCase().replace(/\s/g, "_");
   if (bt !== "main_strength" && bt !== "main_hypertrophy") return { score: 0 };
-  const role = getCanonicalExerciseRole({
-    id: exercise.id,
-    exercise_role: exercise.exercise_role,
-  });
-  if (!role || !ANCHOR_ROLES.has(role)) return { score: 0 };
-  if (exposureCount > 3) return { score: 0 };
-  if (exposureCount === 0) return { score: 0 };
-  if (lastCompletionSuccess === false) return { score: 0 };
-  return { score: 0.6, reason: "anchor_repeat_progression" };
+  return { score: 0 };
 }
 
 /**
@@ -186,7 +178,8 @@ export function computeHistoryScoreComponents(
 
   const exposurePenalty = scoreRecentExposurePenalty(exercise.id, recentIds, {
     blockType,
-    preferVariety: preferVariety ?? (blockType !== "main_strength" && blockType !== "main_hypertrophy"),
+    // Stronger exact-repeat penalty on main work too (same hub compounds dominated when this was weak).
+    preferVariety: preferVariety ?? true,
   });
   if (exposurePenalty.score !== 0) {
     breakdown.recent_exposure_penalty = exposurePenalty.score * HISTORY_WEIGHTS.recent_exposure_penalty;

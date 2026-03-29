@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { EXERCISES } from "../data/exercises";
+import { EXERCISES } from "../data/exercisesMerged";
 import { exerciseDefinitionToGeneratorExercise } from "../lib/dailyGeneratorAdapter";
 import { GOAL_SUB_FOCUS_TAG_MAP } from "../data/goalSubFocus";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";

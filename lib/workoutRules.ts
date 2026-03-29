@@ -3,18 +3,12 @@
  * No React or DB dependencies.
  */
 
-/** Equipment allowed in warm-ups: bodyweight, bands, and cardio machines only. No weights, cables, or strength machines. */
+/** Equipment allowed in warm-ups / activation: easy bodyweight prep and bands only. No weights, cables, machines, rings, or pull-up bar. */
 export const WARMUP_ALLOWED_EQUIPMENT = new Set<string>([
   "bodyweight",
   "bands",
   "resistance_band",
-  "rings",
-  "pullup_bar",
-  "treadmill",
-  "assault_bike",
-  "rower",
-  "ski_erg",
-  "stair_climber",
+  "miniband",
 ]);
 
 export function isWarmupEligibleEquipment(equipment: string[]): boolean {
@@ -118,6 +112,7 @@ const DEADLIFT_FAMILY_IDS = new Set([
   "suitcase_deadlift",
   "barbell_rdl",
   "rdl_dumbbell",
+  "rack_pull",
 ]);
 
 /** Battle rope variants: same implement, different names; do not suggest as swaps for each other. */

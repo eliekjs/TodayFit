@@ -9,7 +9,7 @@ import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
-import { generateWorkoutAsync } from "../../../lib/generator";
+import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import {
   blockTypeToSwapBlockRole,
@@ -102,6 +102,7 @@ export default function ManualWorkoutScreen() {
         preferredNames = undefined;
       }
     }
+    const { generateWorkoutAsync } = await loadGeneratorModule();
     const workout = await generateWorkoutAsync(
       manualPreferences,
       activeProfile,

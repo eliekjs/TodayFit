@@ -3,7 +3,7 @@
  */
 
 import assert from "assert";
-import { EXERCISES } from "../../data/exercises";
+import { EXERCISES } from "../../data/exercisesMerged";
 import { exerciseDefinitionToGeneratorExercise } from "../dailyGeneratorAdapter";
 import { mergePhase7WarmupCooldownRelevanceIntoExercise } from "./phase7WarmupCooldownRelevanceInference";
 import { exerciseInferenceInputFromDefinition } from "./phase1MovementInference";

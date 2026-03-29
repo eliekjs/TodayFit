@@ -4,7 +4,7 @@
 
 import assert from "assert";
 import type { ExerciseDefinition } from "../types";
-import { EXERCISES } from "../../data/exercises";
+import { EXERCISES } from "../../data/exercisesMerged";
 import { exerciseDefinitionToGeneratorExercise } from "../dailyGeneratorAdapter";
 import { mergePhase6RepRangeOntologyIntoExercise } from "./phase6RepRangeInference";
 import { exerciseInferenceInputFromDefinition } from "./phase1MovementInference";

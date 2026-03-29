@@ -205,6 +205,10 @@ export function manualPreferencesToGenerateWorkoutInput(
     sport_slugs: sportGoalContext?.sport_slugs,
     sport_sub_focus: sportGoalContext?.sport_sub_focus,
     sport_weight: sportGoalContext?.sport_weight,
+    week_main_strength_lift_ids_used:
+      preferences.weekMainStrengthLiftIdsUsed?.length && preferences.weekMainStrengthLiftIdsUsed.length > 0
+        ? [...preferences.weekMainStrengthLiftIdsUsed]
+        : undefined,
   };
 }
 

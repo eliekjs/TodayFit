@@ -72,6 +72,9 @@ const WORKING_BLOCK_TYPES = new Set([
   "main_strength", "main_hypertrophy", "power", "accessory", "conditioning",
 ]);
 
+/** Body-part focus applies to primary lift blocks only. Accessory / conditioning may include complementary or goal-sub-focus work off the day’s split. */
+const BODY_PART_FOCUS_BLOCK_TYPES = new Set(["main_strength", "main_hypertrophy", "power"]);
+
 /** Treat generator Exercise as ExerciseWithQualities for eligibility (same ontology fields). */
 function asQualities(ex: { id: string; name?: string; [k: string]: unknown }): ExerciseWithQualities {
   return ex as unknown as ExerciseWithQualities;
@@ -203,12 +206,12 @@ export function validateWorkoutAgainstConstraints(
     }
   }
 
-  // 2) Body-part focus (main work only)
+  // 2) Body-part focus (primary main blocks only)
   usedIds = usedExerciseIds(repaired);
   for (let bi = 0; bi < repaired.blocks.length; bi++) {
     const block = repaired.blocks[bi];
     if (constraints.allowed_movement_families == null || constraints.allowed_movement_families.length === 0) continue;
-    if (!WORKING_BLOCK_TYPES.has(block.block_type)) continue;
+    if (!BODY_PART_FOCUS_BLOCK_TYPES.has(block.block_type)) continue;
     for (let ii = 0; ii < block.items.length; ii++) {
       const item = block.items[ii];
       const ex = exercisesById.get(item.exercise_id);

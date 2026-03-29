@@ -24,7 +24,8 @@ import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { saveManualWeek, saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
-import { generateWorkoutAsync } from "../../../lib/generator";
+import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
+import { collectWeekMainLiftExerciseIds } from "../../../logic/workoutGeneration/collectWeekMainLiftExerciseIds";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import {
   blockTypeToSwapBlockRole,
@@ -180,6 +181,7 @@ export default function ManualWeekScreen() {
     }
 
     try {
+      const { generateWorkoutAsync } = await loadGeneratorModule();
       const n = selectedTrainingDays.length;
       const bodyDistribution = getBodyEmphasisDistribution(n);
       const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
@@ -207,6 +209,7 @@ export default function ManualWeekScreen() {
           : [];
 
       const days: ManualWeekPlan["days"] = [];
+      const weekMainStrengthLiftIds: string[] = [];
       for (let i = 0; i < selectedTrainingDays.length; i++) {
         const dow = selectedTrainingDays[i];
         const date = addDays(weekStart, dow);
@@ -221,6 +224,8 @@ export default function ManualWeekScreen() {
           primaryFocus: dayFocus.length ? dayFocus : manualPreferences.primaryFocus,
           targetBody: bodyBias.targetBody,
           targetModifier: bodyBias.targetModifier,
+          weekMainStrengthLiftIdsUsed:
+            weekMainStrengthLiftIds.length > 0 ? [...weekMainStrengthLiftIds] : undefined,
         };
         const workout = await generateWorkoutAsync(
           dayPrefs,
@@ -228,6 +233,7 @@ export default function ManualWeekScreen() {
           dateToISO(date),
           preferredNames
         );
+        weekMainStrengthLiftIds.push(...collectWeekMainLiftExerciseIds(workout));
         const displayTitle = formatDayTitle(dayFocus.length ? dayFocus : ["Workout"], bodyKey, specificForDay.length ? specificForDay : undefined);
         days.push({ date: dateToISO(date), workout, displayTitle });
       }
@@ -489,6 +495,7 @@ export default function ManualWeekScreen() {
       }
     }
     try {
+      const { generateWorkoutAsync } = await loadGeneratorModule();
       const workout = await generateWorkoutAsync(dayPrefs, profile, selectedSession.date, preferredNames);
       const bodyKey = (dayPrefs.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
       const specificEmphasis = (dayPrefs.targetModifier ?? []).map((m) => m.toLowerCase()).filter(Boolean);

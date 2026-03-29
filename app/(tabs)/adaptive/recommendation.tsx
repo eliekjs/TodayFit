@@ -372,6 +372,83 @@ export default function AdaptiveWeekPlanScreen() {
     loadWorkout();
   }, [sportPrepWeekPlan, selectedSession, userId, guestWorkoutsById]);
 
+  /** Days to list in Week overview: any planned training session (gym or sport), not empty rest rows.
+   * Include (1) workouts keyed by date or id in guest mode, (2) persisted workout ids, (3) sport/gym days
+   * with intent/title when a workout is not loaded yet — so sport days still appear.
+   * Must run before any conditional return — same hook order when plan is null vs loaded. */
+  const daySlotsWithSessions = useMemo(() => {
+    if (!sportPrepWeekPlan) return [];
+    const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+    const hasWorkoutForSession = (s: PlannedDay) =>
+      s.generatedWorkoutId != null ||
+      guestWorkouts[s.date] != null ||
+      guestWorkouts[s.id] != null ||
+      (sportPrepWeekPlan.today?.id === s.id && sportPrepWeekPlan.todayWorkout != null);
+    const hasPlannedSessionLabel = (s: PlannedDay) =>
+      (s.intentLabel != null && s.intentLabel.trim() !== "") ||
+      (s.title != null && s.title.trim() !== "") ||
+      (s.dayLevelFocus?.displayTitle != null && s.dayLevelFocus.displayTitle.trim() !== "");
+    return daySlots.filter((slot) =>
+      slot.sessions.some((s) => hasWorkoutForSession(s) || hasPlannedSessionLabel(s))
+    );
+  }, [daySlots, sportPrepWeekPlan]);
+
+  /** Move session to previous day (up). */
+  const moveSessionUp = useCallback(
+    (day: PlannedDay) => {
+      if (!sportPrepWeekPlan) return;
+      const idx = weekDates.indexOf(day.date);
+      if (idx <= 0) return;
+      const newDate = weekDates[idx - 1];
+      const updatedDays = sportPrepWeekPlan.days.map((d) =>
+        d.id === day.id ? { ...d, date: newDate } : d
+      );
+      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+      const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
+      const updatedGuestWorkouts = { ...guestWorkouts };
+      if (workout) {
+        updatedGuestWorkouts[newDate] = workout;
+        updatedGuestWorkouts[day.id] = workout;
+        delete updatedGuestWorkouts[day.date];
+      }
+      setSportPrepWeekPlan({
+        ...sportPrepWeekPlan,
+        days: updatedDays,
+        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
+        guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
+      });
+    },
+    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
+  );
+
+  /** Move session to next day (down). */
+  const moveSessionDown = useCallback(
+    (day: PlannedDay) => {
+      if (!sportPrepWeekPlan) return;
+      const idx = weekDates.indexOf(day.date);
+      if (idx < 0 || idx >= weekDates.length - 1) return;
+      const newDate = weekDates[idx + 1];
+      const updatedDays = sportPrepWeekPlan.days.map((d) =>
+        d.id === day.id ? { ...d, date: newDate } : d
+      );
+      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+      const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
+      const updatedGuestWorkouts = { ...guestWorkouts };
+      if (workout) {
+        updatedGuestWorkouts[newDate] = workout;
+        updatedGuestWorkouts[day.id] = workout;
+        delete updatedGuestWorkouts[day.date];
+      }
+      setSportPrepWeekPlan({
+        ...sportPrepWeekPlan,
+        days: updatedDays,
+        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
+        guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
+      });
+    },
+    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
+  );
+
   if (!sportPrepWeekPlan) {
     return (
       <AppScreenWrapper>
@@ -528,62 +605,6 @@ export default function AdaptiveWeekPlanScreen() {
     }
   };
 
-  /** Move session to previous day (up). */
-  const moveSessionUp = useCallback(
-    (day: PlannedDay) => {
-      if (!sportPrepWeekPlan) return;
-      const idx = weekDates.indexOf(day.date);
-      if (idx <= 0) return;
-      const newDate = weekDates[idx - 1];
-      const updatedDays = sportPrepWeekPlan.days.map((d) =>
-        d.id === day.id ? { ...d, date: newDate } : d
-      );
-      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
-      const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
-      const updatedGuestWorkouts = { ...guestWorkouts };
-      if (workout) {
-        updatedGuestWorkouts[newDate] = workout;
-        updatedGuestWorkouts[day.id] = workout;
-        delete updatedGuestWorkouts[day.date];
-      }
-      setSportPrepWeekPlan({
-        ...sportPrepWeekPlan,
-        days: updatedDays,
-        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
-        guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
-      });
-    },
-    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
-  );
-
-  /** Move session to next day (down). */
-  const moveSessionDown = useCallback(
-    (day: PlannedDay) => {
-      if (!sportPrepWeekPlan) return;
-      const idx = weekDates.indexOf(day.date);
-      if (idx < 0 || idx >= weekDates.length - 1) return;
-      const newDate = weekDates[idx + 1];
-      const updatedDays = sportPrepWeekPlan.days.map((d) =>
-        d.id === day.id ? { ...d, date: newDate } : d
-      );
-      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
-      const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
-      const updatedGuestWorkouts = { ...guestWorkouts };
-      if (workout) {
-        updatedGuestWorkouts[newDate] = workout;
-        updatedGuestWorkouts[day.id] = workout;
-        delete updatedGuestWorkouts[day.date];
-      }
-      setSportPrepWeekPlan({
-        ...sportPrepWeekPlan,
-        days: updatedDays,
-        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
-        guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
-      });
-    },
-    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
-  );
-
   const summaryLines: string[] = [];
   if (selectedWorkout?.focus?.length) {
     const raw =
@@ -598,20 +619,6 @@ export default function AdaptiveWeekPlanScreen() {
     const e = selectedWorkout.energyLevel;
     summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
   }
-
-  /** Only show days that have at least one session with an actual workout (not rest days). One-day plan = 1 such slot. */
-  const daySlotsWithSessions = useMemo(() => {
-    if (!sportPrepWeekPlan) return [];
-    const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
-    return daySlots.filter((slot) =>
-      slot.sessions.some(
-        (s) =>
-          s.generatedWorkoutId != null ||
-          guestWorkouts[s.date] != null ||
-          (sportPrepWeekPlan.today?.id === s.id && sportPrepWeekPlan.todayWorkout != null)
-      )
-    );
-  }, [daySlots, sportPrepWeekPlan]);
 
   /** Treat plans with a single training session as "one-day" for display. */
   const isSingleSessionPlan = daySlotsWithSessions.length === 1;

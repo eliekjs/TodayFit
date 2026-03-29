@@ -6,7 +6,7 @@ import type {
   WorkoutTierPreference,
 } from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
-import { generateWorkoutAsync } from "../../lib/generator";
+import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { isDbConfigured } from "../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../lib/db/starterExerciseRepository";
 import { hashString, type SportGoalContext } from "../../lib/dailyGeneratorAdapter";
@@ -153,6 +153,7 @@ export async function buildWorkoutForSessionIntent(
         )
       : baseSeed;
 
+  const { generateWorkoutAsync } = await loadGeneratorModule();
   const workout = await generateWorkoutAsync(
     basePreferences,
     gymProfile,

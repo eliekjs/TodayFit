@@ -10,7 +10,7 @@
  *   npx tsx logic/workoutGeneration/exerciseOntologyCoverage.test.ts
  */
 
-import { EXERCISES } from "../../data/exercises";
+import { EXERCISES } from "../../data/exercisesMerged";
 import { GOAL_SUB_FOCUS_TAG_MAP } from "../../data/goalSubFocus";
 import { CONDITIONING_INTENT_SLUGS } from "../../data/goalSubFocus/conditioningSubFocus";
 import { SPORTS_WITH_SUB_FOCUSES } from "../../data/sportSubFocus/sportsWithSubFocuses";
