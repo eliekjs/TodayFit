@@ -27,6 +27,7 @@ export const TAG_TO_QUALITY: Record<string, Partial<Record<TrainingQualitySlug, 
   anti_flexion: { trunk_anti_flexion: 0.9 },
   aerobic_zone2: { aerobic_base: 0.85 },
   anaerobic: { anaerobic_capacity: 0.7 },
+  energy_high: { anaerobic_capacity: 0.75, work_capacity: 0.55 },
   // Movement patterns (from generator)
   squat: { unilateral_strength: 0.3, quad_hypertrophy: 0.5 },
   hinge: { eccentric_strength: 0.5, posterior_chain_endurance: 0.3 },

@@ -1,5 +1,5 @@
 /**
- * Merges goal, sport, and sport sub-focus weights into a single session target vector.
+ * Merges goal, sport, sport sub-focus, and manual goal sub-focus weights into a session target vector.
  * Used by the generator to score exercises against "what this session is for."
  */
 
@@ -7,7 +7,8 @@ import type { TrainingQualitySlug } from "./trainingQualities";
 import type { SessionTargetVector } from "./types";
 import { getGoalQualityWeights } from "./goalQualityWeights";
 import { getSportQualityWeights } from "./sportQualityWeights";
-import { getExerciseTagsForSubFocuses } from "../../data/sportSubFocus";
+import { getExerciseTagsForGoalSubFocuses } from "../../data/goalSubFocus";
+import { getExerciseTagsForSubFocuses as getSportSubFocusTagEntries } from "../../data/sportSubFocus";
 import { qualitiesFromTags } from "./tagToQualityMap";
 
 export type MergeTargetInput = {
@@ -16,12 +17,18 @@ export type MergeTargetInput = {
   sport_slugs?: string[];
   /** Sport slug -> selected sub-focus slugs. Adds quality emphasis from sub-focus tag map. */
   sport_sub_focus?: Record<string, string[]>;
+  /** Manual goal slug -> ranked sub-focus slugs (e.g. conditioning, endurance). Same mechanism as sport sub-focus. */
+  goal_sub_focus?: Record<string, string[]>;
+  /** Optional rank weights per goal slug (same order as goal_sub_focus[slug]). */
+  goal_sub_focus_weights?: Record<string, number[]>;
   /** Weights for [primary, secondary, tertiary]; should sum to 1. Default [0.6, 0.3, 0.1]. */
   goal_weights?: number[];
   /** When sports present: weight for sport vector vs goal vector (0 = goals only, 1 = sport only). Default 0.5. */
   sport_weight?: number;
   /** When sport_sub_focus present: weight for sub-focus quality vector (0–1). Blended on top of goal+sport. Default 0.4. */
   sub_focus_weight?: number;
+  /** When goal_sub_focus present: weight for goal-sub-focus quality vector (0–1). Default 0.45 (slightly above sport sub-focus so ranked manual intents pull selection). */
+  goal_sub_focus_blend_weight?: number;
   /** Per-day qualities from weekly planner; blended before final normalize. */
   session_target_qualities?: Partial<Record<TrainingQualitySlug, number>>;
   /** Weight for `session_target_qualities` (0–1). Default 0.35. */
@@ -30,6 +37,7 @@ export type MergeTargetInput = {
 
 const DEFAULT_GOAL_WEIGHTS = [0.6, 0.3, 0.1];
 const DEFAULT_SUB_FOCUS_WEIGHT = 0.4;
+const DEFAULT_GOAL_SUB_FOCUS_BLEND_WEIGHT = 0.45;
 
 /**
  * Convert sport sub-focus (sport -> sub-focus slugs) into training quality weights
@@ -41,7 +49,44 @@ export function getQualityWeightsFromSportSubFocus(
   const byQuality = new Map<TrainingQualitySlug, number>();
   for (const [sportSlug, subFocusSlugs] of Object.entries(sport_sub_focus)) {
     if (!subFocusSlugs?.length) continue;
-    const tagEntries = getExerciseTagsForSubFocuses(sportSlug, subFocusSlugs);
+    const tagEntries = getSportSubFocusTagEntries(sportSlug, subFocusSlugs);
+    for (const { tag_slug, weight } of tagEntries) {
+      const qualities = qualitiesFromTags([tag_slug]);
+      for (const [q, v] of Object.entries(qualities)) {
+        if (typeof v === "number" && v > 0) {
+          const scaled = v * weight;
+          byQuality.set(
+            q as TrainingQualitySlug,
+            (byQuality.get(q as TrainingQualitySlug) ?? 0) + scaled
+          );
+        }
+      }
+    }
+  }
+  let max = 0;
+  byQuality.forEach((v) => {
+    if (v > max) max = v;
+  });
+  if (max <= 0) return {};
+  const out: Partial<Record<TrainingQualitySlug, number>> = {};
+  byQuality.forEach((v, k) => {
+    out[k] = v / max;
+  });
+  return out;
+}
+
+/**
+ * Goal sub-focus (manual ranked intents) → training quality weights via GOAL_SUB_FOCUS_TAG_MAP.
+ */
+export function getQualityWeightsFromGoalSubFocus(
+  goal_sub_focus: Record<string, string[]>,
+  goal_sub_focus_weights?: Record<string, number[]>
+): Partial<Record<TrainingQualitySlug, number>> {
+  const byQuality = new Map<TrainingQualitySlug, number>();
+  for (const [goalSlug, subFocusSlugs] of Object.entries(goal_sub_focus)) {
+    if (!subFocusSlugs?.length) continue;
+    const weights = goal_sub_focus_weights?.[goalSlug];
+    const tagEntries = getExerciseTagsForGoalSubFocuses(goalSlug, subFocusSlugs, weights);
     for (const { tag_slug, weight } of tagEntries) {
       const qualities = qualitiesFromTags([tag_slug]);
       for (const [q, v] of Object.entries(qualities)) {
@@ -121,6 +166,19 @@ export function mergeTargetVector(input: MergeTargetInput): SessionTargetVector 
     for (const [q, v] of Object.entries(subFocusQualities)) {
       if (typeof v === "number" && v > 0)
         out.set(q as TrainingQualitySlug, (out.get(q as TrainingQualitySlug) ?? 0) + subFocusWeight * v);
+    }
+  }
+
+  const hasGoalSubFocus =
+    input.goal_sub_focus &&
+    Object.keys(input.goal_sub_focus).length > 0 &&
+    Object.values(input.goal_sub_focus).some((arr) => arr?.length);
+  if (hasGoalSubFocus && input.goal_sub_focus) {
+    const gsfw = input.goal_sub_focus_blend_weight ?? DEFAULT_GOAL_SUB_FOCUS_BLEND_WEIGHT;
+    const gq = getQualityWeightsFromGoalSubFocus(input.goal_sub_focus, input.goal_sub_focus_weights);
+    for (const [q, v] of Object.entries(gq)) {
+      if (typeof v === "number" && v > 0)
+        out.set(q as TrainingQualitySlug, (out.get(q as TrainingQualitySlug) ?? 0) + gsfw * v);
     }
   }
 

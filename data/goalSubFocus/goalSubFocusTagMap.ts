@@ -233,6 +233,7 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "endurance", weight: 1.1 },
   ],
   [key("conditioning", "hills")]: [
+    { tag_slug: "uphill_conditioning", weight: 1.35 },
     { tag_slug: "legs", weight: 1.2 },
     { tag_slug: "glutes", weight: 1.1 },
     { tag_slug: "conditioning", weight: 1 },
@@ -295,12 +296,16 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "conditioning", weight: 1.1 },
   ],
   [key("endurance", "intervals")]: [
-    { tag_slug: "conditioning", weight: 1.2 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "anaerobic", weight: 1.1 },
+    { tag_slug: "conditioning", weight: 1.15 },
     { tag_slug: "energy_high", weight: 1 },
   ],
   [key("endurance", "hills")]: [
-    { tag_slug: "legs", weight: 1.1 },
-    { tag_slug: "endurance", weight: 1.1 },
+    { tag_slug: "uphill_conditioning", weight: 1.3 },
+    { tag_slug: "legs", weight: 1.15 },
+    { tag_slug: "endurance", weight: 1.15 },
+    { tag_slug: "conditioning", weight: 1 },
   ],
   [key("endurance", "durability")]: [
     { tag_slug: "endurance", weight: 1.2 },

@@ -562,13 +562,14 @@ export default function ManualWeekScreen() {
   };
 
   if (generating && !manualWeekPlan) {
+    const oneDayLoading = selectedTrainingDays.length === 1;
     return (
       <AppScreenWrapper>
         <StatusBar style="light" />
         <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.textMuted }]}>
-          Building your week…
+          {oneDayLoading ? "Building your workout…" : "Building your week…"}
         </Text>
       </View>
       </AppScreenWrapper>
@@ -619,7 +620,13 @@ export default function ManualWeekScreen() {
             <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
           ) : null}
           <PrimaryButton
-            label={generating ? "Generating…" : "Generate week"}
+            label={
+              generating
+                ? "Generating…"
+                : selectedTrainingDays.length === 1
+                  ? "Generate workout"
+                  : "Generate week"
+            }
             onPress={generateWeek}
             disabled={generating || selectedTrainingDays.length === 0}
             style={{ marginTop: 16 }}
@@ -628,6 +635,8 @@ export default function ManualWeekScreen() {
       </AppScreenWrapper>
     );
   }
+
+  const isSingleDayWeek = plan.days.length === 1;
 
   const weekOverviewContent = (
     <View>
@@ -745,7 +754,11 @@ export default function ManualWeekScreen() {
 
       <Card
         title="Your training days"
-        subtitle="Toggle days, then regenerate the week to apply changes."
+        subtitle={
+          isSingleDayWeek
+            ? "Toggle days, then regenerate the workout to apply changes."
+            : "Toggle days, then regenerate the week to apply changes."
+        }
         style={{ marginTop: 0 }}
       >
         <View style={styles.chipGroup}>
@@ -759,7 +772,13 @@ export default function ManualWeekScreen() {
           ))}
         </View>
         <PrimaryButton
-          label={generating ? "Regenerating…" : "Regenerate week"}
+          label={
+            generating
+              ? "Regenerating…"
+              : isSingleDayWeek
+                ? "Regenerate workout"
+                : "Regenerate week"
+          }
           variant="ghost"
           onPress={generateWeek}
           disabled={generating}
@@ -811,6 +830,12 @@ export default function ManualWeekScreen() {
                 setShowAdjustFocusModal(true);
                 setTimeout(scrollToDayFocusSection, 100);
               }}
+              helperText={
+                isSingleDayWeek
+                  ? "Then tap Regenerate workout to rebuild this session."
+                  : undefined
+              }
+              regenerateLabel={isSingleDayWeek ? "Regenerate workout" : "Regenerate this day"}
               baseWorkoutTier={manualPreferences.workoutTier ?? "intermediate"}
               baseIncludeCreativeVariations={manualPreferences.includeCreativeVariations === true}
             />

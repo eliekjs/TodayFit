@@ -41,6 +41,32 @@ function clampDuration(mins: number | null): AllowedDuration {
   return 75;
 }
 
+/** Sub-focus slugs that mean the user wants engine / uphill work, not strength-only gym days. */
+const TRAIL_ULTRA_ENDURANCE_SUBFOCUS_SLUGS = new Set(["aerobic_base", "uphill_endurance"]);
+
+/**
+ * When sport prep passes trail/ultra aerobic or uphill sub-focus but the session primary is still strength,
+ * treat endurance as an explicit secondary goal so constraints require a conditioning finisher (existing path
+ * in `resolveWorkoutConstraints` + `generateWorkoutSession` §6).
+ */
+function shouldAppendEnduranceSecondaryFromSportSubFocus(
+  primaryGoal: PrimaryGoal,
+  secondaryGoals: PrimaryGoal[],
+  sportGoalContext?: SportGoalContext
+): boolean {
+  if (primaryGoal === "endurance" || primaryGoal === "conditioning") return false;
+  if (secondaryGoals.some((g) => g === "endurance" || g === "conditioning")) return false;
+  const sub = sportGoalContext?.sport_sub_focus;
+  if (!sub) return false;
+  for (const [sportKey, slugs] of Object.entries(sub)) {
+    const canon = getCanonicalSportSlug(sportKey);
+    if (canon !== "trail_running" && canon !== "ultra_running") continue;
+    if (!slugs?.some((s) => TRAIL_ULTRA_ENDURANCE_SUBFOCUS_SLUGS.has(s))) continue;
+    return true;
+  }
+  return false;
+}
+
 /** Map primary focus label to generator PrimaryGoal. */
 function primaryFocusLabelToGoal(label: string): PrimaryGoal {
   // Power & Explosiveness must map to power (its goal slug is "conditioning" for sub-focus tags only).
@@ -132,10 +158,13 @@ export function manualPreferencesToGenerateWorkoutInput(
   const avoid_tags = getAvoidTagSlugsFromUpcoming(preferences.upcoming ?? []);
 
   const primary_goal = primaryFocusLabelToGoal(preferences.primaryFocus[0] ?? "Build Strength");
-  const secondary_goals = preferences.primaryFocus
+  let secondary_goals = preferences.primaryFocus
     .slice(1, 3)
     .map(primaryFocusLabelToGoal)
     .filter((g) => g !== primary_goal);
+  if (shouldAppendEnduranceSecondaryFromSportSubFocus(primary_goal, secondary_goals, sportGoalContext)) {
+    secondary_goals = [...secondary_goals, "endurance"];
+  }
 
   // Goal sub-focus: goal slug -> sub-focus slugs from primaryFocus + subFocusByGoal
   const goal_sub_focus: Record<string, string[]> = {};

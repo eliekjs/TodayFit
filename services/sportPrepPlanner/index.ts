@@ -977,6 +977,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         goalSlugs: dayGoalSlug ? [dayGoalSlug] : goalSlugs,
         goalWeightsPct: dayGoalSlug ? singleGoalWeights : goalWeightsPct,
         sportSubFocusSlugs: input.sportSubFocusSlugs,
+        rankedSportSlugs: input.rankedSportSlugs,
+        sportFocusPct: input.rankedSportSlugs?.length === 2 ? input.sportFocusPct : undefined,
+        sportVsGoalPct: input.sportVsGoalPct,
+        sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
@@ -1348,20 +1352,12 @@ const GOAL_BIAS_TO_LABEL: Record<string, string> = {
 export async function regenerateDay(
   input: RegenerateDayInput
 ): Promise<RegenerateDayResult> {
-  if (!isDbConfigured()) {
-    throw new Error("Supabase is not configured; Sports Prep mode requires a backend.");
-  }
-  const supabase = getSupabase();
-  if (!supabase) {
-    throw new Error("Supabase client is not available.");
-  }
-
   const resolvedWorkoutTier =
     input.dailyPreferences?.workoutTier ?? input.workoutTier ?? "intermediate";
   const resolvedIncludeCreative =
     (input.dailyPreferences?.includeCreativeVariations ?? input.includeCreativeVariations) === true;
 
-  // Guest mode: regenerate in memory only using intentLabel or dailyPreferences
+  // Guest / unsigned-in: in-memory only (no Supabase). Must run before DB checks.
   if (!input.userId) {
     const key = input.dailyPreferences
       ? intentKeyFromDailyPreferences(input.dailyPreferences)
@@ -1378,6 +1374,10 @@ export async function regenerateDay(
           "Build Strength",
       ];
     }
+    const regContractGuest = planContextSessionIntentContract({
+      sportSlug: input.sportSlug,
+      rankedSportSlugs: input.rankedSportSlugs,
+    });
     const workout = await buildWorkoutForSessionIntent(
       sessionIntent,
       input.gymProfile,
@@ -1396,6 +1396,7 @@ export async function regenerateDay(
         bodyRegionBias,
         workoutTier: resolvedWorkoutTier,
         includeCreativeVariations: resolvedIncludeCreative,
+        ...(regContractGuest ? { session_intent_contract: regContractGuest } : {}),
       }
     );
     const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1426,6 +1427,14 @@ export async function regenerateDay(
       dayLevelFocus,
     };
     return { day, workout };
+  }
+
+  if (!isDbConfigured()) {
+    throw new Error("Supabase is not configured; Sports Prep mode requires a backend.");
+  }
+  const supabase = getSupabase();
+  if (!supabase) {
+    throw new Error("Supabase client is not available.");
   }
 
   const { data: dayRow, error: dayError } = await supabase

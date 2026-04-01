@@ -6,6 +6,9 @@
 import assert from "assert";
 import { generateWorkoutSession } from "./dailyGenerator";
 import type { Exercise, GenerateWorkoutInput } from "./types";
+import type { ManualPreferences } from "../../lib/types";
+import type { GymProfile } from "../../data/gymProfiles";
+import { manualPreferencesToGenerateWorkoutInput } from "../../lib/dailyGeneratorAdapter";
 import {
   getTrailRunningPatternCategoriesForExercise,
   exerciseMatchesAnyTrailRunningCategory,
@@ -13,7 +16,10 @@ import {
 import { gatePoolForTrailRunningSlot, trailRunningPatternTransferApplies } from "./sportPatternTransfer/trailRunningSession";
 import { evaluateTrailMinimumCoverage } from "./sportPatternTransfer/trailRunningRules";
 import { buildSportCoverageContext, collectBlocksExerciseIdsByType } from "./sportPattern/framework";
-import { computeTrailRunningWithinPoolQualityScore } from "./sportPatternTransfer/trailRunningQualityScoring";
+import {
+  computeTrailRunningWithinPoolQualityScore,
+  isTrailForwardSteppingLungePattern,
+} from "./sportPatternTransfer/trailRunningQualityScoring";
 import { getHikingPatternCategoriesForExercise } from "./sportPatternTransfer/hikingExerciseCategories";
 
 function mkEx(
@@ -125,7 +131,73 @@ function main() {
   const trailInput = baseInput({ sport_slugs: ["trail_running"], sport_weight: 0.55 });
   assert(trailRunningPatternTransferApplies(trailInput), "trail rules apply for lower + trail sport");
 
+  const trailEndurancePrefs: ManualPreferences = {
+    primaryFocus: ["Build Strength"],
+    targetBody: "Lower",
+    targetModifier: [],
+    durationMinutes: 45,
+    energyLevel: "medium",
+    injuries: [],
+    upcoming: [],
+    subFocusByGoal: {},
+    workoutStyle: [],
+  };
+  const trailGymProfile: GymProfile = {
+    id: "t",
+    name: "Test",
+    equipment: ["barbell", "dumbbells", "treadmill", "stair_climber", "bench", "bodyweight"],
+  };
+  const adaptedTrailEndurance = manualPreferencesToGenerateWorkoutInput(
+    trailEndurancePrefs,
+    trailGymProfile,
+    42,
+    undefined,
+    {
+      sport_slugs: ["trail_running"],
+      sport_sub_focus: { trail_running: ["aerobic_base", "uphill_endurance"] },
+      sport_weight: 0.55,
+    }
+  );
+  assert(
+    adaptedTrailEndurance.secondary_goals?.includes("endurance"),
+    "trail aerobic/uphill sub-focus should add endurance secondary so a conditioning finisher is required"
+  );
+  const adaptedDownhillOnly = manualPreferencesToGenerateWorkoutInput(
+    trailEndurancePrefs,
+    trailGymProfile,
+    43,
+    undefined,
+    {
+      sport_slugs: ["trail_running"],
+      sport_sub_focus: { trail_running: ["downhill_control"] },
+      sport_weight: 0.55,
+    }
+  );
+  assert(
+    !adaptedDownhillOnly.secondary_goals?.includes("endurance"),
+    "downhill-only sub-focus should not force endurance secondary"
+  );
+
   const pool = [walkingLunge, farmerCarry, boxJump, zone2Treadmill, zone2Stair, deadlift];
+  const sessionWithSubFocus = generateWorkoutSession(
+    {
+      ...adaptedTrailEndurance,
+      duration_minutes: 45,
+      seed: 42,
+      sport_slugs: ["trail_running"],
+      sport_sub_focus: adaptedTrailEndurance.sport_sub_focus,
+      sport_weight: 0.55,
+    } as GenerateWorkoutInput,
+    pool
+  );
+  const condWithSub = sessionWithSubFocus.blocks.find((b) => b.block_type === "conditioning");
+  assert(condWithSub, "trail + aerobic/uphill sub-focus via adapter must add a conditioning block");
+  const condExId = condWithSub.items[0]?.exercise_id;
+  assert(
+    condExId === "zone2_treadmill" || condExId === "zone2_stair_climber",
+    `conditioning finisher should be run-relevant; got ${condExId}`
+  );
+
   const session = generateWorkoutSession(trailInput, pool);
   const mains = mainIds(session);
   assert(mains.length >= 1, "trail session should produce a main lift");
@@ -181,6 +253,31 @@ function main() {
   assert(
     exerciseMatchesAnyTrailRunningCategory(walkingLunge, ["uphill_locomotion_support", "unilateral_running_stability"]),
     "category matcher"
+  );
+
+  assert(isTrailForwardSteppingLungePattern(walkingLunge), "walking lunge counts as forward-stepping lunge family");
+  const revLunge = mkEx({ id: "reverse_lunge_tr", name: "Reverse Lunge", exercise_role: "main_compound" });
+  assert(!isTrailForwardSteppingLungePattern(revLunge), "reverse lunge excluded from forward family");
+  const bss = mkEx({
+    id: "bss_tr",
+    name: "Rear-Foot Elevated Split Squat",
+    exercise_role: "main_compound",
+  });
+  assert(!isTrailForwardSteppingLungePattern(bss), "BSS excluded from forward lunge family");
+
+  const qFwd2 = computeTrailRunningWithinPoolQualityScore(walkingLunge, {
+    sessionTrailCategoryCounts: new Map([["_session_trail_forward_lunge_family", 2]]),
+    emphasisBucket: 0,
+    blockType: "accessory",
+  });
+  const qFwd0 = computeTrailRunningWithinPoolQualityScore(walkingLunge, {
+    sessionTrailCategoryCounts: new Map(),
+    emphasisBucket: 0,
+    blockType: "accessory",
+  });
+  assert(
+    qFwd2.near_duplicate_penalty > qFwd0.near_duplicate_penalty,
+    "forward lunge should pick up extra redundancy penalty when session already has 2"
   );
 
   console.log("trailRunningGeneration.test.ts: all assertions passed");

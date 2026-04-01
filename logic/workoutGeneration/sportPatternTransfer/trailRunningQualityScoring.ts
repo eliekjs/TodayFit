@@ -48,6 +48,21 @@ export function isSignatureTrailMovement(ex: Exercise): boolean {
   return false;
 }
 
+/**
+ * Forward / walking / alternating-forward lunge patterns (trail: avoid stacking 4+ similar steps in one session).
+ * Excludes reverse / lateral / curtsy, and split-squat / BSS / step-up families (different enough for variety).
+ */
+export function isTrailForwardSteppingLungePattern(ex: Exercise): boolean {
+  const t = `${ex.id} ${ex.name ?? ""}`.toLowerCase();
+  if (/\b(bulgarian|split\s*squat|rfe|ffe|rear\s*foot|cyclist\s*squat|step[\s._-]*up|box\s*step)\b/i.test(t)) {
+    return false;
+  }
+  if (/\b(reverse|lateral|curtsy|side)\s*lunge|lunge\s*\(?\s*reverse|lunge.*\blateral\b/i.test(t)) {
+    return false;
+  }
+  return /\blunge\b/.test(t);
+}
+
 export function addExerciseToTrailRunningSessionCounts(ex: Exercise, counts: Map<string, number>): void {
   for (const cat of getTrailRunningPatternCategoriesForExercise(ex)) {
     counts.set(cat, (counts.get(cat) ?? 0) + 1);
@@ -59,6 +74,12 @@ export function addExerciseToTrailRunningSessionCounts(ex: Exercise, counts: Map
     !/\b(step_up|stepup|calf_raise)\b/i.test(t)
   ) {
     counts.set("_session_trail_lunge_shape", (counts.get("_session_trail_lunge_shape") ?? 0) + 1);
+  }
+  if (isTrailForwardSteppingLungePattern(ex)) {
+    counts.set(
+      "_session_trail_forward_lunge_family",
+      (counts.get("_session_trail_forward_lunge_family") ?? 0) + 1
+    );
   }
 }
 
@@ -108,8 +129,17 @@ export function computeTrailRunningWithinPoolQualityScore(
   const lungeShape = counts.get("_session_trail_lunge_shape") ?? 0;
   const isLungeShaped =
     /\b(lunge|split_squat|bulgarian|rfe|ffe)\b/i.test(id) && !/\b(step_up|stepup)\b/i.test(id);
-  if (isLungeShaped && lungeShape >= 2) near_duplicate_penalty += 0.8;
+  /** Broad lunge/split family: penalize from the 2nd pick so two similar singles aren't both "free". */
+  if (isLungeShaped && lungeShape >= 1) near_duplicate_penalty += 0.5;
+  if (isLungeShaped && lungeShape >= 2) near_duplicate_penalty += 0.85;
+  if (isLungeShaped && lungeShape >= 3) near_duplicate_penalty += 1.35;
   if (isLungeShaped && lungeShape >= 1 && uni >= 1) near_duplicate_penalty += 0.35;
+
+  const forwardLunge = counts.get("_session_trail_forward_lunge_family") ?? 0;
+  const isForwardLunge = isTrailForwardSteppingLungePattern(ex);
+  if (isForwardLunge && forwardLunge >= 1) near_duplicate_penalty += 0.75;
+  if (isForwardLunge && forwardLunge >= 2) near_duplicate_penalty += 1.25;
+  if (isForwardLunge && forwardLunge >= 3) near_duplicate_penalty += 2.1;
 
   let carry_step_penalty = 0;
   if (cats.has("heavy_carry_dominant") || (cats.has("pack_load_carry_primary") && cats.size <= 2)) {

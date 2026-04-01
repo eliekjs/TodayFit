@@ -212,6 +212,30 @@ function test45MinConditioningHasSixExercises() {
   console.log("  OK: 45 min conditioning has at least 6 main-work exercises");
 }
 
+/** Default endurance (no sub-focus): must still include explicit time-based cardio, not only rep supersets. */
+function testEndurancePrimaryIncludesTimeBasedCardio() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 45,
+    primary_goal: "endurance",
+    energy_level: "medium",
+    available_equipment: ["barbell", "bench", "dumbbells", "bodyweight", "kettlebell", "treadmill", "rower"],
+    injuries_or_constraints: [],
+    seed: 450,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+  const condItems = session.blocks
+    .filter((b) => b.block_type === "conditioning")
+    .flatMap((b) => b.items);
+  const hasTimeBasedCardio = condItems.some(
+    (i) => i.time_seconds != null && i.time_seconds > 0 && i.reps == null
+  );
+  assert(
+    hasTimeBasedCardio,
+    "endurance primary should include at least one time-prescribed conditioning item (cardio portion)"
+  );
+  console.log("  OK: endurance primary (no sub-focus) includes time-based cardio block");
+}
+
 function testZone2AerobicBaseIntentCreatesTimeBasedZone2Block() {
   const input: GenerateWorkoutInput = {
     duration_minutes: 45,
@@ -332,6 +356,7 @@ function main() {
   testCooldownStretchOnly();
   testExerciseRoleExcludedFromMainWork();
   test45MinConditioningHasSixExercises();
+  testEndurancePrimaryIncludesTimeBasedCardio();
   testZone2AerobicBaseIntentCreatesTimeBasedZone2Block();
   testThresholdTempoIntentCreatesTimeBasedThresholdIntervalsBlock();
   testHillsIntentCreatesTimeBasedHillRepeatsBlock();

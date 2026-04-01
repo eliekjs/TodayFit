@@ -202,7 +202,7 @@ export default function ManualWorkoutScreen() {
 
         <View style={styles.footer}>
           <PrimaryButton
-            label="Regenerate"
+            label="Regenerate workout"
             variant="secondary"
             onPress={onRegenerate}
           />

@@ -761,7 +761,7 @@ export default function AdaptiveWeekPlanScreen() {
         <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 16 }}>
           {daySlotsWithSessions.length > 1
             ? "No session for this day — tap another day in the week overview above."
-            : "No session generated for this day (rest / low-load day). Try Regenerate or Back to Setup."}
+            : "No session generated for this day (rest / low-load day). Try Regenerate workout or Back to Setup."}
         </Text>
       )}
       {!isLoadingWorkout && selectedWorkout && (
@@ -814,6 +814,12 @@ export default function AdaptiveWeekPlanScreen() {
               isRegenerating={isRegenerating}
               showAdjustFocusLink={focusSectionsForModal.length > 0}
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
+              helperText={
+                isSingleSessionPlan
+                  ? "Then tap Regenerate workout to rebuild this session."
+                  : undefined
+              }
+              regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
               showChips={!!(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id])}
               baseWorkoutTier={
                 sportPrepWeekPlan.scheduleSnapshot?.workoutTier ??

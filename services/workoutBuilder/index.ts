@@ -127,8 +127,14 @@ export async function buildWorkoutForSessionIntent(
             options?.sportSubFocusSlugsBySport &&
             Object.keys(options.sportSubFocusSlugsBySport).length > 0
               ? options.sportSubFocusSlugsBySport
-              : options?.sportSlug && (options?.sportSubFocusSlugs?.length ?? 0) > 0
-                ? { [options.sportSlug]: options.sportSubFocusSlugs }
+              : (options?.sportSubFocusSlugs?.length ?? 0) > 0
+                ? (() => {
+                    const key =
+                      options?.sportSlug && options.sportSlug !== ""
+                        ? options.sportSlug
+                        : options?.rankedSportSlugs?.[0];
+                    return key ? { [key]: options.sportSubFocusSlugs! } : undefined;
+                  })()
                 : undefined,
           goal_weights:
             (options?.goalWeightsPct?.length ?? 0) > 0

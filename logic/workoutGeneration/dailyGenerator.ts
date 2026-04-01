@@ -151,6 +151,7 @@ import {
   addExerciseToTrailRunningSessionCounts,
   computeTrailRunningEmphasisBucket,
   computeTrailRunningWithinPoolQualityScore,
+  isTrailForwardSteppingLungePattern,
   type TrailRunningQualityScoreContext,
 } from "./sportPatternTransfer/trailRunningQualityScoring";
 import { TRAIL_SUPPORT_COVERAGE_CATEGORIES } from "./sportPatternTransfer/trailRunningRules";
@@ -227,6 +228,8 @@ const EXERCISE_IDS_OVERHEAD_OR_HANGING = new Set([
 
 const STRENGTH_INTENT_SET = new Set<string>([...STRENGTH_INTENT_SLUGS]);
 const STRENGTH_OVERLAY_SET = new Set<string>([...STRENGTH_OVERLAY_SLUGS]);
+/** Region-only conditioning sub-focuses; ranked intents (intervals, hills, …) should dominate scoring and finishers. */
+const CONDITIONING_SUB_FOCUS_OVERLAYS = new Set(["upper", "lower", "core", "full_body"]);
 
 function normalizeWeekMainLiftId(id: string): string {
   return id.toLowerCase().replace(/\s/g, "_");
@@ -450,7 +453,12 @@ const GOAL_DAMPEN_MAX_WITH_SPORT = 0.28;
 function shouldUseSessionTargetVector(input: GenerateWorkoutInput): boolean {
   if (input.sport_slugs?.length) return true;
   const sq = input.session_target_qualities;
-  return Boolean(sq && Object.keys(sq).length > 0);
+  if (sq && Object.keys(sq).length > 0) return true;
+  const gsf = input.goal_sub_focus;
+  if (gsf && Object.keys(gsf).length > 0) {
+    return Object.values(gsf).some((arr) => (arr?.length ?? 0) > 0);
+  }
+  return false;
 }
 
 /**
@@ -464,6 +472,8 @@ export function buildSessionTargetVectorFromInput(input: GenerateWorkoutInput): 
     secondary_goals: input.secondary_goals,
     sport_slugs: input.sport_slugs,
     sport_sub_focus: input.sport_sub_focus,
+    goal_sub_focus: input.goal_sub_focus,
+    goal_sub_focus_weights: input.goal_sub_focus_weights,
     goal_weights: input.goal_weights,
     sport_weight: input.sport_weight,
     session_target_qualities: input.session_target_qualities,
@@ -540,6 +550,16 @@ function exerciseMatchesHypertrophySubFocusSlug(exercise: Exercise, slug: string
 
   for (const m of matchSet) {
     if (muscleSet.has(m) || attrSet.has(m) || fatigueSet.has(m) || pairing === m) return true;
+  }
+  return false;
+}
+
+function hasConditioningEnduranceIntentSubFocus(input: GenerateWorkoutInput): boolean {
+  const gsf = input.goal_sub_focus;
+  if (!gsf) return false;
+  for (const key of ["conditioning", "endurance"] as const) {
+    const slugs = gsf[key];
+    if (slugs?.some((s) => !CONDITIONING_SUB_FOCUS_OVERLAYS.has(s))) return true;
   }
   return false;
 }
@@ -814,15 +834,24 @@ export function scoreExercise(
   const conditioningIntentSlugs =
     (primary === "conditioning" || primary === "endurance") &&
     goalSubFocus?.[primary]?.length
-      ? (goalSubFocus[primary] ?? []).filter(
-          (s) => !["upper", "lower", "core", "full_body"].includes(s)
-        )
+      ? (goalSubFocus[primary] ?? []).filter((s) => !CONDITIONING_SUB_FOCUS_OVERLAYS.has(s))
       : [];
   if (conditioningIntentSlugs.length > 0) {
-    const directMatch = conditioningIntentSlugs.some((slug) =>
-      exerciseHasSubFocusSlug(exercise, slug)
-    );
-    if (directMatch) applyToTotal(3, "generic");
+    const ranked = goalSubFocus[primary] ?? [];
+    const weightsArr =
+      input.goal_sub_focus_weights?.[primary] ?? ranked.map(() => 1 / (ranked.length || 1));
+    let bestMatchW = 0;
+    for (let i = 0; i < ranked.length; i++) {
+      const slug = ranked[i]!;
+      if (CONDITIONING_SUB_FOCUS_OVERLAYS.has(slug)) continue;
+      if (exerciseHasSubFocusSlug(exercise, slug)) {
+        const w = weightsArr[i] ?? 0;
+        bestMatchW = Math.max(bestMatchW, w);
+      }
+    }
+    if (bestMatchW > 0) {
+      applyToTotal(3 + bestMatchW * 9, "generic");
+    }
   }
 
   // Strength: intent slug match drives primary selection. Cap stacked intent bonuses so one exercise
@@ -878,9 +907,14 @@ export function scoreExercise(
       for (const [slug, weight] of preferredWeights) {
         if (exerciseSlugs.has(slug)) subFocusScore += weight;
       }
+      const conditioningEnduranceSpecificity =
+        hasConditioningEnduranceIntentSubFocus(input) &&
+        (primary === "conditioning" || primary === "endurance");
       const subFocusCoeff =
         primary === "conditioning" || primary === "endurance"
-          ? 0.25
+          ? conditioningEnduranceSpecificity
+            ? 0.55
+            : 0.25
           : primary === "strength"
             ? 0.2
             : primary === "hypertrophy"
@@ -1474,6 +1508,10 @@ function selectExercisesSportPatternIterative(
       const nextCount = (movementCounts.get(item.exercise.movement_pattern) ?? 0) + 1;
       if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
       if (wouldBeThreeSameClusterInARow(chosen, item.exercise)) continue;
+      if (tq && isTrailForwardSteppingLungePattern(item.exercise)) {
+        const fwd = tq.sessionTrailCategoryCounts.get("_session_trail_forward_lunge_family") ?? 0;
+        if (fwd >= 2) continue;
+      }
       chosen.push(item.exercise);
       movementCounts.set(item.exercise.movement_pattern, nextCount);
       addSessionSportCounts(item.exercise);
@@ -1501,6 +1539,10 @@ function selectExercisesSportPatternIterative(
         const nextCount = (movementCounts.get(exercise.movement_pattern) ?? 0) + 1;
         if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
         if (wouldBeThreeSameClusterInARow(chosen, exercise)) continue;
+        if (tq && isTrailForwardSteppingLungePattern(exercise)) {
+          const fwd = tq.sessionTrailCategoryCounts.get("_session_trail_forward_lunge_family") ?? 0;
+          if (fwd >= 2) continue;
+        }
         chosen.push(exercise);
         movementCounts.set(exercise.movement_pattern, nextCount);
         addSessionSportCounts(exercise);
@@ -2475,6 +2517,16 @@ function buildMainStrength(
       poolForPairs = poolForPairs.slice(0, Math.min(poolForPairs.length, pairNeededItems * 2));
     }
 
+    if (trailRunningPatternTransferApplies(input)) {
+      const fwd = sportPatCounts.get("_session_trail_forward_lunge_family") ?? 0;
+      if (fwd >= 2 && poolForPairs.length > pairNeededItems) {
+        const noMoreForward = poolForPairs.filter((e) => !isTrailForwardSteppingLungePattern(e));
+        if (noMoreForward.length >= pairNeededItems) {
+          poolForPairs = noMoreForward;
+        }
+      }
+    }
+
     let pairs = pickBestSupersetPairs(poolForPairs, pairCount, used) as [Exercise, Exercise][];
     if (sportHandles && alpineAccessoryRule && pairs.length > 0 && mainLifts.length > 0) {
       mainSelectorTrace?.entries.push({
@@ -2738,6 +2790,61 @@ function pickConditioningExercise(
     }
   }
   return candidatePool[Math.floor(rng() * candidatePool.length)];
+}
+
+/**
+ * Conditioning + endurance ranked intents from manual goal_sub_focus (excludes region overlays).
+ * Used to bias session finishers when primary work is strength/hypertrophy/etc.
+ */
+function getCardioFinisherIntentSlugs(input: GenerateWorkoutInput): string[] | undefined {
+  const gsf = input.goal_sub_focus ?? {};
+  const gw = input.goal_sub_focus_weights ?? {};
+  const scored: { slug: string; w: number }[] = [];
+  for (const goalSlug of ["conditioning", "endurance"] as const) {
+    const slugs = gsf[goalSlug];
+    if (!slugs?.length) continue;
+    const wArr = gw[goalSlug] ?? slugs.map(() => 1 / slugs.length);
+    for (let i = 0; i < slugs.length; i++) {
+      const s = slugs[i]!;
+      if (CONDITIONING_SUB_FOCUS_OVERLAYS.has(s)) continue;
+      scored.push({ slug: s, w: wArr[i] ?? 0 });
+    }
+  }
+  scored.sort((a, b) => b.w - a.w);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const { slug } of scored) {
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    out.push(slug);
+  }
+  return out.length ? out : undefined;
+}
+
+function narrowCardioPoolByConditioningIntents(pool: Exercise[], intentSlugs: string[]): Exercise[] {
+  if (!pool.length || !intentSlugs.length) return pool;
+  const top = intentSlugs[0];
+  if (!top) return pool;
+  if (top === "hills") {
+    const hillPref = pool.filter((e) => exerciseHasSubFocusSlug(e, "hills") || isHillBiasExercise(e));
+    return hillPref.length ? hillPref : pool;
+  }
+  if (top === "intervals" || top === "intervals_hiit") {
+    const ip = pool.filter(
+      (e) => exerciseHasSubFocusSlug(e, "intervals_hiit") || exerciseHasSubFocusSlug(e, "intervals")
+    );
+    return ip.length ? ip : pool;
+  }
+  if (top === "zone2_aerobic_base" || top === "zone2_long_steady") {
+    const z = pool.filter((e) => exerciseHasSubFocusSlug(e, "zone2_aerobic_base"));
+    return z.length ? z : pool;
+  }
+  if (top === "threshold_tempo") {
+    const t = pool.filter((e) => exerciseHasSubFocusSlug(e, "threshold_tempo"));
+    return t.length ? t : pool;
+  }
+  const direct = pool.filter((e) => intentSlugs.some((s) => exerciseHasSubFocusSlug(e, s)));
+  return direct.length ? direct : pool;
 }
 
 /** True when conditioning exercise is explosive/plyometric (box jumps, jump squats) — prescribe as sets of reps or short time, not one long block. */
@@ -3220,7 +3327,14 @@ function overlayEmphasisLabel(overlayFilter?: string): string | null {
 function isHillBiasExercise(e: Exercise): boolean {
   const id = (e.id ?? "").toLowerCase();
   const name = (e.name ?? "").toLowerCase();
-  const eq = (e.equipment_required ?? []).map((x) => x.toLowerCase());
+  const eq = (e.equipment_required ?? []).map((x) => x.toLowerCase().replace(/\s/g, "_"));
+  const uphillTreadmill =
+    eq.includes("treadmill") &&
+    (id.includes("incline") ||
+      id.includes("uphill") ||
+      name.includes("incline") ||
+      name.includes("uphill") ||
+      name.includes("hill"));
   return (
     id.includes("treadmill_incline") ||
     id.includes("incline") ||
@@ -3232,7 +3346,7 @@ function isHillBiasExercise(e: Exercise): boolean {
     id.includes("step_up") ||
     id.includes("sled_push") ||
     id.includes("sled_drag") ||
-    eq.includes("treadmill") ||
+    uphillTreadmill ||
     eq.includes("stair_climber") ||
     eq.includes("sled")
   );
@@ -3554,7 +3668,6 @@ function buildEnduranceMain(
   conditioningProfile?: SubFocusProfile | null
 ): WorkoutBlock[] {
   const duration = input.duration_minutes;
-  const targetMainExercises = duration <= 30 ? 3 : duration <= 45 ? 6 : 8;
   const supersetPairCount = duration <= 30 ? 1 : duration <= 45 ? 3 : 4;
 
   let strengthPool = exercises.filter(
@@ -3667,7 +3780,9 @@ function buildEnduranceMain(
     });
   }
 
-  // For 30 min keep one cardio block; for 45+ only add cardio if we're under target (e.g. few pairs found).
+  // Always add a time-based cardio block when we have candidates and duration budget (endurance /
+  // conditioning primary). Strength-support supersets alone are not sufficient — users expect
+  // explicit sustained or interval cardio prescription.
   let cardioPool = exercises.filter(
     (e) => e.modality === "conditioning" && !used.has(e.id)
   );
@@ -3675,9 +3790,7 @@ function buildEnduranceMain(
     getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
     input.style_prefs?.conditioning_minutes ??
     (input.duration_minutes >= 60 ? 30 : 20);
-  const mainExerciseCount = blocks.reduce((n, b) => n + b.items.length, 0);
-  const addCardioBlock =
-    cardioPool.length && condMins > 0 && mainExerciseCount < targetMainExercises;
+  const addCardioBlock = cardioPool.length > 0 && condMins > 0;
   if (addCardioBlock) {
     const preferredIntentSlugs =
       intentSlugs.length > 0 ? intentSlugs : undefined;
@@ -5240,11 +5353,14 @@ export function generateWorkoutSession(
   const hasConditioningBlock = blocks.some((b) => b.block_type === "conditioning");
   const conditioningStrategy = goalRules.conditioningStrategy;
   const requiredConditioning = constraints.required_conditioning_block === true;
+  const rankedCardioIntentsFinisher = getCardioFinisherIntentSlugs(input);
   const skipConditioning =
     hasConditioningBlock ||
     (!requiredConditioning &&
       (conditioningStrategy === "none" ||
-        (goalRules.conditioningOnlyIfHighEnergy && input.energy_level !== "high")));
+        (goalRules.conditioningOnlyIfHighEnergy &&
+          input.energy_level !== "high" &&
+          !rankedCardioIntentsFinisher?.length)));
 
   if (!skipConditioning) {
     const userMins = input.style_prefs?.conditioning_minutes ?? 0;
@@ -5317,10 +5433,14 @@ export function generateWorkoutSession(
         );
       }
       if (cardioPool.length) {
+        const narrowedPool = rankedCardioIntentsFinisher?.length
+          ? narrowCardioPoolByConditioningIntents(cardioPool, rankedCardioIntentsFinisher)
+          : cardioPool;
         const c = pickConditioningExercise(
-          cardioPool,
+          narrowedPool,
           input.style_prefs?.preferred_zone2_cardio,
-          rng
+          rng,
+          rankedCardioIntentsFinisher
         );
         if (c) {
           used.add(c.id);

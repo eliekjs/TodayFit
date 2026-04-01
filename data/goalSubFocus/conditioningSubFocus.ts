@@ -10,6 +10,9 @@ import type { SubFocusProfile } from "./types";
 /** Minimal exercise shape for direct sub-focus matching (avoids data -> logic dependency). */
 export type ExerciseForSubFocus = {
   id: string;
+  name?: string;
+  /** Generator field; catalog uses `equipment` on definitions. */
+  equipment_required?: string[];
   tags?: { attribute_tags?: string[]; stimulus?: string[] };
   primary_movement_family?: string;
   muscle_groups?: string[];
@@ -37,6 +40,35 @@ function toSlug(s: string): string {
   return s.toLowerCase().replace(/\s/g, "_");
 }
 
+/** Incline / stair / sled patterns when canonical `hills` intent tag is missing (legacy catalog). */
+function exerciseLooksLikeHillConditioning(exercise: ExerciseForSubFocus): boolean {
+  const id = (exercise.id ?? "").toLowerCase();
+  const name = (exercise.name ?? "").toLowerCase();
+  const eq = (exercise.equipment_required ?? []).map((x) => x.toLowerCase().replace(/\s/g, "_"));
+  const uphillTreadmill =
+    eq.includes("treadmill") &&
+    (id.includes("incline") ||
+      id.includes("uphill") ||
+      name.includes("incline") ||
+      name.includes("uphill") ||
+      name.includes("hill"));
+  return (
+    id.includes("treadmill_incline") ||
+    id.includes("incline") ||
+    name.includes("incline") ||
+    name.includes("stair") ||
+    id.includes("stair") ||
+    id.includes("stair_climber") ||
+    id.includes("stepup") ||
+    id.includes("step_up") ||
+    id.includes("sled_push") ||
+    id.includes("sled_drag") ||
+    uphillTreadmill ||
+    eq.includes("stair_climber") ||
+    eq.includes("sled")
+  );
+}
+
 /**
  * True if the exercise matches the given sub-focus slug.
  * Primary: attribute_tags (canonical). Legacy: zone2_aerobic_base <-> stimulus aerobic_zone2; intervals_hiit <-> high-intensity/anaerobic/plyometric.
@@ -50,9 +82,16 @@ export function exerciseHasSubFocusSlug(exercise: ExerciseForSubFocus, slug: str
     const stimulus = (exercise.tags?.stimulus ?? []).map(toSlug);
     if (stimulus.includes("aerobic_zone2")) return true;
   }
-  if (norm === "intervals_hiit") {
+  // Endurance UI uses `intervals`; conditioning uses `intervals_hiit` — same exercise signals.
+  if (norm === "intervals_hiit" || norm === "intervals") {
+    if (attrs.includes("intervals_hiit") || attrs.includes("intervals")) return true;
     const stimulus = (exercise.tags?.stimulus ?? []).map(toSlug);
     if (stimulus.some((s) => ["anaerobic", "plyometric"].includes(s))) return true;
+    return false;
+  }
+  if (norm === "hills") {
+    if (attrs.includes("hills")) return true;
+    return exerciseLooksLikeHillConditioning(exercise);
   }
   return false;
 }
