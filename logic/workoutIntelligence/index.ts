@@ -17,6 +17,15 @@ export type { MergeTargetInput } from "./targetVector";
 
 export { qualitiesFromTags } from "./tagToQualityMap";
 
+/**
+ * Phase 4 pipeline scoring (`ExerciseWithQualities` + target vector). **Not** used by app workout generation.
+ * App / `generateWorkoutSession` uses `logic/workoutGeneration/dailyGenerator.scoreExercise` instead.
+ * @see `logic/workoutGeneration/SCORING_RUNTIME.md`
+ */
+export { pipelineScoreExercise } from "./scoring/scoreExercise";
+/**
+ * @deprecated Same function as `pipelineScoreExercise`. The name collides with production `dailyGenerator.scoreExercise` — prefer `pipelineScoreExercise` for new code.
+ */
 export { scoreExercise } from "./scoring/scoreExercise";
 export type { ScoreExerciseInput } from "./scoring/scoreExercise";
 

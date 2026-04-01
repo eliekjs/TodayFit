@@ -24,6 +24,7 @@ import type {
   Modality,
   MovementPattern,
 } from "../logic/workoutGeneration/types";
+import type { SessionIntentContract } from "../logic/workoutGeneration/sessionIntentContract";
 
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
@@ -85,6 +86,16 @@ export type SportGoalContext = {
   sport_sub_focus?: Record<string, string[]>;
   goal_weights?: number[];
   sport_weight?: number;
+  /** Explicit sport-day intent (planner → generator); optional for non-sport modes. */
+  session_intent_contract?: SessionIntentContract;
+  /** When true, generator attaches `WorkoutSession.debug.intent_survival_report`. */
+  include_intent_survival_report?: boolean;
+  /** Optional planner/adapter snapshot merged into intent survival report. */
+  intent_survival_upstream?: {
+    source?: string;
+    session_intent_summary?: string;
+    primitives?: Record<string, unknown>;
+  };
 };
 
 /**
@@ -205,6 +216,9 @@ export function manualPreferencesToGenerateWorkoutInput(
     sport_slugs: sportGoalContext?.sport_slugs,
     sport_sub_focus: sportGoalContext?.sport_sub_focus,
     sport_weight: sportGoalContext?.sport_weight,
+    include_intent_survival_report: sportGoalContext?.include_intent_survival_report,
+    intent_survival_upstream: sportGoalContext?.intent_survival_upstream,
+    session_intent_contract: sportGoalContext?.session_intent_contract,
     week_main_strength_lift_ids_used:
       preferences.weekMainStrengthLiftIdsUsed?.length && preferences.weekMainStrengthLiftIdsUsed.length > 0
         ? [...preferences.weekMainStrengthLiftIdsUsed]

@@ -1,5 +1,8 @@
 /**
  * Session generation — public API. Used by both Build My Workout and Sports Prep.
+ *
+ * **Scoring:** `scoreExercise` here is the production scorer (`dailyGenerator.ts`).
+ * For a map of production vs Phase 4 experimental scorers, see `SCORING_RUNTIME.md`.
  */
 
 export {
@@ -14,6 +17,7 @@ export { collectWeekMainLiftExerciseIds } from "./collectWeekMainLiftExerciseIds
 export type { ScoreExerciseOptions } from "./dailyGenerator";
 export type {
   SportPatternGateResult,
+  SportPatternSelectionTier,
   SportPatternSlotRule,
   SportPatternPoolMode,
   SportPatternSlotScoreWeights,
@@ -21,6 +25,7 @@ export type {
 export {
   gatePoolForSportSlot,
   computeSportPatternSlotScoreAdjustment,
+  sportPatternScoreModeFromPoolMode,
   getSportPatternSlotRuleForBlockType,
   collectBlocksExerciseIdsByType,
   buildSportCoverageContext,

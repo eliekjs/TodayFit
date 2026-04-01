@@ -1,7 +1,11 @@
 /**
- * Generator pipeline scaffold: high-level flow for quality-based workout generation.
- * This module composes target vector, template, scoring, and block building.
- * Integrate with logic/workoutGeneration/dailyGenerator for full session output.
+ * Phase intelligence pipeline scaffold (target vector + template + **`pipelineScoreExercise`** from `scoring/scoreExercise.ts`).
+ *
+ * **Not** the production path: the app uses `generateWorkoutSession` in `dailyGenerator.ts`,
+ * which has its own `scoreExercise` and block builders. Safe for experiments and
+ * `generateWorkoutWithPrescriptions` / `assembleSession` callers only.
+ *
+ * @see `logic/workoutGeneration/SCORING_RUNTIME.md`
  */
 
 import type { SessionTargetVector } from "./types";
@@ -9,7 +13,7 @@ import type { ExerciseWithQualities } from "./types";
 import type { SessionTemplate } from "./types";
 import { mergeTargetVector } from "./targetVector";
 import { getTemplateForGoalAndDuration } from "./sessionTemplates";
-import { scoreExercise } from "./scoring/scoreExercise";
+import { pipelineScoreExercise } from "./scoring/scoreExercise";
 import type { FatigueState } from "../../lib/generation/fatigueRules";
 import { getFatigueState } from "../../lib/generation/fatigueRules";
 import { MAX_SAME_PATTERN_PER_SESSION } from "../../lib/workoutRules";
@@ -86,7 +90,7 @@ export function scoreAndRankCandidates(
   }
 ): { exercise: ExerciseWithQualities; score: number; breakdown?: import("./types").ExerciseScoreBreakdown }[] {
   const scored = candidates.map((ex) => {
-    const { score, breakdown } = scoreExercise({
+    const { score, breakdown } = pipelineScoreExercise({
       exercise: ex,
       targetVector: context.targetVector,
       movementPatternCounts: context.movementPatternCounts,

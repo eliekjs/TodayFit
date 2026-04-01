@@ -9,10 +9,16 @@ import type { Exercise, GenerateWorkoutInput } from "../types";
 import type {
   SportPatternGateResult,
   SportPatternPoolMode,
+  SportPatternSelectionTier,
   SportPatternSlotRule,
 } from "../sportPattern/framework/types";
 
-export type { SportPatternSlotRule, SportPatternGateResult, SportPatternPoolMode };
+export type {
+  SportPatternSlotRule,
+  SportPatternGateResult,
+  SportPatternPoolMode,
+  SportPatternSelectionTier,
+};
 
 /** Slugs are stable API; hiking is the first consumer. */
 export type HikingPatternCategory =

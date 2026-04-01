@@ -230,6 +230,29 @@ export type GenerateWorkoutInput = {
    * programmed week. Selection excludes them when possible (pool fallback if no alternatives).
    */
   week_main_strength_lift_ids_used?: string[];
+  /**
+   * When true, `WorkoutSession.debug.intent_survival_report` is populated (sport intent tracing).
+   * No effect on exercise selection.
+   */
+  include_intent_survival_report?: boolean;
+  /**
+   * Optional upstream snapshot (e.g. planner session label / primitives) merged into intent survival report.
+   */
+  intent_survival_upstream?: {
+    source?: string;
+    session_intent_summary?: string;
+    primitives?: Record<string, unknown>;
+  };
+  /**
+   * Explicit sport-day intent from planner (categories, coverage, fallback policy).
+   * When absent, generation uses legacy inferred path only. Selection enforcement will consume this in a later phase.
+   */
+  session_intent_contract?: import("./sessionIntentContract").SessionIntentContract;
+  /**
+   * When not `false`, alpine skiing main_strength / main_hypertrophy scoring shrinks generic additive terms
+   * (goal/ontology/history/template-fit, etc.) so sport slot + within-pool quality dominate. Set `false` for legacy full scorer.
+   */
+  use_reduced_surface_for_alpine_main_scoring?: boolean;
 };
 
 // --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
@@ -288,6 +311,14 @@ export type ScoringDebug = {
   calisthenics_advanced_bonus?: number;
   /** Calisthenics + upper focus: bonus for push-up/handstand/pull-up pattern. */
   calisthenics_upper_preferred_pattern_bonus?: number;
+  /** Intent-survival trace: hiking/trail/alpine slot pattern score delta. */
+  sport_pattern_slot_adjustment?: number;
+  /** Intent-survival trace: within-pool quality total for active sport pattern. */
+  sport_within_pool_quality?: number;
+  /** When set, generic scorer terms were scaled for sport-main selection (see GenerateWorkoutInput.use_reduced_surface_for_alpine_main_scoring). */
+  sport_main_scoring_mode?: "alpine_reduced_surface";
+  /** Multiplier applied to demoted (generic) terms; primary terms use 1. */
+  sport_main_generic_term_scale?: number;
 };
 
 export type WorkoutSession = {
@@ -297,16 +328,16 @@ export type WorkoutSession = {
   debug?: {
     scoring_breakdown?: ScoringDebug[];
     seed_used?: number;
-    /** Sport pattern transfer (hiking_backpacking | trail_running): categories, slot rule, tier, coverage. */
+    /** Sport pattern transfer (hiking_backpacking | trail_running | alpine_skiing): categories, slot rule, tier, coverage. */
     sport_pattern_transfer?: {
-      sport_slug: "hiking_backpacking" | "trail_running" | string;
+      sport_slug: "hiking_backpacking" | "trail_running" | "alpine_skiing" | string;
       coverage_ok: boolean;
       violations?: { ruleId: string; description: string }[];
       /** Slot gating outcomes (main, accessory, hypertrophy, secondary strength). */
       enforcement_snapshot?: HikingSessionEnforcementSnapshot;
       /** Aggregated category + overlap counts for tuning and cross-sport comparison (see sportPatternSessionAudit). */
       session_summary?: {
-        sport_slug: "hiking_backpacking" | "trail_running";
+        sport_slug: "hiking_backpacking" | "trail_running" | "alpine_skiing";
         main_category_hits: Record<string, number>;
         accessory_category_hits: Record<string, number>;
         conditioning_exercise_ids: string[];
@@ -330,15 +361,22 @@ export type WorkoutSession = {
         tier: "required" | "preferred" | "fallback";
         note?: string;
         enforcement?: {
-          main_work_pool_mode?: "gated" | "full_pool_fallback";
+          main_work_pool_mode?: "gated" | "sport_preferred_pool" | "sport_quality_pool" | "full_pool_fallback";
+          sport_pattern_selection_tier?: import("./sportPattern/framework/types").SportPatternSelectionTier;
           passed_hiking_gate_categories?: boolean;
           excluded_from_hiking_main_work?: boolean;
           passed_trail_gate_categories?: boolean;
           excluded_from_trail_main_work?: boolean;
+          passed_alpine_gate_categories?: boolean;
+          excluded_from_alpine_main_work?: boolean;
           item_used_full_pool_fallback_session: boolean;
         };
       }>;
     };
+    /** Sport / session intent survival trace (when `include_intent_survival_report`). */
+    intent_survival_report?: import("./intentSurvivalDebug").IntentSurvivalSessionSummary;
+    /** Main / accessory / hypertrophy phase used generic vs sport-owned selector (e.g. alpine sport path). */
+    main_selector?: import("./mainSelectors/types").MainSelectorSessionTrace;
   };
 };
 

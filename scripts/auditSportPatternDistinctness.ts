@@ -1,5 +1,5 @@
 /**
- * Cross-sport distinctness audit: hiking_backpacking vs trail_running on the same scenarios.
+ * Cross-sport distinctness audit: hiking_backpacking vs trail_running vs alpine_skiing.
  * Run: npx tsx scripts/auditSportPatternDistinctness.ts
  */
 
@@ -88,6 +88,20 @@ type Agg = {
     sigSum: number;
     n: number;
   };
+  alpine: {
+    mainTop: Record<string, number>;
+    accTop: Record<string, number>;
+    condIds: Record<string, number>;
+    overlapSum: Record<string, number>;
+    sigSum: number;
+    n: number;
+    coverageFail: number;
+    mainLocomotionLeak: number;
+    mainTotal: number;
+    conditioningFallback: number;
+    conditioningTotal: number;
+    mainEccDecel: number;
+  };
 };
 
 function emptyAgg(): Agg {
@@ -95,6 +109,20 @@ function emptyAgg(): Agg {
   return {
     hiking: { mainTop: z(), accTop: z(), condIds: z(), overlapSum: z(), sigSum: 0, n: 0 },
     trail: { mainTop: z(), accTop: z(), condIds: z(), overlapSum: z(), sigSum: 0, n: 0 },
+    alpine: {
+      mainTop: z(),
+      accTop: z(),
+      condIds: z(),
+      overlapSum: z(),
+      sigSum: 0,
+      n: 0,
+      coverageFail: 0,
+      mainLocomotionLeak: 0,
+      mainTotal: 0,
+      conditioningFallback: 0,
+      conditioningTotal: 0,
+      mainEccDecel: 0,
+    },
   };
 }
 
@@ -110,15 +138,21 @@ function main() {
   const agg = emptyAgg();
 
   for (const sc of scenarios) {
-    for (const sport of ["hiking_backpacking", "trail_running"] as const) {
+    for (const sport of ["hiking_backpacking", "trail_running", "alpine_skiing"] as const) {
       const input: GenerateWorkoutInput = {
         ...sc.input,
         sport_slugs: [sport],
       };
       const session = generateWorkoutSession(input, exercisePool);
-      const sum = session.debug?.sport_pattern_transfer?.session_summary;
+      const transfer = session.debug?.sport_pattern_transfer;
+      const sum = transfer?.session_summary;
       if (!sum) continue;
-      const side = sport === "hiking_backpacking" ? agg.hiking : agg.trail;
+      const side =
+        sport === "hiking_backpacking"
+          ? agg.hiking
+          : sport === "trail_running"
+            ? agg.trail
+            : agg.alpine;
       side.n += 1;
       mergeCounts(side.mainTop, sum.main_category_hits);
       mergeCounts(side.accTop, sum.accessory_category_hits);
@@ -127,6 +161,23 @@ function main() {
       }
       mergeCounts(side.overlapSum, sum.overlap_families as unknown as Record<string, number>);
       side.sigSum += sum.signature_pattern_selections;
+      if (sport === "alpine_skiing") {
+        if (!transfer?.coverage_ok) side.coverageFail += 1;
+        for (const it of transfer?.items ?? []) {
+          if (it.block_type === "main_strength" || it.block_type === "main_hypertrophy") {
+            side.mainTotal += 1;
+            const cats = new Set(it.categories_matched);
+            if (cats.has("locomotion_hiking_trail_identity")) side.mainLocomotionLeak += 1;
+            if (cats.has("eccentric_braking_control") || cats.has("landing_deceleration_support")) {
+              side.mainEccDecel += 1;
+            }
+          }
+          if (it.block_type === "conditioning") {
+            side.conditioningTotal += 1;
+            if (it.tier === "fallback") side.conditioningFallback += 1;
+          }
+        }
+      }
     }
   }
 
@@ -139,34 +190,50 @@ function main() {
   };
 
   console.log("Sport pattern distinctness audit");
-  console.log(`Scenarios: ${scenarios.length} × 2 sports = ${scenarios.length * 2} sessions`);
+  console.log(`Scenarios: ${scenarios.length} × 3 sports = ${scenarios.length * 3} sessions`);
   console.log(`Exercise pool: ${exercisePool.length} (blocked ids excluded)`);
 
   printTop("Hiking — main_category (aggregate)", agg.hiking.mainTop);
   printTop("Trail — main_category (aggregate)", agg.trail.mainTop);
   printTop("Hiking — accessory_category (aggregate)", agg.hiking.accTop);
   printTop("Trail — accessory_category (aggregate)", agg.trail.accTop);
+  printTop("Alpine — main_category (aggregate)", agg.alpine.mainTop);
+  printTop("Alpine — accessory_category (aggregate)", agg.alpine.accTop);
   printTop("Hiking — conditioning exercise ids", agg.hiking.condIds, 15);
   printTop("Trail — conditioning exercise ids", agg.trail.condIds, 15);
+  printTop("Alpine — conditioning exercise ids", agg.alpine.condIds, 15);
 
   console.log("\n--- Overlap families (sum of counts per session exercise; higher = more use) ---");
   const keys = Object.keys(agg.hiking.overlapSum);
   for (const k of keys) {
     const h = agg.hiking.overlapSum[k] ?? 0;
     const t = agg.trail.overlapSum[k] ?? 0;
-    console.log(`  ${k}: hiking=${h} trail=${t} (Δ trail−hike = ${t - h})`);
+    const a = agg.alpine.overlapSum[k] ?? 0;
+    console.log(`  ${k}: hiking=${h} trail=${t} alpine=${a}`);
   }
 
   const n = agg.hiking.n;
   console.log("\n--- Signature selections (mean per session) ---");
   console.log(`  hiking: ${(agg.hiking.sigSum / n).toFixed(2)}`);
   console.log(`  trail:  ${(agg.trail.sigSum / n).toFixed(2)}`);
+  console.log(`  alpine: ${(agg.alpine.sigSum / n).toFixed(2)}`);
+  console.log("\n--- Alpine hardening metrics ---");
+  console.log(`  coverage fail count: ${agg.alpine.coverageFail}/${agg.alpine.n}`);
+  console.log(
+    `  main locomotion leak rate: ${agg.alpine.mainTotal ? (agg.alpine.mainLocomotionLeak / agg.alpine.mainTotal).toFixed(3) : "0.000"}`
+  );
+  console.log(
+    `  main eccentric/deceleration rate: ${agg.alpine.mainTotal ? (agg.alpine.mainEccDecel / agg.alpine.mainTotal).toFixed(3) : "0.000"}`
+  );
+  console.log(
+    `  conditioning fallback rate: ${agg.alpine.conditioningTotal ? (agg.alpine.conditioningFallback / agg.alpine.conditioningTotal).toFixed(3) : "0.000"}`
+  );
 
   // Example single scenario side-by-side
   const sample = scenarios.find((s) => s.id === "d45_gstrength_ehigh_s42");
   if (sample) {
     console.log("\n--- Sample side-by-side: d45 strength high energy seed 42 ---");
-    for (const sport of ["hiking_backpacking", "trail_running"] as const) {
+    for (const sport of ["hiking_backpacking", "trail_running", "alpine_skiing"] as const) {
       const session = generateWorkoutSession(
         { ...sample.input, sport_slugs: [sport] },
         exercisePool

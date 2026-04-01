@@ -1,5 +1,11 @@
 import type { Exercise } from "../../types";
-import type { SportPatternSlotRule, SportPatternSlotScoreWeights } from "./types";
+import type { SportPatternPoolMode, SportPatternSlotRule, SportPatternSlotScoreWeights } from "./types";
+
+/** Strict gate uses "gated" boosts; any relaxed pool (prefer, quality, full) uses fallback-style gate/prefer boosts. */
+export function sportPatternScoreModeFromPoolMode(poolMode: SportPatternPoolMode | undefined): "gated" | "fallback" | undefined {
+  if (poolMode == null) return undefined;
+  return poolMode === "gated" ? "gated" : "fallback";
+}
 
 /**
  * Generic slot scoring delta for pattern transfer (gate/prefer/deprioritize).

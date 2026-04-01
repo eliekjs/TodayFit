@@ -22,10 +22,10 @@ You are responsible for improving the logic and algorithm design of the app so t
 | **Filters** (legacy / manual flow) | `lib/generator.ts` (`filterByGymProfile`, `filterByInjuries`, `filterByBodyPartFocus`, etc.) |
 | **Goal → qualities** | `logic/workoutIntelligence/goalQualityWeights.ts` |
 | **Training qualities** | `logic/workoutIntelligence/trainingQualities.ts` |
-| **Scoring** | `logic/workoutIntelligence/scoring/scoreExercise.ts`, `targetVector.ts`, `qualityResolution.ts` |
+| **Scoring (app)** | `logic/workoutGeneration/dailyGenerator.ts` (`scoreExercise`), `ontologyScoring.ts`, `targetVector.ts` (merge for session vector). Phase 4: `workoutIntelligence/scoring/*` — see `logic/workoutGeneration/SCORING_RUNTIME.md` |
 | **Selection & blocks** | `logic/workoutIntelligence/selection/blockFiller.ts`, `sessionAssembler.ts`, `candidateFilters.ts` |
 | **Prescription** (reps/sets/rest) | `logic/workoutIntelligence/prescription/prescriptionResolver.ts`, `setRepResolver.ts`, `intentGuidance.ts`, `durationScaling.ts` |
-| **Superset pairing** | `logic/workoutIntelligence/supersetPairing.ts`, `scoring/pairing.ts` |
+| **Superset pairing (app)** | `logic/workoutIntelligence/supersetPairing.ts` (production). `scoring/pairing.ts` is Phase 4 / experiments |
 | **Session generator** | `logic/workoutGeneration/dailyGenerator.ts` |
 | **Weekly planning** | `logic/workoutIntelligence/weekly/weeklyPlanner.ts`, `weeklyDemandResolution.ts`, `weeklyBalanceRules.ts` |
 | **Ontology & types** | `docs/EXERCISE_ONTOLOGY_DESIGN.md`, `lib/types.ts`, `logic/workoutIntelligence/types.ts` |

@@ -10,6 +10,9 @@ import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { isDbConfigured } from "../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../lib/db/starterExerciseRepository";
 import { hashString, type SportGoalContext } from "../../lib/dailyGeneratorAdapter";
+import type { SessionIntentContract } from "../../logic/workoutGeneration/sessionIntentContract";
+
+export type { SessionIntentContract };
 
 export type SessionIntent = {
   id: string;
@@ -52,6 +55,8 @@ export type SportGoalOptions = {
   includeCreativeVariations?: boolean;
   /** Per–primary-focus sub-goal labels (Manual `subFocusByGoal` keys). Biases exercise selection. */
   subFocusByGoal?: Record<string, string[]>;
+  /** Populate `GenerateWorkoutInput.include_intent_survival_report` for debug tracing. */
+  includeIntentSurvivalReport?: boolean;
 };
 
 /**
@@ -110,7 +115,7 @@ export async function buildWorkoutForSessionIntent(
   }
 
   const sportGoalContext: SportGoalContext | undefined =
-    hasGoals || hasSport
+    hasGoals || hasSport || options?.includeIntentSurvivalReport
       ? {
           sport_slugs:
             (options?.rankedSportSlugs?.length ?? 0) > 0
@@ -131,6 +136,22 @@ export async function buildWorkoutForSessionIntent(
               : undefined,
           sport_weight:
             options?.sportVsGoalPct != null ? options.sportVsGoalPct / 100 : undefined,
+          include_intent_survival_report: options?.includeIntentSurvivalReport === true,
+          intent_survival_upstream:
+            options?.includeIntentSurvivalReport === true
+              ? {
+                  source: "workoutBuilder_session_intent",
+                  session_intent_summary: intent.label,
+                  primitives: {
+                    focus: intent.focus,
+                    durationMinutes: intent.durationMinutes,
+                    energyLevel: intent.energyLevel,
+                    notes: intent.notes ?? null,
+                    session_intent_contract: options?.session_intent_contract ?? null,
+                  },
+                }
+              : undefined,
+          session_intent_contract: options?.session_intent_contract,
         }
       : undefined;
 
@@ -149,6 +170,8 @@ export async function buildWorkoutForSessionIntent(
             sportFocusPct: options?.sportFocusPct ?? null,
             sportSubFocusSlugs: options?.sportSubFocusSlugs ?? null,
             sportSubFocusSlugsBySport: options?.sportSubFocusSlugsBySport ?? null,
+            sessionIntentContractSport: options?.session_intent_contract?.sportSlug ?? null,
+            sessionIntentContractType: options?.session_intent_contract?.sessionType ?? null,
           })
         )
       : baseSeed;

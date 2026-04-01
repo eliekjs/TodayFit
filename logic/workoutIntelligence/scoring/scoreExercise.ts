@@ -1,6 +1,14 @@
 /**
- * Multi-factor exercise scoring for workout intelligence.
- * Scores a candidate exercise against session target, balance, fatigue, variety, etc.
+ * Multi-factor exercise scoring — **Phase intelligence / pipeline only.
+ *
+ * **Not** on the production daily path: `generateWorkoutSession` uses
+ * `logic/workoutGeneration/dailyGenerator.scoreExercise` instead.
+ *
+ * Used by `pipeline.ts` (`scoreAndRankCandidates`). For the canonical map, see
+ * `logic/workoutGeneration/SCORING_RUNTIME.md`.
+ *
+ * @deprecated For app-facing workout behavior, extend `dailyGenerator.scoreExercise`;
+ * keep this module for `assembleSession` / experiments until those paths are merged or removed.
  */
 
 import type { SessionTargetVector } from "../types";
@@ -134,3 +142,9 @@ export function scoreExercise(input: ScoreExerciseInput): {
     breakdown: includeBreakdown ? breakdown : undefined,
   };
 }
+
+/**
+ * Explicit alias for this file’s scorer — **not** `logic/workoutGeneration/dailyGenerator.scoreExercise`.
+ * Prefer importing `pipelineScoreExercise` in new code to avoid the name collision.
+ */
+export { scoreExercise as pipelineScoreExercise };

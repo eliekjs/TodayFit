@@ -60,6 +60,38 @@ export function inferCreativeVariationFromSource(src: WorkoutLevelSource): boole
   return false;
 }
 
+/**
+ * Complex technical lifts should not appear for non-advanced users, even when tier tags are broad.
+ * This is independent of `creative_variation` and acts as a global difficulty safety gate.
+ */
+export function isComplexSkillLiftForNonAdvanced(args: {
+  id: string;
+  name: string;
+  tags?: string[];
+  movementPattern?: string;
+  modality?: string;
+}): boolean {
+  const identity = `${args.id} ${args.name}`.toLowerCase().replace(/-/g, "_");
+  const tags = new Set((args.tags ?? []).map(slugifyTag));
+  const pattern = (args.movementPattern ?? "").toLowerCase().replace(/\s/g, "_");
+  const modality = (args.modality ?? "").toLowerCase().replace(/\s/g, "_");
+
+  if (
+    /\b(clean_to|clean_and|snatch|jerk|thruster|muscle_up|handstand|planche|front_lever|iron_cross|turkish_get_up|windmill)\b/.test(
+      identity
+    )
+  ) {
+    return true;
+  }
+  if (/\b(start_stop_clean|complex|combo|sequence|order)\b/.test(identity)) return true;
+  if (/\b(clubbell|mace|gada|steel_mace)\b/.test(identity)) return true;
+  if (pattern === "push" && /\boverhead|handstand|snatch|jerk|thruster\b/.test(identity)) return true;
+  if (modality === "power" && /\b(clean|snatch|jerk|complex|combo)\b/.test(identity)) return true;
+  if (tags.has("complex_variation") || tags.has("creative")) return true;
+
+  return false;
+}
+
 /** Tiers an exercise is tagged for (must be non-empty when filtering runs). */
 export function allowedTiersForUserPreference(tier: UserLevel): Set<UserLevel> {
   if (tier === "beginner") return new Set(["beginner"]);

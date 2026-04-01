@@ -13,7 +13,7 @@ Quality-based workout intelligence for TodayFit: goal modeling, sport demand, ex
 | **targetVector.ts** | Merge goal + sport into session target vector; alignment score |
 | **tagToQualityMap.ts** | Tag → quality map; used to derive capability when an exercise has no exercise_training_quality rows |
 | **types.ts** | SessionTargetVector, ExerciseWithQualities, BlockSpec, SessionTemplate, etc. |
-| **scoring/scoreExercise.ts** | Multi-factor exercise scoring (alignment, balance, fatigue, variety, session fit) |
+| **scoring/scoreExercise.ts** | Phase 4 **`pipelineScoreExercise`** only — **not** app daily generation (see `logic/workoutGeneration/SCORING_RUNTIME.md`) |
 | **sessionTemplates.ts** | Block specs per session type (strength 45/60, hypertrophy, sport-mixed, etc.) |
 | **supersetPairing.ts** | Good/bad superset pairing heuristics |
 | **adapters.ts** | Generator Exercise → ExerciseWithQualities (DB weights or tag-derived + overrides) |
@@ -70,7 +70,7 @@ consumeExerciseInContext(context, selectedExercise, usedIds);
 
 ## Integration
 
-- **Session generator** (`logic/workoutGeneration/dailyGenerator.ts`): Used by both modes. Use `mergeTargetVector` + `scoreExercise` (or `scoreAndRankCandidates`) alongside or instead of current tag-based scoring; keep existing hard filters and prescription. Inputs are built from the active mode’s filters (Build = duration, goal, equipment, etc.; Sports Prep = sports, goals, gym profile, etc.).
+- **Session generator** (`logic/workoutGeneration/dailyGenerator.ts`): **Production** scoring is **`dailyGenerator.scoreExercise`** (see **`logic/workoutGeneration/SCORING_RUNTIME.md`**). The repo also exposes **`mergeTargetVector`**, **`toExerciseWithQualities`**, and **`supersetPairing`** for use inside that path. The Phase 4 **`pipelineScoreExercise`** / **`scoreAndRankCandidates`** stack is for `assembleSession` and experiments — it does not run inside `generateWorkoutSession`.
 - **Weekly distribution** (e.g. in `services/sportPrepPlanner/` when generating a week): Optional step that assigns per-day intent/quality emphasis; then each day’s session is generated with that day’s target vector. Same idea can apply when Build mode is used to generate a week.
 
 ## Implementation phases

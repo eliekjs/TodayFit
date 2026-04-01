@@ -436,7 +436,8 @@ function getUserSelectedTagSlugs(
 
 /**
  * Score an exercise by how many of its tags (and muscles) match the user's selected tag set.
- * This is the primary indicator for selection: higher count = more likely to be in the workout.
+ * Used only by the **legacy sync** `generateWorkout` path below — **not** by `generateWorkoutAsync`
+ * / `generateWorkoutSession` / `dailyGenerator.scoreExercise`.
  */
 function scoreExerciseByTagMatch(
   exercise: ExerciseDefinition,
@@ -518,6 +519,11 @@ const DEFAULT_DURATION_MINUTES = 45;
 /**
  * Sync workout generation. Caller must supply the exercise pool (e.g. from listExercises or tests).
  * For app use, prefer generateWorkoutAsync which loads the pool from the database.
+ *
+ * **Scoring:** this path uses **tag-match counts** (`scoreExerciseByTagMatch`) only — it does **not** call
+ * `logic/workoutGeneration/dailyGenerator.scoreExercise`. For parity with the app, use `generateWorkoutAsync`.
+ *
+ * @see `logic/workoutGeneration/SCORING_RUNTIME.md`
  */
 export function generateWorkout(
   preferences: ManualPreferences,

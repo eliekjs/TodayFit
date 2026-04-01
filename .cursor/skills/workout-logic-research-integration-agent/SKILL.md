@@ -47,7 +47,7 @@ Do **not** combine multiple unrelated subsystems in one run.
 
 ### 4. Compare to current implementation
 
-- Trace code: `resolveWorkoutConstraints`, scoring (`scoreExercise`, `sessionAssembler`), prescription (`prescriptionResolver`, `setRepResolver`), block assembly (`dailyGenerator`), weekly (`weeklyPlanner`, `weeklyRationale`).
+- Trace code: `resolveWorkoutConstraints`, production scoring (`logic/workoutGeneration/dailyGenerator.ts` → `scoreExercise`; see `SCORING_RUNTIME.md`), prescription (`prescriptionResolver`, `setRepResolver`), block assembly (`dailyGenerator`), weekly (`weeklyPlanner`, `weeklyRationale`). Phase 4 `assembleSession` / `workoutIntelligence/scoring/*` is not the app daily path.
 - Identify: what the code does today vs what evidence suggests.
 - Note: what new or improved **metadata** (ontology/DB) is required for the change.
 
@@ -57,7 +57,7 @@ Implement across as many of these as needed, but no more:
 
 - **Exercise metadata / ontology usage** — Use or add fields per `docs/EXERCISE_ONTOLOGY_DESIGN.md`; wire through adapters.
 - **Filtering and constraint resolution** — `logic/workoutIntelligence/constraints/`, `resolveWorkoutConstraints.ts`.
-- **Scoring and ranking** — `logic/workoutIntelligence/scoring/`, `ontologyScoring.ts`, `movementBalanceGuardrails.ts`.
+- **Scoring and ranking (app)** — `logic/workoutGeneration/dailyGenerator.ts` (`scoreExercise`), `ontologyScoring.ts`, `historyScoring.ts`, `sportPatternTransfer/*`. See `logic/workoutGeneration/SCORING_RUNTIME.md`. Phase 4 `workoutIntelligence/scoring/` is separate.
 - **Block assembly and prescription** — `sessionAssembler`, `prescriptionResolver`, `setRepResolver`, `durationScaling`.
 - **Daily workout output** — `dailyGenerator.ts`, `generateWorkout.ts`.
 - **Weekly plan output and naming** — `weeklyPlanner.ts`, `weeklyRationale.ts`, `weeklyLoadBalancing.ts`, `dayTitle`/titles.
@@ -89,7 +89,7 @@ PR must include:
 | Concern | Location |
 |--------|----------|
 | Constraints | `logic/workoutIntelligence/constraints/resolveWorkoutConstraints.ts`, `constraintTypes.ts` |
-| Scoring | `logic/workoutIntelligence/scoring/scoreExercise.ts`, `ontologyScoring.ts`, `movementBalanceGuardrails.ts` |
+| Scoring (production) | `logic/workoutGeneration/dailyGenerator.ts` (`scoreExercise`), `ontologyScoring.ts`, `historyScoring.ts`, `sportPatternTransfer/*` — **not** `workoutIntelligence/scoring/scoreExercise.ts` (Phase 4 only) |
 | Selection & blocks | `logic/workoutIntelligence/selection/sessionAssembler.ts`, `candidateFilters.ts` |
 | Prescription | `logic/workoutIntelligence/prescription/prescriptionResolver.ts`, `setRepResolver.ts`, `durationScaling.ts` |
 | Superset | `logic/workoutIntelligence/supersetPairing.ts` |

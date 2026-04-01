@@ -5,8 +5,10 @@
 
 import type { WorkoutBlock } from "../../../lib/types";
 import type { Exercise } from "../types";
+import { getAlpineSkiingPatternCategoriesForExercise } from "../sportPatternTransfer/alpineSkiingExerciseCategories";
 import { getHikingPatternCategoriesForExercise } from "../sportPatternTransfer/hikingExerciseCategories";
 import { getTrailRunningPatternCategoriesForExercise } from "../sportPatternTransfer/trailRunningExerciseCategories";
+import { isSignatureAlpineMovement } from "../sportPatternTransfer/alpineSkiingQualityScoring";
 import { isSignatureHikingMovement } from "../sportPatternTransfer/hikingQualityScoring";
 import { isSignatureTrailMovement } from "../sportPatternTransfer/trailRunningQualityScoring";
 
@@ -82,7 +84,7 @@ function mergeRecord(into: Record<string, number>, key: string, n = 1): void {
 }
 
 export type SportPatternSessionSummary = {
-  sport_slug: "hiking_backpacking" | "trail_running";
+  sport_slug: "hiking_backpacking" | "trail_running" | "alpine_skiing";
   /** Top-N category slugs for main-work blocks (frequency). */
   main_category_hits: Record<string, number>;
   accessory_category_hits: Record<string, number>;
@@ -195,6 +197,51 @@ export function summarizeTrailRunningSportPatternSession(
 
   return {
     sport_slug: "trail_running",
+    main_category_hits,
+    accessory_category_hits,
+    conditioning_exercise_ids,
+    signature_pattern_selections,
+    non_signature_selections,
+    overlap_families,
+  };
+}
+
+export function summarizeAlpineSkiingSportPatternSession(
+  blocks: WorkoutBlock[],
+  exerciseById: Map<string, Exercise>
+): SportPatternSessionSummary {
+  const main_category_hits = summarizeCategoriesForBlocks(
+    blocks,
+    exerciseById,
+    getAlpineSkiingPatternCategoriesForExercise,
+    isMainBlock
+  );
+  const accessory_category_hits = summarizeCategoriesForBlocks(
+    blocks,
+    exerciseById,
+    getAlpineSkiingPatternCategoriesForExercise,
+    isAccessoryBlock
+  );
+  const conditioning_exercise_ids: string[] = [];
+  let signature_pattern_selections = 0;
+  let non_signature_selections = 0;
+  const overlap_families = emptyOverlap();
+
+  for (const b of blocks) {
+    if (b.block_type === "warmup" || b.block_type === "cooldown") continue;
+    for (const it of b.items) {
+      const ex = exerciseById.get(it.exercise_id);
+      if (!ex) continue;
+      if (isConditioningBlock(b.block_type)) conditioning_exercise_ids.push(ex.id);
+      bumpOverlapFamilies(ex, overlap_families);
+      const sig = isSignatureAlpineMovement(ex);
+      if (sig) signature_pattern_selections += 1;
+      else non_signature_selections += 1;
+    }
+  }
+
+  return {
+    sport_slug: "alpine_skiing",
     main_category_hits,
     accessory_category_hits,
     conditioning_exercise_ids,

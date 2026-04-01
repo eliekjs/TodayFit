@@ -2,6 +2,7 @@
 
 - **Hiking:** `hikingExerciseCategories.ts`, `hikingBackpackingRules.ts`, `hikingQualityScoring.ts`, `hikingSession.ts`.
 - **Trail running:** `trailRunningExerciseCategories.ts`, `trailRunningRules.ts`, `trailRunningQualityScoring.ts`, `trailRunningSession.ts`, `trailRunningTypes.ts`.
+- **Alpine skiing (resort):** `alpineSkiingExerciseCategories.ts`, `alpineSkiingRules.ts`, `alpineSkiingQualityScoring.ts`, `alpineSkiingSession.ts`, `alpineSkiingTypes.ts`.
 
 Each sport wires **`../sportPattern/framework`** (gate, slot score delta, coverage context). Generator: `dailyGenerator.ts` dispatches by primary `sport_slugs[0]`.
 

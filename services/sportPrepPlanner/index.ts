@@ -13,6 +13,7 @@ import {
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../lib/dayTitle";
 import { GOAL_SLUG_TO_LABEL, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../lib/preferencesConstants";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus";
+import { sessionIntentContractForSportSlug } from "../../logic/workoutGeneration/sessionIntentContract";
 
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
@@ -403,6 +404,16 @@ function sessionIntentForKey(
         notes: "Foundation strength session to support your primary goals.",
       };
   }
+}
+
+/** Explicit sport intent when the plan’s primary/ranked sport has a defined contract (e.g. alpine). */
+function planContextSessionIntentContract(opts: {
+  sportSlug?: string | null;
+  rankedSportSlugs?: string[];
+}): ReturnType<typeof sessionIntentContractForSportSlug> {
+  const raw = opts.sportSlug ?? opts.rankedSportSlugs?.[0];
+  if (raw == null || raw === "") return undefined;
+  return sessionIntentContractForSportSlug(getCanonicalSportSlug(raw));
 }
 
 /** Triathlon disciplines: one day each for run / swim / bike. */
@@ -906,6 +917,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         input.defaultSessionDuration,
         input.energyBaseline
       );
+      const sessionIntentContract = sessionIntentContractForSportSlug(getCanonicalSportSlug(slot.sportSlug));
       const workout = await buildWorkoutForSessionIntent(
         intent,
         input.gymProfile,
@@ -925,6 +937,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           workoutTier: input.workoutTier ?? "intermediate",
           includeCreativeVariations: input.includeCreativeVariations === true,
           subFocusByGoal: input.goalSubFocusByGoal,
+          ...(sessionIntentContract ? { session_intent_contract: sessionIntentContract } : {}),
         }
       );
       const title = getWorkoutDescriptor(workout);
@@ -1448,6 +1461,10 @@ export async function regenerateDay(
   }
   const bodyRegionBias = bodyRegionBiasFromDailyPreferences(input.dailyPreferences);
 
+  const regContractDb = planContextSessionIntentContract({
+    sportSlug: input.sportSlug,
+    rankedSportSlugs: input.rankedSportSlugs,
+  });
   const workout = await buildWorkoutForSessionIntent(
     sessionIntent,
     input.gymProfile,
@@ -1466,6 +1483,7 @@ export async function regenerateDay(
       bodyRegionBias,
       workoutTier: resolvedWorkoutTier,
       includeCreativeVariations: resolvedIncludeCreative,
+      ...(regContractDb ? { session_intent_contract: regContractDb } : {}),
     }
   );
   const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";

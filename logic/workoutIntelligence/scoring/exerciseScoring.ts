@@ -1,7 +1,14 @@
 /**
- * Phase 4: MVP exercise scoring for selection engine.
- * Combines target quality alignment, stimulus fit, movement fit, fatigue fit,
- * energy fit, injury fit, novelty, equipment fit, balance.
+ * Phase 4: MVP exercise scoring for **`fillBlock` / `assembleSession` only**.
+ *
+ * **Not** used by `generateWorkoutSession` (`dailyGenerator.ts`). Production sessions use
+ * `dailyGenerator.scoreExercise` + ontology/history/sport-pattern helpers.
+ *
+ * **Tech debt:** Overlaps conceptually with production scoring (alignment, balance, fatigue) but is a
+ * separate implementation; do not “sync” behavior here without also updating `dailyGenerator.scoreExercise`
+ * or deliberately scoping changes to Phase 4 only.
+ *
+ * @see `logic/workoutGeneration/SCORING_RUNTIME.md`
  */
 
 import type { ExerciseWithQualities } from "../types";

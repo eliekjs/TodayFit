@@ -66,6 +66,7 @@ import { pickBestSupersetPairs, supersetCompatibility } from "../workoutIntellig
 import {
   exerciseBlockedByCreativePreference,
   exerciseMatchesWorkoutTier,
+  isComplexSkillLiftForNonAdvanced,
 } from "../../lib/workoutLevel";
 import {
   isExerciseAllowedByInjuries,
@@ -154,9 +155,60 @@ import {
 } from "./sportPatternTransfer/trailRunningQualityScoring";
 import { TRAIL_SUPPORT_COVERAGE_CATEGORIES } from "./sportPatternTransfer/trailRunningRules";
 import {
+  applyAlpineUpstreamAccessoryPairsCoverage,
+  applyAlpineUpstreamMainLiftsCoverage,
+  buildAlpineSkiingTransferDebug,
+  buildSportCoverageContext,
+  computeAlpineSkiingPatternScoreAdjustment,
+  evaluateAlpineCoverageForBlocks,
+  findBestAlpineMainWorkReplacement,
+  findBestAlpineSkiingReplacement,
+  gatePoolForAlpineSkiingSlot,
+  getAlpineSkiingSlotRuleForBlockType,
+  alpineSkiingPatternTransferApplies,
+  isValidAlpineMainWorkExercise,
+} from "./sportPatternTransfer/alpineSkiingSession";
+import {
+  exerciseMatchesAnyAlpineSkiingCategory,
+  isAlpineSkiingConditioningExercise,
+} from "./sportPatternTransfer/alpineSkiingExerciseCategories";
+import {
+  addExerciseToAlpineSessionCounts,
+  computeAlpineSkiingEmphasisBucket,
+  computeAlpineSkiingWithinPoolQualityScore,
+  type AlpineSkiingQualityScoreContext,
+} from "./sportPatternTransfer/alpineSkiingQualityScoring";
+import {
+  ALPINE_ECCENTRIC_CONTROL_CATEGORIES,
+  ALPINE_MAIN_ECCENTRIC_OR_DECEL_CATEGORIES,
+  ALPINE_LOWER_BODY_TENSION_ENDURANCE_CATEGORIES,
+  ALPINE_LATERAL_STABILITY_CATEGORIES,
+} from "./sportPatternTransfer/alpineSkiingRules";
+import {
+  summarizeAlpineSkiingSportPatternSession,
   summarizeHikingSportPatternSession,
   summarizeTrailRunningSportPatternSession,
 } from "./sportPattern/sportPatternSessionAudit";
+import {
+  genericSelectHypertrophyChosen,
+  genericSelectStrengthMainLifts,
+  sportMainSelector,
+} from "./mainSelectors";
+import type { AlpinePickEnvironment, MainSelectorSessionTrace, ScoreExerciseLike } from "./mainSelectors/types";
+import { sessionIntentContractForSportSlug } from "./sessionIntentContract";
+import type { SportPatternGateResult } from "./sportPattern/framework/types";
+import { sportPatternScoreModeFromPoolMode } from "./sportPattern/framework";
+import {
+  alpineRequiredCategoryHits,
+  computeAlpineAnchorSnapshot,
+  computeAlpineStrictVsFallbackShares,
+  createIntentSurvivalCollector,
+  gateResultToTierCounts,
+  type IntentSurvivalCandidateBreakdown,
+  type IntentSurvivalCollector,
+  type IntentSurvivalRepairChange,
+  type IntentSurvivalSelectionPass,
+} from "./intentSurvivalDebug";
 
 // --- Avoid tags that imply overhead / hanging / shoulder extension (safety) ---
 const OVERHEAD_HANGING_PATTERNS = new Set([
@@ -335,12 +387,25 @@ export function filterByHardConstraints(
   const avoidTags = input.style_prefs?.avoid_tags ?? [];
   const userWorkoutTier = input.style_prefs?.user_level ?? "intermediate";
   const includeCreativeVariations = input.style_prefs?.include_creative_variations === true;
+  const nonAdvancedTier = userWorkoutTier !== "advanced";
   const jointStressFor = (e: Exercise) =>
     (e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags?.joint_stress) ?? [];
 
   return exercises.filter((e) => {
     if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
     if (!exerciseMatchesWorkoutTier(e.workout_level_tags, userWorkoutTier)) return false;
+    if (
+      nonAdvancedTier &&
+      isComplexSkillLiftForNonAdvanced({
+        id: e.id,
+        name: e.name,
+        tags: e.tags.attribute_tags,
+        movementPattern: e.movement_pattern,
+        modality: e.modality,
+      })
+    ) {
+      return false;
+    }
     if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations))
       return false;
     // Equipment: every required piece must be available
@@ -373,6 +438,9 @@ const WEIGHT_BODY_PART = 1.5;
 const WEIGHT_ENERGY_FIT = 1.0;
 /** Max contribution when exercise qualities align with merged session target vector (0–1 alignment). */
 const WEIGHT_QUALITY_ALIGNMENT = 6;
+
+/** Generic scorer terms (goal, ontology, history, body-part nudges, …) multiply by this for alpine main slots when reduced surface is on. */
+const ALPINE_MAIN_GENERIC_SCORING_SCALE = 0.12;
 /** Bonus when `sport_tags` matches user's primary sport (was ~2; raised for sport-tied priority). */
 const SPORT_TAG_MATCH_PRIMARY = 9;
 const SPORT_TAG_MATCH_SECONDARY = 5;
@@ -558,8 +626,35 @@ export interface ScoreExerciseOptions {
   trailRunningPatternSlotRule?: SportPatternSlotRule;
   trailRunningPatternScoreMode?: "gated" | "fallback";
   trailRunningQualityContext?: TrailRunningQualityScoreContext;
+  /** Alpine skiing: slot rule + mode (mutually exclusive with hiking/trail for a given session). */
+  alpineSkiingPatternSlotRule?: SportPatternSlotRule;
+  alpineSkiingPatternScoreMode?: "gated" | "fallback";
+  alpineSkiingQualityContext?: AlpineSkiingQualityScoreContext;
+  /**
+   * Alpine: shrink generic additive surface on main_strength / main_hypertrophy so slot validity + within-pool quality dominate.
+   * Controlled upstream by `GenerateWorkoutInput.use_reduced_surface_for_alpine_main_scoring` (default on).
+   */
+  sportMainScoringMode?: "alpine_reduced_surface";
+  /** When true, returns `breakdown` for intent-survival tracing (same score as when false). */
+  include_scoring_breakdown?: boolean;
 }
 
+/** Scale numeric debug fields when generic scorer terms are demoted for sport-main selection. */
+function scaleScoringDebugNumericFields<T extends Record<string, unknown>>(obj: T | undefined, scale: number): T | undefined {
+  if (!obj || scale === 1) return obj;
+  const out = { ...obj } as Record<string, unknown>;
+  for (const k of Object.keys(out)) {
+    const v = out[k];
+    if (typeof v === "number") out[k] = v * scale;
+  }
+  return out as T;
+}
+
+/**
+ * **Production session scorer** for `generateWorkoutSession` (Build My Workout & Sports Prep).
+ * Not to be confused with `workoutIntelligence/scoring/scoreExercise.ts` (Phase 4 pipeline only).
+ * @see `SCORING_RUNTIME.md` in this directory for the full scoring path map.
+ */
 export function scoreExercise(
   exercise: Exercise,
   input: GenerateWorkoutInput,
@@ -567,9 +662,19 @@ export function scoreExercise(
   movementPatternCounts: Map<string, number>,
   fatigueState?: FatigueState,
   options?: ScoreExerciseOptions
-): { score: number } {
+): { score: number; breakdown?: ScoringDebug } {
   let total = 0;
   const opts = options ?? {};
+  const cap = opts.include_scoring_breakdown === true;
+  const blockTypeNorm = opts.blockType?.toLowerCase().replace(/\s/g, "_") ?? "";
+  const alpineMainReducedSurface =
+    opts.sportMainScoringMode === "alpine_reduced_surface" &&
+    (blockTypeNorm === "main_strength" || blockTypeNorm === "main_hypertrophy");
+  const genericScale = alpineMainReducedSurface ? ALPINE_MAIN_GENERIC_SCORING_SCALE : 1;
+  const applyToTotal = (v: number, tier: "primary" | "generic") => {
+    total += tier === "generic" ? v * genericScale : v;
+  };
+  const gc = (v: number) => v * genericScale;
 
   // Goal alignment (optionally scaled by goal_weights when provided)
   const goalTags = exercise.tags.goal_tags ?? [];
@@ -588,14 +693,16 @@ export function scoreExercise(
     else if (secondaryTags.includes(t)) goalScore += gw ? WEIGHT_SECONDARY_GOAL * (w1 / 0.3) : WEIGHT_SECONDARY_GOAL;
     else if (tertiaryTags.includes(t)) goalScore += gw ? WEIGHT_TERTIARY * (w2 / 0.1) : WEIGHT_TERTIARY;
   }
+  const goalScoreBeforeSportDampen = goalScore;
   if (input.sport_slugs?.length) {
     const sw = input.sport_weight ?? 0.5;
     goalScore *= 1 - sw * GOAL_DAMPEN_MAX_WITH_SPORT;
   }
-  total += goalScore;
+  applyToTotal(goalScore, "generic");
 
   // Sport match: boost exercises whose sport_tags match user's ranked sport(s)
   const sportSlugs = input.sport_slugs;
+  let sportTagMatchTotal = 0;
   if (sportSlugs?.length) {
     const exerciseSportTags = new Set(
       (exercise.tags.sport_tags ?? []).map((s) =>
@@ -605,22 +712,27 @@ export function scoreExercise(
     for (let i = 0; i < sportSlugs.length; i++) {
       const slug = tagToSlug(getCanonicalSportSlug(sportSlugs[i]));
       if (exerciseSportTags.has(slug)) {
-        total += i === 0 ? SPORT_TAG_MATCH_PRIMARY : SPORT_TAG_MATCH_SECONDARY;
+        const add = i === 0 ? SPORT_TAG_MATCH_PRIMARY : SPORT_TAG_MATCH_SECONDARY;
+        sportTagMatchTotal += add;
         break;
       }
     }
   }
+  applyToTotal(sportTagMatchTotal, "generic");
 
   // Training-quality alignment: exercise capability vector vs merged session target (goal + sport + weekly session).
   const stv = opts.sessionTargetVector;
+  let sportQualityAlignment = 0;
   if (stv && stv.size > 0) {
     const eqWeights = toExerciseWithQualities(exercise as GeneratorExercise).training_quality_weights;
     const align = alignmentScore(eqWeights, stv);
-    total += align * WEIGHT_QUALITY_ALIGNMENT;
+    sportQualityAlignment = align * WEIGHT_QUALITY_ALIGNMENT;
+    applyToTotal(sportQualityAlignment, "generic");
   }
 
   // Preferred exercise IDs (from sport/goal ranking): strong bonus when exercise is in the preferred list
   const preferredIds = input.style_prefs?.preferred_exercise_ids;
+  let preferredExerciseBonus = 0;
   if (preferredIds?.length) {
     const exIdNorm = tagToSlug(exercise.id);
     const exNameNorm = exercise.name ? tagToSlug(exercise.name) : "";
@@ -632,35 +744,41 @@ export function scoreExercise(
       return aliasNorms.some((an) => an === idNorm);
     });
     if (idx >= 0) {
-      const bonus = Math.max(0.5, 2 - idx * 0.25);
-      total += bonus;
+      preferredExerciseBonus = Math.max(0.5, 2 - idx * 0.25);
     }
   }
+  applyToTotal(preferredExerciseBonus, "generic");
 
   // Body part focus (canonical muscles + ontology movement_family_fit below). Muscle priority: prefer exercises that primarily target focus.
   const focusParts = input.focus_body_parts ?? [];
+  let bodyPartFocusScore = 0;
+  let primaryMuscleMatchBonus = 0;
+  let bodyPartEmphasisBonus = 0;
   if (focusParts.length) {
     const wantedMuscles = new Set(focusParts.flatMap(focusBodyPartToMuscles));
     const primaryMuscles = exercise.primary_muscle_groups ?? exercise.muscle_groups.filter((m) => !exercise.secondary_muscle_groups?.includes(m));
     const matchInPrimary = primaryMuscles.length > 0 && primaryMuscles.some((m) => wantedMuscles.has(m));
     const matchInAny = exercise.muscle_groups.some((m) => wantedMuscles.has(m));
     if (matchInAny) {
-      total += WEIGHT_BODY_PART;
+      bodyPartFocusScore += WEIGHT_BODY_PART;
     }
     // Primary muscle match bonus: exercise primarily targets the user's focus (ExRx primary movers)
     if (matchInPrimary) {
-      total += 0.5;
+      primaryMuscleMatchBonus += 0.5;
     }
     // Quad/Posterior emphasis: when Lower is selected with modifier, prefer matching pattern/category
     const focusSet = new Set(focusParts.map((f) => f.toLowerCase().replace(/\s/g, "_")));
     const patternFocus = (exercise.movement_pattern ?? "").toLowerCase();
     const pairing = (exercise.pairing_category ?? "").toLowerCase().replace(/\s/g, "_");
     if (focusSet.has("quad") && (patternFocus === "squat" || pairing === "quads")) {
-      total += 0.8;
+      bodyPartEmphasisBonus += 0.8;
     }
     if (focusSet.has("posterior") && (patternFocus === "hinge" || pairing === "posterior_chain")) {
-      total += 0.8;
+      bodyPartEmphasisBonus += 0.8;
     }
+    applyToTotal(bodyPartFocusScore, "generic");
+    applyToTotal(primaryMuscleMatchBonus, "generic");
+    applyToTotal(bodyPartEmphasisBonus, "generic");
   }
 
   // Calisthenics: ~90% bodyweight, prefer advanced progressions, upper = push-up/handstand/pull-up families
@@ -669,13 +787,13 @@ export function scoreExercise(
       exercise.equipment_required.some((eq) => eq.toLowerCase() === "bodyweight") ||
       exercise.tags.goal_tags?.includes("calisthenics");
     if (isBodyweight) {
-      total += 1.5;
+      applyToTotal(1.5, "generic");
     } else {
-      total -= 1.5;
+      applyToTotal(-1.5, "generic");
     }
     const hasRegressions = (exercise.regressions?.length ?? 0) > 0;
     if (hasRegressions) {
-      total += 0.5;
+      applyToTotal(0.5, "generic");
     }
     const focusPartsNorm = (input.focus_body_parts ?? []).map((f) => f.toLowerCase().replace(/\s/g, "_"));
     const focusUpper =
@@ -685,7 +803,7 @@ export function scoreExercise(
     if (focusUpper) {
       const fine = getPrimaryFineMovementPattern(exercise);
       if (fine && CALISTHENICS_UPPER_PREFERRED_FINE_PATTERNS.has(fine)) {
-        total += 0.8;
+        applyToTotal(0.8, "generic");
       }
     }
   }
@@ -704,7 +822,7 @@ export function scoreExercise(
     const directMatch = conditioningIntentSlugs.some((slug) =>
       exerciseHasSubFocusSlug(exercise, slug)
     );
-    if (directMatch) total += 3;
+    if (directMatch) applyToTotal(3, "generic");
   }
 
   // Strength: intent slug match drives primary selection. Cap stacked intent bonuses so one exercise
@@ -728,7 +846,7 @@ export function scoreExercise(
       intentParts.length === 0
         ? 0
         : intentParts[0]! + (intentParts[1] ?? 0) * 0.35 + (intentParts[2] ?? 0) * 0.15;
-    total += intentBonus + overlayBonus;
+    applyToTotal(intentBonus + overlayBonus, "generic");
   }
 
   // Hypertrophy: direct selected hypertrophy sub-focus slug match is first-class (strong).
@@ -741,8 +859,7 @@ export function scoreExercise(
       const w = weights[i] ?? (directSlugs.length ? 1 / directSlugs.length : 0);
       if (w <= 0) continue;
       if (exerciseMatchesHypertrophySubFocusSlug(exercise, slug)) {
-        // Scale so direct match beats legacy tag overlap.
-        total += w * 6;
+        applyToTotal(w * 6, "generic");
       }
     }
   }
@@ -752,6 +869,7 @@ export function scoreExercise(
   const hasSubFocus =
     (goalSubFocus && Object.keys(goalSubFocus).length > 0) ||
     (sportSubFocus && Object.keys(sportSubFocus).length > 0);
+  let subFocusTagMatchTotal = 0;
   if (hasSubFocus) {
     const preferredWeights = buildPreferredTagWeightsFromSubFocus(input);
     if (preferredWeights.size > 0) {
@@ -769,32 +887,39 @@ export function scoreExercise(
               ? 0.15
               : 0.5;
       const subFocusContribution = subFocusScore * subFocusCoeff;
-      total += subFocusContribution;
+      subFocusTagMatchTotal += subFocusContribution;
+      applyToTotal(subFocusContribution, "generic");
     }
   }
 
   // Injury-aware: down-rank high-impact exercises when user has knee/lower_back/ankle limitations
   const injuries = input.injuries_or_constraints ?? [];
   const impactSensitiveKeys = new Set(injuries.map(normalizeInjuryKey).filter((k) => ["knee", "knee_pain", "lower_back", "low_back_sensitive", "ankle"].includes(k)));
+  let impactPenaltyTotal = 0;
   if (impactSensitiveKeys.size > 0 && exercise.impact_level === "high") {
-    total -= 2;
+    impactPenaltyTotal -= 2;
+    applyToTotal(-2, "primary");
   }
 
   // Contraindication priority: prefer exercises with fewer contraindications when otherwise equal
   // (tags are ordered most→least relevant; fewer tags = broader applicability / better match pool)
   const contraCount = (exercise.contraindication_tags?.length ?? exercise.tags.contraindications?.length ?? 0);
+  let contraindicationPriorityBonus = 0;
   if (contraCount === 0) {
-    total += 0.3;
+    contraindicationPriorityBonus += 0.3;
   } else if (contraCount === 1) {
-    total += 0.2;
+    contraindicationPriorityBonus += 0.2;
   } else if (contraCount === 2) {
-    total += 0.1;
+    contraindicationPriorityBonus += 0.1;
   }
+  applyToTotal(contraindicationPriorityBonus, "generic");
 
   // Energy fit
   const energyFit = exercise.tags.energy_fit ?? ["low", "medium", "high"];
+  let energyFitScore = 0;
   if (energyFit.includes(input.energy_level)) {
-    total += WEIGHT_ENERGY_FIT;
+    energyFitScore += WEIGHT_ENERGY_FIT;
+    applyToTotal(WEIGHT_ENERGY_FIT, "generic");
   }
 
   // Variety penalty: used recently
@@ -804,11 +929,11 @@ export function scoreExercise(
   const samePatternCount = movementPatternCounts.get(pattern) ?? 0;
   if (samePatternCount >= 2) varietyPenalty += 1.5;
   if (samePatternCount >= 3) varietyPenalty += 2;
-  total -= varietyPenalty;
+  applyToTotal(-varietyPenalty, "generic");
+  const varietyPenaltyForBreakdown = varietyPenalty;
 
   // Weekly main-lift diversity: penalize exact repeats and same similarity cluster (e.g. deadlift family)
   // when the app passes prior-day main IDs from the same programmed week.
-  const blockTypeNorm = opts.blockType?.toLowerCase().replace(/\s/g, "_");
   const weekMainIds = input.week_main_strength_lift_ids_used;
   if (
     weekMainIds?.length &&
@@ -818,14 +943,14 @@ export function scoreExercise(
   ) {
     const wk = new Set(weekMainIds.map(normalizeWeekMainLiftId));
     const idNorm = normalizeWeekMainLiftId(exercise.id);
-    if (wk.has(idNorm)) total -= 5;
+    if (wk.has(idNorm)) applyToTotal(-5, "primary");
     const myCluster = getSimilarExerciseClusterId(exercise);
     if (myCluster !== idNorm) {
       for (const priorId of weekMainIds) {
         const pNorm = normalizeWeekMainLiftId(priorId);
         if (pNorm === idNorm) continue;
         if (getSimilarExerciseClusterId({ id: priorId }) === myCluster) {
-          total -= 2.2;
+          applyToTotal(-2.2, "primary");
           break;
         }
       }
@@ -839,34 +964,43 @@ export function scoreExercise(
     MIN_MOVEMENT_CATEGORIES,
     [...BALANCE_CATEGORY_PATTERNS]
   );
-  total += balanceBonus;
+  applyToTotal(balanceBonus, "generic");
 
   // Fatigue management: slight penalty for re-hitting same muscle groups as last session
+  let fatiguePenaltyTotal = 0;
   if (fatigueState) {
     const fatiguePenalty = fatiguePenaltyForExercise(exercise.muscle_groups, fatigueState);
-    total += fatiguePenalty;
+    fatiguePenaltyTotal += fatiguePenalty;
+    applyToTotal(fatiguePenalty, "primary");
   }
 
   // Duration practicality: short sessions prefer low time_cost
+  let durationPracticality = 0;
   if (input.duration_minutes <= 30 && exercise.time_cost === "high") {
-    total -= 1;
+    durationPracticality -= 1;
+    applyToTotal(-1, "generic");
   } else if (input.duration_minutes <= 30 && exercise.time_cost === "low") {
-    total += 0.5;
+    durationPracticality += 0.5;
+    applyToTotal(0.5, "generic");
   }
 
   // Phase 11: history-aware scoring (no effect when history absent)
+  let historyBreakdownPartial: Partial<ScoringDebug> | undefined;
+  let historyTotal = 0;
   if (opts.historyContext) {
     const lastSuccess = opts.historyContext.recent_sessions?.[0]?.performance_by_exercise?.[exercise.id]
       ? undefined
       : undefined;
-    const { total: historyTotal, breakdown: historyBreakdown } = computeHistoryScoreComponents(exercise, {
+    const hist = computeHistoryScoreComponents(exercise, {
       recentIds: recentExerciseIds,
       blockType: opts.blockType,
       preferVariety: true,
       historyContext: opts.historyContext,
       lastCompletionSuccess: lastSuccess,
     });
-    total += historyTotal;
+    historyTotal = hist.total;
+    historyBreakdownPartial = hist.breakdown as Partial<ScoringDebug>;
+    applyToTotal(historyTotal, "generic");
   }
 
   // Phase 9/10: ontology-aware scoring (additive; fallback when ontology absent)
@@ -879,15 +1013,17 @@ export function scoreExercise(
     sessionHasBilateralLowerBody: opts.sessionHasBilateralLowerBody,
     sessionMovementPatternCounts: opts.sessionMovementPatternCounts,
   });
-  total += ontologyTotal;
+  applyToTotal(ontologyTotal, "generic");
 
+  let sportPatternSlotAdjustment = 0;
   if (opts.hikingPatternSlotRule) {
     const { delta } = computeHikingPatternScoreAdjustment(
       exercise,
       opts.hikingPatternSlotRule,
       opts.hikingPatternScoreMode
     );
-    total += delta;
+    sportPatternSlotAdjustment += delta;
+    applyToTotal(delta, "primary");
   }
 
   if (opts.trailRunningPatternSlotRule) {
@@ -896,15 +1032,28 @@ export function scoreExercise(
       opts.trailRunningPatternSlotRule,
       opts.trailRunningPatternScoreMode
     );
-    total += delta;
+    sportPatternSlotAdjustment += delta;
+    applyToTotal(delta, "primary");
   }
 
+  if (opts.alpineSkiingPatternSlotRule) {
+    const { delta } = computeAlpineSkiingPatternScoreAdjustment(
+      exercise,
+      opts.alpineSkiingPatternSlotRule,
+      opts.alpineSkiingPatternScoreMode
+    );
+    sportPatternSlotAdjustment += delta;
+    applyToTotal(delta, "primary");
+  }
+
+  let sportWithinPoolQuality = 0;
   if (opts.hikingQualityContext) {
     const q = computeHikingWithinPoolQualityScore(exercise, {
       ...opts.hikingQualityContext,
       blockType: opts.hikingQualityContext.blockType ?? opts.blockType,
     });
-    total += q.total;
+    sportWithinPoolQuality += q.total;
+    applyToTotal(q.total, "primary");
   }
 
   if (opts.trailRunningQualityContext) {
@@ -912,10 +1061,69 @@ export function scoreExercise(
       ...opts.trailRunningQualityContext,
       blockType: opts.trailRunningQualityContext.blockType ?? opts.blockType,
     });
-    total += q.total;
+    sportWithinPoolQuality += q.total;
+    applyToTotal(q.total, "primary");
   }
 
-  return { score: total };
+  if (opts.alpineSkiingQualityContext) {
+    const q = computeAlpineSkiingWithinPoolQualityScore(exercise, {
+      ...opts.alpineSkiingQualityContext,
+      blockType: opts.alpineSkiingQualityContext.blockType ?? opts.blockType,
+    });
+    sportWithinPoolQuality += q.total;
+    applyToTotal(q.total, "primary");
+  }
+
+  if (!cap) {
+    return { score: total };
+  }
+
+  const goalDampenDelta =
+    input.sport_slugs?.length && goalScoreBeforeSportDampen !== goalScore
+      ? goalScore - goalScoreBeforeSportDampen
+      : undefined;
+
+  const ontologyScaled = scaleScoringDebugNumericFields(
+    ontologyBreakdown as unknown as Record<string, unknown>,
+    alpineMainReducedSurface ? genericScale : 1
+  ) as Partial<ScoringDebug>;
+  const historyScaled = scaleScoringDebugNumericFields(
+    historyBreakdownPartial as unknown as Record<string, unknown> | undefined,
+    alpineMainReducedSurface ? genericScale : 1
+  ) as Partial<ScoringDebug> | undefined;
+
+  const breakdown: ScoringDebug = {
+    ...ontologyScaled,
+    ...historyScaled,
+    exercise_id: exercise.id,
+    total,
+    goal_alignment: goalScore ? gc(goalScore) : undefined,
+    goal_score_sport_dampening: goalDampenDelta,
+    sport_tag_match: sportTagMatchTotal ? gc(sportTagMatchTotal) : undefined,
+    sport_quality_alignment: sportQualityAlignment ? gc(sportQualityAlignment) : undefined,
+    preferred_exercise_bonus: preferredExerciseBonus ? gc(preferredExerciseBonus) : undefined,
+    body_part: bodyPartFocusScore ? gc(bodyPartFocusScore) : undefined,
+    primary_muscle_match_bonus: primaryMuscleMatchBonus ? gc(primaryMuscleMatchBonus) : undefined,
+    body_part_emphasis_bonus: bodyPartEmphasisBonus ? gc(bodyPartEmphasisBonus) : undefined,
+    sub_focus_tag_match: subFocusTagMatchTotal ? gc(subFocusTagMatchTotal) : undefined,
+    impact_penalty: impactPenaltyTotal || undefined,
+    contraindication_priority_bonus: contraindicationPriorityBonus ? gc(contraindicationPriorityBonus) : undefined,
+    energy_fit: energyFitScore ? gc(energyFitScore) : undefined,
+    variety_penalty: varietyPenaltyForBreakdown ? gc(varietyPenaltyForBreakdown) : undefined,
+    balance_bonus: balanceBonus ? gc(balanceBonus) : undefined,
+    fatigue_penalty: fatiguePenaltyTotal || undefined,
+    duration_practicality: durationPracticality ? gc(durationPracticality) : undefined,
+    sport_pattern_slot_adjustment: sportPatternSlotAdjustment || undefined,
+    sport_within_pool_quality: sportWithinPoolQuality || undefined,
+    ...(alpineMainReducedSurface
+      ? {
+          sport_main_scoring_mode: "alpine_reduced_surface" as const,
+          sport_main_generic_term_scale: genericScale,
+        }
+      : {}),
+  };
+
+  return { score: total, breakdown };
 }
 
 /** Equipment slugs that count as "only dumbbells/kettlebells" for rep-range override (no barbell, cable, machine). */
@@ -1148,6 +1356,41 @@ function wouldBeThreeSameClusterInARow(chosen: Exercise[], candidate: Exercise):
   return last === cluster && prev === cluster;
 }
 
+type IntentSurvivalSelectionOpts = {
+  collector: IntentSurvivalCollector;
+  pass_id: string;
+  block_label: string;
+  slot_type: string;
+  sport_gate_applied: boolean;
+  slot_rule_id?: string;
+  gate_snapshot?: SportPatternGateResult;
+};
+
+function buildTopIntentCandidateBreakdowns(
+  topOverall: { exercise: Exercise; score: number }[],
+  max: number,
+  input: GenerateWorkoutInput,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  fatigueState: FatigueState | undefined,
+  scoreOpts: ScoreExerciseOptions
+): IntentSurvivalCandidateBreakdown[] {
+  return topOverall.slice(0, max).map((row) => {
+    const r = scoreExercise(row.exercise, input, recentIds, movementCounts, fatigueState, {
+      ...scoreOpts,
+      include_scoring_breakdown: true,
+    });
+    const b = r.breakdown;
+    return {
+      exercise_id: row.exercise.id,
+      total_score: r.score,
+      scoring_debug: b,
+      sport_pattern_slot_adjustment: b?.sport_pattern_slot_adjustment,
+      sport_within_pool_quality_total: b?.sport_within_pool_quality,
+    };
+  });
+}
+
 // --- Select top exercises by score (and by movement pattern for balance) ---
 /** Re-score each pick so sport-pattern redundancy / emphasis applies (hiking or trail running main/hypertrophy). */
 function selectExercisesSportPatternIterative(
@@ -1171,16 +1414,24 @@ function selectExercisesSportPatternIterative(
     trailRunningPatternSlotRule?: SportPatternSlotRule;
     trailRunningPatternScoreMode?: "gated" | "fallback";
     trailRunningQualityContext?: TrailRunningQualityScoreContext;
+    alpineSkiingPatternSlotRule?: SportPatternSlotRule;
+    alpineSkiingPatternScoreMode?: "gated" | "fallback";
+    alpineSkiingQualityContext?: AlpineSkiingQualityScoreContext;
+    sportMainScoringMode?: ScoreExerciseOptions["sportMainScoringMode"];
+    intent_survival?: IntentSurvivalSelectionOpts;
   },
   sessionTargetVector: SessionTargetVector | undefined
 ): { exercises: Exercise[] } {
   const chosen: Exercise[] = [];
+  const iterative_rounds: NonNullable<IntentSurvivalSelectionPass["iterative_rounds"]> = [];
   const tierBand = 5.5;
   const hq = opts.hikingQualityContext;
   const tq = opts.trailRunningQualityContext;
+  const aq = opts.alpineSkiingQualityContext;
   const addSessionSportCounts = (ex: Exercise) => {
     if (hq) addExerciseToHikingSessionCounts(ex, hq.sessionHikingCategoryCounts);
     else if (tq) addExerciseToTrailRunningSessionCounts(ex, tq.sessionTrailCategoryCounts);
+    else if (aq) addExerciseToAlpineSessionCounts(ex, aq.sessionAlpineCategoryCounts);
   };
   for (let round = 0; chosen.length < count && round < Math.max(pool.length * 4, 24); round++) {
     const remaining = pool.filter((e) => !chosen.some((c) => c.id === e.id));
@@ -1199,6 +1450,10 @@ function selectExercisesSportPatternIterative(
       trailRunningPatternSlotRule: opts.trailRunningPatternSlotRule,
       trailRunningPatternScoreMode: opts.trailRunningPatternScoreMode,
       trailRunningQualityContext: tq,
+      alpineSkiingPatternSlotRule: opts.alpineSkiingPatternSlotRule,
+      alpineSkiingPatternScoreMode: opts.alpineSkiingPatternScoreMode,
+      alpineSkiingQualityContext: aq,
+      sportMainScoringMode: opts.sportMainScoringMode,
     };
     const scored = remaining.map((e) => ({
       exercise: e,
@@ -1223,6 +1478,21 @@ function selectExercisesSportPatternIterative(
       movementCounts.set(item.exercise.movement_pattern, nextCount);
       addSessionSportCounts(item.exercise);
       if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, item.exercise);
+      if (opts.intent_survival) {
+        iterative_rounds.push({
+          round_index: chosen.length - 1,
+          chosen_exercise_id: item.exercise.id,
+          top_candidate_breakdowns: buildTopIntentCandidateBreakdowns(
+            topOverall,
+            5,
+            input,
+            recentIds,
+            movementCounts,
+            fatigueState,
+            scoreOpts
+          ),
+        });
+      }
       picked = true;
     }
     if (!picked) {
@@ -1235,11 +1505,55 @@ function selectExercisesSportPatternIterative(
         movementCounts.set(exercise.movement_pattern, nextCount);
         addSessionSportCounts(exercise);
         if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, exercise);
+        if (opts.intent_survival) {
+          iterative_rounds.push({
+            round_index: chosen.length - 1,
+            chosen_exercise_id: exercise.id,
+            top_candidate_breakdowns: buildTopIntentCandidateBreakdowns(
+              topOverall,
+              5,
+              input,
+              recentIds,
+              movementCounts,
+              fatigueState,
+              scoreOpts
+            ),
+          });
+        }
         picked = true;
         break;
       }
     }
     if (!picked) break;
+  }
+  if (opts.intent_survival) {
+    const isv = opts.intent_survival;
+    const gate = isv.gate_snapshot;
+    const lastTop =
+      iterative_rounds.length > 0
+        ? iterative_rounds[iterative_rounds.length - 1]!.top_candidate_breakdowns
+        : [];
+    isv.collector.pushSelectionPass({
+      pass_id: isv.pass_id,
+      block_label: isv.block_label,
+      slot_type: isv.slot_type,
+      sport_gate_applied: isv.sport_gate_applied,
+      slot_rule_id: isv.slot_rule_id,
+      gate_tier_counts: gate ? gateResultToTierCounts(gate) : undefined,
+      pool_mode: gate?.poolMode,
+      fallback_occurred: gate?.usedFullPoolFallback === true,
+      sport_pattern_selection_tier: gate?.selectionTier,
+      fallback_tier_reached: gate?.usedFullPoolFallback ? "full_pool_fallback" : gate ? "gated" : undefined,
+      candidate_count_in_pool: pool.length,
+      selection_mode: "iterative_sport_pattern",
+      top_candidate_breakdowns: lastTop,
+      chosen_exercise_ids: chosen.map((c) => c.id),
+      chosen_why: chosen.map(
+        (_, i) =>
+          `iterative_round_${i + 1}: rescored_remaining_pool_each_round; sport_pattern_quality_context_active`
+      ),
+      iterative_rounds,
+    });
   }
   return { exercises: chosen.slice(0, count) };
 }
@@ -1265,6 +1579,11 @@ function selectExercises(
     trailRunningPatternSlotRule?: SportPatternSlotRule;
     trailRunningPatternScoreMode?: "gated" | "fallback";
     trailRunningQualityContext?: TrailRunningQualityScoreContext;
+    alpineSkiingPatternSlotRule?: SportPatternSlotRule;
+    alpineSkiingPatternScoreMode?: "gated" | "fallback";
+    alpineSkiingQualityContext?: AlpineSkiingQualityScoreContext;
+    sportMainScoringMode?: ScoreExerciseOptions["sportMainScoringMode"];
+    intent_survival?: IntentSurvivalSelectionOpts;
   }
 ): { exercises: Exercise[] } {
   const opts = selectionOptions ?? {};
@@ -1274,7 +1593,8 @@ function selectExercises(
 
   const useIterativeSportPattern =
     ((opts.hikingQualityContext && opts.hikingPatternSlotRule) ||
-      (opts.trailRunningQualityContext && opts.trailRunningPatternSlotRule)) &&
+      (opts.trailRunningQualityContext && opts.trailRunningPatternSlotRule) ||
+      (opts.alpineSkiingQualityContext && opts.alpineSkiingPatternSlotRule)) &&
     (opts.blockType === "main_strength" || opts.blockType === "main_hypertrophy");
 
   if (useIterativeSportPattern) {
@@ -1305,6 +1625,10 @@ function selectExercises(
     trailRunningPatternSlotRule: opts.trailRunningPatternSlotRule,
     trailRunningPatternScoreMode: opts.trailRunningPatternScoreMode,
     trailRunningQualityContext: opts.trailRunningQualityContext,
+    alpineSkiingPatternSlotRule: opts.alpineSkiingPatternSlotRule,
+    alpineSkiingPatternScoreMode: opts.alpineSkiingPatternScoreMode,
+    alpineSkiingQualityContext: opts.alpineSkiingQualityContext,
+    sportMainScoringMode: opts.sportMainScoringMode,
   };
 
   const scored = pool.map((e) => ({
@@ -1335,7 +1659,8 @@ function selectExercises(
   // pattern whenever the pool includes those patterns, ignoring goal and wasting RNG.
   const sportPatternGatedMainWorkLock =
     ((opts.hikingPatternSlotRule && opts.hikingPatternScoreMode === "gated") ||
-      (opts.trailRunningPatternSlotRule && opts.trailRunningPatternScoreMode === "gated")) &&
+      (opts.trailRunningPatternSlotRule && opts.trailRunningPatternScoreMode === "gated") ||
+      (opts.alpineSkiingPatternSlotRule && opts.alpineSkiingPatternScoreMode === "gated")) &&
     (opts.blockType === "main_strength" || opts.blockType === "main_hypertrophy");
   const skipCategoryBalancePreface =
     opts.blockType === "warmup" || opts.blockType === "cooldown" || sportPatternGatedMainWorkLock;
@@ -1394,6 +1719,40 @@ function selectExercises(
     chosen.push(exercise);
     movementCounts.set(exercise.movement_pattern, nextCount);
     if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, exercise);
+  }
+
+  const isv = opts.intent_survival;
+  if (isv) {
+    const gate = isv.gate_snapshot;
+    const topBreakdowns = buildTopIntentCandidateBreakdowns(
+      topOverall,
+      5,
+      input,
+      recentIds,
+      movementCounts,
+      fatigueState,
+      scoreOpts
+    );
+    isv.collector.pushSelectionPass({
+      pass_id: isv.pass_id,
+      block_label: isv.block_label,
+      slot_type: isv.slot_type,
+      sport_gate_applied: isv.sport_gate_applied,
+      slot_rule_id: isv.slot_rule_id,
+      gate_tier_counts: gate ? gateResultToTierCounts(gate) : undefined,
+      pool_mode: gate?.poolMode,
+      fallback_occurred: gate?.usedFullPoolFallback === true,
+      sport_pattern_selection_tier: gate?.selectionTier,
+      fallback_tier_reached: gate?.usedFullPoolFallback ? "full_pool_fallback" : gate ? "gated" : undefined,
+      candidate_count_in_pool: pool.length,
+      selection_mode: "standard",
+      top_candidate_breakdowns: topBreakdowns,
+      chosen_exercise_ids: chosen.map((c) => c.id),
+      chosen_why: chosen.map(
+        (_, i) =>
+          `pick_${i + 1}: random_within_top_score_tier (band=${tierBand}); best_in_view≈${bestScore.toFixed(3)}`
+      ),
+    });
   }
 
   return { exercises: chosen.slice(0, count) };
@@ -1640,13 +1999,18 @@ function buildMainStrength(
   strengthProfile?: SubFocusProfile | null,
   hikingEnforcement?: HikingSessionEnforcementSnapshot,
   trailRunningEnforcement?: HikingSessionEnforcementSnapshot,
+  alpineSkiingEnforcement?: HikingSessionEnforcementSnapshot,
   sessionSportPatternCategoryCounts?: Map<string, number>,
   sportPatternHikingEmphasis?: number,
-  sportPatternTrailEmphasis?: number
+  sportPatternTrailEmphasis?: number,
+  sportPatternAlpineEmphasis?: number,
+  intentTrace?: IntentSurvivalCollector,
+  mainSelectorTrace?: MainSelectorSessionTrace
 ): WorkoutBlock[] {
   const sportPatCounts = sessionSportPatternCategoryCounts ?? new Map<string, number>();
   const hikingEmphasis = sportPatternHikingEmphasis ?? 0;
   const trailEmphasis = sportPatternTrailEmphasis ?? 0;
+  const alpineEmphasis = sportPatternAlpineEmphasis ?? 0;
   const blocks: WorkoutBlock[] = [];
   const goalRules = getGoalRules(input.primary_goal);
   let compoundMin = goalRules.compoundLiftMin ?? 1;
@@ -1686,8 +2050,12 @@ function buildMainStrength(
   const trailMainRule = trailRunningPatternTransferApplies(input)
     ? getTrailRunningSlotRuleForBlockType("main_strength")
     : undefined;
+  const alpineMainRule = alpineSkiingPatternTransferApplies(input)
+    ? getAlpineSkiingSlotRuleForBlockType("main_strength")
+    : undefined;
   let hikingMainStrengthMode: "gated" | "fallback" | undefined;
   let trailMainStrengthMode: "gated" | "fallback" | undefined;
+  let alpineMainStrengthMode: "gated" | "fallback" | undefined;
   if (hikingMainRule) {
     const gate = gatePoolForHikingSlot(mainPool, "main_strength", {
       applyMainWorkExclusions: true,
@@ -1697,7 +2065,7 @@ function buildMainStrength(
       hikingEnforcement.main_strength = { ...gate, planned_main_lift_count: 0 };
     }
     mainPool = gate.poolForSelection;
-    hikingMainStrengthMode = gate.hasMatches ? "gated" : "fallback";
+    hikingMainStrengthMode = sportPatternScoreModeFromPoolMode(gate.poolMode);
   } else if (trailMainRule) {
     const gate = gatePoolForTrailRunningSlot(mainPool, "main_strength", {
       applyMainWorkExclusions: true,
@@ -1707,7 +2075,17 @@ function buildMainStrength(
       trailRunningEnforcement.main_strength = { ...gate, planned_main_lift_count: 0 };
     }
     mainPool = gate.poolForSelection;
-    trailMainStrengthMode = gate.hasMatches ? "gated" : "fallback";
+    trailMainStrengthMode = sportPatternScoreModeFromPoolMode(gate.poolMode);
+  } else if (alpineMainRule) {
+    const gate = gatePoolForAlpineSkiingSlot(mainPool, "main_strength", {
+      applyMainWorkExclusions: true,
+      requiredCount: Math.min(compoundMin, 2),
+    });
+    if (alpineSkiingEnforcement) {
+      alpineSkiingEnforcement.main_strength = { ...gate, planned_main_lift_count: 0 };
+    }
+    mainPool = gate.poolForSelection;
+    alpineMainStrengthMode = sportPatternScoreModeFromPoolMode(gate.poolMode);
   }
 
   const mainLiftCount = Math.min(compoundMin, 2, mainPool.length);
@@ -1716,6 +2094,9 @@ function buildMainStrength(
   }
   if (trailRunningEnforcement?.main_strength) {
     trailRunningEnforcement.main_strength.planned_main_lift_count = mainLiftCount;
+  }
+  if (alpineSkiingEnforcement?.main_strength) {
+    alpineSkiingEnforcement.main_strength.planned_main_lift_count = mainLiftCount;
   }
 
   const primaryIntent = intentSlugs[0];
@@ -1747,7 +2128,11 @@ function buildMainStrength(
 
   // Sub-focus anchoring (critical): at least one main lift must match the primary intent slug,
   // and it should be the primary main lift when present.
-  const makeMainSelectOpts = () => ({
+  const mainStrengthGateSnapshot =
+    alpineSkiingEnforcement?.main_strength ??
+    hikingEnforcement?.main_strength ??
+    trailRunningEnforcement?.main_strength;
+  const makeMainSelectOpts = (pass_id: string) => ({
     blockType: "main_strength",
     sessionFatigueRegions,
     sessionMovementPatternCounts: movementCounts,
@@ -1757,6 +2142,8 @@ function buildMainStrength(
     hikingPatternScoreMode: hikingMainStrengthMode,
     trailRunningPatternSlotRule: trailMainRule,
     trailRunningPatternScoreMode: trailMainStrengthMode,
+    alpineSkiingPatternSlotRule: alpineMainRule,
+    alpineSkiingPatternScoreMode: alpineMainStrengthMode,
     ...(hikingMainRule && hikingPatternTransferApplies(input)
       ? {
           hikingQualityContext: {
@@ -1775,62 +2162,109 @@ function buildMainStrength(
           },
         }
       : {}),
+    ...(alpineMainRule && alpineSkiingPatternTransferApplies(input)
+      ? {
+          alpineSkiingQualityContext: {
+            sessionAlpineCategoryCounts: sportPatCounts,
+            emphasisBucket: alpineEmphasis,
+            blockType: "main_strength",
+          },
+        }
+      : {}),
+    ...(alpineMainRule &&
+    alpineSkiingPatternTransferApplies(input) &&
+    input.use_reduced_surface_for_alpine_main_scoring !== false
+      ? { sportMainScoringMode: "alpine_reduced_surface" as const }
+      : {}),
+    ...(intentTrace
+      ? {
+          intent_survival: {
+            collector: intentTrace,
+            pass_id,
+            block_label: "Main strength",
+            slot_type: "main_strength",
+            sport_gate_applied: !!(hikingMainRule || trailMainRule || alpineMainRule),
+            slot_rule_id:
+              alpineMainRule?.slotRuleId ?? hikingMainRule?.slotRuleId ?? trailMainRule?.slotRuleId,
+            gate_snapshot: mainStrengthGateSnapshot,
+          },
+        }
+      : {}),
   });
 
-  let mainLifts: Exercise[] = [];
-  if (primaryIntent && intentSlugs.length > 0) {
-    const directIntentMainMatches = mainPool.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)));
-    const primaryMatches = directIntentMainMatches.filter((e) => exerciseHasStrengthSubFocusSlug(e, primaryIntent));
+  const sportHandles = sportMainSelector(input.sport_slugs?.[0], input, {
+    scoreExercise: scoreExercise as ScoreExerciseLike,
+    sessionTargetVector: shouldUseSessionTargetVector(input) ? buildSessionTargetVectorFromInput(input) : undefined,
+  });
 
-    if (primaryMatches.length > 0) {
-      // 1) Anchor: force primary intent into the first main lift when possible.
-      const { exercises: anchorChosen } = selectExercises(primaryMatches, input, recentIds, movementCounts, 1, rng, fatigueState, makeMainSelectOpts());
-      const anchor = anchorChosen[0];
-      if (anchor) mainLifts.push(anchor);
+  const pickStrengthMain = (pool: Exercise[], count: number, pass_id: string) =>
+    selectExercises(pool, input, recentIds, movementCounts, count, rng, fatigueState, makeMainSelectOpts(pass_id))
+      .exercises;
 
-      // 2) Fill remaining main-lift slots with intent-complementary movements (but keep anchor first).
-      const remainingCount = mainLiftCount - mainLifts.length;
-      if (remainingCount > 0 && anchor) {
-        const remainingPoolBase = mainPool.filter((e) => e.id !== anchor.id);
-        const complementaryIntents = getComplementaryStrengthIntents(primaryIntent);
-        const remainingPrimaryOrComplementMatches = remainingPoolBase.filter(
-          (e) =>
-            exerciseHasStrengthSubFocusSlug(e, primaryIntent) ||
-            complementaryIntents.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug))
-        );
-        const remainingAnyIntentMatches = remainingPoolBase.filter((e) =>
-          intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug))
-        );
+  const alpineStrengthContract =
+    input.session_intent_contract ?? sessionIntentContractForSportSlug("alpine_skiing");
 
-        const remainingPool =
-          remainingAnyIntentMatches.length >= remainingCount
-            ? remainingAnyIntentMatches
-            : remainingPrimaryOrComplementMatches.length >= remainingCount
-              ? remainingPrimaryOrComplementMatches
-              : remainingPoolBase;
-
-        const { exercises: restChosen } = selectExercises(remainingPool, input, recentIds, movementCounts, remainingCount, rng, fatigueState, makeMainSelectOpts());
-        mainLifts.push(...restChosen);
+  const alpinePickEnv: AlpinePickEnvironment = {
+    validateCandidate: () => true,
+    onMovementCountCommit: (ex) => {
+      movementCounts.set(ex.movement_pattern, (movementCounts.get(ex.movement_pattern) ?? 0) + 1);
+    },
+    onFatigueRegionCommit: (ex) => {
+      if (sessionFatigueRegions) {
+        addExerciseFatigueRegionsToSession(sessionFatigueRegions, ex);
       }
-    } else if (directIntentMainMatches.length > 0) {
-      // If the primary intent has no direct matches, still keep all main lifts within direct intent matches.
-      const { exercises: chosen } = selectExercises(
-        directIntentMainMatches,
-        input,
-        recentIds,
-        movementCounts,
-        mainLiftCount,
-        rng,
-        fatigueState,
-        makeMainSelectOpts()
-      );
-      mainLifts = chosen;
-    }
-  }
+    },
+  };
 
-  if (mainLifts.length === 0) {
-    const { exercises: chosen } = selectExercises(mainPool, input, recentIds, movementCounts, mainLiftCount, rng, fatigueState, makeMainSelectOpts());
-    mainLifts = chosen;
+  let mainLifts: Exercise[] = [];
+  if (sportHandles && alpineMainRule && alpineStrengthContract) {
+    mainSelectorTrace?.entries.push({
+      phase: "main_strength",
+      selector: "sport_owned",
+      sport_slug: sportHandles.sportSlug,
+      notes: [],
+    });
+    const traceSlot =
+      mainSelectorTrace && mainSelectorTrace.entries.length > 0
+        ? mainSelectorTrace.entries[mainSelectorTrace.entries.length - 1]
+        : undefined;
+    mainLifts = sportHandles.selectStrengthMainLifts({
+      contract: alpineStrengthContract,
+      mainPool,
+      mainLiftCount,
+      intentSlugs,
+      primaryIntent,
+      input,
+      recentIds,
+      movementCounts,
+      rng,
+      fatigueState,
+      sessionFatigueRegions,
+      historyContext,
+      alpineMainRule,
+      alpineMainStrengthMode: alpineMainStrengthMode ?? "fallback",
+      sportPatCounts,
+      alpineEmphasis,
+      replacementCatalog: exercises.filter((e) => !used.has(e.id)),
+      pickEnv: alpinePickEnv,
+      intentTrace,
+      gateSnapshot: alpineSkiingEnforcement?.main_strength,
+      traceNotes: traceSlot?.notes,
+    });
+  } else {
+    mainSelectorTrace?.entries.push({ phase: "main_strength", selector: "generic", notes: ["generic_main_selector"] });
+    mainLifts = genericSelectStrengthMainLifts({
+      mainPool,
+      mainLiftCount,
+      intentSlugs,
+      primaryIntent,
+      getComplementaryStrengthIntents,
+      pick: pickStrengthMain,
+    });
+    if (alpineMainRule && alpineSkiingPatternTransferApplies(input) && mainLifts.length > 0) {
+      const alpineCatalog = exercises.filter((e) => !used.has(e.id));
+      applyAlpineUpstreamMainLiftsCoverage(mainLifts, alpineCatalog, "main_strength");
+    }
   }
 
   // When we have exactly 2 main lifts and supersets are wanted, pair them if they're a good superset (push+pull, squat+hinge, etc.)
@@ -1928,22 +2362,33 @@ function buildMainStrength(
     const trailAccessoryRule = trailRunningPatternTransferApplies(input)
       ? getTrailRunningSlotRuleForBlockType("accessory")
       : undefined;
+    const alpineAccessoryRule = alpineSkiingPatternTransferApplies(input)
+      ? getAlpineSkiingSlotRuleForBlockType("accessory")
+      : undefined;
     let hikingAccessoryMode: "gated" | "fallback" | undefined;
     let trailAccessoryMode: "gated" | "fallback" | undefined;
+    let alpineAccessoryMode: "gated" | "fallback" | undefined;
     if (hikingAccessoryRule) {
       const accGate = gatePoolForHikingSlot(available, "accessory", {
         requiredCount: pairNeededItems,
       });
       if (hikingEnforcement) hikingEnforcement.accessory = accGate;
       available = accGate.poolForSelection;
-      hikingAccessoryMode = accGate.hasMatches ? "gated" : "fallback";
+      hikingAccessoryMode = sportPatternScoreModeFromPoolMode(accGate.poolMode);
     } else if (trailAccessoryRule) {
       const accGate = gatePoolForTrailRunningSlot(available, "accessory", {
         requiredCount: pairNeededItems,
       });
       if (trailRunningEnforcement) trailRunningEnforcement.accessory = accGate;
       available = accGate.poolForSelection;
-      trailAccessoryMode = accGate.hasMatches ? "gated" : "fallback";
+      trailAccessoryMode = sportPatternScoreModeFromPoolMode(accGate.poolMode);
+    } else if (alpineAccessoryRule) {
+      const accGate = gatePoolForAlpineSkiingSlot(available, "accessory", {
+        requiredCount: pairNeededItems,
+      });
+      if (alpineSkiingEnforcement) alpineSkiingEnforcement.accessory = accGate;
+      available = accGate.poolForSelection;
+      alpineAccessoryMode = sportPatternScoreModeFromPoolMode(accGate.poolMode);
     }
 
     const primaryIntentAccessoryMatches = primaryIntent
@@ -2009,9 +2454,51 @@ function buildMainStrength(
         return qb - qa;
       });
       poolForPairs = poolForPairs.slice(0, Math.min(poolForPairs.length, pairNeededItems * 2));
+    } else if (
+      alpineAccessoryRule &&
+      alpineSkiingPatternTransferApplies(input) &&
+      poolForPairs.length > 1
+    ) {
+      poolForPairs = [...poolForPairs].sort((a, b) => {
+        const qa = computeAlpineSkiingWithinPoolQualityScore(a, {
+          sessionAlpineCategoryCounts: sportPatCounts,
+          emphasisBucket: alpineEmphasis,
+          blockType: "accessory",
+        }).total;
+        const qb = computeAlpineSkiingWithinPoolQualityScore(b, {
+          sessionAlpineCategoryCounts: sportPatCounts,
+          emphasisBucket: alpineEmphasis,
+          blockType: "accessory",
+        }).total;
+        return qb - qa;
+      });
+      poolForPairs = poolForPairs.slice(0, Math.min(poolForPairs.length, pairNeededItems * 2));
     }
 
-    const pairs = pickBestSupersetPairs(poolForPairs, pairCount, used) as [Exercise, Exercise][];
+    let pairs = pickBestSupersetPairs(poolForPairs, pairCount, used) as [Exercise, Exercise][];
+    if (sportHandles && alpineAccessoryRule && pairs.length > 0 && mainLifts.length > 0) {
+      mainSelectorTrace?.entries.push({
+        phase: "accessory",
+        selector: "sport_owned",
+        sport_slug: sportHandles.sportSlug,
+        notes: ["alpine_sport_owned:accessory_coverage"],
+      });
+      const alpineAccCatalog = exercises.filter((e) => !used.has(e.id));
+      sportHandles.applyStrengthAccessoryCoverage({
+        mainLifts,
+        pairs: pairs as Exercise[][],
+        replacementCatalog: alpineAccCatalog,
+      });
+    } else if (
+      alpineAccessoryRule &&
+      alpineSkiingPatternTransferApplies(input) &&
+      pairs.length > 0 &&
+      mainLifts.length > 0
+    ) {
+      mainSelectorTrace?.entries.push({ phase: "accessory", selector: "generic", notes: ["accessory_coverage"] });
+      const alpineAccCatalog = exercises.filter((e) => !used.has(e.id));
+      applyAlpineUpstreamAccessoryPairsCoverage(mainLifts, pairs as Exercise[][], alpineAccCatalog, "accessory");
+    }
     for (const [exA, exB] of pairs) {
       used.add(exA.id);
       used.add(exB.id);
@@ -2021,6 +2508,9 @@ function buildMainStrength(
       } else if (trailRunningPatternTransferApplies(input)) {
         addExerciseToTrailRunningSessionCounts(exA, sportPatCounts);
         addExerciseToTrailRunningSessionCounts(exB, sportPatCounts);
+      } else if (alpineSkiingPatternTransferApplies(input)) {
+        addExerciseToAlpineSessionCounts(exA, sportPatCounts);
+        addExerciseToAlpineSessionCounts(exB, sportPatCounts);
       }
       if (sessionFatigueRegions) {
         addExerciseFatigueRegionsToSession(sessionFatigueRegions, exA);
@@ -2283,13 +2773,18 @@ function buildMainHypertrophy(
   historyContext?: TrainingHistoryContext,
   hikingEnforcement?: HikingSessionEnforcementSnapshot,
   trailRunningEnforcement?: HikingSessionEnforcementSnapshot,
+  alpineSkiingEnforcement?: HikingSessionEnforcementSnapshot,
   sessionSportPatternCategoryCounts?: Map<string, number>,
   sportPatternHikingEmphasis?: number,
-  sportPatternTrailEmphasis?: number
+  sportPatternTrailEmphasis?: number,
+  sportPatternAlpineEmphasis?: number,
+  intentTrace?: IntentSurvivalCollector,
+  mainSelectorTrace?: MainSelectorSessionTrace
 ): WorkoutBlock[] {
   const sportPatCounts = sessionSportPatternCategoryCounts ?? new Map<string, number>();
   const hikingEmphasis = sportPatternHikingEmphasis ?? 0;
   const trailEmphasis = sportPatternTrailEmphasis ?? 0;
+  const alpineEmphasis = sportPatternAlpineEmphasis ?? 0;
   const mainWorkPatternSet = new Set(["push", "pull", "squat", "hinge", "rotate"]);
   let pool = exercises.filter(
     (e) =>
@@ -2313,8 +2808,12 @@ function buildMainHypertrophy(
   const trailHypertrophyRule = trailRunningPatternTransferApplies(input)
     ? getTrailRunningSlotRuleForBlockType("main_hypertrophy")
     : undefined;
+  const alpineHypertrophyRule = alpineSkiingPatternTransferApplies(input)
+    ? getAlpineSkiingSlotRuleForBlockType("main_hypertrophy")
+    : undefined;
   let hikingHypertrophyMode: "gated" | "fallback" | undefined;
   let trailHypertrophyMode: "gated" | "fallback" | undefined;
+  let alpineHypertrophyMode: "gated" | "fallback" | undefined;
   if (hikingHypertrophyRule) {
     const hg = gatePoolForHikingSlot(pool, "main_hypertrophy", {
       applyMainWorkExclusions: true,
@@ -2322,7 +2821,7 @@ function buildMainHypertrophy(
     });
     if (hikingEnforcement) hikingEnforcement.main_hypertrophy = hg;
     pool = hg.poolForSelection;
-    hikingHypertrophyMode = hg.hasMatches ? "gated" : "fallback";
+    hikingHypertrophyMode = sportPatternScoreModeFromPoolMode(hg.poolMode);
   } else if (trailHypertrophyRule) {
     const tg = gatePoolForTrailRunningSlot(pool, "main_hypertrophy", {
       applyMainWorkExclusions: true,
@@ -2330,7 +2829,15 @@ function buildMainHypertrophy(
     });
     if (trailRunningEnforcement) trailRunningEnforcement.main_hypertrophy = tg;
     pool = tg.poolForSelection;
-    trailHypertrophyMode = tg.hasMatches ? "gated" : "fallback";
+    trailHypertrophyMode = sportPatternScoreModeFromPoolMode(tg.poolMode);
+  } else if (alpineHypertrophyRule) {
+    const ag = gatePoolForAlpineSkiingSlot(pool, "main_hypertrophy", {
+      applyMainWorkExclusions: true,
+      requiredCount: 2,
+    });
+    if (alpineSkiingEnforcement) alpineSkiingEnforcement.main_hypertrophy = ag;
+    pool = ag.poolForSelection;
+    alpineHypertrophyMode = sportPatternScoreModeFromPoolMode(ag.poolMode);
   }
   const goalRules = getGoalRules(input.primary_goal);
   const maxExercises = goalRules.maxStrengthExercises ?? 8;
@@ -2372,6 +2879,12 @@ function buildMainHypertrophy(
           trailRunningPatternScoreMode: trailHypertrophyMode,
         }
       : {}),
+    ...(alpineHypertrophyRule
+      ? {
+          alpineSkiingPatternSlotRule: alpineHypertrophyRule,
+          alpineSkiingPatternScoreMode: alpineHypertrophyMode,
+        }
+      : {}),
     ...(hikingHypertrophyRule && hikingPatternTransferApplies(input)
       ? {
           hikingQualityContext: {
@@ -2390,63 +2903,133 @@ function buildMainHypertrophy(
           },
         }
       : {}),
+    ...(alpineHypertrophyRule && alpineSkiingPatternTransferApplies(input)
+      ? {
+          alpineSkiingQualityContext: {
+            sessionAlpineCategoryCounts: sportPatCounts,
+            emphasisBucket: alpineEmphasis,
+            blockType: "main_hypertrophy",
+          },
+        }
+      : {}),
+    ...(alpineHypertrophyRule &&
+    alpineSkiingPatternTransferApplies(input) &&
+    input.use_reduced_surface_for_alpine_main_scoring !== false
+      ? { sportMainScoringMode: "alpine_reduced_surface" as const }
+      : {}),
+  };
+
+  const hypertrophyGateSnapshot =
+    alpineSkiingEnforcement?.main_hypertrophy ??
+    hikingEnforcement?.main_hypertrophy ??
+    trailRunningEnforcement?.main_hypertrophy;
+  const withHypertrophyIntent = (pass_id: string) => ({
+    ...selectionOptions,
+    ...(intentTrace
+      ? {
+          intent_survival: {
+            collector: intentTrace,
+            pass_id,
+            block_label: "Main hypertrophy",
+            slot_type: "main_hypertrophy",
+            sport_gate_applied: !!(hikingHypertrophyRule || trailHypertrophyRule || alpineHypertrophyRule),
+            slot_rule_id:
+              alpineHypertrophyRule?.slotRuleId ??
+              hikingHypertrophyRule?.slotRuleId ??
+              trailHypertrophyRule?.slotRuleId,
+            gate_snapshot: hypertrophyGateSnapshot,
+          },
+        }
+      : {}),
+  });
+
+  const sportHandlesHypertrophy = sportMainSelector(input.sport_slugs?.[0], input, {
+    scoreExercise: scoreExercise as ScoreExerciseLike,
+    sessionTargetVector: shouldUseSessionTargetVector(input) ? buildSessionTargetVectorFromInput(input) : undefined,
+  });
+
+  const pickHypertrophyMain = (candidatePool: Exercise[], count: number, pass_id: string) =>
+    selectExercises(candidatePool, input, recentIds, movementCounts, count, rng, fatigueState, withHypertrophyIntent(pass_id))
+      .exercises;
+
+  const alpineHypeContract =
+    input.session_intent_contract ?? sessionIntentContractForSportSlug("alpine_skiing");
+
+  const alpineHypePickEnv: AlpinePickEnvironment = {
+    validateCandidate: () => true,
+    onMovementCountCommit: (ex) => {
+      movementCounts.set(ex.movement_pattern, (movementCounts.get(ex.movement_pattern) ?? 0) + 1);
+    },
+    onFatigueRegionCommit: (ex) => {
+      if (sessionFatigueRegions) {
+        addExerciseFatigueRegionsToSession(sessionFatigueRegions, ex);
+      }
+    },
   };
 
   let chosen: Exercise[] = [];
-  if (dominantSlug && isHypertrophyPrimary && directSubFocusSlugs.length > 0 && wantCount > 0) {
-    const desiredDirectRatio = hasBalanced ? 0.45 : 0.65;
-    const desiredDirectCount = Math.max(1, Math.round(wantCount * desiredDirectRatio));
-    const directDominantPool = pool.filter((e) => exerciseMatchesHypertrophySubFocusSlug(e, dominantSlug));
-
-    if (directDominantPool.length > 0) {
-      const firstCount = Math.min(desiredDirectCount, directDominantPool.length, wantCount);
-      const firstPick = selectExercises(
-        directDominantPool,
-        input,
-        recentIds,
-        movementCounts,
-        firstCount,
-        rng,
-        fatigueState,
-        selectionOptions
-      );
-
-      firstPick.exercises.forEach((e) => used.add(e.id));
-      chosen = [...firstPick.exercises];
-
-      const remaining = wantCount - chosen.length;
-      if (remaining > 0) {
-        const remainingPool = pool.filter((e) => !used.has(e.id));
-        if (remainingPool.length > 0) {
-          const secondPick = selectExercises(
-            remainingPool,
-            input,
-            recentIds,
-            movementCounts,
-            remaining,
-            rng,
-            fatigueState,
-            selectionOptions
-          );
-          chosen = [...chosen, ...secondPick.exercises];
-        }
-      }
-    }
-  }
-
-  // Fallback: no dominant match pool (or balanced-only) → standard selection.
-  if (chosen.length === 0) {
-    const picked = selectExercises(
+  if (sportHandlesHypertrophy && alpineHypertrophyRule && alpineHypeContract) {
+    mainSelectorTrace?.entries.push({
+      phase: "main_hypertrophy",
+      selector: "sport_owned",
+      sport_slug: sportHandlesHypertrophy.sportSlug,
+      notes: [],
+    });
+    const traceHypertrophy =
+      mainSelectorTrace && mainSelectorTrace.entries.length > 0
+        ? mainSelectorTrace.entries[mainSelectorTrace.entries.length - 1]
+        : undefined;
+    chosen = sportHandlesHypertrophy.selectHypertrophyVolume({
+      contract: alpineHypeContract,
       pool,
+      wantCount,
       input,
+      used,
       recentIds,
       movementCounts,
-      wantCount,
       rng,
       fatigueState,
-      selectionOptions
-    );
-    chosen = picked.exercises;
+      sessionFatigueRegions,
+      historyContext,
+      alpineHypertrophyRule,
+      alpineHypertrophyMode: alpineHypertrophyMode ?? "fallback",
+      sportPatCounts,
+      alpineEmphasis,
+      isHypertrophyPrimary,
+      muscleSubFocusRanked,
+      hasBalanced,
+      directSubFocusSlugs,
+      dominantSlug,
+      replacementCatalog: exercises.filter((e) => !used.has(e.id)),
+      pickEnv: alpineHypePickEnv,
+      intentTrace,
+      gateSnapshot: alpineSkiingEnforcement?.main_hypertrophy,
+      traceNotes: traceHypertrophy?.notes,
+      exerciseMatchesHypertrophySubFocusSlug,
+    });
+  } else {
+    mainSelectorTrace?.entries.push({
+      phase: "main_hypertrophy",
+      selector: "generic",
+      notes: ["generic_main_selector"],
+    });
+    chosen = genericSelectHypertrophyChosen({
+      pool,
+      wantCount,
+      isHypertrophyPrimary,
+      muscleSubFocusRanked,
+      hasBalanced,
+      directSubFocusSlugs,
+      dominantSlug,
+      exerciseMatchesHypertrophySubFocusSlug,
+      pick: pickHypertrophyMain,
+      used,
+    });
+
+    if (alpineHypertrophyRule && alpineSkiingPatternTransferApplies(input) && chosen.length > 0) {
+      const alpineHypeCatalog = exercises.filter((e) => !used.has(e.id) || chosen.some((c) => c.id === e.id));
+      applyAlpineUpstreamMainLiftsCoverage(chosen, alpineHypeCatalog, "main_hypertrophy");
+    }
   }
 
   const targetPairCount = Math.floor(chosen.length / 2);
@@ -2459,6 +3042,16 @@ function buildMainHypertrophy(
   const leftover = chosen.filter((e) => !usedInPairs.has(e.id));
   for (const ex of leftover) pairs.push([ex]);
   if (pairs.length === 0 && chosen.length) pairs.push([chosen[0]]);
+
+  if (sportHandlesHypertrophy && alpineHypertrophyRule && pairs.length > 0) {
+    const alpineHypeVolCatalog = exercises.filter((e) => !used.has(e.id) || chosen.some((c) => c.id === e.id));
+    sportHandlesHypertrophy.refineHypertrophyPairsCoverage(chosen, pairs, alpineHypeVolCatalog);
+    const entry = mainSelectorTrace?.entries.find((e) => e.phase === "main_hypertrophy" && e.selector === "sport_owned");
+    entry?.notes.push("alpine_sport_owned:hypertrophy_pair_coverage");
+  } else if (alpineHypertrophyRule && alpineSkiingPatternTransferApplies(input) && pairs.length > 0) {
+    const alpineHypeVolCatalog = exercises.filter((e) => !used.has(e.id) || chosen.some((c) => c.id === e.id));
+    applyAlpineUpstreamAccessoryPairsCoverage([], pairs, alpineHypeVolCatalog, "main_hypertrophy");
+  }
 
   const items: WorkoutItem[] = pairs.flatMap((pair) =>
     pair.map((e) => {
@@ -3528,6 +4121,302 @@ function ensureSingleGoalSubFocusCoverage(
   else mergedBlocks.push(newBlock);
 }
 
+/** Post-build repair for alpine skiing minimum pattern coverage (mutates blocks + used). */
+function tryRepairAlpineSkiingSession(
+  mergedBlocks: WorkoutBlock[],
+  input: GenerateWorkoutInput,
+  filtered: Exercise[],
+  used: Set<string>,
+  rng: () => number,
+  fatigueVolumeScale: number | undefined,
+  sessionFatigueRegions: Map<string, number>,
+  repairLog?: IntentSurvivalRepairChange[]
+): void {
+  if (!alpineSkiingPatternTransferApplies(input)) return;
+  const byId = new Map(filtered.map((e) => [e.id, e]));
+  const logRepair = (change: IntentSurvivalRepairChange) => {
+    repairLog?.push(change);
+  };
+
+  const usedIdsInSession = (): Set<string> =>
+    new Set(mergedBlocks.flatMap((b) => b.items.map((i) => i.exercise_id)));
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const ev = evaluateAlpineCoverageForBlocks(input, mergedBlocks, byId);
+    if (ev.ok) return;
+    let progressed = false;
+
+    for (const v of ev.violations) {
+      if (v.ruleId === "alpine_main_eccentric_or_deceleration") {
+        const mainItems: { block: WorkoutBlock; item: WorkoutItem; ex: Exercise }[] = [];
+        for (const block of mergedBlocks) {
+          if (block.block_type !== "main_strength" && block.block_type !== "main_hypertrophy") continue;
+          for (const item of block.items) {
+            const ex = byId.get(item.exercise_id);
+            if (!ex) continue;
+            mainItems.push({ block, item, ex });
+          }
+        }
+        const alreadyHasMainIdentity = mainItems.some(({ ex }) =>
+          exerciseMatchesAnyAlpineSkiingCategory(ex, [...ALPINE_MAIN_ECCENTRIC_OR_DECEL_CATEGORIES])
+        );
+        if (!alreadyHasMainIdentity && mainItems.length > 0) {
+          let weakest = mainItems[0];
+          let weakestScore = Number.POSITIVE_INFINITY;
+          for (const m of mainItems) {
+            const q = computeAlpineSkiingWithinPoolQualityScore(m.ex, {
+              sessionAlpineCategoryCounts: new Map<string, number>(),
+              emphasisBucket: 0,
+              blockType: m.block.block_type,
+            });
+            if (q.total < weakestScore) {
+              weakestScore = q.total;
+              weakest = m;
+            }
+          }
+
+          const gatedPool = gatePoolForAlpineSkiingSlot(filtered, weakest.block.block_type, {
+            applyMainWorkExclusions: true,
+          }).poolForSelection;
+          const exclude = usedIdsInSession();
+          exclude.delete(weakest.item.exercise_id);
+          const repl = findBestAlpineSkiingReplacement(
+            gatedPool,
+            [...ALPINE_MAIN_ECCENTRIC_OR_DECEL_CATEGORIES],
+            exclude
+          );
+          if (repl) {
+            const beforeId = weakest.item.exercise_id;
+            used.delete(weakest.item.exercise_id);
+            used.add(repl.id);
+            weakest.item.exercise_id = repl.id;
+            weakest.item.exercise_name = repl.name;
+            weakest.item.unilateral = repl.unilateral ?? false;
+            const p = getPrescription(
+              repl,
+              weakest.block.block_type === "main_hypertrophy" ? "main_hypertrophy" : "main_strength",
+              input.energy_level,
+              input.primary_goal,
+              false,
+              fatigueVolumeScale,
+              input.style_prefs?.user_level
+            );
+            weakest.item.sets = p.sets;
+            weakest.item.reps = p.reps;
+            weakest.item.rest_seconds = p.rest_seconds;
+            weakest.item.coaching_cues = p.coaching_cues;
+            logRepair({
+              rule_id: v.ruleId,
+              action: "replace_main_for_eccentric_decel_anchor",
+              detail: v.description,
+              exercise_id_before: beforeId,
+              exercise_id_after: repl.id,
+              block_type: weakest.block.block_type,
+            });
+            progressed = true;
+          }
+        }
+      }
+
+      if (v.ruleId === "alpine_eccentric_control_presence") {
+        for (const block of mergedBlocks) {
+          if (block.block_type !== "main_strength" && block.block_type !== "main_hypertrophy") continue;
+          for (const item of block.items) {
+            const cur = byId.get(item.exercise_id);
+            if (cur && exerciseMatchesAnyAlpineSkiingCategory(cur, [...ALPINE_ECCENTRIC_CONTROL_CATEGORIES])) continue;
+            const exclude = usedIdsInSession();
+            exclude.delete(item.exercise_id);
+            const repl = findBestAlpineSkiingReplacement(filtered, [...ALPINE_ECCENTRIC_CONTROL_CATEGORIES], exclude);
+            if (!repl) continue;
+            const beforeId = item.exercise_id;
+            used.delete(item.exercise_id);
+            used.add(repl.id);
+            item.exercise_id = repl.id;
+            item.exercise_name = repl.name;
+            item.unilateral = repl.unilateral ?? false;
+            const p = getPrescription(
+              repl,
+              block.block_type === "main_hypertrophy" ? "main_hypertrophy" : "main_strength",
+              input.energy_level,
+              input.primary_goal,
+              false,
+              fatigueVolumeScale,
+              input.style_prefs?.user_level
+            );
+            item.sets = p.sets;
+            item.reps = p.reps;
+            item.rest_seconds = p.rest_seconds;
+            item.coaching_cues = p.coaching_cues;
+            logRepair({
+              rule_id: v.ruleId,
+              action: "replace_main_for_eccentric_control",
+              detail: v.description,
+              exercise_id_before: beforeId,
+              exercise_id_after: repl.id,
+              block_type: block.block_type,
+            });
+            progressed = true;
+          }
+        }
+      }
+
+      if (v.ruleId === "alpine_lateral_or_trunk_stability") {
+        const repl = findBestAlpineSkiingReplacement(
+          filtered,
+          [...ALPINE_LATERAL_STABILITY_CATEGORIES],
+          usedIdsInSession()
+        );
+        if (repl) {
+          used.add(repl.id);
+          const p = getPrescription(
+            repl,
+            "accessory",
+            input.energy_level,
+            input.primary_goal,
+            true,
+            fatigueVolumeScale,
+            input.style_prefs?.user_level
+          );
+          const newItem: WorkoutItem = {
+            exercise_id: repl.id,
+            exercise_name: repl.name,
+            sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+            reps: p.reps,
+            rest_seconds: p.rest_seconds,
+            coaching_cues: p.coaching_cues,
+            reasoning_tags: ["alpine_skiing_support", ...(repl.tags.goal_tags ?? [])],
+            unilateral: repl.unilateral ?? false,
+          };
+          const cooldownIdx = mergedBlocks.findIndex((b) => b.block_type === "cooldown");
+          const newBlock: WorkoutBlock = {
+            block_type: "accessory",
+            format: "straight_sets",
+            title: "Alpine skiing support",
+            reasoning: "Adds lateral or trunk-bracing work to satisfy alpine coverage.",
+            items: [newItem],
+            estimated_minutes: 6,
+          };
+          if (cooldownIdx >= 0) mergedBlocks.splice(cooldownIdx, 0, newBlock);
+          else mergedBlocks.push(newBlock);
+          addExerciseFatigueRegionsToSession(sessionFatigueRegions, repl);
+          logRepair({
+            rule_id: v.ruleId,
+            action: "add_accessory_lateral_trunk_stability",
+            detail: v.description,
+            exercise_id_after: repl.id,
+            block_type: "accessory",
+          });
+          progressed = true;
+        }
+      }
+
+      if (v.ruleId === "alpine_lower_body_tension_endurance") {
+        const targetCats = [...ALPINE_LOWER_BODY_TENSION_ENDURANCE_CATEGORIES];
+        for (const block of mergedBlocks) {
+          if (block.block_type !== "main_strength" && block.block_type !== "main_hypertrophy") continue;
+          for (const item of block.items) {
+            const cur = byId.get(item.exercise_id);
+            if (cur && exerciseMatchesAnyAlpineSkiingCategory(cur, targetCats)) continue;
+            const exclude = usedIdsInSession();
+            exclude.delete(item.exercise_id);
+            const repl = findBestAlpineSkiingReplacement(filtered, targetCats, exclude);
+            if (!repl) continue;
+            const beforeId = item.exercise_id;
+            used.delete(item.exercise_id);
+            used.add(repl.id);
+            item.exercise_id = repl.id;
+            item.exercise_name = repl.name;
+            item.unilateral = repl.unilateral ?? false;
+            const p = getPrescription(
+              repl,
+              block.block_type === "main_hypertrophy" ? "main_hypertrophy" : "main_strength",
+              input.energy_level,
+              input.primary_goal,
+              false,
+              fatigueVolumeScale,
+              input.style_prefs?.user_level
+            );
+            item.sets = p.sets;
+            item.reps = p.reps;
+            item.rest_seconds = p.rest_seconds;
+            item.coaching_cues = p.coaching_cues;
+            logRepair({
+              rule_id: v.ruleId,
+              action: "replace_main_for_lower_body_tension_endurance",
+              detail: v.description,
+              exercise_id_before: beforeId,
+              exercise_id_after: repl.id,
+              block_type: block.block_type,
+            });
+            progressed = true;
+          }
+        }
+      }
+
+      if (v.ruleId === "alpine_conditioning_relevance") {
+        const idx = mergedBlocks.findIndex((b) => b.block_type === "conditioning");
+        if (idx < 0) continue;
+        const block = mergedBlocks[idx];
+        const item = block.items[0];
+        if (!item) continue;
+        const sid = usedIdsInSession();
+        sid.delete(item.exercise_id);
+        let altPool = filtered.filter(
+          (e) => e.modality === "conditioning" && isAlpineSkiingConditioningExercise(e) && !sid.has(e.id)
+        );
+        if (altPool.length === 0) {
+          altPool = filtered.filter((e) => e.modality === "conditioning" && isAlpineSkiingConditioningExercise(e));
+        }
+        const c = pickConditioningExercise(altPool, input.style_prefs?.preferred_zone2_cardio, rng);
+        if (c) {
+          const beforeId = item.exercise_id;
+          used.delete(item.exercise_id);
+          used.add(c.id);
+          item.exercise_id = c.id;
+          item.exercise_name = c.name;
+          item.unilateral = c.unilateral ?? false;
+          const p = getPrescription(
+            c,
+            "conditioning",
+            input.energy_level,
+            input.primary_goal,
+            undefined,
+            undefined,
+            input.style_prefs?.user_level
+          );
+          const conditioningMins = block.estimated_minutes ?? 10;
+          const interval = isHighIntensityConditioning(c)
+            ? getHighIntensityConditioningStructure(conditioningMins)
+            : isExplosiveConditioning(c)
+              ? getExplosiveConditioningStructure()
+              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          item.sets = interval.sets;
+          if (interval.reps != null) {
+            item.reps = interval.reps;
+            item.time_seconds = undefined;
+          } else {
+            item.reps = undefined;
+            item.time_seconds = interval.time_seconds;
+          }
+          item.rest_seconds = interval.rest_seconds;
+          item.coaching_cues = p.coaching_cues;
+          logRepair({
+            rule_id: v.ruleId,
+            action: "replace_conditioning_alpine_relevant",
+            detail: v.description,
+            exercise_id_before: beforeId,
+            exercise_id_after: c.id,
+            block_type: "conditioning",
+          });
+          progressed = true;
+        }
+      }
+    }
+
+    if (!progressed) return;
+  }
+}
+
 /** Post-build repair for hiking/backpacking minimum pattern coverage (mutates blocks + used). */
 function tryRepairHikingSession(
   mergedBlocks: WorkoutBlock[],
@@ -3926,11 +4815,25 @@ export function generateWorkoutSession(
   const sessionFatigueRegions = new Map<string, number>();
   const hikingEnforcementSnapshot: HikingSessionEnforcementSnapshot = {};
   const trailRunningEnforcementSnapshot: HikingSessionEnforcementSnapshot = {};
+  const alpineSkiingEnforcementSnapshot: HikingSessionEnforcementSnapshot = {};
   const sessionSportPatternCategoryCounts = new Map<string, number>();
   const sportPatternHikingEmphasis = hikingPatternTransferApplies(input) ? computeHikingEmphasisBucket(seed) : 0;
   const sportPatternTrailEmphasis = trailRunningPatternTransferApplies(input)
     ? computeTrailRunningEmphasisBucket(seed)
     : 0;
+  const sportPatternAlpineEmphasis = alpineSkiingPatternTransferApplies(input)
+    ? computeAlpineSkiingEmphasisBucket(seed)
+    : 0;
+
+  const intentCollector =
+    input.include_intent_survival_report === true
+      ? createIntentSurvivalCollector(input, input.sport_slugs?.[0])
+      : undefined;
+  if (intentCollector && input.intent_survival_upstream) {
+    intentCollector.setUpstream(input.intent_survival_upstream);
+  }
+
+  const mainSelectorTrace: MainSelectorSessionTrace = { entries: [] };
 
   // 4. Build main block (goal-specific); session fatigue regions improve later picks
   if (primary === "power") {
@@ -3997,9 +4900,13 @@ export function generateWorkoutSession(
         strengthProfileForWarmup,
         hikingEnforcementSnapshot,
         trailRunningEnforcementSnapshot,
+        alpineSkiingEnforcementSnapshot,
         sessionSportPatternCategoryCounts,
         sportPatternHikingEmphasis,
-        sportPatternTrailEmphasis
+        sportPatternTrailEmphasis,
+        sportPatternAlpineEmphasis,
+        intentCollector,
+        mainSelectorTrace
       )
     );
   } else if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
@@ -4018,9 +4925,13 @@ export function generateWorkoutSession(
         historyContext,
         hikingEnforcementSnapshot,
         trailRunningEnforcementSnapshot,
+        alpineSkiingEnforcementSnapshot,
         sessionSportPatternCategoryCounts,
         sportPatternHikingEmphasis,
-        sportPatternTrailEmphasis
+        sportPatternTrailEmphasis,
+        sportPatternAlpineEmphasis,
+        intentCollector,
+        mainSelectorTrace
       )
     );
   } else if (primary === "endurance" || primary === "conditioning") {
@@ -4065,9 +4976,13 @@ export function generateWorkoutSession(
         null,
         hikingEnforcementSnapshot,
         trailRunningEnforcementSnapshot,
+        alpineSkiingEnforcementSnapshot,
         sessionSportPatternCategoryCounts,
         sportPatternHikingEmphasis,
-        sportPatternTrailEmphasis
+        sportPatternTrailEmphasis,
+        sportPatternAlpineEmphasis,
+        intentCollector,
+        mainSelectorTrace
       )
     );
   }
@@ -4094,8 +5009,12 @@ export function generateWorkoutSession(
       const trailSecRule = trailRunningPatternTransferApplies(input)
         ? getTrailRunningSlotRuleForBlockType("main_strength")
         : undefined;
+      const alpineSecRule = alpineSkiingPatternTransferApplies(input)
+        ? getAlpineSkiingSlotRuleForBlockType("main_strength")
+        : undefined;
       let hikingSecMode: "gated" | "fallback" | undefined;
       let trailSecMode: "gated" | "fallback" | undefined;
+      let alpineSecMode: "gated" | "fallback" | undefined;
       if (hikingSecRule) {
         const secGate = gatePoolForHikingSlot(strengthPool, "main_strength", {
           applyMainWorkExclusions: true,
@@ -4103,7 +5022,7 @@ export function generateWorkoutSession(
         });
         hikingEnforcementSnapshot.secondary_main_strength = secGate;
         strengthPool = secGate.poolForSelection;
-        hikingSecMode = secGate.hasMatches ? "gated" : "fallback";
+        hikingSecMode = sportPatternScoreModeFromPoolMode(secGate.poolMode);
       } else if (trailSecRule) {
         const secGate = gatePoolForTrailRunningSlot(strengthPool, "main_strength", {
           applyMainWorkExclusions: true,
@@ -4111,7 +5030,15 @@ export function generateWorkoutSession(
         });
         trailRunningEnforcementSnapshot.secondary_main_strength = secGate;
         strengthPool = secGate.poolForSelection;
-        trailSecMode = secGate.hasMatches ? "gated" : "fallback";
+        trailSecMode = sportPatternScoreModeFromPoolMode(secGate.poolMode);
+      } else if (alpineSecRule) {
+        const secGate = gatePoolForAlpineSkiingSlot(strengthPool, "main_strength", {
+          applyMainWorkExclusions: true,
+          requiredCount: Math.min(count, 2),
+        });
+        alpineSkiingEnforcementSnapshot.secondary_main_strength = secGate;
+        strengthPool = secGate.poolForSelection;
+        alpineSecMode = sportPatternScoreModeFromPoolMode(secGate.poolMode);
       }
       if (strengthPool.length >= 1) {
         const { exercises: chosen } = selectExercises(
@@ -4131,6 +5058,8 @@ export function generateWorkoutSession(
             hikingPatternScoreMode: hikingSecMode,
             trailRunningPatternSlotRule: trailSecRule,
             trailRunningPatternScoreMode: trailSecMode,
+            alpineSkiingPatternSlotRule: alpineSecRule,
+            alpineSkiingPatternScoreMode: alpineSecMode,
             ...(hikingSecRule && hikingPatternTransferApplies(input)
               ? {
                   hikingQualityContext: {
@@ -4146,6 +5075,37 @@ export function generateWorkoutSession(
                     sessionTrailCategoryCounts: sessionSportPatternCategoryCounts,
                     emphasisBucket: sportPatternTrailEmphasis,
                     blockType: "main_strength",
+                  },
+                }
+              : {}),
+            ...(alpineSecRule && alpineSkiingPatternTransferApplies(input)
+              ? {
+                  alpineSkiingQualityContext: {
+                    sessionAlpineCategoryCounts: sessionSportPatternCategoryCounts,
+                    emphasisBucket: sportPatternAlpineEmphasis,
+                    blockType: "main_strength",
+                  },
+                }
+              : {}),
+            ...(alpineSecRule &&
+            alpineSkiingPatternTransferApplies(input) &&
+            input.use_reduced_surface_for_alpine_main_scoring !== false
+              ? { sportMainScoringMode: "alpine_reduced_surface" as const }
+              : {}),
+            ...(intentCollector
+              ? {
+                  intent_survival: {
+                    collector: intentCollector,
+                    pass_id: "secondary_goal_main_strength",
+                    block_label: "Secondary strength (goal)",
+                    slot_type: "main_strength",
+                    sport_gate_applied: !!(hikingSecRule || trailSecRule || alpineSecRule),
+                    slot_rule_id:
+                      alpineSecRule?.slotRuleId ?? hikingSecRule?.slotRuleId ?? trailSecRule?.slotRuleId,
+                    gate_snapshot:
+                      alpineSkiingEnforcementSnapshot.secondary_main_strength ??
+                      hikingEnforcementSnapshot.secondary_main_strength ??
+                      trailRunningEnforcementSnapshot.secondary_main_strength,
                   },
                 }
               : {}),
@@ -4307,6 +5267,10 @@ export function generateWorkoutSession(
         const trailCardio = cardioPool.filter((e) => isTrailRunningConditioningExercise(e));
         if (trailCardio.length > 0) cardioPool = trailCardio;
       }
+      if (cardioPool.length && alpineSkiingPatternTransferApplies(input)) {
+        const alpineCardio = cardioPool.filter((e) => isAlpineSkiingConditioningExercise(e));
+        if (alpineCardio.length > 0) cardioPool = alpineCardio;
+      }
       if (cardioPool.length > 1 && hikingPatternTransferApplies(input)) {
         cardioPool = [...cardioPool].sort(
           (a, b) =>
@@ -4333,6 +5297,21 @@ export function generateWorkoutSession(
             computeTrailRunningWithinPoolQualityScore(a, {
               sessionTrailCategoryCounts: sessionSportPatternCategoryCounts,
               emphasisBucket: sportPatternTrailEmphasis,
+              blockType: "conditioning",
+            }).total
+        );
+      }
+      if (cardioPool.length > 1 && alpineSkiingPatternTransferApplies(input)) {
+        cardioPool = [...cardioPool].sort(
+          (a, b) =>
+            computeAlpineSkiingWithinPoolQualityScore(b, {
+              sessionAlpineCategoryCounts: sessionSportPatternCategoryCounts,
+              emphasisBucket: sportPatternAlpineEmphasis,
+              blockType: "conditioning",
+            }).total -
+            computeAlpineSkiingWithinPoolQualityScore(a, {
+              sessionAlpineCategoryCounts: sessionSportPatternCategoryCounts,
+              emphasisBucket: sportPatternAlpineEmphasis,
               blockType: "conditioning",
             }).total
         );
@@ -4447,6 +5426,44 @@ export function generateWorkoutSession(
     fatigueVolumeScale,
     sessionFatigueRegions
   );
+  const preAlpineRepairBlocks =
+    input.include_intent_survival_report === true && alpineSkiingPatternTransferApplies(input)
+      ? (structuredClone(mergedBlocks) as WorkoutBlock[])
+      : null;
+  const alpineRepairLog: IntentSurvivalRepairChange[] = [];
+  tryRepairAlpineSkiingSession(
+    mergedBlocks,
+    input,
+    filtered,
+    used,
+    rng,
+    fatigueVolumeScale,
+    sessionFatigueRegions,
+    alpineRepairLog
+  );
+
+  if (intentCollector && alpineSkiingPatternTransferApplies(input)) {
+    const byIdForIntent = new Map(filtered.map((e) => [e.id, e]));
+    const ctxAlpine = buildSportCoverageContext(input, mergedBlocks);
+    const preCov =
+      preAlpineRepairBlocks != null
+        ? evaluateAlpineCoverageForBlocks(input, preAlpineRepairBlocks, byIdForIntent)
+        : { ok: true, violations: [] as { ruleId: string; description: string }[] };
+    const postCov = evaluateAlpineCoverageForBlocks(input, mergedBlocks, byIdForIntent);
+    const shares = computeAlpineStrictVsFallbackShares(mergedBlocks, alpineSkiingEnforcementSnapshot);
+    intentCollector.setAlpinePartial({
+      required_category_hits: alpineRequiredCategoryHits(ctxAlpine, postCov.violations),
+      key_coverage_ok_pre_repair: preCov.ok,
+      key_coverage_ok_post_repair: postCov.ok,
+      repair_ran: alpineRepairLog.length > 0,
+      repair_changes: alpineRepairLog,
+      strict_gate_selection_share: shares.strict_gate_selection_share,
+      fallback_path_selection_share: shares.fallback_path_selection_share,
+      degraded_mode: !postCov.ok,
+      anchors_pre_repair: computeAlpineAnchorSnapshot(preAlpineRepairBlocks ?? mergedBlocks, byIdForIntent),
+      anchors_post_repair: computeAlpineAnchorSnapshot(mergedBlocks, byIdForIntent),
+    });
+  }
 
   // Phase 11: attach progress/maintain/regress/rotate and prescription influence
   attachRecommendationsToSession(mergedBlocks, filtered, historyContext, recentIds);
@@ -4489,13 +5506,39 @@ export function generateWorkoutSession(
             session_summary: summarizeTrailRunningSportPatternSession(mergedBlocks, byId),
           };
         })()
-      : undefined;
+      : alpineSkiingPatternTransferApplies(input)
+        ? (() => {
+            const byId = new Map(filtered.map((e) => [e.id, e]));
+            const cov = evaluateAlpineCoverageForBlocks(input, mergedBlocks, byId);
+            return {
+              sport_slug: "alpine_skiing" as const,
+              coverage_ok: cov.ok,
+              violations: cov.violations.length ? cov.violations : undefined,
+              enforcement_snapshot: alpineSkiingEnforcementSnapshot,
+              items: buildAlpineSkiingTransferDebug(mergedBlocks, byId, alpineSkiingEnforcementSnapshot, {
+                sessionSeed: seed,
+              }),
+              session_summary: summarizeAlpineSkiingSportPatternSession(mergedBlocks, byId),
+            };
+          })()
+        : undefined;
+
+  const includeSessionDebug =
+    sportPatternTransferDebug || intentCollector || mainSelectorTrace.entries.length > 0;
 
   const session: WorkoutSession = {
     title: sessionTitle(input),
     estimated_duration_minutes,
     blocks: mergedBlocks,
-    ...(sportPatternTransferDebug ? { debug: { sport_pattern_transfer: sportPatternTransferDebug } } : {}),
+    ...(includeSessionDebug
+      ? {
+          debug: {
+            ...(sportPatternTransferDebug ? { sport_pattern_transfer: sportPatternTransferDebug } : {}),
+            ...(intentCollector ? { intent_survival_report: intentCollector.report } : {}),
+            ...(mainSelectorTrace.entries.length > 0 ? { main_selector: mainSelectorTrace } : {}),
+          },
+        }
+      : {}),
   };
 
   const validation = validateWorkoutAgainstConstraints(session, constraints, filtered);

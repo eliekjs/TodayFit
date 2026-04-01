@@ -57,8 +57,17 @@ function runTests() {
     }),
   });
   const pool = [advancedOnly, beginnerOk, creative, inferredCreative];
+  const complexButBroadTier = minimalExercise({
+    id: "ff_single_arm_kettlebell_start_stop_clean_to_thruster",
+    name: "Single Arm Kettlebell Start Stop Clean to Thruster",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    movement_pattern: "squat",
+    modality: "strength",
+    tags: { attribute_tags: ["complex_variation"] },
+  });
+  const poolWithComplex = [...pool, complexButBroadTier];
 
-  const beginnerFiltered = filterByHardConstraints(pool, {
+  const beginnerFiltered = filterByHardConstraints(poolWithComplex, {
     ...baseInput,
     style_prefs: { user_level: "beginner", include_creative_variations: false },
   });
@@ -68,11 +77,12 @@ function runTests() {
       !beginnerFiltered.some((e) => e.id === "creative_move") &&
       !beginnerFiltered.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
-      ),
+      ) &&
+      !beginnerFiltered.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
     "beginner: only beginner-tagged, no advanced-only, no creative"
   );
 
-  const intermediateFiltered = filterByHardConstraints(pool, {
+  const intermediateFiltered = filterByHardConstraints(poolWithComplex, {
     ...baseInput,
     style_prefs: { user_level: "intermediate", include_creative_variations: false },
   });
@@ -82,11 +92,12 @@ function runTests() {
       !intermediateFiltered.some((e) => e.id === "creative_move") &&
       !intermediateFiltered.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
-      ),
+      ) &&
+      !intermediateFiltered.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
     "intermediate: no advanced-only tier, no creative when off"
   );
 
-  const advancedAllTiers = filterByHardConstraints(pool, {
+  const advancedAllTiers = filterByHardConstraints(poolWithComplex, {
     ...baseInput,
     style_prefs: { user_level: "advanced", include_creative_variations: false },
   });
@@ -96,16 +107,17 @@ function runTests() {
       !advancedAllTiers.some((e) => e.id === "creative_move") &&
       !advancedAllTiers.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
-      ),
+      ) &&
+      advancedAllTiers.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
     "advanced tier keeps advanced-only; creative still off"
   );
 
-  const advancedCreative = filterByHardConstraints(pool, {
+  const advancedCreative = filterByHardConstraints(poolWithComplex, {
     ...baseInput,
     style_prefs: { user_level: "advanced", include_creative_variations: true },
   });
   assert(
-    advancedCreative.length === 4,
+    advancedCreative.length === 5,
     "advanced + creative on keeps full pool"
   );
 

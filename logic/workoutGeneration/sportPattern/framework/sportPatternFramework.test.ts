@@ -57,16 +57,54 @@ function main() {
   const b = mkEx("b", ["other"]);
   const noRuleResult = gatePoolForSportSlot([a, b], "main_strength", undefined, {}, { exerciseMatchesGate: matchesGate });
   assert(noRuleResult.poolForSelection.length === 2 && !noRuleResult.usedFullPoolFallback, "no rule → use full pool");
+  assert(noRuleResult.selectionTier === "strict_gate", "no rule → strict_gate tier label");
 
   const gatedOk = gatePoolForSportSlot([a, b], "main_strength", rule, {}, { exerciseMatchesGate: matchesGate });
   assert(gatedOk.hasMatches && gatedOk.poolForSelection.length === 1 && gatedOk.poolForSelection[0].id === "a", "gated pool");
   assert(!gatedOk.usedFullPoolFallback, "no fallback when matches exist");
+  assert(gatedOk.selectionTier === "strict_gate", "strict gate tier");
 
   const gatedEmpty = gatePoolForSportSlot([b], "main_strength", rule, {}, { exerciseMatchesGate: matchesGate });
   assert(
     gatedEmpty.usedFullPoolFallback && gatedEmpty.poolForSelection.length === 1 && gatedEmpty.poolForSelection[0].id === "b",
     "zero gate matches → full pool fallback"
   );
+  assert(gatedEmpty.selectionTier === "full_pool_degraded", "binary mode still ends at degraded tier");
+  assert(gatedEmpty.hasMatches === false, "degraded full pool: not strict_gate");
+
+  const c = mkEx("c", ["gamma"]);
+  const tierPrefer = gatePoolForSportSlot([b, c], "main_strength", rule, {}, {
+    exerciseMatchesGate: matchesGate,
+    progressiveLadder: {
+      exerciseMatchesPrefer: (ex, cats) => matchesGate(ex, cats),
+      filterQualityAlignedPool: () => [],
+    },
+  });
+  assert(
+    tierPrefer.selectionTier === "sport_preferred" &&
+      tierPrefer.poolForSelection.length === 1 &&
+      tierPrefer.poolForSelection[0].id === "c",
+    "ladder tier 2: prefer-only match"
+  );
+  assert(!tierPrefer.usedFullPoolFallback, "prefer tier is not generic full pool");
+
+  const tierQuality = gatePoolForSportSlot([b], "main_strength", rule, {}, {
+    exerciseMatchesGate: matchesGate,
+    progressiveLadder: {
+      exerciseMatchesPrefer: matchesGate,
+      filterQualityAlignedPool: ({ fullPool }) => fullPool,
+    },
+  });
+  assert(tierQuality.selectionTier === "sport_quality_aligned" && tierQuality.poolForSelection[0].id === "b", "tier 3 quality pool");
+
+  const tier4 = gatePoolForSportSlot([b], "main_strength", rule, {}, {
+    exerciseMatchesGate: matchesGate,
+    progressiveLadder: {
+      exerciseMatchesPrefer: matchesGate,
+      filterQualityAlignedPool: () => [],
+    },
+  });
+  assert(tier4.selectionTier === "full_pool_degraded" && tier4.usedFullPoolFallback, "ladder exhausted → tier 4");
 
   const adj = computeSportPatternSlotScoreAdjustment(a, rule!, "gated", categoriesFromTags, weights);
   assert(adj.matchedGate && adj.matchedPrefer && adj.delta > 0, "gated mode boosts prefer");
