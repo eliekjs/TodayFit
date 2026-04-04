@@ -264,9 +264,6 @@ export async function getPreferredExerciseNamesForSportAndGoals(
       ? (options?.sportSubFocusSlugsBySport?.[primarySlug] ?? sportSubFocusSlugs)!
       : undefined;
   // When sport has no sub-focus selected, default so tag-based ranking runs. Use canonical slug for consolidated sports.
-  if (primarySlug === "vertical_jump" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["vertical_jump"];
-  }
   if (canonicalSlug === "cycling" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["aerobic_base", "leg_strength", "core_stability"];
   }
@@ -330,32 +327,20 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (primarySlug === "xc_skiing" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["double_pole_upper", "leg_drive", "core_stability"];
   }
-  if (primarySlug === "hyrox" && (!subSlugs || subSlugs.length === 0)) {
+  if (canonicalSlug === "hyrox" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["work_capacity", "running_endurance", "core_stability"];
   }
   if (primarySlug === "rucking" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["load_carriage_durability", "leg_strength", "core_stability"];
   }
-  if (primarySlug === "ocr_spartan" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["work_capacity", "grip_endurance", "core_stability"];
-  }
-  if (primarySlug === "tactical_fitness" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["work_capacity", "strength_endurance", "core_stability"];
-  }
-  if (primarySlug === "crossfit" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["work_capacity", "strength", "engine"];
-  }
-  if (primarySlug === "general_strength" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["squat_strength", "bench_strength", "deadlift_strength"];
-  }
   if (primarySlug === "bodybuilding" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["push_hypertrophy", "pull_hypertrophy", "legs_hypertrophy"];
   }
+  if (canonicalSlug === "powerbuilding" && (!subSlugs || subSlugs.length === 0)) {
+    subSlugs = ["max_strength", "squat_hinge", "press_pull"];
+  }
   if (canonicalSlug === "track_sprinting" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["acceleration_power", "plyometric_power", "leg_strength"];
-  }
-  if (primarySlug === "strongman" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["carries_load", "posterior_chain_strength", "work_capacity"];
   }
   if (primarySlug === "alpine_skiing" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["leg_strength", "eccentric_control", "core_stability"];

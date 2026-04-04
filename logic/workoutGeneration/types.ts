@@ -4,6 +4,7 @@
  */
 
 import type { TrainingQualitySlug } from "../workoutIntelligence/trainingQualities";
+import type { SnowSportKind } from "./sportPatternTransfer/snowSportFamily/snowSportTypes";
 
 // --- Movement & modality ---
 export type MovementPattern =
@@ -144,6 +145,20 @@ export type Exercise = {
   secondary_muscle_groups?: string[];
   /** Non-empty when set: which experience tiers this movement is appropriate for. */
   workout_level_tags?: UserLevel[];
+  /**
+   * When set, these tiers were read from DB `workout_levels` (or static def). Used for audit/score-debug
+   * to distinguish explicit persistence from runtime inference.
+   */
+  workout_levels_from_db?: UserLevel[];
+  /**
+   * Dev / audit: explicit vs inferred trail when WORKOUT_LEVEL_DEBUG=1.
+   * Not set in normal production builds unless env is enabled.
+   */
+  workout_levels_meta?: {
+    origin: "explicit" | "inferred";
+    reasons: string[];
+    complexityScore?: number;
+  };
   /** Complex / novelty variation — excluded unless user enables creative variations. */
   creative_variation?: boolean;
 };
@@ -253,6 +268,18 @@ export type GenerateWorkoutInput = {
    * (goal/ontology/history/template-fit, etc.) so sport slot + within-pool quality dominate. Set `false` for legacy full scorer.
    */
   use_reduced_surface_for_alpine_main_scoring?: boolean;
+  /**
+   * Same demotion idea as alpine: shrink generic scorer surface for rock climbing main slots when not `false`.
+   */
+  use_reduced_surface_for_rock_climbing_main_scoring?: boolean;
+  /**
+   * Road-running main slots: shrink generic additive surface so running pattern gate + within-pool quality dominate.
+   */
+  use_reduced_surface_for_road_running_main_scoring?: boolean;
+  /**
+   * Soccer / field-sport main slots: shrink generic surface so COD/decel/unilateral transfer dominates.
+   */
+  use_reduced_surface_for_soccer_main_scoring?: boolean;
 };
 
 // --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
@@ -316,9 +343,35 @@ export type ScoringDebug = {
   /** Intent-survival trace: within-pool quality total for active sport pattern. */
   sport_within_pool_quality?: number;
   /** When set, generic scorer terms were scaled for sport-main selection (see GenerateWorkoutInput.use_reduced_surface_for_alpine_main_scoring). */
-  sport_main_scoring_mode?: "alpine_reduced_surface";
+  sport_main_scoring_mode?:
+    | "alpine_reduced_surface"
+    | "rock_reduced_surface"
+    | "road_reduced_surface"
+    | "soccer_reduced_surface";
   /** Multiplier applied to demoted (generic) terms; primary terms use 1. */
   sport_main_generic_term_scale?: number;
+  /** User workout tier (beginner/intermediate/advanced): selection/ranking preference. */
+  user_level_preference?: number;
+  /** Creative variations ON: bonus for novelty / uncommon patterns. */
+  creative_selection_bonus?: number;
+  /** Components of `user_level_preference` when `include_scoring_breakdown` is true. */
+  tier_preference_components?: Record<string, number>;
+  /** Components of `creative_selection_bonus` when creative is on and breakdown requested. */
+  creative_bonus_components?: Record<string, number>;
+  /**
+   * When `WORKOUT_LEVEL_SCORE_DEBUG=1` and `include_scoring_breakdown` is true: assignment trace
+   * (explicit DB vs inferred) for this exercise.
+   */
+  workout_level_assignment_trace?: {
+    origin: "explicit" | "inferred";
+    reasons: string[];
+    complexity_score?: number;
+  };
+  /**
+   * When score-debug is on: first hard-constraint violation for this exercise (same order as filtering).
+   * Omitted when the exercise would pass hard gates for the current input.
+   */
+  hard_constraint_reject_reason?: string;
 };
 
 export type WorkoutSession = {
@@ -337,7 +390,7 @@ export type WorkoutSession = {
       enforcement_snapshot?: HikingSessionEnforcementSnapshot;
       /** Aggregated category + overlap counts for tuning and cross-sport comparison (see sportPatternSessionAudit). */
       session_summary?: {
-        sport_slug: "hiking_backpacking" | "trail_running" | "alpine_skiing";
+        sport_slug: "hiking_backpacking" | "road_running" | "trail_running" | "soccer" | SnowSportKind | "rock_climbing";
         main_category_hits: Record<string, number>;
         accessory_category_hits: Record<string, number>;
         conditioning_exercise_ids: string[];

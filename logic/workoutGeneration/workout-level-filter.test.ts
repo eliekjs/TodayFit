@@ -65,12 +65,72 @@ function runTests() {
     modality: "strength",
     tags: { attribute_tags: ["complex_variation"] },
   });
-  const poolWithComplex = [...pool, complexButBroadTier];
+  const bottomsUpLunge = minimalExercise({
+    id: "ff_double_kettlebell_bottoms_up_front_rack_walking_lunge",
+    name: "Double Kettlebell Bottoms Up Front Rack Walking Lunge",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const curtsyBroad = minimalExercise({
+    id: "ff_single_arm_kettlebell_suitcase_alternating_curtsy_lunge",
+    name: "Single Arm Kettlebell Suitcase Alternating Curtsy Lunge",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const cyclistSquat = minimalExercise({
+    id: "ff_double_kettlebell_suitcase_cyclist_squat",
+    name: "Double Kettlebell Suitcase Cyclist Squat",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const ipsiBss = minimalExercise({
+    id: "ff_single_arm_kettlebell_suitcase_ipsilateral_bulgarian_split_squat",
+    name: "Single Arm Kettlebell Suitcase Ipsilateral Bulgarian Split Squat",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const hornGripLunge = minimalExercise({
+    id: "ff_kettlebell_horn_grip_alternating_forward_lunge",
+    name: "Kettlebell Horn Grip Alternating Forward Lunge",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const overheadWalk = minimalExercise({
+    id: "ff_single_arm_dumbbell_overhead_walking_lunge",
+    name: "Single Arm Dumbbell Overhead Walking Lunge",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const simpleWalkLunge = minimalExercise({
+    id: "walking_lunge",
+    name: "Walking Lunge",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const simpleBss = minimalExercise({
+    id: "bulgarian_split_squat_db",
+    name: "Dumbbell Bulgarian Split Squat",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+  });
+  const poolWithComplex = [
+    ...pool,
+    complexButBroadTier,
+    bottomsUpLunge,
+    curtsyBroad,
+    cyclistSquat,
+    ipsiBss,
+    hornGripLunge,
+    overheadWalk,
+    simpleWalkLunge,
+    simpleBss,
+  ];
 
   const beginnerFiltered = filterByHardConstraints(poolWithComplex, {
     ...baseInput,
     style_prefs: { user_level: "beginner", include_creative_variations: false },
   });
+  const complexFixtureIds = new Set([
+    bottomsUpLunge.id,
+    curtsyBroad.id,
+    cyclistSquat.id,
+    ipsiBss.id,
+    hornGripLunge.id,
+    overheadWalk.id,
+    complexButBroadTier.id,
+  ]);
   assert(
     beginnerFiltered.some((e) => e.id === "beginner_ok") &&
       !beginnerFiltered.some((e) => e.id === "adv_only") &&
@@ -78,8 +138,8 @@ function runTests() {
       !beginnerFiltered.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
       ) &&
-      !beginnerFiltered.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
-    "beginner: only beginner-tagged, no advanced-only, no creative"
+      !beginnerFiltered.some((e) => complexFixtureIds.has(e.id)),
+    "beginner: only beginner-tagged, no advanced-only, no creative, no complex-skill lifts"
   );
 
   const intermediateFiltered = filterByHardConstraints(poolWithComplex, {
@@ -88,12 +148,15 @@ function runTests() {
   });
   assert(
     intermediateFiltered.some((e) => e.id === "beginner_ok") &&
+      intermediateFiltered.some((e) => e.id === "walking_lunge") &&
+      intermediateFiltered.some((e) => e.id === "bulgarian_split_squat_db") &&
       !intermediateFiltered.some((e) => e.id === "adv_only") &&
       !intermediateFiltered.some((e) => e.id === "creative_move") &&
       !intermediateFiltered.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
       ) &&
-      !intermediateFiltered.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
+      !intermediateFiltered.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster") &&
+      !intermediateFiltered.some((e) => complexFixtureIds.has(e.id)),
     "intermediate: no advanced-only tier, no creative when off"
   );
 
@@ -104,6 +167,8 @@ function runTests() {
   assert(
     advancedAllTiers.some((e) => e.id === "adv_only") &&
       advancedAllTiers.some((e) => e.id === "beginner_ok") &&
+      advancedAllTiers.some((e) => e.id === bottomsUpLunge.id) &&
+      advancedAllTiers.some((e) => e.id === curtsyBroad.id) &&
       !advancedAllTiers.some((e) => e.id === "creative_move") &&
       !advancedAllTiers.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
@@ -117,7 +182,7 @@ function runTests() {
     style_prefs: { user_level: "advanced", include_creative_variations: true },
   });
   assert(
-    advancedCreative.length === 5,
+    advancedCreative.length === poolWithComplex.length,
     "advanced + creative on keeps full pool"
   );
 

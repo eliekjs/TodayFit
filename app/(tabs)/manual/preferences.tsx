@@ -605,11 +605,7 @@ export default function ManualPreferencesScreen() {
                   key={opt}
                   label={opt}
                   selected={manualPreferences.targetBody === opt}
-                  onPress={() =>
-                    setTargetBody(
-                      manualPreferences.targetBody === opt ? null : opt
-                    )
-                  }
+                  onPress={() => setTargetBody(opt)}
                 />
               ))}
             </View>

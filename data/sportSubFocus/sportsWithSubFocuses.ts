@@ -139,31 +139,6 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
       { slug: "ankle_stability", name: "Ankle Stability", priority_weight: 5 },
     ],
   },
-  {
-    slug: "ocr_spartan",
-    name: "Spartan / OCR",
-    category: "Endurance",
-    sub_focuses: [
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 1 },
-      { slug: "running_endurance", name: "Running Endurance", priority_weight: 2 },
-      { slug: "grip_endurance", name: "Grip Endurance", priority_weight: 3 },
-      { slug: "leg_strength", name: "Leg Strength", priority_weight: 4 },
-      { slug: "core_stability", name: "Core Stability", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "tactical_fitness",
-    name: "Tactical Fitness",
-    category: "Endurance",
-    sub_focuses: [
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 1 },
-      { slug: "running_endurance", name: "Running Endurance", priority_weight: 2 },
-      { slug: "strength_endurance", name: "Strength Endurance", priority_weight: 3 },
-      { slug: "core_stability", name: "Core Stability", priority_weight: 4 },
-      { slug: "durability", name: "Durability", priority_weight: 5 },
-    ],
-  },
-
   // --- Hybrid / Fitness ---
   {
     slug: "hyrox",
@@ -175,30 +150,6 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
       { slug: "lower_body_power", name: "Lower Body Power", priority_weight: 3 },
       { slug: "grip_endurance", name: "Grip Endurance", priority_weight: 4 },
       { slug: "core_stability", name: "Core Stability", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "crossfit",
-    name: "CrossFit",
-    category: "Hybrid/Fitness",
-    sub_focuses: [
-      { slug: "work_capacity", name: "Work Capacity", priority_weight: 1 },
-      { slug: "strength", name: "Strength", priority_weight: 2 },
-      { slug: "power", name: "Power", priority_weight: 3 },
-      { slug: "gymnastics_skill", name: "Gymnastics Skill", priority_weight: 4 },
-      { slug: "engine", name: "Engine", priority_weight: 5 },
-    ],
-  },
-  {
-    slug: "general_strength",
-    name: "Powerlifting",
-    category: "Strength/Power",
-    sub_focuses: [
-      { slug: "squat_strength", name: "Squat", priority_weight: 1 },
-      { slug: "bench_strength", name: "Bench", priority_weight: 2 },
-      { slug: "deadlift_strength", name: "Deadlift", priority_weight: 3 },
-      { slug: "accessory_strength", name: "Accessory", priority_weight: 4 },
-      { slug: "core_bracing", name: "Core & Bracing", priority_weight: 5 },
     ],
   },
   {
@@ -215,7 +166,7 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
   },
   {
     slug: "track_sprinting",
-    name: "Track & Field / Sprinting",
+    name: "Sprinting",
     category: "Strength/Power",
     sub_focuses: [
       { slug: "acceleration_power", name: "Acceleration", priority_weight: 1 },
@@ -412,18 +363,6 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
     ],
   },
 
-  // --- Vertical Jump / Dunk (standalone sport) ---
-  {
-    slug: "vertical_jump",
-    name: "Vertical Jump / Dunk",
-    category: "Strength/Power",
-    sub_focuses: [
-      { slug: "vertical_jump", name: "Explosive jump & plyometrics", priority_weight: 1 },
-      { slug: "strength_foundation", name: "Strength foundation", priority_weight: 2 },
-      { slug: "reactive_landing", name: "Reactive & landing", priority_weight: 3 },
-    ],
-  },
-
   // --- Golf ---
   {
     slug: "golf",
@@ -439,18 +378,6 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
   },
 
   // --- Strength / Power ---
-  {
-    slug: "olympic_weightlifting",
-    name: "Olympic Weightlifting",
-    category: "Strength/Power",
-    sub_focuses: [
-      { slug: "explosive_power", name: "Explosive Power", priority_weight: 1 },
-      { slug: "overhead_stability", name: "Overhead Stability", priority_weight: 2 },
-      { slug: "mobility", name: "Mobility (ankles, hips, t-spine)", priority_weight: 3 },
-      { slug: "pull_strength", name: "Pull Strength", priority_weight: 4 },
-      { slug: "core_bracing", name: "Core Bracing", priority_weight: 5 },
-    ],
-  },
   {
     slug: "powerbuilding",
     name: "Powerbuilding",

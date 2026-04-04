@@ -78,9 +78,26 @@ export function exerciseHasSubFocusSlug(exercise: ExerciseForSubFocus, slug: str
   const attrs = (exercise.tags?.attribute_tags ?? []).map(toSlug);
   if (attrs.includes(norm)) return true;
   // Minimal legacy: exercises without attribute_tags can still match by stimulus/role
+  if (norm === "zone2_long_steady") {
+    return exerciseHasSubFocusSlug(exercise, "zone2_aerobic_base");
+  }
   if (norm === "zone2_aerobic_base") {
     const stimulus = (exercise.tags?.stimulus ?? []).map(toSlug);
     if (stimulus.includes("aerobic_zone2")) return true;
+  }
+  if (norm === "durability") {
+    const attrs = (exercise.tags?.attribute_tags ?? []).map(toSlug);
+    if (attrs.includes("durability")) return true;
+    const stim = (exercise.tags?.stimulus ?? []).map(toSlug);
+    if (
+      stim.some((s) =>
+        ["isometric", "scapular_control", "trunk_anti_rotation", "anti_flexion", "single_leg"].includes(s)
+      )
+    )
+      return true;
+    return attrs.some((a) =>
+      ["ankle_stability", "hip_stability", "core_stability", "low_impact", "knee_load"].includes(a)
+    );
   }
   // Endurance UI uses `intervals`; conditioning uses `intervals_hiit` — same exercise signals.
   if (norm === "intervals_hiit" || norm === "intervals") {

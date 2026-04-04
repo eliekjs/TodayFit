@@ -33,8 +33,9 @@ export function getExerciseTagsForSubFocuses(
   for (let i = 0; i < subFocusSlugs.length; i++) {
     const sub = subFocusSlugs[i];
     const rankWeight = weights[i] ?? 1;
-    const key = `${canonicalSlug}:${sub}`;
-    const entries = SUB_FOCUS_TAG_MAP[key];
+    const entries =
+      SUB_FOCUS_TAG_MAP[`${canonicalSlug}:${sub}`] ??
+      (sportSlug !== canonicalSlug ? SUB_FOCUS_TAG_MAP[`${sportSlug}:${sub}`] : undefined);
     if (!entries) continue;
     for (const { tag_slug, weight = 1 } of entries) {
       const w = (weight ?? 1) * rankWeight;

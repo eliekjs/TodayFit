@@ -291,7 +291,7 @@ export async function listExercisesByTags(tagSlugs: string[]): Promise<ExerciseD
 
 /** Select list including structured ontology columns for generator adapter. */
 const EXERCISE_SELECT_WITH_ONTOLOGY =
-  "id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral, rep_range_min, rep_range_max";
+  "id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral, rep_range_min, rep_range_max, workout_levels";
 
 /** PostgREST often caps a single response (~1000 rows); paginate so large catalogs (e.g. functional fitness) load fully. */
 const GENERATOR_EXERCISE_PAGE_SIZE = 1000;
@@ -512,6 +512,7 @@ export type SupabaseCatalogExerciseRow = {
     unilateral?: boolean | null;
     rep_range_min?: number | null;
     rep_range_max?: number | null;
+    workout_levels?: string[] | null;
   };
 };
 
@@ -572,6 +573,7 @@ export async function listSupabaseCatalogExerciseRows(): Promise<SupabaseCatalog
         unilateral: row.unilateral ?? null,
         rep_range_min: row.rep_range_min ?? null,
         rep_range_max: row.rep_range_max ?? null,
+        workout_levels: row.workout_levels ?? null,
       },
     });
   }

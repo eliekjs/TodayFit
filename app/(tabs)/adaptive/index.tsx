@@ -29,6 +29,7 @@ import {
   normalizeGoalMatchPct,
   SUB_FOCUS_BY_PRIMARY,
   ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
+  TARGET_OPTIONS,
   goalSubFocusPayloadForAdaptiveGoals,
 } from "../../../lib/preferencesConstants";
 import { listSportsForPrep, getQualitiesForSport, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
@@ -36,7 +37,7 @@ import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
 import { planWeek } from "../../../services/sportPrepPlanner";
-import type { EnergyLevel } from "../../../lib/types";
+import type { DailyWorkoutPreferences, EnergyLevel, TargetBody } from "../../../lib/types";
 
 if (
   Platform.OS === "android" &&
@@ -150,6 +151,7 @@ export default function AdaptiveModeScreen() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [sectionSportOpen, setSectionSportOpen] = useState(false);
   const [sectionSessionOpen, setSectionSessionOpen] = useState(false);
+  const [sectionBodyOpen, setSectionBodyOpen] = useState(false);
   const adaptiveScrollRef = useRef<ScrollView>(null);
   const adaptiveContentRef = useRef<View>(null);
   const adaptiveAdvancedRef = useRef<View>(null);
@@ -163,6 +165,13 @@ export default function AdaptiveModeScreen() {
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
   const [oneDayDuration, setOneDayDuration] = useState<number>(45);
+  const defaultOneDayBodyBias = useMemo<NonNullable<DailyWorkoutPreferences["bodyRegionBias"]>>(() => {
+    if (manualPreferences.targetBody === "Upper") return "upper";
+    if (manualPreferences.targetBody === "Lower") return "lower";
+    return "full";
+  }, [manualPreferences.targetBody]);
+  const [oneDayBodyBias, setOneDayBodyBias] =
+    useState<NonNullable<DailyWorkoutPreferences["bodyRegionBias"]>>(defaultOneDayBodyBias);
 
   useEffect(() => {
     const loadSports = async () => {
@@ -178,6 +187,10 @@ export default function AdaptiveModeScreen() {
     };
     loadSports();
   }, []);
+
+  useEffect(() => {
+    setOneDayBodyBias(defaultOneDayBodyBias);
+  }, [defaultOneDayBodyBias]);
 
   // Load qualities (sub-goals) for each selected sport when not yet cached
   useEffect(() => {
@@ -334,6 +347,7 @@ export default function AdaptiveModeScreen() {
             goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
             workoutTier: manualPreferences.workoutTier ?? "intermediate",
             includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
+            dailyPreferences: { bodyRegionBias: oneDayBodyBias },
           });
           setSportPrepWeekPlan(plan);
           setAdaptiveSetup(null);
@@ -458,6 +472,13 @@ export default function AdaptiveModeScreen() {
     ? "Tap to choose"
     : [primarySport?.name, secondarySport?.name].filter(Boolean).join(" · ") || "Tap to choose";
   const sessionSectionSummary = `${oneDayDuration} min`;
+  const bodySectionSummary = oneDayBodyBias.charAt(0).toUpperCase() + oneDayBodyBias.slice(1);
+
+  const setOneDayTargetBody = useCallback((target: TargetBody) => {
+    if (target === "Upper") setOneDayBodyBias("upper");
+    else if (target === "Lower") setOneDayBodyBias("lower");
+    else setOneDayBodyBias("full");
+  }, []);
 
   const openAdaptiveAdvancedAndScroll = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -785,6 +806,34 @@ export default function AdaptiveModeScreen() {
                 );
               })}
         </CollapsiblePreferenceSection>
+
+        {isOneDay ? (
+          <CollapsiblePreferenceSection
+            title="Body emphasis"
+            subtitle="Choose full, upper, or lower."
+            summary={bodySectionSummary}
+            expanded={sectionBodyOpen}
+            onToggle={() => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setSectionBodyOpen((v) => !v);
+            }}
+          >
+            <View style={styles.chipGroup}>
+              {TARGET_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt}
+                  label={opt}
+                  selected={
+                    (opt === "Upper" && oneDayBodyBias === "upper") ||
+                    (opt === "Lower" && oneDayBodyBias === "lower") ||
+                    (opt === "Full" && oneDayBodyBias === "full")
+                  }
+                  onPress={() => setOneDayTargetBody(opt)}
+                />
+              ))}
+            </View>
+          </CollapsiblePreferenceSection>
+        ) : null}
 
         {isOneDay ? (
           <CollapsiblePreferenceSection

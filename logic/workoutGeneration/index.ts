@@ -34,6 +34,7 @@ export {
   computeOntologyScoreComponents,
   getEffectiveFatigueRegions,
   getPreferredWarmupTargetsFromFocus,
+  mergeSportBiasIntoWarmupFocusBodyParts,
   scoreRoleFit,
   scoreFatigueBalance,
   scoreMainLiftAnchor,

@@ -3,8 +3,7 @@
  * Generic `scoreExercise` runs without alpine slot rule / alpine quality (those are applied explicitly here).
  */
 
-import { MAX_SAME_PATTERN_PER_SESSION } from "../../../lib/workoutRules";
-import { getSimilarExerciseClusterId } from "../../../lib/workoutLevel";
+import { MAX_SAME_PATTERN_PER_SESSION, getSimilarExerciseClusterId } from "../../../lib/workoutRules";
 import { addExerciseToAlpineSessionCounts, computeAlpineSkiingWithinPoolQualityScore } from "../sportPatternTransfer/alpineSkiingQualityScoring";
 import { exerciseMatchesAnyAlpineSkiingCategory } from "../sportPatternTransfer/alpineSkiingExerciseCategories";
 import type { SessionIntentContract } from "../sessionIntentContract";

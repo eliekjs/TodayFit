@@ -383,7 +383,7 @@ export function getConditioningStructureByIntent(
       reasoning: "Sustained steady-state; Zone 2 compatible.",
     };
   }
-  if (intent === "intervals_hiit" || intent === "hiit_intervals") {
+  if (intent === "intervals_hiit" || intent === "hiit_intervals" || intent === "intervals") {
     // EMOM-style: each "set" is 1 minute.
     // - 20–30 min: 20s work / 40s rest
     // - 30–35 min: 30s work / 30s rest

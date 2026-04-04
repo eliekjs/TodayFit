@@ -12,14 +12,17 @@ import {
 } from "./trailRunningExerciseCategories";
 import type { TrailRunningPatternCategory } from "./trailRunningTypes";
 
-const PRIMARY_TRAIL_MAIN: readonly TrailRunningPatternCategory[] = [
+/** Exported for SessionIntentContract + tooling. */
+export const TRAIL_RUNNING_MAIN_GATE_CATEGORIES: readonly TrailRunningPatternCategory[] = [
   "uphill_locomotion_support",
   "unilateral_running_stability",
   "downhill_eccentric_control",
   "elastic_reactive_lower",
 ];
 
-const TRAIL_DEPRIORITIZED: readonly TrailRunningPatternCategory[] = [
+const PRIMARY_TRAIL_MAIN = TRAIL_RUNNING_MAIN_GATE_CATEGORIES;
+
+export const TRAIL_RUNNING_DEPRIORITIZED_CATEGORIES: readonly TrailRunningPatternCategory[] = [
   "pack_load_carry_primary",
   "heavy_carry_dominant",
   "hiking_step_stair_identity",
@@ -84,7 +87,7 @@ export const trailSportExerciseRequirements: TrailSportExerciseRequirements = {
     "running_conditioning",
     "elastic_reactive_lower",
   ],
-  deprioritizedPatternCategories: [...TRAIL_DEPRIORITIZED],
+  deprioritizedPatternCategories: [...TRAIL_RUNNING_DEPRIORITIZED_CATEGORIES],
 };
 
 export const trailSportSelectionRules: {
@@ -119,7 +122,7 @@ export const trailSportSelectionRules: {
         "calf_soleus_durability",
         "downhill_eccentric_control",
       ],
-      deprioritizeMatchAnyOf: [...TRAIL_DEPRIORITIZED],
+      deprioritizeMatchAnyOf: [...TRAIL_RUNNING_DEPRIORITIZED_CATEGORIES],
     },
     {
       slotRuleId: "trail_accessory",
@@ -140,7 +143,7 @@ export const trailSportSelectionRules: {
         "elastic_reactive_lower",
         "locomotion_core_stability",
       ],
-      deprioritizeMatchAnyOf: [...TRAIL_DEPRIORITIZED],
+      deprioritizeMatchAnyOf: [...TRAIL_RUNNING_DEPRIORITIZED_CATEGORIES],
     },
     {
       slotRuleId: "trail_conditioning",

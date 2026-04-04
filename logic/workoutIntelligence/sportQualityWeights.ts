@@ -24,9 +24,6 @@ export type SportSlug =
   | "xc_skiing"
   | "rowing_erg"
   | "track_sprinting"
-  | "vertical_jump"
-  | "olympic_weightlifting"
-  | "crossfit"
   | "grappling"
   | "soccer"
   | "basketball"
@@ -39,12 +36,9 @@ export type SportSlug =
   | "muay_thai"
   | "golf"
   | "hiking_backpacking"
-  | "mountaineering"
-  | "ocr_spartan"
-  | "tactical_fitness"
-  | "general_strength"
   | "bodybuilding"
-  | "strongman";
+  | "powerbuilding"
+  | "rucking";
 
 /** Weights per quality for each sport. Only non-zero entries; 0–1 scale. */
 export const SPORT_QUALITY_WEIGHTS: Record<
@@ -57,8 +51,12 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     lockoff_strength: 0.85,
     scapular_stability: 0.8,
     core_tension: 0.72,
+    trunk_anti_rotation: 0.62,
+    trunk_anti_flexion: 0.58,
+    unilateral_strength: 0.55,
     forearm_endurance: 0.65,
-    power: 0.5,
+    posterior_chain_endurance: 0.45,
+    power: 0.42,
     tendon_resilience: 0.5,
     aerobic_base: 0.35,
     anaerobic_capacity: 0.35,
@@ -192,74 +190,12 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     max_strength: 0.35,
     recovery: 0.3,
   },
-  mountaineering: {
-    aerobic_base: 0.85,
-    unilateral_strength: 0.65,
-    posterior_chain_endurance: 0.5,
-    trunk_endurance: 0.55,
-    core_tension: 0.5,
-    balance: 0.45,
-    max_strength: 0.4,
-    recovery: 0.3,
-  },
-  ocr_spartan: {
-    aerobic_base: 0.75,
-    aerobic_power: 0.7,
-    work_capacity: 0.85,
-    grip_strength: 0.7,
-    posterior_chain_endurance: 0.5,
-    trunk_endurance: 0.5,
-    pulling_strength: 0.45,
-    max_strength: 0.35,
-    recovery: 0.3,
-  },
-  tactical_fitness: {
-    aerobic_base: 0.75,
-    aerobic_power: 0.7,
-    work_capacity: 0.85,
-    pushing_strength: 0.5,
-    pulling_strength: 0.5,
-    posterior_chain_endurance: 0.45,
-    trunk_endurance: 0.5,
-    core_tension: 0.5,
-    recovery: 0.35,
-  },
   rowing_erg: {
     aerobic_base: 0.7,
     aerobic_power: 0.5,
     posterior_chain_endurance: 0.7,
     trunk_endurance: 0.6,
     pulling_strength: 0.5,
-  },
-  vertical_jump: {
-    power: 0.9,
-    rate_of_force_development: 0.85,
-    tendon_resilience: 0.6,
-    unilateral_strength: 0.5,
-    balance: 0.4,
-  },
-  olympic_weightlifting: {
-    power: 0.9,
-    rate_of_force_development: 0.9,
-    max_strength: 0.7,
-    mobility: 0.5,
-    thoracic_mobility: 0.5,
-  },
-  crossfit: {
-    work_capacity: 0.85,
-    max_strength: 0.6,
-    power: 0.6,
-    aerobic_power: 0.5,
-    pulling_strength: 0.5,
-    pushing_strength: 0.5,
-  },
-  general_strength: {
-    max_strength: 0.95,
-    pushing_strength: 0.7,
-    pulling_strength: 0.6,
-    posterior_chain_endurance: 0.4,
-    core_tension: 0.5,
-    recovery: 0.35,
   },
   bodybuilding: {
     hypertrophy: 0.95,
@@ -275,13 +211,24 @@ export const SPORT_QUALITY_WEIGHTS: Record<
     max_strength: 0.5,
     unilateral_strength: 0.45,
   },
-  strongman: {
-    max_strength: 0.9,
-    power: 0.7,
-    grip_strength: 0.75,
-    posterior_chain_endurance: 0.5,
-    work_capacity: 0.7,
-    core_tension: 0.6,
+  powerbuilding: {
+    max_strength: 0.85,
+    hypertrophy: 0.75,
+    power: 0.55,
+    pushing_strength: 0.65,
+    pulling_strength: 0.65,
+    work_capacity: 0.45,
+    core_tension: 0.45,
+    recovery: 0.35,
+  },
+  rucking: {
+    aerobic_base: 0.85,
+    posterior_chain_endurance: 0.65,
+    trunk_endurance: 0.55,
+    unilateral_strength: 0.55,
+    core_tension: 0.5,
+    max_strength: 0.4,
+    recovery: 0.35,
   },
   grappling: {
     grip_strength: 0.8,

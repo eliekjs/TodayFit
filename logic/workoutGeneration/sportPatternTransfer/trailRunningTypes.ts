@@ -4,23 +4,10 @@
  */
 
 import type { HikingGateResult, HikingSessionEnforcementSnapshot } from "./types";
+import type { RunningPatternCategory } from "./runningFamily/runningPatternTypes";
 
-export type TrailRunningPatternCategory =
-  | "uphill_locomotion_support"
-  | "downhill_eccentric_control"
-  | "ankle_foot_stability"
-  | "calf_soleus_durability"
-  | "unilateral_running_stability"
-  | "locomotion_core_stability"
-  | "running_conditioning"
-  | "elastic_reactive_lower"
-  | "low_transfer_running_accessory"
-  | "unrelated_upper_body_dominant"
-  /** Deprioritize as primary main identity for trail (hiking-leaning transfer). */
-  | "hiking_step_stair_identity"
-  | "pack_load_carry_primary"
-  | "heavy_carry_dominant"
-  | "overly_complex_skill_lift";
+/** Alias: shared running-family category union (includes road-only tags like `lateral_agility_flashy` when present on exercises). */
+export type TrailRunningPatternCategory = RunningPatternCategory;
 
 /** Same slot keys as hiking enforcement snapshot. */
 export type TrailRunningSessionEnforcementSnapshot = HikingSessionEnforcementSnapshot;

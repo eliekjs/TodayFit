@@ -426,6 +426,34 @@ export function getPreferredWarmupTargetsFromFocus(focusBodyParts: string[] | un
   return out;
 }
 
+/**
+ * When the planner uses full-body (or no) focus but sport context is leg/knee dominant (alpine, knee resilience),
+ * bias activation prep toward lower body + core instead of generic full-body targets (which skew upper in catalogs).
+ * Does not override an explicit upper-only day (upper_push / upper_pull only).
+ */
+export function mergeSportBiasIntoWarmupFocusBodyParts(
+  focusBodyParts: string[] | undefined,
+  opts: { alpineSkiingApplies: boolean; hasKneeResilienceSubFocus: boolean }
+): string[] {
+  const parts = focusBodyParts ?? [];
+  const onlyFullOrEmpty = parts.length === 0 || parts.every((f) => norm(f) === "full_body");
+  const explicitUpperOnly =
+    parts.length > 0 &&
+    parts.every((f) => ["upper_push", "upper_pull"].includes(norm(f)));
+
+  const sportBias: string[] = [];
+  if ((opts.alpineSkiingApplies || opts.hasKneeResilienceSubFocus) && !explicitUpperOnly) {
+    sportBias.push("lower", "core");
+  }
+
+  if (onlyFullOrEmpty && sportBias.length > 0) return sportBias;
+  if (sportBias.length > 0) {
+    const withoutFull = parts.filter((f) => norm(f) !== "full_body");
+    return [...new Set([...withoutFull, ...sportBias])];
+  }
+  return parts;
+}
+
 /** True if exercise has at least one mobility_target or stretch_target in the preferred set (for focus-specific warmup). */
 export function exerciseWarmupTargetsOverlap(
   ex: ExerciseForScoring,

@@ -22,7 +22,12 @@
     "audit:exercise-ontology-coverage:snapshot": "npx tsx scripts/auditExerciseTagCoverageSnapshot.ts",
     "validate:autonomous-pr": "node scripts/validate-autonomous-pr.js",
     "test:exercise-catalog-policy": "npx tsx lib/exerciseCatalogPolicy.test.ts",
-    "test:sport-tailored-scoring": "npx tsx logic/workoutGeneration/sportTailoredScoring.test.ts"
+    "test:sport-tailored-scoring": "npx tsx logic/workoutGeneration/sportTailoredScoring.test.ts",
+    "backfill:workout-levels": "npx tsx scripts/backfillWorkoutLevels.ts",
+    "audit:workout-levels": "npx tsx scripts/auditWorkoutLevels.ts",
+    "compare:workout-tiers": "npx tsx scripts/compareWorkoutTiers.ts",
+    "eval:workout-quality": "npx tsx scripts/workoutGenerationQualityEval.ts",
+    "audit:exercise-metadata-quality": "npx tsx scripts/exerciseMetadataQualityAgent.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

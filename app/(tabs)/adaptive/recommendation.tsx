@@ -95,6 +95,29 @@ export default function AdaptiveWeekPlanScreen() {
 
   const todayIso = getTodayLocalDateString();
 
+  const activeProfile =
+    gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
+
+  /** Match `planWeek` / `buildWorkoutForSlot` inputs so regenerate uses the same generator context. */
+  const regenerateGeneratorContext = useMemo(() => {
+    const plan = sportPrepWeekPlan;
+    const snap = plan?.scheduleSnapshot;
+    const snapshotGoalIds = snap
+      ? [snap.primaryGoalSlug, snap.secondaryGoalSlug, snap.tertiaryGoalSlug].filter(
+          (g): g is string => Boolean(g)
+        )
+      : (plan?.goalSlugs ?? []).filter((g): g is string => Boolean(g));
+    return {
+      gymProfile: snap?.gymProfile ?? activeProfile,
+      recentLoad: snap?.recentLoad,
+      injuries: snap?.injuries,
+      subFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
+        snapshotGoalIds,
+        manualPreferences.subFocusByGoal
+      ),
+    };
+  }, [sportPrepWeekPlan, activeProfile, manualPreferences.subFocusByGoal]);
+
   const focusSectionsForModal = useMemo((): FocusSection[] => {
     const plan = sportPrepWeekPlan;
     if (!plan) return [];
@@ -220,11 +243,23 @@ export default function AdaptiveWeekPlanScreen() {
           );
           let nextPlan = { ...plan };
           const updatedGuestWorkouts = { ...(plan.guestWorkouts ?? {}) };
+          const snap = plan.scheduleSnapshot;
+          const snapshotGoalIds = snap
+            ? [snap.primaryGoalSlug, snap.secondaryGoalSlug, snap.tertiaryGoalSlug].filter(
+                (g): g is string => Boolean(g)
+              )
+            : (plan.goalSlugs ?? []).filter((g): g is string => Boolean(g));
+          const loopProfile = snap?.gymProfile ?? activeProfile;
+          const subFocusByGoal = goalSubFocusPayloadForAdaptiveGoals(
+            snapshotGoalIds,
+            manualPreferences.subFocusByGoal
+          );
           for (const day of trainingDays) {
             const result = await regenerateDay({
               userId: userId ?? undefined,
               weeklyPlanInstanceId: plan.weeklyPlanInstanceId,
               date: day.date,
+              gymProfile: loopProfile,
               sportSlug: plan.sportSlug ?? undefined,
               goalSlugs: plan.goalSlugs,
               sportSubFocusSlugs: plan.sportSubFocusSlugs,
@@ -234,9 +269,12 @@ export default function AdaptiveWeekPlanScreen() {
               sportSubFocusSlugsBySport: plan.sportSubFocusSlugsBySport,
               intentLabel: day.intentLabel,
               goalWeightsPct,
-              workoutTier: plan.scheduleSnapshot?.workoutTier ?? manualPreferences.workoutTier ?? "intermediate",
+              recentLoad: snap?.recentLoad,
+              injuries: snap?.injuries,
+              subFocusByGoal,
+              workoutTier: snap?.workoutTier ?? manualPreferences.workoutTier ?? "intermediate",
               includeCreativeVariations:
-                (plan.scheduleSnapshot?.includeCreativeVariations ??
+                (snap?.includeCreativeVariations ??
                   manualPreferences.includeCreativeVariations) === true,
             });
             if (result.workout) {
@@ -273,6 +311,7 @@ export default function AdaptiveWeekPlanScreen() {
       manualPreferences,
       gymProfiles,
       activeGymProfileId,
+      activeProfile,
       userId,
       setSportPrepWeekPlan,
     ]
@@ -341,26 +380,33 @@ export default function AdaptiveWeekPlanScreen() {
         return;
       }
 
-      const gw = guestWorkoutsById[selectedSession.id] ?? sportPrepWeekPlan.guestWorkouts?.[selectedSession.date];
+      // Always use the row from the current plan so `generatedWorkoutId` updates after regenerate
+      // (stale `selectedSession` would fetch the wrong id or get null and clear the UI).
+      const session =
+        sportPrepWeekPlan.days.find((d) => d.id === selectedSession.id) ?? selectedSession;
+
+      const gw =
+        guestWorkoutsById[session.id] ??
+        sportPrepWeekPlan.guestWorkouts?.[session.date];
       if (gw) {
         setSelectedWorkout(gw);
         return;
       }
       if (
-        sportPrepWeekPlan.today?.id === selectedSession.id &&
+        sportPrepWeekPlan.today?.id === session.id &&
         sportPrepWeekPlan.todayWorkout
       ) {
         setSelectedWorkout(sportPrepWeekPlan.todayWorkout);
         return;
       }
-      if (!userId || !selectedSession.generatedWorkoutId) {
+      if (!userId || !session.generatedWorkoutId) {
         setSelectedWorkout(null);
         return;
       }
 
       setIsLoadingWorkout(true);
       try {
-        const workout = await getWorkout(userId, selectedSession.generatedWorkoutId);
+        const workout = await getWorkout(userId, session.generatedWorkoutId);
         setSelectedWorkout(workout);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -495,6 +541,7 @@ export default function AdaptiveWeekPlanScreen() {
         userId: userId ?? undefined,
         weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
         date: selectedDay.date,
+        gymProfile: regenerateGeneratorContext.gymProfile,
         sportSlug: sportPrepWeekPlan.sportSlug ?? undefined,
         goalSlugs: sportPrepWeekPlan.goalSlugs,
         sportSubFocusSlugs: sportPrepWeekPlan.sportSubFocusSlugs,
@@ -509,6 +556,9 @@ export default function AdaptiveWeekPlanScreen() {
           manualPreferences.goalMatchTertiaryPct ?? 20,
         ],
         dailyPreferences: mergedPrefs,
+        recentLoad: regenerateGeneratorContext.recentLoad,
+        injuries: regenerateGeneratorContext.injuries,
+        subFocusByGoal: regenerateGeneratorContext.subFocusByGoal,
         workoutTier:
           sportPrepWeekPlan.scheduleSnapshot?.workoutTier ??
           manualPreferences.workoutTier ??
@@ -522,8 +572,12 @@ export default function AdaptiveWeekPlanScreen() {
         d.id === result.day.id ? result.day : d
       );
       const updatedGuestWorkouts =
-        sportPrepWeekPlan.guestWorkouts && result.workout
-          ? { ...sportPrepWeekPlan.guestWorkouts, [result.day.id]: result.workout, [result.day.date]: result.workout }
+        result.workout != null
+          ? {
+              ...(sportPrepWeekPlan.guestWorkouts ?? {}),
+              [result.day.id]: result.workout,
+              [result.day.date]: result.workout,
+            }
           : sportPrepWeekPlan.guestWorkouts;
       const updatedPlan = {
         ...sportPrepWeekPlan,
@@ -536,9 +590,10 @@ export default function AdaptiveWeekPlanScreen() {
           sportPrepWeekPlan.today?.id === result.day.id
             ? result.workout
             : sportPrepWeekPlan.todayWorkout,
-        ...(updatedGuestWorkouts && { guestWorkouts: updatedGuestWorkouts }),
+        ...(updatedGuestWorkouts != null ? { guestWorkouts: updatedGuestWorkouts } : {}),
       };
       setSportPrepWeekPlan(updatedPlan);
+      setSelectedSession(result.day);
       setSelectedWorkout(result.workout);
       setDailyPrefsOverride(null);
     } catch (e) {
@@ -820,7 +875,11 @@ export default function AdaptiveWeekPlanScreen() {
                   : undefined
               }
               regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
-              showChips={!!(selectedDay.generatedWorkoutId || guestWorkoutsById[selectedDay.id])}
+              showChips={!!(
+                selectedDay.generatedWorkoutId ||
+                guestWorkoutsById[selectedDay.id] ||
+                guestWorkoutsById[selectedDay.date]
+              )}
               baseWorkoutTier={
                 sportPrepWeekPlan.scheduleSnapshot?.workoutTier ??
                 manualPreferences.workoutTier ??

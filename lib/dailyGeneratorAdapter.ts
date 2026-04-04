@@ -23,6 +23,7 @@ import type {
   WorkoutSession,
   Modality,
   MovementPattern,
+  UserLevel,
 } from "../logic/workoutGeneration/types";
 import type { SessionIntentContract } from "../logic/workoutGeneration/sessionIntentContract";
 
@@ -31,6 +32,14 @@ import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug"
 
 const DURATIONS = [20, 30, 45, 60, 75] as const;
 type AllowedDuration = (typeof DURATIONS)[number];
+
+function cloneManualPreferencesForSnapshot(p: ManualPreferences): ManualPreferences {
+  try {
+    return structuredClone(p);
+  } catch {
+    return JSON.parse(JSON.stringify(p)) as ManualPreferences;
+  }
+}
 
 function clampDuration(mins: number | null): AllowedDuration {
   if (mins == null || mins <= 0) return 45;
@@ -300,7 +309,12 @@ const JOINT_STRESS_PREFIXES = [
 ];
 
 import { normalizeMatchableTagSlugs, normalizeSlug } from "./ontology";
-import { inferCreativeVariationFromSource, inferWorkoutLevelsFromSource } from "./workoutLevel";
+import {
+  inferCreativeVariationFromSource,
+  inferWorkoutLevelsFromExtendedSource,
+  inferWorkoutLevelsWithExplanation,
+  isWorkoutLevelsDebugEnabled,
+} from "./workoutLevel";
 import {
   exerciseInferenceInputFromDefinition,
   mergePhase1MovementOntologyIntoExercise,
@@ -312,6 +326,11 @@ import { mergePhase5MobilityStretchOntologyIntoExercise } from "./exerciseMetada
 import { mergePhase6RepRangeOntologyIntoExercise } from "./exerciseMetadata/phase6RepRangeInference";
 import { mergePhase7WarmupCooldownRelevanceIntoExercise } from "./exerciseMetadata/phase7WarmupCooldownRelevanceInference";
 import { mergePhase8UnilateralOntologyIntoExercise } from "./exerciseMetadata/phase8UnilateralInference";
+import { applyExerciseMetadataOverrides } from "./exerciseMetadata/applyMetadataOverrides";
+import type { ExerciseMetadataPatch } from "./exerciseMetadata/metadataOverrideTypes";
+import exerciseMetadataOverrides from "../data/exerciseMetadataOverrides.json";
+
+const EXERCISE_METADATA_OVERRIDES = exerciseMetadataOverrides as Record<string, ExerciseMetadataPatch>;
 
 const CANONICAL_SPORT_SLUGS = new Set(SPORTS_WITH_SUB_FOCUSES.map((s) => normalizeSlug(s.slug)));
 
@@ -604,16 +623,39 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
   // Phase 8: unilateral flag for variety scoring (docs/research/exercise-metadata-phase8-unilateral.md).
   mergePhase8UnilateralOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
 
+  const explicitFromDef = def.workout_levels?.length ? def.workout_levels : undefined;
+  if (explicitFromDef?.length) {
+    exercise.workout_levels_from_db = explicitFromDef as UserLevel[];
+  }
   const levelSource = {
     id: def.id,
     name: def.name,
     tags: def.tags ?? [],
-    workout_levels: def.workout_levels,
+    workout_levels: explicitFromDef,
+    stability_demand: exercise.stability_demand,
+    grip_demand: exercise.grip_demand,
+    impact_level: exercise.impact_level,
+    modality: exercise.modality,
+    movement_pattern: exercise.movement_pattern,
+    difficulty: exercise.difficulty,
+    unilateral: exercise.unilateral,
+    attribute_tags: exercise.tags.attribute_tags,
+    equipment_required: exercise.equipment_required,
   };
-  exercise.workout_level_tags = inferWorkoutLevelsFromSource(levelSource);
+  exercise.workout_level_tags = inferWorkoutLevelsFromExtendedSource(levelSource);
+  if (isWorkoutLevelsDebugEnabled()) {
+    const explained = inferWorkoutLevelsWithExplanation(levelSource);
+    exercise.workout_levels_meta = {
+      origin: explained.origin,
+      reasons: explained.reasons,
+      ...(explained.complexityScore != null ? { complexityScore: explained.complexityScore } : {}),
+    };
+  }
   if (inferCreativeVariationFromSource(levelSource)) {
     exercise.creative_variation = true;
   }
+
+  applyExerciseMetadataOverrides(exercise, def, EXERCISE_METADATA_OVERRIDES[def.id]);
 
   return exercise;
 }

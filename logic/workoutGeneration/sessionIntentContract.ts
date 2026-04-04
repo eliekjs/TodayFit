@@ -3,11 +3,32 @@
  * Selection logic may read this in a later phase; today it augments `GenerateWorkoutInput` only.
  */
 
+import { getCanonicalSportSlug } from "../../data/sportSubFocus";
 import {
   ALPINE_DEPRIORITIZED_CATEGORIES,
   ALPINE_MAIN_GATE_MATCH_CATEGORIES,
   ALPINE_MAIN_PREFER_CATEGORIES,
 } from "./sportPatternTransfer/alpineSkiingRules";
+import {
+  getSnowSportDeprioritized,
+  getSnowSportSelectionRules,
+} from "./sportPatternTransfer/snowSportFamily/snowSportFamilyRules";
+import {
+  ROCK_CLIMBING_DEPRIORITIZED,
+  ROCK_CLIMBING_MAIN_GATE,
+  ROCK_CLIMBING_MAIN_PREFER,
+} from "./sportPatternTransfer/rockClimbingRules";
+import { ROAD_RUNNING_MAIN_GATE_CATEGORIES } from "./sportPatternTransfer/runningFamily/roadRunningRules";
+import {
+  TRAIL_RUNNING_DEPRIORITIZED_CATEGORIES,
+  TRAIL_RUNNING_MAIN_GATE_CATEGORIES,
+  TRAIL_SUPPORT_COVERAGE_CATEGORIES,
+} from "./sportPatternTransfer/trailRunningRules";
+import {
+  SOCCER_MAIN_GATE_CATEGORIES,
+  SOCCER_SUPPORT_COVERAGE_CATEGORIES,
+  soccerSportSelectionRules,
+} from "./sportPatternTransfer/fieldSportFamily/soccerRules";
 
 export type SessionIntentContractFallbackPolicy = {
   /** When true, enforcement may relax ordering/tiers stepwise (e.g. repair passes). */
@@ -21,11 +42,17 @@ export type SessionIntentContractDegradedModeBehavior = {
   flagWhenRequirementsMissed: boolean;
 };
 
-/** Session-level coverage aligned with alpine minimum-coverage rules (other sports may extend). */
+/** Session-level coverage — snow fields for descent sports; optional flags for rock climbing. */
 export type SessionIntentContractRequiredCoverage = {
   eccentricDecelMain: boolean;
   sustainedTensionLowerBody: boolean;
   lateralOrTrunkStability: boolean;
+  /** Rock climbing: primary session work should express wall-relevant pull transfer. */
+  climbingPullTransfer?: boolean;
+  /** Rock climbing: trunk / bodyline emphasis is part of session intent. */
+  climbingTrunkBracing?: boolean;
+  /** Rock climbing: scapular / shoulder-health layer in intent. */
+  climbingScapularLayer?: boolean;
 };
 
 /**
@@ -54,10 +81,165 @@ export type SessionIntentContract = {
 /** Canonical slug for downhill / resort alpine skiing. */
 export const ALPINE_SKIING_CONTRACT_SPORT_SLUG = "alpine_skiing";
 
+/** Canonical slug for consolidated rock climbing prep (boulder / sport / trad / ice mapped upstream). */
+export const ROCK_CLIMBING_CONTRACT_SPORT_SLUG = "rock_climbing";
+
+export const ROAD_RUNNING_CONTRACT_SPORT_SLUG = "road_running";
+export const TRAIL_RUNNING_CONTRACT_SPORT_SLUG = "trail_running";
+
+export const SOCCER_CONTRACT_SPORT_SLUG = "soccer";
+
+/**
+ * Rock climbing: pull + shoulder/trunk support; avoids Oly / flashy metcon as session-defining work.
+ */
+/**
+ * Road running: sagittal economy, calf/ankle/tendon, single-leg, trunk stiffness; avoids lateral/novelty as mains.
+ */
+export function buildRoadRunningSessionIntentContract(
+  overrides?: Partial<Pick<SessionIntentContract, "blockEmphasis" | "sessionType">>
+): SessionIntentContract {
+  const preferUnique = [
+    ...new Set([
+      ...ROAD_RUNNING_MAIN_GATE_CATEGORIES,
+      "calf_soleus_durability",
+      "ankle_foot_stability",
+      "running_conditioning",
+    ]),
+  ];
+  return {
+    sportSlug: ROAD_RUNNING_CONTRACT_SPORT_SLUG,
+    sessionType: overrides?.sessionType ?? "road_running_locomotion_economy",
+    blockEmphasis: overrides?.blockEmphasis ?? "main_accessory_conditioning_road_support",
+    mustIncludeCategories: [...ROAD_RUNNING_MAIN_GATE_CATEGORIES],
+    preferCategories: preferUnique,
+    avoidCategories: [
+      "lateral_agility_flashy",
+      "elastic_reactive_lower",
+      "pack_load_carry_primary",
+      "heavy_carry_dominant",
+      "hiking_step_stair_identity",
+      "low_transfer_running_accessory",
+      "unrelated_upper_body_dominant",
+      "overly_complex_skill_lift",
+    ],
+    requiredCoverage: {
+      eccentricDecelMain: false,
+      sustainedTensionLowerBody: true,
+      lateralOrTrunkStability: true,
+    },
+    fallbackPolicy: {
+      allowProgressiveRelaxation: true,
+      allowFullPoolFallback: true,
+    },
+    degradedModeBehavior: {
+      flagWhenRequirementsMissed: true,
+    },
+  };
+}
+
+/**
+ * Trail running: terrain durability, uphill/downhill, eccentric braking, lateral/ankle layers.
+ */
+export function buildTrailRunningSessionIntentContract(
+  overrides?: Partial<Pick<SessionIntentContract, "blockEmphasis" | "sessionType">>
+): SessionIntentContract {
+  const preferUnique = [
+    ...new Set([
+      ...TRAIL_RUNNING_MAIN_GATE_CATEGORIES,
+      ...TRAIL_SUPPORT_COVERAGE_CATEGORIES,
+    ]),
+  ];
+  return {
+    sportSlug: TRAIL_RUNNING_CONTRACT_SPORT_SLUG,
+    sessionType: overrides?.sessionType ?? "trail_running_terrain_durability",
+    blockEmphasis: overrides?.blockEmphasis ?? "main_accessory_conditioning_trail_support",
+    mustIncludeCategories: [...TRAIL_RUNNING_MAIN_GATE_CATEGORIES],
+    preferCategories: preferUnique,
+    avoidCategories: [...TRAIL_RUNNING_DEPRIORITIZED_CATEGORIES],
+    requiredCoverage: {
+      eccentricDecelMain: true,
+      sustainedTensionLowerBody: true,
+      lateralOrTrunkStability: true,
+    },
+    fallbackPolicy: {
+      allowProgressiveRelaxation: true,
+      allowFullPoolFallback: true,
+    },
+    degradedModeBehavior: {
+      flagWhenRequirementsMissed: true,
+    },
+  };
+}
+
+export function buildRockClimbingSessionIntentContract(
+  overrides?: Partial<Pick<SessionIntentContract, "blockEmphasis" | "sessionType">>
+): SessionIntentContract {
+  const preferUnique = [...new Set([...ROCK_CLIMBING_MAIN_PREFER])];
+  return {
+    sportSlug: ROCK_CLIMBING_CONTRACT_SPORT_SLUG,
+    sessionType: overrides?.sessionType ?? "rock_climbing_wall_transfer",
+    blockEmphasis: overrides?.blockEmphasis ?? "main_pull_trunk_scap_accessory",
+    mustIncludeCategories: [...ROCK_CLIMBING_MAIN_GATE],
+    preferCategories: preferUnique,
+    avoidCategories: [...ROCK_CLIMBING_DEPRIORITIZED],
+    requiredCoverage: {
+      eccentricDecelMain: false,
+      sustainedTensionLowerBody: false,
+      lateralOrTrunkStability: true,
+      climbingPullTransfer: true,
+      climbingTrunkBracing: true,
+      climbingScapularLayer: true,
+    },
+    fallbackPolicy: {
+      allowProgressiveRelaxation: true,
+      allowFullPoolFallback: true,
+    },
+    degradedModeBehavior: {
+      flagWhenRequirementsMissed: true,
+    },
+  };
+}
+
 /**
  * Alpine skiing: mirrors current slot gates, deprioritized set, and minimum-coverage expectations.
  * Does not replace `alpineSportSelectionRules`; it documents the same intent for upstream layers.
  */
+/**
+ * Soccer (field sport): repeat sprint, COD, deceleration, unilateral + posterior durability; not generic HIIT or linear-only running.
+ */
+export function buildSoccerSessionIntentContract(
+  overrides?: Partial<Pick<SessionIntentContract, "blockEmphasis" | "sessionType">>
+): SessionIntentContract {
+  const preferUnique = [
+    ...new Set([
+      ...SOCCER_MAIN_GATE_CATEGORIES,
+      ...SOCCER_SUPPORT_COVERAGE_CATEGORIES,
+    ]),
+  ];
+  const deprioritized = soccerSportSelectionRules.slots.find((s) => s.slotRuleId === "soccer_main_strength")
+    ?.deprioritizeMatchAnyOf ?? [];
+  return {
+    sportSlug: SOCCER_CONTRACT_SPORT_SLUG,
+    sessionType: overrides?.sessionType ?? "soccer_field_repeat_sprint_cod",
+    blockEmphasis: overrides?.blockEmphasis ?? "main_accessory_conditioning_soccer_transfer",
+    mustIncludeCategories: [...SOCCER_MAIN_GATE_CATEGORIES],
+    preferCategories: preferUnique,
+    avoidCategories: [...deprioritized, "soccer_crossfit_mixed_noise", "soccer_skill_olympic_noise"],
+    requiredCoverage: {
+      eccentricDecelMain: true,
+      sustainedTensionLowerBody: true,
+      lateralOrTrunkStability: true,
+    },
+    fallbackPolicy: {
+      allowProgressiveRelaxation: true,
+      allowFullPoolFallback: true,
+    },
+    degradedModeBehavior: {
+      flagWhenRequirementsMissed: true,
+    },
+  };
+}
+
 export function buildAlpineSkiingSessionIntentContract(
   overrides?: Partial<Pick<SessionIntentContract, "blockEmphasis" | "sessionType">>
 ): SessionIntentContract {
@@ -87,10 +269,70 @@ export function buildAlpineSkiingSessionIntentContract(
 /**
  * Returns a contract for known sport-prep sports; `undefined` keeps non-contract paths unchanged.
  */
+function snowContractFromKind(
+  sportSlug: "snowboarding" | "backcountry_skiing" | "xc_skiing",
+  sessionType: string,
+  requiredCoverage: SessionIntentContractRequiredCoverage
+): SessionIntentContract {
+  const mainSlot = getSnowSportSelectionRules(sportSlug).slots.find((s) =>
+    s.blockTypes.includes("main_strength")
+  );
+  const prefer = mainSlot?.preferMatchAnyOf ?? [];
+  return {
+    sportSlug,
+    sessionType,
+    blockEmphasis: "main_accessory_conditioning_snow_family",
+    mustIncludeCategories: [...(mainSlot?.gateMatchAnyOf ?? [])],
+    preferCategories: [...prefer],
+    avoidCategories: [...getSnowSportDeprioritized(sportSlug)],
+    requiredCoverage,
+    fallbackPolicy: {
+      allowProgressiveRelaxation: true,
+      allowFullPoolFallback: true,
+    },
+    degradedModeBehavior: {
+      flagWhenRequirementsMissed: true,
+    },
+  };
+}
+
 export function sessionIntentContractForSportSlug(sportSlug: string): SessionIntentContract | undefined {
-  const n = sportSlug.trim().toLowerCase().replace(/\s/g, "_");
+  const n = getCanonicalSportSlug(sportSlug).trim().toLowerCase().replace(/\s/g, "_");
   if (n === "alpine_skiing") {
     return buildAlpineSkiingSessionIntentContract();
+  }
+  if (n === "snowboarding") {
+    return snowContractFromKind("snowboarding", "snowboard_resort_transfer", {
+      eccentricDecelMain: true,
+      sustainedTensionLowerBody: true,
+      lateralOrTrunkStability: true,
+    });
+  }
+  if (n === "backcountry_skiing") {
+    return snowContractFromKind("backcountry_skiing", "backcountry_uphill_downhill_hybrid", {
+      eccentricDecelMain: true,
+      sustainedTensionLowerBody: true,
+      lateralOrTrunkStability: true,
+    });
+  }
+  if (n === "xc_skiing") {
+    return snowContractFromKind("xc_skiing", "nordic_engine_transfer", {
+      eccentricDecelMain: false,
+      sustainedTensionLowerBody: true,
+      lateralOrTrunkStability: true,
+    });
+  }
+  if (n === "rock_climbing") {
+    return buildRockClimbingSessionIntentContract();
+  }
+  if (n === "road_running") {
+    return buildRoadRunningSessionIntentContract();
+  }
+  if (n === "trail_running") {
+    return buildTrailRunningSessionIntentContract();
+  }
+  if (n === "soccer") {
+    return buildSoccerSessionIntentContract();
   }
   return undefined;
 }

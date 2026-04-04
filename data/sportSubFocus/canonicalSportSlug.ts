@@ -26,8 +26,19 @@ export const LEGACY_TO_CANONICAL_SPORT: Record<string, string> = {
   // Volleyball: indoor + beach → volleyball
   volleyball_indoor: "volleyball",
   volleyball_beach: "volleyball",
-  // Track: track_field → track_sprinting
+  // Track / sprinting: legacy slugs → track_sprinting
   track_field: "track_sprinting",
+  /** Legacy `sport_mode` seed slug; same programming as track_sprinting */
+  sprinting: "track_sprinting",
+  // Removed from sport picker: map stored slugs to closest active sport for generation
+  strongman: "hyrox",
+  ocr_spartan: "hyrox",
+  tactical_fitness: "hyrox",
+  crossfit: "hyrox",
+  general_strength: "powerbuilding",
+  olympic_weightlifting: "powerbuilding",
+  vertical_jump: "track_sprinting",
+  mountaineering: "trail_running",
   // Cycling: road + mtb → cycling
   cycling_road: "cycling",
   cycling_mtb: "cycling",

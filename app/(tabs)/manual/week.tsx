@@ -496,7 +496,12 @@ export default function ManualWeekScreen() {
     }
     try {
       const { generateWorkoutAsync } = await loadGeneratorModule();
-      const workout = await generateWorkoutAsync(dayPrefs, profile, selectedSession.date, preferredNames);
+      const workout = await generateWorkoutAsync(
+        dayPrefs,
+        profile,
+        `${selectedSession.date}_${Date.now()}`,
+        preferredNames
+      );
       const bodyKey = (dayPrefs.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
       const specificEmphasis = (dayPrefs.targetModifier ?? []).map((m) => m.toLowerCase()).filter(Boolean);
       const displayTitle = formatDayTitle(dayPrefs.primaryFocus.length ? dayPrefs.primaryFocus : ["Workout"], bodyKey, specificEmphasis.length ? specificEmphasis : undefined);

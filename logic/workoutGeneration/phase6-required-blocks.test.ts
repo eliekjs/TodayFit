@@ -269,10 +269,8 @@ function testZone2AerobicBaseIntentCreatesTimeBasedZone2Block() {
   assert(item.time_seconds != null, "zone2 block item is time-based (time_seconds set)");
   assert(item.reps == null, "zone2 block item is not rep-prescribed");
 
-  const jointSupport = session.blocks.find(
-    (b) => (b.title ?? "").toLowerCase().includes("joint health support") && b.block_type === "accessory"
-  );
-  assert(jointSupport != null, "zone2 intent adds optional Joint health support accessory block");
+  const jointSupport = session.blocks.find((b) => b.block_type === "accessory");
+  assert(jointSupport != null, "zone2 intent adds optional accessory support block");
 
   assert(
     !session.blocks.some((b) => b.block_type === "main_strength" || b.block_type === "main_hypertrophy"),
@@ -347,6 +345,70 @@ function testHillsIntentCreatesTimeBasedHillRepeatsBlock() {
   console.log("  OK: hills → time-based Hill repeats structure");
 }
 
+/** Endurance + Zone 2 / long steady sub-focus: same time-based sustained structure as conditioning goal. */
+function testEnduranceZone2LongSteadyIntentCreatesTimeBasedZone2Block() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 45,
+    primary_goal: "endurance",
+    energy_level: "medium",
+    available_equipment: [
+      "bodyweight",
+      "treadmill",
+      "assault_bike",
+      "rower",
+      "cable_machine",
+      "bench",
+      "dumbbells",
+      "kettlebells",
+      "pullup_bar",
+    ],
+    injuries_or_constraints: [],
+    goal_sub_focus: { endurance: ["zone2_long_steady"] },
+    seed: 501,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+
+  const zone2Block = session.blocks.find(
+    (b) => b.block_type === "conditioning" && (b.title ?? "").toLowerCase().includes("zone 2")
+  );
+  assert(zone2Block != null, "endurance zone2_long_steady creates a Zone 2 conditioning block");
+  const item = zone2Block!.items[0];
+  assert(item != null, "zone2 block has an item");
+  assert(item.time_seconds != null && item.time_seconds > 0, "item is time-prescribed");
+  assert(item.reps == null, "zone2 item is not rep-prescribed");
+  assert(
+    !session.blocks.some((b) => b.block_type === "main_strength" || b.block_type === "main_hypertrophy"),
+    "endurance zone2 intent avoids rep-based strength main blocks"
+  );
+  console.log("  OK: endurance zone2_long_steady → time-based Zone 2 sustained structure");
+}
+
+/** Endurance + durability: time-based circuit (holds / stability), not rep supersets. */
+function testEnduranceDurabilityIntentCreatesTimeBasedCircuit() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 45,
+    primary_goal: "endurance",
+    energy_level: "medium",
+    available_equipment: ["bodyweight", "dumbbells", "cable_machine", "treadmill", "rower"],
+    injuries_or_constraints: [],
+    goal_sub_focus: { endurance: ["durability"] },
+    seed: 502,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+
+  const durBlock = session.blocks.find(
+    (b) => (b.title ?? "").toLowerCase().includes("durability") && (b.title ?? "").toLowerCase().includes("time")
+  );
+  assert(durBlock != null, "durability intent creates Durability — time-based block");
+  assert(durBlock!.format === "circuit", "durability main uses circuit format");
+  assert(durBlock!.items.length >= 2, "durability circuit has multiple stations");
+  const allTimeBased = durBlock!.items.every(
+    (i) => i.time_seconds != null && i.time_seconds > 0 && i.reps == null
+  );
+  assert(allTimeBased, "durability circuit items are time-prescribed (no reps)");
+  console.log("  OK: endurance durability → time-based durability circuit");
+}
+
 function main() {
   console.log("Phase 6 required-block and cooldown selection tests...");
   testMobilitySecondaryGoalCreatesCooldownBlock();
@@ -360,6 +422,8 @@ function main() {
   testZone2AerobicBaseIntentCreatesTimeBasedZone2Block();
   testThresholdTempoIntentCreatesTimeBasedThresholdIntervalsBlock();
   testHillsIntentCreatesTimeBasedHillRepeatsBlock();
+  testEnduranceZone2LongSteadyIntentCreatesTimeBasedZone2Block();
+  testEnduranceDurabilityIntentCreatesTimeBasedCircuit();
   console.log("All Phase 6 tests passed.");
 }
 

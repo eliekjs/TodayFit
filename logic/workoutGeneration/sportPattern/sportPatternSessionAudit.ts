@@ -5,12 +5,17 @@
 
 import type { WorkoutBlock } from "../../../lib/types";
 import type { Exercise } from "../types";
-import { getAlpineSkiingPatternCategoriesForExercise } from "../sportPatternTransfer/alpineSkiingExerciseCategories";
 import { getHikingPatternCategoriesForExercise } from "../sportPatternTransfer/hikingExerciseCategories";
 import { getTrailRunningPatternCategoriesForExercise } from "../sportPatternTransfer/trailRunningExerciseCategories";
-import { isSignatureAlpineMovement } from "../sportPatternTransfer/alpineSkiingQualityScoring";
+import { getSnowSportPatternCategoriesForExercise } from "../sportPatternTransfer/snowSportFamily/snowSportExerciseCategories";
+import { getRockClimbingPatternCategoriesForExercise } from "../sportPatternTransfer/rockClimbingExerciseCategories";
+import { isSignatureSnowSportMovement } from "../sportPatternTransfer/snowSportFamily/snowSportQualityScoring";
+import type { SnowSportKind } from "../sportPatternTransfer/snowSportFamily/snowSportTypes";
 import { isSignatureHikingMovement } from "../sportPatternTransfer/hikingQualityScoring";
 import { isSignatureTrailMovement } from "../sportPatternTransfer/trailRunningQualityScoring";
+import { isSignatureRunningMovement } from "../sportPatternTransfer/runningFamily/runningQualityScoring";
+import { getSoccerPatternCategoriesForExercise } from "../sportPatternTransfer/fieldSportFamily/soccerExerciseCategories";
+import { isSignatureSoccerMovement } from "../sportPatternTransfer/fieldSportFamily/soccerQualityScoring";
 
 const MAIN_BLOCK_PREFIXES = ["main_", "secondary_main_", "power"];
 
@@ -84,7 +89,7 @@ function mergeRecord(into: Record<string, number>, key: string, n = 1): void {
 }
 
 export type SportPatternSessionSummary = {
-  sport_slug: "hiking_backpacking" | "trail_running" | "alpine_skiing";
+  sport_slug: "hiking_backpacking" | "road_running" | "trail_running" | "soccer" | SnowSportKind | "rock_climbing";
   /** Top-N category slugs for main-work blocks (frequency). */
   main_category_hits: Record<string, number>;
   accessory_category_hits: Record<string, number>;
@@ -206,22 +211,13 @@ export function summarizeTrailRunningSportPatternSession(
   };
 }
 
-export function summarizeAlpineSkiingSportPatternSession(
+export function summarizeRoadRunningSportPatternSession(
   blocks: WorkoutBlock[],
   exerciseById: Map<string, Exercise>
 ): SportPatternSessionSummary {
-  const main_category_hits = summarizeCategoriesForBlocks(
-    blocks,
-    exerciseById,
-    getAlpineSkiingPatternCategoriesForExercise,
-    isMainBlock
-  );
-  const accessory_category_hits = summarizeCategoriesForBlocks(
-    blocks,
-    exerciseById,
-    getAlpineSkiingPatternCategoriesForExercise,
-    isAccessoryBlock
-  );
+  const getCats = (ex: Exercise) => getTrailRunningPatternCategoriesForExercise(ex) as Set<string>;
+  const main_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isMainBlock);
+  const accessory_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isAccessoryBlock);
   const conditioning_exercise_ids: string[] = [];
   let signature_pattern_selections = 0;
   let non_signature_selections = 0;
@@ -234,14 +230,13 @@ export function summarizeAlpineSkiingSportPatternSession(
       if (!ex) continue;
       if (isConditioningBlock(b.block_type)) conditioning_exercise_ids.push(ex.id);
       bumpOverlapFamilies(ex, overlap_families);
-      const sig = isSignatureAlpineMovement(ex);
-      if (sig) signature_pattern_selections += 1;
+      if (isSignatureRunningMovement(ex, "road_running")) signature_pattern_selections += 1;
       else non_signature_selections += 1;
     }
   }
 
   return {
-    sport_slug: "alpine_skiing",
+    sport_slug: "road_running",
     main_category_hits,
     accessory_category_hits,
     conditioning_exercise_ids,
@@ -249,6 +244,129 @@ export function summarizeAlpineSkiingSportPatternSession(
     non_signature_selections,
     overlap_families,
   };
+}
+
+export function summarizeSoccerSportPatternSession(
+  blocks: WorkoutBlock[],
+  exerciseById: Map<string, Exercise>
+): SportPatternSessionSummary {
+  const getCats = (ex: Exercise) => getSoccerPatternCategoriesForExercise(ex) as Set<string>;
+  const main_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isMainBlock);
+  const accessory_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isAccessoryBlock);
+  const conditioning_exercise_ids: string[] = [];
+  let signature_pattern_selections = 0;
+  let non_signature_selections = 0;
+  const overlap_families = emptyOverlap();
+
+  for (const b of blocks) {
+    if (b.block_type === "warmup" || b.block_type === "cooldown") continue;
+    for (const it of b.items) {
+      const ex = exerciseById.get(it.exercise_id);
+      if (!ex) continue;
+      if (isConditioningBlock(b.block_type)) conditioning_exercise_ids.push(ex.id);
+      bumpOverlapFamilies(ex, overlap_families);
+      if (isSignatureSoccerMovement(ex)) signature_pattern_selections += 1;
+      else non_signature_selections += 1;
+    }
+  }
+
+  return {
+    sport_slug: "soccer",
+    main_category_hits,
+    accessory_category_hits,
+    conditioning_exercise_ids,
+    signature_pattern_selections,
+    non_signature_selections,
+    overlap_families,
+  };
+}
+
+/** Aggregates snow-family pattern categories and signatures for debug / cross-sport comparison. */
+export function summarizeSnowSportPatternSession(
+  kind: SnowSportKind,
+  blocks: WorkoutBlock[],
+  exerciseById: Map<string, Exercise>
+): SportPatternSessionSummary {
+  const getCats = (ex: Exercise) => getSnowSportPatternCategoriesForExercise(ex) as Set<string>;
+  const main_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isMainBlock);
+  const accessory_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isAccessoryBlock);
+  const conditioning_exercise_ids: string[] = [];
+  let signature_pattern_selections = 0;
+  let non_signature_selections = 0;
+  const overlap_families = emptyOverlap();
+
+  for (const b of blocks) {
+    if (b.block_type === "warmup" || b.block_type === "cooldown") continue;
+    for (const it of b.items) {
+      const ex = exerciseById.get(it.exercise_id);
+      if (!ex) continue;
+      if (isConditioningBlock(b.block_type)) conditioning_exercise_ids.push(ex.id);
+      bumpOverlapFamilies(ex, overlap_families);
+      const sig = isSignatureSnowSportMovement(ex, kind);
+      if (sig) signature_pattern_selections += 1;
+      else non_signature_selections += 1;
+    }
+  }
+
+  return {
+    sport_slug: kind,
+    main_category_hits,
+    accessory_category_hits,
+    conditioning_exercise_ids,
+    signature_pattern_selections,
+    non_signature_selections,
+    overlap_families,
+  };
+}
+
+export function summarizeRockClimbingSportPatternSession(
+  blocks: WorkoutBlock[],
+  exerciseById: Map<string, Exercise>
+): SportPatternSessionSummary {
+  const getCats = (ex: Exercise) => getRockClimbingPatternCategoriesForExercise(ex) as Set<string>;
+  const main_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isMainBlock);
+  const accessory_category_hits = summarizeCategoriesForBlocks(blocks, exerciseById, getCats, isAccessoryBlock);
+  const conditioning_exercise_ids: string[] = [];
+  let signature_pattern_selections = 0;
+  let non_signature_selections = 0;
+  const overlap_families = emptyOverlap();
+
+  const looksSignature = (ex: Exercise): boolean => {
+    const c = getRockClimbingPatternCategoriesForExercise(ex);
+    if (c.has("vertical_pull_transfer")) return true;
+    if (c.has("horizontal_pull_transfer") && (c.has("unilateral_pull_brace") || c.has("grip_hang_support"))) return true;
+    return false;
+  };
+
+  for (const b of blocks) {
+    if (b.block_type === "warmup" || b.block_type === "cooldown") continue;
+    for (const it of b.items) {
+      const ex = exerciseById.get(it.exercise_id);
+      if (!ex) continue;
+      if (isConditioningBlock(b.block_type)) conditioning_exercise_ids.push(ex.id);
+      bumpOverlapFamilies(ex, overlap_families);
+      if (looksSignature(ex)) signature_pattern_selections += 1;
+      else non_signature_selections += 1;
+    }
+  }
+
+  return {
+    sport_slug: "rock_climbing",
+    main_category_hits,
+    accessory_category_hits,
+    conditioning_exercise_ids,
+    signature_pattern_selections,
+    non_signature_selections,
+    overlap_families,
+  };
+}
+
+/** @deprecated Prefer `summarizeSnowSportPatternSession("alpine_skiing", …)` — kept for call-site stability. */
+export function summarizeAlpineSkiingSportPatternSession(
+  blocks: WorkoutBlock[],
+  exerciseById: Map<string, Exercise>
+): SportPatternSessionSummary {
+  return summarizeSnowSportPatternSession("alpine_skiing", blocks, exerciseById);
 }
 
 /** Top keys by count for compact debug. */

@@ -1,47 +1,39 @@
 /**
- * Trail-running sport-pattern integration (framework + trail-local hooks).
+ * Trail-running sport-pattern integration — delegates to `runningFamily/runningSession` (trail_running kind).
  */
 
 import { getCanonicalSportSlug } from "../../../data/sportSubFocus/canonicalSportSlug";
 import type { WorkoutBlock } from "../../../lib/types";
 import type { Exercise, GenerateWorkoutInput } from "../types";
-import {
-  buildSportCoverageContext,
-  collectBlocksExerciseIdsByType,
-  computeSportPatternSlotScoreAdjustment,
-  gatePoolForSportSlot,
-  getSportPatternSlotRuleForBlockType,
-  type SportPatternSlotScoreWeights,
-} from "../sportPattern/framework";
+import { buildSportCoverageContext, collectBlocksExerciseIdsByType } from "../sportPattern/framework";
 import {
   addExerciseToTrailRunningSessionCounts,
   computeTrailRunningEmphasisBucket,
   computeTrailRunningWithinPoolQualityScore,
   isSignatureTrailMovement,
 } from "./trailRunningQualityScoring";
-import {
-  evaluateTrailMinimumCoverage,
-  trailSportSelectionRules,
-} from "./trailRunningRules";
+import { evaluateTrailMinimumCoverage } from "./trailRunningRules";
 import {
   exerciseMatchesAnyTrailRunningCategory,
   getTrailRunningPatternCategoriesForExercise,
   isExcludedFromTrailMainWorkSlot,
 } from "./trailRunningExerciseCategories";
+import {
+  computeRunningPatternScoreAdjustment,
+  findBestRunningMainWorkReplacement,
+  findBestRunningReplacement,
+  gatePoolForRunningSlot,
+  getRunningSlotRuleForBlockType,
+  TRAIL_SCORE_DEPRIORITIZED,
+  TRAIL_SCORE_MATCH_GATE,
+  TRAIL_SCORE_MATCH_PREFER,
+} from "./runningFamily/runningSession";
 import type { SportPatternSlotRule } from "../sportPattern/framework/types";
 import type { TrailRunningSessionEnforcementSnapshot, TrailRunningTransferItemDebug } from "./trailRunningTypes";
 
 export { buildSportCoverageContext, collectBlocksExerciseIdsByType };
 
-export const TRAIL_SCORE_MATCH_GATE = 4.2;
-export const TRAIL_SCORE_MATCH_PREFER = 2.4;
-export const TRAIL_SCORE_DEPRIORITIZED = 3.8;
-
-const TRAIL_SLOT_SCORE_WEIGHTS: SportPatternSlotScoreWeights = {
-  matchGateFallback: TRAIL_SCORE_MATCH_GATE,
-  matchPrefer: TRAIL_SCORE_MATCH_PREFER,
-  deprioritized: TRAIL_SCORE_DEPRIORITIZED,
-};
+export { TRAIL_SCORE_MATCH_GATE, TRAIL_SCORE_MATCH_PREFER, TRAIL_SCORE_DEPRIORITIZED };
 
 export function primarySportIsTrailRunning(input: GenerateWorkoutInput): boolean {
   const raw = input.sport_slugs?.[0];
@@ -66,7 +58,7 @@ export function trailRunningPatternTransferApplies(input: GenerateWorkoutInput):
 }
 
 export function getTrailRunningSlotRuleForBlockType(blockType: string): SportPatternSlotRule | undefined {
-  return getSportPatternSlotRuleForBlockType(blockType, trailSportSelectionRules.slots);
+  return getRunningSlotRuleForBlockType("trail_running", blockType);
 }
 
 export function gatePoolForTrailRunningSlot(
@@ -74,15 +66,7 @@ export function gatePoolForTrailRunningSlot(
   blockType: string,
   options?: { applyMainWorkExclusions?: boolean; requiredCount?: number }
 ): import("./types").HikingGateResult {
-  const rule = getTrailRunningSlotRuleForBlockType(blockType);
-  return gatePoolForSportSlot(fullPool, blockType, rule, options, {
-    exerciseMatchesGate: (ex, gateCategories) =>
-      exerciseMatchesAnyTrailRunningCategory(ex, gateCategories),
-    refineGatedPoolForMainWork: ({ gated, rawCategoryMatches }) => {
-      const withoutSkillNoise = gated.filter((e) => !isExcludedFromTrailMainWorkSlot(e));
-      return withoutSkillNoise.length > 0 ? withoutSkillNoise : rawCategoryMatches;
-    },
-  });
+  return gatePoolForRunningSlot(fullPool, blockType, "trail_running", options);
 }
 
 export function isValidTrailMainWorkExercise(ex: Exercise): boolean {
@@ -97,19 +81,8 @@ export function computeTrailRunningPatternScoreAdjustment(
   ex: Exercise,
   rule: SportPatternSlotRule,
   mode?: "gated" | "fallback"
-): {
-  delta: number;
-  matchedGate: boolean;
-  matchedPrefer: boolean;
-  matchedDeprioritized: boolean;
-} {
-  return computeSportPatternSlotScoreAdjustment(
-    ex,
-    rule,
-    mode,
-    (e) => getTrailRunningPatternCategoriesForExercise(e) as Set<string>,
-    TRAIL_SLOT_SCORE_WEIGHTS
-  );
+) {
+  return computeRunningPatternScoreAdjustment(ex, rule, mode, "trail_running");
 }
 
 export function evaluateTrailCoverageForBlocks(
@@ -212,42 +185,9 @@ export function findBestTrailRunningReplacement(
   categories: readonly string[],
   excludeIds: Set<string>
 ): Exercise | undefined {
-  const candidates = pool.filter(
-    (e) => !excludeIds.has(e.id) && exerciseMatchesAnyTrailRunningCategory(e, categories)
-  );
-  if (candidates.length === 0) return undefined;
-  candidates.sort((a, b) => {
-    const ca = getTrailRunningPatternCategoriesForExercise(a);
-    const cb = getTrailRunningPatternCategoriesForExercise(b);
-    const score = (s: Set<string>) => categories.filter((c) => s.has(c)).length;
-    return score(cb) - score(ca);
-  });
-  return candidates[0];
+  return findBestRunningReplacement(pool, categories, excludeIds);
 }
 
 export function findBestTrailMainWorkReplacement(pool: Exercise[], excludeIds: Set<string>): Exercise | undefined {
-  const rule = getTrailRunningSlotRuleForBlockType("main_strength");
-  if (!rule) return undefined;
-  const strict = pool.filter(
-    (e) =>
-      !excludeIds.has(e.id) &&
-      exerciseMatchesAnyTrailRunningCategory(e, rule.gateMatchAnyOf) &&
-      !isExcludedFromTrailMainWorkSlot(e)
-  );
-  const pick = (candidates: Exercise[]) => {
-    if (candidates.length === 0) return undefined;
-    candidates.sort((a, b) => {
-      const ca = getTrailRunningPatternCategoriesForExercise(a);
-      const cb = getTrailRunningPatternCategoriesForExercise(b);
-      const score = (s: Set<string>) => rule.gateMatchAnyOf.filter((c) => s.has(c)).length;
-      return score(cb) - score(ca);
-    });
-    return candidates[0];
-  };
-  const bestStrict = pick(strict);
-  if (bestStrict) return bestStrict;
-  const loose = pool.filter(
-    (e) => !excludeIds.has(e.id) && exerciseMatchesAnyTrailRunningCategory(e, rule.gateMatchAnyOf)
-  );
-  return pick(loose);
+  return findBestRunningMainWorkReplacement(pool, excludeIds, "trail_running");
 }

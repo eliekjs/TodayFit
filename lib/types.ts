@@ -24,6 +24,15 @@ export type BodyEmphasisKey =
   | "core"
   | "none";
 
+/** Human-readable adaptive setup (for summaries — not the same as generator energy defaults). */
+export type AdaptiveScheduleLabels = {
+  fatigue: string;
+  horizonLabel: string;
+  recentLoad: string;
+  injuryStatus: string;
+  injuryAreas?: string[];
+};
+
 /** Specific body-part focus for a day (e.g. glutes, shoulders, back, core). Used in titles and exercise selection. */
 export type SpecificBodyFocusKey =
   | "glutes"
@@ -205,6 +214,7 @@ export type BlockType =
   | "warmup"
   | "main_strength"
   | "main_hypertrophy"
+  | "accessory"
   | "power"
   | "conditioning"
   | "skill"
@@ -255,6 +265,8 @@ export type GeneratedWorkout = {
   energyLevel: EnergyLevel | null;
   notes?: string;
   blocks: WorkoutBlock[];
+  /** Preferences used to generate this workout (accurate summary; avoids showing implicit defaults as “selected”). */
+  generationPreferences?: ManualPreferences;
 };
 
 /** In-memory manual week: 7 generated workouts keyed by date. */
@@ -315,10 +327,27 @@ export function formatSupersetPairLabel(pair: [WorkoutItem, WorkoutItem]): strin
  * Normalize a workout that may be legacy (sections) or block-based (blocks) into GeneratedWorkout with blocks.
  */
 export function normalizeGeneratedWorkout(
-  workout: { id: string; focus: string[]; durationMinutes: number | null; energyLevel: EnergyLevel | null; notes?: string; sections?: WorkoutSection[]; blocks?: WorkoutBlock[] }
+  workout: {
+    id: string;
+    focus: string[];
+    durationMinutes: number | null;
+    energyLevel: EnergyLevel | null;
+    notes?: string;
+    generationPreferences?: ManualPreferences;
+    sections?: WorkoutSection[];
+    blocks?: WorkoutBlock[];
+  }
 ): GeneratedWorkout {
   if (workout.blocks?.length) {
-    return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks: workout.blocks };
+    return {
+      id: workout.id,
+      focus: workout.focus,
+      durationMinutes: workout.durationMinutes,
+      energyLevel: workout.energyLevel,
+      notes: workout.notes,
+      generationPreferences: workout.generationPreferences,
+      blocks: workout.blocks,
+    };
   }
   if (workout.sections?.length) {
     const blocks: WorkoutBlock[] = workout.sections.map((sec) => ({
@@ -340,9 +369,25 @@ export function normalizeGeneratedWorkout(
         { exercise_id: b.id, exercise_name: b.name, sets: 1, rest_seconds: 0, coaching_cues: b.prescription, reasoning_tags: [], tags: b.tags },
       ]),
     }));
-    return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks };
+    return {
+      id: workout.id,
+      focus: workout.focus,
+      durationMinutes: workout.durationMinutes,
+      energyLevel: workout.energyLevel,
+      notes: workout.notes,
+      generationPreferences: workout.generationPreferences,
+      blocks,
+    };
   }
-  return { id: workout.id, focus: workout.focus, durationMinutes: workout.durationMinutes, energyLevel: workout.energyLevel, notes: workout.notes, blocks: [] };
+  return {
+    id: workout.id,
+    focus: workout.focus,
+    durationMinutes: workout.durationMinutes,
+    energyLevel: workout.energyLevel,
+    notes: workout.notes,
+    generationPreferences: workout.generationPreferences,
+    blocks: [],
+  };
 }
 
 function mapSectionIdToBlockType(sectionId: string): BlockType {

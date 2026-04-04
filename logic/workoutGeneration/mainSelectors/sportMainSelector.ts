@@ -5,8 +5,10 @@
 
 import { getCanonicalSportSlug } from "../../../data/sportSubFocus";
 import { alpineSkiingPatternTransferApplies } from "../sportPatternTransfer/alpineSkiingSession";
+import { rockClimbingPatternTransferApplies } from "../sportPatternTransfer/rockClimbingSession";
 import type { GenerateWorkoutInput } from "../types";
 import { createAlpineSportMainHandles } from "./alpineSportMainHandles";
+import { createRockClimbingSportMainHandles } from "./climbingSportMainHandles";
 import type { SportMainHandles, SportMainSelectorDeps } from "./types";
 
 /**
@@ -19,6 +21,9 @@ export function sportMainSelector(
 ): SportMainHandles | undefined {
   if (!sportSlug) return undefined;
   const canonical = getCanonicalSportSlug(sportSlug);
+  if (canonical === "rock_climbing" && rockClimbingPatternTransferApplies(input)) {
+    return createRockClimbingSportMainHandles(deps);
+  }
   if (canonical !== "alpine_skiing") return undefined;
   if (!alpineSkiingPatternTransferApplies(input)) return undefined;
   return createAlpineSportMainHandles(deps);

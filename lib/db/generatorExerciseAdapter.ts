@@ -16,7 +16,13 @@ import { mergePhase5MobilityStretchOntologyIntoExercise } from "../exerciseMetad
 import { mergePhase6RepRangeOntologyIntoExercise } from "../exerciseMetadata/phase6RepRangeInference";
 import { mergePhase7WarmupCooldownRelevanceIntoExercise } from "../exerciseMetadata/phase7WarmupCooldownRelevanceInference";
 import { mergePhase8UnilateralOntologyIntoExercise } from "../exerciseMetadata/phase8UnilateralInference";
-import { inferCreativeVariationFromSource, inferWorkoutLevelsFromSource } from "../workoutLevel";
+import {
+  inferCreativeVariationFromSource,
+  inferWorkoutLevelsFromExtendedSource,
+  inferWorkoutLevelsWithExplanation,
+  isWorkoutLevelsDebugEnabled,
+  parseWorkoutLevelsFromDb,
+} from "../workoutLevel";
 import {
   getLegacyMovementPattern,
   mergeJointStressForTags,
@@ -64,6 +70,8 @@ export type ExerciseRowWithOntology = {
   grip_demand?: string | null;
   impact_level?: string | null;
   secondary_muscle_groups?: string[] | null;
+  /** Durable tiers from `public.exercises.workout_levels` when present. */
+  workout_levels?: string[] | null;
 };
 
 const VALID_MODALITIES: Modality[] = [
@@ -320,8 +328,34 @@ export function mapDbExerciseToGeneratorExercise(
 
   mergePhase8UnilateralOntologyIntoExercise(exercise, inferenceInput);
 
-  const levelSource = { id: row.slug, name: row.name, tags: tagSlugs };
-  exercise.workout_level_tags = inferWorkoutLevelsFromSource(levelSource);
+  const explicitLevels = parseWorkoutLevelsFromDb(row.workout_levels ?? undefined);
+  if (explicitLevels?.length) {
+    exercise.workout_levels_from_db = explicitLevels;
+  }
+  const levelSource = {
+    id: row.slug,
+    name: row.name,
+    tags: tagSlugs,
+    workout_levels: explicitLevels,
+    stability_demand: exercise.stability_demand,
+    grip_demand: exercise.grip_demand,
+    impact_level: exercise.impact_level,
+    modality: exercise.modality,
+    movement_pattern: exercise.movement_pattern,
+    difficulty: exercise.difficulty,
+    unilateral: exercise.unilateral,
+    attribute_tags: exercise.tags.attribute_tags,
+    equipment_required: exercise.equipment_required,
+  };
+  exercise.workout_level_tags = inferWorkoutLevelsFromExtendedSource(levelSource);
+  if (isWorkoutLevelsDebugEnabled()) {
+    const explained = inferWorkoutLevelsWithExplanation(levelSource);
+    exercise.workout_levels_meta = {
+      origin: explained.origin,
+      reasons: explained.reasons,
+      ...(explained.complexityScore != null ? { complexityScore: explained.complexityScore } : {}),
+    };
+  }
   if (inferCreativeVariationFromSource(levelSource)) {
     exercise.creative_variation = true;
   }

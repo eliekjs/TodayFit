@@ -69,6 +69,8 @@ export type PlanWeekInput = {
   specificBodyPartBehavior?: import("../../lib/types").SpecificBodyPartBehavior | null;
   /** User-selected specific body-part emphasis (e.g. glutes, shoulders). Applied to relevant days per rules. */
   specificBodyPartEmphasis?: import("../../lib/types").SpecificBodyFocusKey[] | null;
+  /** Optional one-day body override from setup screens. */
+  dailyPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
 };
 
 /** Day-level focus for display and regeneration. Supports day-level editing. */
@@ -158,6 +160,7 @@ export type RegenerateDayInput = {
   userId?: string | null;
   weeklyPlanInstanceId: string;
   date: string; // ISO
+  /** Same profile as `planWeek`; required for equipment-aware pools (omit → weak / empty generation). */
   gymProfile?: GymProfile;
   energyOverride?: EnergyLevel;
   sportSlug?: string | null;
@@ -180,6 +183,8 @@ export type RegenerateDayInput = {
   recentLoad?: string;
   /** Injury/constraint labels (normalized or display) so generation excludes contraindicated exercises. */
   injuries?: string[];
+  /** Per–primary-focus sub-goals (same shape as `planWeek` / `buildWorkoutForSlot`). */
+  subFocusByGoal?: Record<string, string[]>;
   /** Plan-level tier when dailyPreferences does not override workoutTier. */
   workoutTier?: import("../../lib/types").WorkoutTierPreference;
   /** Plan-level creative variations when dailyPreferences does not override. */
@@ -428,70 +433,57 @@ function sessionIntentForSport(
   durationMinutes: number,
   energy: EnergyLevel
 ): SessionIntent {
-  // Vertical jump / dunk: bias toward power and lower-body so selection yields jump-specific exercises (plyos, squats, etc.).
-  const isVerticalJump = sportSlug === "vertical_jump";
+  const canonical = getCanonicalSportSlug(sportSlug);
   // Cycling (road + mountain): bias toward lower-body + core so selection yields cycling-support exercises (leg strength, core, zone 2).
-  const isCycling = sportSlug === "cycling" || sportSlug === "cycling_road" || sportSlug === "cycling_mtb";
+  const isCycling = canonical === "cycling";
   // Hiking / backpacking: lower-body, single-leg, ankle stability, load carriage.
-  const isHikingBackpacking = sportSlug === "hiking_backpacking";
+  const isHikingBackpacking = canonical === "hiking_backpacking";
   // Backcountry skiing / splitboarding: lower-body, uphill endurance, leg strength, core.
-  const isBackcountrySkiing = getCanonicalSportSlug(sportSlug) === "backcountry_skiing";
+  const isBackcountrySkiing = canonical === "backcountry_skiing";
   // Alpine (downhill) skiing: lower-body, eccentric control, knee/ankle stability.
-  const isAlpineSkiing = sportSlug === "alpine_skiing";
+  const isAlpineSkiing = canonical === "alpine_skiing";
   // Snowboarding: lower-body, balance, core, lateral stability.
-  const isSnowboarding = sportSlug === "snowboarding";
+  const isSnowboarding = canonical === "snowboarding";
   // Rock climbing (bouldering, sport/lead, trad): upper-body pull, grip, core.
-  const isRockClimbing = sportSlug === "rock_climbing" || sportSlug === "rock_bouldering" || sportSlug === "rock_sport_lead" || sportSlug === "rock_trad";
+  const isRockClimbing = canonical === "rock_climbing";
   // Ice climbing: upper-body pull, grip, shoulder, core.
   const isIceClimbing = sportSlug === "ice_climbing";
   // Road running: bias toward lower-body + core and leg resilience so selection yields running-support exercises.
-  const isRoadRunning = sportSlug === "road_running";
+  const isRoadRunning = canonical === "road_running";
   // Swimming: bias toward upper-body pull and core so selection yields swim-support exercises (pull, scapular, core).
-  const isSwimming = sportSlug === "swimming_open_water";
+  const isSwimming = canonical === "swimming_open_water";
   // Trail running: bias toward lower-body, single-leg, eccentric and ankle so selection yields trail-support exercises.
-  const isTrailRunning = sportSlug === "trail_running";
+  const isTrailRunning = canonical === "trail_running";
   // Triathlon: full-body support (swim pull + bike/run legs + core); no strict body bias so tag ranking drives mix.
-  const isTriathlon = sportSlug === "triathlon";
+  const isTriathlon = canonical === "triathlon";
   // XC (Nordic) skiing: full-body (double pole + leg drive + core); no strict body bias so tag ranking drives mix.
-  const isXcSkiing = sportSlug === "xc_skiing";
-  // Hyrox: full-body (run + row, sled, burpees, carry, etc.); tag ranking drives mix.
-  const isHyrox = sportSlug === "hyrox";
+  const isXcSkiing = canonical === "xc_skiing";
+  // Hyrox (+ legacy strongman/OCR/tactical/CrossFit slots): full-body mixed work.
+  const isHyrox = canonical === "hyrox";
   // Rowing / erg: full-body (leg drive + pull + core); tag ranking drives mix.
-  const isRowingErg = sportSlug === "rowing_erg";
+  const isRowingErg = canonical === "rowing_erg";
   // Rucking: lower-body, load carriage, core (same as hiking/backpacking).
-  const isRucking = sportSlug === "rucking";
-  // Spartan / OCR: full-body (run, grip, carries, obstacles).
-  const isOcrSpartan = sportSlug === "ocr_spartan";
-  // Ultra running: lower-body, durability, leg resilience (same as road/trail).
-  const isUltraRunning = sportSlug === "ultra_running";
-  // Tactical fitness: full-body (run, push, pull, core, carry).
-  const isTacticalFitness = sportSlug === "tactical_fitness";
-  // CrossFit: full-body (WOD-style mixed modal).
-  const isCrossfit = sportSlug === "crossfit";
-  // Powerlifting (general_strength): full-body (squat, bench, deadlift, accessory).
-  const isGeneralStrength = sportSlug === "general_strength";
-  // Bodybuilding: full-body (push, pull, legs, arms, core).
-  const isBodybuilding = sportSlug === "bodybuilding";
-  // Track sprinting / track & field: lower-body power, plyometrics, hamstring/tendon.
-  const isTrackSprinting = sportSlug === "track_sprinting" || sportSlug === "track_field";
+  const isRucking = canonical === "rucking";
+  // Bodybuilding / powerbuilding: full-body gym priorities.
+  const isBodybuilding = canonical === "bodybuilding";
+  const isPowerbuilding = canonical === "powerbuilding";
+  // Sprinting / track (includes legacy vertical-jump-as-sport): lower-body power and plyometrics.
+  const isTrackSprinting = canonical === "track_sprinting";
   // Volleyball (indoor + beach): lower-body (jump, land), core, shoulder.
-  const isVolleyball = sportSlug === "volleyball" || sportSlug === "volleyball_indoor" || sportSlug === "volleyball_beach";
+  const isVolleyball = canonical === "volleyball";
   // Racquet & court (tennis, pickleball, badminton, squash): full-body (lateral, rotation, shoulder).
-  const isCourtRacquet = sportSlug === "court_racquet" || sportSlug === "tennis" || sportSlug === "pickleball" || sportSlug === "badminton" || sportSlug === "squash";
+  const isCourtRacquet = canonical === "court_racquet";
   // Grappling (BJJ, Judo, MMA, Wrestling): full-body (grip, hip, pull, work capacity).
-  const isGrappling = sportSlug === "grappling" || sportSlug === "bjj" || sportSlug === "judo" || sportSlug === "mma" || sportSlug === "wrestling";
-  // Strongman: full-body (carries, overhead, deadlift, grip, trunk).
-  const isStrongman = sportSlug === "strongman";
+  const isGrappling = canonical === "grappling";
   return {
     id: `session_${date}_sport_${sportSlug}`,
     label: sportLabel,
-    focus: isVerticalJump
+    focus: isTrackSprinting
       ? ["Power & Explosiveness", "Sport Conditioning"]
       : ["Improve Endurance", "Sport Conditioning"],
     durationMinutes,
     energyLevel: energy,
     notes: `Sport-specific conditioning to support ${sportLabel}.`,
-    ...(isVerticalJump && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isCycling && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isHikingBackpacking && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isBackcountrySkiing && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
@@ -507,17 +499,11 @@ function sessionIntentForSport(
     ...(isHyrox && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
     ...(isRowingErg && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
     ...(isRucking && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
-    ...(isOcrSpartan && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
-    ...(isUltraRunning && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
-    ...(isTacticalFitness && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
-    ...(isCrossfit && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
-    ...(isGeneralStrength && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
-    ...(isBodybuilding && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
+    ...((isBodybuilding || isPowerbuilding) && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
     ...(isTrackSprinting && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isVolleyball && { bodyRegionBias: { targetBody: "Lower", targetModifier: [] } }),
     ...(isCourtRacquet && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
     ...(isGrappling && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
-    ...(isStrongman && { bodyRegionBias: { targetBody: "Full", targetModifier: [] } }),
   };
 }
 
@@ -835,6 +821,21 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       specificBodyPartBehavior: input.specificBodyPartBehavior ?? undefined,
     }
   );
+  const setupBodyOverride = bodyRegionBiasFromDailyPreferences(input.dailyPreferences);
+  if (setupBodyOverride) {
+    const firstGymIdx = daySlots.findIndex((slot) => slot.type === "gym");
+    if (firstGymIdx >= 0) {
+      const slot = daySlots[firstGymIdx] as Extract<DaySlot, { type: "gym" }>;
+      daySlots[firstGymIdx] = {
+        ...slot,
+        dayBias: {
+          intentKey: slot.dayBias?.intentKey ?? slot.key,
+          targetBody: setupBodyOverride.targetBody,
+          targetModifier: setupBodyOverride.targetModifier,
+        },
+      };
+    }
+  }
 
   const weekDates: string[] = [];
   for (let i = 0; i < 7; i += 1) {
@@ -1396,6 +1397,9 @@ export async function regenerateDay(
         bodyRegionBias,
         workoutTier: resolvedWorkoutTier,
         includeCreativeVariations: resolvedIncludeCreative,
+        ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
+          ? { subFocusByGoal: input.subFocusByGoal }
+          : {}),
         ...(regContractGuest ? { session_intent_contract: regContractGuest } : {}),
       }
     );
@@ -1492,6 +1496,9 @@ export async function regenerateDay(
       bodyRegionBias,
       workoutTier: resolvedWorkoutTier,
       includeCreativeVariations: resolvedIncludeCreative,
+      ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
+        ? { subFocusByGoal: input.subFocusByGoal }
+        : {}),
       ...(regContractDb ? { session_intent_contract: regContractDb } : {}),
     }
   );
