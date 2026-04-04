@@ -15,6 +15,7 @@ export type CreateWorkoutIntent = {
   durationMinutes?: number | null;
   energyLevel?: string | null;
   notes?: string;
+  generationPreferences?: import("../types").ManualPreferences;
   [key: string]: unknown;
 };
 
@@ -152,6 +153,7 @@ export async function getWorkout(userId: string, workoutId: string): Promise<Gen
       durationMinutes: (intent.durationMinutes as number) ?? null,
       energyLevel: (intent.energyLevel as GeneratedWorkout["energyLevel"]) ?? null,
       notes: intent.notes as string | undefined,
+      generationPreferences: intent.generationPreferences as GeneratedWorkout["generationPreferences"],
       blocks: [],
     };
   }
@@ -192,6 +194,7 @@ export async function getWorkout(userId: string, workoutId: string): Promise<Gen
     durationMinutes: (intent.durationMinutes as number) ?? null,
     energyLevel: (intent.energyLevel as GeneratedWorkout["energyLevel"]) ?? null,
     notes: intent.notes as string | undefined,
+    generationPreferences: intent.generationPreferences as GeneratedWorkout["generationPreferences"],
     blocks,
   };
 }
@@ -205,6 +208,7 @@ export async function saveGeneratedWorkout(userId: string, workout: GeneratedWor
     durationMinutes: workout.durationMinutes,
     energyLevel: workout.energyLevel,
     notes: workout.notes,
+    generationPreferences: workout.generationPreferences,
   });
   await addBlocksAndExercises(id, workout.blocks);
   return id;

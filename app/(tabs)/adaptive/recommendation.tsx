@@ -22,6 +22,11 @@ import { GOAL_SLUG_TO_LABEL, goalSubFocusPayloadForAdaptiveGoals } from "../../.
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
+import {
+  buildAdaptiveGoalsAndSportsLines,
+  buildAdaptiveScheduleContextLines,
+  buildDailyWorkoutPreferencesSummaryLines,
+} from "../../../lib/workoutPreferenceSummary";
 
 function humanizeSportSlug(slug: string): string {
   return slug
@@ -228,6 +233,7 @@ export default function AdaptiveWeekPlanScreen() {
             workoutTier: snapshot.workoutTier ?? manualPreferences.workoutTier ?? "intermediate",
             includeCreativeVariations:
               (snapshot.includeCreativeVariations ?? manualPreferences.includeCreativeVariations) === true,
+            adaptiveScheduleLabels: snapshot.adaptiveScheduleLabels,
           });
           setSportPrepWeekPlan(newPlan);
         } catch (e) {
@@ -661,6 +667,7 @@ export default function AdaptiveWeekPlanScreen() {
   };
 
   const summaryLines: string[] = [];
+  const scheduleSnap = sportPrepWeekPlan?.scheduleSnapshot;
   if (selectedWorkout?.focus?.length) {
     const raw =
       selectedDay?.dayLevelFocus?.displayTitle ?? selectedWorkout.focus.join(" • ");
@@ -670,9 +677,15 @@ export default function AdaptiveWeekPlanScreen() {
   if (selectedWorkout?.durationMinutes != null) {
     summaryLines.push(`${selectedWorkout.durationMinutes} min`);
   }
-  if (selectedWorkout?.energyLevel) {
-    const e = selectedWorkout.energyLevel;
-    summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
+  summaryLines.push(...buildAdaptiveGoalsAndSportsLines(scheduleSnap));
+  summaryLines.push(
+    ...buildAdaptiveScheduleContextLines({
+      labels: scheduleSnap?.adaptiveScheduleLabels,
+      weekEmphasis: scheduleSnap?.emphasis,
+    })
+  );
+  if (selectedDay?.preferences) {
+    summaryLines.push(...buildDailyWorkoutPreferencesSummaryLines(selectedDay.preferences));
   }
 
   /** Treat plans with a single training session as "one-day" for display. */

@@ -22,6 +22,14 @@ import { goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesCon
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+const TIME_HORIZON_LABELS: Record<string, string> = {
+  no_deadline: "No Deadline",
+  "1_3_weeks": "1–3 Weeks",
+  "4_8_weeks": "4–8 Weeks",
+  "2_4_months": "2–4 Months",
+  in_season: "In-Season",
+};
+
 const EMPHASIS_OPTIONS: { id: BodyEmphasisKey; label: string }[] = [
   { id: "none", label: "None" },
   { id: "upper_body", label: "Upper Body" },
@@ -139,6 +147,8 @@ export default function AdaptiveScheduleScreen() {
       energyFromFatigue(adaptiveSetup.fatigue),
       adaptiveSetup.horizon
     );
+    const horizonLabel =
+      TIME_HORIZON_LABELS[adaptiveSetup.horizon] ?? adaptiveSetup.horizon;
 
     const activeProfile =
       gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
@@ -207,6 +217,16 @@ export default function AdaptiveScheduleScreen() {
         emphasis: weeklyEmphasis ?? undefined,
         workoutTier: manualPreferences.workoutTier ?? "intermediate",
         includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
+        adaptiveScheduleLabels: {
+          fatigue: adaptiveSetup.fatigue,
+          horizonLabel,
+          recentLoad: adaptiveSetup.recentLoad,
+          injuryStatus: adaptiveSetup.injuryStatus,
+          ...(adaptiveSetup.injuryStatus !== "No Concerns" &&
+          adaptiveSetup.injuryTypes.length > 0
+            ? { injuryAreas: [...adaptiveSetup.injuryTypes] }
+            : {}),
+        },
       });
       setSportPrepWeekPlan(plan);
       setAdaptiveSetup(null);

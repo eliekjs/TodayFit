@@ -816,11 +816,12 @@ export default function ManualPreferencesScreen() {
                     selected={
                       manualPreferences.energyLevel === level.toLowerCase()
                     }
-                    onPress={() =>
+                    onPress={() => {
+                      const next = level.toLowerCase() as "low" | "medium" | "high";
                       updateManualPreferences({
-                        energyLevel: level.toLowerCase() as "low" | "medium" | "high",
-                      })
-                    }
+                        energyLevel: manualPreferences.energyLevel === next ? null : next,
+                      });
+                    }}
                   />
                 ))}
               </View>

@@ -32,6 +32,7 @@ import {
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../../lib/preferencesConstants";
+import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
@@ -731,15 +732,28 @@ export default function ManualWeekScreen() {
 
   const selectedDay = selectedSession;
   const summaryLines: string[] = [];
-  if (selectedDay?.workout.focus?.length) {
-    summaryLines.push(selectedDay.displayTitle ?? selectedDay.workout.focus.join(" • "));
-  }
-  if (selectedDay?.workout.durationMinutes != null) {
-    summaryLines.push(`${selectedDay.workout.durationMinutes} min`);
-  }
-  if (selectedDay?.workout.energyLevel) {
-    const e = selectedDay.workout.energyLevel;
-    summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
+  if (selectedDay) {
+    const head = selectedDay.displayTitle;
+    const snap = selectedDay.workout.generationPreferences;
+    if (snap) {
+      if (head) summaryLines.push(head);
+      summaryLines.push(
+        ...buildManualPreferenceSummaryLines(snap, { includePrimaryFocus: !head })
+      );
+    } else {
+      if (selectedDay.workout.focus?.length) {
+        summaryLines.push(head ?? selectedDay.workout.focus.join(" • "));
+      } else if (head) {
+        summaryLines.push(head);
+      }
+      if (selectedDay.workout.durationMinutes != null) {
+        summaryLines.push(`${selectedDay.workout.durationMinutes} min`);
+      }
+      if (selectedDay.workout.energyLevel) {
+        const e = selectedDay.workout.energyLevel;
+        summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
+      }
+    }
   }
 
   const scrollContent = (

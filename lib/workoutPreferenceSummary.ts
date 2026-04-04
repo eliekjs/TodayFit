@@ -1,4 +1,9 @@
+import { GOAL_SLUG_TO_LABEL } from "./preferencesConstants";
 import type { AdaptiveScheduleLabels, BodyEmphasisKey, DailyWorkoutPreferences, ManualPreferences } from "./types";
+
+function humanizeSportSlug(slug: string): string {
+  return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 function capitalizeWord(s: string): string {
   if (!s) return s;
@@ -151,6 +156,37 @@ export function buildAdaptiveScheduleContextLines(opts: {
   const em = opts.weekEmphasis;
   if (em != null && em !== "none") {
     lines.push(`Week emphasis: ${EMPHASIS_LABELS[em]}`);
+  }
+  return lines;
+}
+
+export function buildAdaptiveGoalsAndSportsLines(
+  snapshot:
+    | {
+        primaryGoalSlug: string;
+        secondaryGoalSlug?: string | null;
+        tertiaryGoalSlug?: string | null;
+        rankedSportSlugs?: string[];
+        sportSlug?: string | null;
+      }
+    | null
+    | undefined
+): string[] {
+  if (!snapshot) return [];
+  const lines: string[] = [];
+  const goals = [snapshot.primaryGoalSlug, snapshot.secondaryGoalSlug, snapshot.tertiaryGoalSlug].filter(
+    (g): g is string => g != null && g !== ""
+  );
+  if (goals.length > 0) {
+    lines.push(`Goals: ${goals.map((g) => GOAL_SLUG_TO_LABEL[g] ?? humanizeSportSlug(g)).join(", ")}`);
+  }
+  const sports = snapshot.rankedSportSlugs?.length
+    ? snapshot.rankedSportSlugs
+    : snapshot.sportSlug
+      ? [snapshot.sportSlug]
+      : [];
+  if (sports.length > 0) {
+    lines.push(`Sports: ${sports.map(humanizeSportSlug).join(" • ")}`);
   }
   return lines;
 }

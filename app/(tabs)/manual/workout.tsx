@@ -19,6 +19,7 @@ import type { BlockType } from "../../../lib/types";
 import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
 import { isDbConfigured } from "../../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
+import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -69,16 +70,21 @@ export default function ManualWorkoutScreen() {
     );
   }
 
-  const summaryLines: string[] = [];
-  if (generatedWorkout.focus.length > 0) {
-    summaryLines.push(generatedWorkout.focus.join(" • "));
-  }
-  if (generatedWorkout.durationMinutes != null) {
-    summaryLines.push(`${generatedWorkout.durationMinutes} min`);
-  }
-  if (generatedWorkout.energyLevel != null) {
-    const e = generatedWorkout.energyLevel;
-    summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
+  const prefsForSummary =
+    generatedWorkout.generationPreferences ?? manualPreferences;
+  let summaryLines = buildManualPreferenceSummaryLines(prefsForSummary);
+  if (summaryLines.length === 0) {
+    summaryLines = [];
+    if (generatedWorkout.focus.length > 0) {
+      summaryLines.push(generatedWorkout.focus.join(" • "));
+    }
+    if (generatedWorkout.durationMinutes != null) {
+      summaryLines.push(`${generatedWorkout.durationMinutes} min`);
+    }
+    if (generatedWorkout.energyLevel != null) {
+      const e = generatedWorkout.energyLevel;
+      summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
+    }
   }
 
   const onRegenerate = async () => {

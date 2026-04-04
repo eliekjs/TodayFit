@@ -304,6 +304,8 @@ export default function AdaptiveModeScreen() {
             return level;
           };
           const energyBaseline = energyFromHorizon(energyFromFatigue(fatigue), horizon);
+          const horizonLabel =
+            TIME_HORIZON_OPTIONS.find((o) => o.id === horizon)?.label ?? horizon;
           const activeProfile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
           const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
           const todayDOW = (new Date().getDay() + 6) % 7;
@@ -348,6 +350,15 @@ export default function AdaptiveModeScreen() {
             workoutTier: manualPreferences.workoutTier ?? "intermediate",
             includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
             dailyPreferences: { bodyRegionBias: oneDayBodyBias },
+            adaptiveScheduleLabels: {
+              fatigue,
+              horizonLabel,
+              recentLoad,
+              injuryStatus,
+              ...(injuryStatus !== "No Concerns" && injuryTypes.length > 0
+                ? { injuryAreas: [...injuryTypes] }
+                : {}),
+            },
           });
           setSportPrepWeekPlan(plan);
           setAdaptiveSetup(null);

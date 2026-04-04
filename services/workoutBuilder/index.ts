@@ -9,7 +9,11 @@ import type { GymProfile } from "../../data/gymProfiles";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { isDbConfigured } from "../../lib/db";
 import { getPreferredExerciseNamesForSportAndGoals } from "../../lib/db/starterExerciseRepository";
-import { hashString, type SportGoalContext } from "../../lib/dailyGeneratorAdapter";
+import {
+  createWorkoutGenerationEntropy,
+  hashString,
+  type SportGoalContext,
+} from "../../lib/dailyGeneratorAdapter";
 import type { SessionIntentContract } from "../../logic/workoutGeneration/sessionIntentContract";
 
 export type { SessionIntentContract };
@@ -162,11 +166,14 @@ export async function buildWorkoutForSessionIntent(
       : undefined;
 
   const baseSeed = seedExtra ?? intent.id;
+  /** Varies each build so top-tier exercise pools are sampled differently (dailyGenerator RNG is seeded). */
+  const runEntropy = createWorkoutGenerationEntropy();
   const resolvedSeed: string | number =
     hasGoals || hasSport
       ? hashString(
           JSON.stringify({
             base: baseSeed,
+            runEntropy,
             focus: intent.focus,
             goalSlugs: options?.goalSlugs ?? [],
             goalWeightsPct: options?.goalWeightsPct ?? [],
@@ -180,7 +187,7 @@ export async function buildWorkoutForSessionIntent(
             sessionIntentContractType: options?.session_intent_contract?.sessionType ?? null,
           })
         )
-      : baseSeed;
+      : hashString(`${String(baseSeed)}:${runEntropy}`);
 
   const { generateWorkoutAsync } = await loadGeneratorModule();
   const workout = await generateWorkoutAsync(

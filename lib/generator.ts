@@ -48,6 +48,8 @@ import { pickBestSupersetPairs } from "../logic/workoutIntelligence/supersetPair
 import type { PairingInput } from "../logic/workoutIntelligence/supersetPairing";
 import { generateWorkoutSession } from "../logic/workoutGeneration/dailyGenerator";
 import {
+  cloneManualPreferencesSnapshot,
+  createWorkoutGenerationEntropy,
   exerciseDefinitionToGeneratorExercise,
   manualPreferencesToGenerateWorkoutInput,
   workoutSessionToGeneratedWorkout,
@@ -887,6 +889,7 @@ export function generateWorkout(
     durationMinutes,
     energyLevel: preferences.energyLevel,
     notes: notes.length ? notes.join(" • ") : undefined,
+    generationPreferences: cloneManualPreferencesSnapshot(preferences),
     blocks,
   };
 }
@@ -897,6 +900,7 @@ export function generateWorkout(
  * filtering happen inside `generateWorkoutSession` (`filterByHardConstraints` + constraints).
  * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when scoring.
  * When sportGoalContext is provided (e.g. from adaptive/sport-prep), sport_slugs, sport_sub_focus, goal_weights, and sport_weight are passed to the daily generator.
+ * When `seedExtra` is omitted, a fresh entropy token is used so repeated runs with the same preferences produce different workouts (explicit `seedExtra` keeps deterministic output for tests / replay).
  */
 export async function generateWorkoutAsync(
   preferences: ManualPreferences,
@@ -905,6 +909,7 @@ export async function generateWorkoutAsync(
   preferredExerciseSlugsOrNames?: string[],
   sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext
 ): Promise<GeneratedWorkout> {
+  const sessionSeed = seedExtra ?? createWorkoutGenerationEntropy();
   const injuryFilter =
     preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
       ? []
@@ -921,7 +926,7 @@ export async function generateWorkoutAsync(
   const input = manualPreferencesToGenerateWorkoutInput(
     preferences,
     gymProfile,
-    seedExtra,
+    sessionSeed,
     preferredExerciseSlugsOrNames,
     sportGoalContext
   );

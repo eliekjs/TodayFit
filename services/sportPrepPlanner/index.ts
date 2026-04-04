@@ -1,6 +1,6 @@
 import { getSupabase, isDbConfigured } from "../../lib/db";
 import { getLocalDateString } from "../../lib/dateUtils";
-import type { EnergyLevel, GeneratedWorkout } from "../../lib/types";
+import type { AdaptiveScheduleLabels, EnergyLevel, GeneratedWorkout } from "../../lib/types";
 import { getWorkoutDescriptor } from "../../lib/workoutDescriptor";
 import type { GymProfile } from "../../data/gymProfiles";
 import { buildWorkoutForSessionIntent, type SessionIntent } from "../workoutBuilder";
@@ -71,6 +71,8 @@ export type PlanWeekInput = {
   specificBodyPartEmphasis?: import("../../lib/types").SpecificBodyFocusKey[] | null;
   /** Optional one-day body override from setup screens. */
   dailyPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
+  /** Adaptive setup labels for summaries (fatigue, phase, etc.); not used for generator defaults. */
+  adaptiveScheduleLabels?: AdaptiveScheduleLabels | null;
 };
 
 /** Day-level focus for display and regeneration. Supports day-level editing. */
@@ -127,6 +129,7 @@ export type ScheduleSnapshot = {
   weeklyBodyEmphasisStyle?: import("../../lib/types").WeeklyBodyEmphasisStyle | null;
   specificBodyPartBehavior?: import("../../lib/types").SpecificBodyPartBehavior | null;
   specificBodyPartEmphasis?: import("../../lib/types").SpecificBodyFocusKey[] | null;
+  adaptiveScheduleLabels?: AdaptiveScheduleLabels | null;
 };
 
 export type PlanWeekResult = {
@@ -1084,6 +1087,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       gymProfile: input.gymProfile,
       workoutTier: input.workoutTier ?? "intermediate",
       includeCreativeVariations: input.includeCreativeVariations === true,
+      adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
     };
     return {
       weeklyPlanInstanceId: `guest-${weekStartIso}-${Date.now()}`,
@@ -1321,6 +1325,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     weeklyBodyEmphasisStyle: input.weeklyBodyEmphasisStyle ?? undefined,
     specificBodyPartBehavior: input.specificBodyPartBehavior ?? undefined,
     specificBodyPartEmphasis: input.specificBodyPartEmphasis ?? undefined,
+    adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
   };
 
   return {

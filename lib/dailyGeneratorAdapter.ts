@@ -33,7 +33,8 @@ import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug"
 const DURATIONS = [20, 30, 45, 60, 75] as const;
 type AllowedDuration = (typeof DURATIONS)[number];
 
-function cloneManualPreferencesForSnapshot(p: ManualPreferences): ManualPreferences {
+/** Deep copy for `GeneratedWorkout.generationPreferences` (survives later state mutations). */
+export function cloneManualPreferencesSnapshot(p: ManualPreferences): ManualPreferences {
   try {
     return structuredClone(p);
   } catch {
@@ -136,7 +137,9 @@ export type SportGoalContext = {
 /**
  * Build GenerateWorkoutInput from ManualPreferences and optional GymProfile.
  * Used so the app can call dailyGenerator with the same semantics as the current lib generator.
- * seedExtra: optional string or number from the app (e.g. date or session id) for reproducible RNG.
+ * seedExtra: optional string or number for the RNG (e.g. tests, explicit replay). Omit to derive from
+ * preferences only — callers that want variety each run should pass `createWorkoutGenerationEntropy()` or use
+ * `generateWorkoutAsync`, which supplies entropy when `seedExtra` is omitted.
  * preferredExerciseIds: optional exercise ids/slugs to prefer when scoring (e.g. from sport/goal ranking).
  * sportGoalContext: optional override for sport_slugs, sport_sub_focus, goal_weights, sport_weight (e.g. from adaptive/sport-prep).
  */
@@ -269,6 +272,26 @@ export function hashString(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return Math.abs(h);
+}
+
+/**
+ * Unique token for each generation so the seeded RNG varies between runs with identical preferences.
+ * `generateWorkoutAsync` uses this when `seedExtra` is omitted; sport-prep `buildWorkoutForSessionIntent`
+ * mixes it into composite seeds so planner slots are not locked to calendar day alone.
+ */
+export function createWorkoutGenerationEntropy(): string {
+  try {
+    const c = globalThis.crypto;
+    if (c?.randomUUID) return c.randomUUID();
+    if (c?.getRandomValues) {
+      const a = new Uint32Array(2);
+      c.getRandomValues(a);
+      return `${a[0]!.toString(16)}${a[1]!.toString(16)}`;
+    }
+  } catch {
+    /* ignore */
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /** Map lib Modality to generator Modality (generator has skill, recovery). */
@@ -674,6 +697,7 @@ export function workoutSessionToGeneratedWorkout(
     focus: preferences.primaryFocus?.length ? preferences.primaryFocus : [session.title],
     durationMinutes: session.estimated_duration_minutes,
     energyLevel: preferences.energyLevel ?? null,
+    generationPreferences: cloneManualPreferencesSnapshot(preferences),
     blocks: session.blocks,
   };
 }
