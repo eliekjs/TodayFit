@@ -245,6 +245,12 @@ export type WorkoutItem = {
   /** Phase 11: history recommendation (why this prescription). */
   recommendation?: RecommendationSlug;
   recommendation_reason?: string;
+  /** Dev / audit: sport profile engine score snapshot when debug enabled. */
+  sport_profile_score_debug?: {
+    movement_pattern_match_score?: number;
+    sport_alignment_score?: number;
+    penalty_flags?: string[];
+  };
 };
 
 export type WorkoutBlock = {

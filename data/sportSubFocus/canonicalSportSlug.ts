@@ -30,11 +30,12 @@ export const LEGACY_TO_CANONICAL_SPORT: Record<string, string> = {
   track_field: "track_sprinting",
   /** Legacy `sport_mode` seed slug; same programming as track_sprinting */
   sprinting: "track_sprinting",
-  // Removed from sport picker: map stored slugs to closest active sport for generation
+  // Removed from product (picker + catalog): map stored profile slugs for backward-compatible generation
   strongman: "hyrox",
   ocr_spartan: "hyrox",
   tactical_fitness: "hyrox",
   crossfit: "hyrox",
+  /** Former “General Strength (Powerlifting)” */
   general_strength: "powerbuilding",
   olympic_weightlifting: "powerbuilding",
   vertical_jump: "track_sprinting",

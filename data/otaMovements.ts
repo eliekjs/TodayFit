@@ -16118,28 +16118,6 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "progressions": []
   },
   {
-    "id": "strongman",
-    "name": "Strongman",
-    "muscles": [
-      "legs"
-    ],
-    "modalities": [
-      "strength",
-      "hypertrophy"
-    ],
-    "equipment": [
-      "bodyweight"
-    ],
-    "tags": [
-      "ota_movements",
-      "strength",
-      "lower",
-      "posterior chain"
-    ],
-    "regressions": [],
-    "progressions": []
-  },
-  {
     "id": "suitcase_carry",
     "name": "Suitcase Carry",
     "muscles": [

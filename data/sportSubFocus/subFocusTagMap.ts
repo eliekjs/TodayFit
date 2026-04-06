@@ -416,35 +416,6 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "core_anti_rotation", weight: 1 },
   ],
 
-  // --- Tactical Fitness ---
-  [key("tactical_fitness", "work_capacity")]: [
-    { tag_slug: "work_capacity", weight: 1.3 },
-    { tag_slug: "lactate_threshold", weight: 1 },
-    { tag_slug: "zone3_cardio", weight: 1 },
-  ],
-  [key("tactical_fitness", "running_endurance")]: [
-    { tag_slug: "zone2_cardio", weight: 1 },
-    { tag_slug: "zone3_cardio", weight: 1.2 },
-    { tag_slug: "aerobic_base", weight: 1 },
-  ],
-  [key("tactical_fitness", "strength_endurance")]: [
-    { tag_slug: "strength_endurance", weight: 1.2 },
-    { tag_slug: "pushing_strength", weight: 1 },
-    { tag_slug: "pulling_strength", weight: 1 },
-    { tag_slug: "carry", weight: 1 },
-  ],
-  [key("tactical_fitness", "core_stability")]: [
-    { tag_slug: "core_bracing", weight: 1.2 },
-    { tag_slug: "core_stability", weight: 1.2 },
-    { tag_slug: "core_anti_extension", weight: 1 },
-  ],
-  [key("tactical_fitness", "durability")]: [
-    { tag_slug: "strength_endurance", weight: 1.2 },
-    { tag_slug: "posterior_chain", weight: 1 },
-    { tag_slug: "core_stability", weight: 1 },
-    { tag_slug: "carry", weight: 1 },
-  ],
-
   // --- Swimming (lap / open water) ---
   [key("swimming_open_water", "pull_strength")]: [
     { tag_slug: "pulling_strength", weight: 1.3 },
@@ -499,6 +470,40 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "core_stability", weight: 1 },
     { tag_slug: "sled_strength", weight: 1 },
   ],
+  // Legacy sub-focus slugs (stored profiles / deprecated sports → hyrox); same tags as former tactical + strongman picks.
+  [key("hyrox", "strength_endurance")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "pushing_strength", weight: 1 },
+    { tag_slug: "pulling_strength", weight: 1 },
+    { tag_slug: "carry", weight: 1 },
+  ],
+  [key("hyrox", "durability")]: [
+    { tag_slug: "strength_endurance", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1 },
+    { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "carry", weight: 1 },
+  ],
+  [key("hyrox", "carries_load")]: [
+    { tag_slug: "work_capacity", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "core_bracing", weight: 1 },
+  ],
+  [key("hyrox", "overhead_pressing")]: [
+    { tag_slug: "max_strength", weight: 1.2 },
+    { tag_slug: "vertical_push", weight: 1.2 },
+    { tag_slug: "pushing_strength", weight: 1 },
+  ],
+  [key("hyrox", "posterior_chain_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "hinge_pattern", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1 },
+  ],
+  [key("hyrox", "grip_trunk")]: [
+    { tag_slug: "grip_strength", weight: 1.3 },
+    { tag_slug: "core_bracing", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1 },
+  ],
 
   // --- CrossFit ---
   [key("crossfit", "work_capacity")]: [
@@ -524,36 +529,6 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "aerobic_base", weight: 1 },
     { tag_slug: "anaerobic_capacity", weight: 1 },
     { tag_slug: "zone3_cardio", weight: 1 },
-  ],
-
-  // --- Powerlifting (general_strength) ---
-  [key("general_strength", "squat_strength")]: [
-    { tag_slug: "max_strength", weight: 1.3 },
-    { tag_slug: "squat_pattern", weight: 1.2 },
-    { tag_slug: "quads", weight: 1 },
-    { tag_slug: "glute_strength", weight: 1 },
-  ],
-  [key("general_strength", "bench_strength")]: [
-    { tag_slug: "max_strength", weight: 1.3 },
-    { tag_slug: "horizontal_push", weight: 1.2 },
-    { tag_slug: "pushing_strength", weight: 1 },
-  ],
-  [key("general_strength", "deadlift_strength")]: [
-    { tag_slug: "max_strength", weight: 1.3 },
-    { tag_slug: "hinge_pattern", weight: 1.2 },
-    { tag_slug: "posterior_chain", weight: 1.2 },
-    { tag_slug: "glute_strength", weight: 1 },
-  ],
-  [key("general_strength", "accessory_strength")]: [
-    { tag_slug: "pulling_strength", weight: 1.2 },
-    { tag_slug: "horizontal_pull", weight: 1 },
-    { tag_slug: "vertical_pull", weight: 1 },
-    { tag_slug: "single_leg_strength", weight: 1 },
-  ],
-  [key("general_strength", "core_bracing")]: [
-    { tag_slug: "core_bracing", weight: 1.3 },
-    { tag_slug: "core_anti_extension", weight: 1.2 },
-    { tag_slug: "core_stability", weight: 1 },
   ],
 
   // --- Bodybuilding ---
@@ -615,33 +590,6 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "eccentric_strength", weight: 1.2 },
     { tag_slug: "hinge_pattern", weight: 1 },
     { tag_slug: "posterior_chain", weight: 1 },
-  ],
-
-  // --- Strongman ---
-  [key("strongman", "carries_load")]: [
-    { tag_slug: "work_capacity", weight: 1.2 },
-    { tag_slug: "posterior_chain", weight: 1.2 },
-    { tag_slug: "core_bracing", weight: 1 },
-  ],
-  [key("strongman", "overhead_pressing")]: [
-    { tag_slug: "max_strength", weight: 1.2 },
-    { tag_slug: "vertical_push", weight: 1.2 },
-    { tag_slug: "pushing_strength", weight: 1 },
-  ],
-  [key("strongman", "posterior_chain_strength")]: [
-    { tag_slug: "max_strength", weight: 1.3 },
-    { tag_slug: "hinge_pattern", weight: 1.2 },
-    { tag_slug: "posterior_chain", weight: 1.2 },
-    { tag_slug: "glute_strength", weight: 1 },
-  ],
-  [key("strongman", "grip_trunk")]: [
-    { tag_slug: "grip_strength", weight: 1.3 },
-    { tag_slug: "core_bracing", weight: 1.2 },
-    { tag_slug: "core_stability", weight: 1 },
-  ],
-  [key("strongman", "work_capacity")]: [
-    { tag_slug: "work_capacity", weight: 1.3 },
-    { tag_slug: "conditioning", weight: 1 },
   ],
 
   // --- Surfing ---
@@ -1092,29 +1040,6 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "reactive_power", weight: 1 },
   ],
 
-  // --- Olympic Weightlifting ---
-  [key("olympic_weightlifting", "explosive_power")]: [
-    { tag_slug: "explosive_power", weight: 1.3 },
-    { tag_slug: "power", weight: 1 },
-  ],
-  [key("olympic_weightlifting", "overhead_stability")]: [
-    { tag_slug: "shoulder_stability", weight: 1.2 },
-    { tag_slug: "core_bracing", weight: 1 },
-  ],
-  [key("olympic_weightlifting", "mobility")]: [
-    { tag_slug: "hip_mobility", weight: 1 },
-    { tag_slug: "thoracic_mobility", weight: 1 },
-    { tag_slug: "mobility", weight: 1 },
-  ],
-  [key("olympic_weightlifting", "pull_strength")]: [
-    { tag_slug: "pulling_strength", weight: 1.2 },
-    { tag_slug: "hinge_pattern", weight: 1 },
-  ],
-  [key("olympic_weightlifting", "core_bracing")]: [
-    { tag_slug: "core_bracing", weight: 1.2 },
-    { tag_slug: "core_stability", weight: 1 },
-  ],
-
   // --- Powerbuilding ---
   [key("powerbuilding", "max_strength")]: [
     { tag_slug: "max_strength", weight: 1.3 },
@@ -1136,5 +1061,51 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   [key("powerbuilding", "work_capacity")]: [
     { tag_slug: "work_capacity", weight: 1 },
     { tag_slug: "conditioning", weight: 1 },
+  ],
+  // Legacy sub-focus slugs (stored profiles; former general_strength / olympic_weightlifting picks).
+  [key("powerbuilding", "squat_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "squat_pattern", weight: 1.2 },
+    { tag_slug: "quads", weight: 1 },
+    { tag_slug: "glute_strength", weight: 1 },
+  ],
+  [key("powerbuilding", "bench_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "horizontal_push", weight: 1.2 },
+    { tag_slug: "pushing_strength", weight: 1 },
+  ],
+  [key("powerbuilding", "deadlift_strength")]: [
+    { tag_slug: "max_strength", weight: 1.3 },
+    { tag_slug: "hinge_pattern", weight: 1.2 },
+    { tag_slug: "posterior_chain", weight: 1.2 },
+    { tag_slug: "glute_strength", weight: 1 },
+  ],
+  [key("powerbuilding", "accessory_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "horizontal_pull", weight: 1 },
+    { tag_slug: "vertical_pull", weight: 1 },
+    { tag_slug: "single_leg_strength", weight: 1 },
+  ],
+  [key("powerbuilding", "core_bracing")]: [
+    { tag_slug: "core_bracing", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1 },
+    { tag_slug: "core_anti_extension", weight: 1.1 },
+  ],
+  [key("powerbuilding", "explosive_power")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "power", weight: 1 },
+  ],
+  [key("powerbuilding", "overhead_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.2 },
+    { tag_slug: "core_bracing", weight: 1 },
+  ],
+  [key("powerbuilding", "mobility")]: [
+    { tag_slug: "hip_mobility", weight: 1 },
+    { tag_slug: "thoracic_mobility", weight: 1 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("powerbuilding", "pull_strength")]: [
+    { tag_slug: "pulling_strength", weight: 1.2 },
+    { tag_slug: "hinge_pattern", weight: 1 },
   ],
 };

@@ -461,7 +461,7 @@ function sessionIntentForSport(
   const isTriathlon = canonical === "triathlon";
   // XC (Nordic) skiing: full-body (double pole + leg drive + core); no strict body bias so tag ranking drives mix.
   const isXcSkiing = canonical === "xc_skiing";
-  // Hyrox (+ legacy strongman/OCR/tactical/CrossFit slots): full-body mixed work.
+  // Hyrox (+ legacy OCR/CrossFit slots): full-body mixed work.
   const isHyrox = canonical === "hyrox";
   // Rowing / erg: full-body (leg drive + pull + core); tag ranking drives mix.
   const isRowingErg = canonical === "rowing_erg";

@@ -18,6 +18,26 @@ Sub-focus options and tag mappings are intended to reflect **research-backed pri
 | `subFocusTagMap.ts` | Mapping key `sport_slug:sub_focus_slug` → `{ tag_slug, weight }[]`. |
 | `exerciseTagTaxonomy.ts` | Expanded tag taxonomy and list of **new tags to add** to `exercise_tags`. |
 | `index.ts` | Exports + `getExerciseTagsForSubFocuses(sportSlug, subFocusSlugs)`. |
+| `sportDefinitions.ts` | **Canonical** sport-prep narratives **and** optional `engine` (machine-readable profile for the sport profile engine). |
+
+## Sport profile engine (single source of truth)
+
+Workout generation reads **only** the structured `SportDefinition.engine` block in `sportDefinitions.ts` for pool filtering, scoring boosts/penalties, conditioning scaling, and light session-composition nudges. Human prose (`mustInclude`, `mustAvoidOrLimit`, `weeklyStructureBias`) documents intent; it is **not** parsed at runtime.
+
+Flow:
+
+1. **`sportDefinitions.ts`** — define `engine` on the sport (movement weights, `requiredTagBoosts`, ban keys, `energySystemBias`, `structureBias`, `compositionNudge`).
+2. **`logic/workoutGeneration/mapSportDefinitionToNormalizedProfile.ts`** — maps canonical `engine` → `NormalizedSportProfile` (validates movement slugs; fails closed on invalid data).
+3. **`logic/workoutGeneration/sportProfileEngine.ts`** — applies the normalized profile (hard/soft gates, relax levels, `computeSportProfileScoreComponents`, conditioning duration scale).
+4. **`logic/workoutGeneration/dailyGenerator.ts`** — attaches the profile for scoring, optional conditioning-block inclusion when `structureBias` favors conditioning, sorts the conditioning pool by profile fit, and writes `debug.sport_profile_applied` (including `mapping` + `composition_hooks`).
+
+**Semantics (see `types.ts` on `SportDefinitionEngine`):**
+
+- **`requiredTagBoosts`** — scoring only; not mandatory exercise inclusion.
+- **Hard tag/predicate bans** — never relaxed in the hard gate.
+- **Soft tag/predicate bans** — relaxed when the filtered pool is too small.
+
+**Adding a new sport end-to-end:** add a row to `SPORT_DEFINITIONS` with a full `engine`, ensure the slug matches `getCanonicalSportSlug` resolution, add any new `SportBanPredicateKey` / penalty keys to `sportProfileBanPredicates.ts` and `computeSportProfileScoreComponents` if needed, then add mapping tests in `mapSportDefinitionToNormalizedProfile.test.ts`.
 
 ## Usage (future scoring engine)
 
@@ -35,7 +55,7 @@ Use `tags` to increase the probability (or score) of exercises that have matchin
 Slugs align with `public.sports` (migration `20250301000007_sports_canonical_seed.sql`) where possible. Exceptions:
 
 - **marathon_running** – may be added to `sports` or mapped to `road_running`.
-- **powerbuilding** – may be added or mapped to `general_strength`.
+- **powerbuilding** – canonical strength/hybrid sport; legacy `general_strength` / `olympic_weightlifting` slugs remap here (see `canonicalSportSlug.ts`).
 
 ## New exercise tags
 

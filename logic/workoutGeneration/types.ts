@@ -280,6 +280,24 @@ export type GenerateWorkoutInput = {
    * Soccer / field-sport main slots: shrink generic surface so COD/decel/unilateral transfer dominates.
    */
   use_reduced_surface_for_soccer_main_scoring?: boolean;
+
+  /** When true, skip `sportProfileEngine` integration for this session. */
+  sport_profile_engine_disabled?: boolean;
+  /**
+   * When true, session debug includes per-exercise sport profile score fields (post-hoc rescoring for visibility).
+   */
+  include_sport_profile_exercise_debug?: boolean;
+  /**
+   * Set only inside `generateWorkoutSession` while the sport profile engine is active; read by `scoreExercise`.
+   * Cleared before the function returns.
+   */
+  sport_profile_for_scoring?: import("./sportProfileEngine").NormalizedSportProfile;
+  /**
+   * Set by `generateWorkoutSession` when sport profile engine runs; scales time-based cardio target minutes.
+   */
+  sport_profile_session_composition?: {
+    conditioningPickerMinutesMultiplier?: number;
+  };
 };
 
 // --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
@@ -372,6 +390,12 @@ export type ScoringDebug = {
    * Omitted when the exercise would pass hard gates for the current input.
    */
   hard_constraint_reject_reason?: string;
+  /** `sportProfileEngine` additive components (rock_climbing, alpine_skiing when enabled). */
+  sport_profile_movement_match?: number;
+  sport_profile_specificity?: number;
+  sport_profile_energy_alignment?: number;
+  sport_profile_penalty?: number;
+  sport_profile_penalty_flags?: string[];
 };
 
 export type WorkoutSession = {
@@ -430,6 +454,44 @@ export type WorkoutSession = {
     intent_survival_report?: import("./intentSurvivalDebug").IntentSurvivalSessionSummary;
     /** Main / accessory / hypertrophy phase used generic vs sport-owned selector (e.g. alpine sport path). */
     main_selector?: import("./mainSelectors/types").MainSelectorSessionTrace;
+    /** Sport definition profile applied to filtering + scoring (incremental engine). */
+    sport_profile_applied?: {
+      sport: string;
+      top_patterns: string[];
+      excluded_patterns: string[];
+      enforced_bias: string;
+      relax_level?: number;
+      pool_before?: number;
+      pool_after?: number;
+      /** Canonical row slug in `sportDefinitions.ts` (mirrors `mapping.canonical_sport_definition_slug`). */
+      canonical_sport_definition_slug?: string;
+      /** True only when mapper succeeded; false means do not treat session as canonically driven. */
+      canonical_profile_loaded?: boolean;
+      canonical_fields_used?: string[];
+      normalized_profile_summary?: import("./sportProfileTypes").NormalizedSportProfileSummary | null;
+      /** True if mapping failed or mapper applied implicit defaults (see `mapper_defaults_applied`). */
+      fallback_used?: boolean;
+      fallback_reason?: string | null;
+      mapper_defaults_applied?: string[];
+      /** Canonical definition → normalized profile mapping audit */
+      mapping?: import("./sportProfileTypes").SportProfileMappingDebug;
+      /** Structure-bias hooks in dailyGenerator (conditioning inclusion / pool sort). */
+      composition_hooks?: import("./sportProfileTypes").SportProfileAppliedSnapshot["compositionHooks"];
+    };
+    /** Engine block existed but `mapSportDefinitionToNormalizedProfile` failed — pool was not sport-filtered. */
+    sport_profile_canonical_mapping_failed?: {
+      canonical_sport_definition_slug: string;
+      errors: string[];
+    };
+    /** exercise_id → sport profile score snapshot (when `include_sport_profile_exercise_debug`). */
+    sport_profile_exercise_scores?: Record<
+      string,
+      {
+        movement_pattern_match_score?: number;
+        sport_alignment_score?: number;
+        penalty_flags?: string[];
+      }
+    >;
   };
 };
 

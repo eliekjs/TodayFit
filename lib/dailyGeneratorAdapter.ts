@@ -692,12 +692,31 @@ export function workoutSessionToGeneratedWorkout(
   preferences: ManualPreferences,
   id?: string
 ): GeneratedWorkout {
+  const scores = session.debug?.sport_profile_exercise_scores;
+  const blocks =
+    scores && Object.keys(scores).length > 0
+      ? session.blocks.map((b) => ({
+          ...b,
+          items: b.items.map((it) => {
+            const s = scores[it.exercise_id];
+            if (!s) return it;
+            return {
+              ...it,
+              sport_profile_score_debug: {
+                movement_pattern_match_score: s.movement_pattern_match_score,
+                sport_alignment_score: s.sport_alignment_score,
+                penalty_flags: s.penalty_flags,
+              },
+            };
+          }),
+        }))
+      : session.blocks;
   return {
     id: id ?? `w_${Date.now()}`,
     focus: preferences.primaryFocus?.length ? preferences.primaryFocus : [session.title],
     durationMinutes: session.estimated_duration_minutes,
     energyLevel: preferences.energyLevel ?? null,
     generationPreferences: cloneManualPreferencesSnapshot(preferences),
-    blocks: session.blocks,
+    blocks,
   };
 }

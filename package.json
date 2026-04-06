@@ -27,6 +27,7 @@
     "audit:workout-levels": "npx tsx scripts/auditWorkoutLevels.ts",
     "compare:workout-tiers": "npx tsx scripts/compareWorkoutTiers.ts",
     "eval:workout-quality": "npx tsx scripts/workoutGenerationQualityEval.ts",
+    "verify:sport-profile-canonical": "npx tsx scripts/verifySportProfileCanonicalization.ts",
     "audit:exercise-metadata-quality": "npx tsx scripts/exerciseMetadataQualityAgent.ts"
   },
   "dependencies": {

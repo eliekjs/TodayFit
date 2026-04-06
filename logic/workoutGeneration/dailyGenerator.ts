@@ -126,6 +126,18 @@ import {
   getExerciseTagsForSubFocuses,
 } from "../../data/sportSubFocus";
 import { hashString } from "../../lib/dailyGeneratorAdapter";
+import {
+  applyConditioningDurationScaleToBlocks,
+  buildNormalizedSportProfile,
+  buildSportProfileMappingDebug,
+  computeSportProfileScoreComponents,
+  formatStructureBiasLabel,
+  getSportAdjustedExercisePool,
+  loadSportProfileForSession,
+  sportProfileBiasedTowardConditioning,
+  sportProfileConditioningPickScore,
+  type SportProfileAppliedSnapshot,
+} from "./sportProfileEngine";
 import type { HikingSessionEnforcementSnapshot, SportPatternSlotRule } from "./sportPatternTransfer/types";
 import { HIKING_SUPPORT_COVERAGE_CATEGORIES } from "./sportPatternTransfer/hikingBackpackingRules";
 import {
@@ -790,6 +802,8 @@ export interface ScoreExerciseOptions {
     | "soccer_reduced_surface";
   /** When true, returns `breakdown` for intent-survival tracing (same score as when false). */
   include_scoring_breakdown?: boolean;
+  /** Overrides `input.sport_profile_for_scoring` for this score call (tests / isolation). */
+  sportProfile?: import("./sportProfileEngine").NormalizedSportProfile;
 }
 
 /** Scale numeric debug fields when generic scorer terms are demoted for sport-main selection. */
@@ -1331,6 +1345,26 @@ export function scoreExercise(
     applyToTotal(q.total, "primary");
   }
 
+  const sportProf = opts.sportProfile ?? input.sport_profile_for_scoring;
+  let sport_profile_movement_match = 0;
+  let sport_profile_specificity = 0;
+  let sport_profile_energy_alignment = 0;
+  let sport_profile_penalty = 0;
+  let sport_profile_penalty_flags: string[] | undefined;
+  if (sportProf) {
+    const spc = computeSportProfileScoreComponents(exercise, sportProf, blockTypeNorm);
+    sport_profile_movement_match = spc.movement_pattern_match;
+    sport_profile_specificity = spc.sport_specificity;
+    sport_profile_energy_alignment = spc.energy_system_alignment;
+    sport_profile_penalty = spc.penalty;
+    sport_profile_penalty_flags = spc.penalty_flags.length ? spc.penalty_flags : undefined;
+    applyToTotal(
+      spc.movement_pattern_match + spc.sport_specificity + spc.energy_system_alignment,
+      "generic"
+    );
+    applyToTotal(spc.penalty, "generic");
+  }
+
   if (!cap) {
     return { score: total };
   }
@@ -1408,6 +1442,15 @@ export function scoreExercise(
       : {}),
     ...(workoutLevelAssignmentTrace ? { workout_level_assignment_trace: workoutLevelAssignmentTrace } : {}),
     ...(hardConstraintRejectReason ? { hard_constraint_reject_reason: hardConstraintRejectReason } : {}),
+    ...(sport_profile_movement_match || sport_profile_specificity || sport_profile_energy_alignment
+      ? {
+          sport_profile_movement_match: gc(sport_profile_movement_match),
+          sport_profile_specificity: gc(sport_profile_specificity),
+          sport_profile_energy_alignment: gc(sport_profile_energy_alignment),
+        }
+      : {}),
+    ...(sport_profile_penalty ? { sport_profile_penalty: gc(sport_profile_penalty) } : {}),
+    ...(sport_profile_penalty_flags?.length ? { sport_profile_penalty_flags: sport_profile_penalty_flags } : {}),
   };
 
   return { score: total, breakdown };
@@ -1996,7 +2039,17 @@ function selectExercises(
   const chosen: Exercise[] = [];
 
   // Category-fill pass: ensure we hit MIN_MOVEMENT_CATEGORIES when possible (movement-pattern balancing engine)
-  const patternsToPrefer = getPatternsToPrefer(movementCounts, MIN_MOVEMENT_CATEGORIES, [...BALANCE_CATEGORY_PATTERNS]);
+  let patternsToPrefer = getPatternsToPrefer(movementCounts, MIN_MOVEMENT_CATEGORIES, [...BALANCE_CATEGORY_PATTERNS]);
+  const spProf = input.sport_profile_for_scoring;
+  if (
+    spProf &&
+    (opts.blockType === "main_strength" || opts.blockType === "main_hypertrophy")
+  ) {
+    const inject = [...spProf.topPatterns, ...spProf.secondaryPatterns].filter(
+      (p) => !patternsToPrefer.includes(p)
+    );
+    patternsToPrefer = [...inject, ...patternsToPrefer];
+  }
   const state = getBalanceState(movementCounts, [...BALANCE_CATEGORY_PATTERNS]);
   // Warmup/cooldown are prep and mobility — not mini strength sessions. The main-work
   // category pre-pass (squat/hinge/push/pull) forces the same top-scored exercise per
@@ -4453,10 +4506,12 @@ function appendEnduranceTimeBasedCardioBlock(
   intentSlugs: string[]
 ): void {
   let cardioPool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
-  const condMins =
+  const pickMult = input.sport_profile_session_composition?.conditioningPickerMinutesMultiplier ?? 1;
+  const condMinsRaw =
     getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
     input.style_prefs?.conditioning_minutes ??
     (input.duration_minutes >= 60 ? 30 : 20);
+  const condMins = Math.max(3, Math.round(condMinsRaw * pickMult));
   const addCardioBlock = cardioPool.length > 0 && condMins > 0;
   if (!addCardioBlock) return;
 
@@ -6252,11 +6307,48 @@ export function generateWorkoutSession(
   const hardFiltered = filterByHardConstraints(exercisePool, input);
   const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
   /** Injury-safe pool without body-part split — used to guarantee goal sub-focus on any training day. */
-  const guaranteePool = hardFiltered.filter((e) => {
+  let guaranteePool = hardFiltered.filter((e) => {
     const shape = toConstraintEligibilityShape(e);
     return isExerciseAllowedByInjuries(shape, constraints);
   });
   let filtered = filterByConstraintsForPool(hardFiltered, constraints);
+
+  let sportProfileSessionSnapshot: SportProfileAppliedSnapshot | null = null;
+  let sportProfileCanonicalMappingFailure: {
+    canonical_sport_definition_slug: string;
+    errors: string[];
+  } | null = null;
+  let sportProfileForcedConditioning = false;
+  let sportProfileCondSortApplied = false;
+  let sportProfileCondMinFloor: number | undefined;
+
+  const spLoad = loadSportProfileForSession(input);
+  if (spLoad.status === "applied") {
+    const { profile, canonicalSlug, mapResult } = spLoad;
+    const poolBefore = filtered.length;
+    const adj = getSportAdjustedExercisePool(filtered, profile, 0);
+    filtered = adj.pool;
+    const adjG = getSportAdjustedExercisePool(guaranteePool, profile, adj.relaxLevel);
+    guaranteePool = adjG.pool;
+    sportProfileSessionSnapshot = {
+      profile,
+      relaxLevel: adjG.relaxLevel,
+      poolBefore,
+      poolAfter: filtered.length,
+      enforcedBiasLabel: formatStructureBiasLabel(profile),
+      mapping: buildSportProfileMappingDebug(canonicalSlug, profile, mapResult),
+    };
+    input.sport_profile_for_scoring = profile;
+    input.sport_profile_session_composition = {
+      conditioningPickerMinutesMultiplier: profile.compositionNudge.conditioningPickerMinutesMultiplier,
+    };
+  } else if (spLoad.status === "map_failed") {
+    sportProfileCanonicalMappingFailure = {
+      canonical_sport_definition_slug: spLoad.canonicalSlug,
+      errors: spLoad.errors,
+    };
+  }
+
   const used = new Set<string>();
   const historyContext = input.training_history ?? buildHistoryContextFromLegacy(input);
   const legacyRecentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
@@ -6841,7 +6933,7 @@ export function generateWorkoutSession(
   const conditioningStrategy = goalRules.conditioningStrategy;
   const requiredConditioning = constraints.required_conditioning_block === true;
   const rankedCardioIntentsFinisher = getCardioFinisherIntentSlugs(input);
-  const skipConditioning =
+  let skipConditioning =
     hasConditioningBlock ||
     (!requiredConditioning &&
       (conditioningStrategy === "none" ||
@@ -6849,19 +6941,36 @@ export function generateWorkoutSession(
           input.energy_level !== "high" &&
           !rankedCardioIntentsFinisher?.length)));
 
+  const spForComposition = input.sport_profile_for_scoring;
+  if (
+    !hasConditioningBlock &&
+    spForComposition &&
+    sportProfileBiasedTowardConditioning(spForComposition) &&
+    skipConditioning
+  ) {
+    skipConditioning = false;
+    sportProfileForcedConditioning = true;
+  }
+
   if (!skipConditioning) {
     const userMins = input.style_prefs?.conditioning_minutes ?? 0;
     const ruleMins = getConditioningDurationMinutes(primary, input.energy_level);
-    const conditioningMins = requiredConditioning
+    let conditioningMins = requiredConditioning
       ? Math.min(15, ruleMins ?? 15)
       : conditioningStrategy === "mandatory"
         ? (ruleMins ?? 30)
         : (userMins > 0 ? userMins : (ruleMins ?? 0));
+    if (sportProfileForcedConditioning && conditioningMins < 12) {
+      conditioningMins = 12;
+      sportProfileCondMinFloor = 12;
+    }
     const addConditioning =
       requiredConditioning ||
+      sportProfileForcedConditioning ||
       (conditioningStrategy === "mandatory" || conditioningStrategy === "optional_short" || conditioningStrategy === "optional_moderate");
     if (addConditioning && conditioningMins > 0) {
       let cardioPool = filtered.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+      let dedicatedCardioPoolSort = false;
       if (cardioPool.length && hikingPatternTransferApplies(input)) {
         const hikingCardio = cardioPool.filter((e) => isHikingConditioningExercise(e));
         if (hikingCardio.length > 0) cardioPool = hikingCardio;
@@ -6883,6 +6992,7 @@ export function generateWorkoutSession(
         if (alpineCardio.length > 0) cardioPool = alpineCardio;
       }
       if (cardioPool.length > 1 && hikingPatternTransferApplies(input)) {
+        dedicatedCardioPoolSort = true;
         cardioPool = [...cardioPool].sort(
           (a, b) =>
             computeHikingWithinPoolQualityScore(b, {
@@ -6898,6 +7008,7 @@ export function generateWorkoutSession(
         );
       }
       if (cardioPool.length > 1 && roadRunningPatternTransferApplies(input)) {
+        dedicatedCardioPoolSort = true;
         cardioPool = [...cardioPool].sort(
           (a, b) =>
             computeRoadRunningWithinPoolQualityScore(b, {
@@ -6913,6 +7024,7 @@ export function generateWorkoutSession(
         );
       }
       if (cardioPool.length > 1 && trailRunningPatternTransferApplies(input)) {
+        dedicatedCardioPoolSort = true;
         cardioPool = [...cardioPool].sort(
           (a, b) =>
             computeTrailRunningWithinPoolQualityScore(b, {
@@ -6928,6 +7040,7 @@ export function generateWorkoutSession(
         );
       }
       if (cardioPool.length > 1 && soccerPatternTransferApplies(input)) {
+        dedicatedCardioPoolSort = true;
         cardioPool = [...cardioPool].sort(
           (a, b) =>
             computeSoccerWithinPoolQualityScore(b, {
@@ -6943,6 +7056,7 @@ export function generateWorkoutSession(
         );
       }
       if (cardioPool.length > 1 && sessionSnowKindForGen != null && snowSportBodyFocusAllows(input)) {
+        dedicatedCardioPoolSort = true;
         const sk = sessionSnowKindForGen;
         cardioPool = [...cardioPool].sort(
           (a, b) =>
@@ -6958,6 +7072,12 @@ export function generateWorkoutSession(
               blockType: "conditioning",
               snowSportKind: sk,
             }).total
+        );
+      }
+      if (cardioPool.length > 1 && spForComposition && !dedicatedCardioPoolSort) {
+        sportProfileCondSortApplied = true;
+        cardioPool = [...cardioPool].sort(
+          (a, b) => sportProfileConditioningPickScore(b, spForComposition) - sportProfileConditioningPickScore(a, spForComposition)
         );
       }
       if (cardioPool.length) {
@@ -7016,6 +7136,20 @@ export function generateWorkoutSession(
         }
       }
     }
+  }
+
+  if (
+    sportProfileSessionSnapshot &&
+    (sportProfileForcedConditioning || sportProfileCondSortApplied || sportProfileCondMinFloor != null)
+  ) {
+    sportProfileSessionSnapshot = {
+      ...sportProfileSessionSnapshot,
+      compositionHooks: {
+        forced_session_conditioning_block: sportProfileForcedConditioning,
+        conditioning_pool_sorted_by_profile: sportProfileCondSortApplied,
+        ...(sportProfileCondMinFloor != null ? { min_conditioning_minutes_applied: sportProfileCondMinFloor } : {}),
+      },
+    };
   }
 
   // 6b. Ensure no two blocks share the same title
@@ -7132,12 +7266,41 @@ export function generateWorkoutSession(
   // Enforce main vs accessory set ratio: never more accessory than main; when doing accessory, 75% main / 25% accessory
   enforceMainAccessoryRatioOnBlocks(mergedBlocks);
 
+  if (sportProfileSessionSnapshot?.profile) {
+    mergedBlocks = applyConditioningDurationScaleToBlocks(mergedBlocks, sportProfileSessionSnapshot.profile);
+  }
+
   // 8. Post-assembly validation and repair (Phase 8)
   const sumBlockMinutes = mergedBlocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
   const estimated_duration_minutes =
     input.duration_minutes != null && input.duration_minutes > 0
       ? input.duration_minutes
       : sumBlockMinutes;
+
+  let sportProfileExerciseScores: NonNullable<WorkoutSession["debug"]>["sport_profile_exercise_scores"] | undefined;
+  if (input.include_sport_profile_exercise_debug === true && sportProfileSessionSnapshot?.profile) {
+    const prof = sportProfileSessionSnapshot.profile;
+    const byId = new Map(filtered.map((e) => [e.id, e]));
+    const out: NonNullable<WorkoutSession["debug"]>["sport_profile_exercise_scores"] = {};
+    for (const b of mergedBlocks) {
+      const bn = (b.block_type ?? "").toLowerCase().replace(/\s/g, "_");
+      for (const it of b.items) {
+        if (out[it.exercise_id]) continue;
+        const ex = byId.get(it.exercise_id);
+        if (!ex) continue;
+        const spc = computeSportProfileScoreComponents(ex, prof, bn);
+        out[it.exercise_id] = {
+          movement_pattern_match_score: spc.movement_pattern_match,
+          sport_alignment_score: spc.sport_specificity + spc.energy_system_alignment + spc.penalty,
+          penalty_flags: spc.penalty_flags.length ? spc.penalty_flags : undefined,
+        };
+      }
+    }
+    sportProfileExerciseScores = out;
+  }
+
+  delete input.sport_profile_for_scoring;
+  delete input.sport_profile_session_composition;
 
   const sportPatternTransferDebug = hikingPatternTransferApplies(input)
     ? (() => {
@@ -7227,7 +7390,12 @@ export function generateWorkoutSession(
           : undefined;
 
   const includeSessionDebug =
-    sportPatternTransferDebug || intentCollector || mainSelectorTrace.entries.length > 0;
+    sportPatternTransferDebug ||
+    intentCollector ||
+    mainSelectorTrace.entries.length > 0 ||
+    sportProfileSessionSnapshot != null ||
+    sportProfileCanonicalMappingFailure != null ||
+    sportProfileExerciseScores != null;
 
   const session: WorkoutSession = {
     title: sessionTitle(input),
@@ -7239,6 +7407,46 @@ export function generateWorkoutSession(
             ...(sportPatternTransferDebug ? { sport_pattern_transfer: sportPatternTransferDebug } : {}),
             ...(intentCollector ? { intent_survival_report: intentCollector.report } : {}),
             ...(mainSelectorTrace.entries.length > 0 ? { main_selector: mainSelectorTrace } : {}),
+            ...(sportProfileSessionSnapshot
+              ? {
+                  sport_profile_applied: {
+                    sport: sportProfileSessionSnapshot.profile.sportSlug,
+                    top_patterns: [...sportProfileSessionSnapshot.profile.topPatterns],
+                    excluded_patterns: [
+                      ...sportProfileSessionSnapshot.profile.bannedTagSlugs,
+                      ...sportProfileSessionSnapshot.profile.softBannedTagSlugs,
+                    ],
+                    enforced_bias: sportProfileSessionSnapshot.enforcedBiasLabel,
+                    relax_level: sportProfileSessionSnapshot.relaxLevel,
+                    pool_before: sportProfileSessionSnapshot.poolBefore,
+                    pool_after: sportProfileSessionSnapshot.poolAfter,
+                    ...(sportProfileSessionSnapshot.mapping
+                      ? {
+                          mapping: sportProfileSessionSnapshot.mapping,
+                          canonical_sport_definition_slug:
+                            sportProfileSessionSnapshot.mapping.canonical_sport_definition_slug,
+                          canonical_profile_loaded:
+                            sportProfileSessionSnapshot.mapping.canonical_profile_loaded,
+                          canonical_fields_used:
+                            sportProfileSessionSnapshot.mapping.canonical_fields_used,
+                          normalized_profile_summary:
+                            sportProfileSessionSnapshot.mapping.normalized_profile_summary,
+                          fallback_used: sportProfileSessionSnapshot.mapping.fallback_used,
+                          fallback_reason: sportProfileSessionSnapshot.mapping.fallback_reason,
+                          mapper_defaults_applied:
+                            sportProfileSessionSnapshot.mapping.mapper_defaults_applied,
+                        }
+                      : {}),
+                    ...(sportProfileSessionSnapshot.compositionHooks
+                      ? { composition_hooks: sportProfileSessionSnapshot.compositionHooks }
+                      : {}),
+                  },
+                }
+              : {}),
+            ...(sportProfileCanonicalMappingFailure
+              ? { sport_profile_canonical_mapping_failed: sportProfileCanonicalMappingFailure }
+              : {}),
+            ...(sportProfileExerciseScores ? { sport_profile_exercise_scores: sportProfileExerciseScores } : {}),
           },
         }
       : {}),

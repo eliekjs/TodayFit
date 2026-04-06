@@ -4,8 +4,26 @@
  * the user's selected sport and sub-focuses.
  */
 
-export type { SportSubFocus, SportWithSubFocuses, SubFocusTagMap, SubFocusTagMapEntry, ExerciseTagTaxonomyEntry } from "./types";
+export type {
+  SportSubFocus,
+  SportWithSubFocuses,
+  SubFocusTagMap,
+  SubFocusTagMapEntry,
+  ExerciseTagTaxonomyEntry,
+  SportDefinition,
+  SportDefinitionEngine,
+  SportBanPredicateKey,
+  SportScoringPenaltyKey,
+  SportEngineMovementPatternSlug,
+  RankedMovementPattern,
+  SportEnergySystems,
+} from "./types";
 export { SPORTS_WITH_SUB_FOCUSES } from "./sportsWithSubFocuses";
+export {
+  SPORT_DEFINITIONS,
+  SPORT_DEFINITIONS_BY_SLUG,
+  getSportDefinition,
+} from "./sportDefinitions";
 export { SUB_FOCUS_TAG_MAP } from "./subFocusTagMap";
 export { SPORT_SUBFOCUS_EXERCISE_TAGS, NEW_TAGS_TO_ADD } from "./exerciseTagTaxonomy";
 export { getCanonicalSportSlug, LEGACY_TO_CANONICAL_SPORT } from "./canonicalSportSlug";
