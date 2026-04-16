@@ -79,6 +79,7 @@ function shouldAppendEnduranceSecondaryFromSportSubFocus(
 
 /** Map primary focus label to generator PrimaryGoal. */
 function primaryFocusLabelToGoal(label: string): PrimaryGoal {
+  if (label === "Sport preparation") return "athletic_performance";
   // Power & Explosiveness must map to power (its goal slug is "conditioning" for sub-focus tags only).
   if (label.includes("Power")) return "power";
   const slug = PRIMARY_FOCUS_TO_GOAL_SLUG[label] ?? "strength";
@@ -169,7 +170,13 @@ export function manualPreferencesToGenerateWorkoutInput(
   );
   const avoid_tags = getAvoidTagSlugsFromUpcoming(preferences.upcoming ?? []);
 
-  const primary_goal = primaryFocusLabelToGoal(preferences.primaryFocus[0] ?? "Build Strength");
+  const firstFocusLabel = preferences.primaryFocus?.[0];
+  const primary_goal =
+    firstFocusLabel != null && firstFocusLabel !== ""
+      ? primaryFocusLabelToGoal(firstFocusLabel)
+      : sportGoalContext?.sport_slugs?.length
+        ? "athletic_performance"
+        : primaryFocusLabelToGoal("Build Strength");
   let secondary_goals = preferences.primaryFocus
     .slice(1, 3)
     .map(primaryFocusLabelToGoal)

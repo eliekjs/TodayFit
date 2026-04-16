@@ -14,6 +14,12 @@ import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../lib/dayTit
 import { GOAL_SLUG_TO_LABEL, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../lib/preferencesConstants";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus";
 import { sessionIntentContractForSportSlug } from "../../logic/workoutGeneration/sessionIntentContract";
+import {
+  zeroDemand,
+  defaultNonSportEmptyGoalsDemand,
+  sportSupportDefaultDemand,
+  type DemandVector,
+} from "./sportSupportDemand";
 
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
@@ -22,7 +28,8 @@ export type PlanWeekInput = {
   /** When absent, plan is generated in memory only (no DB persist). */
   userId?: string | null;
   weekStartDate?: string; // ISO date; defaults to current week (Monday)
-  primaryGoalSlug: string;
+  /** Null when the user did not select ranked goals (sport-only prep). */
+  primaryGoalSlug: string | null;
   secondaryGoalSlug?: string | null;
   tertiaryGoalSlug?: string | null;
   sportSlug?: string | null;
@@ -104,7 +111,7 @@ export type PlannedDay = {
 /** Snapshot of schedule inputs for replanning from recommendation screen. */
 export type ScheduleSnapshot = {
   weekStartDate: string;
-  primaryGoalSlug: string;
+  primaryGoalSlug: string | null;
   secondaryGoalSlug?: string | null;
   tertiaryGoalSlug?: string | null;
   sportSlug?: string | null;
@@ -116,6 +123,8 @@ export type ScheduleSnapshot = {
   sportFocusPct?: [number, number];
   sportVsGoalPct?: number;
   sportSubFocusSlugsBySport?: Record<string, string[]>;
+  /** Manual primary-focus label → sub-goal names (same shape as planWeek `goalSubFocusByGoal`). */
+  goalSubFocusByGoal?: Record<string, string[]>;
   preferredTrainingDays?: number[];
   defaultSessionDuration: number;
   energyBaseline: EnergyLevel;
@@ -210,19 +219,6 @@ const DEMAND_KEYS: IntentKey[] = [
   "prehab",
   "recovery",
 ];
-
-type DemandVector = Record<IntentKey, number>;
-
-function zeroDemand(): DemandVector {
-  return {
-    strength: 0,
-    power: 0,
-    aerobic: 0,
-    mobility: 0,
-    prehab: 0,
-    recovery: 0,
-  };
-}
 
 function startOfWeekMonday(date: Date): Date {
   const d = new Date(date);
@@ -412,6 +408,34 @@ function sessionIntentForKey(
         notes: "Foundation strength session to support your primary goals.",
       };
   }
+}
+
+/**
+ * When regenerating a gym day built as sport-only prep (no ranked goals), preserve athletic-prep
+ * focus instead of defaulting to max-strength session intent.
+ */
+function maybeApplySportOnlyGymSupportIntent(
+  intent: SessionIntent,
+  opts: {
+    goalSlugs?: string[];
+    sportSlug?: string | null;
+    rankedSportSlugs?: string[];
+    dailyPreferences?: DailyPrefs | null;
+    priorIntentLabel?: string | null;
+  }
+): void {
+  if (opts.dailyPreferences?.goalBias) return;
+  if ((opts.goalSlugs?.length ?? 0) > 0) return;
+  const slug = opts.sportSlug ?? opts.rankedSportSlugs?.[0];
+  if (!slug) return;
+  const prior = (opts.priorIntentLabel ?? "").toLowerCase();
+  if (!prior.includes("sport preparation") && !prior.includes("gym support")) {
+    return;
+  }
+  const sportLabel = humanizeSportSlug(slug);
+  intent.label = `${sportLabel} — Gym support`;
+  intent.focus = ["Sport preparation"];
+  intent.notes = `Balanced gym work to support ${sportLabel}.`;
 }
 
 /** Explicit sport intent when the plan’s primary/ranked sport has a defined contract (e.g. alpine). */
@@ -681,27 +705,25 @@ function sportSlotLabel(slot: { type: "sport"; sportSlug: string; discipline?: T
 
 async function computeCombinedDemand(
   goalSlugs: (string | null | undefined)[],
-  userGoalWeightsPct?: [number, number, number]
+  userGoalWeightsPct?: [number, number, number],
+  opts?: { sportContextPresent?: boolean }
 ): Promise<{
   combined: DemandVector;
   goalsSnapshot: Record<string, { slug: string; weight: number }>;
 }> {
   const supabase = getSupabase();
   if (!supabase) {
-    // Fallback: simple default vector if DB is not configured.
-    const combined = zeroDemand();
-    combined.strength = 2;
-    combined.aerobic = 1;
-    combined.mobility = 1;
+    const combined = opts?.sportContextPresent
+      ? sportSupportDefaultDemand()
+      : defaultNonSportEmptyGoalsDemand();
     return { combined, goalsSnapshot: {} };
   }
 
   const slugs = goalSlugs.filter((s): s is string => Boolean(s));
   if (!slugs.length) {
-    const combined = zeroDemand();
-    combined.strength = 2;
-    combined.aerobic = 1;
-    combined.mobility = 1;
+    const combined = opts?.sportContextPresent
+      ? sportSupportDefaultDemand()
+      : defaultNonSportEmptyGoalsDemand();
     return { combined, goalsSnapshot: {} };
   }
 
@@ -718,10 +740,9 @@ async function computeCombinedDemand(
 
   const goalIds = Array.from(goalIdBySlug.values());
   if (!goalIds.length) {
-    const combined = zeroDemand();
-    combined.strength = 2;
-    combined.aerobic = 1;
-    combined.mobility = 1;
+    const combined = opts?.sportContextPresent
+      ? sportSupportDefaultDemand()
+      : defaultNonSportEmptyGoalsDemand();
     return { combined, goalsSnapshot: {} };
   }
 
@@ -789,17 +810,25 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           input.goalMatchTertiaryPct ?? 20,
         ]
       : undefined;
+  const sportContextPresent =
+    (input.sportSlug != null && input.sportSlug !== "") ||
+    (input.rankedSportSlugs?.length ?? 0) > 0 ||
+    (input.sportDaysAllocation != null &&
+      Object.keys(input.sportDaysAllocation).some(
+        (k) => (input.sportDaysAllocation![k] ?? 0) > 0
+      ));
   const { combined: demand, goalsSnapshot } = await computeCombinedDemand(
     [
       input.primaryGoalSlug,
       input.secondaryGoalSlug,
       input.tertiaryGoalSlug,
     ],
-    userGoalWeights
+    userGoalWeights,
+    { sportContextPresent }
   );
   const intentOrder = chooseIntentOrder(demand);
   const goalSlugs = [
-    input.primaryGoalSlug,
+    input.primaryGoalSlug ?? null,
     input.secondaryGoalSlug ?? null,
     input.tertiaryGoalSlug ?? null,
   ].filter((s): s is string => Boolean(s));
@@ -961,12 +990,18 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       input.defaultSessionDuration,
       input.energyBaseline
     );
+    const primarySportSlug = input.sportSlug ?? rankedSportSlugs[0] ?? null;
     if (focusLabel) {
       intent.focus = [focusLabel];
     } else if (goalSlugs.length > 0) {
       intent.focus = goalSlugs.map(
         (g) => GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? GOAL_SLUG_TO_LABEL[g] ?? g
       );
+    } else if (primarySportSlug) {
+      const sportLabel = humanizeSportSlug(primarySportSlug);
+      intent.label = `${sportLabel} — Gym support`;
+      intent.focus = ["Sport preparation"];
+      intent.notes = `Balanced gym work to support ${sportLabel}.`;
     }
     const bodyRegionBias =
       slot.dayBias
@@ -1087,6 +1122,14 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       gymProfile: input.gymProfile,
       workoutTier: input.workoutTier ?? "intermediate",
       includeCreativeVariations: input.includeCreativeVariations === true,
+      goalDistributionStyle: input.goalDistributionStyle ?? undefined,
+      weeklyBodyEmphasisStyle: input.weeklyBodyEmphasisStyle ?? undefined,
+      specificBodyPartBehavior: input.specificBodyPartBehavior ?? undefined,
+      specificBodyPartEmphasis: input.specificBodyPartEmphasis ?? undefined,
+      goalSubFocusByGoal:
+        input.goalSubFocusByGoal && Object.keys(input.goalSubFocusByGoal).length > 0
+          ? { ...input.goalSubFocusByGoal }
+          : undefined,
       adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
     };
     return {
@@ -1120,10 +1163,11 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   }[] = [];
 
   // Create / persist user_training_plans row
-  const { data: goals, error: goalsError } = await supabase
-    .from("goals")
-    .select("id, slug")
-    .in("slug", goalSlugs);
+  const { data: goals, error: goalsError } =
+    goalSlugs.length > 0
+      ? await supabase.from("goals").select("id, slug").in("slug", goalSlugs)
+      : { data: [] as { id: string; slug: string }[], error: null };
+
   if (goalsError) throw new Error(goalsError.message);
 
   const goalIdBySlug = new Map<string, string>();
@@ -1131,11 +1175,16 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     goalIdBySlug.set(g.slug as string, g.id as string);
   }
 
+  const primaryGoalId =
+    input.primaryGoalSlug != null && input.primaryGoalSlug !== ""
+      ? goalIdBySlug.get(input.primaryGoalSlug) ?? null
+      : null;
+
   const { data: trainingPlanRow, error: planError } = await supabase
     .from("user_training_plans")
     .insert({
       user_id: input.userId,
-      primary_goal_id: goalIdBySlug.get(input.primaryGoalSlug),
+      primary_goal_id: primaryGoalId,
       secondary_goal_id: input.secondaryGoalSlug
         ? goalIdBySlug.get(input.secondaryGoalSlug)
         : null,
@@ -1325,6 +1374,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     weeklyBodyEmphasisStyle: input.weeklyBodyEmphasisStyle ?? undefined,
     specificBodyPartBehavior: input.specificBodyPartBehavior ?? undefined,
     specificBodyPartEmphasis: input.specificBodyPartEmphasis ?? undefined,
+    goalSubFocusByGoal:
+      input.goalSubFocusByGoal && Object.keys(input.goalSubFocusByGoal).length > 0
+        ? { ...input.goalSubFocusByGoal }
+        : undefined,
     adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
   };
 
@@ -1380,6 +1433,13 @@ export async function regenerateDay(
           "Build Strength",
       ];
     }
+    maybeApplySportOnlyGymSupportIntent(sessionIntent, {
+      goalSlugs: input.goalSlugs,
+      sportSlug: input.sportSlug ?? null,
+      rankedSportSlugs: input.rankedSportSlugs,
+      dailyPreferences: input.dailyPreferences,
+      priorIntentLabel: input.intentLabel ?? null,
+    });
     const regContractGuest = planContextSessionIntentContract({
       sportSlug: input.sportSlug,
       rankedSportSlugs: input.rankedSportSlugs,
@@ -1477,6 +1537,13 @@ export async function regenerateDay(
         "Build Strength",
     ];
   }
+  maybeApplySportOnlyGymSupportIntent(sessionIntent, {
+    goalSlugs: input.goalSlugs,
+    sportSlug: input.sportSlug ?? null,
+    rankedSportSlugs: input.rankedSportSlugs,
+    dailyPreferences: input.dailyPreferences,
+    priorIntentLabel: (dayRow.intent_label as string | null) ?? null,
+  });
   const bodyRegionBias = bodyRegionBiasFromDailyPreferences(input.dailyPreferences);
 
   const regContractDb = planContextSessionIntentContract({

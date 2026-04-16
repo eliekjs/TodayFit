@@ -1,8 +1,45 @@
-import { GOAL_SLUG_TO_LABEL } from "./preferencesConstants";
-import type { AdaptiveScheduleLabels, BodyEmphasisKey, DailyWorkoutPreferences, ManualPreferences } from "./types";
+import {
+  GOAL_SLUG_TO_LABEL,
+  ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
+} from "./preferencesConstants";
+import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
+import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
+import { SPECIFIC_FOCUS_LABELS } from "./dayTitle";
+import type {
+  AdaptiveScheduleLabels,
+  BodyEmphasisKey,
+  DailyWorkoutPreferences,
+  GoalDistributionStyle,
+  ManualPreferences,
+  SpecificBodyFocusKey,
+} from "./types";
 
 function humanizeSportSlug(slug: string): string {
   return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function resolveSportSubFocusLabels(sportSlug: string, slugs: string[]): string[] {
+  if (!slugs.length) return [];
+  const canonical = getCanonicalSportSlug(sportSlug);
+  const sport = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === canonical);
+  if (!sport) return slugs.map(humanizeSportSlug);
+  return slugs.map((slug) => {
+    const hit = sport.sub_focuses.find((sf) => sf.slug === slug);
+    return hit?.name ?? humanizeSportSlug(slug);
+  });
+}
+
+function subGoalsForGoalSlug(
+  goalSlug: string,
+  snapshotSubs: Record<string, string[]> | undefined,
+  manualSubs: Record<string, string[]> | undefined
+): string[] {
+  const manualKey = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalSlug];
+  if (!manualKey) return [];
+  const fromSnap = snapshotSubs?.[manualKey];
+  if (fromSnap?.length) return fromSnap;
+  const fromManual = manualSubs?.[manualKey];
+  return fromManual?.length ? fromManual : [];
 }
 
 function capitalizeWord(s: string): string {
@@ -160,33 +197,106 @@ export function buildAdaptiveScheduleContextLines(opts: {
   return lines;
 }
 
+export type BuildAdaptiveGoalsAndSportsOptions = {
+  /**
+   * When the plan snapshot has no goal sub-focus (legacy), use live manual prefs so the summary
+   * still lists sub-goals the user selected in Sport Mode.
+   */
+  manualSubFocusByGoal?: Record<string, string[]>;
+};
+
 export function buildAdaptiveGoalsAndSportsLines(
   snapshot:
     | {
-        primaryGoalSlug: string;
+        primaryGoalSlug: string | null;
         secondaryGoalSlug?: string | null;
         tertiaryGoalSlug?: string | null;
         rankedSportSlugs?: string[];
         sportSlug?: string | null;
+        sportQualitySlugs?: string[];
+        sportSubFocusSlugs?: string[];
+        sportSubFocusSlugsBySport?: Record<string, string[]>;
+        sportFocusPct?: [number, number];
+        sportVsGoalPct?: number;
+        goalSubFocusByGoal?: Record<string, string[]>;
+        goalDistributionStyle?: GoalDistributionStyle | null;
+        specificBodyPartEmphasis?: SpecificBodyFocusKey[] | null;
       }
     | null
-    | undefined
+    | undefined,
+  opts?: BuildAdaptiveGoalsAndSportsOptions
 ): string[] {
   if (!snapshot) return [];
   const lines: string[] = [];
+  const snapGoalSubs = snapshot.goalSubFocusByGoal;
+  const manualGoalSubs = opts?.manualSubFocusByGoal;
+
   const goals = [snapshot.primaryGoalSlug, snapshot.secondaryGoalSlug, snapshot.tertiaryGoalSlug].filter(
     (g): g is string => g != null && g !== ""
   );
   if (goals.length > 0) {
-    lines.push(`Goals: ${goals.map((g) => GOAL_SLUG_TO_LABEL[g] ?? humanizeSportSlug(g)).join(", ")}`);
+    const goalParts = goals.map((g) => {
+      const title = GOAL_SLUG_TO_LABEL[g] ?? humanizeSportSlug(g);
+      const subs = subGoalsForGoalSlug(g, snapGoalSubs, manualGoalSubs);
+      return subs.length ? `${title} (${subs.join(", ")})` : title;
+    });
+    lines.push(`Goals: ${goalParts.join(" • ")}`);
   }
+
   const sports = snapshot.rankedSportSlugs?.length
     ? snapshot.rankedSportSlugs
     : snapshot.sportSlug
       ? [snapshot.sportSlug]
       : [];
   if (sports.length > 0) {
-    lines.push(`Sports: ${sports.map(humanizeSportSlug).join(" • ")}`);
+    const sportParts = sports.map((sportKey) => {
+      const base = humanizeSportSlug(sportKey);
+      const rawSubs =
+        snapshot.sportSubFocusSlugsBySport?.[sportKey] ??
+        (sportKey === snapshot.sportSlug ? snapshot.sportSubFocusSlugs : undefined) ??
+        [];
+      const subLabels = resolveSportSubFocusLabels(sportKey, rawSubs);
+      const qualitySlugs =
+        sportKey === snapshot.sportSlug && snapshot.sportQualitySlugs?.length
+          ? snapshot.sportQualitySlugs
+          : [];
+      const qualityLabels = qualitySlugs.map(humanizeSportSlug);
+      const detail = [...subLabels, ...qualityLabels];
+      return detail.length ? `${base} (${detail.join(", ")})` : base;
+    });
+    lines.push(`Sports: ${sportParts.join(" • ")}`);
   }
+
+  if (
+    snapshot.sportVsGoalPct != null &&
+    goals.length > 0 &&
+    sports.length > 0
+  ) {
+    const s = Math.round(snapshot.sportVsGoalPct);
+    lines.push(`Sport vs goals: ${s}% sport · ${100 - s}% goals`);
+  }
+
+  if (snapshot.sportFocusPct?.length === 2 && sports.length === 2) {
+    const [a, b] = snapshot.sportFocusPct;
+    lines.push(
+      `Sport mix: ${Math.round(a)}% ${humanizeSportSlug(sports[0])} · ${Math.round(b)}% ${humanizeSportSlug(sports[1])}`
+    );
+  }
+
+  if (snapshot.goalDistributionStyle && goals.length > 0) {
+    lines.push(
+      snapshot.goalDistributionStyle === "dedicate_days"
+        ? "Gym: one main goal per day"
+        : "Gym: blended goals across days"
+    );
+  }
+
+  if (snapshot.specificBodyPartEmphasis?.length) {
+    const labels = snapshot.specificBodyPartEmphasis.map(
+      (k) => SPECIFIC_FOCUS_LABELS[k] ?? humanizeSportSlug(k)
+    );
+    lines.push(`Body targets: ${labels.join(", ")}`);
+  }
+
   return lines;
 }

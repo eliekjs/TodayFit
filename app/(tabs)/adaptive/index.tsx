@@ -290,7 +290,7 @@ export default function AdaptiveModeScreen() {
       (async () => {
         setIsGeneratingOneDay(true);
         try {
-          const primary = rankedGoals[0] ?? "strength";
+          const primary = rankedGoals[0] ?? null;
           const secondary = rankedGoals[1] ?? null;
           const tertiary = rankedGoals[2] ?? null;
           const energyFromFatigue = (level: string): EnergyLevel => {

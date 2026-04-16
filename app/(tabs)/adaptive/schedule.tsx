@@ -129,7 +129,7 @@ export default function AdaptiveScheduleScreen() {
       return;
     }
 
-    const primary = adaptiveSetup.rankedGoals[0] ?? "strength";
+    const primary = adaptiveSetup.rankedGoals[0] ?? null;
     const secondary = adaptiveSetup.rankedGoals[1] ?? null;
     const tertiary = adaptiveSetup.rankedGoals[2] ?? null;
 

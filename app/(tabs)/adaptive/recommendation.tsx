@@ -677,7 +677,11 @@ export default function AdaptiveWeekPlanScreen() {
   if (selectedWorkout?.durationMinutes != null) {
     summaryLines.push(`${selectedWorkout.durationMinutes} min`);
   }
-  summaryLines.push(...buildAdaptiveGoalsAndSportsLines(scheduleSnap));
+  summaryLines.push(
+    ...buildAdaptiveGoalsAndSportsLines(scheduleSnap, {
+      manualSubFocusByGoal: manualPreferences.subFocusByGoal,
+    })
+  );
   summaryLines.push(
     ...buildAdaptiveScheduleContextLines({
       labels: scheduleSnap?.adaptiveScheduleLabels,
