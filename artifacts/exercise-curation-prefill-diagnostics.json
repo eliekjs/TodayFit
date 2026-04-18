@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-18T21:10:06.292Z",
+  "exercise_count": 4016,
+  "movement_pattern_counts_by_tier": {
+    "horizontal_push": {
+      "locked": 296,
+      "strong_prior": 458
+    },
+    "squat": {
+      "strong_prior": 1969,
+      "locked": 52
+    },
+    "vertical_push": {
+      "locked": 67,
+      "strong_prior": 183
+    },
+    "rotation": {
+      "locked": 634,
+      "strong_prior": 250
+    },
+    "horizontal_pull": {
+      "locked": 156,
+      "strong_prior": 203
+    },
+    "hinge": {
+      "strong_prior": 133
+    },
+    "lunge": {
+      "strong_prior": 1181
+    },
+    "anti_rotation": {
+      "strong_prior": 212,
+      "locked": 491
+    },
+    "locomotion": {
+      "strong_prior": 70
+    },
+    "vertical_pull": {
+      "strong_prior": 89
+    },
+    "carry": {
+      "strong_prior": 20
+    },
+    "isometric": {
+      "strong_prior": 72
+    }
+  },
+  "primary_role_counts_by_tier": {
+    "power_explosive": {
+      "strong_prior": 405
+    },
+    "unilateral_strength": {
+      "weak_prior": 897
+    },
+    "compound_strength": {
+      "weak_prior": 759
+    },
+    "mobility": {
+      "locked": 165,
+      "strong_prior": 7
+    },
+    "conditioning": {
+      "locked": 24
+    },
+    "accessory_strength": {
+      "weak_prior": 253
+    },
+    "stability_core": {
+      "weak_prior": 98
+    },
+    "injury_prevention": {
+      "weak_prior": 28
+    }
+  },
+  "equipment_class_counts_by_tier": {
+    "bodyweight": {
+      "locked": 1771
+    },
+    "mixed": {
+      "strong_prior": 191
+    },
+    "band": {
+      "locked": 62
+    },
+    "barbell": {
+      "locked": 249,
+      "weak_prior": 69
+    },
+    "cable": {
+      "locked": 77,
+      "weak_prior": 23
+    },
+    "specialty": {
+      "weak_prior": 56,
+      "locked": 94
+    },
+    "dumbbell": {
+      "locked": 323,
+      "weak_prior": 184
+    },
+    "kettlebell": {
+      "weak_prior": 211,
+      "locked": 701
+    },
+    "machine": {
+      "locked": 1
+    },
+    "cardio_machine": {
+      "locked": 4
+    }
+  },
+  "mixed_equipment": {
+    "count": 191,
+    "reason_counts": [
+      {
+        "reason_code": "equipment_true_mixed_two_mains_equal_weight",
+        "count": 191
+      }
+    ]
+  },
+  "locked_movement_pattern_source_reason_combos": [
+    {
+      "key": "anti_rotation,rotation::ontology_movement_patterns::ontology_movement_patterns_mapped",
+      "movement_patterns": [
+        "anti_rotation",
+        "rotation"
+      ],
+      "sources": "ontology_movement_patterns",
+      "reason_codes": "ontology_movement_patterns_mapped",
+      "count": 491
+    },
+    {
+      "key": "horizontal_push::ontology_movement_patterns::ontology_movement_patterns_mapped",
+      "movement_patterns": [
+        "horizontal_push"
+      ],
+      "sources": "ontology_movement_patterns",
+      "reason_codes": "ontology_movement_patterns_mapped",
+      "count": 296
+    },
+    {
+      "key": "horizontal_pull::ontology_movement_patterns::ontology_movement_patterns_mapped",
+      "movement_patterns": [
+        "horizontal_pull"
+      ],
+      "sources": "ontology_movement_patterns",
+      "reason_codes": "ontology_movement_patterns_mapped",
+      "count": 156
+    },
+    {
+      "key": "rotation::ontology_movement_patterns::ontology_movement_patterns_mapped",
+      "movement_patterns": [
+        "rotation"
+      ],
+      "sources": "ontology_movement_patterns",
+      "reason_codes": "ontology_movement_patterns_mapped",
+      "count": 143
+    },
+    {
+      "key": "squat,vertical_push::ontology_movement_patterns::ontology_movement_patterns_mapped",
+      "movement_patterns": [
+        "squat",
+        "vertical_push"
+      ],
+      "sources": "ontology_movement_patterns",
+      "reason_codes": "ontology_movement_patterns_mapped",
+      "count": 52
+    },
+    {
+      "key": "vertical_push::ontology_movement_patterns::ontology_movement_patterns_mapped",
+      "movement_patterns": [
+        "vertical_push"
+      ],
+      "sources": "ontology_movement_patterns",
+      "reason_codes": "ontology_movement_patterns_mapped",
+      "count": 15
+    }
+  ]
+}

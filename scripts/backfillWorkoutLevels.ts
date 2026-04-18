@@ -13,13 +13,18 @@
  * Rollback: re-import a saved CSV of slugs to clear, then:
  *   UPDATE public.exercises SET workout_levels = NULL WHERE slug = ANY($1::text[]);
  * Or clear all backfilled rows (destructive): SET workout_levels = NULL WHERE workout_levels IS NOT NULL;
+ *
+ * Loads `.env` from the repo root when present (no dotenv package) so `SUPABASE_SERVICE_ROLE_KEY` is available for `--apply`.
  */
 
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { loadDotEnvFromRepoRoot, printServiceRoleKeyHelp } from "./dotenvLocal";
 import { loadActiveExercisesWithRelationMaps } from "../lib/db/exerciseRepository";
 import { mapDbExerciseToGeneratorExercise } from "../lib/db/generatorExerciseAdapter";
 import { parseWorkoutLevelsFromDb, serializeWorkoutLevelsForDb } from "../lib/workoutLevel";
+
+loadDotEnvFromRepoRoot();
 
 function parseArgs(argv: string[]) {
   let dryRun = true;
@@ -46,10 +51,9 @@ async function main() {
     console.error("Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY).");
     process.exit(1);
   }
-  if (!serviceKey) {
-    console.warn(
-      "Warning: SUPABASE_SERVICE_ROLE_KEY not set; using anon key. Row updates may be denied by RLS.\n"
-    );
+  if (!dryRun && !serviceKey) {
+    printServiceRoleKeyHelp("npm run backfill:workout-levels:apply");
+    process.exit(1);
   }
 
   const supabase = createClient(url, key);
@@ -57,6 +61,7 @@ async function main() {
   const csvLines: string[] = ["slug,name,action,before,after"];
 
   let wouldWrite = 0;
+  let appliedCount = 0;
   let skippedExplicit = 0;
   let skippedNoChange = 0;
   const beforeCombo = new Map<string, number>();
@@ -110,6 +115,11 @@ async function main() {
         .eq("id", row.id);
       if (error) {
         console.error(`Update failed ${row.slug}: ${error.message}`);
+      } else {
+        appliedCount++;
+        if (appliedCount % 500 === 0) {
+          console.error(`Applied ${appliedCount} rows…`);
+        }
       }
     }
   }
@@ -124,6 +134,7 @@ async function main() {
     dry_run: dryRun,
     force,
     would_write_or_wrote: wouldWrite,
+    applied_rows: dryRun ? 0 : appliedCount,
     skipped_existing_explicit: skippedExplicit,
     skipped_no_change: skippedNoChange,
     before_tier_combo_counts: Object.fromEntries(
@@ -140,6 +151,20 @@ async function main() {
   const topAfter = [...projectedAfterCombo.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
   console.log("  before (raw DB):", topBefore.map(([k, n]) => `${k}=${n}`).join(", ") || "(none)");
   console.log("  projected:        ", topAfter.map(([k, n]) => `${k}=${n}`).join(", ") || "(none)");
+
+  if (!dryRun && wouldWrite > 0 && appliedCount === 0) {
+    console.error(
+      "\nNo rows were updated. Typical causes: missing or invalid SUPABASE_SERVICE_ROLE_KEY, or RLS blocking updates. " +
+        "Fix .env and re-run: npm run backfill:workout-levels:apply"
+    );
+    process.exit(1);
+  }
+  if (!dryRun && appliedCount > 0 && appliedCount < wouldWrite) {
+    console.error(
+      `\nWarning: only ${appliedCount}/${wouldWrite} updates succeeded; see Update failed lines above.`
+    );
+    process.exit(1);
+  }
 }
 
 function escapeCsv(s: string): string {

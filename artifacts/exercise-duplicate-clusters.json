@@ -1,0 +1,567 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-18T21:51:10.504Z",
+  "catalog_path": "/Users/ellie/todayfit/data/workout-exercise-catalog.json",
+  "prefill_path": "/Users/ellie/todayfit/artifacts/exercise-curation-prefill.json",
+  "llm_validated_path": "/Users/ellie/todayfit/artifacts/exercise-curation-llm-validated.json",
+  "config": {
+    "edge_threshold": 0.78,
+    "min_internal_pair_score": 0.62,
+    "max_cluster_size": 24,
+    "weights": {
+      "name_token_jaccard": 0.28,
+      "name_char_similarity": 0.18,
+      "alias_overlap": 0.1,
+      "movement_patterns_jaccard": 0.14,
+      "equipment_match": 0.08,
+      "primary_role_match": 0.06,
+      "muscle_jaccard": 0.08,
+      "tag_jaccard": 0.05,
+      "keep_category_alignment": 0.03
+    },
+    "bands": {
+      "high": 0.88,
+      "medium": 0.72
+    }
+  },
+  "clusters": [
+    {
+      "duplicate_cluster_id": "dup_00000",
+      "cluster_confidence": "medium",
+      "cluster_score": 0.8556410256410256,
+      "canonical_exercise_id": "2_point_start",
+      "member_exercise_ids": [
+        "2_point_start",
+        "3_point_start"
+      ],
+      "member_count": 2,
+      "top_similarity_factors": [
+        "name_token_jaccard",
+        "movement_patterns_jaccard",
+        "equipment_match",
+        "primary_role_match",
+        "muscle_jaccard",
+        "keep_category_alignment"
+      ],
+      "canonical_selection_reasons": [
+        "name_length_readable",
+        "metadata_completeness_0.70",
+        "keep_category_niche",
+        "llm_confidence_0.77"
+      ],
+      "link_reason_codes": [
+        "pairwise_weighted_blend",
+        "strong_name_token_overlap",
+        "strong_char_similarity"
+      ]
+    }
+  ],
+  "blocked_pair_sample": [
+    {
+      "a": "ff_bodyweight_alternating_split_squat_jump",
+      "b": "ff_bodyweight_step_up_jump",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_bodyweight_alternating_step_up_jump",
+      "b": "ff_bodyweight_bulgarian_split_squat_jump",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_bodyweight_alternating_step_up_jump",
+      "b": "ff_bodyweight_split_squat_jump",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_bodyweight_bulgarian_split_squat_jump",
+      "b": "ff_bodyweight_step_up_jump",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_bodyweight_split_squat_jump",
+      "b": "ff_bodyweight_step_up_jump",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_tire_alternating_step_up_jump",
+      "b": "ff_tire_bulgarian_split_squat_jump",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_tire_bulgarian_split_squat_jump",
+      "b": "ff_tire_step_up_jump",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_russian_step_up",
+      "b": "ff_dumbbell_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_russian_step_up",
+      "b": "ff_dumbbell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_russian_step_up",
+      "b": "ff_dumbbell_goblet_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_russian_step_up",
+      "b": "ff_dumbbell_goblet_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_russian_step_up",
+      "b": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_step_up",
+      "b": "ff_dumbbell_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_step_up",
+      "b": "ff_dumbbell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_step_up",
+      "b": "ff_dumbbell_goblet_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_step_up",
+      "b": "ff_dumbbell_goblet_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_alternating_step_up",
+      "b": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_bulgarian_split_squat",
+      "b": "ff_dumbbell_goblet_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_bulgarian_split_squat",
+      "b": "ff_dumbbell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "b": "ff_dumbbell_goblet_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "b": "ff_dumbbell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_knee_over_toe_split_squat",
+      "b": "ff_dumbbell_goblet_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_knee_over_toe_split_squat",
+      "b": "ff_dumbbell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_russian_step_up",
+      "b": "ff_dumbbell_goblet_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_russian_step_up",
+      "b": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_split_squat",
+      "b": "ff_dumbbell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_dumbbell_goblet_step_up",
+      "b": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "b": "ff_kettlebell_goblet_alternating_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "b": "ff_kettlebell_goblet_alternating_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "b": "ff_kettlebell_goblet_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_bottoms_up_horn_grip_goblet_bulgarian_split_squat",
+      "b": "ff_kettlebell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_russian_step_up",
+      "b": "ff_kettlebell_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_russian_step_up",
+      "b": "ff_kettlebell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_russian_step_up",
+      "b": "ff_kettlebell_goblet_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_russian_step_up",
+      "b": "ff_kettlebell_goblet_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_step_up",
+      "b": "ff_kettlebell_goblet_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_step_up",
+      "b": "ff_kettlebell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_step_up",
+      "b": "ff_kettlebell_goblet_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_alternating_step_up",
+      "b": "ff_kettlebell_goblet_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_bulgarian_split_squat",
+      "b": "ff_kettlebell_goblet_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_bulgarian_split_squat",
+      "b": "ff_kettlebell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "b": "ff_kettlebell_goblet_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_foot_elevated_knee_over_toe_split_squat",
+      "b": "ff_kettlebell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_knee_over_toe_split_squat",
+      "b": "ff_kettlebell_goblet_russian_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_knee_over_toe_split_squat",
+      "b": "ff_kettlebell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_russian_step_up",
+      "b": "ff_kettlebell_goblet_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_kettlebell_goblet_split_squat",
+      "b": "ff_kettlebell_goblet_step_up",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_front_rack_low_switch_cossack_squat",
+      "b": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_barbell_front_rack_low_switch_cossack_squat",
+      "b": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_barbell_front_rack_low_switch_cossack_squat",
+      "b": "ff_landmine_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_dumbbell_front_rack_low_switch_cossack_squat",
+      "b": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_dumbbell_front_rack_low_switch_cossack_squat",
+      "b": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_dumbbell_front_rack_low_switch_cossack_squat",
+      "b": "ff_landmine_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_kettlebell_bottoms_up_front_rack_low_switch_cossack_squat",
+      "b": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_kettlebell_bottoms_up_front_rack_low_switch_cossack_squat",
+      "b": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_kettlebell_bottoms_up_front_rack_low_switch_cossack_squat",
+      "b": "ff_landmine_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_kettlebell_front_rack_low_switch_cossack_squat",
+      "b": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_kettlebell_front_rack_low_switch_cossack_squat",
+      "b": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_double_kettlebell_front_rack_low_switch_cossack_squat",
+      "b": "ff_landmine_goblet_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "b": "ff_sandbag_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_dumbbell_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_kettlebell_bottoms_up_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_dumbbell_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_kettlebell_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "b": "ff_sandbag_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_dumbbell_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_kettlebell_bottoms_up_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_kettlebell_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_kettlebell_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_landmine_goblet_low_switch_cossack_squat",
+      "b": "ff_sandbag_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_landmine_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_dumbbell_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_landmine_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_kettlebell_bottoms_up_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_landmine_goblet_low_switch_cossack_squat",
+      "b": "ff_single_arm_kettlebell_front_rack_low_switch_cossack_squat",
+      "score": 0,
+      "reason": "distinct_goblet_vs_front_squat"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_barbell_back_rack_bulgarian_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_barbell_back_rack_foot_elevated_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_barbell_back_rack_isometric_split_squat_calf_raise",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_barbell_back_rack_isometric_split_squat_foot_elevated_calf_raise",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_barbell_back_rack_knee_over_toe_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_barbell_back_rack_split_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_bulgarian_bag_back_rack_alternating_cossack_squat",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_bulgarian_bag_back_rack_alternating_curtsy_lunge",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    },
+    {
+      "a": "ff_barbell_back_rack_alternating_russian_step_up",
+      "b": "ff_bulgarian_bag_back_rack_alternating_forward_lunge",
+      "score": 0,
+      "reason": "distinct_bulgarian_split_vs_step_up"
+    }
+  ],
+  "stats": {
+    "total_clusters": 1,
+    "input_exercise_count": 4016,
+    "exercises_clustered_unique": 2,
+    "exercises_not_clustered": 4014,
+    "by_band": {
+      "high": 0,
+      "medium": 1,
+      "low": 0
+    },
+    "largest_clusters": [
+      {
+        "duplicate_cluster_id": "dup_00000",
+        "member_count": 2,
+        "canonical_exercise_id": "2_point_start"
+      }
+    ],
+    "clusters_with_multiple_core": 0,
+    "dropped_oversized": 0,
+    "dropped_low_internal": 0,
+    "suspicious_oversized_sample": [],
+    "suspicious_low_internal_sample": [],
+    "member_keep_category_distribution": {
+      "niche": 2
+    }
+  }
+}

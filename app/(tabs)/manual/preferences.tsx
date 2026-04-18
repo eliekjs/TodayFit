@@ -10,6 +10,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  type LayoutChangeEvent,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
@@ -81,6 +82,7 @@ export default function ManualPreferencesScreen() {
   const [savePresetName, setSavePresetName] = useState("");
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
+  const [bottomBarHeight, setBottomBarHeight] = useState(180);
   const router = useRouter();
   const navigation = useNavigation();
   const { scope } = useLocalSearchParams<{ scope?: string }>();
@@ -370,6 +372,11 @@ export default function ManualPreferencesScreen() {
     });
   }, []);
 
+  const onBottomBarLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+    setBottomBarHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, []);
+
   const modifierOptions = manualPreferences.targetBody
     ? MODIFIERS_BY_TARGET[manualPreferences.targetBody]
     : [];
@@ -444,7 +451,7 @@ export default function ManualPreferencesScreen() {
       <StatusBar style="light" />
       <ScrollView
         ref={scrollViewRef}
-        contentContainerStyle={[styles.content, { paddingBottom: 160 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: bottomBarHeight + 24 }]}
         showsVerticalScrollIndicator={false}
       >
         <View ref={scrollContentRef} collapsable={false}>
@@ -1116,6 +1123,7 @@ export default function ManualPreferencesScreen() {
 
       {/* Sticky bottom bar */}
       <View
+        onLayout={onBottomBarLayout}
         style={[
           styles.bottomBar,
           {

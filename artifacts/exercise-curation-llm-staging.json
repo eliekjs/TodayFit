@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-18T21:21:08.393Z",
+  "catalog_path": "/Users/ellie/todayfit/data/workout-exercise-catalog.json",
+  "prefill_path": "/Users/ellie/todayfit/artifacts/exercise-curation-prefill.json",
+  "provider": "mock",
+  "batch_size": 8,
+  "processed_ids": [
+    "1_arm_db_jerks",
+    "2_point_start",
+    "2_to_1_broad_jump_land_2",
+    "2_way_shoulder_raise",
+    "3_point_start"
+  ],
+  "items": [
+    {
+      "exercise_id": "1_arm_db_jerks",
+      "batch_index": 0,
+      "payload_summary": {
+        "name": "1 Arm DB Jerks"
+      },
+      "raw_response": "{\"primary_role\":\"power_explosive\",\"movement_patterns\":[\"horizontal_push\"],\"equipment_class\":\"bodyweight\",\"complexity\":\"intermediate\",\"keep_category\":\"niche\",\"sport_transfer_tags\":[],\"llm_confidence\":0.77,\"ambiguity_flags\":[]}",
+      "provider_error": null,
+      "validation": {
+        "ok": true,
+        "value": {
+          "primary_role": "power_explosive",
+          "movement_patterns": [
+            "horizontal_push"
+          ],
+          "equipment_class": "bodyweight",
+          "complexity": "intermediate",
+          "keep_category": "niche",
+          "sport_transfer_tags": [],
+          "llm_confidence": 0.77,
+          "ambiguity_flags": []
+        }
+      }
+    },
+    {
+      "exercise_id": "2_point_start",
+      "batch_index": 0,
+      "payload_summary": {
+        "name": "2 Point Start"
+      },
+      "raw_response": "{\"primary_role\":\"accessory_strength\",\"movement_patterns\":[\"squat\"],\"equipment_class\":\"bodyweight\",\"complexity\":\"intermediate\",\"keep_category\":\"niche\",\"sport_transfer_tags\":[],\"llm_confidence\":0.77,\"ambiguity_flags\":[]}",
+      "provider_error": null,
+      "validation": {
+        "ok": true,
+        "value": {
+          "primary_role": "accessory_strength",
+          "movement_patterns": [
+            "squat"
+          ],
+          "equipment_class": "bodyweight",
+          "complexity": "intermediate",
+          "keep_category": "niche",
+          "sport_transfer_tags": [],
+          "llm_confidence": 0.77,
+          "ambiguity_flags": []
+        }
+      }
+    },
+    {
+      "exercise_id": "2_to_1_broad_jump_land_2",
+      "batch_index": 0,
+      "payload_summary": {
+        "name": "2 to 1 Broad Jump Land 2"
+      },
+      "raw_response": "{\"primary_role\":\"power_explosive\",\"movement_patterns\":[\"squat\"],\"equipment_class\":\"bodyweight\",\"complexity\":\"intermediate\",\"keep_category\":\"niche\",\"sport_transfer_tags\":[],\"llm_confidence\":0.77,\"ambiguity_flags\":[]}",
+      "provider_error": null,
+      "validation": {
+        "ok": true,
+        "value": {
+          "primary_role": "power_explosive",
+          "movement_patterns": [
+            "squat"
+          ],
+          "equipment_class": "bodyweight",
+          "complexity": "intermediate",
+          "keep_category": "niche",
+          "sport_transfer_tags": [],
+          "llm_confidence": 0.77,
+          "ambiguity_flags": []
+        }
+      }
+    },
+    {
+      "exercise_id": "2_way_shoulder_raise",
+      "batch_index": 0,
+      "payload_summary": {
+        "name": "Single Leg Front to Lateral Raise"
+      },
+      "raw_response": "{\"primary_role\":\"unilateral_strength\",\"movement_patterns\":[\"vertical_push\"],\"equipment_class\":\"bodyweight\",\"complexity\":\"intermediate\",\"keep_category\":\"niche\",\"sport_transfer_tags\":[],\"llm_confidence\":0.77,\"ambiguity_flags\":[]}",
+      "provider_error": null,
+      "validation": {
+        "ok": true,
+        "value": {
+          "primary_role": "unilateral_strength",
+          "movement_patterns": [
+            "vertical_push"
+          ],
+          "equipment_class": "bodyweight",
+          "complexity": "intermediate",
+          "keep_category": "niche",
+          "sport_transfer_tags": [],
+          "llm_confidence": 0.77,
+          "ambiguity_flags": []
+        }
+      }
+    },
+    {
+      "exercise_id": "3_point_start",
+      "batch_index": 0,
+      "payload_summary": {
+        "name": "3 Point Start"
+      },
+      "raw_response": "{\"primary_role\":\"accessory_strength\",\"movement_patterns\":[\"squat\"],\"equipment_class\":\"bodyweight\",\"complexity\":\"intermediate\",\"keep_category\":\"niche\",\"sport_transfer_tags\":[],\"llm_confidence\":0.77,\"ambiguity_flags\":[]}",
+      "provider_error": null,
+      "validation": {
+        "ok": true,
+        "value": {
+          "primary_role": "accessory_strength",
+          "movement_patterns": [
+            "squat"
+          ],
+          "equipment_class": "bodyweight",
+          "complexity": "intermediate",
+          "keep_category": "niche",
+          "sport_transfer_tags": [],
+          "llm_confidence": 0.77,
+          "ambiguity_flags": []
+        }
+      }
+    }
+  ]
+}

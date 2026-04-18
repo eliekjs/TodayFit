@@ -87,6 +87,7 @@ Scripts: `scripts/validate-autonomous-pr.js` (and optionally pre-push hook). See
 | Cursor skills | `.cursor/skills/workout-logic-research-integration-agent/`, `.cursor/skills/exercise-db-enrichment-agent/` |
 | Cursor Automation specs | `.cursor/automation/` (see specs for logic 3×/week, enrichment 2×/week) |
 | Improvement targets (audit) | `/docs/research/top-20-improvement-targets.md` |
+| Product / workout intent (who the app serves; agent alignment) | `/docs/WORKOUT_INTENT.md` |
 
 ---
 

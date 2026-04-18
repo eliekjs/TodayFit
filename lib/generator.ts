@@ -72,12 +72,29 @@ function exerciseConflictsWithInjuries(ex: Exercise, injurySlugs: string[]): boo
  *   (no static merge) — Supabase is the source of truth; avoids loading ~1MB+ static chunks.
  * - **Dev / empty DB / errors:** merge DB rows (DB wins on id) with lazy-loaded static catalog.
  */
+const mergedExercisePoolByInjuryKey = new Map<string, Exercise[]>();
+
+/** Clears merged pool memo (e.g. tests that swap catalog between generations in one runtime). */
+export function clearMergedExercisePoolCache(): void {
+  mergedExercisePoolByInjuryKey.clear();
+}
+
+function mergedPoolCacheKey(injurySlugs: string[]): string {
+  return [...injurySlugs].sort().join("|");
+}
+
 async function loadMergedExercisePoolForGenerator(injurySlugs: string[]): Promise<Exercise[]> {
+  const key = mergedPoolCacheKey(injurySlugs);
+  const hit = mergedExercisePoolByInjuryKey.get(key);
+  if (hit) return hit;
+
   const byId = new Map<string, Exercise>();
 
   if (!isDbConfigured()) {
     const staticDefs = await loadStaticExerciseDefinitions();
-    return mergeStaticIntoPool(byId, staticDefs, injurySlugs);
+    const pool = mergeStaticIntoPool(byId, staticDefs, injurySlugs);
+    mergedExercisePoolByInjuryKey.set(key, pool);
+    return pool;
   }
 
   try {
@@ -88,15 +105,41 @@ async function loadMergedExercisePoolForGenerator(injurySlugs: string[]): Promis
       if (!BLOCKED_EXERCISE_IDS.has(e.id)) byId.set(e.id, e);
     }
     if (dbAuthoritative) {
-      return [...byId.values()];
+      const pool = [...byId.values()];
+      mergedExercisePoolByInjuryKey.set(key, pool);
+      return pool;
     }
   } catch {
     // Misconfig, RLS, or network — merge static catalog below.
   }
 
   const staticDefs = await loadStaticExerciseDefinitions();
-  return mergeStaticIntoPool(byId, staticDefs, injurySlugs);
+  const pool = mergeStaticIntoPool(byId, staticDefs, injurySlugs);
+  mergedExercisePoolByInjuryKey.set(key, pool);
+  return pool;
 }
+
+/** Injury constraint slugs aligned with `generateWorkoutAsync` / `manualPreferencesToGenerateWorkoutInput`. */
+export function injurySlugsFromManualPreferences(preferences: ManualPreferences): string[] {
+  const injuryFilter =
+    preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
+      ? []
+      : preferences.injuries.filter((i) => i !== "No restrictions");
+  return injuryFilter.map((i) => i.toLowerCase().replace(/ /g, "_"));
+}
+
+/**
+ * Loads the merged exercise pool once; use with `generateWorkoutAsync(..., { exercisePool })` when generating
+ * multiple sessions (manual week) to avoid redundant work even beyond repository-level caches.
+ */
+export async function getExercisePoolForManualGeneration(injurySlugs: string[]): Promise<Exercise[]> {
+  return loadMergedExercisePoolForGenerator(injurySlugs);
+}
+
+export type GenerateWorkoutAsyncOptions = {
+  /** When set, skips loading/merging the catalog for this call (same injury filter as `getExercisePoolForManualGeneration`). */
+  exercisePool?: Exercise[];
+};
 
 function mergeStaticIntoPool(
   byId: Map<string, Exercise>,
@@ -901,22 +944,21 @@ export function generateWorkout(
  * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when scoring.
  * When sportGoalContext is provided (e.g. from adaptive/sport-prep), sport_slugs, sport_sub_focus, goal_weights, and sport_weight are passed to the daily generator.
  * When `seedExtra` is omitted, a fresh entropy token is used so repeated runs with the same preferences produce different workouts (explicit `seedExtra` keeps deterministic output for tests / replay).
+ * Pass `options.exercisePool` from `getExercisePoolForManualGeneration` when generating several workouts in one flow (e.g. manual week) so the pool is not re-merged per day.
  */
 export async function generateWorkoutAsync(
   preferences: ManualPreferences,
   gymProfile?: GymProfile,
   seedExtra?: string | number,
   preferredExerciseSlugsOrNames?: string[],
-  sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext
+  sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext,
+  options?: GenerateWorkoutAsyncOptions
 ): Promise<GeneratedWorkout> {
   const sessionSeed = seedExtra ?? createWorkoutGenerationEntropy();
-  const injuryFilter =
-    preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
-      ? []
-      : preferences.injuries.filter((i) => i !== "No restrictions");
-  const injurySlugs = injuryFilter.map((i) => i.toLowerCase().replace(/ /g, "_"));
+  const injurySlugs = injurySlugsFromManualPreferences(preferences);
 
-  const pool = await loadMergedExercisePoolForGenerator(injurySlugs);
+  const pool =
+    options?.exercisePool ?? (await loadMergedExercisePoolForGenerator(injurySlugs));
 
   if (pool.length === 0) {
     throw new Error(

@@ -5,6 +5,9 @@
  * Usage:
  *   EXPO_PUBLIC_SUPABASE_URL=... EXPO_PUBLIC_SUPABASE_ANON_KEY=... npx ts-node scripts/seedExercisesToDb.ts
  *
+ * To refresh tags / contraindications / progressions only (no exercise upsert), use:
+ *   npm run sync:exercise-junctions:apply
+ *
  * See docs/SINGLE_EXERCISE_SOURCE.md.
  */
 

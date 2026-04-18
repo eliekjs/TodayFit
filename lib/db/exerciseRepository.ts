@@ -289,9 +289,12 @@ export async function listExercisesByTags(tagSlugs: string[]): Promise<ExerciseD
   return listExercises({ tagSlugs });
 }
 
-/** Select list including structured ontology columns for generator adapter. */
+/**
+ * Columns loaded for `mapDbExerciseToGeneratorExercise`. Must include every `ExerciseRowWithOntology`
+ * field the adapter reads from the row; omitted columns were always undefined in-app (inference only).
+ */
 const EXERCISE_SELECT_WITH_ONTOLOGY =
-  "id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral, rep_range_min, rep_range_max, workout_levels";
+  "id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, movement_pattern, is_active, primary_movement_family, secondary_movement_families, movement_patterns, joint_stress_tags, contraindication_tags, exercise_role, pairing_category, fatigue_regions, mobility_targets, stretch_targets, unilateral, rep_range_min, rep_range_max, workout_levels, aliases, swap_candidates, warmup_relevance, cooldown_relevance, stability_demand, grip_demand, impact_level";
 
 /** PostgREST often caps a single response (~1000 rows); paginate so large catalogs (e.g. functional fitness) load fully. */
 const GENERATOR_EXERCISE_PAGE_SIZE = 1000;
@@ -355,6 +358,8 @@ let generatorRelationMapsPromise: Promise<ExerciseRelationMaps> | null = null;
 
 export function clearGeneratorExerciseCatalogCache(): void {
   generatorRelationMapsPromise = null;
+  listExercisesForGeneratorByFilterKey = null;
+  cachedActiveCatalogExerciseCount = null;
 }
 
 function getCachedGeneratorRelationMaps(supabase: SupabaseClient): Promise<ExerciseRelationMaps> {
@@ -592,19 +597,37 @@ export async function listSupabaseCatalogExerciseRows(): Promise<SupabaseCatalog
 /**
  * Cheap count of active exercises (no relation joins). Used to decide if Supabase is the
  * production catalog vs merging static fallback — see `lib/exerciseCatalogPolicy.ts`.
+ * Memoized until `clearGeneratorExerciseCatalogCache()` so multi-day generation does not repeat the head request.
  */
+let cachedActiveCatalogExerciseCount: number | null = null;
+
 export async function countActiveCatalogExercises(): Promise<number> {
   const supabase = getSupabase();
   if (!supabase) return 0;
+  if (cachedActiveCatalogExerciseCount != null) return cachedActiveCatalogExerciseCount;
   const { count, error } = await supabase
     .from("exercises")
     .select("id", { count: "exact", head: true })
     .eq("is_active", true);
   if (error) throw new Error(error.message);
-  return count ?? 0;
+  cachedActiveCatalogExerciseCount = count ?? 0;
+  return cachedActiveCatalogExerciseCount;
 }
 
-export async function listExercisesForGenerator(
+function generatorListFiltersCacheKey(filters?: Pick<ExerciseFilters, "injuries" | "tagSlugs">): string {
+  return JSON.stringify({
+    i: filters?.injuries?.length ? [...filters.injuries].sort() : [],
+    t: filters?.tagSlugs?.length ? [...filters.tagSlugs].sort() : [],
+  });
+}
+
+/**
+ * Resolved `listExercisesForGenerator` promises per filter key so parallel / sequential
+ * generation (e.g. manual week) does not re-map thousands of rows per day.
+ */
+let listExercisesForGeneratorByFilterKey: Map<string, Promise<Exercise[]>> | null = null;
+
+async function listExercisesForGeneratorImpl(
   filters?: Pick<ExerciseFilters, "injuries" | "tagSlugs">
 ): Promise<Exercise[]> {
   const supabase = requireClient();
@@ -634,6 +657,20 @@ export async function listExercisesForGenerator(
     if (!BLOCKED_EXERCISE_IDS.has(exercise.id)) result.push(exercise);
   }
   return result;
+}
+
+export async function listExercisesForGenerator(
+  filters?: Pick<ExerciseFilters, "injuries" | "tagSlugs">
+): Promise<Exercise[]> {
+  const key = generatorListFiltersCacheKey(filters);
+  if (!listExercisesForGeneratorByFilterKey) {
+    listExercisesForGeneratorByFilterKey = new Map();
+  }
+  const existing = listExercisesForGeneratorByFilterKey.get(key);
+  if (existing) return existing;
+  const promise = listExercisesForGeneratorImpl(filters);
+  listExercisesForGeneratorByFilterKey.set(key, promise);
+  return promise;
 }
 
 /**

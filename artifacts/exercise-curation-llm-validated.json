@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-18T21:21:08.481Z",
+  "catalog_path": "/Users/ellie/todayfit/data/workout-exercise-catalog.json",
+  "records": [
+    {
+      "exercise_id": "1_arm_db_jerks",
+      "llm": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "horizontal_push"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "merged_with_locked_prefill": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "horizontal_push"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "locked_fields_applied": [
+        "movement_patterns",
+        "equipment_class"
+      ]
+    },
+    {
+      "exercise_id": "2_point_start",
+      "llm": {
+        "primary_role": "accessory_strength",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "merged_with_locked_prefill": {
+        "primary_role": "accessory_strength",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "locked_fields_applied": [
+        "equipment_class"
+      ]
+    },
+    {
+      "exercise_id": "2_to_1_broad_jump_land_2",
+      "llm": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "merged_with_locked_prefill": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "locked_fields_applied": [
+        "equipment_class"
+      ]
+    },
+    {
+      "exercise_id": "2_way_shoulder_raise",
+      "llm": {
+        "primary_role": "unilateral_strength",
+        "movement_patterns": [
+          "vertical_push"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "merged_with_locked_prefill": {
+        "primary_role": "unilateral_strength",
+        "movement_patterns": [
+          "vertical_push"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "locked_fields_applied": [
+        "movement_patterns",
+        "equipment_class"
+      ]
+    },
+    {
+      "exercise_id": "3_point_start",
+      "llm": {
+        "primary_role": "accessory_strength",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "merged_with_locked_prefill": {
+        "primary_role": "accessory_strength",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [],
+        "llm_confidence": 0.77,
+        "ambiguity_flags": []
+      },
+      "locked_fields_applied": [
+        "equipment_class"
+      ]
+    }
+  ]
+}

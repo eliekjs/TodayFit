@@ -182,7 +182,16 @@ export default function ManualWeekScreen() {
     }
 
     try {
-      const { generateWorkoutAsync } = await loadGeneratorModule();
+      const { generateWorkoutAsync, getExercisePoolForManualGeneration, injurySlugsFromManualPreferences } =
+        await loadGeneratorModule();
+      const injurySlugs = injurySlugsFromManualPreferences(manualPreferences);
+      const exercisePool = await getExercisePoolForManualGeneration(injurySlugs);
+      if (exercisePool.length === 0) {
+        setError(
+          "No exercises available for generation. With Supabase, seed the catalog or check injury filters."
+        );
+        return;
+      }
       const n = selectedTrainingDays.length;
       const bodyDistribution = getBodyEmphasisDistribution(n);
       const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
@@ -232,7 +241,9 @@ export default function ManualWeekScreen() {
           dayPrefs,
           profile,
           dateToISO(date),
-          preferredNames
+          preferredNames,
+          undefined,
+          { exercisePool }
         );
         weekMainStrengthLiftIds.push(...collectWeekMainLiftExerciseIds(workout));
         const displayTitle = formatDayTitle(dayFocus.length ? dayFocus : ["Workout"], bodyKey, specificForDay.length ? specificForDay : undefined);
