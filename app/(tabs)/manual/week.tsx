@@ -26,6 +26,11 @@ import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../
 import { isDbConfigured } from "../../../lib/db";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { collectWeekMainLiftExerciseIds } from "../../../logic/workoutGeneration/collectWeekMainLiftExerciseIds";
+import {
+  accumulateWeeklySubFocusCountsFromGeneratedWorkout,
+  buildWeeklySubFocusKeysFromPreferences,
+} from "../../../logic/workoutGeneration/weeklySubFocusCoveragePlan";
+import type { Exercise } from "../../../logic/workoutGeneration/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import {
   blockTypeToSwapBlockRole,
@@ -220,6 +225,11 @@ export default function ManualWeekScreen() {
 
       const days: ManualWeekPlan["days"] = [];
       const weekMainStrengthLiftIds: string[] = [];
+      const weeklySubFocusKeys = buildWeeklySubFocusKeysFromPreferences(manualPreferences);
+      const weeklySubFocusCounts: Record<string, number> = {};
+      const exerciseByIdForWeekly = new Map<string, Exercise>(
+        exercisePool.map((e) => [e.id, e as Exercise])
+      );
       for (let i = 0; i < selectedTrainingDays.length; i++) {
         const dow = selectedTrainingDays[i];
         const date = addDays(weekStart, dow);
@@ -232,10 +242,24 @@ export default function ManualWeekScreen() {
         const dayPrefs: typeof manualPreferences = {
           ...manualPreferences,
           primaryFocus: dayFocus.length ? dayFocus : manualPreferences.primaryFocus,
+          /** Keep full ranked goals for sub-focus merge so dedicated days still honor cross-goal picks (e.g. Handstand). */
+          weekSubFocusPrimaryLabels:
+            manualPreferences.primaryFocus.length > 0
+              ? [...manualPreferences.primaryFocus]
+              : undefined,
           targetBody: bodyBias.targetBody,
           targetModifier: bodyBias.targetModifier,
           weekMainStrengthLiftIdsUsed:
             weekMainStrengthLiftIds.length > 0 ? [...weekMainStrengthLiftIds] : undefined,
+          weeklySubFocusCoverage:
+            weeklySubFocusKeys.length > 0 && selectedTrainingDays.length > 0
+              ? {
+                  matchCountsSoFar: { ...weeklySubFocusCounts },
+                  trainingDayIndex: i,
+                  trainingDaysTotal: selectedTrainingDays.length,
+                  targetPerSubFocus: 3,
+                }
+              : undefined,
         };
         const workout = await generateWorkoutAsync(
           dayPrefs,
@@ -244,6 +268,12 @@ export default function ManualWeekScreen() {
           preferredNames,
           undefined,
           { exercisePool }
+        );
+        accumulateWeeklySubFocusCountsFromGeneratedWorkout(
+          weeklySubFocusCounts,
+          workout,
+          exerciseByIdForWeekly,
+          weeklySubFocusKeys
         );
         weekMainStrengthLiftIds.push(...collectWeekMainLiftExerciseIds(workout));
         const displayTitle = formatDayTitle(dayFocus.length ? dayFocus : ["Workout"], bodyKey, specificForDay.length ? specificForDay : undefined);

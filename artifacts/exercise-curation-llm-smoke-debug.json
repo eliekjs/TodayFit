@@ -1,0 +1,397 @@
+{
+  "generated_at": "2026-04-20T00:33:27.586Z",
+  "samples": [
+    {
+      "exercise_id": "1_arm_db_jerks",
+      "name": "1 Arm DB Jerks",
+      "deterministic_priors": {
+        "primary_role": {
+          "value": "power_explosive",
+          "trust_tier": "strong_prior"
+        },
+        "movement_patterns": {
+          "value": [
+            "horizontal_push"
+          ],
+          "trust_tier": "locked"
+        },
+        "equipment_class": {
+          "value": "dumbbell",
+          "trust_tier": "strong_prior"
+        }
+      },
+      "raw_llm": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "horizontal_push"
+        ],
+        "equipment_class": "dumbbell",
+        "complexity": "intermediate",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.85,
+        "ambiguity_flags": []
+      },
+      "merged": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "horizontal_push"
+        ],
+        "equipment_class": "dumbbell",
+        "complexity": "intermediate",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.85,
+        "ambiguity_flags": []
+      },
+      "phase3_audit": {
+        "primary_role": {
+          "raw_llm": "power_explosive",
+          "merged_final": "power_explosive",
+          "applied_locked_prefill": false
+        },
+        "movement_patterns": {
+          "raw_llm": [
+            "horizontal_push"
+          ],
+          "merged_final": [
+            "horizontal_push"
+          ],
+          "applied_locked_prefill": true
+        },
+        "equipment_class": {
+          "raw_llm": "dumbbell",
+          "merged_after_locked_prefill": "dumbbell",
+          "merged_final": "dumbbell",
+          "applied_locked_prefill": false,
+          "equipment_quality_applied": false
+        },
+        "equipment_quality_notes": [],
+        "equipment_conflict_codes": []
+      },
+      "vs_prefill_raw_llm": {
+        "primary_role": "preserved",
+        "movement_patterns": "preserved",
+        "equipment_class": "preserved",
+        "complexity": "filled_no_prior",
+        "sport_transfer_tags": "filled_no_prior"
+      }
+    },
+    {
+      "exercise_id": "2_point_start",
+      "name": "2 Point Start",
+      "deterministic_priors": {
+        "movement_patterns": {
+          "value": [
+            "squat"
+          ],
+          "trust_tier": "strong_prior"
+        },
+        "equipment_class": {
+          "value": "bodyweight",
+          "trust_tier": "strong_prior"
+        }
+      },
+      "raw_llm": {
+        "primary_role": "conditioning",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "beginner_friendly",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.8,
+        "ambiguity_flags": []
+      },
+      "merged": {
+        "primary_role": "conditioning",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "beginner_friendly",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.8,
+        "ambiguity_flags": []
+      },
+      "phase3_audit": {
+        "primary_role": {
+          "raw_llm": "conditioning",
+          "merged_final": "conditioning",
+          "applied_locked_prefill": false
+        },
+        "movement_patterns": {
+          "raw_llm": [
+            "squat"
+          ],
+          "merged_final": [
+            "squat"
+          ],
+          "applied_locked_prefill": false
+        },
+        "equipment_class": {
+          "raw_llm": "bodyweight",
+          "merged_after_locked_prefill": "bodyweight",
+          "merged_final": "bodyweight",
+          "applied_locked_prefill": false,
+          "equipment_quality_applied": false
+        },
+        "equipment_quality_notes": [],
+        "equipment_conflict_codes": []
+      },
+      "vs_prefill_raw_llm": {
+        "primary_role": "filled_no_prior",
+        "movement_patterns": "preserved",
+        "equipment_class": "preserved",
+        "complexity": "filled_no_prior",
+        "sport_transfer_tags": "filled_no_prior"
+      }
+    },
+    {
+      "exercise_id": "2_to_1_broad_jump_land_2",
+      "name": "2 to 1 Broad Jump Land 2",
+      "deterministic_priors": {
+        "primary_role": {
+          "value": "power_explosive",
+          "trust_tier": "strong_prior"
+        },
+        "movement_patterns": {
+          "value": [
+            "squat"
+          ],
+          "trust_tier": "strong_prior"
+        },
+        "equipment_class": {
+          "value": "bodyweight",
+          "trust_tier": "strong_prior"
+        }
+      },
+      "raw_llm": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.85,
+        "ambiguity_flags": []
+      },
+      "merged": {
+        "primary_role": "power_explosive",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.85,
+        "ambiguity_flags": []
+      },
+      "phase3_audit": {
+        "primary_role": {
+          "raw_llm": "power_explosive",
+          "merged_final": "power_explosive",
+          "applied_locked_prefill": false
+        },
+        "movement_patterns": {
+          "raw_llm": [
+            "squat"
+          ],
+          "merged_final": [
+            "squat"
+          ],
+          "applied_locked_prefill": false
+        },
+        "equipment_class": {
+          "raw_llm": "bodyweight",
+          "merged_after_locked_prefill": "bodyweight",
+          "merged_final": "bodyweight",
+          "applied_locked_prefill": false,
+          "equipment_quality_applied": false
+        },
+        "equipment_quality_notes": [],
+        "equipment_conflict_codes": []
+      },
+      "vs_prefill_raw_llm": {
+        "primary_role": "preserved",
+        "movement_patterns": "preserved",
+        "equipment_class": "preserved",
+        "complexity": "filled_no_prior",
+        "sport_transfer_tags": "filled_no_prior"
+      }
+    },
+    {
+      "exercise_id": "2_way_shoulder_raise",
+      "name": "Single Leg Front to Lateral Raise",
+      "deterministic_priors": {
+        "primary_role": {
+          "value": "unilateral_strength",
+          "trust_tier": "weak_prior"
+        },
+        "movement_patterns": {
+          "value": [
+            "vertical_push"
+          ],
+          "trust_tier": "locked"
+        },
+        "equipment_class": {
+          "value": "bodyweight",
+          "trust_tier": "strong_prior"
+        }
+      },
+      "raw_llm": {
+        "primary_role": "unilateral_strength",
+        "movement_patterns": [
+          "vertical_push"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.75,
+        "ambiguity_flags": []
+      },
+      "merged": {
+        "primary_role": "unilateral_strength",
+        "movement_patterns": [
+          "vertical_push"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "intermediate",
+        "keep_category": "niche",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.75,
+        "ambiguity_flags": []
+      },
+      "phase3_audit": {
+        "primary_role": {
+          "raw_llm": "unilateral_strength",
+          "merged_final": "unilateral_strength",
+          "applied_locked_prefill": false
+        },
+        "movement_patterns": {
+          "raw_llm": [
+            "vertical_push"
+          ],
+          "merged_final": [
+            "vertical_push"
+          ],
+          "applied_locked_prefill": true
+        },
+        "equipment_class": {
+          "raw_llm": "bodyweight",
+          "merged_after_locked_prefill": "bodyweight",
+          "merged_final": "bodyweight",
+          "applied_locked_prefill": false,
+          "equipment_quality_applied": false
+        },
+        "equipment_quality_notes": [],
+        "equipment_conflict_codes": []
+      },
+      "vs_prefill_raw_llm": {
+        "primary_role": "preserved",
+        "movement_patterns": "preserved",
+        "equipment_class": "preserved",
+        "complexity": "filled_no_prior",
+        "sport_transfer_tags": "filled_no_prior"
+      }
+    },
+    {
+      "exercise_id": "3_point_start",
+      "name": "3 Point Start",
+      "deterministic_priors": {
+        "movement_patterns": {
+          "value": [
+            "squat"
+          ],
+          "trust_tier": "strong_prior"
+        },
+        "equipment_class": {
+          "value": "bodyweight",
+          "trust_tier": "strong_prior"
+        }
+      },
+      "raw_llm": {
+        "primary_role": "conditioning",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "beginner_friendly",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.8,
+        "ambiguity_flags": []
+      },
+      "merged": {
+        "primary_role": "conditioning",
+        "movement_patterns": [
+          "squat"
+        ],
+        "equipment_class": "bodyweight",
+        "complexity": "beginner_friendly",
+        "keep_category": "core",
+        "sport_transfer_tags": [
+          "general_athletic"
+        ],
+        "llm_confidence": 0.8,
+        "ambiguity_flags": []
+      },
+      "phase3_audit": {
+        "primary_role": {
+          "raw_llm": "conditioning",
+          "merged_final": "conditioning",
+          "applied_locked_prefill": false
+        },
+        "movement_patterns": {
+          "raw_llm": [
+            "squat"
+          ],
+          "merged_final": [
+            "squat"
+          ],
+          "applied_locked_prefill": false
+        },
+        "equipment_class": {
+          "raw_llm": "bodyweight",
+          "merged_after_locked_prefill": "bodyweight",
+          "merged_final": "bodyweight",
+          "applied_locked_prefill": false,
+          "equipment_quality_applied": false
+        },
+        "equipment_quality_notes": [],
+        "equipment_conflict_codes": []
+      },
+      "vs_prefill_raw_llm": {
+        "primary_role": "filled_no_prior",
+        "movement_patterns": "preserved",
+        "equipment_class": "preserved",
+        "complexity": "filled_no_prior",
+        "sport_transfer_tags": "filled_no_prior"
+      }
+    }
+  ]
+}

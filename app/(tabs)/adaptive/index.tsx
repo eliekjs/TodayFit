@@ -89,6 +89,7 @@ const INJURY_TYPE_OPTIONS = CONSTRAINT_OPTIONS.filter((o) => o !== "No restricti
 const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 
 const MAX_SUB_GOALS_PER_GOAL = 3;
+const MAX_TOTAL_SUB_GOALS = 3;
 
 type AdaptiveAdvNestedKey =
   | "additionalGoals"
@@ -460,6 +461,11 @@ export default function AdaptiveModeScreen() {
       });
     } else {
       if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
+      const totalOthers = Object.entries(manualPreferences.subFocusByGoal).reduce(
+        (n, [g, arr]) => (g === manualPrimaryLabel ? n : n + arr.length),
+        0
+      );
+      if (totalOthers + current.length >= MAX_TOTAL_SUB_GOALS) return;
       updateManualPreferences({
         subFocusByGoal: {
           ...manualPreferences.subFocusByGoal,
@@ -527,16 +533,15 @@ export default function AdaptiveModeScreen() {
         : filledAdaptiveGoals.length === 2
           ? `${agw1}/${agw2}%`
           : `${agw1}/${agw2}/${agw3}%`;
-  const adaptiveAdvGoalSubGoalsSummary = (() => {
-    const labels = filledAdaptiveGoals
-      .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
-      .filter(Boolean);
-    let n = 0;
-    for (const lab of labels) {
-      n += (manualPreferences.subFocusByGoal[lab] ?? []).length;
-    }
-    return n === 0 ? "None" : `${n} selected`;
-  })();
+  const adaptiveGoalSubFocusLabels = filledAdaptiveGoals
+    .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+    .filter((lab): lab is string => Boolean(lab));
+  const adaptiveSubGoalsTotalCount = adaptiveGoalSubFocusLabels.reduce(
+    (n, lab) => n + (manualPreferences.subFocusByGoal[lab]?.length ?? 0),
+    0
+  );
+  const adaptiveAdvGoalSubGoalsSummary =
+    adaptiveSubGoalsTotalCount === 0 ? "None" : `${adaptiveSubGoalsTotalCount} selected`;
   const adaptiveAdvSportFocusSummary = `${sportFocusPct[0]}/${sportFocusPct[1]}%`;
   const adaptiveAdvInjurySummary =
     injuryStatus === "No Concerns"
@@ -1148,7 +1153,7 @@ export default function AdaptiveModeScreen() {
               <CollapsiblePreferenceSection
                 nested
                 title="Goal sub-focus"
-                subtitle="Up to 3 per goal, ranked. Same options as Build workout."
+                subtitle="Up to 3 total across goals, ranked within each goal. Same options as Build workout."
                 summary={adaptiveAdvGoalSubGoalsSummary}
                 expanded={adaptiveAdvNestedOpen.goalSubGoals === true}
                 onToggle={() => toggleAdaptiveAdvNested("goalSubGoals")}
@@ -1161,7 +1166,9 @@ export default function AdaptiveModeScreen() {
                     manualLabel != null
                       ? manualPreferences.subFocusByGoal[manualLabel] ?? []
                       : [];
-                  const canAddSub = selectedSubs.length < MAX_SUB_GOALS_PER_GOAL;
+                  const canAddSub =
+                    selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
+                    adaptiveSubGoalsTotalCount < MAX_TOTAL_SUB_GOALS;
                   return (
                     <View
                       key={goalId}

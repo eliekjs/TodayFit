@@ -24,7 +24,7 @@
 
 ## Top reason codes
 - ontology_movement_patterns_mapped: 4016
-- equipment_slug_bodyweight: 1754
+- equipment_slug_bodyweight: 1711
 - name_keyword_lunge_family: 1181
 - ontology_unilateral_or_text_unilateral: 897
 - name_compound_pattern_with_barbell_or_bw: 759
@@ -59,7 +59,7 @@
 | --- | ---: | ---: | ---: |
 | movement_patterns | 1153 | 2863 | 0 |
 | primary_role | 189 | 412 | 2035 |
-| equipment_class | 3282 | 191 | 543 |
+| equipment_class | 1506 | 1967 | 543 |
 
 Complexity and sport_transfer_tags are never `locked` in phase 2 (strong_prior or weak_prior only).
 

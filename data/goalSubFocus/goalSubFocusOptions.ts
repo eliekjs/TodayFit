@@ -1,7 +1,7 @@
 /**
  * Sub-focus options per primary focus (Manual mode). Each primary focus has a goal slug
  * for tag lookup and an ordered list of sub-goals (slug + display name).
- * Order = most popular first; max 3 selectable per goal in UI.
+ * Order = most popular first; UI caps total sub-goal selections at 3 across all ranked goals.
  */
 
 import type { GoalSubFocusOptionsEntry } from "./types";

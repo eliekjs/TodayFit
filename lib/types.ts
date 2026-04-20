@@ -88,8 +88,17 @@ export type ManualPreferences = {
   /** Single list: joints + "No restrictions" (mutually exclusive with others). */
   injuries: string[];
   upcoming: string[];
-  /** Sub-goals per goal: key = goal label, value = ordered sub-goal labels (max 3 per goal, order = rank). */
+  /**
+   * Sub-goals per goal: key = goal label, value = ordered sub-goal labels (order = rank).
+   * UI caps total selections at 3 across all goals.
+   */
   subFocusByGoal: Record<string, string[]>;
+  /**
+   * When generating a single day inside a week, `primaryFocus` may be narrowed to that day’s goal while
+   * sub-goals should still reflect the user’s full ranked goals (so e.g. Calisthenics + Handstand still
+   * bias an upper day dedicated to another primary). Optional; when unset, `primaryFocus` drives sub-focus merge.
+   */
+  weekSubFocusPrimaryLabels?: string[];
   workoutStyle: string[];
   /** Preferred Zone 2 cardio modalities (e.g. "bike", "treadmill", "rower", "stair_climber"). Empty = any. Used for body recomp / endurance finisher. */
   preferredZone2Cardio?: string[];
@@ -115,6 +124,17 @@ export type ManualPreferences = {
    * the same main compound across the week (see GenerateWorkoutInput.week_main_strength_lift_ids_used).
    */
   weekMainStrengthLiftIdsUsed?: string[];
+  /**
+   * Only while generating a manual training week: tracks how many training exercises so far matched each
+   * sub-focus, and spreads a minimum target (default 3 per sub-goal) across days. Stripped from saved snapshots.
+   */
+  weeklySubFocusCoverage?: {
+    matchCountsSoFar: Record<string, number>;
+    trainingDayIndex: number;
+    trainingDaysTotal: number;
+    /** Default 3 in the adapter when omitted. */
+    targetPerSubFocus?: number;
+  };
 };
 
 export type EquipmentKey =

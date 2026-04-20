@@ -1,9 +1,9 @@
 /**
- * Deterministic name/alias normalization for duplicate detection.
- * Does not strip meaningful distinctions (incline/flat, front/back, etc.).
+ * Aggressive name/alias normalization for redundancy detection (library reduction).
+ * Collapses trivial naming variants; does not remove incline/flat, front/back, row vs pulldown, etc.
  */
 
-/** Multi-word expansions applied to normalized text before tokenization. */
+/** Applied in order. Multi-word expansions before tokenization. */
 const PHRASE_EXPANSIONS: { re: RegExp; replace: string }[] = [
   { re: /\brdl\b/gi, replace: "romanian deadlift" },
   { re: /\brfess\b/gi, replace: "rear foot elevated split squat" },
@@ -12,22 +12,30 @@ const PHRASE_EXPANSIONS: { re: RegExp; replace: string }[] = [
   { re: /\bdb\b/gi, replace: "dumbbell" },
   { re: /\bbb\b/gi, replace: "barbell" },
   { re: /\bbw\b/gi, replace: "bodyweight" },
-  { re: /rear[\s-]*foot[\s-]*elevated/gi, replace: "rear foot elevated" },
-  { re: /pull[\s-]*up/gi, replace: "pull up" },
-  { re: /chin[\s-]*up/gi, replace: "chin up" },
+  { re: /\b1[\s-]*arm\b/gi, replace: "single arm" },
+  { re: /\b1[\s-]*leg\b/gi, replace: "single leg" },
   { re: /single[\s-]*arm/gi, replace: "single arm" },
   { re: /single[\s-]*leg/gi, replace: "single leg" },
+  { re: /rear[\s-]*foot[\s-]*elevated/gi, replace: "rear foot elevated" },
+  /** Bulgarian split squat ≈ RFESS for redundancy purposes in this app. */
+  { re: /\bbulgarian\s+split\s+squat\b/gi, replace: "rear foot elevated split squat" },
+  { re: /pull[\s-]*up/gi, replace: "pull up" },
+  { re: /chin[\s-]*up/gi, replace: "chin up" },
+  { re: /bench[\s-]*supported/gi, replace: "chest supported" },
+  { re: /chest[\s-]*supported/gi, replace: "chest supported" },
 ];
 
-/** Removed as weak filler when tokenizing for duplicate matching (not from raw display). */
+/** Stripped as weak filler (library reduction: do not preserve trivial cue words). */
 const FILLER_TOKENS = new Set([
   "basic",
   "standard",
   "alternating",
   "variation",
+  "variations",
   "drill",
+  "drills",
   "exercise",
-  "variation",
+  "exercises",
   "the",
   "a",
   "an",
@@ -35,10 +43,16 @@ const FILLER_TOKENS = new Set([
   "or",
   "with",
   "using",
+  "regular",
+  "simple",
+  "traditional",
+  "classic",
+  "supported",
+  "hold",
+  "holds",
+  "iso",
+  "isometric",
 ]);
-
-/** Stripped only when standing alone / as extra suffix — kept if part of a compound phrase elsewhere. */
-const OPTIONAL_WEAK_SUFFIXES = new Set(["hold", "iso", "isometric"]);
 
 export function normalizeForDuplicateMatching(raw: string): string {
   let s = raw.toLowerCase().trim();
@@ -57,7 +71,6 @@ export function tokenizeNormalizedName(normalized: string): string[] {
   for (let i = 0; i < parts.length; i++) {
     const t = parts[i]!;
     if (FILLER_TOKENS.has(t)) continue;
-    if (OPTIONAL_WEAK_SUFFIXES.has(t) && i > 0) continue;
     if (t.length >= 2) out.push(t);
   }
   return out;
@@ -67,7 +80,6 @@ export function normalizedNameSignature(normalized: string): string {
   return tokenizeNormalizedName(normalized).sort().join(" ");
 }
 
-/** Bigram Jaccard on character level for fuzzy name proximity. */
 export function bigramJaccard(a: string, b: string): number {
   if (!a.length || !b.length) return 0;
   const bigrams = (s: string) => {

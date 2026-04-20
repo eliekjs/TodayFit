@@ -110,6 +110,12 @@ import {
   exerciseHasStrengthSubFocusSlug,
   type SubFocusProfile,
 } from "../../data/goalSubFocus";
+import { CALISTHENICS_STYLE_STRENGTH_SUB_SLUGS } from "../../data/goalSubFocus/strengthSubFocus";
+import {
+  exerciseMatchesGoalSubFocusSlugUnified,
+  exerciseMatchesHypertrophySubFocusSlug,
+  subFocusSlugsForGuarantee,
+} from "./subFocusSlugMatch";
 import {
   getPrimaryConditioningIntent,
   getConditioningIntentSlugs,
@@ -311,6 +317,7 @@ const EXERCISE_IDS_OVERHEAD_OR_HANGING = new Set([
 
 const STRENGTH_INTENT_SET = new Set<string>([...STRENGTH_INTENT_SLUGS]);
 const STRENGTH_OVERLAY_SET = new Set<string>([...STRENGTH_OVERLAY_SLUGS]);
+const CALISTHENICS_STRENGTH_INTENT_SET = new Set<string>([...CALISTHENICS_STYLE_STRENGTH_SUB_SLUGS]);
 /** Region-only conditioning sub-focuses; ranked intents (intervals, hills, …) should dominate scoring and finishers. */
 const CONDITIONING_SUB_FOCUS_OVERLAYS = new Set(["upper", "lower", "core", "full_body"]);
 
@@ -636,22 +643,6 @@ function tagToSlug(tag: string): string {
   return tag.toLowerCase().replace(/\s/g, "_");
 }
 
-// Hypertrophy sub-focus: treat selected body-part slugs as first-class match signals.
-// We intentionally keep this direct + localized (no hidden ontology layer).
-const HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS: Record<string, string[]> = {
-  // Keep this inference direct + simple, based on what already exists in the exercise fields.
-  // We include a few region-level proxies (legs/posterior_chain/push/pull) so the “direct match”
-  // signal actually triggers on unbackfilled DBs / stubs.
-  glutes: ["glutes", "hamstrings", "legs", "posterior_chain"],
-  back: ["back", "lats", "upper_back", "pull"],
-  chest: ["chest", "pecs", "push"],
-  arms: ["biceps", "triceps"],
-  shoulders: ["shoulders", "push"],
-  legs: ["legs", "quads", "glutes", "hamstrings", "calves"],
-  core: ["core", "core_stability"],
-  balanced: [],
-};
-
 function getSelectedHypertrophySubFocusRanked(input: GenerateWorkoutInput): { slugs: string[]; weights: number[] } {
   const ranked =
     input.goal_sub_focus?.muscle ??
@@ -666,25 +657,6 @@ function getSelectedHypertrophySubFocusRanked(input: GenerateWorkoutInput): { sl
     slugs: ranked,
     weights: ranked.map((_, i) => weights[i] ?? 1 / n),
   };
-}
-
-function exerciseMatchesHypertrophySubFocusSlug(exercise: Exercise, slug: string): boolean {
-  const norm = tagToSlug(slug);
-  if (norm === "balanced") return false;
-
-  const matchSet = new Set(
-    (HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS[norm] ?? [norm]).map((s) => tagToSlug(s))
-  );
-
-  const muscleSet = new Set((exercise.muscle_groups ?? []).map((m) => tagToSlug(m)));
-  const attrSet = new Set((exercise.tags?.attribute_tags ?? []).map((a) => tagToSlug(a)));
-  const fatigueSet = new Set((exercise.fatigue_regions ?? []).map((f) => tagToSlug(f)));
-  const pairing = tagToSlug(exercise.pairing_category ?? "");
-
-  for (const m of matchSet) {
-    if (muscleSet.has(m) || attrSet.has(m) || fatigueSet.has(m) || pairing === m) return true;
-  }
-  return false;
 }
 
 function hasConditioningEnduranceIntentSubFocus(input: GenerateWorkoutInput): boolean {
@@ -1016,11 +988,17 @@ export function scoreExercise(
     }
   }
 
-  // Strength: intent slug match drives primary selection. Cap stacked intent bonuses so one exercise
-  // cannot "double count" multiple intents (systemic hub lift inflation when user ranks squat + hinge, etc.).
-  if (primary === "strength" && goalSubFocus?.[primary]?.length) {
-    const ranked = goalSubFocus[primary] ?? [];
-    const weightsArr = input.goal_sub_focus_weights?.[primary] ?? ranked.map(() => 1 / (ranked.length || 1));
+  // Strength + Calisthenics: `goal_sub_focus` stores Calisthenics sub-goals under `strength` (shared tag map).
+  // Calisthenics primary must read `goalSubFocus.strength`, not `goalSubFocus.calisthenics`.
+  // Calisthenics-style slugs (handstand, pull-ups, …) get the same intent weight as barbell intents.
+  const strengthKeyedSubFocus = goalSubFocus?.strength;
+  if (
+    (primary === "strength" || primary === "calisthenics") &&
+    strengthKeyedSubFocus?.length
+  ) {
+    const ranked = strengthKeyedSubFocus;
+    const weightsArr =
+      input.goal_sub_focus_weights?.strength ?? ranked.map(() => 1 / (ranked.length || 1));
     const weightBySlug = new Map<string, number>();
     ranked.forEach((s, i) => weightBySlug.set(s, weightsArr[i] ?? 1 / (ranked.length || 1)));
 
@@ -1031,6 +1009,7 @@ export function scoreExercise(
       const w = weightBySlug.get(slug) ?? 0;
       if (STRENGTH_INTENT_SET.has(slug)) intentParts.push(w * 5);
       else if (STRENGTH_OVERLAY_SET.has(slug)) overlayBonus += w * 2;
+      else if (CALISTHENICS_STRENGTH_INTENT_SET.has(slug)) intentParts.push(w * 5);
     }
     intentParts.sort((a, b) => b - a);
     const intentBonus =
@@ -5095,35 +5074,6 @@ function getActiveGoalSubFocusEntry(input: GenerateWorkoutInput): { goalSlug: st
   return null;
 }
 
-function subFocusSlugsForGuarantee(goalSlug: string, slugs: string[]): string[] {
-  if (goalSlug === "muscle" || goalSlug === "physique") {
-    return slugs.filter((s) => tagToSlug(s) !== "balanced");
-  }
-  return slugs;
-}
-
-function exerciseMatchesGoalSubFocusSlugUnified(
-  exercise: Exercise,
-  goalSlug: string,
-  slug: string
-): boolean {
-  if (goalSlug === "strength") return exerciseHasStrengthSubFocusSlug(exercise, slug);
-  if (goalSlug === "muscle" || goalSlug === "physique") {
-    return exerciseMatchesHypertrophySubFocusSlug(exercise, slug);
-  }
-  if (goalSlug === "conditioning" || goalSlug === "endurance") {
-    return exerciseHasSubFocusSlug(exercise, slug);
-  }
-  if (goalSlug === "mobility" || goalSlug === "resilience") {
-    if (exerciseHasSubFocusSlug(exercise, slug)) return true;
-    const entries = getExerciseTagsForGoalSubFocuses(goalSlug, [slug]);
-    if (!entries.length) return false;
-    const exTags = getExerciseTagSlugs(exercise);
-    return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
-  }
-  return false;
-}
-
 function collectExerciseIdsFromBlocks(blocks: WorkoutBlock[]): string[] {
   return blocks.flatMap((b) => b.items.map((i) => i.exercise_id));
 }
@@ -5237,6 +5187,122 @@ function ensureSingleGoalSubFocusCoverage(
     reasoning: "Brings your selected sub-focus into this session even when the day emphasizes another area.",
     items: [item],
     estimated_minutes: 6,
+  };
+  if (cooldownIdx >= 0) mergedBlocks.splice(cooldownIdx, 0, newBlock);
+  else mergedBlocks.push(newBlock);
+}
+
+/**
+ * Manual week: ensure each selected sub-focus has at least the planned number of matching exercises
+ * in this session (spread across the week via `weekly_sub_focus_session_minimums`).
+ */
+function ensureWeeklySubFocusSessionMinimums(
+  mergedBlocks: WorkoutBlock[],
+  input: GenerateWorkoutInput,
+  guaranteePool: Exercise[],
+  used: Set<string>,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  rng: () => number,
+  fatigueState: FatigueState | undefined,
+  fatigueVolumeScale: number | undefined,
+  historyContext: TrainingHistoryContext | undefined,
+  sessionFatigueRegions: Map<string, number>
+): void {
+  const mins = input.weekly_sub_focus_session_minimums;
+  if (!mins || Object.keys(mins).length === 0) return;
+
+  const exerciseById = new Map(guaranteePool.map((e) => [e.id, e]));
+  const itemsToAdd: WorkoutItem[] = [];
+
+  const selectionOptions = {
+    blockType: "accessory" as const,
+    sessionFatigueRegions,
+    sessionMovementPatternCounts: movementCounts,
+    historyContext,
+  };
+
+  const blockTypeForPrescription = (): BlockType =>
+    input.primary_goal === "strength" ||
+    input.primary_goal === "power" ||
+    input.primary_goal === "calisthenics"
+      ? "main_strength"
+      : "main_hypertrophy";
+
+  for (const [key, minRequired] of Object.entries(mins)) {
+    if (minRequired <= 0) continue;
+    const colon = key.indexOf(":");
+    if (colon <= 0) continue;
+    const goalSlug = key.slice(0, colon);
+    const subSlug = key.slice(colon + 1);
+    if (!subSlug) continue;
+
+    const countMatching = (): number => {
+      let n = 0;
+      for (const id of collectExerciseIdsForSubFocusCoverage(mergedBlocks)) {
+        const ex = exerciseById.get(id);
+        if (ex && exerciseMatchesGoalSubFocusSlugUnified(ex, goalSlug, subSlug)) n++;
+      }
+      return n;
+    };
+
+    let toAdd = Math.max(0, minRequired - countMatching());
+    while (toAdd > 0) {
+      const matchingPool = guaranteePool.filter(
+        (e) =>
+          !used.has(e.id) &&
+          exerciseMatchesGoalSubFocusSlugUnified(e, goalSlug, subSlug)
+      );
+      if (matchingPool.length === 0) break;
+
+      const picked = selectExercises(
+        matchingPool,
+        input,
+        recentIds,
+        movementCounts,
+        1,
+        rng,
+        fatigueState,
+        selectionOptions
+      ).exercises[0];
+      if (!picked) break;
+
+      used.add(picked.id);
+      toAdd -= 1;
+
+      const p = getPrescription(
+        picked,
+        blockTypeForPrescription(),
+        input.energy_level,
+        input.primary_goal,
+        true,
+        fatigueVolumeScale,
+        input.style_prefs?.user_level
+      );
+      itemsToAdd.push({
+        exercise_id: picked.id,
+        exercise_name: picked.name,
+        sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+        reps: p.reps,
+        rest_seconds: p.rest_seconds,
+        coaching_cues: p.coaching_cues,
+        reasoning_tags: ["weekly_sub_focus", ...(picked.tags.goal_tags ?? [])],
+        unilateral: picked.unilateral ?? false,
+      });
+    }
+  }
+
+  if (itemsToAdd.length === 0) return;
+
+  const cooldownIdx = mergedBlocks.findIndex((b) => b.block_type === "cooldown");
+  const newBlock: WorkoutBlock = {
+    block_type: "accessory",
+    format: "straight_sets",
+    title: "Sub-focus coverage",
+    reasoning:
+      "Adds training volume aligned to your ranked sub-goals so each one shows up across the week (minimum targets per sub-goal).",
+    items: itemsToAdd,
+    estimated_minutes: Math.min(8 * itemsToAdd.length, 36),
   };
   if (cooldownIdx >= 0) mergedBlocks.splice(cooldownIdx, 0, newBlock);
   else mergedBlocks.push(newBlock);
@@ -7177,6 +7243,20 @@ export function generateWorkoutSession(
   let mergedBlocks = mergeConsecutiveBlocksWithSameTitle(blocks);
 
   ensureSingleGoalSubFocusCoverage(
+    mergedBlocks,
+    input,
+    guaranteePool,
+    used,
+    recentIds,
+    movementCounts,
+    rng,
+    fatigueState,
+    fatigueVolumeScale,
+    historyContext,
+    sessionFatigueRegions
+  );
+
+  ensureWeeklySubFocusSessionMinimums(
     mergedBlocks,
     input,
     guaranteePool,

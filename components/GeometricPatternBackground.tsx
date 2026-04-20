@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
-import Svg, { Defs, Pattern, Path, Rect } from "react-native-svg";
+import { View, StyleSheet, useWindowDimensions } from "react-native";
+import Svg, { G, Path } from "react-native-svg";
 
 // From repo Landing: hexagons + mountain peaks in a 120x120 pattern (emerald/blue strokes)
 const PATTERN_SIZE = 120;
@@ -10,21 +10,20 @@ const EMERALD_500 = "#10b981";
 const BLUE_500 = "#3b82f6";
 
 export function GeometricPatternBackground() {
-  const { width, height } = useMemo(() => Dimensions.get("window"), []);
+  const { width: winW, height: winH } = useWindowDimensions();
+  const width = Math.max(1, winW);
+  const height = Math.max(1, winH);
 
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <Pattern
-            id="geometric-pattern"
-            x="0"
-            y="0"
-            width={PATTERN_SIZE}
-            height={PATTERN_SIZE}
-            patternUnits="userSpaceOnUse"
-          >
-            {/* Hexagons */}
+  const patternTiles = useMemo(() => {
+    const cols = Math.max(1, Math.ceil(width / PATTERN_SIZE) + 1);
+    const rows = Math.max(1, Math.ceil(height / PATTERN_SIZE) + 1);
+    const tiles: React.ReactElement[] = [];
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const x = c * PATTERN_SIZE;
+        const y = r * PATTERN_SIZE;
+        tiles.push(
+          <G key={`${c}-${r}`} transform={`translate(${x}, ${y})`}>
             <Path
               d="M30 0 L60 15 L60 45 L30 60 L0 45 L0 15 Z"
               fill="none"
@@ -37,7 +36,6 @@ export function GeometricPatternBackground() {
               stroke={BLUE_400}
               strokeWidth={1}
             />
-            {/* Mountain peaks */}
             <Path
               d="M0 90 L15 60 L30 90"
               fill="none"
@@ -50,16 +48,17 @@ export function GeometricPatternBackground() {
               stroke={BLUE_500}
               strokeWidth={1.5}
             />
-          </Pattern>
-        </Defs>
-        <Rect
-          x="0"
-          y="0"
-          width={width}
-          height={height}
-          fill="url(#geometric-pattern)"
-          opacity={0.2}
-        />
+          </G>,
+        );
+      }
+    }
+    return tiles;
+  }, [width, height]);
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+        <G opacity={0.2}>{patternTiles}</G>
       </Svg>
     </View>
   );

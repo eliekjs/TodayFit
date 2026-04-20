@@ -1,0 +1,1391 @@
+{
+  "generated_at": "2026-04-20T00:30:11.790Z",
+  "exercise_count": 4016,
+  "refinement_events": [
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "1_arm_db_jerks",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "barbell_floor_press",
+      "previous_value": "bodyweight",
+      "new_value": "barbell",
+      "hint": "barbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "barbell_incline_press",
+      "previous_value": "bodyweight",
+      "new_value": "barbell",
+      "hint": "barbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "barbell_split_squat",
+      "previous_value": "bodyweight",
+      "new_value": "barbell",
+      "hint": "barbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "bb_iso_squats",
+      "previous_value": "bodyweight",
+      "new_value": "barbell",
+      "hint": "barbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "bb_oscillatory_low_squats",
+      "previous_value": "bodyweight",
+      "new_value": "barbell",
+      "hint": "barbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "cable_anti_rotation",
+      "previous_value": "bodyweight",
+      "new_value": "cable",
+      "hint": "cable",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "cable_pull_throughs",
+      "previous_value": "bodyweight",
+      "new_value": "cable",
+      "hint": "cable",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "cable_squat_chop",
+      "previous_value": "bodyweight",
+      "new_value": "cable",
+      "hint": "cable",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "cable_woodchops",
+      "previous_value": "bodyweight",
+      "new_value": "cable",
+      "hint": "cable",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_bb_iso_split_squats",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_bb_oscillatory_split_squats",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_chest_supported_y_raise",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_front_raise",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_hex_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_larsen_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_neutral_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_oscillatory_bulgarian_split_squats",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_pullovers",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_rdl",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "db_snap_downs",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_alternating_bench_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_alternating_neutral_bench_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_bench_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_curls",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_floor_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_incline_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_military_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "dumbbell_split_squat",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "ff_single_arm_landmine_hack_squat",
+      "previous_value": "bodyweight",
+      "new_value": "machine",
+      "hint": "machine",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "ff_tire_leg_press",
+      "previous_value": "bodyweight",
+      "new_value": "machine",
+      "hint": "machine",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "incline_db_alternating_bench",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "incline_db_hex_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "kettlebell_swing",
+      "previous_value": "bodyweight",
+      "new_value": "kettlebell",
+      "hint": "kettlebell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "overcoming_iso_bb_split_squat",
+      "previous_value": "bodyweight",
+      "new_value": "barbell",
+      "hint": "barbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "overhead_cable_extension",
+      "previous_value": "bodyweight",
+      "new_value": "cable",
+      "hint": "cable",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "overhead_db_extension",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "plank_kettlebell_drag_through",
+      "previous_value": "bodyweight",
+      "new_value": "kettlebell",
+      "hint": "kettlebell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "quadruped_single_arm_db_drop_catch",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "reverse_cable_woodchops",
+      "previous_value": "bodyweight",
+      "new_value": "cable",
+      "hint": "cable",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "side_plank_db_raise",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "single_arm_db_floor_press",
+      "previous_value": "bodyweight",
+      "new_value": "dumbbell",
+      "hint": "dumbbell",
+      "previous_tier": "strong_prior"
+    },
+    {
+      "kind": "replaced_bodyweight_with_implement_hint",
+      "exercise_id": "tricep_extensions",
+      "previous_value": "bodyweight",
+      "new_value": "cable",
+      "hint": "cable",
+      "previous_tier": "strong_prior"
+    }
+  ],
+  "counts": {
+    "replaced_bodyweight_with_hint": 43,
+    "downgraded_lock_tier_mismatch": 0,
+    "downgraded_lock_bodyweight_text_vs_loaded": 0
+  },
+  "locked_equipment_by_primary_reason": [
+    {
+      "reason": "equipment_slug_kettlebell",
+      "count": 701
+    },
+    {
+      "reason": "equipment_slug_dumbbell",
+      "count": 320
+    },
+    {
+      "reason": "equipment_slug_barbell_family",
+      "count": 247
+    },
+    {
+      "reason": "equipment_slug_specialty",
+      "count": 94
+    },
+    {
+      "reason": "equipment_slug_cable",
+      "count": 77
+    },
+    {
+      "reason": "equipment_slug_band",
+      "count": 62
+    },
+    {
+      "reason": "equipment_slug_cardio_machine",
+      "count": 4
+    },
+    {
+      "reason": "equipment_slug_machine_family",
+      "count": 1
+    }
+  ],
+  "sample_resolved_rows": [
+    {
+      "exercise_id": "1_arm_db_jerks",
+      "name": "1 Arm DB Jerks",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "1_arm_db_jerks",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "barbell_floor_press",
+      "name": "Barbell Floor Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "barbell_floor_press",
+        "previous_value": "bodyweight",
+        "new_value": "barbell",
+        "hint": "barbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "barbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_barbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "barbell_incline_press",
+      "name": "Barbell Incline Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "barbell_incline_press",
+        "previous_value": "bodyweight",
+        "new_value": "barbell",
+        "hint": "barbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "barbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_barbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "barbell_split_squat",
+      "name": "Barbell Split Squat",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "barbell_split_squat",
+        "previous_value": "bodyweight",
+        "new_value": "barbell",
+        "hint": "barbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "barbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_barbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "bb_iso_squats",
+      "name": "BB Iso Squats",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "bb_iso_squats",
+        "previous_value": "bodyweight",
+        "new_value": "barbell",
+        "hint": "barbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "barbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_barbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "bb_oscillatory_low_squats",
+      "name": "BB Oscillatory Low Squats",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "bb_oscillatory_low_squats",
+        "previous_value": "bodyweight",
+        "new_value": "barbell",
+        "hint": "barbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "barbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_barbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "cable_anti_rotation",
+      "name": "Cable Anti-Rotation",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "cable_anti_rotation",
+        "previous_value": "bodyweight",
+        "new_value": "cable",
+        "hint": "cable",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "cable",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_cable"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "cable_pull_throughs",
+      "name": "Cable Pull Throughs",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "cable_pull_throughs",
+        "previous_value": "bodyweight",
+        "new_value": "cable",
+        "hint": "cable",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "cable",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_cable"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "cable_squat_chop",
+      "name": "Cable Squat Chop",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "cable_squat_chop",
+        "previous_value": "bodyweight",
+        "new_value": "cable",
+        "hint": "cable",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "cable",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_cable"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "cable_woodchops",
+      "name": "Cable Woodchops",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "cable_woodchops",
+        "previous_value": "bodyweight",
+        "new_value": "cable",
+        "hint": "cable",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "cable",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_cable"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_bb_iso_split_squats",
+      "name": "DB/BB Iso Split Squats",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_bb_iso_split_squats",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_bb_oscillatory_split_squats",
+      "name": "DB/BB Oscillatory Split Squats",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_bb_oscillatory_split_squats",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_chest_supported_y_raise",
+      "name": "Dumbbell Chest Supported Y Raise",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_chest_supported_y_raise",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_front_raise",
+      "name": "DB Front Raise",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_front_raise",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_hex_press",
+      "name": "DB Hex Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_hex_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_larsen_press",
+      "name": "DB Larsen Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_larsen_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_neutral_press",
+      "name": "DB Neutral Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_neutral_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_oscillatory_bulgarian_split_squats",
+      "name": "DB Oscillatory Bulgarian Split Squats",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_oscillatory_bulgarian_split_squats",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_pullovers",
+      "name": "DB Pullovers",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_pullovers",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_rdl",
+      "name": "DB RDL",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_rdl",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "db_snap_downs",
+      "name": "DB Snap Downs",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "db_snap_downs",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_alternating_bench_press",
+      "name": "Dumbbell Alternating Bench Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_alternating_bench_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_alternating_neutral_bench_press",
+      "name": "Dumbbell Alternating Neutral Bench Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_alternating_neutral_bench_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_bench_press",
+      "name": "Dumbbell Bench Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_bench_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_curls",
+      "name": "Dumbbell Curls",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_curls",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_floor_press",
+      "name": "Dumbbell Floor Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_floor_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_incline_press",
+      "name": "Dumbbell Incline Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_incline_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_military_press",
+      "name": "DB Overhead Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_military_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "dumbbell_split_squat",
+      "name": "Dumbbell Split Squat",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "dumbbell_split_squat",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "ff_single_arm_landmine_hack_squat",
+      "name": "Single Arm Landmine Hack Squat",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "ff_single_arm_landmine_hack_squat",
+        "previous_value": "bodyweight",
+        "new_value": "machine",
+        "hint": "machine",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "machine",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_machine"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "ff_tire_leg_press",
+      "name": "Tire Leg Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "ff_tire_leg_press",
+        "previous_value": "bodyweight",
+        "new_value": "machine",
+        "hint": "machine",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "machine",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_machine"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "incline_db_alternating_bench",
+      "name": "Incline DB Alternating Bench",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "incline_db_alternating_bench",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "incline_db_hex_press",
+      "name": "Incline DB Hex Press",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "incline_db_hex_press",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "kettlebell_swing",
+      "name": "Kettlebell Swing",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "kettlebell_swing",
+        "previous_value": "bodyweight",
+        "new_value": "kettlebell",
+        "hint": "kettlebell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "kettlebell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_kettlebell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "overcoming_iso_bb_split_squat",
+      "name": "Overcoming ISO BB Split Squat",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "overcoming_iso_bb_split_squat",
+        "previous_value": "bodyweight",
+        "new_value": "barbell",
+        "hint": "barbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "barbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_barbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "overhead_cable_extension",
+      "name": "Overhead Cable Extension",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "overhead_cable_extension",
+        "previous_value": "bodyweight",
+        "new_value": "cable",
+        "hint": "cable",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "cable",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_cable"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "overhead_db_extension",
+      "name": "Overhead DB Extension",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "overhead_db_extension",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "plank_kettlebell_drag_through",
+      "name": "Plank Kettlebell Drag Through",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "plank_kettlebell_drag_through",
+        "previous_value": "bodyweight",
+        "new_value": "kettlebell",
+        "hint": "kettlebell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "kettlebell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_kettlebell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "quadruped_single_arm_db_drop_catch",
+      "name": "Quadruped Single Arm DB Drop Catch",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "quadruped_single_arm_db_drop_catch",
+        "previous_value": "bodyweight",
+        "new_value": "dumbbell",
+        "hint": "dumbbell",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "dumbbell",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_dumbbell"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    },
+    {
+      "exercise_id": "reverse_cable_woodchops",
+      "name": "Reverse Cable Woodchops",
+      "event": {
+        "kind": "replaced_bodyweight_with_implement_hint",
+        "exercise_id": "reverse_cable_woodchops",
+        "previous_value": "bodyweight",
+        "new_value": "cable",
+        "hint": "cable",
+        "previous_tier": "strong_prior"
+      },
+      "equipment_after": {
+        "value": "cable",
+        "confidence": 0.93,
+        "reason_codes": [
+          "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement",
+          "equipment_prefill_resolved_implement_hint_cable"
+        ],
+        "sources": [
+          "equipment",
+          "name"
+        ],
+        "trust_tier": "strong_prior"
+      }
+    }
+  ]
+}

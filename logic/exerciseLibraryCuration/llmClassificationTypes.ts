@@ -71,7 +71,11 @@ export type ValidationFailureCode =
   | "movement_patterns_invalid"
   | "llm_confidence_invalid"
   | "ambiguity_flags_invalid"
-  | "unknown_field";
+  | "unknown_field"
+  | "missing_batch_result"
+  | "exercise_id_mismatch"
+  | "batch_results_not_array"
+  | "batch_root_invalid";
 
 export type LlmValidationResult =
   | { ok: true; value: LlmClassificationValidated }
@@ -79,29 +83,63 @@ export type LlmValidationResult =
 
 export type LlmStagingItem = {
   exercise_id: string;
+  /** Flush window index (legacy; groups exercises for periodic staging writes). */
   batch_index: number;
+  /** Stable id for one API request (shared by all exercises in that request). Schema v2+. */
+  request_batch_id?: string;
+  /** Exercise ids sent in that API request. Schema v2+. */
+  request_exercise_ids?: string[];
   payload_summary: { name: string };
-  raw_response: string | null;
+  /** Raw model text for the whole batch response (duplicated per exercise row for resumability). */
+  raw_response_text?: string | null;
+  /** @deprecated Use raw_response_text; kept for older staging files. */
+  raw_response?: string | null;
   provider_error: string | null;
   validation: LlmValidationResult;
 };
 
 export type LlmStagingArtifact = {
-  schema_version: 1;
+  schema_version: 1 | 2;
   generated_at: string;
   catalog_path: string;
   prefill_path: string;
   provider: "openai_compatible" | "none" | "mock";
+  /** Exercises per flush window (legacy name; periodic disk flush). */
   batch_size: number;
+  /** Exercises classified per API request (schema v2+). */
+  exercises_per_request?: number;
+  max_retries?: number;
   /** Exercise ids with a row in \`items\` from the latest run (for resume bookkeeping). */
   processed_ids: string[];
   items: LlmStagingItem[];
 };
 
+/** Per-field explanation for phase-3 smoke/debug (not used by generator). */
+export type Phase3MergeFieldAudit = {
+  raw_llm: unknown;
+  merged_final: unknown;
+  /** True when phase-2 trust_tier "locked" forced merged_final for this field. */
+  applied_locked_prefill: boolean;
+};
+
+export type Phase3EquipmentFieldAudit = Phase3MergeFieldAudit & {
+  merged_after_locked_prefill: unknown;
+  /** True when post-validation equipment pass changed merged vs after-lock merge. */
+  equipment_quality_applied: boolean;
+};
+
+export type Phase3RecordAudit = {
+  primary_role: Phase3MergeFieldAudit;
+  movement_patterns: Phase3MergeFieldAudit;
+  equipment_class: Phase3EquipmentFieldAudit;
+  equipment_quality_notes: string[];
+  equipment_conflict_codes: string[];
+};
+
 export type LlmValidatedRecord = {
   exercise_id: string;
   llm: LlmClassificationValidated;
-  /** After applying phase-2 locked fields over LLM output (for downstream). */
+  /** After locked prefill merge and phase-3 equipment quality pass (authoritative for downstream). */
   merged_with_locked_prefill: LlmClassificationValidated;
   /** Which deterministic fields were forced from prefill (locked). */
   locked_fields_applied: (
@@ -109,6 +147,8 @@ export type LlmValidatedRecord = {
     | "movement_patterns"
     | "equipment_class"
   )[];
+  /** Optional merge trace for debugging / smoke tests. */
+  phase3_audit?: Phase3RecordAudit;
 };
 
 export type LlmValidatedArtifact = {
@@ -121,11 +161,26 @@ export type LlmValidatedArtifact = {
 /** Compare deterministic prefill to LLM for fields the LLM was allowed to change. */
 export type FieldChangeKind = "preserved" | "replaced" | "filled_no_prior" | "locked_unchanged";
 
+/** Optional metrics for the current process invocation (batch API + retries). */
+export type LlmClassificationRunMetrics = {
+  exercises_attempted: number;
+  api_requests_made: number;
+  average_exercises_per_request: number;
+  provider_error_rate_limit: number;
+  provider_error_other: number;
+  partial_batch_success_count: number;
+};
+
 export type LlmRunSummary = {
   total_processed: number;
   validated_count: number;
   rejected_count: number;
   ambiguous_count: number;
+  /** Staging rows whose errors include only record-level issues (invalid_enum, missing_batch_result, …), not batch JSON/root parse failures. */
+  malformed_record_count: number;
+  /** Staging rows whose errors include parse_json_failed, batch_root_invalid, or batch_results_not_array. */
+  parse_json_failed_count: number;
+  run_metrics?: LlmClassificationRunMetrics;
   by_keep_category: Record<string, number>;
   by_primary_role: Record<string, number>;
   by_complexity: Record<string, number>;

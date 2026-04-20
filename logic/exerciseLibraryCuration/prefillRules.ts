@@ -32,6 +32,10 @@ import {
   type PrefillCatalogContext,
 } from "./prefillRuleHelpers";
 import { incrementCount, sortedCountEntries } from "./summaryStats";
+import { refineEquipmentClassAfterTrustTiers } from "./prefillEquipmentLockRefinement";
+import type { EquipmentLockRefinementEvent } from "./prefillEquipmentLockRefinement";
+
+export type { EquipmentLockRefinementEvent } from "./prefillEquipmentLockRefinement";
 import { applyTrustTiersToPrefillBlock } from "./prefillTrust";
 
 const DEFAULT_OPTIONS: PrefillRunOptions = {
@@ -348,7 +352,8 @@ function filterByMinConfidence<T>(
  */
 export function runPrefillForExercise(
   row: CatalogExerciseRow,
-  options: Partial<PrefillRunOptions> = {}
+  options: Partial<PrefillRunOptions> = {},
+  equipmentRefinementLog?: (e: EquipmentLockRefinementEvent) => void
 ): ExercisePrefillRecord {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const ctx = buildPrefillCatalogContext(row);
@@ -370,14 +375,19 @@ export function runPrefillForExercise(
   const sports = filterByMinConfidence(assignSportTransferTags(ctx), opts.min_confidence);
   if (sports) prefill.sport_transfer_tags = sports;
 
-  return { exercise_id: row.id, prefill: applyTrustTiersToPrefillBlock(prefill) };
+  const withTrust = applyTrustTiersToPrefillBlock(prefill);
+  return {
+    exercise_id: row.id,
+    prefill: refineEquipmentClassAfterTrustTiers(row, withTrust, equipmentRefinementLog),
+  };
 }
 
 export function runPrefillForCatalog(
   rows: CatalogExerciseRow[],
-  options: Partial<PrefillRunOptions> = {}
+  options: Partial<PrefillRunOptions> = {},
+  equipmentRefinementLog?: (e: EquipmentLockRefinementEvent) => void
 ): ExercisePrefillRecord[] {
-  return rows.map((r) => runPrefillForExercise(r, options));
+  return rows.map((r) => runPrefillForExercise(r, options, equipmentRefinementLog));
 }
 
 function collectReasonCodes(rec: ExercisePrefillRecord, out: Record<string, number>): void {

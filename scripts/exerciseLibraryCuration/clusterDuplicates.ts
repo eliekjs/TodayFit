@@ -1,30 +1,37 @@
 /**
- * Phase 4 — deterministic duplicate clustering and canonical selection.
+ * Phase 4 — redundancy clustering for library reduction (deterministic, no LLM).
  * Does not modify catalog rows, generator behavior, or assign generator_state.
  *
  * Run:
- *   npx tsx scripts/exerciseLibraryCuration/clusterDuplicates.ts
+ *   npm run curation:cluster-duplicates
  *
  * Env:
  *   CLUSTER_CATALOG_PATH — default: data/workout-exercise-catalog.json
  *   CLUSTER_LLM_VALIDATED_PATH — default: artifacts/exercise-curation-llm-validated.json
- *   CLUSTER_PREFILL_PATH — recorded in artifact only; default: artifacts/exercise-curation-prefill.json
- *   CLUSTER_MAX_IDS — optional; limit to first N exercise ids (sorted) for faster runs
- *   CLUSTER_DUPLICATE_CONFIG_JSON — optional JSON partial merge over DEFAULT_DUPLICATE_CLUSTER_CONFIG
- *   CLUSTER_PAIRWISE_DEBUG_IDS — comma-separated ids; logs pairwise scores vs those ids to stderr
+ *   CLUSTER_PREFILL_PATH — recorded in artifact; default: artifacts/exercise-curation-prefill.json
+ *   CLUSTER_MAX_IDS — optional; limit to first N exercise ids (sorted)
+ *   CLUSTER_AGGRESSIVENESS — conservative | balanced | aggressive (default: aggressive)
+ *   CLUSTER_DUPLICATE_CONFIG_JSON — optional partial merge over the selected preset
+ *   CLUSTER_PAIRWISE_DEBUG_IDS — comma-separated ids; logs pairwise scores to stderr
+ *   CLUSTER_NEAR_MISS_LIMIT — max near-miss pairs in JSON (default: 800)
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
 
 import type { LlmClassificationValidated, LlmValidatedArtifact } from "../../logic/exerciseLibraryCuration/llmClassificationTypes";
-import { buildDuplicateClustersArtifact } from "../../logic/exerciseLibraryCuration/duplicateClusterPipeline";
 import {
-  DEFAULT_DUPLICATE_CLUSTER_CONFIG,
+  buildDuplicateClustersArtifact,
+  buildNearMissesArtifact,
+} from "../../logic/exerciseLibraryCuration/duplicateClusterPipeline";
+import type { DuplicateClusterConfig, LibraryReductionAggressiveness } from "../../logic/exerciseLibraryCuration/duplicateClusterTypes";
+import {
+  configForAggressiveness,
   mergeDuplicateClusterConfig,
   type ExerciseDuplicateFeatures,
 } from "../../logic/exerciseLibraryCuration/duplicateClusterTypes";
 import { formatDuplicateClusterSummaryMarkdown } from "../../logic/exerciseLibraryCuration/duplicateSummaryMarkdown";
+import { formatLibraryReductionSummaryMarkdown } from "../../logic/exerciseLibraryCuration/libraryReductionMarkdown";
 import {
   buildExerciseDuplicateFeatures,
   computePairwiseDuplicateScore,
@@ -36,6 +43,12 @@ const REPO = join(__dirname, "..", "..");
 
 function loadJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, "utf8")) as T;
+}
+
+function parseAggressiveness(raw: string | undefined): LibraryReductionAggressiveness {
+  const v = raw?.trim().toLowerCase();
+  if (v === "conservative" || v === "balanced" || v === "aggressive") return v;
+  return "aggressive";
 }
 
 function main() {
@@ -56,6 +69,8 @@ function main() {
     process.exit(1);
   }
 
+  const nearMissLimit = Number.parseInt(process.env.CLUSTER_NEAR_MISS_LIMIT ?? "800", 10);
+
   if (!existsSync(catalogPath)) {
     console.error(`Catalog not found: ${catalogPath}`);
     process.exit(1);
@@ -65,12 +80,14 @@ function main() {
     process.exit(1);
   }
 
-  let config = DEFAULT_DUPLICATE_CLUSTER_CONFIG;
+  const aggressiveness = parseAggressiveness(process.env.CLUSTER_AGGRESSIVENESS);
+  let config: DuplicateClusterConfig = configForAggressiveness(aggressiveness);
+
   const cfgJson = process.env.CLUSTER_DUPLICATE_CONFIG_JSON?.trim();
   if (cfgJson) {
     try {
-      const partial = JSON.parse(cfgJson) as Partial<typeof DEFAULT_DUPLICATE_CLUSTER_CONFIG>;
-      config = mergeDuplicateClusterConfig(DEFAULT_DUPLICATE_CLUSTER_CONFIG, partial);
+      const partial = JSON.parse(cfgJson) as Partial<DuplicateClusterConfig>;
+      config = mergeDuplicateClusterConfig(config, partial);
     } catch (e) {
       console.error("CLUSTER_DUPLICATE_CONFIG_JSON parse error:", e);
       process.exit(1);
@@ -108,7 +125,7 @@ function main() {
       .map((s) => s.trim())
       .filter(Boolean) ?? [];
   if (debugIds.length) {
-    const cand = enumerateCandidatePairs(features);
+    const cand = enumerateCandidatePairs(features, config);
     console.error("── Pairwise debug (sample edges involving CLUSTER_PAIRWISE_DEBUG_IDS) ──");
     for (const did of debugIds) {
       let n = 0;
@@ -119,19 +136,28 @@ function main() {
         const fb = features.get(b);
         if (!fa || !fb) continue;
         const pr = computePairwiseDuplicateScore(fa, fb, config);
-        console.error(`${a} | ${b} score=${pr.score.toFixed(3)} blocked=${pr.blocked} ${pr.block_reason ?? ""}`);
+        console.error(
+          `${a} | ${b} score=${pr.score.toFixed(3)} hyp=${pr.hypothetical_unblocked_score.toFixed(3)} blocked=${pr.blocked} ${pr.block_reason ?? ""}`
+        );
         if (++n >= 40) break;
       }
     }
   }
 
-  const artifact = buildDuplicateClustersArtifact({
+  const { artifact, pair_scores } = buildDuplicateClustersArtifact({
     catalog_path: catalogPath,
     prefill_path: existsSync(prefillPath) ? prefillPath : prefillPath,
     llm_validated_path: llmPath,
     features,
     mergedById,
+    catalog_by_id: rowById,
     config,
+  });
+
+  const nearMisses = buildNearMissesArtifact({
+    pairScores: pair_scores,
+    config,
+    sample_limit: Number.isFinite(nearMissLimit) ? nearMissLimit : 800,
   });
 
   const artifactsDir = join(REPO, "artifacts");
@@ -142,12 +168,23 @@ function main() {
   const mdOut = join(artifactsDir, "exercise-duplicate-clusters.md");
   writeFileSync(mdOut, formatDuplicateClusterSummaryMarkdown(artifact), "utf8");
 
-  console.log("Duplicate clustering (phase 4)");
-  console.log(`  clusters: ${artifact.stats.total_clusters}`);
-  console.log(`  by band high/medium/low: ${artifact.stats.by_band.high} / ${artifact.stats.by_band.medium} / ${artifact.stats.by_band.low}`);
-  console.log(`  exercises not clustered: ${artifact.stats.exercises_not_clustered}`);
+  const nearJson = join(artifactsDir, "exercise-duplicate-near-misses.json");
+  writeFileSync(nearJson, `${JSON.stringify(nearMisses, null, 2)}\n`, "utf8");
+
+  const reductionMd = join(artifactsDir, "exercise-library-reduction-summary.md");
+  writeFileSync(reductionMd, formatLibraryReductionSummaryMarkdown(artifact, nearMisses), "utf8");
+
+  const st = artifact.stats;
+  console.log("Redundancy clustering (library reduction)");
+  console.log(`  aggressiveness: ${artifact.aggressiveness}`);
+  console.log(`  pair candidates scored: ${pair_scores.size}`);
+  console.log(`  clusters: exact ${st.clusters_exact_duplicate} | near ${st.clusters_near_duplicate} | practical ${st.clusters_practical_merge_candidate}`);
+  console.log(`  rows removable (all merge tiers): ${st.cumulative_rows_removable_if_all_merge_tiers}`);
+  console.log(`  exercises not in any cluster: ${st.exercises_not_clustered}`);
   console.log(`  wrote ${jsonOut}`);
   console.log(`  wrote ${mdOut}`);
+  console.log(`  wrote ${nearJson}`);
+  console.log(`  wrote ${reductionMd}`);
 }
 
 main();

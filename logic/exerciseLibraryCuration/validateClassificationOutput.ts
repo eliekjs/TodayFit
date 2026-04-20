@@ -152,8 +152,11 @@ export function validateLlmClassificationOutput(parsed: unknown): LlmValidationR
     }
   }
 
-  if (!isNum(o.llm_confidence) || o.llm_confidence < 0 || o.llm_confidence > 1) {
-    return err("llm_confidence_invalid", "llm_confidence must be a number in [0,1]");
+  if (!isNum(o.llm_confidence) || o.llm_confidence <= 0 || o.llm_confidence > 1) {
+    return err(
+      "llm_confidence_invalid",
+      "llm_confidence must be a number strictly between 0 and 1 (e.g. 0.2–0.95). Do not output 0; use ambiguity_flags if truly unknowable."
+    );
   }
 
   if (!Array.isArray(o.ambiguity_flags)) {
@@ -188,4 +191,76 @@ export function parseAndValidateLlmClassificationRaw(raw: string): LlmValidation
     const msg = e instanceof Error ? e.message : String(e);
     return err("parse_json_failed", msg);
   }
+}
+
+/**
+ * Validate one object from `results[]`: must include matching exercise_id, then same rules as single-object output.
+ */
+export function validateLlmClassificationResultRecord(parsed: unknown, expectedExerciseId: string): LlmValidationResult {
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return err("not_object", "Result row must be a JSON object");
+  }
+  const o = parsed as Record<string, unknown>;
+  if (!("exercise_id" in o) || typeof o.exercise_id !== "string") {
+    return err("missing_field", "Missing required field: exercise_id");
+  }
+  if (o.exercise_id !== expectedExerciseId) {
+    return err("exercise_id_mismatch", `Expected exercise_id ${expectedExerciseId}, got ${String(o.exercise_id)}`);
+  }
+  const { exercise_id: _eid, ...rest } = o;
+  return validateLlmClassificationOutput(rest);
+}
+
+function failAllIds(
+  expectedExerciseIds: readonly string[],
+  code: ValidationFailureCode,
+  message: string
+): Map<string, LlmValidationResult> {
+  const r = err(code, message);
+  return new Map(expectedExerciseIds.map((id) => [id, r]));
+}
+
+/**
+ * Parse batched JSON `{ "results": [ { "exercise_id", ...fields } ] }` and validate each expected id independently.
+ * Whole-batch JSON parse failure or missing `results` array marks every expected id with a provider/parse failure.
+ */
+export function parseBatchedLlmClassificationRaw(
+  raw: string,
+  expectedExerciseIds: readonly string[]
+): Map<string, LlmValidationResult> {
+  let parsed: unknown;
+  try {
+    parsed = extractJsonObject(raw);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return failAllIds(expectedExerciseIds, "parse_json_failed", msg);
+  }
+
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return failAllIds(expectedExerciseIds, "batch_root_invalid", "Root must be a JSON object");
+  }
+  const root = parsed as Record<string, unknown>;
+  if (!Array.isArray(root.results)) {
+    return failAllIds(expectedExerciseIds, "batch_results_not_array", "Missing or invalid results array");
+  }
+
+  const results = root.results;
+  const byIdFirst = new Map<string, unknown>();
+  for (const row of results) {
+    if (row === null || typeof row !== "object" || Array.isArray(row)) continue;
+    const id = (row as Record<string, unknown>).exercise_id;
+    if (typeof id !== "string" || !id) continue;
+    if (!byIdFirst.has(id)) byIdFirst.set(id, row);
+  }
+
+  const out = new Map<string, LlmValidationResult>();
+  for (const id of expectedExerciseIds) {
+    const row = byIdFirst.get(id);
+    if (row === undefined) {
+      out.set(id, err("missing_batch_result", `No result object for exercise_id ${id}`));
+      continue;
+    }
+    out.set(id, validateLlmClassificationResultRecord(row, id));
+  }
+  return out;
 }

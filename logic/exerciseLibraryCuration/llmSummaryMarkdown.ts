@@ -12,7 +12,26 @@ export function formatLlmClassificationSummaryMarkdown(summary: LlmRunSummary, c
   lines.push(`- **Total processed:** ${summary.total_processed}`);
   lines.push(`- **Validated:** ${summary.validated_count}`);
   lines.push(`- **Rejected (validation failed):** ${summary.rejected_count}`);
-  lines.push(`- **Ambiguous** (flags non-empty or low confidence): ${summary.ambiguous_count}`);
+  lines.push(
+    `- **Ambiguous** (merged profile: ambiguity_flags non-empty or llm_confidence below threshold): ${summary.ambiguous_count}`
+  );
+  lines.push(`- **Parse / batch JSON failures (staging rows):** ${summary.parse_json_failed_count}`);
+  lines.push(`- **Malformed record failures (enum/shape, staging rows):** ${summary.malformed_record_count}`);
+  if (summary.run_metrics) {
+    const m = summary.run_metrics;
+    lines.push(``);
+    lines.push(`## This run (invocation)`);
+    lines.push(`- **Exercises attempted:** ${m.exercises_attempted}`);
+    lines.push(`- **API requests made:** ${m.api_requests_made}`);
+    lines.push(
+      `- **Average exercises per request:** ${
+        m.api_requests_made > 0 ? m.average_exercises_per_request.toFixed(2) : "0.00"
+      }`
+    );
+    lines.push(`- **Provider errors (rate limit, after retries):** ${m.provider_error_rate_limit}`);
+    lines.push(`- **Provider errors (other, after retries):** ${m.provider_error_other}`);
+    lines.push(`- **Partial batch successes** (mixed pass/fail in one API response): ${m.partial_batch_success_count}`);
+  }
   lines.push(``);
   lines.push(`## keep_category`);
   for (const k of Object.keys(summary.by_keep_category).sort()) {

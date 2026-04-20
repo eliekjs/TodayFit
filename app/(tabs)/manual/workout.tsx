@@ -35,6 +35,46 @@ export default function ManualWorkoutScreen() {
   const router = useRouter();
   const theme = useTheme();
 
+  const [swapModal, setSwapModal] = useState<{
+    exerciseId: string;
+    exerciseName: string;
+    blockType: BlockType;
+  } | null>(null);
+  const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
+  const [swapLoading, setSwapLoading] = useState(false);
+  const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
+  const [swapNumPages, setSwapNumPages] = useState(1);
+
+  useEffect(() => {
+    if (!swapModal) {
+      setSwapSuggested([]);
+      setSwapSuggestionPage(0);
+      setSwapNumPages(1);
+      return;
+    }
+    let cancelled = false;
+    setSwapLoading(true);
+    const energyLevel = manualPreferences.energyLevel ?? undefined;
+    getSwapSuggestionsPage(
+      swapModal.exerciseId,
+      {
+        energyLevel,
+        swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+      },
+      swapSuggestionPage
+    ).then(
+      ({ suggestions, numPages }) => {
+        if (cancelled) return;
+        setSwapSuggested(suggestions);
+        setSwapNumPages(numPages);
+        setSwapLoading(false);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [swapModal?.exerciseId, swapModal?.blockType, manualPreferences.energyLevel, swapSuggestionPage]);
+
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
 
@@ -126,46 +166,6 @@ export default function ManualWorkoutScreen() {
     setGeneratedWorkout(null);
     router.replace("/");
   };
-
-  const [swapModal, setSwapModal] = useState<{
-    exerciseId: string;
-    exerciseName: string;
-    blockType: BlockType;
-  } | null>(null);
-  const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
-  const [swapLoading, setSwapLoading] = useState(false);
-  const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
-  const [swapNumPages, setSwapNumPages] = useState(1);
-
-  useEffect(() => {
-    if (!swapModal) {
-      setSwapSuggested([]);
-      setSwapSuggestionPage(0);
-      setSwapNumPages(1);
-      return;
-    }
-    let cancelled = false;
-    setSwapLoading(true);
-    const energyLevel = manualPreferences.energyLevel ?? undefined;
-    getSwapSuggestionsPage(
-      swapModal.exerciseId,
-      {
-        energyLevel,
-        swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
-      },
-      swapSuggestionPage
-    ).then(
-      ({ suggestions, numPages }) => {
-        if (cancelled) return;
-        setSwapSuggested(suggestions);
-        setSwapNumPages(numPages);
-        setSwapLoading(false);
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [swapModal?.exerciseId, swapModal?.blockType, manualPreferences.energyLevel, swapSuggestionPage]);
 
   const onSwapChoose = (optionId: string, optionName: string) => {
     if (generatedWorkout == null || swapModal == null) return;

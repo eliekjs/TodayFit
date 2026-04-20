@@ -36,7 +36,9 @@
     "audit:exercise-library": "npx tsx scripts/exerciseLibraryCuration/auditExerciseLibrary.ts",
     "prefill:exercise-curation": "npx tsx scripts/exerciseLibraryCuration/runPrefillRules.ts",
     "curation:llm-classify": "npx tsx scripts/exerciseLibraryCuration/runLlmClassification.ts",
-    "curation:cluster-duplicates": "npx tsx scripts/exerciseLibraryCuration/clusterDuplicates.ts"
+    "curation:cluster-duplicates": "npx tsx scripts/exerciseLibraryCuration/clusterDuplicates.ts",
+    "curation:library-prune": "npx tsx scripts/exerciseLibraryCuration/runLibraryPruning.ts",
+    "curation:generator-eligibility-preview": "npx tsx scripts/exerciseLibraryCuration/runGeneratorEligibilityPreview.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

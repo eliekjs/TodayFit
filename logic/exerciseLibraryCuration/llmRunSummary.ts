@@ -4,7 +4,7 @@
 
 import { incrementCount, sortedCountEntries } from "./summaryStats";
 import type { ExercisePrefillBlock } from "./types";
-import type { LlmRunSummary, LlmStagingItem, LlmValidatedRecord } from "./llmClassificationTypes";
+import type { FieldChangeKind, LlmClassificationRunMetrics, LlmRunSummary, LlmStagingItem, LlmValidatedRecord } from "./llmClassificationTypes";
 import { compareLlmToDeterministicForField } from "./mergeDeterministicAndLlmOutputs";
 import type { LlmClassificationValidated } from "./llmClassificationTypes";
 
@@ -23,6 +23,8 @@ function bump(
   m[k] = (m[k] ?? 0) + 1;
 }
 
+const PARSE_LEVEL_CODES = new Set<string>(["parse_json_failed", "batch_root_invalid", "batch_results_not_array"]);
+
 /**
  * Build summary from staging validation failures + validated records + prefill map.
  */
@@ -32,15 +34,24 @@ export function computeLlmRunSummary(params: {
   validated_records: LlmValidatedRecord[];
   prefill_by_id: Map<string, ExercisePrefillBlock>;
   ambiguous_confidence_threshold: number;
+  run_metrics?: LlmClassificationRunMetrics;
 }): LlmRunSummary {
-  const { total_processed, staging_items, validated_records, prefill_by_id, ambiguous_confidence_threshold } = params;
+  const { total_processed, staging_items, validated_records, prefill_by_id, ambiguous_confidence_threshold, run_metrics } =
+    params;
 
   const validation_failure_reasons: Record<string, number> = {};
   let rejected = 0;
+  let parse_json_failed_count = 0;
+  let malformed_record_count = 0;
+
   for (const it of staging_items) {
     if (it.validation.ok) continue;
     rejected += 1;
-    for (const e of it.validation.errors) {
+    const errs = it.validation.errors;
+    const isParse = errs.some((e) => PARSE_LEVEL_CODES.has(e.code));
+    if (isParse) parse_json_failed_count += 1;
+    else malformed_record_count += 1;
+    for (const e of errs) {
       incrementCount(validation_failure_reasons, e.code, 1);
     }
   }
@@ -69,15 +80,16 @@ export function computeLlmRunSummary(params: {
 
   for (const rec of validated_records) {
     const llm = rec.llm;
+    const merged = rec.merged_with_locked_prefill;
     const prefill = prefill_by_id.get(rec.exercise_id) ?? {};
 
-    incrementCount(by_keep_category, llm.keep_category, 1);
-    incrementCount(by_primary_role, llm.primary_role, 1);
-    incrementCount(by_complexity, llm.complexity, 1);
-    for (const t of llm.sport_transfer_tags) incrementCount(sport_transfer_tag_counts, t, 1);
-    for (const f of llm.ambiguity_flags) incrementCount(ambiguity_flag_counts, f, 1);
+    incrementCount(by_keep_category, merged.keep_category, 1);
+    incrementCount(by_primary_role, merged.primary_role, 1);
+    incrementCount(by_complexity, merged.complexity, 1);
+    for (const t of merged.sport_transfer_tags) incrementCount(sport_transfer_tag_counts, t, 1);
+    for (const f of merged.ambiguity_flags) incrementCount(ambiguity_flag_counts, f, 1);
 
-    if (llm.ambiguity_flags.length > 0 || llm.llm_confidence < ambiguous_confidence_threshold) {
+    if (merged.ambiguity_flags.length > 0 || merged.llm_confidence < ambiguous_confidence_threshold) {
       ambiguous += 1;
     }
 
@@ -137,6 +149,9 @@ export function computeLlmRunSummary(params: {
     validated_count: validated_records.length,
     rejected_count: rejected,
     ambiguous_count: ambiguous,
+    malformed_record_count,
+    parse_json_failed_count,
+    run_metrics,
     by_keep_category,
     by_primary_role,
     by_complexity,

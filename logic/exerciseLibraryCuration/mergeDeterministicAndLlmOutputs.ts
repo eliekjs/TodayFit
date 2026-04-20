@@ -4,8 +4,14 @@
  * Use this in later phases to build a single curation profile (no generator_state here).
  */
 
+import { applyEquipmentClassificationQualityPass } from "./equipmentClassificationQuality";
 import type { ExercisePrefillBlock } from "./types";
-import type { LlmClassificationValidated, LlmValidatedRecord } from "./llmClassificationTypes";
+import type {
+  LlmClassificationValidated,
+  LlmExerciseClassificationPayload,
+  LlmValidatedRecord,
+  Phase3RecordAudit,
+} from "./llmClassificationTypes";
 
 export type LockedFieldKey = "primary_role" | "movement_patterns" | "equipment_class";
 
@@ -44,6 +50,58 @@ export function buildLlmValidatedRecord(
 ): LlmValidatedRecord {
   const { merged, locked_fields_applied } = mergeLockedPrefillIntoLlmOutput(prefill, llm);
   return { exercise_id, llm, merged_with_locked_prefill: merged, locked_fields_applied };
+}
+
+/**
+ * Locked prefill merge + phase-3 equipment quality pass + per-field audit (for smoke/debug).
+ */
+export function buildLlmValidatedRecordPhase3(
+  exercise_id: string,
+  prefill: ExercisePrefillBlock,
+  llm: LlmClassificationValidated,
+  payload: LlmExerciseClassificationPayload
+): LlmValidatedRecord {
+  const { merged: mergedAfterLock, locked_fields_applied } = mergeLockedPrefillIntoLlmOutput(prefill, llm);
+  const { merged: mergedFinal, notes, conflict_codes } = applyEquipmentClassificationQualityPass(
+    prefill,
+    payload.equipment,
+    payload.exercise_id,
+    payload.name,
+    mergedAfterLock
+  );
+
+  const lockSet = new Set(locked_fields_applied);
+  const equipQualityApplied = mergedFinal.equipment_class !== mergedAfterLock.equipment_class;
+
+  const phase3_audit: Phase3RecordAudit = {
+    primary_role: {
+      raw_llm: llm.primary_role,
+      merged_final: mergedFinal.primary_role,
+      applied_locked_prefill: lockSet.has("primary_role"),
+    },
+    movement_patterns: {
+      raw_llm: [...llm.movement_patterns],
+      merged_final: [...mergedFinal.movement_patterns],
+      applied_locked_prefill: lockSet.has("movement_patterns"),
+    },
+    equipment_class: {
+      raw_llm: llm.equipment_class,
+      merged_after_locked_prefill: mergedAfterLock.equipment_class,
+      merged_final: mergedFinal.equipment_class,
+      applied_locked_prefill: lockSet.has("equipment_class"),
+      equipment_quality_applied: equipQualityApplied,
+    },
+    equipment_quality_notes: notes,
+    equipment_conflict_codes: conflict_codes,
+  };
+
+  return {
+    exercise_id,
+    llm,
+    merged_with_locked_prefill: mergedFinal,
+    locked_fields_applied,
+    phase3_audit,
+  };
 }
 
 function sortedStr<T extends string>(arr: T[]): string {

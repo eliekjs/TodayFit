@@ -76,12 +76,33 @@ function trustTierMovement(
   return "strong_prior";
 }
 
+function isSlugOnlyBodyweightReason(code: string): boolean {
+  return code === "equipment_slug_bodyweight" || code === "equipment_single_class";
+}
+
 function trustTierEquipment(a: PrefillFieldAssignment<CurationEquipmentClass>): PrefillTrustTier {
   const code = a.reason_codes[0] ?? "";
   if (a.value === "mixed") return "strong_prior";
   if (EQUIPMENT_WEAK_REASONS.has(code) || code.startsWith("name_contains")) return "weak_prior";
-  if (isEquipmentLockedReason(code) && a.confidence >= 0.9) return "locked";
-  if (isEquipmentLockedReason(code) && a.confidence >= 0.87) return "strong_prior";
+
+  if (
+    a.reason_codes.some(
+      (c) =>
+        c.startsWith("equipment_prefill_resolved_implement_hint_") ||
+        c === "equipment_bodyweight_catalog_slug_overridden_by_name_slug_implement"
+    )
+  ) {
+    return "strong_prior";
+  }
+
+  /** Bodyweight from a single catalog slug is easy to mis-tag; never lock on slug-only bodyweight. */
+  if (a.value === "bodyweight" && isSlugOnlyBodyweightReason(code)) {
+    return a.confidence >= 0.82 ? "strong_prior" : "weak_prior";
+  }
+
+  /** Locked reserved for high-confidence structured evidence (dominant slugs, clear majority, non-name-weak). */
+  if (isEquipmentLockedReason(code) && a.confidence >= 0.93) return "locked";
+  if (isEquipmentLockedReason(code) && a.confidence >= 0.88) return "strong_prior";
   return "weak_prior";
 }
 

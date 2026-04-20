@@ -24,13 +24,26 @@ export const STRENGTH_INTENT_SLUGS = [
 
 export const STRENGTH_OVERLAY_SLUGS = ["upper", "lower", "core", "full_body"] as const;
 
+/** Calisthenics-style sub-focuses under goal slug `strength` (from Calisthenics / athletic bodyweight primary). */
+export const CALISTHENICS_STYLE_STRENGTH_SUB_SLUGS = [
+  "full_body_calisthenics",
+  "legs_pistol",
+  "pull_ups",
+  "push_ups",
+  "dips",
+  "handstand",
+  "front_lever_advanced",
+] as const;
+
 const STRENGTH_INTENT_SET = new Set<string>([...STRENGTH_INTENT_SLUGS]);
 const STRENGTH_OVERLAY_SET = new Set<string>([...STRENGTH_OVERLAY_SLUGS]);
+const CALISTHENICS_STYLE_STRENGTH_SUB_SET = new Set<string>([...CALISTHENICS_STYLE_STRENGTH_SUB_SLUGS]);
 
 export type ExerciseForStrengthSubFocus = {
   id: string;
   tags?: {
     attribute_tags?: string[];
+    goal_tags?: string[];
   };
   movement_pattern?: string;
   primary_movement_family?: string;
@@ -95,6 +108,10 @@ export function exerciseHasStrengthSubFocusSlug(exercise: ExerciseForStrengthSub
     return movementPattern === "pull" || family === "upper_pull" || finePatterns.includes("vertical_pull") || finePatterns.includes("horizontal_pull") || muscles.has("lats") || muscles.has("biceps") || muscles.has("back");
   }
 
+  if (CALISTHENICS_STYLE_STRENGTH_SUB_SET.has(norm)) {
+    return exerciseMatchesCalisthenicsStyleStrengthSlug(exercise, norm);
+  }
+
   // Overlay: use same match primitives (best-effort).
   if (STRENGTH_OVERLAY_SET.has(norm)) {
     if (norm === "full_body") {
@@ -107,6 +124,80 @@ export function exerciseHasStrengthSubFocusSlug(exercise: ExerciseForStrengthSub
     if (norm === "core") return muscles.has("core") || movementPattern === "rotate" || family === "core";
     if (norm === "upper") return family === "upper_push" || family === "upper_pull" || finePatterns.includes("horizontal_push") || finePatterns.includes("horizontal_pull") || finePatterns.includes("vertical_push") || finePatterns.includes("vertical_pull");
     if (norm === "lower") return family === "lower_body" || muscles.has("legs") || muscles.has("quads") || muscles.has("glutes") || muscles.has("hamstrings");
+  }
+
+  return false;
+}
+
+/**
+ * Direct match for Calisthenics primary sub-focus slugs (same `strength` goal slug in tag map).
+ * Prefer attribute_tags; fall back to id/name and movement shape.
+ */
+function exerciseMatchesCalisthenicsStyleStrengthSlug(
+  exercise: ExerciseForStrengthSubFocus,
+  norm: string
+): boolean {
+  const id = toSlug(exercise.id ?? "");
+  const attrs = (exercise.tags?.attribute_tags ?? []).map(toSlug);
+  const fine = (exercise.movement_patterns ?? []).map(toSlug);
+  const pattern = toSlug(exercise.movement_pattern ?? "");
+
+  if (norm === "handstand") {
+    if (attrs.includes("handstand")) return true;
+    if (id.includes("handstand")) return true;
+    if (pattern === "push" && (fine.includes("vertical_push") || fine.includes("horizontal_push"))) {
+      return id.includes("wall") || id.includes("freestanding") || id.includes("pike") || id.includes("press_handstand");
+    }
+    return false;
+  }
+
+  if (norm === "pull_ups") {
+    if (attrs.includes("pull_ups") || attrs.includes("pull_up")) return true;
+    if (id.includes("pull_up") || id.includes("pullup") || id.includes("chin")) return true;
+    return (
+      pattern === "pull" &&
+      (fine.includes("vertical_pull") || fine.includes("horizontal_pull") || exercise.muscle_groups?.some((m) => toSlug(m) === "lats"))
+    );
+  }
+
+  if (norm === "push_ups") {
+    if (attrs.includes("push_ups") || attrs.includes("push_up")) return true;
+    if (id.includes("push_up") || id.includes("pushup")) return true;
+    return pattern === "push" && fine.includes("horizontal_push");
+  }
+
+  if (norm === "dips") {
+    if (attrs.includes("dips") || attrs.includes("dip")) return true;
+    return id.includes("dip") && !id.includes("hip_hinge");
+  }
+
+  if (norm === "legs_pistol") {
+    if (attrs.includes("pistol") || attrs.includes("single_leg_squat")) return true;
+    return (
+      id.includes("pistol") ||
+      id.includes("shrimp") ||
+      (pattern === "squat" && fine.some((f) => f.includes("single") || f.includes("split")))
+    );
+  }
+
+  if (norm === "front_lever_advanced") {
+    if (attrs.includes("front_lever") || attrs.includes("lever")) return true;
+    return id.includes("lever") || id.includes("front_lever");
+  }
+
+  if (norm === "full_body_calisthenics") {
+    const goalTags = (exercise.tags?.goal_tags ?? []).map(toSlug);
+    if (goalTags.includes("calisthenics")) return true;
+    const muscles = new Set((exercise.muscle_groups ?? []).map(toSlug));
+    const hasUpper =
+      muscles.has("push") ||
+      muscles.has("pull") ||
+      muscles.has("chest") ||
+      muscles.has("lats") ||
+      muscles.has("shoulders");
+    const hasLower = muscles.has("legs") || muscles.has("quads") || muscles.has("glutes");
+    const hasCore = muscles.has("core");
+    return hasCore && hasUpper && hasLower;
   }
 
   return false;

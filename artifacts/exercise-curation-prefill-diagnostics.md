@@ -29,13 +29,13 @@
 
 ## Equipment class × trust tier
 - **band:** locked 62 | strong 0 | weak 0
-- **barbell:** locked 249 | strong 0 | weak 69
-- **bodyweight:** locked 1771 | strong 0 | weak 0
-- **cable:** locked 77 | strong 0 | weak 23
+- **barbell:** locked 247 | strong 8 | weak 69
+- **bodyweight:** locked 0 | strong 1728 | weak 0
+- **cable:** locked 77 | strong 7 | weak 23
 - **cardio_machine:** locked 4 | strong 0 | weak 0
-- **dumbbell:** locked 323 | strong 0 | weak 184
-- **kettlebell:** locked 701 | strong 0 | weak 211
-- **machine:** locked 1 | strong 0 | weak 0
+- **dumbbell:** locked 320 | strong 29 | weak 184
+- **kettlebell:** locked 701 | strong 2 | weak 211
+- **machine:** locked 1 | strong 2 | weak 0
 - **mixed:** locked 0 | strong 191 | weak 0
 - **specialty:** locked 94 | strong 0 | weak 56
 

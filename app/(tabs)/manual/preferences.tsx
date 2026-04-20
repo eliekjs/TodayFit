@@ -55,6 +55,8 @@ if (
 
 const MAX_GOALS = 3;
 const MAX_SUB_GOALS_PER_GOAL = 3;
+/** Cap total sub-goal chips across all ranked goals (was 3 per goal → up to 9). */
+const MAX_TOTAL_SUB_GOALS = 3;
 const MAX_UPCOMING = 3;
 
 const DEFAULT_SESSION_MINUTES = 45 as const;
@@ -217,6 +219,11 @@ export default function ManualPreferencesScreen() {
       });
     } else {
       if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
+      const totalOthers = Object.entries(manualPreferences.subFocusByGoal).reduce(
+        (n, [g, arr]) => (g === goal ? n : n + arr.length),
+        0
+      );
+      if (totalOthers + current.length >= MAX_TOTAL_SUB_GOALS) return;
       updateManualPreferences({
         subFocusByGoal: {
           ...manualPreferences.subFocusByGoal,
@@ -671,7 +678,7 @@ export default function ManualPreferencesScreen() {
               <CollapsiblePreferenceSection
                 nested
                 title="Sub-goals"
-                subtitle="Up to 3 per goal, ranked."
+                subtitle="Up to 3 total across goals, ranked within each goal."
                 summary={manualAdvSubGoalsSummary}
                 expanded={manualAdvNestedOpen.subGoals === true}
                 onToggle={() => toggleManualAdvNested("subGoals")}
@@ -680,7 +687,9 @@ export default function ManualPreferencesScreen() {
                 {rankedGoals.map((goal, goalIdx) => {
                   const subOptions = SUB_FOCUS_BY_PRIMARY[goal] ?? [];
                   const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
-                  const canAddSub = selectedSubs.length < MAX_SUB_GOALS_PER_GOAL;
+                  const canAddSub =
+                    selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
+                    subGoalsTotalCount < MAX_TOTAL_SUB_GOALS;
                   return (
                     <View
                       key={goal}

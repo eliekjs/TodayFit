@@ -29,6 +29,10 @@ import type { SessionIntentContract } from "../logic/workoutGeneration/sessionIn
 
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
+import {
+  buildWeeklySubFocusKeysFromPreferences,
+  computeWeeklySubFocusSessionMinimums,
+} from "../logic/workoutGeneration/weeklySubFocusCoveragePlan";
 
 const DURATIONS = [20, 30, 45, 60, 75] as const;
 type AllowedDuration = (typeof DURATIONS)[number];
@@ -36,9 +40,11 @@ type AllowedDuration = (typeof DURATIONS)[number];
 /** Deep copy for `GeneratedWorkout.generationPreferences` (survives later state mutations). */
 export function cloneManualPreferencesSnapshot(p: ManualPreferences): ManualPreferences {
   try {
-    return structuredClone(p);
+    const { weekSubFocusPrimaryLabels: _w, weeklySubFocusCoverage: _wc, ...rest } = p;
+    return structuredClone(rest);
   } catch {
-    return JSON.parse(JSON.stringify(p)) as ManualPreferences;
+    const { weekSubFocusPrimaryLabels: _w, weeklySubFocusCoverage: _wc, ...rest } = p;
+    return JSON.parse(JSON.stringify(rest)) as ManualPreferences;
   }
 }
 
@@ -188,7 +194,10 @@ export function manualPreferencesToGenerateWorkoutInput(
   // Goal sub-focus: goal slug -> sub-focus slugs from primaryFocus + subFocusByGoal
   const goal_sub_focus: Record<string, string[]> = {};
   const subFocusByGoal = preferences.subFocusByGoal ?? {};
-  for (const label of preferences.primaryFocus) {
+  const weekSubLabels = preferences.weekSubFocusPrimaryLabels;
+  const labelsForSubFocusMerge =
+    weekSubLabels != null && weekSubLabels.length > 0 ? weekSubLabels : preferences.primaryFocus;
+  for (const label of labelsForSubFocusMerge) {
     const subLabels = subFocusByGoal[label] ?? [];
     if (!subLabels.length) continue;
     const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(label, subLabels);
@@ -248,6 +257,27 @@ export function manualPreferencesToGenerateWorkoutInput(
             })
           );
 
+  const wkCov = preferences.weeklySubFocusCoverage;
+  let weekly_sub_focus_session_minimums: Record<string, number> | undefined;
+  if (
+    wkCov != null &&
+    wkCov.trainingDaysTotal > 0 &&
+    wkCov.trainingDayIndex >= 0 &&
+    wkCov.trainingDayIndex < wkCov.trainingDaysTotal
+  ) {
+    const keys = buildWeeklySubFocusKeysFromPreferences(preferences);
+    if (keys.length > 0) {
+      const mins = computeWeeklySubFocusSessionMinimums({
+        matchCountsSoFar: wkCov.matchCountsSoFar ?? {},
+        trainingDayIndex: wkCov.trainingDayIndex,
+        trainingDaysTotal: wkCov.trainingDaysTotal,
+        targetPerSubFocus: wkCov.targetPerSubFocus ?? 3,
+        keys,
+      });
+      if (Object.keys(mins).length > 0) weekly_sub_focus_session_minimums = mins;
+    }
+  }
+
   return {
     duration_minutes: durationMinutes,
     primary_goal,
@@ -271,6 +301,7 @@ export function manualPreferencesToGenerateWorkoutInput(
       preferences.weekMainStrengthLiftIdsUsed?.length && preferences.weekMainStrengthLiftIdsUsed.length > 0
         ? [...preferences.weekMainStrengthLiftIdsUsed]
         : undefined,
+    weekly_sub_focus_session_minimums,
   };
 }
 

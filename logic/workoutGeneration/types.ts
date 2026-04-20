@@ -246,6 +246,11 @@ export type GenerateWorkoutInput = {
    */
   week_main_strength_lift_ids_used?: string[];
   /**
+   * Manual week: composite key `goalSlug:subSlug` → minimum exercises in this session that must match
+   * that sub-focus (from `ManualPreferences.weeklySubFocusCoverage` + `weeklySubFocusCoveragePlan`).
+   */
+  weekly_sub_focus_session_minimums?: Record<string, number>;
+  /**
    * When true, `WorkoutSession.debug.intent_survival_report` is populated (sport intent tracing).
    * No effect on exercise selection.
    */

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-04-18T21:10:06.292Z",
+  "generated_at": "2026-04-20T00:30:11.769Z",
   "exercise_count": 4016,
   "movement_pattern_counts_by_tier": {
     "horizontal_push": {
@@ -74,8 +74,13 @@
     }
   },
   "equipment_class_counts_by_tier": {
+    "dumbbell": {
+      "strong_prior": 29,
+      "locked": 320,
+      "weak_prior": 184
+    },
     "bodyweight": {
-      "locked": 1771
+      "strong_prior": 1728
     },
     "mixed": {
       "strong_prior": 191
@@ -84,10 +89,12 @@
       "locked": 62
     },
     "barbell": {
-      "locked": 249,
+      "strong_prior": 8,
+      "locked": 247,
       "weak_prior": 69
     },
     "cable": {
+      "strong_prior": 7,
       "locked": 77,
       "weak_prior": 23
     },
@@ -95,15 +102,13 @@
       "weak_prior": 56,
       "locked": 94
     },
-    "dumbbell": {
-      "locked": 323,
-      "weak_prior": 184
-    },
     "kettlebell": {
       "weak_prior": 211,
-      "locked": 701
+      "locked": 701,
+      "strong_prior": 2
     },
     "machine": {
+      "strong_prior": 2,
       "locked": 1
     },
     "cardio_machine": {

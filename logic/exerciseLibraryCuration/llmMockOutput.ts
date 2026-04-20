@@ -41,5 +41,14 @@ export function buildMockLlmClassification(payload: LlmExerciseClassificationPay
 }
 
 export function mockLlmResponseJson(payload: LlmExerciseClassificationPayload): string {
-  return JSON.stringify(buildMockLlmClassification(payload));
+  return JSON.stringify(mockLlmBatchResponseJson([payload]));
+}
+
+/** Deterministic batched JSON matching parseBatchedLlmClassificationRaw. */
+export function mockLlmBatchResponseJson(payloads: LlmExerciseClassificationPayload[]): string {
+  const results = payloads.map((p) => ({
+    exercise_id: p.exercise_id,
+    ...buildMockLlmClassification(p),
+  }));
+  return JSON.stringify({ results });
 }
