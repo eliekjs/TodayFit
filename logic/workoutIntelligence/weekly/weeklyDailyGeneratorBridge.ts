@@ -98,6 +98,7 @@ export function weeklySessionToDailyInput(
     goal_weights: baseInput.goal_weights,
     sport_weight: baseInput.sport_weight,
     session_target_qualities: planned.target_qualities,
+    week_main_strength_lift_ids_used: [...weekMainLiftIdsUsedSoFar],
   };
 }
 

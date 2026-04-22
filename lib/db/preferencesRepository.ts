@@ -1,6 +1,127 @@
 import { getSupabase } from "./client";
 import type { ManualPreferences, PreferencePreset } from "../types";
 
+const DEFAULT_MANUAL_PREFERENCES: ManualPreferences = {
+  primaryFocus: [],
+  targetBody: null,
+  targetModifier: [],
+  durationMinutes: null,
+  energyLevel: null,
+  injuries: [],
+  upcoming: [],
+  subFocusByGoal: {},
+  workoutStyle: [],
+  preferredZone2Cardio: [],
+  goalMatchPrimaryPct: 50,
+  goalMatchSecondaryPct: 30,
+  goalMatchTertiaryPct: 20,
+  workoutTier: "intermediate",
+  includeCreativeVariations: false,
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function asStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function asEnergyLevel(value: unknown): ManualPreferences["energyLevel"] | undefined {
+  if (value === "low" || value === "medium" || value === "high") return value;
+  return undefined;
+}
+
+function asTargetBody(value: unknown): ManualPreferences["targetBody"] | undefined {
+  if (value === "Upper" || value === "Lower" || value === "Full") return value;
+  if (value === null) return null;
+  return undefined;
+}
+
+function asSubFocusByGoal(value: unknown): Record<string, string[]> | undefined {
+  if (!isRecord(value)) return undefined;
+  const out: Record<string, string[]> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof key !== "string") continue;
+    const parsed = asStringArray(raw);
+    if (parsed) out[key] = parsed;
+  }
+  return out;
+}
+
+function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
+  const prefs = isRecord(raw) ? raw : {};
+  const weeklySubFocusCoverage = isRecord(prefs.weeklySubFocusCoverage)
+    ? prefs.weeklySubFocusCoverage
+    : undefined;
+  const weeklySubFocusCoverageTrainingDayIndex = asNumber(weeklySubFocusCoverage?.trainingDayIndex);
+  const weeklySubFocusCoverageTrainingDaysTotal = asNumber(weeklySubFocusCoverage?.trainingDaysTotal);
+  const weeklySubFocusCoverageTargetPerSubFocus = asNumber(weeklySubFocusCoverage?.targetPerSubFocus);
+  const weeklySubFocusCoverageMatchCounts = isRecord(weeklySubFocusCoverage?.matchCountsSoFar)
+    ? Object.fromEntries(
+        Object.entries(weeklySubFocusCoverage.matchCountsSoFar).filter(
+          ([key, value]) => typeof key === "string" && typeof value === "number" && Number.isFinite(value)
+        )
+      )
+    : {};
+  return {
+    ...DEFAULT_MANUAL_PREFERENCES,
+    primaryFocus: asStringArray(prefs.primaryFocus) ?? DEFAULT_MANUAL_PREFERENCES.primaryFocus,
+    targetBody: asTargetBody(prefs.targetBody) ?? DEFAULT_MANUAL_PREFERENCES.targetBody,
+    targetModifier: asStringArray(prefs.targetModifier) ?? DEFAULT_MANUAL_PREFERENCES.targetModifier,
+    durationMinutes: asNumber(prefs.durationMinutes) ?? DEFAULT_MANUAL_PREFERENCES.durationMinutes,
+    energyLevel: asEnergyLevel(prefs.energyLevel) ?? DEFAULT_MANUAL_PREFERENCES.energyLevel,
+    injuries: asStringArray(prefs.injuries) ?? DEFAULT_MANUAL_PREFERENCES.injuries,
+    upcoming: asStringArray(prefs.upcoming) ?? DEFAULT_MANUAL_PREFERENCES.upcoming,
+    subFocusByGoal: asSubFocusByGoal(prefs.subFocusByGoal) ?? DEFAULT_MANUAL_PREFERENCES.subFocusByGoal,
+    workoutStyle: asStringArray(prefs.workoutStyle) ?? DEFAULT_MANUAL_PREFERENCES.workoutStyle,
+    preferredZone2Cardio: asStringArray(prefs.preferredZone2Cardio) ?? DEFAULT_MANUAL_PREFERENCES.preferredZone2Cardio,
+    goalMatchPrimaryPct: asNumber(prefs.goalMatchPrimaryPct) ?? DEFAULT_MANUAL_PREFERENCES.goalMatchPrimaryPct,
+    goalMatchSecondaryPct:
+      asNumber(prefs.goalMatchSecondaryPct) ?? DEFAULT_MANUAL_PREFERENCES.goalMatchSecondaryPct,
+    goalMatchTertiaryPct:
+      asNumber(prefs.goalMatchTertiaryPct) ?? DEFAULT_MANUAL_PREFERENCES.goalMatchTertiaryPct,
+    goalDistributionStyle:
+      prefs.goalDistributionStyle === "dedicate_days" || prefs.goalDistributionStyle === "blend"
+        ? prefs.goalDistributionStyle
+        : undefined,
+    weeklyBodyEmphasisStyle:
+      prefs.weeklyBodyEmphasisStyle === "auto_alternate" || prefs.weeklyBodyEmphasisStyle === "manual"
+        ? prefs.weeklyBodyEmphasisStyle
+        : undefined,
+    specificBodyPartBehavior:
+      prefs.specificBodyPartBehavior === "auto_apply" || prefs.specificBodyPartBehavior === "manual"
+        ? prefs.specificBodyPartBehavior
+        : undefined,
+    workoutTier:
+      prefs.workoutTier === "beginner" || prefs.workoutTier === "intermediate" || prefs.workoutTier === "advanced"
+        ? prefs.workoutTier
+        : DEFAULT_MANUAL_PREFERENCES.workoutTier,
+    includeCreativeVariations:
+      asBoolean(prefs.includeCreativeVariations) ?? DEFAULT_MANUAL_PREFERENCES.includeCreativeVariations,
+    weekSubFocusPrimaryLabels: asStringArray(prefs.weekSubFocusPrimaryLabels),
+    weekMainStrengthLiftIdsUsed: asStringArray(prefs.weekMainStrengthLiftIdsUsed),
+    weeklySubFocusCoverage:
+      weeklySubFocusCoverageTrainingDayIndex != null && weeklySubFocusCoverageTrainingDaysTotal != null
+      ? {
+          matchCountsSoFar: weeklySubFocusCoverageMatchCounts,
+          trainingDayIndex: weeklySubFocusCoverageTrainingDayIndex,
+          trainingDaysTotal: weeklySubFocusCoverageTrainingDaysTotal,
+          targetPerSubFocus: weeklySubFocusCoverageTargetPerSubFocus,
+        }
+      : undefined,
+  };
+}
+
 function requireClient() {
   const supabase = getSupabase();
   if (!supabase) {
@@ -21,15 +142,12 @@ export async function getPreferences(userId: string): Promise<ManualPreferences 
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  const prefs = data.preferences as Record<string, unknown>;
+  const prefs = normalizeManualPreferencesPayload(data.preferences);
   return {
     ...prefs,
-    durationMinutes: data.default_duration ?? (prefs.durationMinutes as number) ?? null,
-    energyLevel: (data.default_energy as ManualPreferences["energyLevel"]) ?? (prefs.energyLevel as ManualPreferences["energyLevel"]) ?? null,
-    goalMatchPrimaryPct: (prefs.goalMatchPrimaryPct as number) ?? 50,
-    goalMatchSecondaryPct: (prefs.goalMatchSecondaryPct as number) ?? 30,
-    goalMatchTertiaryPct: (prefs.goalMatchTertiaryPct as number) ?? 20,
-  } as ManualPreferences;
+    durationMinutes: asNumber(data.default_duration) ?? prefs.durationMinutes,
+    energyLevel: asEnergyLevel(data.default_energy) ?? prefs.energyLevel,
+  };
 }
 
 /**
@@ -62,11 +180,11 @@ export async function listPresets(userId: string): Promise<PreferencePreset[]> {
     .eq("user_id", userId)
     .order("saved_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r: { id: string; name: string; saved_at: string; preferences: ManualPreferences }) => ({
+  return (data ?? []).map((r: { id: string; name: string; saved_at: string; preferences: unknown }) => ({
     id: r.id,
     name: r.name,
     savedAt: r.saved_at,
-    preferences: r.preferences,
+    preferences: normalizeManualPreferencesPayload(r.preferences),
   }));
 }
 
@@ -93,7 +211,7 @@ export async function addPreset(
     id: data.id,
     name: data.name,
     savedAt: data.saved_at,
-    preferences: data.preferences as ManualPreferences,
+    preferences: normalizeManualPreferencesPayload(data.preferences),
   };
 }
 

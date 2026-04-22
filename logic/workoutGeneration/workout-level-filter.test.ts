@@ -117,6 +117,20 @@ function runTests() {
     simpleWalkLunge,
     simpleBss,
   ];
+  const ringRow = minimalExercise({
+    id: "ff_ring_row",
+    name: "Ring Row",
+    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    equipment_required: ["bodyweight"],
+  });
+  const ringStraddle = minimalExercise({
+    id: "ff_ring_straddle_front_lever_pull_up",
+    name: "Ring Straddle Front Lever Pull Up",
+    workout_level_tags: ["advanced"],
+    equipment_required: ["bodyweight"],
+    creative_variation: true,
+  });
+  const ringPool = [ringRow, ringStraddle];
 
   const beginnerFiltered = filterByHardConstraints(poolWithComplex, {
     ...baseInput,
@@ -184,6 +198,49 @@ function runTests() {
   assert(
     advancedCreative.length === poolWithComplex.length,
     "advanced + creative on keeps full pool"
+  );
+
+  const noRings = filterByHardConstraints(ringPool, {
+    ...baseInput,
+    style_prefs: { user_level: "advanced", include_creative_variations: true },
+  });
+  assert(
+    noRings.length === 0,
+    "ring exercises are excluded when rings are not in available equipment"
+  );
+
+  const ringsOnlyStrength = filterByHardConstraints(ringPool, {
+    ...baseInput,
+    available_equipment: ["bodyweight", "rings"],
+    primary_goal: "strength",
+    style_prefs: { user_level: "advanced", include_creative_variations: false },
+  });
+  assert(
+    ringsOnlyStrength.some((e) => e.id === ringRow.id) &&
+      !ringsOnlyStrength.some((e) => e.id === ringStraddle.id),
+    "with rings available, ring basics pass but ring straddle is restricted unless goal-specific or advanced creative"
+  );
+
+  const ringsCalisthenics = filterByHardConstraints(ringPool, {
+    ...baseInput,
+    available_equipment: ["bodyweight", "rings"],
+    primary_goal: "calisthenics",
+    style_prefs: { user_level: "advanced", include_creative_variations: false },
+  });
+  assert(
+    ringsCalisthenics.some((e) => e.id === ringStraddle.id),
+    "ring straddle is allowed for calisthenics goal when rings are available"
+  );
+
+  const ringsAdvancedCreative = filterByHardConstraints(ringPool, {
+    ...baseInput,
+    available_equipment: ["bodyweight", "rings"],
+    primary_goal: "strength",
+    style_prefs: { user_level: "advanced", include_creative_variations: true },
+  });
+  assert(
+    ringsAdvancedCreative.some((e) => e.id === ringStraddle.id),
+    "ring straddle is allowed for advanced creative selections when rings are available"
   );
 
   console.log("workout-level-filter tests passed.");

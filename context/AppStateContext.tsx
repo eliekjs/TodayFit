@@ -23,6 +23,8 @@ import * as GymProfileRepo from "../lib/db/gymProfileRepository";
 import * as PreferencesRepo from "../lib/db/preferencesRepository";
 import * as WorkoutRepo from "../lib/db/workoutRepository";
 import type { PlanWeekResult } from "../services/sportPrepPlanner";
+import { persistWithHandling } from "./persistWithHandling";
+import { createLatestSerializedPersistenceQueue } from "./latestSerializedPersistenceQueue";
 
 /** Adaptive mode: first-page choices passed to the schedule (second) page. */
 export type AdaptiveSetup = {
@@ -127,6 +129,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [sportPrepWeekPlan, setSportPrepWeekPlan] = useState<PlanWeekResult | null>(null);
   const [manualWeekPlan, setManualWeekPlan] = useState<ManualWeekPlan | null>(null);
   const [adaptiveSetup, setAdaptiveSetup] = useState<AdaptiveSetup | null>(null);
+  const manualPreferencesPersistQueueRef = useRef<{
+    persistUserId: string;
+    enqueue: (preferences: ManualPreferences) => void;
+  } | null>(null);
 
   const prevGeneratedWorkoutIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -176,7 +182,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       profiles.map((p) => ({ ...p, isActive: p.id === id }))
     );
     if (persist && userId) {
-      GymProfileRepo.setActiveProfile(userId, id).catch(() => {});
+      void persistWithHandling({
+        operation: "setActiveGymProfile",
+        action: () => GymProfileRepo.setActiveProfile(userId, id),
+      });
     }
   }, [userId, persist]);
 
@@ -200,22 +209,24 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const updateGymProfile = useCallback((id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => {
     setGymProfiles((profiles) => {
-      const next = profiles.map((p) => (p.id === id ? { ...p, ...update } : p));
-      if (persist && userId) {
-        const updated = next.find((p) => p.id === id);
-        if (updated) {
+      return profiles.map((p) => (p.id === id ? { ...p, ...update } : p));
+    });
+    const current = gymProfiles.find((p) => p.id === id);
+    const profileToPersist = current ? { ...current, ...update } : undefined;
+    if (persist && userId && profileToPersist) {
+      void persistWithHandling({
+        operation: "updateGymProfile",
+        action: () =>
           GymProfileRepo.upsertProfile(userId, {
             id,
-            name: updated.name,
-            equipment: updated.equipment,
-            dumbbellMaxWeight: updated.dumbbellMaxWeight,
-            isActive: updated.isActive,
-          }).catch(() => {});
-        }
-      }
-      return next;
-    });
-  }, [userId, persist]);
+            name: profileToPersist.name,
+            equipment: profileToPersist.equipment,
+            dumbbellMaxWeight: profileToPersist.dumbbellMaxWeight,
+            isActive: profileToPersist.isActive,
+          }),
+      });
+    }
+  }, [userId, persist, gymProfiles]);
 
   const removeGymProfile = useCallback((id: string) => {
     setGymProfiles((prev) => {
@@ -260,10 +271,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [userId, persist]);
 
   const updateManualPreferences = useCallback((update: Partial<ManualPreferences>) => {
-    setManualPreferences((prev) => ({ ...prev, ...update }));
-    if (persist && userId) {
-      PreferencesRepo.upsertPreferences(userId, update).catch(() => {});
-    }
+    setManualPreferences((prev) => {
+      const next = { ...prev, ...update };
+      if (persist && userId) {
+        if (
+          !manualPreferencesPersistQueueRef.current ||
+          manualPreferencesPersistQueueRef.current.persistUserId !== userId
+        ) {
+          manualPreferencesPersistQueueRef.current = {
+            persistUserId: userId,
+            enqueue: createLatestSerializedPersistenceQueue<ManualPreferences>(
+              (preferences) =>
+                persistWithHandling({
+                  operation: "updateManualPreferences",
+                  action: () => PreferencesRepo.upsertPreferences(userId, preferences),
+                })
+            ).enqueue,
+          };
+        }
+        manualPreferencesPersistQueueRef.current.enqueue(next);
+      }
+      return next;
+    });
   }, [userId, persist]);
 
   const addCompletedWorkout = useCallback((summary: Omit<WorkoutHistoryItem, "id">) => {
@@ -295,11 +324,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [userId, persist]);
 
   const removeSavedWorkout = useCallback((id: string) => {
-    setSavedWorkouts((prev) => prev.filter((w) => w.id !== id));
+    const removedIndex = savedWorkouts.findIndex((w) => w.id === id);
+    const removedItem = removedIndex >= 0 ? savedWorkouts[removedIndex] : undefined;
+    setSavedWorkouts((prev) => {
+      return prev.filter((w) => w.id !== id);
+    });
     if (persist && userId) {
-      WorkoutRepo.deleteWorkout(userId, id).catch(() => {});
+      void persistWithHandling({
+        operation: "removeSavedWorkout",
+        action: () => WorkoutRepo.deleteWorkout(userId, id),
+        rollback: () => {
+          if (!removedItem) return;
+          setSavedWorkouts((prev) => {
+            if (prev.some((w) => w.id === removedItem.id)) return prev;
+            const insertionIndex =
+              removedIndex >= 0 ? Math.min(Math.max(removedIndex, 0), prev.length) : prev.length;
+            const next = [...prev];
+            next.splice(insertionIndex, 0, removedItem);
+            return next;
+          });
+        },
+      });
     }
-  }, [userId, persist]);
+  }, [userId, persist, savedWorkouts]);
 
   const removeSavedWorkoutByWorkoutId = useCallback((workoutId: string) => {
     setSavedWorkouts((prev) =>
@@ -307,7 +354,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     );
     if (persist && userId) {
       const saved = savedWorkouts.find((w) => w.workout.id === workoutId);
-      if (saved) WorkoutRepo.deleteWorkout(userId, saved.id).catch(() => {});
+      if (saved) {
+        void persistWithHandling({
+          operation: "removeSavedWorkoutByWorkoutId",
+          action: () => WorkoutRepo.deleteWorkout(userId, saved.id),
+        });
+      }
     }
   }, [userId, persist, savedWorkouts]);
 

@@ -34,11 +34,13 @@ import {
 
 import { SPORTS_WITH_SUB_FOCUSES } from "../../data/sportSubFocus/sportsWithSubFocuses";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
+import { applyCuratedExerciseColumnsFromDbRow, attachCurationSnapshotFromDbRow } from "../curationDbFields";
+import type { ExerciseCurationDbColumns } from "./exerciseCurationColumns";
 
 const CANONICAL_SPORT_SLUGS = new Set(SPORTS_WITH_SUB_FOCUSES.map((s) => normalizeSlug(s.slug)));
 
 /** DB exercise row including optional structured ontology columns. */
-export type ExerciseRowWithOntology = {
+export type ExerciseRowWithOntology = ExerciseCurationDbColumns & {
   id: string;
   slug: string;
   name: string;
@@ -359,6 +361,9 @@ export function mapDbExerciseToGeneratorExercise(
   if (inferCreativeVariationFromSource(levelSource)) {
     exercise.creative_variation = true;
   }
+
+  attachCurationSnapshotFromDbRow(exercise, row);
+  applyCuratedExerciseColumnsFromDbRow(exercise, row);
 
   return exercise;
 }

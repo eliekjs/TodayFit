@@ -4,7 +4,7 @@ import type { AdaptiveScheduleLabels, EnergyLevel, GeneratedWorkout } from "../.
 import { getWorkoutDescriptor } from "../../lib/workoutDescriptor";
 import type { GymProfile } from "../../data/gymProfiles";
 import { buildWorkoutForSessionIntent, type SessionIntent } from "../workoutBuilder";
-import { saveGeneratedWorkout, getWorkout } from "../../lib/db/workoutRepository";
+import { saveGeneratedWorkout, getWorkout, deleteWorkout } from "../../lib/db/workoutRepository";
 import {
   getWeeklyStructureTemplate,
   type DayBias,
@@ -1162,70 +1162,75 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     generated_workout_id: string | null;
   }[] = [];
 
-  // Create / persist user_training_plans row
-  const { data: goals, error: goalsError } =
-    goalSlugs.length > 0
-      ? await supabase.from("goals").select("id, slug").in("slug", goalSlugs)
-      : { data: [] as { id: string; slug: string }[], error: null };
+  const createdWorkoutIds: string[] = [];
+  let createdTrainingPlanId: string | null = null;
+  let createdWeeklyPlanInstanceId: string | null = null;
+  let instanceId: string | null = null;
+  let dayRows: {
+    id: string;
+    date: string;
+    intent_label: string | null;
+    status: "planned" | "completed" | "skipped";
+    generated_workout_id: string | null;
+  }[] = [];
 
-  if (goalsError) throw new Error(goalsError.message);
+  const logCleanupFailure = (step: string, error: unknown): void => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[sportPrepPlanner.planWeek] cleanup failed (${step}): ${message}`);
+  };
 
-  const goalIdBySlug = new Map<string, string>();
-  for (const g of goals ?? []) {
-    goalIdBySlug.set(g.slug as string, g.id as string);
-  }
+  const cleanupPartialPlanPersistence = async (): Promise<void> => {
+    if (createdWeeklyPlanInstanceId) {
+      try {
+        const { error } = await supabase
+          .from("weekly_plan_days")
+          .delete()
+          .eq("weekly_plan_instance_id", createdWeeklyPlanInstanceId);
+        if (error) {
+          logCleanupFailure("delete weekly_plan_days", new Error(error.message));
+        }
+      } catch (error) {
+        logCleanupFailure("delete weekly_plan_days", error);
+      }
+    }
 
-  const primaryGoalId =
-    input.primaryGoalSlug != null && input.primaryGoalSlug !== ""
-      ? goalIdBySlug.get(input.primaryGoalSlug) ?? null
-      : null;
+    for (const workoutId of createdWorkoutIds) {
+      try {
+        await deleteWorkout(input.userId, workoutId);
+      } catch (error) {
+        logCleanupFailure(`delete workout ${workoutId}`, error);
+      }
+    }
 
-  const { data: trainingPlanRow, error: planError } = await supabase
-    .from("user_training_plans")
-    .insert({
-      user_id: input.userId,
-      primary_goal_id: primaryGoalId,
-      secondary_goal_id: input.secondaryGoalSlug
-        ? goalIdBySlug.get(input.secondaryGoalSlug)
-        : null,
-      tertiary_goal_id: input.tertiaryGoalSlug
-        ? goalIdBySlug.get(input.tertiaryGoalSlug)
-        : null,
-      plan_horizon: "week",
-      sport_sessions: input.sportSessions ?? [],
-      gym_days_per_week: totalTrainingDays,
-      preferred_training_days: input.preferredTrainingDays ?? null,
-      default_session_duration: input.defaultSessionDuration,
-      constraints: {
-        injuries: input.injuries ?? [],
-        energyBaseline: input.energyBaseline,
-        equipment_profile_id: input.gymProfile?.id ?? null,
-      },
-    })
-    .select("id")
-    .single();
-  if (planError) throw new Error(planError.message);
+    if (createdWeeklyPlanInstanceId) {
+      try {
+        const { error } = await supabase
+          .from("weekly_plan_instances")
+          .delete()
+          .eq("id", createdWeeklyPlanInstanceId);
+        if (error) {
+          logCleanupFailure("delete weekly_plan_instance", new Error(error.message));
+        }
+      } catch (error) {
+        logCleanupFailure("delete weekly_plan_instance", error);
+      }
+    }
 
-  const planId = trainingPlanRow.id as string;
-
-  const rationale =
-    "Week plan generated from your ranked goals and availability. " +
-    "High-demand qualities get more training days; at least one lighter day is preserved.";
-
-  const { data: instanceRow, error: instanceError } = await supabase
-    .from("weekly_plan_instances")
-    .insert({
-      user_id: input.userId,
-      week_start_date: weekStartIso,
-      plan_id: planId,
-      goals_snapshot: goalsSnapshot,
-      rationale,
-    })
-    .select("id")
-    .single();
-  if (instanceError) throw new Error(instanceError.message);
-
-  const instanceId = instanceRow.id as string;
+    if (createdTrainingPlanId) {
+      try {
+        const { error } = await supabase
+          .from("user_training_plans")
+          .delete()
+          .eq("id", createdTrainingPlanId)
+          .eq("user_id", input.userId);
+        if (error) {
+          logCleanupFailure("delete user_training_plan", new Error(error.message));
+        }
+      } catch (error) {
+        logCleanupFailure("delete user_training_plan", error);
+      }
+    }
+  };
 
   const plannedDays: PlannedDay[] = [];
   const rawSlots = daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : [];
@@ -1237,86 +1242,158 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       : null;
   let trainingSlotIdx = 0;
 
-  for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
-    const date = weekDates[dayIdx];
-    const isTrainingDay = trainingIndexSet.has(dayIdx);
+  try {
+    // Create / persist user_training_plans row
+    const { data: goals, error: goalsError } =
+      goalSlugs.length > 0
+        ? await supabase.from("goals").select("id, slug").in("slug", goalSlugs)
+        : { data: [] as { id: string; slug: string }[], error: null };
 
-    if (!isTrainingDay) {
+    if (goalsError) throw new Error(goalsError.message);
+
+    const goalIdBySlug = new Map<string, string>();
+    for (const g of goals ?? []) {
+      goalIdBySlug.set(g.slug as string, g.id as string);
+    }
+
+    const primaryGoalId =
+      input.primaryGoalSlug != null && input.primaryGoalSlug !== ""
+        ? goalIdBySlug.get(input.primaryGoalSlug) ?? null
+        : null;
+
+    const { data: trainingPlanRow, error: planError } = await supabase
+      .from("user_training_plans")
+      .insert({
+        user_id: input.userId,
+        primary_goal_id: primaryGoalId,
+        secondary_goal_id: input.secondaryGoalSlug
+          ? goalIdBySlug.get(input.secondaryGoalSlug)
+          : null,
+        tertiary_goal_id: input.tertiaryGoalSlug
+          ? goalIdBySlug.get(input.tertiaryGoalSlug)
+          : null,
+        plan_horizon: "week",
+        sport_sessions: input.sportSessions ?? [],
+        gym_days_per_week: totalTrainingDays,
+        preferred_training_days: input.preferredTrainingDays ?? null,
+        default_session_duration: input.defaultSessionDuration,
+        constraints: {
+          injuries: input.injuries ?? [],
+          energyBaseline: input.energyBaseline,
+          equipment_profile_id: input.gymProfile?.id ?? null,
+        },
+      })
+      .select("id")
+      .single();
+    if (planError) throw new Error(planError.message);
+    const planId = trainingPlanRow.id as string;
+    createdTrainingPlanId = planId;
+
+    const rationale =
+      "Week plan generated from your ranked goals and availability. " +
+      "High-demand qualities get more training days; at least one lighter day is preserved.";
+
+    const { data: instanceRow, error: instanceError } = await supabase
+      .from("weekly_plan_instances")
+      .insert({
+        user_id: input.userId,
+        week_start_date: weekStartIso,
+        plan_id: planId,
+        goals_snapshot: goalsSnapshot,
+        rationale,
+      })
+      .select("id")
+      .single();
+    if (instanceError) throw new Error(instanceError.message);
+    instanceId = instanceRow.id as string;
+    createdWeeklyPlanInstanceId = instanceId;
+
+    for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
+      const date = weekDates[dayIdx];
+      const isTrainingDay = trainingIndexSet.has(dayIdx);
+
+      if (!isTrainingDay) {
+        rowsForDays.push({
+          weekly_plan_instance_id: instanceId,
+          date,
+          intent_id: null,
+          intent_label: null,
+          goal_contribution: {},
+          fatigue_score: null,
+          status: "planned",
+          generated_workout_id: null,
+        });
+        plannedDays.push({
+          id: "", // will be back-filled after insert if needed
+          date,
+          intentLabel: null,
+          status: "planned",
+          generatedWorkoutId: null,
+        });
+        continue;
+      }
+
+      const slot: DaySlot = slotsToUse
+        ? slotsToUse[trainingSlotIdx]
+        : {
+            type: "gym",
+            key: orderedIntents[trainingSlotIdx % orderedIntents.length],
+          };
+      trainingSlotIdx += 1;
+
+      const { intent: sessionIntent, workout, title, dayLevelFocus } = await buildWorkoutForSlot(
+        slot,
+        date
+      );
+      const workoutId = await saveGeneratedWorkout(input.userId, workout);
+      createdWorkoutIds.push(workoutId);
+
+      const goalContribution: Record<string, number> = {};
+      if (goalsSnapshot.primary) goalContribution.primary = goalsSnapshot.primary.weight;
+      if (goalsSnapshot.secondary)
+        goalContribution.secondary = goalsSnapshot.secondary.weight;
+      if (goalsSnapshot.tertiary)
+        goalContribution.tertiary = goalsSnapshot.tertiary.weight;
+
+      const key = slot.type === "gym" ? slot.key : "aerobic";
+      const fatigueScore =
+        key === "mobility" || key === "recovery" || key === "prehab" ? 1 : 3;
+
       rowsForDays.push({
         weekly_plan_instance_id: instanceId,
         date,
         intent_id: null,
-        intent_label: null,
-        goal_contribution: {},
-        fatigue_score: null,
+        intent_label: sessionIntent.label,
+        goal_contribution: goalContribution,
+        fatigue_score: fatigueScore,
         status: "planned",
-        generated_workout_id: null,
+        generated_workout_id: workoutId,
       });
+
       plannedDays.push({
-        id: "", // will be back-filled after insert if needed
+        id: "", // back-filled after insert if needed
         date,
-        intentLabel: null,
+        title: title ?? sessionIntent.label,
+        intentLabel: sessionIntent.label,
         status: "planned",
-        generatedWorkoutId: null,
+        generatedWorkoutId: workoutId,
+        dayLevelFocus: dayLevelFocus ?? null,
       });
-      continue;
     }
 
-    const slot: DaySlot = slotsToUse
-      ? slotsToUse[trainingSlotIdx]
-      : {
-          type: "gym",
-          key: orderedIntents[trainingSlotIdx % orderedIntents.length],
-        };
-    trainingSlotIdx += 1;
-
-    const { intent: sessionIntent, workout, title, dayLevelFocus } = await buildWorkoutForSlot(
-      slot,
-      date
-    );
-    const workoutId = await saveGeneratedWorkout(input.userId, workout);
-
-    const goalContribution: Record<string, number> = {};
-    if (goalsSnapshot.primary) goalContribution.primary = goalsSnapshot.primary.weight;
-    if (goalsSnapshot.secondary)
-      goalContribution.secondary = goalsSnapshot.secondary.weight;
-    if (goalsSnapshot.tertiary)
-      goalContribution.tertiary = goalsSnapshot.tertiary.weight;
-
-    const key = slot.type === "gym" ? slot.key : "aerobic";
-    const fatigueScore =
-      key === "mobility" || key === "recovery" || key === "prehab" ? 1 : 3;
-
-    rowsForDays.push({
-      weekly_plan_instance_id: instanceId,
-      date,
-      intent_id: null,
-      intent_label: sessionIntent.label,
-      goal_contribution: goalContribution,
-      fatigue_score: fatigueScore,
-      status: "planned",
-      generated_workout_id: workoutId,
-    });
-
-    plannedDays.push({
-      id: "", // back-filled after insert if needed
-      date,
-      title: title ?? sessionIntent.label,
-      intentLabel: sessionIntent.label,
-      status: "planned",
-      generatedWorkoutId: workoutId,
-      dayLevelFocus: dayLevelFocus ?? null,
-    });
+    const { data: insertedDayRows, error: daysError } = await supabase
+      .from("weekly_plan_days")
+      .insert(rowsForDays)
+      .select("id, date, intent_label, status, generated_workout_id");
+    if (daysError) throw new Error(daysError.message);
+    dayRows = (insertedDayRows ?? []) as typeof dayRows;
+  } catch (error) {
+    await cleanupPartialPlanPersistence();
+    throw error;
   }
 
-  const { data: dayRows, error: daysError } = await supabase
-    .from("weekly_plan_days")
-    .insert(rowsForDays)
-    .select("id, date, intent_label, status, generated_workout_id");
-  if (daysError) throw new Error(daysError.message);
-
   const plannedByDate = new Map<string, PlannedDay>();
-  for (const row of dayRows ?? []) {
+  for (const row of dayRows) {
     const label = (row.intent_label as string) ?? null;
     plannedByDate.set(row.date as string, {
       id: row.id as string,
@@ -1380,6 +1457,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         : undefined,
     adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
   };
+
+  if (!instanceId) {
+    throw new Error("Weekly plan instance id was not created.");
+  }
 
   return {
     weeklyPlanInstanceId: instanceId,
@@ -1630,6 +1711,14 @@ export type UpdateDayStatusInput = {
   status: "planned" | "completed" | "skipped";
 };
 
+export type UpdatePlanDayDateInput = {
+  userId: string;
+  weeklyPlanInstanceId: string;
+  dayId?: string;
+  date?: string;
+  newDate: string;
+};
+
 /**
  * Update a plan day's status (e.g. mark completed or skip).
  * Returns the updated day for refreshing the week plan in context.
@@ -1663,6 +1752,90 @@ export async function updateDayStatus(
     .from("weekly_plan_days")
     .update({ status: input.status })
     .eq("id", dayRow.id)
+    .select("id, date, intent_label, status, generated_workout_id")
+    .single();
+  if (updateError) throw new Error(updateError.message);
+
+  return {
+    id: updated.id as string,
+    date: updated.date as string,
+    intentLabel: (updated.intent_label as string) ?? null,
+    status: (updated.status as "planned" | "completed" | "skipped") ?? "planned",
+    generatedWorkoutId: (updated.generated_workout_id as string) ?? null,
+  };
+}
+
+/**
+ * Move a plan day to a different date within the same weekly instance.
+ * Supports lookup by day id (preferred) or by current date.
+ */
+export async function updatePlanDayDate(
+  input: UpdatePlanDayDateInput
+): Promise<PlannedDay> {
+  if (!isDbConfigured()) {
+    throw new Error("Supabase is not configured; Sports Prep mode requires a backend.");
+  }
+  const supabase = getSupabase();
+  if (!supabase) {
+    throw new Error("Supabase client is not available.");
+  }
+  if (!input.userId) {
+    throw new Error("User must be signed in to use Sports Prep mode.");
+  }
+  if (!input.dayId && !input.date) {
+    throw new Error("Either dayId or date is required to update a plan day date.");
+  }
+
+  const { data: instanceRow, error: instanceError } = await supabase
+    .from("weekly_plan_instances")
+    .select("id")
+    .eq("id", input.weeklyPlanInstanceId)
+    .eq("user_id", input.userId)
+    .maybeSingle();
+  if (instanceError) throw new Error(instanceError.message);
+  if (!instanceRow) {
+    throw new Error("Weekly plan instance not found for this user.");
+  }
+
+  let dayQuery = supabase
+    .from("weekly_plan_days")
+    .select("id, date, intent_label, status, generated_workout_id")
+    .eq("weekly_plan_instance_id", input.weeklyPlanInstanceId);
+
+  dayQuery = input.dayId ? dayQuery.eq("id", input.dayId) : dayQuery.eq("date", input.date!);
+
+  const { data: dayRow, error: dayError } = await dayQuery.maybeSingle();
+  if (dayError) throw new Error(dayError.message);
+  if (!dayRow) {
+    throw new Error("Plan day not found for given instance and selector.");
+  }
+
+  if ((dayRow.date as string) === input.newDate) {
+    return {
+      id: dayRow.id as string,
+      date: dayRow.date as string,
+      intentLabel: (dayRow.intent_label as string) ?? null,
+      status: (dayRow.status as "planned" | "completed" | "skipped") ?? "planned",
+      generatedWorkoutId: (dayRow.generated_workout_id as string) ?? null,
+    };
+  }
+
+  const { data: targetRow, error: targetError } = await supabase
+    .from("weekly_plan_days")
+    .select("id")
+    .eq("weekly_plan_instance_id", input.weeklyPlanInstanceId)
+    .eq("date", input.newDate)
+    .maybeSingle();
+  if (targetError) throw new Error(targetError.message);
+  if (targetRow && targetRow.id !== dayRow.id) {
+    throw new Error("A plan day already exists on the target date.");
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("weekly_plan_days")
+    .update({ date: input.newDate })
+    .eq("id", dayRow.id)
+    .eq("weekly_plan_instance_id", input.weeklyPlanInstanceId)
     .select("id, date, intent_label, status, generated_workout_id")
     .single();
   if (updateError) throw new Error(updateError.message);

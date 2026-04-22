@@ -60,9 +60,33 @@ function testMultiGoalSkipsGuarantee() {
   assert(!hasGoalFocus, "multi-goal sessions should not inject Goal focus block");
 }
 
+function testPostAssemblySubFocusInjectionDoesNotUnderreportDuration() {
+  const base: GenerateWorkoutInput = {
+    duration_minutes: 20,
+    primary_goal: "hypertrophy",
+    focus_body_parts: ["upper_push"],
+    energy_level: "medium",
+    available_equipment: ["barbell", "bench", "dumbbells", "cable_machine", "bodyweight", "squat_rack", "leg_press"],
+    injuries_or_constraints: [],
+    seed: 42_426,
+    goal_sub_focus: { muscle: ["legs"] },
+    weekly_sub_focus_session_minimums: {
+      "muscle:legs": 2,
+    },
+  };
+
+  const session = generateWorkoutSession(base, STUB_EXERCISES);
+  const sumBlockMinutes = session.blocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
+  assert(
+    session.estimated_duration_minutes >= sumBlockMinutes,
+    "estimated duration should not be lower than post-assembly block minutes"
+  );
+}
+
 function main() {
   testUpperDayWithLegsSubFocusAddsGoalBlock();
   testMultiGoalSkipsGuarantee();
+  testPostAssemblySubFocusInjectionDoesNotUnderreportDuration();
   console.log("singleGoalSubFocusCoverage tests passed.");
 }
 

@@ -83,6 +83,17 @@ function main() {
   const jsonOut = join(artifactsDir, "exercise-generator-eligibility-preview.json");
   writeFileSync(jsonOut, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
 
+  const dataGatePath = join(REPO, "data", "generator-eligibility-by-id.json");
+  const slimForBundle = {
+    schema_version: artifact.schema_version,
+    generated_at: artifact.generated_at,
+    counts_by_state: artifact.counts_by_state,
+    pruning_artifact_path: artifact.pruning_artifact_path,
+    catalog_path: artifact.catalog_path,
+    by_id: artifact.by_id,
+  };
+  writeFileSync(dataGatePath, `${JSON.stringify(slimForBundle)}\n`, "utf8");
+
   const mdOut = join(artifactsDir, "exercise-generator-eligibility-preview.md");
   writeFileSync(mdOut, formatGeneratorEligibilityPreviewMarkdown(artifact), "utf8");
 
@@ -98,6 +109,7 @@ function main() {
   console.log(`  unknown ids (not in pruning): ${artifact.unknown_exercise_ids.length}`);
   console.log(`  conflicts: ${artifact.conflicts.length}`);
   console.log(`  wrote ${jsonOut}`);
+  console.log(`  wrote ${dataGatePath}`);
   console.log(`  wrote ${mdOut}`);
 }
 

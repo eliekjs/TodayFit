@@ -39,6 +39,7 @@ export {
   addBlocksAndExercises,
   listWorkouts,
   getWorkout,
+  getWorkoutsByIds,
   saveGeneratedWorkout,
   saveCompletedWorkout,
   listCompletedWorkouts,

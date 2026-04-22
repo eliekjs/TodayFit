@@ -85,7 +85,10 @@ import {
 import { toExerciseWithQualities, type GeneratorExercise } from "../workoutIntelligence/adapters";
 import { mergeTargetVector, alignmentScore } from "../workoutIntelligence/targetVector";
 import type { SessionTargetVector } from "../workoutIntelligence/types";
-import { validateWorkoutAgainstConstraints } from "../workoutIntelligence/validation/workoutValidator";
+import {
+  validateWorkoutAgainstConstraints,
+  type ValidationResult,
+} from "../workoutIntelligence/validation/workoutValidator";
 import {
   computeOntologyScoreComponents,
   getEffectiveFatigueRegions,
@@ -132,6 +135,11 @@ import {
   getExerciseTagsForSubFocuses,
 } from "../../data/sportSubFocus";
 import { hashString } from "../../lib/dailyGeneratorAdapter";
+import {
+  logPruningGateToConsole,
+  mergePruningGateFlags,
+  resolveGatedExercisePoolForGeneration,
+} from "./pruningGatePool";
 import {
   applyConditioningDurationScaleToBlocks,
   buildNormalizedSportProfile,
@@ -329,9 +337,28 @@ function normalizeWeekMainLiftId(id: string): string {
 function applyWeekMainLiftExclusion(pool: Exercise[], input: GenerateWorkoutInput): Exercise[] {
   const used = input.week_main_strength_lift_ids_used;
   if (!used?.length) return pool;
-  const excluded = new Set(used.map(normalizeWeekMainLiftId));
-  const filtered = pool.filter((e) => !excluded.has(normalizeWeekMainLiftId(e.id)));
-  return filtered.length > 0 ? filtered : pool;
+  const excludedIds = new Set(used.map(normalizeWeekMainLiftId));
+  const filteredById = pool.filter((e) => !excludedIds.has(normalizeWeekMainLiftId(e.id)));
+  if (filteredById.length === 0) return pool;
+
+  // Cluster-level weekly diversity: avoid repeating mapped "similar family" lifts (e.g. deadlift family)
+  // only when alternatives remain after exact ID exclusion.
+  const excludedClusters = new Set(
+    used
+      .map((id) => {
+        const idNorm = normalizeWeekMainLiftId(id);
+        const cluster = normalizeWeekMainLiftId(getSimilarExerciseClusterId({ id }));
+        return cluster !== idNorm ? cluster : null;
+      })
+      .filter((cluster): cluster is string => Boolean(cluster))
+  );
+  if (excludedClusters.size === 0) return filteredById;
+
+  const filteredByCluster = filteredById.filter((e) => {
+    const cluster = normalizeWeekMainLiftId(getSimilarExerciseClusterId(e));
+    return !excludedClusters.has(cluster);
+  });
+  return filteredByCluster.length > 0 ? filteredByCluster : filteredById;
 }
 
 /** IDs from primary compound blocks: main_strength, main_hypertrophy, and power (rolling weekly diversity). */
@@ -469,6 +496,28 @@ export function filterByConstraintsForPool(
   });
 }
 
+function isRingSpecificExercise(e: Exercise): boolean {
+  const id = (e.id ?? "").toLowerCase();
+  const name = (e.name ?? "").toLowerCase();
+  return /(^|_)rings?(_|$)/.test(id) || /\brings?\b/.test(name);
+}
+
+function isRingStraddleExercise(e: Exercise): boolean {
+  const id = (e.id ?? "").toLowerCase();
+  const name = (e.name ?? "").toLowerCase();
+  if (id.includes("ring_straddle")) return true;
+  return isRingSpecificExercise(e) && (id.includes("straddle") || name.includes("straddle"));
+}
+
+function ringStraddleAllowedForInput(input: GenerateWorkoutInput): boolean {
+  const userLevel = input.style_prefs?.user_level ?? "intermediate";
+  const creativeOn = input.style_prefs?.include_creative_variations === true;
+  const advancedCreative = userLevel === "advanced" && creativeOn;
+  const goalSpecific = input.primary_goal === "calisthenics";
+  const sportSpecific = (input.sport_slugs ?? []).some((s) => s === "rock_climbing");
+  return advancedCreative || goalSpecific || sportSpecific;
+}
+
 // --- Hard constraints: equipment, style avoid_tags, energy. Injury and body-part are in resolveWorkoutConstraints + filterByConstraintsForPool (single source of truth with validator). ---
 export function filterByHardConstraints(
   exercises: Exercise[],
@@ -485,6 +534,8 @@ export function filterByHardConstraints(
     (e.joint_stress_tags?.length ? e.joint_stress_tags : e.tags?.joint_stress) ?? [];
 
   return exercises.filter((e) => {
+    const hasRings = equipmentSet.has("rings");
+    const ringStraddleAllowed = isRingStraddleExercise(e) && ringStraddleAllowedForInput(input);
     if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
     if (!exerciseMatchesWorkoutTier(e.workout_level_tags, userWorkoutTier)) return false;
     if (userWorkoutTier === "beginner" && isHardBlockedForBeginnerTier(e)) return false;
@@ -500,8 +551,10 @@ export function filterByHardConstraints(
     ) {
       return false;
     }
-    if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations))
+    if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations) && !ringStraddleAllowed)
       return false;
+    if (isRingSpecificExercise(e) && !hasRings) return false;
+    if (isRingStraddleExercise(e) && !ringStraddleAllowed) return false;
     // Equipment: every required piece must be available
     const required = e.equipment_required.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
     if (required.some((eq) => !equipmentSet.has(eq))) return false;
@@ -538,6 +591,8 @@ export function getHardConstraintRejectReason(
   const userWorkoutTier = input.style_prefs?.user_level ?? "intermediate";
   const includeCreativeVariations = input.style_prefs?.include_creative_variations === true;
   const nonAdvancedTier = userWorkoutTier !== "advanced";
+  const hasRings = equipmentSet.has("rings");
+  const ringStraddleAllowed = isRingStraddleExercise(e) && ringStraddleAllowedForInput(input);
   const jointStressFor = (ex: Exercise) =>
     (ex.joint_stress_tags?.length ? ex.joint_stress_tags : ex.tags?.joint_stress) ?? [];
 
@@ -556,8 +611,10 @@ export function getHardConstraintRejectReason(
   ) {
     return "complex_skill_lift_non_advanced";
   }
-  if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations))
+  if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations) && !ringStraddleAllowed)
     return "creative_variation_excluded";
+  if (isRingSpecificExercise(e) && !hasRings) return "ring_equipment_required";
+  if (isRingStraddleExercise(e) && !ringStraddleAllowed) return "ring_straddle_restricted";
   const required = e.equipment_required.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
   if (required.some((eq) => !equipmentSet.has(eq))) return "equipment_unavailable";
   const jointStress = jointStressFor(e);
@@ -3396,6 +3453,12 @@ function isCalisthenicsUpperPreferredPattern(e: Exercise): boolean {
   return legacy === "push" || legacy === "pull";
 }
 
+function isButtKickRunConditioning(e: Exercise): boolean {
+  const id = (e.id ?? "").toLowerCase();
+  const name = (e.name ?? "").toLowerCase();
+  return id.includes("butt_kick") || name.includes("butt kick");
+}
+
 /** Pick conditioning exercise: prefer direct sub-focus slug match (intent), then preferred_zone2_cardio modalities, else random. */
 function pickConditioningExercise(
   pool: Exercise[],
@@ -3411,6 +3474,15 @@ function pickConditioningExercise(
     );
     if (directMatch.length > 0) candidatePool = directMatch;
   }
+
+  // Butt-kick run variants are useful occasionally but should be rare when other conditioning options exist.
+  if (candidatePool.length > 1) {
+    const nonButtKick = candidatePool.filter((e) => !isButtKickRunConditioning(e));
+    if (nonButtKick.length > 0 && rng() < 0.9) {
+      candidatePool = nonButtKick;
+    }
+  }
+
   if (preferredModalities?.length) {
     const normalized = preferredModalities.map((m) => m.toLowerCase().replace(/\s/g, "_"));
     const preferred = candidatePool.filter((e) => {
@@ -6346,6 +6418,136 @@ function sessionTitle(input: GenerateWorkoutInput): string {
   return `${cap}${suffix} • ${input.duration_minutes} min`;
 }
 
+const CRITICAL_UNRESOLVED_VALIDATION_TYPES = new Set([
+  "injury_restriction",
+  "body_part_focus",
+]);
+
+type InternalGenerateWorkoutInput = GenerateWorkoutInput & {
+  __validation_regenerate_attempted?: boolean;
+};
+
+const sportProfileMapFailedLogKeysSeen = new Set<string>();
+
+function makeSportProfileMapFailedLogKey(canonicalSlug: string, errors: string[]): string {
+  return JSON.stringify({
+    canonical_sport_definition_slug: canonicalSlug,
+    errors: [...errors].sort(),
+  });
+}
+
+function logSportProfileMapFailedOnce(canonicalSlug: string, errors: string[]): void {
+  const key = makeSportProfileMapFailedLogKey(canonicalSlug, errors);
+  if (sportProfileMapFailedLogKeysSeen.has(key)) return;
+  sportProfileMapFailedLogKeysSeen.add(key);
+  console.error("[SportProfile] canonical map failed; continuing without sport profile engine", {
+    canonical_sport_definition_slug: canonicalSlug,
+    errors,
+  });
+}
+
+/** Test-only: clear runtime dedupe state for map-failed sport profile logs. */
+export function __resetSportProfileMapFailedLogDedupeForTests(): void {
+  sportProfileMapFailedLogKeysSeen.clear();
+}
+
+function applyCriticalValidationSafeguard(
+  session: WorkoutSession,
+  validation: ValidationResult
+): WorkoutSession | null {
+  const unresolvedCritical = validation.violations.filter(
+    (v) =>
+      v.repaired !== true &&
+      CRITICAL_UNRESOLVED_VALIDATION_TYPES.has(v.type)
+  );
+  if (unresolvedCritical.length === 0) return null;
+
+  const removeByBlock = new Map<number, Set<string>>();
+  for (const v of unresolvedCritical) {
+    if (v.exerciseId == null) continue;
+    const bucket = removeByBlock.get(v.blockIndex) ?? new Set<string>();
+    bucket.add(v.exerciseId);
+    removeByBlock.set(v.blockIndex, bucket);
+  }
+  if (removeByBlock.size === 0) return null;
+
+  const sanitizedBlocks: WorkoutBlock[] = session.blocks
+    .map((b, idx) => {
+      const removeIds = removeByBlock.get(idx);
+      if (!removeIds || removeIds.size === 0) return b;
+      const items = b.items.filter((it) => !removeIds.has(it.exercise_id));
+      return { ...b, items };
+    })
+    .filter((b) => b.items.length > 0);
+
+  if (sanitizedBlocks.length === 0) return null;
+  const sumBlockMinutes = sanitizedBlocks.reduce(
+    (sum, b) => sum + (b.estimated_minutes ?? 5),
+    0
+  );
+
+  return {
+    ...session,
+    blocks: sanitizedBlocks,
+    estimated_duration_minutes: Math.max(
+      session.estimated_duration_minutes,
+      sumBlockMinutes
+    ),
+  };
+}
+
+function appendValidationFallbackDebug(
+  session: WorkoutSession,
+  validation: ValidationResult
+): WorkoutSession {
+  const unresolved = validation.violations.filter((v) => v.repaired !== true);
+  const unresolvedTypes = [...new Set(unresolved.map((v) => v.type))];
+  const unresolvedCriticalTypes = unresolvedTypes.filter((t) =>
+    CRITICAL_UNRESOLVED_VALIDATION_TYPES.has(t)
+  );
+  return {
+    ...session,
+    debug: {
+      ...(session.debug ?? {}),
+      validation_fallback: {
+        unresolved_violation_count: unresolved.length,
+        unresolved_violation_types: unresolvedTypes,
+        unresolved_has_critical_types: unresolvedCriticalTypes.length > 0,
+        unresolved_critical_types: unresolvedCriticalTypes,
+      },
+    },
+  };
+}
+
+function unresolvedCriticalValidationTypes(validation: ValidationResult): string[] {
+  return [
+    ...new Set(
+      validation.violations
+        .filter((v) => v.repaired !== true && CRITICAL_UNRESOLVED_VALIDATION_TYPES.has(v.type))
+        .map((v) => v.type)
+    ),
+  ];
+}
+
+function buildValidationRegenerateInput(
+  input: GenerateWorkoutInput,
+  unresolvedCriticalTypes: string[]
+): InternalGenerateWorkoutInput {
+  const seed = input.seed ?? 0;
+  const perturbation = hashString(
+    JSON.stringify({
+      seed,
+      unresolved_critical_types: [...unresolvedCriticalTypes].sort(),
+      iteration: 13,
+    })
+  );
+  return {
+    ...(input as InternalGenerateWorkoutInput),
+    seed: seed + perturbation + 13,
+    __validation_regenerate_attempted: true,
+  };
+}
+
 // --- Main entry: 8-step generation flow ---
 /** @param exercisePool Full catalog for this request (e.g. from `listExercisesForGenerator`). No default — avoids accidentally using the tiny test stub in production. */
 export function generateWorkoutSession(
@@ -6363,14 +6565,28 @@ export function generateWorkoutSession(
     })
   );
   const rng = createSeededRng(rngSeed);
-  attachWorkoutLevelScoringContext(input, exercisePool);
+
+  const gatedExerciseResult = resolveGatedExercisePoolForGeneration(exercisePool, input);
+  const effectiveExercisePool = gatedExerciseResult.pool;
+  if (input.log_pruning_gate_to_console) {
+    logPruningGateToConsole(gatedExerciseResult.debug);
+  }
+  const flagsForPruningDebug = mergePruningGateFlags(input);
+  const pruningGateDebugForSession =
+    input.omit_pruning_gate_session_debug
+      ? undefined
+      : flagsForPruningDebug.enable_pruning_gating || input.include_pruning_gate_comparison === true
+        ? gatedExerciseResult.debug
+        : undefined;
+
+  attachWorkoutLevelScoringContext(input, effectiveExercisePool);
 
   // 1. Determine goal rules (from prescriptionRules)
   const primary = input.primary_goal;
   const goalRules = getGoalRules(primary);
 
   // 2. Filter exercises: equipment + energy + avoid (filterByHardConstraints), then constraint-based injury/body-part (single source of truth with validator).
-  const hardFiltered = filterByHardConstraints(exercisePool, input);
+  const hardFiltered = filterByHardConstraints(effectiveExercisePool, input);
   const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
   /** Injury-safe pool without body-part split — used to guarantee goal sub-focus on any training day. */
   let guaranteePool = hardFiltered.filter((e) => {
@@ -6378,6 +6594,8 @@ export function generateWorkoutSession(
     return isExerciseAllowedByInjuries(shape, constraints);
   });
   let filtered = filterByConstraintsForPool(hardFiltered, constraints);
+  const guaranteePoolCountAfterInjuryGate = guaranteePool.length;
+  const filteredPoolCountAfterConstraintGate = filtered.length;
 
   let sportProfileSessionSnapshot: SportProfileAppliedSnapshot | null = null;
   let sportProfileCanonicalMappingFailure: {
@@ -6409,6 +6627,7 @@ export function generateWorkoutSession(
       conditioningPickerMinutesMultiplier: profile.compositionNudge.conditioningPickerMinutesMultiplier,
     };
   } else if (spLoad.status === "map_failed") {
+    logSportProfileMapFailedOnce(spLoad.canonicalSlug, spLoad.errors);
     sportProfileCanonicalMappingFailure = {
       canonical_sport_definition_slug: spLoad.canonicalSlug,
       errors: spLoad.errors,
@@ -7354,7 +7573,7 @@ export function generateWorkoutSession(
   const sumBlockMinutes = mergedBlocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
   const estimated_duration_minutes =
     input.duration_minutes != null && input.duration_minutes > 0
-      ? input.duration_minutes
+      ? Math.max(input.duration_minutes, sumBlockMinutes)
       : sumBlockMinutes;
 
   let sportProfileExerciseScores: NonNullable<WorkoutSession["debug"]>["sport_profile_exercise_scores"] | undefined;
@@ -7475,7 +7694,46 @@ export function generateWorkoutSession(
     mainSelectorTrace.entries.length > 0 ||
     sportProfileSessionSnapshot != null ||
     sportProfileCanonicalMappingFailure != null ||
-    sportProfileExerciseScores != null;
+    sportProfileExerciseScores != null ||
+    pruningGateDebugForSession != null;
+  const generationModeFingerprint = includeSessionDebug
+    ? {
+        pruning_gate: {
+          resolved_flags: flagsForPruningDebug,
+          enabled: flagsForPruningDebug.enable_pruning_gating === true,
+        },
+        sport_profile_engine:
+          spLoad.status === "applied"
+            ? {
+                status: "applied" as const,
+                canonical_sport_definition_slug: spLoad.canonicalSlug,
+              }
+            : spLoad.status === "map_failed"
+              ? {
+                  status: "map_failed" as const,
+                  canonical_sport_definition_slug: spLoad.canonicalSlug,
+                }
+              : {
+                  status: "skipped" as const,
+                  reason: spLoad.reason,
+                },
+        pool_sizes: {
+          input_exercise_pool: exercisePool.length,
+          after_pruning_gate: effectiveExercisePool.length,
+          after_hard_constraints: hardFiltered.length,
+          after_constraint_gate: filteredPoolCountAfterConstraintGate,
+          guarantee_pool_after_injury_gate: guaranteePoolCountAfterInjuryGate,
+          ...(sportProfileSessionSnapshot
+            ? {
+                after_sport_profile: filtered.length,
+                guarantee_pool_after_sport_profile: guaranteePool.length,
+                sport_profile_pool_before: sportProfileSessionSnapshot.poolBefore,
+                sport_profile_pool_after: sportProfileSessionSnapshot.poolAfter,
+              }
+            : {}),
+        },
+      }
+    : undefined;
 
   const session: WorkoutSession = {
     title: sessionTitle(input),
@@ -7527,6 +7785,8 @@ export function generateWorkoutSession(
               ? { sport_profile_canonical_mapping_failed: sportProfileCanonicalMappingFailure }
               : {}),
             ...(sportProfileExerciseScores ? { sport_profile_exercise_scores: sportProfileExerciseScores } : {}),
+            ...(pruningGateDebugForSession ? { pruning_gate: pruningGateDebugForSession } : {}),
+            ...(generationModeFingerprint ? { generation_mode_fingerprint: generationModeFingerprint } : {}),
           },
         }
       : {}),
@@ -7537,13 +7797,63 @@ export function generateWorkoutSession(
   if (validation.repairedWorkout) {
     return validation.repairedWorkout as WorkoutSession;
   }
-  if (validation.violations.length > 0) {
+  let fallbackSession = session;
+  let fallbackValidation = validation;
+  const unresolvedCriticalTypes = unresolvedCriticalValidationTypes(validation);
+  const internalInput = input as InternalGenerateWorkoutInput;
+  if (
+    unresolvedCriticalTypes.length > 0 &&
+    internalInput.__validation_regenerate_attempted !== true
+  ) {
+    const regenerateInput = buildValidationRegenerateInput(input, unresolvedCriticalTypes);
+    const regeneratedSession = generateWorkoutSession(regenerateInput, exercisePool);
+    const regeneratedValidation = validateWorkoutAgainstConstraints(
+      regeneratedSession,
+      constraints,
+      filtered
+    );
+    const regeneratedUnresolvedCriticalTypes =
+      unresolvedCriticalValidationTypes(regeneratedValidation);
+    if (regeneratedValidation.valid || regeneratedUnresolvedCriticalTypes.length === 0) {
+      return regeneratedValidation.violations.length > 0
+        ? appendValidationFallbackDebug(regeneratedSession, regeneratedValidation)
+        : regeneratedSession;
+    }
+    fallbackSession = regeneratedSession;
+    fallbackValidation = regeneratedValidation;
+  }
+  const sessionWithValidationFallbackDebug =
+    fallbackValidation.violations.length > 0
+      ? appendValidationFallbackDebug(fallbackSession, fallbackValidation)
+      : fallbackSession;
+  const safeguardedSession = applyCriticalValidationSafeguard(
+    fallbackSession,
+    fallbackValidation
+  );
+  if (safeguardedSession) {
+    console.warn(
+      "[Phase 8] Applied critical validation safeguard (removed unresolved items):",
+      fallbackValidation.violations
+        .filter((v) => v.repaired !== true && CRITICAL_UNRESOLVED_VALIDATION_TYPES.has(v.type))
+        .map((v) => ({ type: v.type, exerciseId: v.exerciseId, description: v.description }))
+    );
+    return sessionWithValidationFallbackDebug === session
+      ? safeguardedSession
+      : {
+          ...safeguardedSession,
+          debug: {
+            ...(safeguardedSession.debug ?? {}),
+            ...(sessionWithValidationFallbackDebug.debug ?? {}),
+          },
+        };
+  }
+  if (fallbackValidation.violations.length > 0) {
     console.warn(
       "[Phase 8] Workout validation issues (no repair possible):",
-      validation.violations.map((v) => ({ type: v.type, description: v.description }))
+      fallbackValidation.violations.map((v) => ({ type: v.type, description: v.description }))
     );
   }
-  return session;
+  return sessionWithValidationFallbackDebug;
 }
 
 // --- Regenerate ---
@@ -7572,8 +7882,9 @@ function regenerateWithSubstitution(
   previousSession: WorkoutSession,
   exercisePool: Exercise[]
 ): WorkoutSession {
-  const filtered = filterByHardConstraints(exercisePool, input);
-  const poolById = new Map(exercisePool.map((e) => [e.id, e]));
+  const gatedPool = resolveGatedExercisePoolForGeneration(exercisePool, input).pool;
+  const filtered = filterByHardConstraints(gatedPool, input);
+  const poolById = new Map(gatedPool.map((e) => [e.id, e]));
   const usedInNewSession = new Set<string>();
 
   const blocks: WorkoutBlock[] = previousSession.blocks.map((block) => {

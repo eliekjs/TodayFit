@@ -33,6 +33,7 @@ import {
   buildWeeklySubFocusKeysFromPreferences,
   computeWeeklySubFocusSessionMinimums,
 } from "../logic/workoutGeneration/weeklySubFocusCoveragePlan";
+import { getGenerationPruningGateFlags } from "./generationPruningGateConfig";
 
 const DURATIONS = [20, 30, 45, 60, 75] as const;
 type AllowedDuration = (typeof DURATIONS)[number];
@@ -302,6 +303,7 @@ export function manualPreferencesToGenerateWorkoutInput(
         ? [...preferences.weekMainStrengthLiftIdsUsed]
         : undefined,
     weekly_sub_focus_session_minimums,
+    pruning_gate: getGenerationPruningGateFlags(),
   };
 }
 

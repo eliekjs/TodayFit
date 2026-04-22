@@ -1,5 +1,5 @@
 import { getSupabase } from "./client";
-import { saveGeneratedWorkout, getWorkout } from "./workoutRepository";
+import { saveGeneratedWorkout, getWorkoutsByIds } from "./workoutRepository";
 import type { GeneratedWorkout } from "../types";
 import type { PlannedDay } from "../../services/sportPrepPlanner";
 import { parseLocalDate } from "../dateUtils";
@@ -43,20 +43,27 @@ export async function saveManualWeek(
     .single();
   if (instanceError) throw new Error(instanceError.message);
   const instanceId = instanceRow.id as string;
+  const createdWorkoutIds: string[] = [];
 
-  for (const { date, workout } of days) {
-    const workoutId = await saveGeneratedWorkout(userId, workout);
-    const { error: dayError } = await supabase.from("weekly_plan_days").insert({
-      weekly_plan_instance_id: instanceId,
-      date,
-      intent_id: null,
-      intent_label: workout.focus?.join(" • ") ?? "Manual",
-      goal_contribution: {},
-      fatigue_score: null,
-      status: "planned",
-      generated_workout_id: workoutId,
-    });
-    if (dayError) throw new Error(dayError.message);
+  try {
+    for (const { date, workout } of days) {
+      const workoutId = await saveGeneratedWorkout(userId, workout);
+      createdWorkoutIds.push(workoutId);
+      const { error: dayError } = await supabase.from("weekly_plan_days").insert({
+        weekly_plan_instance_id: instanceId,
+        date,
+        intent_id: null,
+        intent_label: workout.focus?.join(" • ") ?? "Manual",
+        goal_contribution: {},
+        fatigue_score: null,
+        status: "planned",
+        generated_workout_id: workoutId,
+      });
+      if (dayError) throw new Error(dayError.message);
+    }
+  } catch (originalError) {
+    await rollbackManualPlanPersistence(supabase, userId, instanceId, createdWorkoutIds);
+    throw originalError;
   }
 
   return instanceId;
@@ -73,6 +80,86 @@ function weekStartMonday(isoDate: string): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dayNum = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dayNum}`;
+}
+
+/**
+ * Best-effort compensating cleanup for partially persisted manual plan artifacts.
+ * This never throws so callers can deterministically rethrow the original failure.
+ */
+async function rollbackManualPlanPersistence(
+  supabase: ReturnType<typeof requireClient>,
+  userId: string,
+  instanceId: string,
+  createdWorkoutIds: string[]
+): Promise<void> {
+  try {
+    const { error: daysCleanupError } = await supabase
+      .from("weekly_plan_days")
+      .delete()
+      .eq("weekly_plan_instance_id", instanceId);
+    if (daysCleanupError) {
+      console.error("weekPlanRepository.rollbackManualPlanPersistence.days_cleanup_failed", {
+        userId,
+        instanceId,
+        reason: daysCleanupError.message,
+      });
+    }
+  } catch (cleanupFailure) {
+    console.error("weekPlanRepository.rollbackManualPlanPersistence.days_cleanup_failed", {
+      userId,
+      instanceId,
+      cleanupFailure,
+    });
+  }
+
+  try {
+    const { error: instanceCleanupError } = await supabase
+      .from("weekly_plan_instances")
+      .delete()
+      .eq("id", instanceId)
+      .eq("user_id", userId);
+    if (instanceCleanupError) {
+      console.error("weekPlanRepository.rollbackManualPlanPersistence.instance_cleanup_failed", {
+        userId,
+        instanceId,
+        reason: instanceCleanupError.message,
+      });
+    }
+  } catch (cleanupFailure) {
+    console.error("weekPlanRepository.rollbackManualPlanPersistence.instance_cleanup_failed", {
+      userId,
+      instanceId,
+      cleanupFailure,
+    });
+  }
+
+  const uniqueWorkoutIds = [...new Set(createdWorkoutIds)];
+  if (uniqueWorkoutIds.length === 0) return;
+
+  for (const workoutId of uniqueWorkoutIds) {
+    try {
+      const { error: workoutCleanupError } = await supabase
+        .from("workouts")
+        .delete()
+        .eq("id", workoutId)
+        .eq("user_id", userId);
+      if (workoutCleanupError) {
+        console.error("weekPlanRepository.rollbackManualPlanPersistence.workout_cleanup_failed", {
+          userId,
+          instanceId,
+          workoutId,
+          reason: workoutCleanupError.message,
+        });
+      }
+    } catch (cleanupFailure) {
+      console.error("weekPlanRepository.rollbackManualPlanPersistence.workout_cleanup_failed", {
+        userId,
+        instanceId,
+        workoutId,
+        cleanupFailure,
+      });
+    }
+  }
 }
 
 /**
@@ -100,19 +187,26 @@ export async function saveManualDay(
     .single();
   if (instanceError) throw new Error(instanceError.message);
   const instanceId = instanceRow.id as string;
+  const createdWorkoutIds: string[] = [];
 
-  const workoutId = await saveGeneratedWorkout(userId, workout);
-  const { error: dayError } = await supabase.from("weekly_plan_days").insert({
-    weekly_plan_instance_id: instanceId,
-    date,
-    intent_id: null,
-    intent_label: workout.focus?.join(" • ") ?? "Manual",
-    goal_contribution: {},
-    fatigue_score: null,
-    status: "planned",
-    generated_workout_id: workoutId,
-  });
-  if (dayError) throw new Error(dayError.message);
+  try {
+    const workoutId = await saveGeneratedWorkout(userId, workout);
+    createdWorkoutIds.push(workoutId);
+    const { error: dayError } = await supabase.from("weekly_plan_days").insert({
+      weekly_plan_instance_id: instanceId,
+      date,
+      intent_id: null,
+      intent_label: workout.focus?.join(" • ") ?? "Manual",
+      goal_contribution: {},
+      fatigue_score: null,
+      status: "planned",
+      generated_workout_id: workoutId,
+    });
+    if (dayError) throw new Error(dayError.message);
+  } catch (originalError) {
+    await rollbackManualPlanPersistence(supabase, userId, instanceId, createdWorkoutIds);
+    throw originalError;
+  }
 
   return instanceId;
 }
@@ -143,6 +237,52 @@ export type WeeklyPlanWithWorkouts = {
   guestWorkouts: Record<string, GeneratedWorkout>;
 };
 
+type WeeklyPlanInstanceRow = {
+  id: string;
+  week_start_date: string;
+};
+
+type WeeklyPlanDayRow = {
+  id: string;
+  date: string;
+  intent_label: string | null;
+  status: "planned" | "completed" | "skipped" | null;
+  generated_workout_id: string | null;
+};
+
+export function buildWeeklyPlanWithWorkoutsFromRows(
+  instance: WeeklyPlanInstanceRow,
+  dayRows: WeeklyPlanDayRow[],
+  workoutsById: Record<string, GeneratedWorkout>
+): WeeklyPlanWithWorkouts {
+  const days: PlannedDay[] = [];
+  const guestWorkouts: Record<string, GeneratedWorkout> = {};
+
+  for (const row of dayRows) {
+    const date = row.date;
+    const workoutId = row.generated_workout_id;
+    const planned: PlannedDay = {
+      id: row.id,
+      date,
+      intentLabel: row.intent_label ?? null,
+      status: row.status ?? "planned",
+      generatedWorkoutId: workoutId,
+    };
+    days.push(planned);
+    if (workoutId) {
+      const workout = workoutsById[workoutId];
+      if (workout) guestWorkouts[date] = workout;
+    }
+  }
+
+  return {
+    weeklyPlanInstanceId: instance.id,
+    weekStartDate: instance.week_start_date,
+    days,
+    guestWorkouts,
+  };
+}
+
 /**
  * Load one weekly plan instance with its days and generated workouts (for Load week).
  */
@@ -167,29 +307,15 @@ export async function getWeeklyPlanWithWorkouts(
     .order("date");
   if (daysErr) throw new Error(daysErr.message);
 
-  const days: PlannedDay[] = [];
-  const guestWorkouts: Record<string, GeneratedWorkout> = {};
-  for (const row of dayRows ?? []) {
-    const date = row.date as string;
-    const workoutId = row.generated_workout_id as string | null;
-    const planned: PlannedDay = {
-      id: row.id as string,
-      date,
-      intentLabel: (row.intent_label as string) ?? null,
-      status: (row.status as "planned" | "completed" | "skipped") ?? "planned",
-      generatedWorkoutId: workoutId,
-    };
-    days.push(planned);
-    if (workoutId) {
-      const workout = await getWorkout(userId, workoutId);
-      if (workout) guestWorkouts[date] = workout;
-    }
-  }
-
-  return {
-    weeklyPlanInstanceId: instance.id as string,
-    weekStartDate: instance.week_start_date as string,
-    days,
-    guestWorkouts,
-  };
+  const typedDayRows = (dayRows ?? []) as WeeklyPlanDayRow[];
+  const workoutIds = [...new Set(typedDayRows
+    .map((row) => row.generated_workout_id)
+    .filter((id): id is string => Boolean(id)))];
+  const workoutsById =
+    workoutIds.length > 0 ? await getWorkoutsByIds(userId, workoutIds) : {};
+  return buildWeeklyPlanWithWorkoutsFromRows(
+    instance as WeeklyPlanInstanceRow,
+    typedDayRows,
+    workoutsById
+  );
 }

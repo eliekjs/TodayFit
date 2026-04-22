@@ -4,17 +4,31 @@
  *
  * Requires Supabase to be configured (EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY)
  * and the exercise catalog to be seeded (scripts/seedExercisesToDb.ts).
+ *
+ * Pass a gym profile so `available_equipment` is non-empty; otherwise hard equipment filtering
+ * removes all main-work candidates and sessions can end up warmup/cooldown-only.
  */
 
+import { getDefaultEquipmentForTemplate } from "../data/gymProfiles";
+import type { GymProfile } from "../data/gymProfiles";
+import { loadDotEnvFromRepoRoot } from "../scripts/dotenvLocal";
 import { isDbConfigured } from "./db";
 import { generateWorkoutAsync } from "./generator";
 import type { ManualPreferences } from "./types";
+
+/** Full commercial gym — matches typical app default so integration matches production pool filtering. */
+const TEST_GYM: GymProfile = {
+  id: "integration_test_gym",
+  name: "Integration Test Gym",
+  equipment: getDefaultEquipmentForTemplate("your_gym"),
+};
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
 }
 
 async function run() {
+  loadDotEnvFromRepoRoot();
   if (!isDbConfigured()) {
     console.log("Skipping generateWorkoutAsync integration tests: Supabase not configured.");
     process.exit(0);
@@ -34,7 +48,7 @@ async function run() {
     workoutStyle: [],
   };
 
-  const w1 = await generateWorkoutAsync(basePrefs, undefined, 12345);
+  const w1 = await generateWorkoutAsync(basePrefs, TEST_GYM, 12345);
   assert(typeof w1.id === "string" && w1.id.length > 0, "workout has id");
   assert(Array.isArray(w1.blocks), "workout has blocks");
   assert(w1.blocks.length >= 2, "workout has at least warmup and cooldown");
@@ -49,6 +63,10 @@ async function run() {
       assert(typeof item.rest_seconds === "number", "item has rest_seconds");
     }
   }
+  const w1HasMain = w1.blocks.some(
+    (b) => b.block_type === "main_strength" || b.block_type === "main_hypertrophy" || b.block_type === "power"
+  );
+  assert(w1HasMain, "strength session has a main work block");
   console.log("  OK: strength, full body, 45 min → valid workout with blocks and items");
 
   // Upper body push focus
@@ -59,7 +77,7 @@ async function run() {
     targetModifier: ["Push"],
     durationMinutes: 30,
   };
-  const w2 = await generateWorkoutAsync(upperPrefs, undefined, 67890);
+  const w2 = await generateWorkoutAsync(upperPrefs, TEST_GYM, 67890);
   assert(w2.blocks.length >= 2, "upper push workout has blocks");
   const hasMain = w2.blocks.some(
     (b) => b.block_type === "main_strength" || b.block_type === "main_hypertrophy"
@@ -76,7 +94,7 @@ async function run() {
     durationMinutes: 20,
     energyLevel: "low",
   };
-  const w3 = await generateWorkoutAsync(recoveryPrefs, undefined, 11111);
+  const w3 = await generateWorkoutAsync(recoveryPrefs, TEST_GYM, 11111);
   assert(w3.blocks.length >= 1, "recovery workout has blocks");
   assert(w3.durationMinutes === 20, "duration clamped to 20");
   console.log("  OK: recovery, 20 min → valid workout with duration 20");

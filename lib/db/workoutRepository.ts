@@ -125,84 +125,217 @@ type PrescriptionRow = {
   unilateral?: boolean;
 };
 
+type WorkoutSummaryRow = {
+  id: string;
+  intent: Record<string, unknown>;
+  created_at: string;
+};
+
+type BlockQueryRow = {
+  id: string;
+  workout_id: string;
+  block_type: string;
+  title: string;
+  reasoning: string | null;
+  sort_order: number;
+};
+
+type ExerciseQueryRow = {
+  block_id: string;
+  exercise_slug: string;
+  exercise_name: string;
+  prescription: unknown;
+  sort_order: number;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asNullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function asExerciseNotes(value: unknown): Record<string, string> | undefined {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value).filter(
+    ([key, note]) => typeof key === "string" && typeof note === "string"
+  );
+  return Object.fromEntries(entries);
+}
+
+function asProgress(value: unknown): SavedWorkout["progress"] {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value).filter(([, state]) => {
+    if (!isRecord(state)) return false;
+    return (
+      typeof state.completed === "boolean" &&
+      typeof state.setsCompleted === "number" &&
+      Number.isFinite(state.setsCompleted)
+    );
+  });
+  return entries.length > 0
+    ? (Object.fromEntries(entries) as SavedWorkout["progress"])
+    : undefined;
+}
+
+function asIntentRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function asGeneratedWorkout(value: unknown, fallbackId: string): GeneratedWorkout | undefined {
+  if (!isRecord(value)) return undefined;
+  const normalized = normalizeGeneratedWorkout({
+    id: asString(value.id) ?? fallbackId,
+    focus: asStringArray(value.focus) ?? [],
+    durationMinutes: asNullableNumber(value.durationMinutes),
+    energyLevel: asEnergyLevel(value.energyLevel),
+    notes: asString(value.notes),
+    generationPreferences: value.generationPreferences as GeneratedWorkout["generationPreferences"],
+    sections: Array.isArray(value.sections) ? value.sections : undefined,
+    blocks: Array.isArray(value.blocks) ? value.blocks : undefined,
+  });
+  return normalized;
+}
+
+function asEnergyLevel(value: unknown): GeneratedWorkout["energyLevel"] {
+  return value === "low" || value === "medium" || value === "high" ? value : null;
+}
+
+function toWorkoutItem(row: ExerciseQueryRow): WorkoutItem {
+  const p = (isRecord(row.prescription) ? row.prescription : {}) as PrescriptionRow;
+  return {
+    exercise_id: row.exercise_slug,
+    exercise_name: row.exercise_name,
+    sets: p.sets ?? 1,
+    reps: p.reps,
+    time_seconds: p.time_seconds,
+    rest_seconds: p.rest_seconds ?? 0,
+    coaching_cues: p.coaching_cues ?? (p.text as string) ?? "",
+    reasoning_tags: p.reasoning_tags,
+    ...(p.unilateral === true ? { unilateral: true } : {}),
+  };
+}
+
+export function buildGeneratedWorkoutMapFromRows(
+  workouts: WorkoutSummaryRow[],
+  blockRows: BlockQueryRow[],
+  exerciseRows: ExerciseQueryRow[]
+): Record<string, GeneratedWorkout> {
+  const blocksByWorkout = new Map<string, BlockQueryRow[]>();
+  for (const block of blockRows) {
+    const arr = blocksByWorkout.get(block.workout_id) ?? [];
+    arr.push(block);
+    blocksByWorkout.set(block.workout_id, arr);
+  }
+
+  const exercisesByBlock = new Map<string, ExerciseQueryRow[]>();
+  for (const ex of exerciseRows) {
+    const arr = exercisesByBlock.get(ex.block_id) ?? [];
+    arr.push(ex);
+    exercisesByBlock.set(ex.block_id, arr);
+  }
+
+  for (const rows of blocksByWorkout.values()) {
+    rows.sort((a, b) => a.sort_order - b.sort_order);
+  }
+  for (const rows of exercisesByBlock.values()) {
+    rows.sort((a, b) => a.sort_order - b.sort_order);
+  }
+
+  const out: Record<string, GeneratedWorkout> = {};
+  for (const workout of workouts) {
+    const intent = asIntentRecord(workout.intent);
+    const workoutBlocks = blocksByWorkout.get(workout.id) ?? [];
+    const blocks: WorkoutBlock[] = workoutBlocks.map((block) => {
+      const items = (exercisesByBlock.get(block.id) ?? []).map(toWorkoutItem);
+      return {
+        block_type: block.block_type as WorkoutBlock["block_type"],
+        format: "circuit" as const,
+        title: block.title,
+        reasoning: block.reasoning ?? undefined,
+        items,
+      };
+    });
+
+    out[workout.id] = {
+      id: workout.id,
+      focus: asStringArray(intent.focus) ?? [],
+      durationMinutes: asNullableNumber(intent.durationMinutes),
+      energyLevel: asEnergyLevel(intent.energyLevel),
+      notes: asString(intent.notes),
+      generationPreferences: intent.generationPreferences as GeneratedWorkout["generationPreferences"],
+      blocks,
+    };
+  }
+
+  return out;
+}
+
+export async function getWorkoutsByIds(
+  userId: string,
+  workoutIds: string[]
+): Promise<Record<string, GeneratedWorkout>> {
+  const uniqueIds = [...new Set(workoutIds)];
+  if (uniqueIds.length === 0) return {};
+
+  const supabase = requireClient();
+  const { data: workouts, error: workoutsError } = await supabase
+    .from("workouts")
+    .select("id, intent, created_at")
+    .eq("user_id", userId)
+    .in("id", uniqueIds);
+  if (workoutsError) throw new Error(workoutsError.message);
+  const workoutRows = (workouts ?? []) as WorkoutSummaryRow[];
+  if (workoutRows.length === 0) return {};
+
+  const foundWorkoutIds = workoutRows.map((w) => w.id);
+  const { data: blockRowsData, error: blockRowsError } = await supabase
+    .from("workout_blocks")
+    .select("id, workout_id, block_type, title, reasoning, sort_order")
+    .in("workout_id", foundWorkoutIds)
+    .order("sort_order");
+  if (blockRowsError) throw new Error(blockRowsError.message);
+  const blockRows = (blockRowsData ?? []) as BlockQueryRow[];
+  if (blockRows.length === 0) {
+    return buildGeneratedWorkoutMapFromRows(workoutRows, [], []);
+  }
+
+  const blockIds = blockRows.map((b) => b.id);
+  const { data: exRowsData, error: exRowsError } = await supabase
+    .from("workout_exercises")
+    .select("block_id, exercise_slug, exercise_name, prescription, sort_order")
+    .in("block_id", blockIds)
+    .order("sort_order");
+  if (exRowsError) throw new Error(exRowsError.message);
+  const exRows = (exRowsData ?? []) as ExerciseQueryRow[];
+
+  return buildGeneratedWorkoutMapFromRows(workoutRows, blockRows, exRows);
+}
+
 /**
  * Get a single workout by id with blocks and exercises, as GeneratedWorkout (blocks) shape.
  * Supports legacy prescription { text } by mapping to WorkoutItem with coaching_cues.
  */
 export async function getWorkout(userId: string, workoutId: string): Promise<GeneratedWorkout | null> {
-  const supabase = requireClient();
-  const { data: workout, error } = await supabase
-    .from("workouts")
-    .select("id, intent, created_at")
-    .eq("id", workoutId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!workout) return null;
-
-  const intent = workout.intent as Record<string, unknown>;
-  const { data: blockRows } = await supabase
-    .from("workout_blocks")
-    .select("id, block_type, title, reasoning, sort_order")
-    .eq("workout_id", workoutId)
-    .order("sort_order");
-  if (!blockRows?.length) {
-    return {
-      id: workout.id,
-      focus: (intent.focus as string[]) ?? [],
-      durationMinutes: (intent.durationMinutes as number) ?? null,
-      energyLevel: (intent.energyLevel as GeneratedWorkout["energyLevel"]) ?? null,
-      notes: intent.notes as string | undefined,
-      generationPreferences: intent.generationPreferences as GeneratedWorkout["generationPreferences"],
-      blocks: [],
-    };
-  }
-
-  const blocks: WorkoutBlock[] = [];
-  for (const block of blockRows as Array<{ id: string; block_type: string; title: string; reasoning: string | null; sort_order: number }>) {
-    const { data: exRows } = await supabase
-      .from("workout_exercises")
-      .select("exercise_slug, exercise_name, prescription, sort_order")
-      .eq("block_id", block.id)
-      .order("sort_order");
-    const items: WorkoutItem[] = (exRows ?? []).map((r: { exercise_slug: string; exercise_name: string; prescription: PrescriptionRow }) => {
-      const p = r.prescription ?? {};
-      return {
-        exercise_id: r.exercise_slug,
-        exercise_name: r.exercise_name,
-        sets: p.sets ?? 1,
-        reps: p.reps,
-        time_seconds: p.time_seconds,
-        rest_seconds: p.rest_seconds ?? 0,
-        coaching_cues: p.coaching_cues ?? (p.text as string) ?? "",
-        reasoning_tags: p.reasoning_tags,
-        ...(p.unilateral === true ? { unilateral: true } : {}),
-      };
-    });
-    blocks.push({
-      block_type: block.block_type as WorkoutBlock["block_type"],
-      format: "circuit" as const,
-      title: block.title,
-      reasoning: block.reasoning ?? undefined,
-      items,
-    });
-  }
-
-  return {
-    id: workout.id,
-    focus: (intent.focus as string[]) ?? [],
-    durationMinutes: (intent.durationMinutes as number) ?? null,
-    energyLevel: (intent.energyLevel as GeneratedWorkout["energyLevel"]) ?? null,
-    notes: intent.notes as string | undefined,
-    generationPreferences: intent.generationPreferences as GeneratedWorkout["generationPreferences"],
-    blocks,
-  };
+  const byId = await getWorkoutsByIds(userId, [workoutId]);
+  return byId[workoutId] ?? null;
 }
 
 /**
  * Save a full generated workout (create + blocks + exercises) in one go.
  */
 export async function saveGeneratedWorkout(userId: string, workout: GeneratedWorkout): Promise<string> {
+  const supabase = requireClient();
   const { id } = await createWorkout(userId, {
     focus: workout.focus,
     durationMinutes: workout.durationMinutes,
@@ -210,7 +343,53 @@ export async function saveGeneratedWorkout(userId: string, workout: GeneratedWor
     notes: workout.notes,
     generationPreferences: workout.generationPreferences,
   });
-  await addBlocksAndExercises(id, workout.blocks);
+  try {
+    await addBlocksAndExercises(id, workout.blocks);
+  } catch (originalError) {
+    try {
+      // Best-effort cleanup in child-to-parent order so failures don't leave orphan rows.
+      const { error: exerciseCleanupError } = await supabase
+        .from("workout_exercises")
+        .delete()
+        .eq("workout_id", id);
+      if (exerciseCleanupError) {
+        console.error("workoutRepository.saveGeneratedWorkout.rollback_exercises_failed", {
+          userId,
+          workoutId: id,
+          reason: exerciseCleanupError.message,
+        });
+      }
+
+      const { error: blockCleanupError } = await supabase.from("workout_blocks").delete().eq("workout_id", id);
+      if (blockCleanupError) {
+        console.error("workoutRepository.saveGeneratedWorkout.rollback_blocks_failed", {
+          userId,
+          workoutId: id,
+          reason: blockCleanupError.message,
+        });
+      }
+
+      const { error: workoutCleanupError } = await supabase
+        .from("workouts")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId);
+      if (workoutCleanupError) {
+        console.error("workoutRepository.saveGeneratedWorkout.rollback_workout_failed", {
+          userId,
+          workoutId: id,
+          reason: workoutCleanupError.message,
+        });
+      }
+    } catch (cleanupFailure) {
+      console.error("workoutRepository.saveGeneratedWorkout.rollback_failed", {
+        userId,
+        workoutId: id,
+        cleanupFailure,
+      });
+    }
+    throw originalError;
+  }
   return id;
 }
 
@@ -246,17 +425,16 @@ export async function saveCompletedWorkout(userId: string, item: Omit<WorkoutHis
 export async function listCompletedWorkouts(userId: string): Promise<WorkoutHistoryItem[]> {
   const rows = await listWorkouts(userId, "completed");
   return rows.map((r) => {
-    const i = r.intent as Record<string, unknown>;
-    const raw = i.workout as GeneratedWorkout | undefined;
-    const workout = raw ? normalizeGeneratedWorkout(raw as Parameters<typeof normalizeGeneratedWorkout>[0]) : undefined;
+    const i = asIntentRecord(r.intent);
+    const workout = asGeneratedWorkout(i.workout, r.id);
     return {
       id: r.id,
-      date: (i.date as string) ?? "",
-      focus: (i.focus as string[]) ?? [],
-      durationMinutes: (i.durationMinutes as number) ?? null,
-      name: i.name as string | undefined,
+      date: asString(i.date) ?? "",
+      focus: asStringArray(i.focus) ?? [],
+      durationMinutes: asNullableNumber(i.durationMinutes),
+      name: asString(i.name),
       workout,
-      exerciseNotes: i.exerciseNotes as Record<string, string> | undefined,
+      exerciseNotes: asExerciseNotes(i.exerciseNotes),
     };
   });
 }
@@ -286,14 +464,19 @@ export async function saveSavedWorkout(userId: string, item: Omit<SavedWorkout, 
 export async function listSavedWorkouts(userId: string): Promise<SavedWorkout[]> {
   const rows = await listWorkouts(userId, "saved");
   return rows.map((r) => {
-    const i = r.intent as Record<string, unknown>;
-    const raw = i.workout as GeneratedWorkout;
-    const workout = normalizeGeneratedWorkout(raw as Parameters<typeof normalizeGeneratedWorkout>[0]);
+    const i = asIntentRecord(r.intent);
+    const workout = asGeneratedWorkout(i.workout, r.id) ?? normalizeGeneratedWorkout({
+      id: r.id,
+      focus: [],
+      durationMinutes: null,
+      energyLevel: null,
+      blocks: [],
+    });
     return {
       id: r.id,
-      savedAt: (i.savedAt as string) ?? r.created_at,
+      savedAt: asString(i.savedAt) ?? r.created_at,
       workout,
-      progress: i.progress as SavedWorkout["progress"],
+      progress: asProgress(i.progress),
     };
   });
 }

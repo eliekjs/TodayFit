@@ -161,6 +161,16 @@ export type Exercise = {
   };
   /** Complex / novelty variation — excluded unless user enables creative variations. */
   creative_variation?: boolean;
+  /**
+   * Durable curation pipeline (Supabase `public.exercises.curation_*`) when synced and overlay is enabled.
+   * Used by pruning gate and audits; does not replace all ontology fields unless `applyCuratedExerciseColumnsFromDbRow` runs.
+   */
+  curation_generator_eligibility_state?: string | null;
+  curation_pruning_recommendation?: string | null;
+  curation_merge_target_exercise_id?: string | null;
+  curation_cluster_id?: string | null;
+  curation_canonical_exercise_id?: string | null;
+  curation_is_canonical?: boolean | null;
 };
 
 // --- Input contract ---
@@ -303,6 +313,21 @@ export type GenerateWorkoutInput = {
   sport_profile_session_composition?: {
     conditioningPickerMinutesMultiplier?: number;
   };
+  /**
+   * Phase 6: pruning eligibility gate (library curation). Defaults in `generatorEligibilityTypes.DEFAULT_PRUNING_GATE_FLAGS`.
+   */
+  pruning_gate?: import("../exerciseLibraryCuration/generatorEligibilityTypes").PruningGateFeatureFlags;
+  /** Override bundled map from `data/generator-eligibility-by-id.json` (tests / staging). */
+  pruning_gate_eligibility_by_id?: Record<
+    string,
+    import("../exerciseLibraryCuration/generatorEligibilityTypes").ExerciseEligibilityEntry
+  >;
+  /** When true, `session.debug.pruning_gate` includes full id lists before/after gating (large). */
+  include_pruning_gate_comparison?: boolean;
+  /** When true, logs one `[pruning_gate]` line via `console.info`. */
+  log_pruning_gate_to_console?: boolean;
+  /** When true, skip attaching `pruning_gate` to `session.debug` (pool still respects flags). */
+  omit_pruning_gate_session_debug?: boolean;
 };
 
 // --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
@@ -497,6 +522,46 @@ export type WorkoutSession = {
         penalty_flags?: string[];
       }
     >;
+    /** Phase 6: pruning gate pool sizes, exclusions, optional id lists (comparison mode). */
+    pruning_gate?: import("./pruningGateDebugTypes").PruningGateSessionDebug;
+    /** Session-level observability snapshot for resolved generation mode and pool transitions. */
+    generation_mode_fingerprint?: {
+      pruning_gate: {
+        resolved_flags: import("../exerciseLibraryCuration/generatorEligibilityTypes").PruningGateFeatureFlags;
+        enabled: boolean;
+      };
+      sport_profile_engine:
+        | {
+            status: "applied";
+            canonical_sport_definition_slug: string;
+          }
+        | {
+            status: "map_failed";
+            canonical_sport_definition_slug: string;
+          }
+        | {
+            status: "skipped";
+            reason: string;
+          };
+      pool_sizes: {
+        input_exercise_pool: number;
+        after_pruning_gate: number;
+        after_hard_constraints: number;
+        after_constraint_gate: number;
+        guarantee_pool_after_injury_gate: number;
+        after_sport_profile?: number;
+        guarantee_pool_after_sport_profile?: number;
+        sport_profile_pool_before?: number;
+        sport_profile_pool_after?: number;
+      };
+    };
+    /** Post-validation fallback summary when unresolved violations remain. */
+    validation_fallback?: {
+      unresolved_violation_count: number;
+      unresolved_violation_types: string[];
+      unresolved_has_critical_types: boolean;
+      unresolved_critical_types: string[];
+    };
   };
 };
 

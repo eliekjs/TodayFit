@@ -15,6 +15,7 @@
     "lint": "expo lint",
     "test:generator": "npx tsx logic/workoutGeneration/seedTest.ts",
     "test:generator-async": "npx tsx lib/generator.integration.test.ts",
+    "review:generator-workouts": "npx tsx scripts/reviewGeneratorWorkouts.ts",
     "test:phase5": "npx tsx logic/workoutIntelligence/constraints/eligibility.test.ts",
     "test:prescription-evidence": "npx tsx logic/workoutGeneration/prescription-evidence.test.ts",
     "test:exercise-frequency": "npx tsx scripts/exerciseFrequencyTest.ts",
@@ -38,7 +39,10 @@
     "curation:llm-classify": "npx tsx scripts/exerciseLibraryCuration/runLlmClassification.ts",
     "curation:cluster-duplicates": "npx tsx scripts/exerciseLibraryCuration/clusterDuplicates.ts",
     "curation:library-prune": "npx tsx scripts/exerciseLibraryCuration/runLibraryPruning.ts",
-    "curation:generator-eligibility-preview": "npx tsx scripts/exerciseLibraryCuration/runGeneratorEligibilityPreview.ts"
+    "curation:generator-eligibility-preview": "npx tsx scripts/exerciseLibraryCuration/runGeneratorEligibilityPreview.ts",
+    "curation:sync-supabase": "npx tsx scripts/exerciseLibraryCuration/syncCurationToSupabase.ts",
+    "curation:verify-supabase": "npx tsx scripts/exerciseLibraryCuration/verifySupabaseCurationSync.ts",
+    "test:pruning-gate": "npx tsx logic/workoutGeneration/pruningGatePool.test.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

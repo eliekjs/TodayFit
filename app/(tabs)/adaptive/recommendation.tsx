@@ -14,7 +14,13 @@ import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
-import { regenerateDay, updateDayStatus, planWeek, deriveDailyPreferencesFromDay } from "../../../services/sportPrepPlanner";
+import {
+  regenerateDay,
+  updateDayStatus,
+  updatePlanDayDate,
+  planWeek,
+  deriveDailyPreferencesFromDay,
+} from "../../../services/sportPrepPlanner";
 import { Chip } from "../../../components/Chip";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
@@ -92,6 +98,7 @@ export default function AdaptiveWeekPlanScreen() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isReplanning, setIsReplanning] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isMovingSession, setIsMovingSession] = useState(false);
   const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
@@ -445,17 +452,20 @@ export default function AdaptiveWeekPlanScreen() {
     );
   }, [daySlots, sportPrepWeekPlan]);
 
-  /** Move session to previous day (up). */
-  const moveSessionUp = useCallback(
-    (day: PlannedDay) => {
+  const moveSessionByOffset = useCallback(
+    async (day: PlannedDay, offset: -1 | 1) => {
       if (!sportPrepWeekPlan) return;
       const idx = weekDates.indexOf(day.date);
-      if (idx <= 0) return;
-      const newDate = weekDates[idx - 1];
-      const updatedDays = sportPrepWeekPlan.days.map((d) =>
+      if (idx < 0) return;
+      const targetIdx = idx + offset;
+      if (targetIdx < 0 || targetIdx >= weekDates.length) return;
+
+      const newDate = weekDates[targetIdx];
+      const previousPlan = sportPrepWeekPlan;
+      const updatedDays = previousPlan.days.map((d) =>
         d.id === day.id ? { ...d, date: newDate } : d
       );
-      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
+      const guestWorkouts = previousPlan.guestWorkouts ?? {};
       const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
       const updatedGuestWorkouts = { ...guestWorkouts };
       if (workout) {
@@ -463,42 +473,65 @@ export default function AdaptiveWeekPlanScreen() {
         updatedGuestWorkouts[day.id] = workout;
         delete updatedGuestWorkouts[day.date];
       }
-      setSportPrepWeekPlan({
-        ...sportPrepWeekPlan,
+
+      const optimisticPlan = {
+        ...previousPlan,
         days: updatedDays,
-        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
+        today: previousPlan.today?.id === day.id ? { ...day, date: newDate } : previousPlan.today,
         guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
-      });
+      };
+      setSportPrepWeekPlan(optimisticPlan);
+
+      if (!userId || !isDbConfigured()) {
+        return;
+      }
+
+      setIsMovingSession(true);
+      try {
+        const persisted = await updatePlanDayDate({
+          userId,
+          weeklyPlanInstanceId: previousPlan.weeklyPlanInstanceId,
+          dayId: day.id,
+          date: day.date,
+          newDate,
+        });
+        setSportPrepWeekPlan((current) => {
+          if (!current || current.weeklyPlanInstanceId !== previousPlan.weeklyPlanInstanceId) {
+            return current;
+          }
+          return {
+            ...current,
+            days: current.days.map((d) => (d.id === persisted.id ? { ...d, date: persisted.date } : d)),
+            today:
+              current.today?.id === persisted.id
+                ? { ...current.today, date: persisted.date }
+                : current.today,
+          };
+        });
+      } catch (e) {
+        setSportPrepWeekPlan(previousPlan);
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setIsMovingSession(false);
+      }
     },
-    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
+    [sportPrepWeekPlan, setSportPrepWeekPlan, userId, weekDates]
+  );
+
+  /** Move session to previous day (up). */
+  const moveSessionUp = useCallback(
+    (day: PlannedDay) => {
+      void moveSessionByOffset(day, -1);
+    },
+    [moveSessionByOffset]
   );
 
   /** Move session to next day (down). */
   const moveSessionDown = useCallback(
     (day: PlannedDay) => {
-      if (!sportPrepWeekPlan) return;
-      const idx = weekDates.indexOf(day.date);
-      if (idx < 0 || idx >= weekDates.length - 1) return;
-      const newDate = weekDates[idx + 1];
-      const updatedDays = sportPrepWeekPlan.days.map((d) =>
-        d.id === day.id ? { ...d, date: newDate } : d
-      );
-      const guestWorkouts = sportPrepWeekPlan.guestWorkouts ?? {};
-      const workout = guestWorkouts[day.id] ?? guestWorkouts[day.date];
-      const updatedGuestWorkouts = { ...guestWorkouts };
-      if (workout) {
-        updatedGuestWorkouts[newDate] = workout;
-        updatedGuestWorkouts[day.id] = workout;
-        delete updatedGuestWorkouts[day.date];
-      }
-      setSportPrepWeekPlan({
-        ...sportPrepWeekPlan,
-        days: updatedDays,
-        today: sportPrepWeekPlan.today?.id === day.id ? { ...day, date: newDate } : sportPrepWeekPlan.today,
-        guestWorkouts: Object.keys(updatedGuestWorkouts).length ? updatedGuestWorkouts : undefined,
-      });
+      void moveSessionByOffset(day, 1);
     },
-    [sportPrepWeekPlan, setSportPrepWeekPlan, weekDates]
+    [moveSessionByOffset]
   );
 
   if (!sportPrepWeekPlan) {
@@ -724,20 +757,20 @@ export default function AdaptiveWeekPlanScreen() {
                   <View style={styles.moveButtons}>
                     <Pressable
                       onPress={() => canMoveUp && moveSessionUp(day)}
-                      disabled={!canMoveUp}
+                      disabled={!canMoveUp || isMovingSession}
                       style={({ pressed }) => ({
                         padding: 8,
-                        opacity: canMoveUp ? (pressed ? 0.7 : 1) : 0.3,
+                        opacity: canMoveUp && !isMovingSession ? (pressed ? 0.7 : 1) : 0.3,
                       })}
                     >
                       <Ionicons name="chevron-up" size={20} color={theme.textMuted} />
                     </Pressable>
                     <Pressable
                       onPress={() => canMoveDown && moveSessionDown(day)}
-                      disabled={!canMoveDown}
+                      disabled={!canMoveDown || isMovingSession}
                       style={({ pressed }) => ({
                         padding: 8,
-                        opacity: canMoveDown ? (pressed ? 0.7 : 1) : 0.3,
+                        opacity: canMoveDown && !isMovingSession ? (pressed ? 0.7 : 1) : 0.3,
                       })}
                     >
                       <Ionicons name="chevron-down" size={20} color={theme.textMuted} />
