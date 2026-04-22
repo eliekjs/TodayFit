@@ -16,9 +16,7 @@ import {
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
 import type { BlockType } from "../../../lib/types";
-import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
-import { isDbConfigured } from "../../../lib/db";
-import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
+import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 
 export default function ManualWorkoutScreen() {
@@ -128,26 +126,7 @@ export default function ManualWorkoutScreen() {
   }
 
   const onRegenerate = async () => {
-    let preferredNames: string[] | undefined;
-    if (isDbConfigured() && manualPreferences.primaryFocus.length > 0) {
-      try {
-        const goalSlugs = manualPreferences.primaryFocus
-          .map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f])
-          .filter(Boolean);
-        const goalWeightsPct = [
-          manualPreferences.goalMatchPrimaryPct ?? 50,
-          manualPreferences.goalMatchSecondaryPct ?? 30,
-          manualPreferences.goalMatchTertiaryPct ?? 20,
-        ];
-        preferredNames = await getPreferredExerciseNamesForSportAndGoals(
-          null,
-          goalSlugs,
-          goalWeightsPct.slice(0, goalSlugs.length)
-        );
-      } catch {
-        preferredNames = undefined;
-      }
-    }
+    const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
     const { generateWorkoutAsync } = await loadGeneratorModule();
     const workout = await generateWorkoutAsync(
       manualPreferences,

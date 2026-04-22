@@ -15,10 +15,8 @@ import {
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import {
-  useAppState,
-  defaultManualPreferences,
-} from "../../../context/AppStateContext";
+import { useAppState } from "../../../context/AppStateContext";
+import { defaultManualPreferences } from "../../../context/appStateModel";
 import { useTheme } from "../../../lib/theme";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
@@ -27,9 +25,9 @@ import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
+import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import {
   PRIMARY_FOCUS_OPTIONS,
-  PRIMARY_FOCUS_TO_GOAL_SLUG,
   ENERGY_LEVELS,
   TARGET_OPTIONS,
   MODIFIERS_BY_TARGET,
@@ -42,8 +40,6 @@ import {
   SUB_FOCUS_BY_PRIMARY,
   normalizeGoalMatchPct,
 } from "../../../lib/preferencesConstants";
-import { isDbConfigured } from "../../../lib/db";
-import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import type { TargetBody } from "../../../lib/types";
 
 if (
@@ -304,26 +300,7 @@ export default function ManualPreferencesScreen() {
       return;
     }
     const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-    let preferredNames: string[] | undefined;
-    if (isDbConfigured() && manualPreferences.primaryFocus.length > 0) {
-      try {
-        const goalSlugs = manualPreferences.primaryFocus
-          .map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f])
-          .filter(Boolean);
-        const goalWeightsPct = [
-          manualPreferences.goalMatchPrimaryPct ?? 50,
-          manualPreferences.goalMatchSecondaryPct ?? 30,
-          manualPreferences.goalMatchTertiaryPct ?? 20,
-        ];
-        preferredNames = await getPreferredExerciseNamesForSportAndGoals(
-          null,
-          goalSlugs,
-          goalWeightsPct.slice(0, goalSlugs.length)
-        );
-      } catch {
-        preferredNames = undefined;
-      }
-    }
+    const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
     const { generateWorkoutAsync } = await loadGeneratorModule();
     const workout = await generateWorkoutAsync(
       manualPreferences,

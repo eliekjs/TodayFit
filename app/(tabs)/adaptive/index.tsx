@@ -20,7 +20,7 @@ import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAppState } from "../../../context/AppStateContext";
-import type { AdaptiveSetup } from "../../../context/AppStateContext";
+import type { AdaptiveSetup } from "../../../context/appStateModel";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import {
