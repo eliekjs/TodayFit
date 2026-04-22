@@ -27,6 +27,7 @@ import { persistWithHandling } from "./persistWithHandling";
 import { createLatestSerializedPersistenceQueue } from "./latestSerializedPersistenceQueue";
 import type { AdaptiveSetup } from "./appStateModel";
 import { defaultManualPreferences } from "./appStateModel";
+import { loadRemoteAppState } from "./loadRemoteAppState";
 
 type AppStateContextValue = {
   activeGymProfileId: string | null;
@@ -119,13 +120,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const [profiles, prefs, presets, history, saved] = await Promise.all([
-          GymProfileRepo.listProfiles(userId),
-          PreferencesRepo.getPreferences(userId),
-          PreferencesRepo.listPresets(userId),
-          WorkoutRepo.listCompletedWorkouts(userId),
-          WorkoutRepo.listSavedWorkouts(userId),
-        ]);
+        const { profiles, prefs, presets, history, saved } = await loadRemoteAppState(userId);
         if (cancelled) return;
         if (profiles.length) {
           setGymProfiles(profiles);

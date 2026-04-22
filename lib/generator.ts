@@ -1,3 +1,10 @@
+/**
+ * Manual workout generation entry: UI and services call `loadGeneratorModule()` → this module
+ * (not static-imported on tab shell startup). Flow: merge exercise pool (Supabase and/or lazy
+ * static catalog) → `generateWorkoutSession` in `logic/workoutGeneration/dailyGenerator.ts` →
+ * adapters in `lib/dailyGeneratorAdapter.ts`. Sport prep uses `services/workoutBuilder` with the
+ * same dynamic import. For product intent see `docs/WORKOUT_INTENT.md`.
+ */
 import {
   getAvoidTagSlugsFromUpcoming,
   exerciseHasAnyAvoidTag,

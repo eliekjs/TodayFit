@@ -28,3 +28,23 @@ This doc is the **canonical product intent** for workout generation and related 
 - Prefer **practical, adaptable** prescriptions and exercise choices over **lift-specific peaking** or meet-prep framing.
 - Favor **constraint-aware** behavior (equipment variance, injuries, mixed goals) over optimizing for a single abstract strength number on a fixed lift.
 - Keep tone and complexity **accessible** — structured and evidence-informed where the codebase requires it, without presenting the product as a specialist technical coaching platform.
+
+---
+
+## Repository map (onboarding)
+
+**App shell (Expo Router):** `app/` — root `app/_layout.tsx` wraps providers; `app/(tabs)/_layout.tsx` registers tabs and hidden manual/adaptive flow routes; header chrome lives in `app/navigation/tabFlowChrome.tsx`.
+
+**Global UI state:** `context/AppStateContext.tsx` (hydration from Supabase via `context/loadRemoteAppState.ts`); adaptive setup shape and manual defaults in `context/appStateModel.ts`.
+
+**Generation (manual):** Screens call `lib/loadGeneratorModule()` → `lib/generator.ts` → `logic/workoutGeneration/dailyGenerator.ts`. Shared DB exercise-name bias: `lib/manualPreferredExerciseNames.ts`. Sport prep: `services/workoutBuilder/index.ts` with the same dynamic import.
+
+**Heavy domain logic:** `logic/workoutIntelligence/` and `logic/workoutGeneration/` — change only with tests per `AGENTS.md`. Historical snapshots live under `archive/` (TypeScript excludes them; `.cursorignore` hides them from Cursor).
+
+---
+
+## Baseline checks (performance and regressions)
+
+- **Web load:** Chrome DevTools → Performance or Lighthouse on a production export (`npx expo export --platform web`) after meaningful bundle changes; compare JS parse and LCP when possible.
+- **Native:** Expo dev client + Hermes sampling for cold start after navigation-heavy changes.
+- **Manual smoke (no automated substitute):** Welcome → Today; Build workout one-day → workout → execute; week flow; Sport Mode → schedule → recommendation; Library save/remove; Gym profile switch.

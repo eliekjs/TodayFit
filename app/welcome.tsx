@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,12 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useWelcome } from "../context/WelcomeContext";
-import { GeometricPatternBackground } from "../components/GeometricPatternBackground";
+
+const GeometricPatternBackground = lazy(() =>
+  import("../components/GeometricPatternBackground").then((m) => ({
+    default: m.GeometricPatternBackground,
+  }))
+);
 
 // Landing: dark teal/blue, geometric feel, logo in teal rounded square, frosted card
 const BG_DARK = "#0e3d4d"; // deep teal-blue
@@ -43,7 +48,9 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.bgBase} />
-      <GeometricPatternBackground />
+      <Suspense fallback={null}>
+        <GeometricPatternBackground />
+      </Suspense>
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
           style={styles.keyboard}
