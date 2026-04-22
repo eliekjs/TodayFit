@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, LayoutAnimation } from "react-native";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -55,6 +55,7 @@ export default function AdaptiveScheduleScreen() {
     activeGymProfileId,
     gymProfiles,
     manualPreferences,
+    updateManualPreferences,
   } = useAppState();
   const { userId } = useAuth();
 
@@ -94,12 +95,6 @@ export default function AdaptiveScheduleScreen() {
     };
     load();
   }, []);
-
-  useEffect(() => {
-    if (!adaptiveSetup) {
-      router.replace("/adaptive");
-    }
-  }, [adaptiveSetup, router]);
 
   const toggleGymDay = useCallback((dow: number) => {
     setGymTrainingDays((prev) =>
@@ -290,6 +285,10 @@ export default function AdaptiveScheduleScreen() {
   }, [weeklyEmphasis]);
 
   const durationSummary = `${defaultDuration} min`;
+
+  if (!adaptiveSetup) {
+    return <Redirect href="/adaptive" />;
+  }
 
   return (
     <AppScreenWrapper>
