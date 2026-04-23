@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
@@ -12,6 +12,7 @@ import { listWeeklyPlanInstances, saveManualWeek } from "../../../lib/db/weekPla
 import type { SavedWeekSummary } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
 import { getLocalDateString } from "../../../lib/dateUtils";
+import { formatRemoteLoadError } from "../../../context/formatRemoteLoadError";
 
 function getCurrentWeekStartIso(): string {
   const now = new Date();
@@ -56,7 +57,12 @@ export default function LibraryScreen() {
       .then((list) => {
         if (!cancelled) setSavedWeeks(list);
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error("[LibrarySavedWeeksLoad]", error);
+        if (!cancelled) {
+          Alert.alert("Couldn't load saved weeks", formatRemoteLoadError(error));
+        }
+      });
     return () => { cancelled = true; };
   }, [userId]);
 
@@ -128,7 +134,7 @@ export default function LibraryScreen() {
             </Text>
             <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
               Save a workout for later from the execute screen, save a week
-              plan from manual or sport mode, or finish a session — they'll
+              plan from manual or sport mode, or finish a session — they will
               show up here.
             </Text>
           </View>
@@ -192,7 +198,7 @@ export default function LibraryScreen() {
               Saved for later
             </Text>
             <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-              Resume or discard workouts you didn't finish.
+              Resume or discard workouts you did not finish.
             </Text>
             {savedWorkouts.map((saved) => {
               const date = new Date(saved.savedAt);

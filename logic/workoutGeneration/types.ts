@@ -251,6 +251,15 @@ export type GenerateWorkoutInput = {
   /** Weight for blending `session_target_qualities` in `mergeTargetVector`. Default 0.35. */
   session_target_qualities_weight?: number;
   /**
+   * Weekly planner day intent: desired session-level cardio time share (0..1).
+   * Used by block intent policy to keep day-to-day cardio emphasis coherent.
+   */
+  session_cardio_target_share?: number;
+  /**
+   * Weekly planner emphasis context (0..1) blended into cardio intent policy.
+   */
+  weekly_cardio_emphasis?: number;
+  /**
    * Exercise IDs already used as main work (main_strength / main_hypertrophy blocks) earlier in the same
    * programmed week. Selection excludes them when possible (pool fallback if no alternatives).
    */

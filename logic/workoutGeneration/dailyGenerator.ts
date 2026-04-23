@@ -130,6 +130,7 @@ import {
   resolveConditioningIntentFormatFromIntent,
   type ConditioningIntentFormat,
 } from "./conditioningFormatResolver";
+import { blockFormatForCardioHint, buildBlockIntentProfile } from "./blockIntentProfile";
 import {
   getCanonicalSportSlug,
   getExerciseTagsForSubFocuses,
@@ -1722,6 +1723,47 @@ function wouldBeThreeSameClusterInARow(chosen: Exercise[], candidate: Exercise):
   return last === cluster && prev === cluster;
 }
 
+function isCardioAlignedExercise(exercise: Exercise): boolean {
+  if (exercise.modality === "conditioning") return true;
+  const goalTags = (exercise.tags.goal_tags ?? []).map((tag) => tag.toLowerCase());
+  if (goalTags.includes("conditioning") || goalTags.includes("endurance")) return true;
+  const stimulus = (exercise.tags.stimulus ?? []).map((tag) => tag.toLowerCase().replace(/\s/g, "_"));
+  return stimulus.includes("aerobic_zone2") || stimulus.includes("anaerobic");
+}
+
+function enforceCardioSelectionShare(
+  chosen: Exercise[],
+  rankedByScore: Exercise[],
+  requestedCount: number,
+  targetShare: number
+): Exercise[] {
+  if (targetShare <= 0 || chosen.length === 0) return chosen;
+  const required = Math.max(0, Math.min(requestedCount, Math.ceil(requestedCount * targetShare)));
+  if (required <= 0) return chosen;
+
+  const selected = [...chosen];
+  let current = selected.filter(isCardioAlignedExercise).length;
+  if (current >= required) return selected;
+
+  const chosenIds = new Set(selected.map((e) => e.id));
+  const cardioCandidates = rankedByScore.filter((e) => isCardioAlignedExercise(e) && !chosenIds.has(e.id));
+  const replaceableIndices = selected
+    .map((exercise, idx) => ({ idx, exercise }))
+    .filter((x) => !isCardioAlignedExercise(x.exercise))
+    .map((x) => x.idx);
+
+  let candidateIdx = 0;
+  for (const replaceIdx of replaceableIndices) {
+    if (current >= required) break;
+    const replacement = cardioCandidates[candidateIdx++];
+    if (!replacement) break;
+    selected[replaceIdx] = replacement;
+    current++;
+  }
+
+  return selected;
+}
+
 type IntentSurvivalSelectionOpts = {
   collector: IntentSurvivalCollector;
   pass_id: string;
@@ -1793,6 +1835,7 @@ function selectExercisesSportPatternIterative(
     rockClimbingPatternScoreMode?: "gated" | "fallback";
     rockClimbingQualityContext?: import("./sportPatternTransfer/rockClimbingQualityScoring").RockClimbingQualityScoreContext;
     sportMainScoringMode?: ScoreExerciseOptions["sportMainScoringMode"];
+    targetCardioExerciseShare?: number;
     intent_survival?: IntentSurvivalSelectionOpts;
   },
   sessionTargetVector: SessionTargetVector | undefined
@@ -1928,6 +1971,14 @@ function selectExercisesSportPatternIterative(
     }
     if (!picked) break;
   }
+  const rankedForCardioEnforcement = [...pool];
+  const finalChosen = enforceCardioSelectionShare(
+    chosen.slice(0, count),
+    rankedForCardioEnforcement,
+    count,
+    opts.targetCardioExerciseShare ?? 0
+  );
+
   if (opts.intent_survival) {
     const isv = opts.intent_survival;
     const gate = isv.gate_snapshot;
@@ -1949,15 +2000,15 @@ function selectExercisesSportPatternIterative(
       candidate_count_in_pool: pool.length,
       selection_mode: "iterative_sport_pattern",
       top_candidate_breakdowns: lastTop,
-      chosen_exercise_ids: chosen.map((c) => c.id),
-      chosen_why: chosen.map(
+      chosen_exercise_ids: finalChosen.map((c) => c.id),
+      chosen_why: finalChosen.map(
         (_, i) =>
           `iterative_round_${i + 1}: rescored_remaining_pool_each_round; sport_pattern_quality_context_active`
       ),
       iterative_rounds,
     });
   }
-  return { exercises: chosen.slice(0, count) };
+  return { exercises: finalChosen };
 }
 
 function selectExercises(
@@ -1994,6 +2045,7 @@ function selectExercises(
     rockClimbingPatternScoreMode?: "gated" | "fallback";
     rockClimbingQualityContext?: import("./sportPatternTransfer/rockClimbingQualityScoring").RockClimbingQualityScoreContext;
     sportMainScoringMode?: ScoreExerciseOptions["sportMainScoringMode"];
+    targetCardioExerciseShare?: number;
     intent_survival?: IntentSurvivalSelectionOpts;
   }
 ): { exercises: Exercise[] } {
@@ -2157,6 +2209,13 @@ function selectExercises(
     if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, exercise);
   }
 
+  const finalChosen = enforceCardioSelectionShare(
+    chosen.slice(0, count),
+    topOverall.map((row) => row.exercise),
+    count,
+    opts.targetCardioExerciseShare ?? 0
+  );
+
   const isv = opts.intent_survival;
   if (isv) {
     const gate = isv.gate_snapshot;
@@ -2183,15 +2242,15 @@ function selectExercises(
       candidate_count_in_pool: pool.length,
       selection_mode: "standard",
       top_candidate_breakdowns: topBreakdowns,
-      chosen_exercise_ids: chosen.map((c) => c.id),
-      chosen_why: chosen.map(
+      chosen_exercise_ids: finalChosen.map((c) => c.id),
+      chosen_why: finalChosen.map(
         (_, i) =>
           `pick_${i + 1}: random_within_top_score_tier (band=${tierBand}); best_in_view≈${bestScore.toFixed(3)}`
       ),
     });
   }
 
-  return { exercises: chosen.slice(0, count) };
+  return { exercises: finalChosen };
 }
 
 // --- Build warmup block: activation for the specific body parts that are the focus of today's workout ---
@@ -2204,7 +2263,8 @@ function buildWarmup(
   rng: () => number,
   fatigueState?: FatigueState,
   historyContext?: TrainingHistoryContext,
-  strengthProfile?: SubFocusProfile | null
+  strengthProfile?: SubFocusProfile | null,
+  preferredTargetsFromIntent: string[] = []
 ): WorkoutBlock {
   // Activation and joint prep only (no conditioning in warmup).
   const basePool = exercises.filter(
@@ -2250,7 +2310,7 @@ function buildWarmup(
     : [];
 
   const preferredWarmupTargets = [
-    ...new Set([...basePreferredWarmupTargets, ...strengthPreferredWarmupTargets]),
+    ...new Set([...basePreferredWarmupTargets, ...strengthPreferredWarmupTargets, ...preferredTargetsFromIntent]),
   ];
 
   const primaryPreferredWarmupTargets =
@@ -2347,6 +2407,7 @@ function buildCooldown(
   options: {
     constraints: ResolvedWorkoutConstraints;
     mainWorkFamilies: string[];
+    preferredTargets?: string[];
   }
 ): WorkoutBlock {
   const minMobility = options.constraints.min_cooldown_mobility_exercises ?? 0;
@@ -2355,7 +2416,12 @@ function buildCooldown(
     (input.secondary_goals ?? []).some(
       (g) => g.toLowerCase().replace(/\s/g, "_").includes("recovery") || g.toLowerCase().includes("recovery")
     ) || input.primary_goal === "recovery";
-  const preferredTargets = getPreferredCooldownTargetsFromFamilies(options.mainWorkFamilies);
+  const preferredTargets = [
+    ...new Set([
+      ...getPreferredCooldownTargetsFromFamilies(options.mainWorkFamilies),
+      ...(options.preferredTargets ?? []),
+    ]),
+  ];
 
   // Cooldown = stretching only (body-part and workout-type aware via preferredTargets); no cables or weights.
   const equipmentOk = exercises.filter((e) => isCooldownEligibleEquipment(e.equipment_required ?? []));
@@ -2463,7 +2529,8 @@ function buildMainStrength(
   sportPatternAlpineEmphasis?: number,
   sportPatternRockClimbingEmphasis?: number,
   intentTrace?: IntentSurvivalCollector,
-  mainSelectorTrace?: MainSelectorSessionTrace
+  mainSelectorTrace?: MainSelectorSessionTrace,
+  cardioTargetExerciseShare?: number
 ): WorkoutBlock[] {
   const sportPatCounts = sessionSportPatternCategoryCounts ?? new Map<string, number>();
   const hikingEmphasis = sportPatternHikingEmphasis ?? 0;
@@ -2764,6 +2831,9 @@ function buildMainStrength(
             gate_snapshot: mainStrengthGateSnapshot,
           },
         }
+      : {}),
+    ...(cardioTargetExerciseShare != null && cardioTargetExerciseShare > 0
+      ? { targetCardioExerciseShare: cardioTargetExerciseShare }
       : {}),
   });
 
@@ -3601,7 +3671,8 @@ function buildMainHypertrophy(
   sportPatternAlpineEmphasis?: number,
   sportPatternRockClimbingEmphasis?: number,
   intentTrace?: IntentSurvivalCollector,
-  mainSelectorTrace?: MainSelectorSessionTrace
+  mainSelectorTrace?: MainSelectorSessionTrace,
+  cardioTargetExerciseShare?: number
 ): WorkoutBlock[] {
   const sportPatCounts = sessionSportPatternCategoryCounts ?? new Map<string, number>();
   const hikingEmphasis = sportPatternHikingEmphasis ?? 0;
@@ -3839,6 +3910,9 @@ function buildMainHypertrophy(
     soccerPatternTransferApplies(input) &&
     input.use_reduced_surface_for_soccer_main_scoring !== false
       ? { sportMainScoringMode: "soccer_reduced_surface" as const }
+      : {}),
+    ...(cardioTargetExerciseShare != null && cardioTargetExerciseShare > 0
+      ? { targetCardioExerciseShare: cardioTargetExerciseShare }
       : {}),
   };
 
@@ -6548,6 +6622,43 @@ function buildValidationRegenerateInput(
   };
 }
 
+function applyCardioDominantMainBlockBias(
+  blocks: WorkoutBlock[],
+  profile: ReturnType<typeof buildBlockIntentProfile>
+): void {
+  if (!profile.cardioDominant || profile.sessionCardioShare < 0.45) return;
+  const preferredMainFormat = profile.preferredBlockFormatsByRole.main[0];
+  const shouldUseTimeBasedMain = profile.sessionCardioShare >= 0.55;
+  for (const block of blocks) {
+    if (
+      block.block_type !== "main_strength" &&
+      block.block_type !== "main_hypertrophy" &&
+      block.block_type !== "accessory"
+    ) {
+      continue;
+    }
+    if (preferredMainFormat) {
+      block.format = preferredMainFormat;
+      if (preferredMainFormat !== "superset") {
+        delete block.supersetPairs;
+      }
+    }
+    if (!shouldUseTimeBasedMain) continue;
+    for (const item of block.items) {
+      if (item.time_seconds != null && item.time_seconds > 0) continue;
+      const blockWorkSeconds =
+        block.block_type === "main_strength"
+          ? 45
+          : block.block_type === "main_hypertrophy"
+            ? 60
+            : 50;
+      item.time_seconds = blockWorkSeconds;
+      delete item.reps;
+      item.rest_seconds = Math.min(item.rest_seconds ?? 30, 30);
+    }
+  }
+}
+
 // --- Main entry: 8-step generation flow ---
 /** @param exercisePool Full catalog for this request (e.g. from `listExercisesForGenerator`). No default — avoids accidentally using the tiny test stub in production. */
 export function generateWorkoutSession(
@@ -6584,6 +6695,7 @@ export function generateWorkoutSession(
   // 1. Determine goal rules (from prescriptionRules)
   const primary = input.primary_goal;
   const goalRules = getGoalRules(primary);
+  const blockIntentProfile = buildBlockIntentProfile(input);
 
   // 2. Filter exercises: equipment + energy + avoid (filterByHardConstraints), then constraint-based injury/body-part (single source of truth with validator).
   const hardFiltered = filterByHardConstraints(effectiveExercisePool, input);
@@ -6657,7 +6769,16 @@ export function generateWorkoutSession(
   }
 
   // 3. Build warmup
-  const warmup = buildWarmup(filtered, input, used, rng, fatigueState, historyContext, strengthProfileForWarmup);
+  const warmup = buildWarmup(
+    filtered,
+    input,
+    used,
+    rng,
+    fatigueState,
+    historyContext,
+    strengthProfileForWarmup,
+    blockIntentProfile.warmupPreferredTargets
+  );
   const blocks: WorkoutBlock[] = [warmup];
 
   const wantsSupersets = input.style_prefs?.wants_supersets !== false;
@@ -6773,7 +6894,8 @@ export function generateWorkoutSession(
         sportPatternAlpineEmphasis,
         sportPatternRockClimbingEmphasis,
         intentCollector,
-        mainSelectorTrace
+        mainSelectorTrace,
+        blockIntentProfile.targetCardioExerciseShare
       )
     );
   } else if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
@@ -6804,7 +6926,8 @@ export function generateWorkoutSession(
         sportPatternAlpineEmphasis,
         sportPatternRockClimbingEmphasis,
         intentCollector,
-        mainSelectorTrace
+        mainSelectorTrace,
+        blockIntentProfile.targetCardioExerciseShare
       )
     );
   } else if (primary === "endurance" || primary === "conditioning") {
@@ -6861,7 +6984,8 @@ export function generateWorkoutSession(
         sportPatternAlpineEmphasis,
         sportPatternRockClimbingEmphasis,
         intentCollector,
-        mainSelectorTrace
+        mainSelectorTrace,
+        blockIntentProfile.targetCardioExerciseShare
       )
     );
   }
@@ -7086,6 +7210,9 @@ export function generateWorkoutSession(
                   },
                 }
               : {}),
+            ...(blockIntentProfile.targetCardioExerciseShare > 0
+              ? { targetCardioExerciseShare: blockIntentProfile.targetCardioExerciseShare * 0.7 }
+              : {}),
           }
         );
         if (chosen.length > 0) {
@@ -7139,7 +7266,15 @@ export function generateWorkoutSession(
           count,
           rng,
           fatigueState,
-          { blockType: "main_hypertrophy", sessionFatigueRegions, sessionMovementPatternCounts: movementCounts, historyContext }
+          {
+            blockType: "main_hypertrophy",
+            sessionFatigueRegions,
+            sessionMovementPatternCounts: movementCounts,
+            historyContext,
+            ...(blockIntentProfile.targetCardioExerciseShare > 0
+              ? { targetCardioExerciseShare: blockIntentProfile.targetCardioExerciseShare * 0.6 }
+              : {}),
+          }
         );
         if (chosen.length > 0) {
           const hypertrophyItems: WorkoutItem[] = chosen.map((e) => {
@@ -7213,13 +7348,17 @@ export function generateWorkoutSession(
     }
   }
 
+  applyCardioDominantMainBlockBias(blocks, blockIntentProfile);
+
   // 6. Build conditioning (goal rules: optional vs mandatory vs primary; or required when secondary)
   const hasConditioningBlock = blocks.some((b) => b.block_type === "conditioning");
   const conditioningStrategy = goalRules.conditioningStrategy;
-  const requiredConditioning = constraints.required_conditioning_block === true;
+  const requiredConditioning =
+    constraints.required_conditioning_block === true || blockIntentProfile.conditioningRequired;
   const rankedCardioIntentsFinisher = getCardioFinisherIntentSlugs(input);
   let skipConditioning =
     hasConditioningBlock ||
+    !blockIntentProfile.allowConditioningBlock ||
     (!requiredConditioning &&
       (conditioningStrategy === "none" ||
         (goalRules.conditioningOnlyIfHighEnergy &&
@@ -7229,6 +7368,7 @@ export function generateWorkoutSession(
   const spForComposition = input.sport_profile_for_scoring;
   if (
     !hasConditioningBlock &&
+    blockIntentProfile.allowConditioningBlock &&
     spForComposition &&
     sportProfileBiasedTowardConditioning(spForComposition) &&
     skipConditioning
@@ -7240,19 +7380,23 @@ export function generateWorkoutSession(
   if (!skipConditioning) {
     const userMins = input.style_prefs?.conditioning_minutes ?? 0;
     const ruleMins = getConditioningDurationMinutes(primary, input.energy_level);
+    const profileCardioMinutes = Math.round(input.duration_minutes * blockIntentProfile.sessionCardioShare);
     let conditioningMins = requiredConditioning
-      ? Math.min(15, ruleMins ?? 15)
+      ? Math.min(20, Math.max(10, profileCardioMinutes, ruleMins ?? 15))
       : conditioningStrategy === "mandatory"
-        ? (ruleMins ?? 30)
-        : (userMins > 0 ? userMins : (ruleMins ?? 0));
+        ? Math.max(profileCardioMinutes, ruleMins ?? 30)
+        : (userMins > 0 ? userMins : Math.max(profileCardioMinutes, ruleMins ?? 0));
     if (sportProfileForcedConditioning && conditioningMins < 12) {
       conditioningMins = 12;
       sportProfileCondMinFloor = 12;
     }
     const addConditioning =
-      requiredConditioning ||
+      (requiredConditioning && blockIntentProfile.allowConditioningBlock) ||
       sportProfileForcedConditioning ||
-      (conditioningStrategy === "mandatory" || conditioningStrategy === "optional_short" || conditioningStrategy === "optional_moderate");
+      (blockIntentProfile.allowConditioningBlock &&
+        (conditioningStrategy === "mandatory" ||
+          conditioningStrategy === "optional_short" ||
+          conditioningStrategy === "optional_moderate"));
     if (addConditioning && conditioningMins > 0) {
       let cardioPool = filtered.filter((e) => e.modality === "conditioning" && !used.has(e.id));
       let dedicatedCardioPoolSort = false;
@@ -7383,7 +7527,13 @@ export function generateWorkoutSession(
             : isExplosiveConditioning(c)
               ? getExplosiveConditioningStructure()
               : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
-          const condFormat = (interval.format as BlockFormat) ?? (goalRules.conditioningFormats?.[0]) ?? "straight_sets";
+          const condFormat =
+            (interval.format as BlockFormat) ??
+            (blockIntentProfile.cardioDominant ? blockFormatForCardioHint(blockIntentProfile.cardioFormatHint) : undefined) ??
+            (blockIntentProfile.preferredBlockFormatsByRole.conditioning[0] as BlockFormat | undefined) ??
+            (goalRules.conditioningFormats?.[0]) ??
+            "straight_sets";
+          const forceTimeBasedConditioning = blockIntentProfile.cardioDominant && blockIntentProfile.sessionCardioShare >= 0.55;
           const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
           const estimatedMin = isHighIntensityConditioning(c) || isExplosiveConditioning(c)
             ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
@@ -7409,7 +7559,11 @@ export function generateWorkoutSession(
                 exercise_id: c.id,
                 exercise_name: c.name,
                 sets: interval.sets,
-                ...(interval.reps != null ? { reps: interval.reps } : { time_seconds: interval.time_seconds }),
+                ...(forceTimeBasedConditioning
+                  ? { time_seconds: interval.time_seconds ?? (interval.reps != null ? 30 : undefined) }
+                  : interval.reps != null
+                    ? { reps: interval.reps }
+                    : { time_seconds: interval.time_seconds }),
                 rest_seconds: interval.rest_seconds,
                 coaching_cues: p.coaching_cues,
                 reasoning_tags: ["conditioning", ...(c.tags.goal_tags ?? [])],
@@ -7455,6 +7609,7 @@ export function generateWorkoutSession(
   const cooldown = buildCooldown(filtered, input, used, rng, {
     constraints,
     mainWorkFamilies,
+    preferredTargets: blockIntentProfile.cooldownPreferredTargets,
   });
   blocks.push(cooldown);
 

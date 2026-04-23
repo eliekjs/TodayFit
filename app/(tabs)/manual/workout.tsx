@@ -86,7 +86,7 @@ export default function ManualWorkoutScreen() {
             No workout yet
           </Text>
           <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
-            Set your preferences first and we'll build a session for you.
+            Set your preferences first and we will build a session for you.
           </Text>
           <View style={{ marginTop: 16 }}>
             <PrimaryButton

@@ -20,6 +20,29 @@ function clampDuration(mins: number): 20 | 30 | 45 | 60 | 75 {
   return 75;
 }
 
+function clamp01(value: number): number {
+  if (value <= 0) return 0;
+  if (value >= 1) return 1;
+  return value;
+}
+
+function deriveSessionCardioTargetShare(
+  planned: WeeklyPlannedSession,
+  baseInput: WeeklyPlanningInput
+): number {
+  const sessionType = planned.session_type.toLowerCase();
+  const primaryCardioWeek = ["conditioning", "endurance"].includes(baseInput.primary_goal.toLowerCase());
+  if (sessionType.includes("conditioning") || sessionType.includes("aerobic")) return 0.82;
+  if (sessionType.includes("recovery") || sessionType.includes("mobility")) return 0.2;
+  if (sessionType.includes("mixed_sport_support")) return 0.5;
+  const qualityConditioning = planned.target_qualities.conditioning ?? 0;
+  const qualityEndurance = planned.target_qualities.endurance ?? 0;
+  const qualityShare = clamp01((qualityConditioning + qualityEndurance) / 2);
+  const weeklyCardioBias = primaryCardioWeek ? 0.2 : 0;
+  const weeklyFloor = primaryCardioWeek ? 0.45 : 0.18;
+  return clamp01(Math.max(weeklyFloor, qualityShare + weeklyCardioBias));
+}
+
 /**
  * Map weekly session type + stimulus to daily generator primary_goal and focus_body_parts.
  */
@@ -73,6 +96,15 @@ export function weeklySessionToDailyInput(
   const equipment = baseInput.equipment_by_day?.[planned.day_index] ?? baseInput.available_equipment;
   const energy = baseInput.energy_profile_by_day?.[planned.day_index] ?? "medium";
   const duration = clampDuration(planned.planned_duration_minutes);
+  const sessionCardioTargetShare = deriveSessionCardioTargetShare(planned, baseInput);
+  const weeklyCardioEmphasis = ["conditioning", "endurance"].includes(baseInput.primary_goal.toLowerCase())
+    ? 0.85
+    : (baseInput.secondary_goals ?? []).some((goal) => {
+          const normalized = goal.toLowerCase().replace(/\s/g, "_");
+          return normalized === "conditioning" || normalized === "endurance";
+        })
+      ? 0.45
+      : 0;
 
   const style_prefs = baseInput.style_prefs
     ? {
@@ -98,6 +130,8 @@ export function weeklySessionToDailyInput(
     goal_weights: baseInput.goal_weights,
     sport_weight: baseInput.sport_weight,
     session_target_qualities: planned.target_qualities,
+    session_cardio_target_share: sessionCardioTargetShare,
+    weekly_cardio_emphasis: weeklyCardioEmphasis,
     week_main_strength_lift_ids_used: [...weekMainLiftIdsUsedSoFar],
   };
 }

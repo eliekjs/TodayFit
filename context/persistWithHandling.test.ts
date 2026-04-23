@@ -46,4 +46,24 @@ describe("persistWithHandling", () => {
       errorSpy.mockRestore();
     }
   });
+
+  it("invokes onFailure when persistence fails", async () => {
+    const failure = new Error("persist failed");
+    const onFailure = vi.fn();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      const ok = await persistWithHandling({
+        operation: "test_on_failure",
+        action: async () => {
+          throw failure;
+        },
+        onFailure,
+      });
+      expect(ok).toBe(false);
+      expect(onFailure).toHaveBeenCalledWith(failure);
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });
