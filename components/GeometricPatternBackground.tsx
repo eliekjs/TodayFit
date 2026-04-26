@@ -1,12 +1,12 @@
 import React, { useMemo } from "react";
 import { View, StyleSheet, useWindowDimensions } from "react-native";
-import Svg, { G, Path } from "react-native-svg";
+import Svg, { Defs, G, LinearGradient, Rect, Stop } from "react-native-svg";
 
-const PATTERN_SIZE = 120;
-const EMERALD_400 = "#34d399";
-const BLUE_400 = "#60a5fa";
-const EMERALD_500 = "#10b981";
-const BLUE_500 = "#3b82f6";
+const TILE_W = 116;
+const TILE_H = 72;
+const STROKE_EMERALD = "rgba(45,212,191,0.17)";
+const STROKE_BLUE = "rgba(59,130,246,0.2)";
+const STROKE_FAINT = "rgba(148,163,184,0.07)";
 
 export function GeometricPatternBackground() {
   const { width: winW, height: winH } = useWindowDimensions();
@@ -14,71 +14,39 @@ export function GeometricPatternBackground() {
   const height = Math.max(1, winH);
 
   const patternTiles = useMemo(() => {
-    const cols = Math.max(1, Math.ceil(width / PATTERN_SIZE) + 1);
-    const rows = Math.max(1, Math.ceil(height / PATTERN_SIZE) + 1);
+    const cols = Math.max(1, Math.ceil(width / TILE_W) + 2);
+    const rows = Math.max(1, Math.ceil(height / TILE_H) + 2);
     const tiles: React.ReactElement[] = [];
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
-        const x = c * PATTERN_SIZE;
-        const y = r * PATTERN_SIZE;
-        const even = (c + r) % 2 === 0;
+        const offsetX = r % 2 === 0 ? 0 : -TILE_W * 0.32;
+        const x = c * TILE_W + offsetX;
+        const y = r * TILE_H;
+        const mod = (c + r) % 4;
+        const strokeColor =
+          mod === 0 ? STROKE_EMERALD : mod === 2 ? STROKE_BLUE : STROKE_FAINT;
+        const innerStroke = mod === 1 ? STROKE_BLUE : STROKE_FAINT;
         tiles.push(
           <G key={`${c}-${r}`} transform={`translate(${x}, ${y})`}>
-            {/* Mountains */}
-            <Path
-              d="M0 100 L16 76 L28 92 L40 68 L56 100"
+            <Rect
+              x={0}
+              y={0}
+              width={TILE_W}
+              height={TILE_H}
+              rx={4}
               fill="none"
-              stroke={even ? EMERALD_500 : BLUE_500}
-              strokeWidth={1.4}
-            />
-            {/* Bike frame */}
-            <Path
-              d="M72 78 m-10 0 a10 10 0 1 0 20 0 a10 10 0 1 0 -20 0 M104 78 m-10 0 a10 10 0 1 0 20 0 a10 10 0 1 0 -20 0 M82 78 L92 62 L102 78 L92 78 L92 62"
-              fill="none"
-              stroke={even ? BLUE_400 : EMERALD_400}
+              stroke={strokeColor}
               strokeWidth={1}
             />
-            {/* Rock clusters */}
-            <Path
-              d="M4 24 L12 16 L22 20 L20 30 L10 32 Z M24 34 L32 26 L42 30 L40 40 L30 42 Z"
+            <Rect
+              x={8}
+              y={8}
+              width={TILE_W - 16}
+              height={TILE_H - 16}
+              rx={2}
               fill="none"
-              stroke={even ? EMERALD_400 : BLUE_400}
-              strokeWidth={1}
-            />
-            {/* Skis */}
-            <Path
-              d="M64 8 L78 44 M72 6 L86 42 M60 10 Q66 4 72 8 M68 8 Q74 2 80 6"
-              fill="none"
-              stroke={even ? BLUE_500 : EMERALD_500}
-              strokeWidth={1.2}
-            />
-            {/* Volleyball */}
-            <Path
-              d="M96 24 m-12 0 a12 12 0 1 0 24 0 a12 12 0 1 0 -24 0 M84 24 C88 20 92 18 96 18 C100 18 104 20 108 24 M86 30 C92 26 100 26 106 30 M96 12 L96 36"
-              fill="none"
-              stroke={even ? EMERALD_400 : BLUE_400}
-              strokeWidth={1}
-            />
-            {/* Surfboard */}
-            <Path
-              d="M44 10 Q50 2 56 10 Q58 20 56 30 Q50 38 44 30 Q42 20 44 10 M46 20 L54 20"
-              fill="none"
-              stroke={even ? BLUE_400 : EMERALD_400}
-              strokeWidth={1}
-            />
-            {/* Tennis racket */}
-            <Path
-              d="M18 62 m-8 0 a8 10 0 1 0 16 0 a8 10 0 1 0 -16 0 M22 70 L30 82 M12 58 L26 66 M12 66 L26 58"
-              fill="none"
-              stroke={even ? BLUE_500 : EMERALD_500}
-              strokeWidth={1}
-            />
-            {/* Weights / barbell */}
-            <Path
-              d="M34 52 L54 52 M30 48 L30 56 M34 48 L34 56 M54 48 L54 56 M58 48 L58 56"
-              fill="none"
-              stroke={even ? EMERALD_500 : BLUE_500}
-              strokeWidth={1.2}
+              stroke={innerStroke}
+              strokeWidth={0.6}
             />
           </G>,
         );
@@ -90,7 +58,31 @@ export function GeometricPatternBackground() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-        <G opacity={0.2}>{patternTiles}</G>
+        <Defs>
+          <LinearGradient id="bgBase" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#052f35" />
+            <Stop offset="48%" stopColor="#06263f" />
+            <Stop offset="100%" stopColor="#041631" />
+          </LinearGradient>
+          <LinearGradient id="glowTop" x1="0%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor="rgba(16,185,129,0.28)" />
+            <Stop offset="100%" stopColor="rgba(16,185,129,0)" />
+          </LinearGradient>
+          <LinearGradient id="glowBottom" x1="100%" y1="0%" x2="0%" y2="100%">
+            <Stop offset="0%" stopColor="rgba(59,130,246,0.25)" />
+            <Stop offset="100%" stopColor="rgba(59,130,246,0)" />
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width={width} height={height} fill="url(#bgBase)" />
+        <Rect x={0} y={0} width={width * 0.58} height={height * 0.45} fill="url(#glowTop)" />
+        <Rect
+          x={width * 0.36}
+          y={height * 0.35}
+          width={width * 0.64}
+          height={height * 0.65}
+          fill="url(#glowBottom)"
+        />
+        <G opacity={0.92}>{patternTiles}</G>
       </Svg>
     </View>
   );

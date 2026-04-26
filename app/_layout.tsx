@@ -6,6 +6,7 @@ import { AuthProvider } from "../context/AuthContext";
 import { AppStateProvider } from "../context/AppStateContext";
 import { WelcomeProvider } from "../context/WelcomeContext";
 import { RemoteSyncBanner } from "../components/RemoteSyncBanner";
+import { GeometricPatternBackground } from "../components/GeometricPatternBackground";
 
 export default function RootLayout() {
   return (
@@ -14,6 +15,7 @@ export default function RootLayout() {
         <AppStateProvider>
           <WelcomeProvider>
             <View style={styles.root}>
+              <GeometricPatternBackground />
               <RemoteSyncBanner />
               <View style={styles.stack}>
                 <Slot />

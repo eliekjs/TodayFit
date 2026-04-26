@@ -1,7 +1,6 @@
 import React from "react";
 import { View, StyleSheet, type ViewStyle } from "react-native";
 import { useTheme } from "../lib/theme";
-import { GeometricPatternBackground } from "./GeometricPatternBackground";
 
 type Props = {
   children: React.ReactNode;
@@ -14,7 +13,6 @@ export function AppScreenWrapper({ children, style }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }, style]}>
-      <GeometricPatternBackground />
       {children}
     </View>
   );
