@@ -216,6 +216,13 @@ type StructuredPrescription = {
   coaching_cues: string;
 };
 
+function hasBodyRecompFocus(primaryFocus: string[]): boolean {
+  return (
+    primaryFocus.includes("Body Recomp (fat loss & muscle gain)") ||
+    primaryFocus.includes("Body Recomposition")
+  );
+}
+
 /**
  * Sets/reps/rest per exercise. Factors:
  * - Energy: low → fewer sets (2), high → more (4), medium → 3 (RPE/recovery).
@@ -232,7 +239,7 @@ function prescriptionForExercise(
   let baseSets = energy === "high" ? 4 : energy === "low" ? 2 : 3;
   const maxSets = maxSetsByDuration(durationMinutes);
   baseSets = Math.min(baseSets, maxSets);
-  const isBodyRecomp = primaryFocus.includes("Body Recomposition");
+  const isBodyRecomp = hasBodyRecompFocus(primaryFocus);
 
   if (exercise.modalities.includes("conditioning")) {
     const isZone2 = exercise.tags.includes("zone2");
@@ -860,7 +867,7 @@ export function generateWorkout(
     "Targets supporting muscles and balance for your goals."
   );
 
-  const isBodyRecomp = preferences.primaryFocus.includes("Body Recomposition");
+  const isBodyRecomp = hasBodyRecompFocus(preferences.primaryFocus);
   const wantsZone2Cardio =
     isBodyRecomp ||
     preferences.primaryFocus.some(

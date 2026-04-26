@@ -30,6 +30,17 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "core", name: "Core" },
     { slug: "balanced", name: "Balanced" },
   ]),
+  "Body Recomp (fat loss & muscle gain)": entry("physique", [
+    { slug: "glutes", name: "Glutes" },
+    { slug: "back", name: "Back" },
+    { slug: "chest", name: "Chest" },
+    { slug: "arms", name: "Arms" },
+    { slug: "shoulders", name: "Shoulders" },
+    { slug: "legs", name: "Legs" },
+    { slug: "core", name: "Core" },
+    { slug: "balanced", name: "Balanced" },
+  ]),
+  // Backward-compat for persisted presets using legacy label.
   "Body Recomposition": entry("physique", [
     { slug: "glutes", name: "Glutes" },
     { slug: "back", name: "Back" },

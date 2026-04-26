@@ -29,6 +29,9 @@ export default function TabsLayout() {
     <Tabs
       tabBar={(props: BottomTabBarProps) => <FilteredTabBar {...props} />}
       screenOptions={{
+        sceneStyle: {
+          backgroundColor: "#041631",
+        },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
         tabBarActiveBackgroundColor: theme.primarySoft,

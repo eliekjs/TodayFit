@@ -322,16 +322,19 @@ export function getSupersetPairsForBlock(block: WorkoutBlock): [WorkoutItem, Wor
 }
 
 /** One-line prescription string for display (e.g. "3 x 10 reps", "8 rounds × 1 min", "20–40 min"). */
-export function formatPrescription(item: WorkoutItem): string {
+export function formatPrescription(item: WorkoutItem, options?: { includeRest?: boolean }): string {
+  const includeRest = options?.includeRest !== false;
+  const restText =
+    includeRest && item.rest_seconds > 0 ? ` · Rest ${item.rest_seconds}s` : "";
   if (item.time_seconds != null && item.time_seconds > 0) {
     const min = Math.round(item.time_seconds / 60);
     const sets = item.sets ?? 1;
-    if (sets > 1) return `${sets} rounds × ${min} min`;
-    return `${min} min`;
+    if (sets > 1) return `${sets} rounds × ${min} min${restText}`;
+    return `${min} min${restText}`;
   }
   const reps = item.reps != null ? ` ${item.reps} reps` : "";
   const perLeg = item.unilateral && item.reps != null ? " each leg" : "";
-  return `${item.sets} x${reps}${perLeg}`.trim() || "—";
+  return `${item.sets} x${reps}${perLeg}`.trim() + restText || "—";
 }
 
 /**

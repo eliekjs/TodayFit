@@ -78,6 +78,10 @@ function testBurstConditioningPrescription() {
   assert.ok((pistonItem.sets ?? 0) >= 5 && (pistonItem.sets ?? 0) <= 10, "piston run should be 5-10 sets");
   assert.ok([20, 30].includes(pistonItem.time_seconds ?? -1), "piston run work interval should be 20 or 30 seconds");
   assert.ok([40, 60].includes(pistonItem.rest_seconds ?? -1), "piston run rest should be 40 or 60 seconds");
+  assert.ok(
+    (pistonItem.reasoning_tags ?? []).includes("conditioning_protocol_sprint_burst"),
+    "piston run should include sprint-burst conditioning protocol tag"
+  );
 
   const highKnee = mkConditioning("high_knee_run", "High Knee Run");
   const highKneeSession = generateWorkoutSession(makeBaseInput(902), [baseStrength, highKnee]);
@@ -85,6 +89,10 @@ function testBurstConditioningPrescription() {
   assert.ok((highKneeItem.sets ?? 0) >= 5 && (highKneeItem.sets ?? 0) <= 10, "high-knee run should be 5-10 sets");
   assert.ok([20, 30].includes(highKneeItem.time_seconds ?? -1), "high-knee run work interval should be 20 or 30 seconds");
   assert.ok([40, 60].includes(highKneeItem.rest_seconds ?? -1), "high-knee run rest should be 40 or 60 seconds");
+  assert.ok(
+    (highKneeItem.reasoning_tags ?? []).includes("conditioning_protocol_sprint_burst"),
+    "high-knee run should include sprint-burst conditioning protocol tag"
+  );
 }
 
 function testSurfingPopUpPowerAvoidsRows() {
@@ -110,6 +118,31 @@ function testSurfingPopUpPowerAvoidsRows() {
   );
 }
 
+function testSurfingPopUpWithPaddleEnduranceAllowsRows() {
+  const pushA = mkStrength("explosive_push_up", "Explosive Push Up", "push");
+  const rowA = mkStrength("ff_single_arm_cable_shotgun_row", "Single Arm Cable Shotgun Row", "pull");
+  const rowB = mkStrength("single_arm_row", "Single Arm Row", "pull");
+  const conditioning = mkConditioning("piston_run", "Piston Run");
+  const input: GenerateWorkoutInput = {
+    ...makeBaseInput(904),
+    sport_slugs: ["surfing"],
+    sport_sub_focus: { surfing: ["pop_up_power", "paddle_endurance"] },
+    goal_sub_focus: { strength: ["pull"] },
+    goal_sub_focus_weights: { strength: [1] },
+    style_prefs: { wants_supersets: true },
+  };
+  let rowSeen = false;
+  for (let s = 0; s < 20; s++) {
+    const session = generateWorkoutSession({ ...input, seed: 904 + s }, [pushA, rowA, rowB, conditioning]);
+    const ids = session.blocks.flatMap((b) => b.items.map((i) => i.exercise_id.toLowerCase()));
+    if (ids.some((id) => id.includes("row"))) {
+      rowSeen = true;
+      break;
+    }
+  }
+  assert.ok(rowSeen, "surfing pop-up + paddle_endurance should allow pull/row selections");
+}
+
 function testCatalogHasNoNonCmNaming() {
   const offenders = OTA_MOVEMENTS.filter((m) => /\bnon[\s_-]*cm\b/i.test(m.name) || /\bnon[\s_-]*cm\b/i.test(m.id));
   assert.equal(offenders.length, 0, "exercise catalog should not contain opaque non-cm entries");
@@ -118,6 +151,7 @@ function testCatalogHasNoNonCmNaming() {
 function run() {
   testBurstConditioningPrescription();
   testSurfingPopUpPowerAvoidsRows();
+  testSurfingPopUpWithPaddleEnduranceAllowsRows();
   testCatalogHasNoNonCmNaming();
   console.log("surfing-pop-up-and-burst-conditioning.test.ts: all passed");
 }

@@ -45,6 +45,7 @@ import {
   scaleSetsByEnergy,
   getConditioningDurationMinutes,
   getConditioningIntervalStructure,
+  getNonZone2ConditioningIntervalStructure,
   getConditioningStructureByIntent,
   getExplosiveConditioningStructure,
   getHighIntensityConditioningStructure,
@@ -511,6 +512,11 @@ function isRingStraddleExercise(e: Exercise): boolean {
   return isRingSpecificExercise(e) && (id.includes("straddle") || name.includes("straddle"));
 }
 
+function isComplexCatalogVariantForNonAdvanced(e: Exercise): boolean {
+  const id = (e.id ?? "").toLowerCase();
+  return id.startsWith("ff_") || id.startsWith("ota_");
+}
+
 function ringStraddleAllowedForInput(input: GenerateWorkoutInput): boolean {
   const userLevel = input.style_prefs?.user_level ?? "intermediate";
   const creativeOn = input.style_prefs?.include_creative_variations === true;
@@ -553,6 +559,7 @@ export function filterByHardConstraints(
     ) {
       return false;
     }
+    if (nonAdvancedTier && isComplexCatalogVariantForNonAdvanced(e)) return false;
     if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations) && !ringStraddleAllowed)
       return false;
     if (isRingSpecificExercise(e) && !hasRings) return false;
@@ -612,6 +619,9 @@ export function getHardConstraintRejectReason(
     })
   ) {
     return "complex_skill_lift_non_advanced";
+  }
+  if (nonAdvancedTier && isComplexCatalogVariantForNonAdvanced(e)) {
+    return "complex_catalog_variant_non_advanced";
   }
   if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations) && !ringStraddleAllowed)
     return "creative_variation_excluded";
@@ -1511,11 +1521,46 @@ function getEffectiveRepRange(
   exercise: Exercise,
   goalRange: { min: number; max: number }
 ): { min: number; max: number } {
+  if ((exercise.id ?? "").toLowerCase().includes("kettlebell_swing")) {
+    return {
+      min: Math.max(goalRange.min, 10),
+      max: Math.max(Math.min(goalRange.max, 20), 10),
+    };
+  }
   if (exercise.rep_range_min == null || exercise.rep_range_max == null) return goalRange;
   const effectiveMin = Math.max(goalRange.min, exercise.rep_range_min);
   const effectiveMax = Math.min(goalRange.max, exercise.rep_range_max);
   if (effectiveMin <= effectiveMax) return { min: effectiveMin, max: effectiveMax };
   return goalRange;
+}
+
+const ALLOWED_REP_TARGETS = [5, 6, 8, 10, 12, 15, 20] as const;
+
+function snapRepsToAllowedBuckets(reps: number): number {
+  let best: number = ALLOWED_REP_TARGETS[0];
+  let bestDiff = Math.abs(reps - best);
+  for (const bucket of ALLOWED_REP_TARGETS) {
+    const diff = Math.abs(reps - bucket);
+    if (diff < bestDiff) {
+      best = bucket;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
+function normalizeRestSeconds(rest: number, intensity: "light" | "intense"): number {
+  const allowed = intensity === "light" ? [20, 30] : [60, 90, 120];
+  let best = allowed[0]!;
+  let bestDiff = Math.abs(rest - best);
+  for (const v of allowed) {
+    const diff = Math.abs(rest - v);
+    if (diff < bestDiff) {
+      best = v;
+      bestDiff = diff;
+    }
+  }
+  return best;
 }
 
 // --- Rep/set prescription from goal rules (evidence-based) ---
@@ -1554,7 +1599,7 @@ function getPrescription(
       sets: rules.mobilitySets ?? 1,
       reps: 8,
       time_seconds: timeSec,
-      rest_seconds: blockType === "warmup" ? 0 : 15,
+      rest_seconds: 0,
       coaching_cues: beginnerCue(rules.cueStyle.mobility ?? "Controlled, full range of motion. Breathe steadily."),
     };
   }
@@ -1564,10 +1609,10 @@ function getPrescription(
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
     const repRange = getEffectiveRepRange(exercise, rules.powerRepRange ?? rules.repRange);
-    const reps = Math.round((repRange.min + repRange.max) / 2);
-    const rest = rules.powerRestRange
+    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
+    const rest = normalizeRestSeconds(rules.powerRestRange
       ? Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2)
-      : Math.round((rules.restRange.min + rules.restRange.max) / 2);
+      : Math.round((rules.restRange.min + rules.restRange.max) / 2), "intense");
     return {
       sets,
       reps,
@@ -1593,10 +1638,13 @@ function getPrescription(
     const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.accessoryRepRange;
     const repRange = getEffectiveRepRange(exercise, goalRepRange);
     const reps = Math.round((repRange.min + repRange.max) / 2);
-    const rest = rules.accessoryRestRange ? Math.round((rules.accessoryRestRange.min + rules.accessoryRestRange.max) / 2) : 60;
+    const rest = normalizeRestSeconds(
+      rules.accessoryRestRange ? Math.round((rules.accessoryRestRange.min + rules.accessoryRestRange.max) / 2) : 30,
+      "light"
+    );
     return {
       sets,
-      reps,
+      reps: snapRepsToAllowedBuckets(reps),
       rest_seconds: rest,
       coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Controlled tempo. Muscular balance."),
     };
@@ -1607,8 +1655,8 @@ function getPrescription(
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
     const repRange = getEffectiveRepRange(exercise, rules.powerRepRange);
-    const reps = Math.round((repRange.min + repRange.max) / 2);
-    const rest = Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2);
+    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
+    const rest = normalizeRestSeconds(Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2), "intense");
     return {
       sets,
       reps,
@@ -1623,8 +1671,8 @@ function getPrescription(
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
     const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
     const repRange = getEffectiveRepRange(exercise, goalRepRange);
-    const reps = Math.round((repRange.min + repRange.max) / 2);
-    const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
+    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
+    const rest = normalizeRestSeconds(Math.round((rules.restRange.min + rules.restRange.max) / 2), "intense");
     return {
       sets,
       reps,
@@ -1638,8 +1686,8 @@ function getPrescription(
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
     const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
     const repRange = getEffectiveRepRange(exercise, goalRepRange);
-    const reps = Math.round((repRange.min + repRange.max) / 2);
-    const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
+    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
+    const rest = normalizeRestSeconds(Math.round((rules.restRange.min + rules.restRange.max) / 2), "light");
     return {
       sets,
       reps,
@@ -1653,8 +1701,8 @@ function getPrescription(
   const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
   const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
   const repRange = getEffectiveRepRange(exercise, goalRepRange);
-  const reps = Math.round((repRange.min + repRange.max) / 2);
-  const rest = Math.round((rules.restRange.min + rules.restRange.max) / 2);
+  const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
+  const rest = normalizeRestSeconds(Math.round((rules.restRange.min + rules.restRange.max) / 2), "light");
   return {
     sets,
     reps,
@@ -2540,6 +2588,37 @@ function buildMainStrength(
   mainSelectorTrace?: MainSelectorSessionTrace,
   cardioTargetExerciseShare?: number
 ): WorkoutBlock[] {
+  const normalizeFocus = (value: string) => value.toLowerCase().trim().replace(/\s+/g, "_");
+  const isFullBodyStrengthSession =
+    input.primary_goal === "strength" &&
+    (input.focus_body_parts ?? []).map(normalizeFocus).includes("full_body");
+  const isHipThrustVariant = (exercise: Exercise) => /hip[\s_-]*thrust/i.test(exercise.name);
+  const classifyUpperLowerBucket = (exercise: Exercise): "upper" | "lower" | "other" => {
+    const pattern = (exercise.movement_pattern ?? "").toLowerCase();
+    if (pattern === "push" || pattern === "pull") return "upper";
+    if (pattern === "squat" || pattern === "hinge" || pattern === "lunge") return "lower";
+    const muscles = new Set((exercise.prime_muscles ?? []).map((m) => m.toLowerCase()));
+    if (
+      muscles.has("chest") ||
+      muscles.has("triceps") ||
+      muscles.has("shoulders") ||
+      muscles.has("lats") ||
+      muscles.has("biceps") ||
+      muscles.has("upper_back")
+    ) {
+      return "upper";
+    }
+    if (
+      muscles.has("legs") ||
+      muscles.has("quads") ||
+      muscles.has("glutes") ||
+      muscles.has("hamstrings") ||
+      muscles.has("calves")
+    ) {
+      return "lower";
+    }
+    return "other";
+  };
   const sportPatCounts = sessionSportPatternCategoryCounts ?? new Map<string, number>();
   const hikingEmphasis = sportPatternHikingEmphasis ?? 0;
   const trailEmphasis = sportPatternTrailEmphasis ?? 0;
@@ -2665,7 +2744,8 @@ function buildMainStrength(
     snowMainStrengthMode = sportPatternScoreModeFromPoolMode(gate.poolMode);
   }
 
-  const mainLiftCount = Math.min(compoundMin, 2, mainPool.length);
+  const targetMainLiftCountByDuration = input.duration_minutes >= 75 ? 4 : input.duration_minutes >= 45 ? 3 : 2;
+  const mainLiftCount = Math.min(Math.max(compoundMin, targetMainLiftCountByDuration), mainPool.length);
   if (hikingEnforcement?.main_strength) {
     hikingEnforcement.main_strength.planned_main_lift_count = mainLiftCount;
   }
@@ -2960,6 +3040,55 @@ function buildMainStrength(
     }
   }
 
+  if (isFullBodyStrengthSession && mainLifts.length > 1) {
+    let adjusted = [...mainLifts];
+    const replaceAt = (idx: number, preferredBucket?: "upper" | "lower") => {
+      const occupiedIds = new Set(adjusted.map((e) => e.id));
+      const hipThrustAlreadySelected = adjusted.some((e, i) => i !== idx && isHipThrustVariant(e));
+      const replacement = mainPool.find((candidate) => {
+        if (occupiedIds.has(candidate.id)) return false;
+        if (preferredBucket && classifyUpperLowerBucket(candidate) !== preferredBucket) return false;
+        if (hipThrustAlreadySelected && isHipThrustVariant(candidate)) return false;
+        return true;
+      });
+      if (replacement) adjusted[idx] = replacement;
+    };
+
+    // Keep only one hip thrust variant in broad full-body strength sessions.
+    let seenHipThrust = false;
+    adjusted.forEach((exercise, idx) => {
+      if (!isHipThrustVariant(exercise)) return;
+      if (!seenHipThrust) {
+        seenHipThrust = true;
+        return;
+      }
+      replaceAt(idx);
+    });
+
+    // Bias toward an even upper/lower split for full-body strength.
+    const countBucket = (bucket: "upper" | "lower") =>
+      adjusted.filter((exercise) => classifyUpperLowerBucket(exercise) === bucket).length;
+    let upperCount = countBucket("upper");
+    let lowerCount = countBucket("lower");
+    while (Math.abs(upperCount - lowerCount) > 1) {
+      if (upperCount > lowerCount) {
+        const idx = adjusted.findIndex((exercise) => classifyUpperLowerBucket(exercise) === "upper");
+        if (idx < 0) break;
+        replaceAt(idx, "lower");
+      } else {
+        const idx = adjusted.findIndex((exercise) => classifyUpperLowerBucket(exercise) === "lower");
+        if (idx < 0) break;
+        replaceAt(idx, "upper");
+      }
+      const nextUpper = countBucket("upper");
+      const nextLower = countBucket("lower");
+      if (nextUpper === upperCount && nextLower === lowerCount) break;
+      upperCount = nextUpper;
+      lowerCount = nextLower;
+    }
+    mainLifts = adjusted;
+  }
+
   // When we have exactly 2 main lifts and supersets are wanted, pair them if they're a good superset (push+pull, squat+hinge, etc.)
   const pairMainLifts =
     wantsSupersets &&
@@ -3042,7 +3171,7 @@ function buildMainStrength(
   const accessoryItemSetsCapByDuration = input.duration_minutes <= 30 ? 3 : 4;
   const accessoryItemSetsCap = Math.max(3, Math.min(accessoryItemSetsCapByDuration, mainItemSetsMax));
 
-  const accessoryPairCountTarget = input.duration_minutes <= 30 ? 1 : 2;
+  const accessoryPairCountTarget = input.duration_minutes <= 30 ? 1 : input.duration_minutes >= 75 ? 3 : 2;
   let pairCount = accessoryPairCountTarget;
   if (input.energy_level === "low") pairCount = Math.min(pairCount, 1);
   if (pairCount && wantsSupersets) {
@@ -3676,32 +3805,81 @@ function isSprintBurstConditioning(exercise: Exercise): boolean {
   return (hasBurstTag || sprintLikeName) && !explicitlySteady;
 }
 
+type ConditioningProtocolKind =
+  | "sprint_burst"
+  | "high_intensity_reps"
+  | "high_intensity_timed"
+  | "explosive"
+  | "intent_driven"
+  | "default_interval";
+
+function getConditioningProtocolKind(
+  exercise: Exercise,
+  primaryIntent?: string
+): ConditioningProtocolKind {
+  if (isSprintBurstConditioning(exercise)) return "sprint_burst";
+  if (isHighIntensityConditioning(exercise)) {
+    return REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS.has(exercise.id)
+      ? "high_intensity_reps"
+      : "high_intensity_timed";
+  }
+  if (isExplosiveConditioning(exercise)) return "explosive";
+  if (primaryIntent != null) return "intent_driven";
+  return "default_interval";
+}
+
+function conditioningProtocolReasonTag(kind: ConditioningProtocolKind): string {
+  switch (kind) {
+    case "sprint_burst":
+      return "conditioning_protocol_sprint_burst";
+    case "high_intensity_reps":
+      return "conditioning_protocol_hi_reps";
+    case "high_intensity_timed":
+      return "conditioning_protocol_hi_timed";
+    case "explosive":
+      return "conditioning_protocol_explosive";
+    case "intent_driven":
+      return "conditioning_protocol_intent";
+    default:
+      return "conditioning_protocol_default_interval";
+  }
+}
+
 function getConditioningStructureForExercise(
   exercise: Exercise,
   conditioningMinutes: number,
   primaryGoal: PrimaryGoal,
   primaryIntent?: string
 ) {
-  if (isSprintBurstConditioning(exercise)) {
-    return getSprintBurstConditioningStructure(conditioningMinutes);
-  }
-  if (isHighIntensityConditioning(exercise)) {
-    return REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS.has(exercise.id)
-      ? getRepBasedHighIntensityConditioningStructure(conditioningMinutes)
-      : getHighIntensityConditioningStructure(conditioningMinutes);
-  }
-  if (isExplosiveConditioning(exercise)) {
-    return getExplosiveConditioningStructure();
-  }
-  if (primaryIntent != null) {
+  const normalizedIntent = primaryIntent?.toLowerCase().replace(/\s/g, "_");
+  const zone2Intent =
+    normalizedIntent === "zone2_aerobic_base" ||
+    normalizedIntent === "zone2_long_steady" ||
+    normalizedIntent === "zone2_block";
+  const kind = getConditioningProtocolKind(exercise, primaryIntent);
+  if (kind === "sprint_burst") return getSprintBurstConditioningStructure(conditioningMinutes);
+  if (kind === "high_intensity_reps") return getRepBasedHighIntensityConditioningStructure(conditioningMinutes);
+  if (kind === "high_intensity_timed") return getHighIntensityConditioningStructure(conditioningMinutes);
+  if (kind === "explosive") return getExplosiveConditioningStructure();
+  if (kind === "intent_driven") {
+    if (zone2Intent && !isZone2Conditioning(exercise)) {
+      return getNonZone2ConditioningIntervalStructure(conditioningMinutes);
+    }
     return getConditioningStructureByIntent(
       conditioningMinutes,
-      primaryIntent,
+      primaryIntent ?? undefined,
       exercise.equipment_required ?? [],
       primaryGoal
     );
   }
-  return getConditioningIntervalStructure(conditioningMinutes, primaryGoal, exercise.equipment_required ?? []);
+  if (!isZone2Conditioning(exercise)) {
+    return getNonZone2ConditioningIntervalStructure(conditioningMinutes);
+  }
+  return getConditioningIntervalStructure(
+    conditioningMinutes,
+    primaryGoal,
+    exercise.equipment_required ?? []
+  );
 }
 
 // --- Main block: hypertrophy / body recomp / calisthenics (2–4 supersets) ---
@@ -4726,13 +4904,16 @@ function appendEnduranceTimeBasedCardioBlock(
     input.primary_goal,
     primaryIntent
   );
+  const conditioningProtocolTag = conditioningProtocolReasonTag(
+    getConditioningProtocolKind(c, primaryIntent)
+  );
   const condFormat =
     (interval.format as BlockFormat) ??
     (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ??
     "straight_sets";
   const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
   const estimatedMin =
-    isHighIntensityConditioning(c) || isExplosiveConditioning(c)
+    isHighIntensityConditioning(c) || isExplosiveConditioning(c) || isSprintBurstConditioning(c)
       ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
       : condMins;
   blocks.push({
@@ -4748,7 +4929,7 @@ function appendEnduranceTimeBasedCardioBlock(
         ...(interval.reps != null ? { reps: interval.reps } : { time_seconds: interval.time_seconds }),
         rest_seconds: interval.rest_seconds,
         coaching_cues: p.coaching_cues,
-        reasoning_tags: ["endurance", ...(c.tags.goal_tags ?? [])],
+        reasoning_tags: ["endurance", conditioningProtocolTag, ...(c.tags.goal_tags ?? [])],
         unilateral: c.unilateral ?? false,
       },
     ],
@@ -5902,6 +6083,9 @@ function tryRepairSnowSportSession(
             conditioningMins,
             input.primary_goal
           );
+          const conditioningTag = conditioningProtocolReasonTag(
+            getConditioningProtocolKind(c)
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -5912,6 +6096,7 @@ function tryRepairSnowSportSession(
           }
           item.rest_seconds = interval.rest_seconds;
           item.coaching_cues = p.coaching_cues;
+          item.reasoning_tags = ["endurance", conditioningTag, ...(c.tags.goal_tags ?? [])];
           logRepair({
             rule_id: v.ruleId,
             action: "replace_conditioning_alpine_relevant",
@@ -6063,6 +6248,9 @@ function tryRepairHikingSession(
             conditioningMins,
             input.primary_goal
           );
+          const conditioningTag = conditioningProtocolReasonTag(
+            getConditioningProtocolKind(c)
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6073,6 +6261,7 @@ function tryRepairHikingSession(
           }
           item.rest_seconds = interval.rest_seconds;
           item.coaching_cues = p.coaching_cues;
+          item.reasoning_tags = ["endurance", conditioningTag, ...(c.tags.goal_tags ?? [])];
           progressed = true;
         }
       }
@@ -6216,6 +6405,9 @@ function tryRepairTrailRunningSession(
             conditioningMins,
             input.primary_goal
           );
+          const conditioningTag = conditioningProtocolReasonTag(
+            getConditioningProtocolKind(c)
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6226,6 +6418,7 @@ function tryRepairTrailRunningSession(
           }
           item.rest_seconds = interval.rest_seconds;
           item.coaching_cues = p.coaching_cues;
+          item.reasoning_tags = ["endurance", conditioningTag, ...(c.tags.goal_tags ?? [])];
           progressed = true;
         }
       }
@@ -6369,6 +6562,9 @@ function tryRepairRoadRunningSession(
             conditioningMins,
             input.primary_goal
           );
+          const conditioningTag = conditioningProtocolReasonTag(
+            getConditioningProtocolKind(c)
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6379,6 +6575,7 @@ function tryRepairRoadRunningSession(
           }
           item.rest_seconds = interval.rest_seconds;
           item.coaching_cues = p.coaching_cues;
+          item.reasoning_tags = ["endurance", conditioningTag, ...(c.tags.goal_tags ?? [])];
           progressed = true;
         }
       }
@@ -6518,6 +6715,9 @@ function tryRepairSoccerSession(
             conditioningMins,
             input.primary_goal
           );
+          const conditioningTag = conditioningProtocolReasonTag(
+            getConditioningProtocolKind(c)
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6528,6 +6728,7 @@ function tryRepairSoccerSession(
           }
           item.rest_seconds = interval.rest_seconds;
           item.coaching_cues = p.coaching_cues;
+          item.reasoning_tags = ["endurance", conditioningTag, ...(c.tags.goal_tags ?? [])];
           progressed = true;
         }
       }
@@ -6741,7 +6942,9 @@ function hasSurfingPopUpPowerSubFocus(input: GenerateWorkoutInput): boolean {
     const sportSlug = tagToSlug(getCanonicalSportSlug(sportSlugRaw));
     if (sportSlug !== "surfing") continue;
     const normalized = (subFocuses ?? []).map((s) => tagToSlug(String(s)));
-    if (normalized.includes("pop_up_power")) return true;
+    const hasPopUpPower = normalized.includes("pop_up_power");
+    const hasPaddleEndurance = normalized.includes("paddle_endurance");
+    if (hasPopUpPower && !hasPaddleEndurance) return true;
   }
   return false;
 }
@@ -7635,6 +7838,9 @@ export function generateWorkoutSession(
             conditioningMins,
             input.primary_goal
           );
+          const conditioningTag = conditioningProtocolReasonTag(
+            getConditioningProtocolKind(c)
+          );
           const condFormat =
             (interval.format as BlockFormat) ??
             (blockIntentProfile.cardioDominant ? blockFormatForCardioHint(blockIntentProfile.cardioFormatHint) : undefined) ??
@@ -7643,7 +7849,7 @@ export function generateWorkoutSession(
             "straight_sets";
           const forceTimeBasedConditioning = blockIntentProfile.cardioDominant && blockIntentProfile.sessionCardioShare >= 0.55;
           const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
-          const estimatedMin = isHighIntensityConditioning(c) || isExplosiveConditioning(c)
+          const estimatedMin = isHighIntensityConditioning(c) || isExplosiveConditioning(c) || isSprintBurstConditioning(c)
             ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
             : conditioningMins;
           const hasConditioningTitle = blocks.some((b) => b.title === "Conditioning");
@@ -7674,7 +7880,7 @@ export function generateWorkoutSession(
                     : { time_seconds: interval.time_seconds }),
                 rest_seconds: interval.rest_seconds,
                 coaching_cues: p.coaching_cues,
-                reasoning_tags: ["conditioning", ...(c.tags.goal_tags ?? [])],
+                reasoning_tags: ["conditioning", conditioningTag, ...(c.tags.goal_tags ?? [])],
                 unilateral: c.unilateral ?? false,
               },
             ],

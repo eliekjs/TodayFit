@@ -94,10 +94,16 @@ function renderBlockContent(
             key={`superset-${idx}`}
             style={[styles.supersetBlock, { borderLeftColor: theme.primary ?? theme.border }]}
           >
+            {(() => {
+              const pairRest = Math.max(pair[0]?.rest_seconds ?? 0, pair[1]?.rest_seconds ?? 0);
+              const pairRestText = pairRest > 0 ? `, rest ${pairRest}s after both` : "";
+              return (
             <Text style={[styles.supersetLabel, { color: theme.textMuted }]}>
               {formatSupersetPairLabel(pair)} — do A then B
-              {pair[0]?.time_seconds != null && (pair[0]?.sets ?? 1) <= 1 ? "" : ", rest after both"}
+              {pairRestText}
             </Text>
+              );
+            })()}
             <View style={[styles.pairRow, { backgroundColor: theme.card ?? theme.background }]}>
               {pair.map((item, pairIdx) => (
                 <View key={item.exercise_id} style={styles.exerciseRow}>
@@ -111,7 +117,7 @@ function renderBlockContent(
                     <Text
                       style={[styles.exercisePrescription, { color: theme.textMuted }]}
                     >
-                      {formatPrescription(item)}
+                      {formatPrescription(item, { includeRest: false })}
                     </Text>
                     {showTags && (item.tags?.length ?? 0) > 0 && (
                       <View style={styles.tagsRow}>
@@ -157,7 +163,7 @@ function renderBlockContent(
             <Text
               style={[styles.exercisePrescription, { color: theme.textMuted }]}
             >
-              {formatPrescription(item)}
+              {formatPrescription(item, { includeRest: true })}
             </Text>
             {showTags && (item.tags?.length ?? 0) > 0 && (
               <View style={styles.tagsRow}>

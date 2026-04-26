@@ -200,12 +200,15 @@ function normalizeExerciseIdentity(value: string | undefined): string {
  * Global exercise hard-block policy.
  * - Explicit IDs in `BLOCKED_EXERCISE_IDS`
  * - Any "start stop" variation by id/name (user preference)
+ * - Opaque legacy abbreviations (e.g. "non cm") should never surface user-facing
  */
 export function isBlockedExercise(exercise: { id?: string; name?: string }): boolean {
   const id = normalizeExerciseIdentity(exercise.id);
   if (id && BLOCKED_EXERCISE_IDS.has(id)) return true;
   const identity = `${id} ${normalizeExerciseIdentity(exercise.name)}`;
-  return /(?:^|_)start_stop(?:_|$)|\bstart_stop\b/.test(identity);
+  if (/(?:^|_)start_stop(?:_|$)|\bstart_stop\b/.test(identity)) return true;
+  if (/(?:^|_)non[_\s-]*cm(?:_|$|\b)/.test(identity)) return true;
+  return false;
 }
 
 /** Injury → exercise IDs to exclude (e.g. overhead press for shoulder). */

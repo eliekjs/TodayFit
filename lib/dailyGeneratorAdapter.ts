@@ -303,7 +303,7 @@ export function manualPreferencesToGenerateWorkoutInput(
         ? [...preferences.weekMainStrengthLiftIdsUsed]
         : undefined,
     weekly_sub_focus_session_minimums,
-    pruning_gate: getGenerationPruningGateFlags(),
+    pruning_gate: getGenerationPruningGateFlags(preferences.workoutTier),
   };
 }
 

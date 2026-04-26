@@ -2,7 +2,7 @@ import { useColorScheme } from "react-native";
 
 // TodayFit: matches welcome/landing — dark teal, frosted cards, teal/green primary, blue accent
 const todayFitPalette = {
-  background: "rgba(3,10,27,0.2)",
+  background: "rgba(4,18,43,0.6)",
   card: "rgba(15,23,42,0.42)",
   cardOpaque: "rgba(15,23,42,0.86)",
   border: "rgba(148,163,184,0.26)",
@@ -22,7 +22,7 @@ const todayFitPalette = {
 // Slightly darker for dark mode
 const todayFitDarkPalette = {
   ...todayFitPalette,
-  background: "rgba(3,7,20,0.26)",
+  background: "rgba(3,10,27,0.66)",
   card: "rgba(15,23,42,0.48)",
   cardOpaque: "rgba(15,23,42,0.9)",
   border: "rgba(148,163,184,0.22)",
