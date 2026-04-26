@@ -9,6 +9,7 @@ import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import {
@@ -42,6 +43,7 @@ export default function ManualWorkoutScreen() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
   const [swapNumPages, setSwapNumPages] = useState(1);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     if (!swapModal) {
@@ -126,15 +128,20 @@ export default function ManualWorkoutScreen() {
   }
 
   const onRegenerate = async () => {
-    const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
-    const { generateWorkoutAsync } = await loadGeneratorModule();
-    const workout = await generateWorkoutAsync(
-      manualPreferences,
-      activeProfile,
-      Date.now(),
-      preferredNames
-    );
-    setGeneratedWorkout(workout);
+    setIsRegenerating(true);
+    try {
+      const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
+      const { generateWorkoutAsync } = await loadGeneratorModule();
+      const workout = await generateWorkoutAsync(
+        manualPreferences,
+        activeProfile,
+        Date.now(),
+        preferredNames
+      );
+      setGeneratedWorkout(workout);
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   const onSaveForLater = () => {
@@ -157,6 +164,10 @@ export default function ManualWorkoutScreen() {
     setGeneratedWorkout(updated);
     setSwapModal(null);
   };
+
+  if (isRegenerating) {
+    return <GenerationLoadingScreen message="Regenerating your workout..." />;
+  }
 
   return (
     <AppScreenWrapper>

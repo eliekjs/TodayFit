@@ -7,6 +7,7 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
@@ -556,6 +557,14 @@ export default function AdaptiveWeekPlanScreen() {
         </View>
       </AppScreenWrapper>
     );
+  }
+
+  if (isReplanning) {
+    return <GenerationLoadingScreen message="Regenerating your week..." />;
+  }
+
+  if (isRegenerating) {
+    return <GenerationLoadingScreen message="Regenerating your workout..." />;
   }
 
   const selectedDay = selectedSession ?? sportPrepWeekPlan.days[0];

@@ -7,6 +7,13 @@ import type { GeneratedWorkout } from "../workoutTypes";
 import type { BlockType } from "../types";
 import { getDurationTier } from "../sessionShaping";
 
+function minSetsForBlockType(blockType: BlockType): number {
+  if (blockType === "main_strength" || blockType === "main_hypertrophy" || blockType === "accessory") {
+    return 3;
+  }
+  return 1;
+}
+
 /** Duration tier -> scale factor for set counts (1 = full, <1 = reduce). */
 const SET_SCALE_BY_DURATION: Record<number, number> = {
   20: 0.6,
@@ -26,7 +33,8 @@ export function scaleSetsByDuration(
   const tier = getDurationTier(durationMinutes);
   const scale = SET_SCALE_BY_DURATION[tier] ?? 1;
   const scaled = Math.round(sets * scale);
-  return Math.max(1, scaled);
+  const minFloor = sets >= 3 ? 3 : 1;
+  return Math.max(minFloor, scaled);
 }
 
 /**
@@ -78,9 +86,10 @@ export function reduceSetsToFitFatigue(
       if (remaining <= 0) break;
       const p = slot.prescription;
       if (!p || p.sets <= 1) continue;
-      const reduce = Math.min(remaining, p.sets - 1);
+      const minSets = minSetsForBlockType(block.block_type);
+      const reduce = Math.min(remaining, p.sets - minSets);
       if (reduce > 0) {
-        p.sets = Math.max(1, p.sets - reduce);
+        p.sets = Math.max(minSets, p.sets - reduce);
         remaining -= reduce;
       }
     }
@@ -141,9 +150,10 @@ export function enforceMainAccessoryRatio(workout: GeneratedWorkout): void {
   for (const { slot } of slotsWithSets) {
     if (toRemove <= 0) break;
     const p = slot.prescription!;
-    const reduce = Math.min(toRemove, p.sets - 1);
+    const minSets = minSetsForBlockType("accessory");
+    const reduce = Math.min(toRemove, p.sets - minSets);
     if (reduce > 0) {
-      p.sets = Math.max(1, p.sets - reduce);
+      p.sets = Math.max(minSets, p.sets - reduce);
       toRemove -= reduce;
     }
   }

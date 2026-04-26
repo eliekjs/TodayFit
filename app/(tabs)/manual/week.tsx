@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -42,6 +41,7 @@ import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenc
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import type { BlockType, DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 
@@ -580,19 +580,18 @@ export default function ManualWeekScreen() {
     }
   };
 
-  if (generating && !manualWeekPlan) {
-    const oneDayLoading = selectedTrainingDays.length === 1;
+  if (generating) {
+    const oneDayLoading =
+      manualWeekPlan?.days.length === 1 || selectedTrainingDays.length === 1;
     return (
-      <AppScreenWrapper>
-        <StatusBar style="light" />
-        <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textMuted }]}>
-          {oneDayLoading ? "Building your workout…" : "Building your week…"}
-        </Text>
-      </View>
-      </AppScreenWrapper>
+      <GenerationLoadingScreen
+        message={oneDayLoading ? "Building your workout..." : "Building your week..."}
+      />
     );
+  }
+
+  if (isRegenerating) {
+    return <GenerationLoadingScreen message="Regenerating your workout..." />;
   }
 
   if (error && !manualWeekPlan) {
@@ -950,9 +949,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
     gap: 16,
-  },
-  loadingText: {
-    fontSize: 15,
   },
   errorText: {
     fontSize: 13,

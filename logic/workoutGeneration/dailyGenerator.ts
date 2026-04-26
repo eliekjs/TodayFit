@@ -28,7 +28,7 @@ import {
   MIN_MOVEMENT_CATEGORIES,
   BALANCE_CATEGORY_PATTERNS,
   getSimilarExerciseClusterId,
-  BLOCKED_EXERCISE_IDS,
+  isBlockedExercise,
 } from "../../lib/workoutRules";
 import {
   balanceBonusForExercise,
@@ -48,6 +48,7 @@ import {
   getConditioningStructureByIntent,
   getExplosiveConditioningStructure,
   getHighIntensityConditioningStructure,
+  getSprintBurstConditioningStructure,
   getRepBasedHighIntensityConditioningStructure,
   HIGH_INTENSITY_CONDITIONING_IDS,
   REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS,
@@ -537,7 +538,7 @@ export function filterByHardConstraints(
   return exercises.filter((e) => {
     const hasRings = equipmentSet.has("rings");
     const ringStraddleAllowed = isRingStraddleExercise(e) && ringStraddleAllowedForInput(input);
-    if (BLOCKED_EXERCISE_IDS.has(e.id)) return false;
+    if (isBlockedExercise({ id: e.id, name: e.name })) return false;
     if (!exerciseMatchesWorkoutTier(e.workout_level_tags, userWorkoutTier)) return false;
     if (userWorkoutTier === "beginner" && isHardBlockedForBeginnerTier(e)) return false;
     if (
@@ -597,7 +598,7 @@ export function getHardConstraintRejectReason(
   const jointStressFor = (ex: Exercise) =>
     (ex.joint_stress_tags?.length ? ex.joint_stress_tags : ex.tags?.joint_stress) ?? [];
 
-  if (BLOCKED_EXERCISE_IDS.has(e.id)) return "blocked_exercise_id";
+  if (isBlockedExercise({ id: e.id, name: e.name })) return "blocked_exercise_id";
   if (!exerciseMatchesWorkoutTier(e.workout_level_tags, userWorkoutTier)) return "workout_tier_mismatch";
   if (userWorkoutTier === "beginner" && isHardBlockedForBeginnerTier(e)) return "beginner_tier_hard_gate";
   if (
@@ -1529,10 +1530,17 @@ function getPrescription(
 ): { sets: number; reps?: number; time_seconds?: number; rest_seconds: number; coaching_cues: string } {
   const goal = primaryGoal ?? "hypertrophy";
   const rules = getGoalRules(goal);
+  const strengthVolumeContext =
+    goal === "strength" ||
+    blockType === "main_strength" ||
+    blockType === "main_hypertrophy" ||
+    (isAccessory ?? false);
   const scaleSets = (s: number) => {
+    const minSets = strengthVolumeContext ? 3 : 1;
     let n = fatigueVolumeScale != null && fatigueVolumeScale < 1
-      ? Math.max(1, Math.round(s * fatigueVolumeScale))
+      ? Math.max(minSets, Math.round(s * fatigueVolumeScale))
       : s;
+    n = Math.max(minSets, n);
     if (userLevel === "beginner") n = Math.min(n, 3);
     return n;
   };
@@ -1580,7 +1588,7 @@ function getPrescription(
 
   // Accessory work (e.g. strength superset pairs): use accessory rules when present. DB/KB-only → 8–12 reps.
   if (isAccessory && rules.accessoryRepRange) {
-    const setRange = rules.accessorySetRange ?? { min: 2, max: 3 };
+    const setRange = rules.accessorySetRange ?? { min: 3, max: 4 };
     const sets = scaleSets(scaleSetsByEnergy(Math.round((setRange.min + setRange.max) / 2), energyLevel));
     const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.accessoryRepRange;
     const repRange = getEffectiveRepRange(exercise, goalRepRange);
@@ -2678,12 +2686,13 @@ function buildMainStrength(
   }
 
   const primaryIntent = intentSlugs[0];
+  const surfPopUpPowerSession = hasSurfingPopUpPowerSubFocus(input);
   const getComplementaryStrengthIntents = (intent?: string): string[] => {
     if (!intent) return [];
     if (intent === "deadlift_hinge") return ["squat"];
     if (intent === "squat") return ["deadlift_hinge"];
-    if (intent === "bench_press") return ["overhead_press", "pull"];
-    if (intent === "overhead_press") return ["bench_press", "pull"];
+    if (intent === "bench_press") return surfPopUpPowerSession ? ["overhead_press"] : ["overhead_press", "pull"];
+    if (intent === "overhead_press") return surfPopUpPowerSession ? ["bench_press"] : ["bench_press", "pull"];
     if (intent === "pull") return ["bench_press", "overhead_press"];
     return [];
   };
@@ -3030,8 +3039,8 @@ function buildMainStrength(
   // - keep accessory exercise sets lighter than the main lift sets
   const mainItemSets = blocks.flatMap((b) => b.items.map((i) => i.sets ?? 0));
   const mainItemSetsMax = Math.max(1, ...mainItemSets);
-  const accessoryItemSetsCapByDuration = input.duration_minutes <= 30 ? 2 : 3;
-  const accessoryItemSetsCap = Math.max(1, Math.min(accessoryItemSetsCapByDuration, mainItemSetsMax - 1));
+  const accessoryItemSetsCapByDuration = input.duration_minutes <= 30 ? 3 : 4;
+  const accessoryItemSetsCap = Math.max(3, Math.min(accessoryItemSetsCapByDuration, mainItemSetsMax));
 
   const accessoryPairCountTarget = input.duration_minutes <= 30 ? 1 : 2;
   let pairCount = accessoryPairCountTarget;
@@ -3336,7 +3345,7 @@ function buildMainStrength(
         {
           exercise_id: exA.id,
           exercise_name: exA.name,
-          sets: Math.max(1, Math.min(pA.sets ?? 1, accessoryItemSetsCap)),
+          sets: Math.max(3, Math.min(pA.sets ?? 3, accessoryItemSetsCap)),
           reps: pA.reps,
           rest_seconds: pA.rest_seconds,
           coaching_cues: pA.coaching_cues,
@@ -3346,7 +3355,7 @@ function buildMainStrength(
         {
           exercise_id: exB.id,
           exercise_name: exB.name,
-          sets: Math.max(1, Math.min(pB.sets ?? 1, accessoryItemSetsCap)),
+          sets: Math.max(3, Math.min(pB.sets ?? 3, accessoryItemSetsCap)),
           reps: pB.reps,
           rest_seconds: pB.rest_seconds,
           coaching_cues: pB.coaching_cues,
@@ -3373,7 +3382,7 @@ function buildMainStrength(
           accessoryItems.push({
             exercise_id: coreCandidate.id,
             exercise_name: coreCandidate.name,
-            sets: Math.max(1, Math.min(pCore.sets ?? 1, accessoryItemSetsCap)),
+            sets: Math.max(3, Math.min(pCore.sets ?? 3, accessoryItemSetsCap)),
             reps: pCore.reps,
             rest_seconds: pCore.rest_seconds,
             coaching_cues: pCore.coaching_cues,
@@ -3642,6 +3651,57 @@ function isHighIntensityConditioning(exercise: Exercise): boolean {
   if (stimulus.some((s) => ["plyometric", "anaerobic"].includes(s.toLowerCase().replace(/\s/g, "_")))) return true;
   if (exercise.impact_level === "high") return true;
   return false;
+}
+
+/**
+ * Sprint/burst locomotion conditioning must be programmed as short repeated efforts
+ * (e.g. piston runs, sprint-in-place, shuttle bursts), not long continuous minutes.
+ */
+function isSprintBurstConditioning(exercise: Exercise): boolean {
+  if (exercise.modality !== "conditioning") return false;
+  const id = exercise.id.toLowerCase();
+  const name = exercise.name.toLowerCase();
+  const tags = [
+    ...(exercise.tags?.stimulus ?? []),
+    ...(exercise.tags?.attribute_tags ?? []),
+    ...(exercise.tags?.goal_tags ?? []),
+    ...(exercise.tags?.sport_tags ?? []),
+  ]
+    .map((t) => String(t).toLowerCase().replace(/\s/g, "_"));
+  const hasBurstTag = tags.some((t) =>
+    ["speed", "acceleration", "anaerobic", "sprint", "athleticism"].includes(t)
+  );
+  const sprintLikeName = /\b(piston|sprint|shuttle|high[_\s-]?knee|butt[_\s-]?kick)\b/.test(`${id} ${name}`);
+  const explicitlySteady = tags.some((t) => t.includes("zone2") || t.includes("aerobic_base") || t.includes("tempo"));
+  return (hasBurstTag || sprintLikeName) && !explicitlySteady;
+}
+
+function getConditioningStructureForExercise(
+  exercise: Exercise,
+  conditioningMinutes: number,
+  primaryGoal: PrimaryGoal,
+  primaryIntent?: string
+) {
+  if (isSprintBurstConditioning(exercise)) {
+    return getSprintBurstConditioningStructure(conditioningMinutes);
+  }
+  if (isHighIntensityConditioning(exercise)) {
+    return REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS.has(exercise.id)
+      ? getRepBasedHighIntensityConditioningStructure(conditioningMinutes)
+      : getHighIntensityConditioningStructure(conditioningMinutes);
+  }
+  if (isExplosiveConditioning(exercise)) {
+    return getExplosiveConditioningStructure();
+  }
+  if (primaryIntent != null) {
+    return getConditioningStructureByIntent(
+      conditioningMinutes,
+      primaryIntent,
+      exercise.equipment_required ?? [],
+      primaryGoal
+    );
+  }
+  return getConditioningIntervalStructure(conditioningMinutes, primaryGoal, exercise.equipment_required ?? []);
 }
 
 // --- Main block: hypertrophy / body recomp / calisthenics (2–4 supersets) ---
@@ -4660,20 +4720,12 @@ function appendEnduranceTimeBasedCardioBlock(
     input.style_prefs?.user_level
   );
   const primaryIntent = conditioningProfile ? getPrimaryConditioningIntent(conditioningProfile) : undefined;
-  const interval = isHighIntensityConditioning(c)
-    ? REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS.has(c.id)
-      ? getRepBasedHighIntensityConditioningStructure(condMins)
-      : getHighIntensityConditioningStructure(condMins)
-    : isExplosiveConditioning(c)
-      ? getExplosiveConditioningStructure()
-      : primaryIntent != null
-        ? getConditioningStructureByIntent(
-            condMins,
-            primaryIntent,
-            c.equipment_required ?? [],
-            input.primary_goal
-          )
-        : getConditioningIntervalStructure(condMins, input.primary_goal, c.equipment_required ?? []);
+  const interval = getConditioningStructureForExercise(
+    c,
+    condMins,
+    input.primary_goal,
+    primaryIntent
+  );
   const condFormat =
     (interval.format as BlockFormat) ??
     (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ??
@@ -5174,10 +5226,34 @@ function enforceMainAccessoryRatioOnBlocks(blocks: WorkoutBlock[]): void {
   for (const { item } of itemsWithSets) {
     if (toRemove <= 0) break;
     const current = item.sets ?? 0;
-    const reduce = Math.min(toRemove, current - 1);
+    const reduce = Math.min(toRemove, current - 3);
     if (reduce > 0) {
-      item.sets = Math.max(1, current - reduce);
+      item.sets = Math.max(3, current - reduce);
       toRemove -= reduce;
+    }
+  }
+
+  if (toRemove <= 0) return;
+
+  // If set reduction cannot satisfy ratio without dropping below minimum useful volume,
+  // remove lowest-volume accessory items entirely.
+  for (let bi = accessoryBlocks.length - 1; bi >= 0 && toRemove > 0; bi--) {
+    const block = accessoryBlocks[bi];
+    for (let ii = block.items.length - 1; ii >= 0 && toRemove > 0; ii--) {
+      const item = block.items[ii];
+      const sets = item.sets ?? 0;
+      if (sets <= 0) continue;
+      block.items.splice(ii, 1);
+      toRemove -= sets;
+    }
+    if (block.format === "superset" && block.items.length >= 2) {
+      const pairs: [WorkoutItem, WorkoutItem][] = [];
+      for (let i = 0; i + 1 < block.items.length; i += 2) {
+        pairs.push([block.items[i], block.items[i + 1]]);
+      }
+      block.supersetPairs = pairs.length ? pairs : undefined;
+    } else {
+      block.supersetPairs = undefined;
     }
   }
 }
@@ -5317,7 +5393,7 @@ function ensureSingleGoalSubFocusCoverage(
   const item: WorkoutItem = {
     exercise_id: ex.id,
     exercise_name: ex.name,
-    sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+    sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
     reps: p.reps,
     rest_seconds: p.rest_seconds,
     coaching_cues: p.coaching_cues,
@@ -5428,7 +5504,7 @@ function ensureWeeklySubFocusSessionMinimums(
       itemsToAdd.push({
         exercise_id: picked.id,
         exercise_name: picked.name,
-        sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+        sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
         reps: p.reps,
         rest_seconds: p.rest_seconds,
         coaching_cues: p.coaching_cues,
@@ -5665,7 +5741,7 @@ function tryRepairSnowSportSession(
           const newItem: WorkoutItem = {
             exercise_id: repl.id,
             exercise_name: repl.name,
-            sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+            sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
             reps: p.reps,
             rest_seconds: p.rest_seconds,
             coaching_cues: p.coaching_cues,
@@ -5716,7 +5792,7 @@ function tryRepairSnowSportSession(
           const newItem: WorkoutItem = {
             exercise_id: repl.id,
             exercise_name: repl.name,
-            sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+            sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
             reps: p.reps,
             rest_seconds: p.rest_seconds,
             coaching_cues: p.coaching_cues,
@@ -5821,11 +5897,11 @@ function tryRepairSnowSportSession(
             input.style_prefs?.user_level
           );
           const conditioningMins = block.estimated_minutes ?? 10;
-          const interval = isHighIntensityConditioning(c)
-            ? getHighIntensityConditioningStructure(conditioningMins)
-            : isExplosiveConditioning(c)
-              ? getExplosiveConditioningStructure()
-              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const interval = getConditioningStructureForExercise(
+            c,
+            conditioningMins,
+            input.primary_goal
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -5928,7 +6004,7 @@ function tryRepairHikingSession(
           const newItem: WorkoutItem = {
             exercise_id: repl.id,
             exercise_name: repl.name,
-            sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+            sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
             reps: p.reps,
             rest_seconds: p.rest_seconds,
             coaching_cues: p.coaching_cues,
@@ -5982,11 +6058,11 @@ function tryRepairHikingSession(
             input.style_prefs?.user_level
           );
           const conditioningMins = block.estimated_minutes ?? 10;
-          const interval = isHighIntensityConditioning(c)
-            ? getHighIntensityConditioningStructure(conditioningMins)
-            : isExplosiveConditioning(c)
-              ? getExplosiveConditioningStructure()
-              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const interval = getConditioningStructureForExercise(
+            c,
+            conditioningMins,
+            input.primary_goal
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6081,7 +6157,7 @@ function tryRepairTrailRunningSession(
           const newItem: WorkoutItem = {
             exercise_id: repl.id,
             exercise_name: repl.name,
-            sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+            sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
             reps: p.reps,
             rest_seconds: p.rest_seconds,
             coaching_cues: p.coaching_cues,
@@ -6135,11 +6211,11 @@ function tryRepairTrailRunningSession(
             input.style_prefs?.user_level
           );
           const conditioningMins = block.estimated_minutes ?? 10;
-          const interval = isHighIntensityConditioning(c)
-            ? getHighIntensityConditioningStructure(conditioningMins)
-            : isExplosiveConditioning(c)
-              ? getExplosiveConditioningStructure()
-              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const interval = getConditioningStructureForExercise(
+            c,
+            conditioningMins,
+            input.primary_goal
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6234,7 +6310,7 @@ function tryRepairRoadRunningSession(
           const newItem: WorkoutItem = {
             exercise_id: repl.id,
             exercise_name: repl.name,
-            sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+            sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
             reps: p.reps,
             rest_seconds: p.rest_seconds,
             coaching_cues: p.coaching_cues,
@@ -6288,11 +6364,11 @@ function tryRepairRoadRunningSession(
             input.style_prefs?.user_level
           );
           const conditioningMins = block.estimated_minutes ?? 10;
-          const interval = isHighIntensityConditioning(c)
-            ? getHighIntensityConditioningStructure(conditioningMins)
-            : isExplosiveConditioning(c)
-              ? getExplosiveConditioningStructure()
-              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const interval = getConditioningStructureForExercise(
+            c,
+            conditioningMins,
+            input.primary_goal
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6383,7 +6459,7 @@ function tryRepairSoccerSession(
           const newItem: WorkoutItem = {
             exercise_id: repl.id,
             exercise_name: repl.name,
-            sets: Math.max(1, Math.min(p.sets ?? 2, 3)),
+            sets: Math.max(3, Math.min(p.sets ?? 3, 4)),
             reps: p.reps,
             rest_seconds: p.rest_seconds,
             coaching_cues: p.coaching_cues,
@@ -6437,11 +6513,11 @@ function tryRepairSoccerSession(
             input.style_prefs?.user_level
           );
           const conditioningMins = block.estimated_minutes ?? 10;
-          const interval = isHighIntensityConditioning(c)
-            ? getHighIntensityConditioningStructure(conditioningMins)
-            : isExplosiveConditioning(c)
-              ? getExplosiveConditioningStructure()
-              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const interval = getConditioningStructureForExercise(
+            c,
+            conditioningMins,
+            input.primary_goal
+          );
           item.sets = interval.sets;
           if (interval.reps != null) {
             item.reps = interval.reps;
@@ -6659,6 +6735,35 @@ function applyCardioDominantMainBlockBias(
   }
 }
 
+function hasSurfingPopUpPowerSubFocus(input: GenerateWorkoutInput): boolean {
+  const selectedSportSubFocus = input.sport_sub_focus ?? {};
+  for (const [sportSlugRaw, subFocuses] of Object.entries(selectedSportSubFocus)) {
+    const sportSlug = tagToSlug(getCanonicalSportSlug(sportSlugRaw));
+    if (sportSlug !== "surfing") continue;
+    const normalized = (subFocuses ?? []).map((s) => tagToSlug(String(s)));
+    if (normalized.includes("pop_up_power")) return true;
+  }
+  return false;
+}
+
+function isRowOrUpperPullExercise(exercise: Exercise): boolean {
+  const family = (exercise.primary_movement_family ?? "").toLowerCase().replace(/\s/g, "_");
+  if (family === "upper_pull") return true;
+  const pattern = (exercise.movement_pattern ?? "").toLowerCase().replace(/\s/g, "_");
+  if (pattern === "pull") return true;
+  const patterns = (exercise.movement_patterns ?? []).map((p) => p.toLowerCase().replace(/\s/g, "_"));
+  if (patterns.some((p) => p === "horizontal_pull" || p === "vertical_pull" || p === "pull")) return true;
+  const tagSlugs = getExerciseTagSlugs(exercise);
+  if (tagSlugs.has("horizontal_pull") || tagSlugs.has("vertical_pull") || tagSlugs.has("pulling_strength")) return true;
+  return /\brow\b/.test(exercise.id.toLowerCase()) || /\brow\b/.test(exercise.name.toLowerCase());
+}
+
+function applySurfPopUpPowerPoolFilter(pool: Exercise[], input: GenerateWorkoutInput): Exercise[] {
+  if (!hasSurfingPopUpPowerSubFocus(input)) return pool;
+  const filtered = pool.filter((e) => !isRowOrUpperPullExercise(e));
+  return filtered.length > 0 ? filtered : pool;
+}
+
 // --- Main entry: 8-step generation flow ---
 /** @param exercisePool Full catalog for this request (e.g. from `listExercisesForGenerator`). No default — avoids accidentally using the tiny test stub in production. */
 export function generateWorkoutSession(
@@ -6745,6 +6850,9 @@ export function generateWorkoutSession(
       errors: spLoad.errors,
     };
   }
+
+  filtered = applySurfPopUpPowerPoolFilter(filtered, input);
+  guaranteePool = applySurfPopUpPowerPoolFilter(guaranteePool, input);
 
   const used = new Set<string>();
   const historyContext = input.training_history ?? buildHistoryContextFromLegacy(input);
@@ -7522,11 +7630,11 @@ export function generateWorkoutSession(
         if (c) {
           used.add(c.id);
           const p = getPrescription(c, "conditioning", input.energy_level, input.primary_goal, undefined, undefined, input.style_prefs?.user_level);
-          const interval = isHighIntensityConditioning(c)
-            ? getHighIntensityConditioningStructure(conditioningMins)
-            : isExplosiveConditioning(c)
-              ? getExplosiveConditioningStructure()
-              : getConditioningIntervalStructure(conditioningMins, input.primary_goal, c.equipment_required ?? []);
+          const interval = getConditioningStructureForExercise(
+            c,
+            conditioningMins,
+            input.primary_goal
+          );
           const condFormat =
             (interval.format as BlockFormat) ??
             (blockIntentProfile.cardioDominant ? blockFormatForCardioHint(blockIntentProfile.cardioFormatHint) : undefined) ??

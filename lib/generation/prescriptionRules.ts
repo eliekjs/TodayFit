@@ -104,7 +104,7 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     compoundLiftMin: 2,
     supersetsNonCompetingOnly: true,
     accessoryRepRange: { min: 8, max: 10 },
-    accessorySetRange: { min: 2, max: 3 },
+    accessorySetRange: { min: 3, max: 4 },
     accessoryRestRange: { min: 60, max: 90 },
     preferredMovementPatterns: ["squat", "hinge", "push", "pull"],
   },
@@ -526,6 +526,23 @@ export function getHighIntensityConditioningStructure(
     rest_seconds: restSeconds,
     format: "circuit",
     reasoning: `Short work bouts (max 1 min) with rest so you can sustain intensity. Rest ${restSeconds} s between rounds.`,
+  };
+}
+
+/** Sprint/burst conditioning: short 20–30s efforts repeated in quality sets (e.g. piston runs, shuttle bursts). */
+export function getSprintBurstConditioningStructure(
+  totalWorkMinutes: number
+): ConditioningIntervalStructure {
+  const sets = Math.max(5, Math.min(10, Math.round(totalWorkMinutes)));
+  const workSeconds = totalWorkMinutes <= 7 ? 20 : 30;
+  const restSeconds = workSeconds === 20 ? 40 : 60;
+  return {
+    sets,
+    time_seconds: workSeconds,
+    rest_seconds: restSeconds,
+    format: "circuit",
+    reasoning:
+      "Short sprint bursts (20-30s) with controlled recovery preserve speed quality and repeatability.",
   };
 }
 

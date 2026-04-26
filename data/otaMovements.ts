@@ -9918,60 +9918,6 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "progressions": []
   },
   {
-    "id": "non_cm_box_jump",
-    "name": "Non-CM Box Jump",
-    "muscles": [
-      "legs"
-    ],
-    "modalities": [
-      "power"
-    ],
-    "equipment": [
-      "bodyweight",
-      "plyo_box"
-    ],
-    "contraindications": [
-      "knee",
-      "ankle"
-    ],
-    "tags": [
-      "ota_movements",
-      "power",
-      "athleticism",
-      "vertical",
-      "non cm box jump"
-    ],
-    "regressions": [],
-    "progressions": []
-  },
-  {
-    "id": "non_cm_med_ball_toss",
-    "name": "Non CM Med Ball Toss",
-    "muscles": [
-      "legs",
-      "core"
-    ],
-    "modalities": [
-      "power"
-    ],
-    "equipment": [
-      "bodyweight"
-    ],
-    "contraindications": [
-      "knee",
-      "ankle"
-    ],
-    "tags": [
-      "ota_movements",
-      "power",
-      "athleticism",
-      "med ball",
-      "non cm med ball toss"
-    ],
-    "regressions": [],
-    "progressions": []
-  },
-  {
     "id": "one_arm_row",
     "name": "One Arm Row",
     "muscles": [

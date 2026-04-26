@@ -29,6 +29,16 @@ export function resolveSets(ctx: ResolverContext): number {
   const { style, fatigueCost, durationTier, energyLevel } = ctx;
   let min = style.set_range_min;
   let max = style.set_range_max;
+  const minFloorByStyle: Partial<Record<ResolverContext["style"]["slug"], number>> = {
+    heavy_strength: 3,
+    moderate_hypertrophy: 3,
+    explosive_power: 3,
+    density_accessory: 3,
+    controlled_resilience: 3,
+  };
+  const floor = minFloorByStyle[style.slug] ?? 1;
+  min = Math.max(min, floor);
+  max = Math.max(max, min);
   if (min >= max) return min;
 
   let bias = 0.5;

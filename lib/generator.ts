@@ -44,7 +44,7 @@ import {
   MAX_NON_CARDIO_CUE_SECONDS,
   ZONE2_HR_GUIDANCE,
   getSimilarExerciseClusterId,
-  BLOCKED_EXERCISE_IDS,
+  isBlockedExercise,
 } from "./workoutRules";
 import {
   HIGH_INTENSITY_CONDITIONING_IDS,
@@ -109,7 +109,7 @@ async function loadMergedExercisePoolForGenerator(injurySlugs: string[]): Promis
     const dbAuthoritative = isDbCatalogAuthoritative(activeCount);
     const fromDb = await listExercisesForGenerator({ injuries: injurySlugs });
     for (const e of fromDb) {
-      if (!BLOCKED_EXERCISE_IDS.has(e.id)) byId.set(e.id, e);
+      if (!isBlockedExercise({ id: e.id, name: e.name })) byId.set(e.id, e);
     }
     if (dbAuthoritative) {
       const pool = [...byId.values()];
@@ -154,7 +154,7 @@ function mergeStaticIntoPool(
   injurySlugs: string[]
 ): Exercise[] {
   for (const def of staticDefs) {
-    if (BLOCKED_EXERCISE_IDS.has(def.id)) continue;
+    if (isBlockedExercise({ id: def.id, name: def.name })) continue;
     if (byId.has(def.id)) continue;
     const ex = exerciseDefinitionToGeneratorExercise(def);
     if (exerciseConflictsWithInjuries(ex, injurySlugs)) continue;
@@ -617,7 +617,7 @@ export function generateWorkout(
 
   const counts = pickCountByDuration(durationMinutes);
 
-  let exercises = exercisesInput.filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id));
+  let exercises = exercisesInput.filter((e) => !isBlockedExercise({ id: e.id, name: e.name }));
   const eligible = filterByUpcoming(
     filterByBodyPartFocus(
       filterByInjuries(

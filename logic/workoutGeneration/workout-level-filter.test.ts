@@ -187,8 +187,8 @@ function runTests() {
       !advancedAllTiers.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"
       ) &&
-      advancedAllTiers.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
-    "advanced tier keeps advanced-only; creative still off"
+      !advancedAllTiers.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
+    "advanced tier keeps advanced-only; creative still off; start-stop always excluded"
   );
 
   const advancedCreative = filterByHardConstraints(poolWithComplex, {
@@ -196,8 +196,9 @@ function runTests() {
     style_prefs: { user_level: "advanced", include_creative_variations: true },
   });
   assert(
-    advancedCreative.length === poolWithComplex.length,
-    "advanced + creative on keeps full pool"
+    advancedCreative.length === poolWithComplex.length - 1 &&
+      !advancedCreative.some((e) => e.id === "ff_single_arm_kettlebell_start_stop_clean_to_thruster"),
+    "advanced + creative keeps full pool except globally blocked start-stop"
   );
 
   const noRings = filterByHardConstraints(ringPool, {

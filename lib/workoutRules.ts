@@ -192,6 +192,22 @@ export const INJURY_AVOID_TAGS: Record<string, string[]> = {
 /** Exercise IDs/slugs to always exclude from generation (e.g. user-disliked). */
 export const BLOCKED_EXERCISE_IDS = new Set<string>(["prone_y_raise"]);
 
+function normalizeExerciseIdentity(value: string | undefined): string {
+  return (value ?? "").toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_");
+}
+
+/**
+ * Global exercise hard-block policy.
+ * - Explicit IDs in `BLOCKED_EXERCISE_IDS`
+ * - Any "start stop" variation by id/name (user preference)
+ */
+export function isBlockedExercise(exercise: { id?: string; name?: string }): boolean {
+  const id = normalizeExerciseIdentity(exercise.id);
+  if (id && BLOCKED_EXERCISE_IDS.has(id)) return true;
+  const identity = `${id} ${normalizeExerciseIdentity(exercise.name)}`;
+  return /(?:^|_)start_stop(?:_|$)|\bstart_stop\b/.test(identity);
+}
+
 /** Injury → exercise IDs to exclude (e.g. overhead press for shoulder). */
 export const INJURY_AVOID_EXERCISE_IDS: Record<string, string[]> = {
   shoulder: ["oh_press", "db_shoulder_press", "pullup", "dips"],
