@@ -208,6 +208,12 @@ export function isBlockedExercise(exercise: { id?: string; name?: string }): boo
   const identity = `${id} ${normalizeExerciseIdentity(exercise.name)}`;
   if (/(?:^|_)start_stop(?:_|$)|\bstart_stop\b/.test(identity)) return true;
   if (/(?:^|_)non[_\s-]*cm(?:_|$|\b)/.test(identity)) return true;
+  const rawName = (exercise.name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (
+    /^(push|pull|bend|squat|hinge|lunge|press|row|carry|core|upper|lower)$/.test(rawName)
+  ) {
+    return true;
+  }
   return false;
 }
 
