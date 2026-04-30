@@ -26,9 +26,7 @@ export type BodyEmphasisKey =
 
 /** Human-readable adaptive setup (for summaries — not the same as generator energy defaults). */
 export type AdaptiveScheduleLabels = {
-  fatigue: string;
-  horizonLabel: string;
-  recentLoad: string;
+  intensityLevel: string;
   injuryStatus: string;
   injuryAreas?: string[];
 };
@@ -260,6 +258,32 @@ export type WorkoutItem = {
   coaching_cues: string;
   reasoning_tags?: string[];
   tags?: string[];
+  /**
+   * How this movement links to the session’s declared goals / sub-goals (or sport).
+   * Filled at generation time for UI and audits; prep/cooldown may use `session_prep`.
+   */
+  session_intent_links?: {
+    goals?: string[];
+    sub_focus?: { goal_slug: string; sub_slug: string }[];
+    sport_slugs?: string[];
+    /** True when the exercise primarily prepares the session (typical warmup/cooldown). */
+    session_prep?: boolean;
+    /** True when links default to the primary goal because tag metadata had no explicit overlap. */
+    intent_inferred?: boolean;
+    /**
+     * Ranked list of which user intent entries (goal / sub-goal / sport / sport sub-focus)
+     * this exercise directly or partially matches. Populated when `ranked_intent_entries` is
+     * present on the session input; provides full traceability from exercise → user intent.
+     */
+    matched_intents?: Array<{
+      kind: "goal" | "goal_sub_focus" | "sport" | "sport_sub_focus";
+      slug: string;
+      parent_slug?: string;
+      match_strength: "direct" | "partial" | "inferred";
+      rank: number;
+      weight: number;
+    }>;
+  };
   /** When true, reps are per leg / per arm; display "each leg" or "per leg". */
   unilateral?: boolean;
   /** Phase 11: history recommendation (why this prescription). */

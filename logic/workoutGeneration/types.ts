@@ -288,6 +288,11 @@ export type GenerateWorkoutInput = {
    */
   session_intent_contract?: import("./sessionIntentContract").SessionIntentContract;
   /**
+   * Direct user-selected session intent (goals/sports/sub-focuses/level) carried end-to-end.
+   * Preferred source for intent linking and downstream selection logic.
+   */
+  session_intent?: import("./sessionIntentContract").SessionIntentSelection;
+  /**
    * When not `false`, alpine skiing main_strength / main_hypertrophy scoring shrinks generic additive terms
    * (goal/ontology/history/template-fit, etc.) so sport slot + within-pool quality dominate. Set `false` for legacy full scorer.
    */

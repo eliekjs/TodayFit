@@ -3,9 +3,7 @@ import type { BodyEmphasisKey, ManualPreferences } from "../lib/types";
 /** Adaptive mode: first-page choices passed to the schedule (second) page. */
 export type AdaptiveSetup = {
   rankedGoals: (string | null)[];
-  horizon: string;
-  fatigue: string;
-  recentLoad: string;
+  intensityLevel: string;
   injuryStatus: string;
   injuryTypes: string[];
   rankedSportSlugs: (string | null)[];

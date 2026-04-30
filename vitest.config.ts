@@ -11,6 +11,7 @@ export default defineConfig({
       "context/**/*.test.ts",
       "lib/db/**/*.test.ts",
       "logic/workoutGeneration/generationValidationGuardrail.test.ts",
+      "logic/workoutGeneration/sessionIntentCoverage.test.ts",
       "logic/workoutIntelligence/scoring/exerciseScoring.test.ts",
       "logic/workoutIntelligence/scoring/qualityResolution.test.ts",
       "logic/workoutIntelligence/weekly/phase12-weekly-planning.test.ts",

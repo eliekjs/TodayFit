@@ -57,8 +57,8 @@ export function CollapsiblePreferenceSection({
 
   const headerStyle = nested ? styles.headerNested : styles.header;
   const titleStyle = nested ? styles.titleNested : styles.title;
+  const selectedValueStyle = nested ? styles.selectedValueNested : styles.selectedValue;
   const subtitleStyle = nested ? styles.subtitleNested : styles.subtitle;
-  const summaryStyle = nested ? styles.summaryNested : styles.summary;
   const bodyStyle = nested ? styles.bodyNested : styles.body;
 
   return (
@@ -78,20 +78,17 @@ export function CollapsiblePreferenceSection({
         accessibilityLabel={`${title}. ${summary}. ${expanded ? "Collapse" : "Expand"}`}
       >
         <View style={styles.headerTextCol}>
-          <Text style={[titleStyle, { color: theme.text }]}>{title}</Text>
-          {expanded && subtitle != null ? (
+          <Text style={[selectedValueStyle, { color: theme.text }]} numberOfLines={2}>
+            {summary}
+          </Text>
+          <Text style={[titleStyle, { color: theme.textMuted }]} numberOfLines={1}>
+            {title}
+          </Text>
+          {expanded && subtitle != null && subtitle.trim().length > 0 ? (
             <Text style={[subtitleStyle, { color: theme.textMuted }]}>{subtitle}</Text>
           ) : null}
         </View>
         <View style={styles.headerRight}>
-          {!expanded ? (
-            <Text
-              style={[summaryStyle, { color: theme.textMuted }]}
-              numberOfLines={2}
-            >
-              {summary}
-            </Text>
-          ) : null}
           <Text style={[styles.chevron, { color: theme.textMuted }]}>
             {expanded ? "▼" : "▶"}
           </Text>
@@ -133,12 +130,24 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
   },
   titleNested: {
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  selectedValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 21,
+  },
+  selectedValueNested: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
+    lineHeight: 19,
   },
   subtitle: {
     fontSize: 13,
@@ -153,18 +162,8 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    maxWidth: "42%",
-  },
-  summary: {
-    fontSize: 13,
-    textAlign: "right",
-    flex: 1,
-  },
-  summaryNested: {
-    fontSize: 12,
-    textAlign: "right",
-    flex: 1,
+    justifyContent: "center",
+    width: 24,
   },
   chevron: {
     fontSize: 12,

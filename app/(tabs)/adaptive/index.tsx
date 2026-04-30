@@ -56,27 +56,6 @@ const ADAPTIVE_GOALS = [
   { id: "resilience", label: "Resilience / recovery", category: "Resilience" },
 ];
 
-/** Spec: No Deadline, 1–3 Weeks, 4–8 Weeks, 2–4 Months, In-Season. */
-const TIME_HORIZON_OPTIONS = [
-  { id: "no_deadline", label: "No Deadline" },
-  { id: "1_3_weeks", label: "1–3 Weeks" },
-  { id: "4_8_weeks", label: "4–8 Weeks" },
-  { id: "2_4_months", label: "2–4 Months" },
-  { id: "in_season", label: "In-Season" },
-] as const;
-
-/** Spec: recent load (past 3–5 days). */
-const RECENT_LOAD_OPTIONS = [
-  "Heavy Lower",
-  "Heavy Upper",
-  "Long Run",
-  "Big Hike",
-  "Ski Day",
-  "Climbing Day",
-  "Light / Off",
-  "Normal / Mixed",
-] as const;
-
 const INJURY_STATUS_OPTIONS = [
   "No Concerns",
   "Managing",
@@ -86,10 +65,13 @@ const INJURY_STATUS_OPTIONS = [
 /** Injury area options for sport-specific training (same body regions as Build flow, minus "No restrictions"). */
 const INJURY_TYPE_OPTIONS = CONSTRAINT_OPTIONS.filter((o) => o !== "No restrictions");
 
-const FATIGUE_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
+const INTENSITY_LEVEL_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 
 const MAX_SUB_GOALS_PER_GOAL = 3;
-const MAX_TOTAL_SUB_GOALS = 3;
+const MAX_TOTAL_SUB_GOALS_DAY = 3;
+const MAX_TOTAL_SUB_GOALS_WEEK = 5;
+const MAX_TOTAL_PRIORITY_PICKS_DAY = 2;
+const MAX_TOTAL_PRIORITY_PICKS_WEEK = 3;
 
 type AdaptiveAdvNestedKey =
   | "additionalGoals"
@@ -97,10 +79,8 @@ type AdaptiveAdvNestedKey =
   | "goalMatch"
   | "goalSubGoals"
   | "sportFocus"
-  | "recentLoad"
   | "injury"
-  | "fatigue"
-  | "timeHorizon";
+  | "intensityLevel";
 
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
@@ -122,15 +102,12 @@ export default function AdaptiveModeScreen() {
     null,
     null,
   ]);
-  const [horizon, setHorizon] = useState<string>("4_8_weeks");
-  const [recentLoad, setRecentLoad] =
-    useState<(typeof RECENT_LOAD_OPTIONS)[number]>("Normal / Mixed");
+  const [intensityLevel, setIntensityLevel] =
+    useState<(typeof INTENSITY_LEVEL_OPTIONS)[number]>("Moderate");
   const [injuryStatus, setInjuryStatus] =
     useState<(typeof INJURY_STATUS_OPTIONS)[number]>("No Concerns");
   /** Selected injury areas when status is Managing or Rebuilding (labels, e.g. "Knee", "Shoulder"). */
   const [injuryTypes, setInjuryTypes] = useState<string[]>([]);
-  const [fatigue, setFatigue] =
-    useState<(typeof FATIGUE_OPTIONS)[number]>("Moderate");
   /** Sport focus % when 2 sports: [1st sport %, 2nd sport %], sum = 100. Default 60/40. */
   const [sportFocusPct, setSportFocusPct] = useState<[number, number]>([60, 40]);
   /** When both sports and goals: 0–100 = sport(s) share; additional goals = 100 - sportVsGoalPct. Default 50. */
@@ -166,6 +143,8 @@ export default function AdaptiveModeScreen() {
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
   const [oneDayDuration, setOneDayDuration] = useState<number>(45);
+  const [limitPopupMessage, setLimitPopupMessage] = useState<string | null>(null);
+  const limitPopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const defaultOneDayBodyBias = useMemo<NonNullable<DailyWorkoutPreferences["bodyRegionBias"]>>(() => {
     if (manualPreferences.targetBody === "Upper") return "upper";
     if (manualPreferences.targetBody === "Lower") return "lower";
@@ -173,6 +152,16 @@ export default function AdaptiveModeScreen() {
   }, [manualPreferences.targetBody]);
   const [oneDayBodyBias, setOneDayBodyBias] =
     useState<NonNullable<DailyWorkoutPreferences["bodyRegionBias"]>>(defaultOneDayBodyBias);
+  const showLimitPopup = useCallback((message: string) => {
+    if (limitPopupTimerRef.current) {
+      clearTimeout(limitPopupTimerRef.current);
+    }
+    setLimitPopupMessage(message);
+    limitPopupTimerRef.current = setTimeout(() => {
+      setLimitPopupMessage(null);
+      limitPopupTimerRef.current = null;
+    }, 2400);
+  }, []);
 
   useEffect(() => {
     const loadSports = async () => {
@@ -192,6 +181,12 @@ export default function AdaptiveModeScreen() {
   useEffect(() => {
     setOneDayBodyBias(defaultOneDayBodyBias);
   }, [defaultOneDayBodyBias]);
+
+  useEffect(() => {
+    return () => {
+      if (limitPopupTimerRef.current) clearTimeout(limitPopupTimerRef.current);
+    };
+  }, []);
 
   // Load qualities (sub-goals) for each selected sport when not yet cached
   useEffect(() => {
@@ -216,7 +211,19 @@ export default function AdaptiveModeScreen() {
 
   const addSport = (slug: string) => {
     const current = rankedSportSlugs.filter((s): s is string => s != null);
+    const currentGoalsCount = rankedGoals.filter((g): g is string => g != null).length;
     if (current.includes(slug) || current.length >= 2) return;
+    if (isOneDay && current.length === 1 && currentGoalsCount > 0) {
+      showLimitPopup("For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal.");
+      return;
+    }
+    if (current.length + currentGoalsCount >= totalPriorityCap) {
+      showLimitPopup(
+        `You can select up to ${totalPriorityCap} total across sports and goals in ${isOneDay ? "one-day" : "week"} mode.`
+      );
+      return;
+    }
+    setError(null);
     const next: (string | null)[] = [...rankedSportSlugs];
     const idx = next.findIndex((s) => s == null);
     if (idx >= 0) next[idx] = slug;
@@ -245,6 +252,14 @@ export default function AdaptiveModeScreen() {
   const toggleSportSubFocus = (sportSlug: string, qualitySlug: string) => {
     const current = subFocusBySport[sportSlug] ?? [];
     const has = current.includes(qualitySlug);
+    const totalGoalSubGoals = Object.values(manualPreferences.subFocusByGoal).reduce<number>(
+      (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
+      0
+    );
+    const totalSportSubGoals = Object.values(subFocusBySport).reduce<number>(
+      (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
+      0
+    );
     if (has) {
       setSubFocusBySport((prev) => ({
         ...prev,
@@ -252,6 +267,13 @@ export default function AdaptiveModeScreen() {
       }));
     } else {
       if (current.length >= 3) return;
+      if (totalGoalSubGoals + totalSportSubGoals >= totalSubGoalCap) {
+        showLimitPopup(
+          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`
+        );
+        return;
+      }
+      setError(null);
       setSubFocusBySport((prev) => ({
         ...prev,
         [sportSlug]: [...current, qualitySlug],
@@ -266,8 +288,19 @@ export default function AdaptiveModeScreen() {
       return;
     }
     const selectedSportCount = rankedSportSlugs.filter((s): s is string => s != null).length;
+    const selectedGoalCount = rankedGoals.filter((g): g is string => g != null).length;
     if (selectedSportCount < 1) {
       setError("Choose at least one sport.");
+      return;
+    }
+    if (
+      isOneDay &&
+      !(
+        (selectedSportCount === 2 && selectedGoalCount === 0) ||
+        (selectedSportCount === 1 && selectedGoalCount === 1)
+      )
+    ) {
+      setError("For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal.");
       return;
     }
     if (isOneDay && !(oneDayDuration > 0)) {
@@ -276,9 +309,7 @@ export default function AdaptiveModeScreen() {
     }
     const setup: AdaptiveSetup = {
       rankedGoals: [...rankedGoals],
-      horizon,
-      fatigue,
-      recentLoad,
+      intensityLevel,
       injuryStatus,
       injuryTypes: [...injuryTypes],
       rankedSportSlugs: [...rankedSportSlugs],
@@ -294,19 +325,12 @@ export default function AdaptiveModeScreen() {
           const primary = rankedGoals[0] ?? null;
           const secondary = rankedGoals[1] ?? null;
           const tertiary = rankedGoals[2] ?? null;
-          const energyFromFatigue = (level: string): EnergyLevel => {
+          const energyFromIntensity = (level: string): EnergyLevel => {
             if (level === "Fresh") return "high";
             if (level === "Fatigued") return "low";
             return "medium";
           };
-          const energyFromHorizon = (level: EnergyLevel, timeHorizon: string): EnergyLevel => {
-            if (timeHorizon === "in_season") return "low";
-            if (timeHorizon === "1_3_weeks" && level === "high") return "medium";
-            return level;
-          };
-          const energyBaseline = energyFromHorizon(energyFromFatigue(fatigue), horizon);
-          const horizonLabel =
-            TIME_HORIZON_OPTIONS.find((o) => o.id === horizon)?.label ?? horizon;
+          const energyBaseline = energyFromIntensity(intensityLevel);
           const activeProfile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
           const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
           const todayDOW = (new Date().getDay() + 6) % 7;
@@ -338,7 +362,6 @@ export default function AdaptiveModeScreen() {
             sportSubFocusSlugsBySport: Object.keys(subFocusBySport).length > 0 ? subFocusBySport : undefined,
             defaultSessionDuration: oneDayDuration,
             energyBaseline,
-            recentLoad,
             injuries:
               injuryStatus === "No Concerns"
                 ? []
@@ -352,9 +375,7 @@ export default function AdaptiveModeScreen() {
             includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
             dailyPreferences: { bodyRegionBias: oneDayBodyBias },
             adaptiveScheduleLabels: {
-              fatigue,
-              horizonLabel,
-              recentLoad,
+              intensityLevel,
               injuryStatus,
               ...(injuryStatus !== "No Concerns" && injuryTypes.length > 0
                 ? { injuryAreas: [...injuryTypes] }
@@ -411,7 +432,22 @@ export default function AdaptiveModeScreen() {
 
   const addGoal = (goalId: string) => {
     const currentCount = rankedGoals.filter((g): g is string => g != null).length;
-    if (currentCount >= 3 || rankedGoals.includes(goalId)) return;
+    const currentSportsCount = rankedSportSlugs.filter((s): s is string => s != null).length;
+    const maxGoalsAllowed = isOneDay ? 1 : 3;
+    if (currentCount >= maxGoalsAllowed || rankedGoals.includes(goalId)) return;
+    if (isOneDay && currentSportsCount >= 2) {
+      showLimitPopup("For one-day Sport Mode, 2 sports means no additional goals.");
+      return;
+    }
+    if (currentCount + currentSportsCount >= totalPriorityCap) {
+      showLimitPopup(
+        isOneDay
+          ? "For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal."
+          : `You can select up to ${totalPriorityCap} total across sports and goals in week mode.`
+      );
+      return;
+    }
+    setError(null);
     setRankedGoals((prev) => {
       const next = [...prev];
       const idx = next.findIndex((g) => g == null);
@@ -461,11 +497,22 @@ export default function AdaptiveModeScreen() {
       });
     } else {
       if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
-      const totalOthers = Object.entries(manualPreferences.subFocusByGoal).reduce(
-        (n, [g, arr]) => (g === manualPrimaryLabel ? n : n + arr.length),
+      const totalOthers = Object.entries(manualPreferences.subFocusByGoal).reduce<number>(
+        (n, [g, arr]) =>
+          g === manualPrimaryLabel ? n : n + (Array.isArray(arr) ? arr.length : 0),
         0
       );
-      if (totalOthers + current.length >= MAX_TOTAL_SUB_GOALS) return;
+      const totalSportSubGoals = Object.values(subFocusBySport).reduce<number>(
+        (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
+        0
+      );
+      if (totalOthers + current.length + totalSportSubGoals >= totalSubGoalCap) {
+        showLimitPopup(
+          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`
+        );
+        return;
+      }
+      setError(null);
       updateManualPreferences({
         subFocusByGoal: {
           ...manualPreferences.subFocusByGoal,
@@ -515,10 +562,17 @@ export default function AdaptiveModeScreen() {
     });
   }, []);
 
+  const oneDayGoalCount = rankedGoals.filter((g): g is string => g != null).length;
+  const oneDaySportCount = selectedSportSlugs.length;
+  const oneDayCombinationValid =
+    !isOneDay ||
+    (oneDaySportCount === 2 && oneDayGoalCount === 0) ||
+    (oneDaySportCount === 1 && oneDayGoalCount === 1);
   const canContinueAdaptive =
     isDbConfigured() &&
     activeGymProfile != null &&
     selectedSportSlugs.length >= 1 &&
+    oneDayCombinationValid &&
     (!isOneDay || oneDayDuration > 0);
 
   const adaptiveAdvSportVsSummary = `${sportVsGoalPct}% sport · ${100 - sportVsGoalPct}% goals`;
@@ -547,8 +601,91 @@ export default function AdaptiveModeScreen() {
     injuryStatus === "No Concerns"
       ? "No concerns"
       : `${injuryStatus}${injuryTypes.length > 0 ? ` · ${injuryTypes.length} area(s)` : ""}`;
-  const horizonLabel =
-    TIME_HORIZON_OPTIONS.find((o) => o.id === horizon)?.label ?? horizon;
+  const totalPriorityCap = isOneDay ? MAX_TOTAL_PRIORITY_PICKS_DAY : MAX_TOTAL_PRIORITY_PICKS_WEEK;
+  const totalSubGoalCap = isOneDay ? MAX_TOTAL_SUB_GOALS_DAY : MAX_TOTAL_SUB_GOALS_WEEK;
+  const totalPrioritySelections =
+    rankedGoals.filter((g): g is string => g != null).length +
+    rankedSportSlugs.filter((s): s is string => s != null).length;
+  const totalGoalSubGoalsSelected = Object.values(manualPreferences.subFocusByGoal).reduce<number>(
+    (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
+    0
+  );
+  const totalSportSubGoalsSelected = Object.values(subFocusBySport).reduce<number>(
+    (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
+    0
+  );
+  const totalSubGoalsSelected = totalGoalSubGoalsSelected + totalSportSubGoalsSelected;
+  const rankedGoalEntries = rankedGoals
+    .filter((goalId): goalId is string => goalId != null)
+    .map((goalId, idx) => {
+      const goalMeta = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+      const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
+      const subGoals = manualLabel ? manualPreferences.subFocusByGoal[manualLabel] ?? [] : [];
+      return {
+        goalId,
+        label: goalMeta?.label ?? goalId,
+        rank: idx + 1,
+        subGoals,
+      };
+    });
+  const rankedSportEntries = selectedSportSlugs.map((slug, idx) => {
+    const sport = resolveActiveSportForSlug(sports, slug);
+    const subFocusLabels = (subFocusBySport[slug] ?? []).map((subSlug) => {
+      const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === getCanonicalSportSlug(slug));
+      const fromSubFocus = sportSubFocus?.sub_focuses.find((sf) => sf.slug === subSlug)?.name;
+      if (fromSubFocus) return fromSubFocus;
+      const fromQuality = qualitiesBySport[slug]?.find((q) => q.slug === subSlug)?.name;
+      return fromQuality ?? subSlug;
+    });
+    return {
+      slug,
+      rank: idx + 1,
+      label: sport?.name ?? slug,
+      subFocusLabels,
+    };
+  });
+  const topPriorityRows = [
+    rankedSportEntries.length > 0
+      ? {
+          rank: 1,
+          title: "Sport focus",
+          detail:
+            rankedSportEntries.length === 1
+              ? `${rankedSportEntries[0]?.label}`
+              : rankedSportEntries.map((s) => s.label).join(" + "),
+        }
+      : null,
+    rankedGoalEntries.length > 0
+      ? {
+          rank: 2,
+          title: "Goal focus",
+          detail: rankedGoalEntries.map((g) => g.label).join(" + "),
+        }
+      : null,
+    isOneDay
+      ? {
+          rank: 3,
+          title: "Body-part focus",
+          detail: bodySectionSummary,
+        }
+      : null,
+  ].filter((entry): entry is { rank: number; title: string; detail: string } => entry != null);
+  const selectedContextBubbles = [
+    { id: "level", label: `Level: ${manualPreferences.workoutTier ?? "intermediate"}` },
+    ...(manualPreferences.includeCreativeVariations === true
+      ? [{ id: "creative", label: "Style: Creative on" }]
+      : []),
+    ...(intensityLevel !== "Moderate"
+      ? [{ id: "intensity", label: `Intensity level: ${intensityLevel}` }]
+      : []),
+    ...(injuryStatus !== "No Concerns"
+      ? [{ id: "injury_status", label: `Injury status: ${injuryStatus}` }]
+      : []),
+    ...(injuryTypes.length > 0
+      ? injuryTypes.map((injury) => ({ id: `injury_${injury}`, label: `Protect: ${injury}` }))
+      : []),
+    ...(isOneDay ? [{ id: "duration", label: `Session: ${oneDayDuration} min` }] : []),
+  ];
 
   return (
     <AppScreenWrapper>
@@ -562,8 +699,8 @@ export default function AdaptiveModeScreen() {
         <Card title="Sport Mode">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             {isOneDay
-              ? "Pick your sport and session length—then get one tailored workout. Optional additional goals live in Advanced options."
-              : "Pick your sport, then your schedule. Additional goals, fatigue, injuries, and more are in Advanced options."}
+              ? "Pick your sport and session length—then get one tailored workout. Optional additional goals live in Other filters."
+              : "Pick your sport, then your schedule. Additional goals, intensity level, injuries, and more are in Other filters."}
           </Text>
         </Card>
 
@@ -585,7 +722,9 @@ export default function AdaptiveModeScreen() {
           expanded={false}
           onToggle={() => router.push("/profiles?from=adaptive")}
           marginTop={12}
-        />
+        >
+          <View />
+        </CollapsiblePreferenceSection>
 
         {error ? (
           <Text style={{ fontSize: 13, color: theme.danger, marginTop: 8 }}>
@@ -593,9 +732,272 @@ export default function AdaptiveModeScreen() {
           </Text>
         ) : null}
 
+        <Card title="Workout priorities" style={{ marginTop: 16 }}>
+          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 12 }}>
+            This ranked stack drives how Sport Mode builds your workout.
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 12 }}>
+            {isOneDay
+              ? "Limits: either 2 sports or 1 sport + 1 goal (daily), and up to 3 total sub-goals."
+              : `Limits: up to ${totalPriorityCap} total sports + goals, and up to ${totalSubGoalCap} total sub-goals.`}
+          </Text>
+          <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 12 }}>
+            Selected: {totalPrioritySelections}/{totalPriorityCap} priorities, {totalSubGoalsSelected}/{totalSubGoalCap} sub-goals.
+          </Text>
+
+          {topPriorityRows.length > 0 ? (
+            <View style={styles.priorityStack}>
+              {topPriorityRows.map((row) => (
+                <View key={row.rank} style={[styles.priorityRow, { borderColor: theme.border }]}>
+                  <View
+                    style={[
+                      styles.priorityRankBadge,
+                      {
+                        backgroundColor: theme.chipSelectedBackground,
+                        borderColor: theme.primary,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.priorityRankText, { color: theme.chipSelectedText }]}>
+                      {row.rank}
+                    </Text>
+                  </View>
+                  <View style={styles.priorityTextWrap}>
+                    <Text style={[styles.priorityRowDetail, { color: theme.text }]}>{row.detail}</Text>
+                    <Text style={[styles.priorityRowTitle, { color: theme.textMuted }]}>{row.title}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={{ fontSize: 13, color: theme.textMuted }}>
+              Choose your sport and goals to see ranked priorities.
+            </Text>
+          )}
+
+          {rankedSportEntries.length > 0 ? (
+            <View style={styles.priorityGroupBlock}>
+              <Text style={[styles.priorityGroupTitle, { color: theme.text }]}>Sports</Text>
+              <View style={styles.chipGroup}>
+                {rankedSportEntries.map((sport) => (
+                  <View key={sport.slug} style={styles.rankedChipWrap}>
+                    <View
+                      style={[
+                        styles.rankBadgeSmall,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
+                        {sport.rank}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.rankedChipInner,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                        numberOfLines={1}
+                      >
+                        {sport.label}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              {rankedSportEntries.some((s) => s.subFocusLabels.length > 0) ? (
+                <View style={styles.linkedSubGoalTree}>
+                  {rankedSportEntries
+                    .filter((sport) => sport.subFocusLabels.length > 0)
+                    .map((sport) => (
+                      <View key={`sport-tree-${sport.slug}`} style={styles.linkedSubGoalRow}>
+                        <Text style={[styles.linkedSubGoalParentLabel, { color: theme.textMuted }]}>
+                          {sport.label}
+                        </Text>
+                        <View style={[styles.linkedSubGoalChildren, { borderLeftColor: theme.border }]}>
+                          <View style={styles.chipGroup}>
+                            {sport.subFocusLabels.map((sub, subIdx) => (
+                              <View key={`${sport.slug}-${sub}`} style={styles.rankedChipWrap}>
+                                <View
+                                  style={[
+                                    styles.rankBadgeSmall,
+                                    {
+                                      backgroundColor: theme.chipSelectedBackground,
+                                      borderWidth: 1,
+                                      borderColor: theme.primary,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                  >
+                                    {subIdx + 1}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={[
+                                    styles.rankedChipInner,
+                                    {
+                                      backgroundColor: theme.chipSelectedBackground,
+                                      borderWidth: 1,
+                                      borderColor: theme.primary,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                                    numberOfLines={1}
+                                  >
+                                    {sub}
+                                  </Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {rankedGoalEntries.length > 0 ? (
+            <View style={styles.priorityGroupBlock}>
+              <Text style={[styles.priorityGroupTitle, { color: theme.text }]}>Goals</Text>
+              <View style={styles.chipGroup}>
+                {rankedGoalEntries.map((goal) => (
+                  <View key={goal.goalId} style={styles.rankedChipWrap}>
+                    <View
+                      style={[
+                        styles.rankBadgeSmall,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
+                        {goal.rank}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.rankedChipInner,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                        numberOfLines={1}
+                      >
+                        {goal.label}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {rankedGoalEntries.some((goal) => goal.subGoals.length > 0) ? (
+                <View style={styles.linkedSubGoalTree}>
+                  {rankedGoalEntries
+                    .filter((goal) => goal.subGoals.length > 0)
+                    .map((goal) => (
+                      <View key={`goal-tree-${goal.goalId}`} style={styles.linkedSubGoalRow}>
+                        <Text style={[styles.linkedSubGoalParentLabel, { color: theme.textMuted }]}>
+                          {goal.label}
+                        </Text>
+                        <View style={[styles.linkedSubGoalChildren, { borderLeftColor: theme.border }]}>
+                          <View style={styles.chipGroup}>
+                            {goal.subGoals.map((sub, subIdx) => (
+                              <View key={`${goal.goalId}-${sub}`} style={styles.rankedChipWrap}>
+                                <View
+                                  style={[
+                                    styles.rankBadgeSmall,
+                                    {
+                                      backgroundColor: theme.chipSelectedBackground,
+                                      borderWidth: 1,
+                                      borderColor: theme.primary,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                  >
+                                    {subIdx + 1}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={[
+                                    styles.rankedChipInner,
+                                    {
+                                      backgroundColor: theme.chipSelectedBackground,
+                                      borderWidth: 1,
+                                      borderColor: theme.primary,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                                    numberOfLines={1}
+                                  >
+                                    {sub}
+                                  </Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          <View style={styles.priorityGroupBlock}>
+            <Text style={[styles.priorityGroupTitle, { color: theme.text }]}>Selected filters</Text>
+            <View style={styles.chipGroup}>
+              {selectedContextBubbles.map((bubble) => (
+                <View
+                  key={bubble.id}
+                  style={[
+                    styles.filterBubble,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.filterBubbleText, { color: theme.textMuted }]}>{bubble.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </Card>
+
         <CollapsiblePreferenceSection
           title="Your sport"
-          subtitle="Choose at least one (up to two), ranked."
+          subtitle={
+            isOneDay
+              ? "Daily rule: choose either 2 sports, or 1 sport + 1 goal."
+              : "Choose at least one (up to two), ranked."
+          }
           summary={sportSectionSummary}
           expanded={sectionSportOpen}
           onToggle={() => {
@@ -887,7 +1289,7 @@ export default function AdaptiveModeScreen() {
           }}
         >
           <Text style={[styles.advancedFiltersTitle, { color: theme.textMuted }]}>
-            Advanced options
+            Other filters
           </Text>
           <Text style={[styles.advancedFiltersChevron, { color: theme.textMuted }]}>
             {advancedOpen ? "▼" : "▶"}
@@ -909,7 +1311,11 @@ export default function AdaptiveModeScreen() {
             <CollapsiblePreferenceSection
               nested
               title="Additional goals"
-              subtitle="Optional — rank up to 3 training goals to blend with your sport(s). Leave empty for sport-focused plans."
+              subtitle={
+                isOneDay
+                  ? "Daily rule: only one goal is allowed, and only when exactly one sport is selected."
+                  : `Optional — rank goals to blend with your sport(s). Combined sports + goals cap is ${totalPriorityCap}.`
+              }
               summary={adaptiveAdvAdditionalGoalsSummary}
               expanded={adaptiveAdvNestedOpen.additionalGoals === true}
               onToggle={() => toggleAdaptiveAdvNested("additionalGoals")}
@@ -1153,7 +1559,7 @@ export default function AdaptiveModeScreen() {
               <CollapsiblePreferenceSection
                 nested
                 title="Goal sub-focus"
-                subtitle="Up to 3 total across goals, ranked within each goal. Same options as Build workout."
+                subtitle={`Up to ${totalSubGoalCap} total across goals + sports, ranked within each goal. Same options as Build workout.`}
                 summary={adaptiveAdvGoalSubGoalsSummary}
                 expanded={adaptiveAdvNestedOpen.goalSubGoals === true}
                 onToggle={() => toggleAdaptiveAdvNested("goalSubGoals")}
@@ -1168,7 +1574,7 @@ export default function AdaptiveModeScreen() {
                       : [];
                   const canAddSub =
                     selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
-                    adaptiveSubGoalsTotalCount < MAX_TOTAL_SUB_GOALS;
+                    totalSubGoalsSelected < totalSubGoalCap;
                   return (
                     <View
                       key={goalId}
@@ -1327,26 +1733,6 @@ export default function AdaptiveModeScreen() {
 
             <CollapsiblePreferenceSection
               nested
-              title="Recent load"
-              subtitle="Past 3–5 days."
-              summary={recentLoad}
-              expanded={adaptiveAdvNestedOpen.recentLoad === true}
-              onToggle={() => toggleAdaptiveAdvNested("recentLoad")}
-            >
-              <View style={styles.chipGroup}>
-                {RECENT_LOAD_OPTIONS.map((load) => (
-                  <Chip
-                    key={load}
-                    label={load}
-                    selected={recentLoad === load}
-                    onPress={() => setRecentLoad(load)}
-                  />
-                ))}
-              </View>
-            </CollapsiblePreferenceSection>
-
-            <CollapsiblePreferenceSection
-              nested
               title="Injuries & protection"
               subtitle="Status and areas to protect in generated workouts."
               summary={adaptiveAdvInjurySummary}
@@ -1401,39 +1787,19 @@ export default function AdaptiveModeScreen() {
 
             <CollapsiblePreferenceSection
               nested
-              title="Fatigue"
-              subtitle="How you generally feel heading into this week."
-              summary={fatigue}
-              expanded={adaptiveAdvNestedOpen.fatigue === true}
-              onToggle={() => toggleAdaptiveAdvNested("fatigue")}
+              title="Intensity level"
+              subtitle="How hard you want training to feel."
+              summary={intensityLevel}
+              expanded={adaptiveAdvNestedOpen.intensityLevel === true}
+              onToggle={() => toggleAdaptiveAdvNested("intensityLevel")}
             >
               <View style={styles.chipGroup}>
-                {FATIGUE_OPTIONS.map((opt) => (
+                {INTENSITY_LEVEL_OPTIONS.map((opt) => (
                   <Chip
                     key={opt}
                     label={opt}
-                    selected={fatigue === opt}
-                    onPress={() => setFatigue(opt)}
-                  />
-                ))}
-              </View>
-            </CollapsiblePreferenceSection>
-
-            <CollapsiblePreferenceSection
-              nested
-              title="Time horizon"
-              subtitle="Farther from your event = we can push intensity more. Closer = lighter so you're fresh."
-              summary={horizonLabel}
-              expanded={adaptiveAdvNestedOpen.timeHorizon === true}
-              onToggle={() => toggleAdaptiveAdvNested("timeHorizon")}
-            >
-              <View style={styles.chipGroup}>
-                {TIME_HORIZON_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt.id}
-                    label={opt.label}
-                    selected={horizon === opt.id}
-                    onPress={() => setHorizon(opt.id)}
+                    selected={intensityLevel === opt}
+                    onPress={() => setIntensityLevel(opt)}
                   />
                 ))}
               </View>
@@ -1455,18 +1821,35 @@ export default function AdaptiveModeScreen() {
           />
           {!canContinueAdaptive && isDbConfigured() ? (
             <Text style={[styles.footerHint, { color: theme.textMuted }]}>
-              Choose at least one sport
-              {isOneDay ? " and a session length" : ""} to continue.
+              {isOneDay
+                ? "Choose either 2 sports or 1 sport + 1 goal, and a session length."
+                : "Choose at least one sport to continue."}
             </Text>
           ) : null}
           <Pressable onPress={openAdaptiveAdvancedAndScroll} style={styles.advancedLinkWrap}>
             <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-              Advanced options (additional goals, fatigue, injuries…)
+              Other filters (additional goals, intensity, injuries…)
             </Text>
           </Pressable>
         </View>
         </View>
       </ScrollView>
+      {limitPopupMessage ? (
+        <View pointerEvents="none" style={styles.limitPopupWrap}>
+          <View
+            style={[
+              styles.limitPopupCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.primary,
+              },
+            ]}
+          >
+            <Text style={[styles.limitPopupTitle, { color: theme.text }]}>Selection limit</Text>
+            <Text style={[styles.limitPopupText, { color: theme.textMuted }]}>{limitPopupMessage}</Text>
+          </View>
+        </View>
+      ) : null}
     </AppScreenWrapper>
   );
 }
@@ -1602,6 +1985,81 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
   },
+  priorityStack: {
+    gap: 8,
+  },
+  priorityRow: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  priorityRankBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  priorityRankText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  priorityTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  priorityRowTitle: {
+    fontSize: 11,
+    fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginTop: 2,
+  },
+  priorityRowDetail: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  priorityGroupBlock: {
+    marginTop: 14,
+  },
+  priorityGroupTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  linkedSubGoalTree: {
+    marginTop: 2,
+    gap: 8,
+  },
+  linkedSubGoalRow: {
+    gap: 6,
+  },
+  linkedSubGoalParentLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  linkedSubGoalChildren: {
+    borderLeftWidth: 2,
+    paddingLeft: 10,
+    marginLeft: 2,
+  },
+  filterBubble: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  filterBubbleText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
   advancedFiltersHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1656,5 +2114,36 @@ const styles = StyleSheet.create({
   advancedLinkText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  limitPopupWrap: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 20,
+    alignItems: "center",
+  },
+  limitPopupCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    maxWidth: 520,
+    width: "100%",
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  limitPopupTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 3,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  limitPopupText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

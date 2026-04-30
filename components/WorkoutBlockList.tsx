@@ -42,13 +42,6 @@ export function WorkoutBlockList({
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               {block.title ?? block.block_type}
             </Text>
-            {block.reasoning && !hasSupersetExercises ? (
-              <Text
-                style={[styles.sectionReasoning, { color: theme.textMuted }]}
-              >
-                {block.reasoning}
-              </Text>
-            ) : null}
             {renderBlockContent(
               block,
               block.block_type,
@@ -203,11 +196,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 4,
-  },
-  sectionReasoning: {
-    fontSize: 13,
-    fontStyle: "italic",
-    marginBottom: 8,
   },
   supersetBlock: {
     marginBottom: 12,

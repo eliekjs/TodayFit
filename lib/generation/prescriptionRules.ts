@@ -436,8 +436,8 @@ export function getConditioningStructureByIntent(
   return getConditioningIntervalStructure(totalMinutes, goal, equipmentRequired);
 }
 
-/** Max work per round for high-intensity conditioning (burpees, KB swings, high knees, etc.). Nobody can sustain these for 8+ min straight. */
-export const MAX_HIGH_INTENSITY_WORK_SECONDS = 60;
+/** Max work per round for high-intensity conditioning (burpees, KB swings, high knees, etc.). Keep bouts <=45s for quality and repeatability. */
+export const MAX_HIGH_INTENSITY_WORK_SECONDS = 45;
 
 /** Rest between rounds of high-intensity work (research: 30–60 s common for HIIT). */
 export const HIGH_INTENSITY_REST_SECONDS = 45;
@@ -448,6 +448,8 @@ export const HIGH_INTENSITY_CONDITIONING_IDS = new Set([
   "burpee",
   "burpee_box_jump",
   "high_knee",
+  "high_knee_run",
+  "high_knees",
   "kb_swing",
   "kettlebell_swing",
   "mountain_climber",
@@ -482,6 +484,7 @@ export const HIGH_INTENSITY_CONDITIONING_IDS = new Set([
   "broad_jump",
   "bounding",
   "sprint",
+  "sprint_in_place",
   "single_leg_hop",
   // Stair climb (bodyweight, often used in short bursts in circuits)
   "stair_climb",
