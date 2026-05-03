@@ -108,8 +108,8 @@ export default function GymProfilesScreen() {
   };
 
   const goBackToFlow = () => {
-    if (from === "adaptive") {
-      router.push("/adaptive");
+    if (from === "sport-mode") {
+      router.push("/sport-mode");
       return;
     }
     if (from === "manual" || from === "workout") {
@@ -155,7 +155,7 @@ export default function GymProfilesScreen() {
           </View>
         )}
 
-        {from === "adaptive" && (
+        {from === "sport-mode" && (
           <View style={styles.backToWorkout}>
             <PrimaryButton
               label="Continue Sport Mode setup"

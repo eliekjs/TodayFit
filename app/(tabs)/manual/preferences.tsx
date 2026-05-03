@@ -498,7 +498,7 @@ export default function ManualPreferencesScreen() {
 
         <CollapsiblePreferenceSection
           title="Training goal"
-          subtitle="Tap a goal to set or prioritize it. Add up to two more in Advanced options."
+          subtitle={rankedGoals.length === 0 ? "Choose up to three, ranked by priority." : undefined}
           summary={goalSummary}
           expanded={sectionGoalOpen}
           onToggle={() => {
@@ -570,6 +570,104 @@ export default function ManualPreferencesScreen() {
             ))}
           </View>
         </CollapsiblePreferenceSection>
+
+        {/* Sub-goals — always visible when goals are selected */}
+        {hasPrimaryFocus && (
+          <View style={[styles.subFocusSectionWrap, { borderTopColor: theme.border, borderTopWidth: 0, marginTop: 8 }]}>
+            <Text style={[styles.subFocusSectionLabel, { color: theme.textMuted }]}>
+              Sub-goals <Text style={{ fontWeight: "400" }}>(optional, up to 3 total)</Text>
+            </Text>
+            {rankedGoals.map((goal, goalIdx) => {
+              const subOptions = SUB_FOCUS_BY_PRIMARY[goal] ?? [];
+              const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
+              const canAddSub =
+                selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
+                subGoalsTotalCount < MAX_TOTAL_SUB_GOALS;
+              if (subOptions.length === 0) return null;
+              return (
+                <View key={goal} style={{ marginTop: rankedGoals.length > 1 && goalIdx > 0 ? 10 : 0 }}>
+                  {rankedGoals.length > 1 && (
+                    <View style={[styles.goalRowHeader, { marginBottom: 6 }]}>
+                      <View
+                        style={[
+                          styles.rankBadgeSmall,
+                          {
+                            backgroundColor: theme.chipSelectedBackground,
+                            borderWidth: 1,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
+                          {goalIdx + 1}
+                        </Text>
+                      </View>
+                      <Text style={[styles.goalRowLabel, { color: theme.textMuted, fontSize: 12 }]}>
+                        {goal}
+                      </Text>
+                    </View>
+                  )}
+                  {selectedSubs.length > 0 && (
+                    <View style={[styles.chipGroup, { marginBottom: 6 }]}>
+                      {selectedSubs.map((sub, subIdx) => (
+                        <Pressable
+                          key={sub}
+                          style={styles.rankedChipWrap}
+                          onPress={() => toggleSubGoal(goal, sub)}
+                        >
+                          <View
+                            style={[
+                              styles.rankBadgeSmall,
+                              {
+                                backgroundColor: theme.chipSelectedBackground,
+                                borderWidth: 1,
+                                borderColor: theme.primary,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
+                              {subIdx + 1}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.rankedChipInner,
+                              {
+                                backgroundColor: theme.chipSelectedBackground,
+                                borderWidth: 1,
+                                borderColor: theme.primary,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                              numberOfLines={1}
+                            >
+                              {sub}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  <View style={styles.chipGroup}>
+                    {subOptions
+                      .filter((opt) => !selectedSubs.includes(opt))
+                      .map((opt) => (
+                        <Chip
+                          key={opt}
+                          label={opt}
+                          selected={false}
+                          disabled={!canAddSub}
+                          onPress={() => toggleSubGoal(goal, opt)}
+                        />
+                      ))}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         <CollapsiblePreferenceSection
           title="Where you train"
@@ -674,148 +772,6 @@ export default function ManualPreferencesScreen() {
               },
             ]}
           >
-            {hasPrimaryFocus && (
-              <CollapsiblePreferenceSection
-                nested
-                title="Sub-goals"
-                subtitle="Up to 3 total across goals, ranked within each goal."
-                summary={manualAdvSubGoalsSummary}
-                expanded={manualAdvNestedOpen.subGoals === true}
-                onToggle={() => toggleManualAdvNested("subGoals")}
-                marginTop={0}
-              >
-                {rankedGoals.map((goal, goalIdx) => {
-                  const subOptions = SUB_FOCUS_BY_PRIMARY[goal] ?? [];
-                  const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
-                  const canAddSub =
-                    selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
-                    subGoalsTotalCount < MAX_TOTAL_SUB_GOALS;
-                  return (
-                    <View
-                      key={goal}
-                      style={[styles.goalRow, { borderColor: theme.border }]}
-                    >
-                      <View style={styles.goalRowHeader}>
-                        <View
-                          style={[
-                            styles.rankBadgeSmall,
-                            {
-                              backgroundColor: theme.chipSelectedBackground,
-                              borderWidth: 1,
-                              borderColor: theme.primary,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.rankBadgeTextSmall,
-                              { color: theme.chipSelectedText },
-                            ]}
-                          >
-                            {goalIdx + 1}
-                          </Text>
-                        </View>
-                        <Text
-                          style={[styles.goalRowLabel, { color: theme.text }]}
-                          numberOfLines={1}
-                        >
-                          {goal}
-                        </Text>
-                      </View>
-                      {subOptions.length > 0 ? (
-                        <View
-                          style={[
-                            styles.subGoalsBlock,
-                            { borderTopColor: theme.border },
-                          ]}
-                        >
-                          {selectedSubs.length > 0 && (
-                            <View style={styles.chipGroup}>
-                              {selectedSubs.map((sub, subIdx) => (
-                                <Pressable
-                                  key={sub}
-                                  style={styles.rankedChipWrap}
-                                  onPress={() => toggleSubGoal(goal, sub)}
-                                >
-                                  <View
-                                    style={[
-                                      styles.rankBadgeSmall,
-                                      {
-                                        backgroundColor:
-                                          theme.chipSelectedBackground,
-                                        borderWidth: 1,
-                                        borderColor: theme.primary,
-                                      },
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.rankBadgeTextSmall,
-                                        {
-                                          color: theme.chipSelectedText,
-                                        },
-                                      ]}
-                                    >
-                                      {subIdx + 1}
-                                    </Text>
-                                  </View>
-                                  <View
-                                    style={[
-                                      styles.rankedChipInner,
-                                      {
-                                        backgroundColor:
-                                          theme.chipSelectedBackground,
-                                        borderWidth: 1,
-                                        borderColor: theme.primary,
-                                      },
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[
-                                        styles.rankedChipLabelSmall,
-                                        {
-                                          color: theme.chipSelectedText,
-                                        },
-                                      ]}
-                                      numberOfLines={1}
-                                    >
-                                      {sub}
-                                    </Text>
-                                  </View>
-                                </Pressable>
-                              ))}
-                            </View>
-                          )}
-                          <View style={styles.chipGroup}>
-                            {subOptions
-                              .filter((opt) => !selectedSubs.includes(opt))
-                              .map((opt) => (
-                                <Chip
-                                  key={opt}
-                                  label={opt}
-                                  selected={false}
-                                  disabled={!canAddSub}
-                                  onPress={() => toggleSubGoal(goal, opt)}
-                                />
-                              ))}
-                          </View>
-                        </View>
-                      ) : (
-                        <Text
-                          style={[
-                            styles.modifierLabel,
-                            { color: theme.textMuted, marginTop: 4 },
-                          ]}
-                        >
-                          No sub-focus options for this goal.
-                        </Text>
-                      )}
-                    </View>
-                  );
-                })}
-              </CollapsiblePreferenceSection>
-            )}
-
             <CollapsiblePreferenceSection
               nested
               title="How hard to train"
@@ -938,7 +894,7 @@ export default function ManualPreferencesScreen() {
               (g) => g === "Athletic Performance" || g === "Sport Conditioning"
             ) ? (
               <Pressable
-                onPress={() => router.push("/adaptive")}
+                onPress={() => router.push("/sport-mode")}
                 style={({ pressed }) => [
                   styles.sportModeHint,
                   { opacity: pressed ? 0.8 : 1 },
@@ -1606,5 +1562,13 @@ const styles = StyleSheet.create({
   },
   editProfileBtn: {
     minWidth: 60,
+  },
+  subFocusSectionWrap: {
+    paddingTop: 14,
+  },
+  subFocusSectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 10,
   },
 });

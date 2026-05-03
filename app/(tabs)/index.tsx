@@ -5,33 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  useColorScheme,
 } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
 import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
-
-const LIGHT_PASTELS = {
-  helpBg: "#B8D4F0",
-  helpText: "#1E3A5F",
-  helpSubtext: "#2D4A6F",
-  buildBg: "#B8E0C8",
-  buildText: "#1A3D2A",
-  buildSubtext: "#2A4D3A",
-};
-
-const DARK_PASTELS = {
-  helpBg: "#4A7A9A",
-  helpText: "#E8F4FC",
-  helpSubtext: "#C5DCF0",
-  buildBg: "#4A8A5E",
-  buildText: "#E8F8EC",
-  buildSubtext: "#C5E8D0",
-};
 
 type ActionCardProps = {
   icon: React.ComponentProps<typeof Ionicons>["name"];
@@ -41,8 +23,8 @@ type ActionCardProps = {
   weekHref: string;
   oneDayLabel?: string;
   weekLabel?: string;
-  pastels: typeof LIGHT_PASTELS;
   variant: "build" | "help";
+  theme: ReturnType<typeof useTheme>;
 };
 
 function ActionCard({
@@ -53,42 +35,52 @@ function ActionCard({
   weekHref,
   oneDayLabel = "One day",
   weekLabel = "This week",
-  pastels,
   variant,
+  theme,
 }: ActionCardProps) {
   const router = useRouter();
   const isBuild = variant === "build";
-  const bg = isBuild ? pastels.buildBg : pastels.helpBg;
-  const text = isBuild ? pastels.buildText : pastels.helpText;
-  const subtext = isBuild ? pastels.buildSubtext : pastels.helpSubtext;
+  const accent = isBuild ? "rgba(45,212,191,0.86)" : "rgba(96,165,250,0.82)";
+  const accentSoft = isBuild ? "rgba(45,212,191,0.12)" : "rgba(96,165,250,0.12)";
 
   return (
-    <View style={[styles.actionCard, { backgroundColor: bg }]}>
-      <View style={styles.actionCardIcon}>
-        <Ionicons name={icon} size={28} color={text} />
+    <View
+      style={[
+        styles.actionCard,
+        {
+          backgroundColor: theme.card,
+          borderColor: accentSoft,
+        },
+      ]}
+    >
+      <View style={[styles.actionCardIcon, { backgroundColor: accentSoft }]}>
+        <Ionicons name={icon} size={22} color={accent} />
       </View>
-      <Text style={[styles.actionCardTitle, { color: text }]}>{title}</Text>
-      <Text style={[styles.actionCardSubtitle, { color: subtext }]}>
+      <Text style={[styles.actionCardTitle, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.actionCardSubtitle, { color: theme.textMuted }]}>
         {subtitle}
       </Text>
       <View style={styles.subButtons}>
         <Pressable
-          style={({ pressed }) => [
-            styles.subButton,
-            { backgroundColor: text, opacity: pressed ? 0.85 : 1 },
-          ]}
+          style={({ pressed }) => [styles.subButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
           onPress={() => router.push(oneDayHref)}
         >
-          <Text style={[styles.subButtonText, { color: bg }]}>{oneDayLabel}</Text>
+          <LinearGradient
+            colors={["rgba(45,212,191,0.7)", "rgba(59,130,246,0.66)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.subButton}
+          >
+            <Text style={styles.subButtonText}>{oneDayLabel}</Text>
+          </LinearGradient>
         </Pressable>
         <Pressable
-          style={({ pressed }) => [
-            styles.subButton,
-            { backgroundColor: text, opacity: pressed ? 0.85 : 1 },
-          ]}
+          style={({ pressed }) => [styles.subButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
           onPress={() => router.push(weekHref)}
         >
-          <Text style={[styles.subButtonText, { color: bg }]}>{weekLabel}</Text>
+          <View style={[styles.subButton, styles.subButtonSecondary]}>
+            <Text style={styles.subButtonText}>{weekLabel}</Text>
+          </View>
         </Pressable>
       </View>
     </View>
@@ -98,7 +90,6 @@ function ActionCard({
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const colorScheme = useColorScheme();
   const { hasEntered, isHydrated } = useWelcome();
   const {
     manualPreferences,
@@ -110,8 +101,6 @@ export default function HomeScreen() {
     manualExecutionStarted,
     setManualExecutionStarted,
   } = useAppState();
-  const pastels = colorScheme === "dark" ? DARK_PASTELS : LIGHT_PASTELS;
-
   const primaryGoal =
     manualPreferences.primaryFocus[0] ?? "Not set";
   const secondaryGoal =
@@ -157,17 +146,14 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.headline, { color: theme.text }]}>
-          What should we optimize today?
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-          Reduce decision fatigue with intelligent training decisions
+          Customize your gym session:
         </Text>
 
         {hasInProgress && (
           <View
             style={[
               styles.continueCard,
-              { backgroundColor: theme.primarySoft ?? pastels.helpBg },
+              { backgroundColor: "rgba(15,23,42,0.52)" },
             ]}
           >
             {isSingleWorkout && generatedWorkout != null ? (
@@ -234,7 +220,7 @@ export default function HomeScreen() {
                 onPress={() => {
                   if (isSingleWorkout) continueOrStartManualExecution();
                   else if (manualWeekPlan != null) continueWeek();
-                  else if (sportPrepWeekPlan != null) router.push("/adaptive/recommendation");
+                  else if (sportPrepWeekPlan != null) router.push("/sport-mode/recommendation");
                 }}
               >
                 <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
@@ -262,24 +248,24 @@ export default function HomeScreen() {
 
         <ActionCard
           icon="barbell-outline"
-          title="Build My Workout"
-          subtitle="Choose exercises and structure for one day or plan the whole week."
+          title="Goal-Oriented Training"
+          subtitle="Build workouts tailored to one or multiple goals (strength, physique, etc.)"
           oneDayHref="/manual/preferences"
           weekHref="/manual/preferences?scope=week"
-          pastels={pastels}
           variant="build"
+          theme={theme}
         />
         <ActionCard
           icon="sparkles-outline"
-          title="Sport Mode"
-          subtitle="Train for your sport: set goals, recovery, and weekly sessions so your plan fits your game."
-          oneDayHref="/adaptive?scope=day"
-          weekHref="/adaptive"
-          pastels={pastels}
+          title="Sport-Focused Training"
+          subtitle="Train for your sport(s) to prevent injuries and improve performance."
+          oneDayHref="/sport-mode?scope=day"
+          weekHref="/sport-mode"
           variant="help"
+          theme={theme}
         />
 
-        <View style={[styles.goalSummary, { backgroundColor: theme.card }]}>
+        <View style={[styles.goalSummary, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <View style={styles.goalRow}>
             <Text style={[styles.goalLabel, { color: theme.textMuted }]}>
               Primary Goal:
@@ -319,12 +305,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   continueCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 20,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "transparent",
+    borderColor: "rgba(45,212,191,0.28)",
+    backgroundColor: "rgba(15,23,42,0.65)",
   },
   continueCardRow: {
     paddingVertical: 10,
@@ -342,13 +329,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   actionCard: {
-    borderRadius: 16,
+    borderRadius: 22,
     paddingVertical: 24,
     paddingHorizontal: 20,
     gap: 12,
+    borderWidth: 1,
+    backgroundColor: "rgba(15,23,42,0.4)",
   },
   actionCardIcon: {
     alignSelf: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 4,
   },
   actionCardTitle: {
@@ -364,26 +358,37 @@ const styles = StyleSheet.create({
   subButtons: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 8,
+    marginTop: 10,
     justifyContent: "center",
+  },
+  subButtonWrap: {
+    minWidth: 118,
   },
   subButton: {
     paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    minWidth: 100,
+    paddingHorizontal: 22,
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  subButtonSecondary: {
+    backgroundColor: "rgba(15,23,42,0.4)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.28)",
   },
   subButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#f8fafc",
   },
   goalSummary: {
-    borderRadius: 12,
+    borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
     marginTop: 8,
     gap: 10,
+    borderWidth: 1,
+    backgroundColor: "rgba(15,23,42,0.38)",
   },
   goalRow: {
     flexDirection: "row",

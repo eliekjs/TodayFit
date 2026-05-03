@@ -144,9 +144,7 @@ export default function AdaptiveModeScreen() {
   /** Sub-focus (qualities) per sport: sportSlug -> quality slugs (max 3 per sport). */
   const [subFocusBySport, setSubFocusBySport] = useState<Record<string, string[]>>({});
   /** Which sport's sub-goals row is expanded. */
-  const [expandedSportForSubFocus, setExpandedSportForSubFocus] = useState<string | null>(null);
-  /** When 1 sport is selected, true = show picker to add second. */
-  const [showAddSecondSport, setShowAddSecondSport] = useState(false);
+  const [sectionGoalsOpen, setSectionGoalsOpen] = useState(false);
   /** Cached qualities per sport (loaded when sport is selected). */
   const [qualitiesBySport, setQualitiesBySport] = useState<Record<string, SportQuality[]>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -221,7 +219,6 @@ export default function AdaptiveModeScreen() {
     const idx = next.findIndex((s) => s == null);
     if (idx >= 0) next[idx] = slug;
     setRankedSportSlugs(next);
-    if (current.length === 1) setShowAddSecondSport(false);
     if (current.length === 1) setSportFocusPct([60, 40]);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
@@ -237,8 +234,6 @@ export default function AdaptiveModeScreen() {
       delete next[slug];
       return next;
     });
-    if (expandedSportForSubFocus === slug) setExpandedSportForSubFocus(null);
-    setShowAddSecondSport(false);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
@@ -363,7 +358,7 @@ export default function AdaptiveModeScreen() {
           });
           setSportPrepWeekPlan(plan);
           setAdaptiveSetup(null);
-          router.replace("/adaptive/recommendation");
+          router.replace("/sport-mode/recommendation");
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -374,7 +369,7 @@ export default function AdaptiveModeScreen() {
     }
 
     setAdaptiveSetup(setup);
-    router.push("/adaptive/schedule");
+    router.push("/sport-mode/schedule");
   };
 
   const filteredSportsFlat = useMemo(() => {
@@ -562,8 +557,8 @@ export default function AdaptiveModeScreen() {
         <Card title="Sport Mode">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             {isOneDay
-              ? "Pick your sport and session length—then get one tailored workout. Optional additional goals live in Advanced options."
-              : "Pick your sport, then your schedule. Additional goals, fatigue, injuries, and more are in Advanced options."}
+              ? "Choose your sport to get one tailored workout today."
+              : "Choose your sport to get a tailored weekly plan."}
           </Text>
         </Card>
 
@@ -595,7 +590,7 @@ export default function AdaptiveModeScreen() {
 
         <CollapsiblePreferenceSection
           title="Your sport"
-          subtitle="Choose at least one (up to two), ranked."
+          subtitle={selectedSportSlugs.length === 0 ? "Choose up to two, ranked by priority." : undefined}
           summary={sportSectionSummary}
           expanded={sectionSportOpen}
           onToggle={() => {
@@ -604,141 +599,113 @@ export default function AdaptiveModeScreen() {
           }}
           marginTop={16}
         >
-
-        {selectedSportSlugs.length > 0 && (
-              <View style={styles.rankedSportRow}>
-                {selectedSportSlugs.map((slug, idx) => {
-                  const sport = resolveActiveSportForSlug(sports, slug);
-                  const displayName = sport?.name ?? slug;
-                  return (
-                    <View key={`${slug}-${idx}`} style={styles.rankedChipWrap}>
-                      <View
-                        style={[
-                          styles.rankBadge,
-                          {
-                            backgroundColor: theme.chipSelectedBackground,
-                            borderWidth: 1,
-                            borderColor: theme.primary,
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
-                          {idx + 1}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.rankedChipInner,
-                          {
-                            backgroundColor: theme.chipSelectedBackground,
-                            borderWidth: 1,
-                            borderColor: theme.primary,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                          numberOfLines={1}
-                        >
-                          {displayName}
-                        </Text>
-                      </View>
-                      <Pressable
-                        hitSlop={8}
-                        onPress={() => removeSport(slug)}
-                        style={styles.rankedChipRemove}
-                      >
-                        <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
-                      </Pressable>
+          {/* Selected sports with rank badges */}
+          {selectedSportSlugs.length > 0 && (
+            <View style={styles.rankedSportRow}>
+              {selectedSportSlugs.map((slug, idx) => {
+                const sport = resolveActiveSportForSlug(sports, slug);
+                const displayName = sport?.name ?? slug;
+                return (
+                  <View key={`${slug}-${idx}`} style={styles.rankedChipWrap}>
+                    <View
+                      style={[
+                        styles.rankBadge,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                        {idx + 1}
+                      </Text>
                     </View>
-                  );
-                })}
+                    <View
+                      style={[
+                        styles.rankedChipInner,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                        numberOfLines={1}
+                      >
+                        {displayName}
+                      </Text>
+                    </View>
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => removeSport(slug)}
+                      style={styles.rankedChipRemove}
+                    >
+                      <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Sport picker — shown when there is room for another sport */}
+          {selectedSportSlugs.length < 2 && (
+            <>
+              {selectedSportSlugs.length === 1 && (
+                <Text style={[styles.slotSeparatorLabel, { color: theme.textMuted }]}>
+                  Second sport — optional
+                </Text>
+              )}
+              <View style={[styles.searchRow, { marginTop: selectedSportSlugs.length > 0 ? 4 : 0 }]}>
+                <TextInput
+                  placeholder="Search sports..."
+                  placeholderTextColor={theme.textMuted}
+                  value={sportsSearch}
+                  onChangeText={setSportsSearch}
+                  style={[
+                    styles.searchInput,
+                    { borderColor: theme.border, color: theme.text },
+                  ]}
+                />
               </View>
-            )}
-
-            {(selectedSportSlugs.length === 0 || (selectedSportSlugs.length === 1 && showAddSecondSport)) && (
-              <>
-                <View style={[styles.searchRow, { marginTop: selectedSportSlugs.length > 0 ? 12 : 0 }]}>
-                  <TextInput
-                    placeholder="Search sports..."
-                    placeholderTextColor={theme.textMuted}
-                    value={sportsSearch}
-                    onChangeText={setSportsSearch}
-                    style={[
-                      styles.searchInput,
-                      { borderColor: theme.border, color: theme.text },
-                    ]}
+              {sportsError ? (
+                <Text style={{ fontSize: 13, color: theme.danger, marginBottom: 8 }}>
+                  {sportsError}
+                </Text>
+              ) : null}
+              {!sportsError && sports.length === 0 && (
+                <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
+                  No sports loaded yet. Confirm Supabase is configured and migrations/seeds have run.
+                </Text>
+              )}
+              {sports.length > 0 && filteredSportsFlat.length === 0 && (
+                <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
+                  No sports match "{sportsSearch}".
+                </Text>
+              )}
+              <View style={styles.chipGroup} key={`sport-picker-${selectedSportSlugs.join(",")}`}>
+                {availableSportsForPicker.map((sport) => (
+                  <Chip
+                    key={sport.id}
+                    label={sport.name}
+                    selected={false}
+                    onPress={() => addSport(sport.slug)}
                   />
-                </View>
-        {sportsError ? (
-          <Text style={{ fontSize: 13, color: theme.danger, marginBottom: 8 }}>
-            {sportsError}
-          </Text>
-        ) : null}
-        {!sportsError && sports.length === 0 && (
-          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
-            No sports loaded yet. Confirm Supabase is configured and migrations/seeds have run.
-          </Text>
-        )}
-        {sports.length > 0 && filteredSportsFlat.length === 0 && (
-          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
-            No sports match “{sportsSearch}”.
-          </Text>
-        )}
+                ))}
+              </View>
+            </>
+          )}
 
-                <View style={styles.chipGroup} key={`sport-picker-${selectedSportSlugs.join(",")}`}>
-                  {availableSportsForPicker.map((sport) => (
-                    <Chip
-                      key={sport.id}
-                      label={sport.name}
-                      selected={false}
-                      onPress={() => addSport(sport.slug)}
-                    />
-                  ))}
-                </View>
-                {selectedSportSlugs.length === 1 && showAddSecondSport && (
-                  <Pressable
-                    onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setShowAddSecondSport(false);
-                    }}
-                    style={{ marginTop: 8, marginBottom: 4, alignSelf: "flex-start" }}
-                  >
-                    <Text style={{ fontSize: 13, color: theme.textMuted }}>− Hide list</Text>
-                  </Pressable>
-                )}
-              </>
-            )}
-
-            {selectedSportSlugs.length === 1 && !showAddSecondSport && (
-              <Pressable
-                onPress={() => {
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setShowAddSecondSport(true);
-                }}
-                style={[styles.goalRowHeader, { marginTop: 12 }]}
-              >
-                <Text style={[styles.subGoalsControlText, { color: theme.primary }]}>
-                  + Add second sport
-                </Text>
-              </Pressable>
-            )}
-
-            {selectedSportSlugs.length > 0 && (
-              <Pressable
-                onPress={() => {
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setExpandedSportForSubFocus((prev) => (prev === "all" ? null : "all"));
-                }}
-                style={[styles.goalRowHeader, { marginTop: 12 }]}
-              >
-                <Text style={[styles.subGoalsControlText, { color: theme.primary }]}>
-                  {expandedSportForSubFocus === "all" ? "− Sport sub-focus" : "+ Sport sub-focus"}
-                </Text>
-              </Pressable>
-            )}
-            {expandedSportForSubFocus === "all" &&
-              selectedSportSlugs.map((slug) => {
+          {/* Sport sub-focus — always visible when a sport is selected */}
+          {selectedSportSlugs.length > 0 && (
+            <View style={[styles.subFocusSectionWrap, { borderTopColor: theme.border }]}>
+              <Text style={[styles.subFocusSectionLabel, { color: theme.textMuted }]}>
+                Sport sub-focus <Text style={{ fontWeight: "400" }}>(optional, ranked)</Text>
+              </Text>
+              {selectedSportSlugs.map((slug) => {
                 const sport = resolveActiveSportForSlug(sports, slug);
                 const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === getCanonicalSportSlug(slug));
                 const optionsFromSubFocus = sportSubFocus?.sub_focuses ?? null;
@@ -749,58 +716,62 @@ export default function AdaptiveModeScreen() {
                 const selectedQualities = subFocusBySport[slug] ?? [];
                 const canAddSub = selectedQualities.length < 3;
                 return (
-                  <View key={slug} style={[styles.subGoalsBlock, { borderTopColor: theme.border, marginTop: 8 }]}>
-                    <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
-                      {sport?.name ?? slug}
-                    </Text>
+                  <View key={slug} style={{ marginTop: selectedSportSlugs.length > 1 ? 8 : 0 }}>
+                    {selectedSportSlugs.length > 1 && (
+                      <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
+                        {sport?.name ?? slug}
+                      </Text>
+                    )}
                     {options.length > 0 ? (
                       <>
-                        <View style={styles.chipGroup}>
-                          {selectedQualities.map((qSlug) => {
-                            const opt = options.find((o) => o.slug === qSlug);
-                            return (
-                              <Pressable
-                                key={qSlug}
-                                style={styles.rankedChipWrap}
-                                onPress={() => toggleSportSubFocus(slug, qSlug)}
-                              >
-                                <View
-                                  style={[
-                                    styles.rankBadgeSmall,
-                                    {
-                                      backgroundColor: theme.chipSelectedBackground,
-                                      borderWidth: 1,
-                                      borderColor: theme.primary,
-                                    },
-                                  ]}
+                        {selectedQualities.length > 0 && (
+                          <View style={[styles.chipGroup, { marginBottom: 6 }]}>
+                            {selectedQualities.map((qSlug) => {
+                              const opt = options.find((o) => o.slug === qSlug);
+                              return (
+                                <Pressable
+                                  key={qSlug}
+                                  style={styles.rankedChipWrap}
+                                  onPress={() => toggleSportSubFocus(slug, qSlug)}
                                 >
-                                  <Text
-                                    style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                  <View
+                                    style={[
+                                      styles.rankBadgeSmall,
+                                      {
+                                        backgroundColor: theme.chipSelectedBackground,
+                                        borderWidth: 1,
+                                        borderColor: theme.primary,
+                                      },
+                                    ]}
                                   >
-                                    {selectedQualities.indexOf(qSlug) + 1}
-                                  </Text>
-                                </View>
-                                <View
-                                  style={[
-                                    styles.rankedChipInner,
-                                    {
-                                      backgroundColor: theme.chipSelectedBackground,
-                                      borderWidth: 1,
-                                      borderColor: theme.primary,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
-                                    numberOfLines={1}
+                                    <Text
+                                      style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                    >
+                                      {selectedQualities.indexOf(qSlug) + 1}
+                                    </Text>
+                                  </View>
+                                  <View
+                                    style={[
+                                      styles.rankedChipInner,
+                                      {
+                                        backgroundColor: theme.chipSelectedBackground,
+                                        borderWidth: 1,
+                                        borderColor: theme.primary,
+                                      },
+                                    ]}
                                   >
-                                    {opt?.name ?? qSlug}
-                                  </Text>
-                                </View>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
+                                    <Text
+                                      style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                                      numberOfLines={1}
+                                    >
+                                      {opt?.name ?? qSlug}
+                                    </Text>
+                                  </View>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        )}
                         <View style={styles.chipGroup}>
                           {options
                             .filter((o) => !selectedQualities.includes(o.slug))
@@ -816,11 +787,88 @@ export default function AdaptiveModeScreen() {
                         </View>
                       </>
                     ) : (
-                      <Text style={{ fontSize: 12, color: theme.textMuted }}>No sub-focus options for this sport.</Text>
+                      <Text style={{ fontSize: 12, color: theme.textMuted }}>
+                        No sub-focus options for this sport.
+                      </Text>
                     )}
                   </View>
                 );
               })}
+            </View>
+          )}
+        </CollapsiblePreferenceSection>
+
+        {/* Fitness goals — inline, outside Advanced */}
+        <CollapsiblePreferenceSection
+          title="Fitness goals"
+          subtitle={rankedGoals.filter(Boolean).length === 0 ? "Optional — blend up to 3 training goals with your sport." : undefined}
+          summary={adaptiveAdvAdditionalGoalsSummary}
+          expanded={sectionGoalsOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGoalsOpen((v) => !v);
+          }}
+          marginTop={8}
+        >
+          {rankedGoals.filter((g): g is string => g != null).length > 0 && (
+            <View style={styles.chipGroup}>
+              {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
+                const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+                return (
+                  <View key={goalId} style={styles.rankedChipWrap}>
+                    <View
+                      style={[
+                        styles.rankBadge,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.rankedChipInner,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.primary,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                        numberOfLines={1}
+                      >
+                        {goal?.label ?? goalId}
+                      </Text>
+                    </View>
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => removeGoal(goalId)}
+                      style={styles.rankedChipRemove}
+                    >
+                      <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          <View style={styles.chipGroup}>
+            {ADAPTIVE_GOALS.filter((g) => !rankedGoals.includes(g.id)).map((goal) => (
+              <Chip
+                key={goal.id}
+                label={goal.label}
+                selected={false}
+                onPress={() => addGoal(goal.id)}
+              />
+            ))}
+          </View>
         </CollapsiblePreferenceSection>
 
         {isOneDay ? (
@@ -906,85 +954,6 @@ export default function AdaptiveModeScreen() {
               },
             ]}
           >
-            <CollapsiblePreferenceSection
-              nested
-              title="Additional goals"
-              subtitle="Optional — rank up to 3 training goals to blend with your sport(s). Leave empty for sport-focused plans."
-              summary={adaptiveAdvAdditionalGoalsSummary}
-              expanded={adaptiveAdvNestedOpen.additionalGoals === true}
-              onToggle={() => toggleAdaptiveAdvNested("additionalGoals")}
-              marginTop={0}
-            >
-              {rankedGoals.filter((g): g is string => g != null).length > 0 && (
-                <View style={styles.chipGroup}>
-                  {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
-                    const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
-                    const pct =
-                      idx === 0
-                        ? (manualPreferences.goalMatchPrimaryPct ?? 50)
-                        : idx === 1
-                          ? (manualPreferences.goalMatchSecondaryPct ?? 30)
-                          : (manualPreferences.goalMatchTertiaryPct ?? 20);
-                    return (
-                      <View key={goalId} style={styles.rankedChipWrap}>
-                        <View
-                          style={[
-                            styles.rankBadge,
-                            {
-                              backgroundColor: theme.chipSelectedBackground,
-                              borderWidth: 1,
-                              borderColor: theme.primary,
-                            },
-                          ]}
-                        >
-                          <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
-                            {idx + 1}
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.rankedChipInner,
-                            {
-                              backgroundColor: theme.chipSelectedBackground,
-                              borderWidth: 1,
-                              borderColor: theme.primary,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                            numberOfLines={1}
-                          >
-                            {goal?.label ?? goalId}
-                          </Text>
-                          <Text style={[styles.rankedChipPct, { color: theme.textMuted }]}>
-                            {pct}%
-                          </Text>
-                        </View>
-                        <Pressable
-                          hitSlop={8}
-                          onPress={() => removeGoal(goalId)}
-                          style={styles.rankedChipRemove}
-                        >
-                          <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-              <View style={styles.chipGroup}>
-                {ADAPTIVE_GOALS.filter((g) => !rankedGoals.includes(g.id)).map((goal) => (
-                  <Chip
-                    key={goal.id}
-                    label={goal.label}
-                    selected={false}
-                    onPress={() => addGoal(goal.id)}
-                  />
-                ))}
-              </View>
-            </CollapsiblePreferenceSection>
-
             {selectedSportSlugs.length > 0 &&
             rankedGoals.filter((g): g is string => g != null).length > 0 ? (
               <CollapsiblePreferenceSection
@@ -1461,7 +1430,7 @@ export default function AdaptiveModeScreen() {
           ) : null}
           <Pressable onPress={openAdaptiveAdvancedAndScroll} style={styles.advancedLinkWrap}>
             <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-              Advanced options (additional goals, fatigue, injuries…)
+              Advanced options (sport %, goal weights, fatigue, injuries…)
             </Text>
           </Pressable>
         </View>
@@ -1656,5 +1625,23 @@ const styles = StyleSheet.create({
   advancedLinkText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  slotSeparatorLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 12,
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  subFocusSectionWrap: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+  },
+  subFocusSectionLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 10,
   },
 });

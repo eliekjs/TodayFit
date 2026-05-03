@@ -97,7 +97,7 @@ export default function AdaptiveScheduleScreen() {
 
   useEffect(() => {
     if (!adaptiveSetup) {
-      router.replace("/adaptive");
+      router.replace("/sport-mode");
     }
   }, [adaptiveSetup, router]);
 
@@ -230,7 +230,7 @@ export default function AdaptiveScheduleScreen() {
       });
       setSportPrepWeekPlan(plan);
       setAdaptiveSetup(null);
-      router.replace("/adaptive/recommendation");
+      router.replace("/sport-mode/recommendation");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

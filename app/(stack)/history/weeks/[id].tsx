@@ -51,7 +51,7 @@ export default function SavedWeekDetailScreen() {
           guestWorkouts: planWith.guestWorkouts,
         };
         setSportPrepWeekPlan(plan);
-        router.replace("/adaptive/recommendation");
+        router.replace("/sport-mode/recommendation");
       })
       .catch((e) => {
         if (!cancelled) {

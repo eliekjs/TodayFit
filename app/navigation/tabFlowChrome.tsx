@@ -52,14 +52,14 @@ export function AdaptiveRecommendationBackButton() {
       onPress={() => {
         const oneDay = sportPrepWeekPlan?.scheduleSnapshot?.gymDaysPerWeek === 1;
         if (oneDay) {
-          router.replace("/adaptive?scope=day");
+          router.replace("/sport-mode?scope=day");
           return;
         }
         if (router.canGoBack()) {
           router.back();
           return;
         }
-        router.replace("/adaptive");
+        router.replace("/sport-mode");
       }}
       style={{ paddingLeft: 16 }}
     >

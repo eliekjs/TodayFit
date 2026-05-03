@@ -171,7 +171,7 @@ export default function LibraryScreen() {
                 <View style={styles.savedActions}>
                   <PrimaryButton
                     label="Open"
-                    onPress={() => router.push("/adaptive/recommendation")}
+                    onPress={() => router.push("/sport-mode/recommendation")}
                     style={{ flex: 1 }}
                   />
                   <PrimaryButton

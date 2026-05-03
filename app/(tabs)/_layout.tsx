@@ -143,7 +143,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="adaptive/index"
+        name="sport-mode/index"
         options={{
           href: null,
           title: "Sport Mode",
@@ -152,7 +152,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="adaptive/schedule"
+        name="sport-mode/schedule"
         options={{
           href: null,
           title: "Set your schedule",
@@ -161,7 +161,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="adaptive/recommendation"
+        name="sport-mode/recommendation"
         options={{
           href: null,
           title: "Recommended Session",

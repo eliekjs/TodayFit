@@ -549,7 +549,7 @@ export default function AdaptiveWeekPlanScreen() {
             <PrimaryButton
               label="Set Training Priorities"
               onPress={() => {
-              router.replace("/adaptive");
+              router.replace("/sport-mode");
             }}
             />
           </View>
@@ -970,7 +970,7 @@ export default function AdaptiveWeekPlanScreen() {
               label="Back to Setup"
               variant="ghost"
               onPress={() => {
-                router.replace("/adaptive");
+                router.replace("/sport-mode");
               }}
               style={{ marginTop: 8 }}
             />
