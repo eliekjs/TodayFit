@@ -3,6 +3,8 @@
  * Uses exercise_role, mobility_targets, stretch_targets when present; falls back to modality.
  */
 
+import { isMobilityOrStretchExercise } from "../workoutIntelligence/constraints/eligibilityHelpers";
+import type { ExerciseWithQualities } from "../workoutIntelligence/types";
 import type { Exercise } from "./types";
 
 /** Roles that are appropriate for cooldown when we allow mobility (legacy). */
@@ -26,6 +28,11 @@ export function isStretchOnlyEligible(exercise: Exercise): boolean {
   const hasStretchTargets = (exercise.stretch_targets?.length ?? 0) > 0;
   if (hasStretchTargets) return true;
   return false;
+}
+
+/** True when Phase 8 / `isMobilityOrStretchExercise` counts this toward min cooldown mobility (stretch-preferred pool). */
+export function exerciseCountsAsCooldownMobilityForValidator(exercise: Exercise): boolean {
+  return isMobilityOrStretchExercise(exercise as unknown as ExerciseWithQualities);
 }
 
 /** Roles that should NOT appear in main work (compound/accessory) blocks. */
@@ -126,11 +133,11 @@ export function selectCooldownMobilityExercises(
     maxItems = Math.max(minMobilityCount + 1, 4),
   } = options;
 
-  // Cooldown = stretching only: exclude mobility-only exercises (no stretch_targets and not stretch/breathing role).
+  // Pool must satisfy Phase 8 mobility/stretch counting (includes stretch + mobility/recovery modalities).
   const pool = exercises.filter((e) => {
     if (alreadyUsedIds.has(e.id)) return false;
     if (!isCooldownEligible(e)) return false;
-    return isStretchOnlyEligible(e);
+    return exerciseCountsAsCooldownMobilityForValidator(e);
   });
 
   if (pool.length === 0) return [];

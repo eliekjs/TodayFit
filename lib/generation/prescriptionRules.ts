@@ -104,7 +104,7 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     compoundLiftMin: 2,
     supersetsNonCompetingOnly: true,
     accessoryRepRange: { min: 8, max: 10 },
-    accessorySetRange: { min: 2, max: 3 },
+    accessorySetRange: { min: 3, max: 4 },
     accessoryRestRange: { min: 60, max: 90 },
     preferredMovementPatterns: ["squat", "hinge", "push", "pull"],
   },
@@ -364,6 +364,29 @@ export function getConditioningIntervalStructure(
 }
 
 /**
+ * Default non-Zone2 conditioning should be interval-based.
+ * This avoids prescribing long continuous blocks for movements better suited to repeated efforts.
+ */
+export function getNonZone2ConditioningIntervalStructure(
+  totalMinutes: number
+): ConditioningIntervalStructure {
+  const workSeconds = totalMinutes <= 12 ? 20 : totalMinutes <= 20 ? 30 : 40;
+  const restSeconds = Math.max(20, 60 - workSeconds);
+  const rounds = Math.max(
+    6,
+    Math.min(30, Math.round((totalMinutes * 60) / (workSeconds + restSeconds)))
+  );
+  return {
+    sets: rounds,
+    time_seconds: workSeconds,
+    rest_seconds: restSeconds,
+    format: "circuit",
+    reasoning:
+      "Interval-based conditioning for non-Zone2 work (short repeated efforts with controlled recovery).",
+  };
+}
+
+/**
  * Conditioning structure by sub-focus intent (direct slug). Used when conditioning path consumes
  * resolved sub-focus profile: zone2 = sustained, intervals_hiit = rounds/EMOM, threshold = medium sustained, hills = current.
  */
@@ -393,7 +416,7 @@ export function getConditioningStructureByIntent(
     return {
       sets,
       time_seconds: workSeconds,
-      rest_seconds: Math.max(5, 60 - workSeconds),
+      rest_seconds: workSeconds === 40 ? 20 : 30,
       format: "circuit",
       reasoning: "EMOM-style intervals (time-based work with defined rest).",
     };
@@ -413,8 +436,8 @@ export function getConditioningStructureByIntent(
   return getConditioningIntervalStructure(totalMinutes, goal, equipmentRequired);
 }
 
-/** Max work per round for high-intensity conditioning (burpees, KB swings, high knees, etc.). Nobody can sustain these for 8+ min straight. */
-export const MAX_HIGH_INTENSITY_WORK_SECONDS = 60;
+/** Max work per round for high-intensity conditioning (burpees, KB swings, high knees, etc.). Keep bouts <=45s for quality and repeatability. */
+export const MAX_HIGH_INTENSITY_WORK_SECONDS = 45;
 
 /** Rest between rounds of high-intensity work (research: 30–60 s common for HIIT). */
 export const HIGH_INTENSITY_REST_SECONDS = 45;
@@ -425,6 +448,8 @@ export const HIGH_INTENSITY_CONDITIONING_IDS = new Set([
   "burpee",
   "burpee_box_jump",
   "high_knee",
+  "high_knee_run",
+  "high_knees",
   "kb_swing",
   "kettlebell_swing",
   "mountain_climber",
@@ -459,6 +484,7 @@ export const HIGH_INTENSITY_CONDITIONING_IDS = new Set([
   "broad_jump",
   "bounding",
   "sprint",
+  "sprint_in_place",
   "single_leg_hop",
   // Stair climb (bodyweight, often used in short bursts in circuits)
   "stair_climb",
@@ -503,7 +529,7 @@ export const REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS = new Set([
 export function getExplosiveConditioningStructure(): ConditioningIntervalStructure {
   return {
     sets: 4,
-    reps: 8,
+    reps: 10,
     rest_seconds: 60,
     format: "circuit",
     reasoning: "Explosive movements prescribed as sets of reps with rest between for quality and safety.",
@@ -519,13 +545,30 @@ export function getHighIntensityConditioningStructure(
   totalWorkMinutes: number
 ): ConditioningIntervalStructure {
   const rounds = Math.max(1, Math.min(20, Math.round(totalWorkMinutes)));
-  const restSeconds = HIGH_INTENSITY_REST_SECONDS;
+  const restSeconds = 60;
   return {
     sets: rounds,
     time_seconds: MAX_HIGH_INTENSITY_WORK_SECONDS,
     rest_seconds: restSeconds,
     format: "circuit",
     reasoning: `Short work bouts (max 1 min) with rest so you can sustain intensity. Rest ${restSeconds} s between rounds.`,
+  };
+}
+
+/** Sprint/burst conditioning: short 20–30s efforts repeated in quality sets (e.g. piston runs, shuttle bursts). */
+export function getSprintBurstConditioningStructure(
+  totalWorkMinutes: number
+): ConditioningIntervalStructure {
+  const sets = Math.max(5, Math.min(10, Math.round(totalWorkMinutes)));
+  const workSeconds = totalWorkMinutes <= 7 ? 20 : 30;
+  const restSeconds = workSeconds === 20 ? 30 : 60;
+  return {
+    sets,
+    time_seconds: workSeconds,
+    rest_seconds: restSeconds,
+    format: "circuit",
+    reasoning:
+      "Short sprint bursts (20-30s) with controlled recovery preserve speed quality and repeatability.",
   };
 }
 
@@ -537,8 +580,8 @@ export function getRepBasedHighIntensityConditioningStructure(
   totalWorkMinutes: number
 ): ConditioningIntervalStructure {
   const sets = Math.max(3, Math.min(6, Math.round(totalWorkMinutes / 2)));
-  const reps = 8;
-  const restSeconds = HIGH_INTENSITY_REST_SECONDS;
+  const reps = 10;
+  const restSeconds = 60;
   return {
     sets,
     reps,

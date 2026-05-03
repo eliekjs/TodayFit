@@ -12,8 +12,10 @@ import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "./preferencesConstants";
 import {
   resolveGoalSubFocusSlugs,
   resolveSubFocusProfile,
+  getExerciseTagsForGoalSubFocuses,
 } from "../data/goalSubFocus";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
+import { getExerciseTagsForSubFocuses } from "../data/sportSubFocus";
 import type {
   GenerateWorkoutInput,
   PrimaryGoal,
@@ -25,7 +27,11 @@ import type {
   MovementPattern,
   UserLevel,
 } from "../logic/workoutGeneration/types";
-import type { SessionIntentContract } from "../logic/workoutGeneration/sessionIntentContract";
+import type {
+  SessionIntentContract,
+  SessionIntentSelection,
+  IntentEntry,
+} from "../logic/workoutGeneration/sessionIntentContract";
 
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
@@ -82,6 +88,142 @@ function shouldAppendEnduranceSecondaryFromSportSubFocus(
     return true;
   }
   return false;
+}
+
+// --- Ranked intent entry builder ---
+
+/** Sub-focus rank weights: first sub-focus gets 50%, second 30%, third 20%. */
+const SUB_FOCUS_RANK_WEIGHTS = [0.5, 0.3, 0.2] as const;
+
+/**
+ * Maps a PrimaryGoal to the key used in `goal_sub_focus_by_goal` (from GOAL_SUB_FOCUS_OPTIONS).
+ * "strength" is used for athletic_performance and calisthenics by the options resolver.
+ */
+function primaryGoalToSubFocusKey(goal: PrimaryGoal): string {
+  switch (goal) {
+    case "hypertrophy": return "muscle";
+    case "body_recomp": return "physique";
+    case "recovery": return "resilience";
+    default: return goal as string;
+  }
+}
+
+/**
+ * Tag slugs (appearing in exercise goal_tags) that identify exercises for a PrimaryGoal.
+ * Mirrors goalTagAliases in sessionIntentCoverage without cross-importing that module.
+ */
+function goalTagSlugsForEntry(goal: PrimaryGoal): string[] {
+  if (goal === "athletic_performance") return ["athleticism", "power"];
+  if (goal === "body_recomp") return ["hypertrophy", "strength"];
+  return [goal as string];
+}
+
+/**
+ * Build the flat ranked intent list from the session's goals, sub-goals, sports, and sport sub-focuses.
+ * Weights are proportional to goal_weights × goal portion + sport_weight × sport portion.
+ * Sub-focuses are weighted within their parent (50/30/20 split by rank).
+ * All weights are normalized to sum = 1 and entries are ranked descending by weight (rank 1 = highest).
+ */
+function buildRankedIntentEntries(
+  selectedGoals: PrimaryGoal[],
+  goalSubFocusByGoal: Record<string, string[]>,
+  sportSlugs: string[],
+  sportSubFocusBySport: Record<string, string[]>,
+  goalWeights: number[] | undefined,
+  sportWeight: number | undefined
+): IntentEntry[] {
+  const entries: IntentEntry[] = [];
+
+  const sportWeightFraction =
+    sportSlugs.length > 0 && sportWeight != null ? Math.max(0, Math.min(1, sportWeight)) : 0;
+  const goalWeightFraction = 1 - sportWeightFraction;
+
+  // Normalize goal weights (sum-to-1 within goals slice, then scale by goalWeightFraction)
+  const rawGoalWeights =
+    goalWeights ?? selectedGoals.map((_, i) => SUB_FOCUS_RANK_WEIGHTS[i] ?? 1 / Math.max(selectedGoals.length, 1));
+  const goalWeightSum = rawGoalWeights.reduce((s, w) => s + w, 0);
+  const normGoalWeights =
+    goalWeightSum > 0 ? rawGoalWeights.map((w) => (w / goalWeightSum) * goalWeightFraction) : rawGoalWeights;
+
+  // Track which sub-focus keys have been claimed so goals sharing a key don't double-add
+  const claimedSubFocusKeys = new Set<string>();
+
+  for (let i = 0; i < selectedGoals.length; i++) {
+    const goal = selectedGoals[i]!;
+    const goalAbsWeight = normGoalWeights[i] ?? goalWeightFraction / Math.max(selectedGoals.length, 1);
+
+    entries.push({
+      kind: "goal",
+      slug: goal,
+      rank: 0,
+      weight: goalAbsWeight,
+      tag_slugs: goalTagSlugsForEntry(goal),
+    });
+
+    const subFocusKey = primaryGoalToSubFocusKey(goal);
+    if (!claimedSubFocusKeys.has(subFocusKey)) {
+      claimedSubFocusKeys.add(subFocusKey);
+      const subSlugs = goalSubFocusByGoal[subFocusKey] ?? [];
+      for (let j = 0; j < subSlugs.length; j++) {
+        const subSlug = subSlugs[j]!;
+        const subRankWeight = SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / subSlugs.length;
+        const subWeight = goalAbsWeight * subRankWeight;
+        const tagEntries = getExerciseTagsForGoalSubFocuses(subFocusKey, [subSlug]);
+        entries.push({
+          kind: "goal_sub_focus",
+          slug: subSlug,
+          parent_slug: goal,
+          rank: 0,
+          weight: subWeight,
+          tag_slugs: tagEntries.map((e) => e.tag_slug),
+        });
+      }
+    }
+  }
+
+  // Sports
+  const numSports = sportSlugs.length;
+  if (numSports > 0) {
+    const perSportWeight = sportWeightFraction / numSports;
+    for (const sport of sportSlugs) {
+      const canonSport = getCanonicalSportSlug(sport);
+      entries.push({
+        kind: "sport",
+        slug: sport,
+        rank: 0,
+        weight: perSportWeight,
+        // sport_tags for exercises use canonical sport slug
+        tag_slugs: [canonSport],
+      });
+
+      const sportSubSlugs =
+        sportSubFocusBySport[sport] ?? sportSubFocusBySport[canonSport] ?? [];
+      for (let j = 0; j < sportSubSlugs.length; j++) {
+        const subSlug = sportSubSlugs[j]!;
+        const subRankWeight = SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / sportSubSlugs.length;
+        const subWeight = perSportWeight * subRankWeight;
+        const tagEntries = getExerciseTagsForSubFocuses(sport, [subSlug]);
+        entries.push({
+          kind: "sport_sub_focus",
+          slug: subSlug,
+          parent_slug: sport,
+          rank: 0,
+          weight: subWeight,
+          tag_slugs: tagEntries.map((e) => e.tag_slug),
+        });
+      }
+    }
+  }
+
+  // Normalize weights and assign ranks
+  const totalWeight = entries.reduce((s, e) => s + e.weight, 0);
+  if (totalWeight > 0) {
+    for (const e of entries) e.weight = parseFloat((e.weight / totalWeight).toFixed(4));
+  }
+  entries.sort((a, b) => b.weight - a.weight);
+  for (let i = 0; i < entries.length; i++) entries[i]!.rank = i + 1;
+
+  return entries;
 }
 
 /** Map primary focus label to generator PrimaryGoal. */
@@ -165,6 +307,7 @@ export function manualPreferencesToGenerateWorkoutInput(
   const bodyPartFocus =
     bodyPartFromTarget.length > 0 ? bodyPartFromTarget : bodyPartFromSubFocus;
   const focus_body_parts = bodyPartFocusToGeneratorFocus(bodyPartFocus);
+  const normalizedFocusBodyParts: FocusBodyPart[] = focus_body_parts.length > 0 ? focus_body_parts : ["full_body"];
 
   const injuryFilter =
     preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
@@ -279,11 +422,38 @@ export function manualPreferencesToGenerateWorkoutInput(
     }
   }
 
+  const selectedGoals: PrimaryGoal[] = [
+    primary_goal,
+    ...secondary_goals,
+  ];
+  const session_intent: SessionIntentSelection = {
+    selected_goals: selectedGoals,
+    selected_sports: sportGoalContext?.sport_slugs ?? [],
+    goal_sub_focus_by_goal: goal_sub_focus,
+    sport_sub_focus_by_sport: sportGoalContext?.sport_sub_focus ?? {},
+    user_level: style_prefs.user_level,
+    focus_body_parts: normalizedFocusBodyParts,
+    sport_vs_goal_pct:
+      sportGoalContext?.sport_weight != null
+        ? Math.round(Math.max(0, Math.min(1, sportGoalContext.sport_weight)) * 100)
+        : undefined,
+    goal_weights: sportGoalContext?.goal_weights ?? goal_weights,
+    sport_weight: sportGoalContext?.sport_weight,
+    ranked_intent_entries: buildRankedIntentEntries(
+      selectedGoals,
+      goal_sub_focus,
+      sportGoalContext?.sport_slugs ?? [],
+      sportGoalContext?.sport_sub_focus ?? {},
+      sportGoalContext?.goal_weights ?? goal_weights,
+      sportGoalContext?.sport_weight
+    ),
+  };
+
   return {
     duration_minutes: durationMinutes,
     primary_goal,
     secondary_goals: secondary_goals.length ? secondary_goals : undefined,
-    focus_body_parts: focus_body_parts.length ? focus_body_parts : undefined,
+    focus_body_parts: normalizedFocusBodyParts,
     energy_level: preferences.energyLevel ?? "medium",
     available_equipment,
     injuries_or_constraints,
@@ -298,12 +468,13 @@ export function manualPreferencesToGenerateWorkoutInput(
     include_intent_survival_report: sportGoalContext?.include_intent_survival_report,
     intent_survival_upstream: sportGoalContext?.intent_survival_upstream,
     session_intent_contract: sportGoalContext?.session_intent_contract,
+    session_intent,
     week_main_strength_lift_ids_used:
       preferences.weekMainStrengthLiftIdsUsed?.length && preferences.weekMainStrengthLiftIdsUsed.length > 0
         ? [...preferences.weekMainStrengthLiftIdsUsed]
         : undefined,
     weekly_sub_focus_session_minimums,
-    pruning_gate: getGenerationPruningGateFlags(),
+    pruning_gate: getGenerationPruningGateFlags(preferences.workoutTier),
   };
 }
 

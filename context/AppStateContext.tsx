@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Alert } from "react-native";
 import { GymProfile, initialGymProfiles } from "../data/gymProfiles";
 import type {
   ManualPreferences,
@@ -18,6 +19,7 @@ import type {
   ManualWeekPlan,
 } from "../lib/types";
 import { useAuth } from "./AuthContext";
+import { formatRemoteLoadError } from "./formatRemoteLoadError";
 import { isDbConfigured } from "../lib/db";
 import * as GymProfileRepo from "../lib/db/gymProfileRepository";
 import * as PreferencesRepo from "../lib/db/preferencesRepository";
@@ -25,41 +27,12 @@ import * as WorkoutRepo from "../lib/db/workoutRepository";
 import type { PlanWeekResult } from "../services/sportPrepPlanner";
 import { persistWithHandling } from "./persistWithHandling";
 import { createLatestSerializedPersistenceQueue } from "./latestSerializedPersistenceQueue";
+import type { AdaptiveSetup } from "./appStateModel";
+import { defaultManualPreferences } from "./appStateModel";
+import { loadRemoteAppState } from "./loadRemoteAppState";
+import type { LoadedRemoteAppState } from "./loadRemoteAppState";
 
-/** Adaptive mode: first-page choices passed to the schedule (second) page. */
-export type AdaptiveSetup = {
-  rankedGoals: (string | null)[];
-  horizon: string;
-  fatigue: string;
-  recentLoad: string;
-  injuryStatus: string;
-  injuryTypes: string[];
-  rankedSportSlugs: (string | null)[];
-  subFocusBySport: Record<string, string[]>;
-  sportFocusPct: [number, number];
-  /** When both sports and goals selected: 0–100 = sport(s) share; additional goals = 100 - sportVsGoalPct. Omit or 50 = default. */
-  sportVsGoalPct?: number;
-  /** Weekly body emphasis: more volume on this area; week still trains full body. */
-  weeklyEmphasis?: import("../lib/types").BodyEmphasisKey | null;
-};
-
-export const defaultManualPreferences: ManualPreferences = {
-  primaryFocus: [],
-  targetBody: null,
-  targetModifier: [],
-  durationMinutes: null,
-  energyLevel: null,
-  injuries: [],
-  upcoming: [],
-  subFocusByGoal: {},
-  workoutStyle: [],
-  preferredZone2Cardio: [],
-  goalMatchPrimaryPct: 50,
-  goalMatchSecondaryPct: 30,
-  goalMatchTertiaryPct: 20,
-  workoutTier: "intermediate",
-  includeCreativeVariations: false,
-};
+type RemoteSyncStatus = "idle" | "loading" | "ready" | "error";
 
 type AppStateContextValue = {
   activeGymProfileId: string | null;
@@ -101,6 +74,14 @@ type AppStateContextValue = {
   setSportPrepWeekPlan: (plan: PlanWeekResult | null) => void;
   setManualWeekPlan: (plan: ManualWeekPlan | null) => void;
   setAdaptiveSetup: (setup: AdaptiveSetup | null) => void;
+  /** Supabase-backed snapshot load for signed-in users (profiles, prefs, history, saved). */
+  remoteSyncStatus: RemoteSyncStatus;
+  remoteSyncError: string | null;
+  /** True when local edits happened during the initial cloud load so server data was not applied. */
+  remoteSyncSkippedMerge: boolean;
+  /** Re-fetch from Supabase and replace local synced slices (use after errors or skipped merge). */
+  reloadRemoteAppState: () => void;
+  dismissRemoteSyncSkippedMerge: () => void;
 };
 
 const AppStateContext = createContext<AppStateContextValue | undefined>(
@@ -108,8 +89,59 @@ const AppStateContext = createContext<AppStateContextValue | undefined>(
 );
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const { userId } = useAuth();
+  const { userId, isLoading: authLoading } = useAuth();
   const persist = isDbConfigured() && Boolean(userId);
+
+  const [remoteSyncStatus, setRemoteSyncStatus] = useState<RemoteSyncStatus>("idle");
+  const [remoteSyncError, setRemoteSyncError] = useState<string | null>(null);
+  const [remoteSyncSkippedMerge, setRemoteSyncSkippedMerge] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const forceApplyRemoteOnNextLoadRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
+  const remoteLoadSeqRef = useRef(0);
+  const remoteLoadInProgressRef = useRef(false);
+  const userEditedDuringRemoteLoadRef = useRef(false);
+
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
+
+  const applyRemoteData = useCallback((data: LoadedRemoteAppState) => {
+    const { profiles, prefs, presets, history, saved } = data;
+    if (profiles.length) {
+      setGymProfiles(profiles);
+      const active = profiles.find((p) => p.isActive) ?? profiles[0];
+      setActiveGymProfileId(active?.id ?? null);
+    }
+    if (prefs) setManualPreferences(prefs);
+    setPreferencePresets(presets);
+    setWorkoutHistory(history);
+    setSavedWorkouts(saved);
+  }, []);
+
+  const touchPersistedStateDuringRemoteLoad = useCallback(() => {
+    if (remoteLoadInProgressRef.current) {
+      userEditedDuringRemoteLoadRef.current = true;
+    }
+  }, []);
+
+  const notifySaveFailed = useCallback(() => {
+    Alert.alert(
+      "Couldn't save",
+      "Your changes may not have been saved. Check your connection and try again."
+    );
+  }, []);
+
+  const reloadRemoteAppState = useCallback(() => {
+    if (!isDbConfigured() || !userIdRef.current) return;
+    forceApplyRemoteOnNextLoadRef.current = true;
+    setRemoteSyncError(null);
+    setReloadToken((t) => t + 1);
+  }, []);
+
+  const dismissRemoteSyncSkippedMerge = useCallback(() => {
+    setRemoteSyncSkippedMerge(false);
+  }, []);
 
   const [gymProfiles, setGymProfiles] = useState<GymProfile[]>(initialGymProfiles);
   const [activeGymProfileId, setActiveGymProfileId] = useState<string | null>(
@@ -146,37 +178,66 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [generatedWorkout?.id]);
 
-  // Load from Supabase when user is available and DB configured
   useEffect(() => {
-    if (!persist || !userId) return;
-    let cancelled = false;
-    (async () => {
+    if (authLoading) return;
+
+    if (!persist || !userId) {
+      setRemoteSyncStatus("idle");
+      setRemoteSyncError(null);
+      setRemoteSyncSkippedMerge(false);
+      return;
+    }
+
+    const seq = ++remoteLoadSeqRef.current;
+    const forceApply = forceApplyRemoteOnNextLoadRef.current;
+    forceApplyRemoteOnNextLoadRef.current = false;
+    const startedUserId = userId;
+
+    remoteLoadInProgressRef.current = true;
+    userEditedDuringRemoteLoadRef.current = false;
+
+    setRemoteSyncStatus("loading");
+    if (!forceApply) {
+      setRemoteSyncError(null);
+      setRemoteSyncSkippedMerge(false);
+    }
+
+    void (async () => {
       try {
-        const [profiles, prefs, presets, history, saved] = await Promise.all([
-          GymProfileRepo.listProfiles(userId),
-          PreferencesRepo.getPreferences(userId),
-          PreferencesRepo.listPresets(userId),
-          WorkoutRepo.listCompletedWorkouts(userId),
-          WorkoutRepo.listSavedWorkouts(userId),
-        ]);
-        if (cancelled) return;
-        if (profiles.length) {
-          setGymProfiles(profiles);
-          const active = profiles.find((p) => p.isActive) ?? profiles[0];
-          setActiveGymProfileId(active?.id ?? null);
+        const data = await loadRemoteAppState(startedUserId);
+        if (seq !== remoteLoadSeqRef.current || userIdRef.current !== startedUserId) return;
+
+        if (!forceApply && userEditedDuringRemoteLoadRef.current) {
+          setRemoteSyncSkippedMerge(true);
+          setRemoteSyncStatus("ready");
+          return;
         }
-        if (prefs) setManualPreferences(prefs);
-        setPreferencePresets(presets);
-        setWorkoutHistory(history);
-        setSavedWorkouts(saved);
-      } catch {
-        // keep default state on error
+
+        applyRemoteData(data);
+        setRemoteSyncStatus("ready");
+        setRemoteSyncError(null);
+        setRemoteSyncSkippedMerge(false);
+      } catch (error) {
+        if (seq !== remoteLoadSeqRef.current || userIdRef.current !== startedUserId) return;
+        console.error("[AppStateRemoteLoadError]", {
+          userId: startedUserId,
+          forceApply,
+          error,
+        });
+        setRemoteSyncError(formatRemoteLoadError(error));
+        setRemoteSyncStatus("error");
+      } finally {
+        if (seq === remoteLoadSeqRef.current) {
+          remoteLoadInProgressRef.current = false;
+        }
       }
     })();
-    return () => { cancelled = true; };
-  }, [userId, persist]);
+  }, [userId, persist, authLoading, reloadToken, applyRemoteData]);
 
   const setActiveGymProfile = useCallback((id: string) => {
+    if (persist && userId) touchPersistedStateDuringRemoteLoad();
+    const previousProfiles = gymProfiles;
+    const previousActiveId = activeGymProfileId;
     setActiveGymProfileId(id);
     setGymProfiles((profiles) =>
       profiles.map((p) => ({ ...p, isActive: p.id === id }))
@@ -185,35 +246,55 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       void persistWithHandling({
         operation: "setActiveGymProfile",
         action: () => GymProfileRepo.setActiveProfile(userId, id),
+        rollback: () => {
+          setGymProfiles(previousProfiles);
+          setActiveGymProfileId(previousActiveId);
+        },
+        onFailure: notifySaveFailed,
       });
     }
-  }, [userId, persist]);
+  }, [
+    userId,
+    persist,
+    touchPersistedStateDuringRemoteLoad,
+    gymProfiles,
+    activeGymProfileId,
+    notifySaveFailed,
+  ]);
 
   const addGymProfile = useCallback((profile: Omit<GymProfile, "id" | "isActive">) => {
     if (persist && userId) {
-      GymProfileRepo.upsertProfile(userId, {
-        name: profile.name,
-        equipment: profile.equipment,
-        dumbbellMaxWeight: profile.dumbbellMaxWeight,
-        isActive: false,
-      }).then((p) => {
-        setGymProfiles((prev) => [...prev, p]);
-      }).catch(() => {});
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "addGymProfile",
+        action: async () => {
+          const p = await GymProfileRepo.upsertProfile(userId, {
+            name: profile.name,
+            equipment: profile.equipment,
+            dumbbellMaxWeight: profile.dumbbellMaxWeight,
+            isActive: false,
+          });
+          setGymProfiles((prev) => [...prev, p]);
+        },
+        onFailure: notifySaveFailed,
+      });
     } else {
       setGymProfiles((profiles) => [
         ...profiles,
         { id: `profile_${Date.now()}`, ...profile, isActive: false },
       ]);
     }
-  }, [userId, persist]);
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const updateGymProfile = useCallback((id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => {
-    setGymProfiles((profiles) => {
-      return profiles.map((p) => (p.id === id ? { ...p, ...update } : p));
-    });
-    const current = gymProfiles.find((p) => p.id === id);
-    const profileToPersist = current ? { ...current, ...update } : undefined;
-    if (persist && userId && profileToPersist) {
+    const previousSnapshot = gymProfiles.find((p) => p.id === id);
+    const profileToPersist =
+      previousSnapshot != null ? { ...previousSnapshot, ...update } : undefined;
+    setGymProfiles((profiles) =>
+      profiles.map((p) => (p.id === id ? { ...p, ...update } : p))
+    );
+    if (persist && userId && profileToPersist && previousSnapshot != null) {
+      touchPersistedStateDuringRemoteLoad();
       void persistWithHandling({
         operation: "updateGymProfile",
         action: () =>
@@ -224,11 +305,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             dumbbellMaxWeight: profileToPersist.dumbbellMaxWeight,
             isActive: profileToPersist.isActive,
           }),
+        rollback: () =>
+          setGymProfiles((prev) =>
+            prev.map((p) => (p.id === id ? previousSnapshot : p))
+          ),
+        onFailure: notifySaveFailed,
       });
     }
-  }, [userId, persist, gymProfiles]);
+  }, [userId, persist, gymProfiles, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const removeGymProfile = useCallback((id: string) => {
+    const profilesSnapshot = gymProfiles;
+    const activeSnapshot = activeGymProfileId;
     setGymProfiles((prev) => {
       const next = prev.filter((p) => p.id !== id);
       if (activeGymProfileId === id) {
@@ -237,43 +325,91 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return next;
     });
     if (persist && userId) {
-      GymProfileRepo.removeProfile(userId, id).catch(() => {});
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "removeGymProfile",
+        action: () => GymProfileRepo.removeProfile(userId, id),
+        rollback: () => {
+          setGymProfiles(profilesSnapshot);
+          setActiveGymProfileId(activeSnapshot);
+        },
+        onFailure: notifySaveFailed,
+      });
     }
-  }, [userId, persist, activeGymProfileId]);
+  }, [
+    userId,
+    persist,
+    activeGymProfileId,
+    gymProfiles,
+    touchPersistedStateDuringRemoteLoad,
+    notifySaveFailed,
+  ]);
 
   const addPreferencePreset = useCallback((preset: Omit<PreferencePreset, "id">) => {
     if (persist && userId) {
-      PreferencesRepo.addPreset(userId, preset).then((p) => {
-        setPreferencePresets((prev) => [...prev, p]);
-      }).catch(() => {});
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "addPreferencePreset",
+        action: async () => {
+          const p = await PreferencesRepo.addPreset(userId, preset);
+          setPreferencePresets((prev) => [...prev, p]);
+        },
+        onFailure: notifySaveFailed,
+      });
     } else {
       setPreferencePresets((prev) => [
         ...prev,
         { ...preset, id: `preset_${Date.now()}` },
       ]);
     }
-  }, [userId, persist]);
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const updatePreferencePreset = useCallback((id: string, update: Partial<Pick<PreferencePreset, "name" | "preferences">>) => {
+    const previousSnapshot = preferencePresets.find((p) => p.id === id);
     setPreferencePresets((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...update } : p))
     );
-    if (persist && userId) {
-      PreferencesRepo.updatePreset(userId, id, update).catch(() => {});
+    if (persist && userId && previousSnapshot != null) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "updatePreferencePreset",
+        action: () => PreferencesRepo.updatePreset(userId, id, update),
+        rollback: () =>
+          setPreferencePresets((prev) =>
+            prev.map((p) => (p.id === id ? previousSnapshot : p))
+          ),
+        onFailure: notifySaveFailed,
+      });
     }
-  }, [userId, persist]);
+  }, [userId, persist, preferencePresets, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const removePreferencePreset = useCallback((id: string) => {
+    const removed = preferencePresets.find((p) => p.id === id);
+    const removedIndex = preferencePresets.findIndex((p) => p.id === id);
     setPreferencePresets((prev) => prev.filter((p) => p.id !== id));
-    if (persist && userId) {
-      PreferencesRepo.removePreset(userId, id).catch(() => {});
+    if (persist && userId && removed != null) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "removePreferencePreset",
+        action: () => PreferencesRepo.removePreset(userId, id),
+        rollback: () =>
+          setPreferencePresets((prev) => {
+            if (prev.some((p) => p.id === id)) return prev;
+            const next = [...prev];
+            const i = Math.min(Math.max(removedIndex, 0), next.length);
+            next.splice(i, 0, removed);
+            return next;
+          }),
+        onFailure: notifySaveFailed,
+      });
     }
-  }, [userId, persist]);
+  }, [userId, persist, preferencePresets, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const updateManualPreferences = useCallback((update: Partial<ManualPreferences>) => {
     setManualPreferences((prev) => {
       const next = { ...prev, ...update };
       if (persist && userId) {
+        touchPersistedStateDuringRemoteLoad();
         if (
           !manualPreferencesPersistQueueRef.current ||
           manualPreferencesPersistQueueRef.current.persistUserId !== userId
@@ -285,6 +421,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
                 persistWithHandling({
                   operation: "updateManualPreferences",
                   action: () => PreferencesRepo.upsertPreferences(userId, preferences),
+                  onFailure: notifySaveFailed,
                 })
             ).enqueue,
           };
@@ -293,15 +430,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
       return next;
     });
-  }, [userId, persist]);
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const addCompletedWorkout = useCallback((summary: Omit<WorkoutHistoryItem, "id">) => {
     const item = { ...summary, id: `hist_${Date.now()}` };
     setWorkoutHistory((prev) => [...prev, item]);
     if (persist && userId) {
-      WorkoutRepo.saveCompletedWorkout(userId, summary).then(() => {}).catch(() => {});
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "addCompletedWorkout",
+        action: () => WorkoutRepo.saveCompletedWorkout(userId, summary),
+        onFailure: notifySaveFailed,
+      });
     }
-  }, [userId, persist]);
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const updateWorkoutHistoryItem = useCallback((id: string, update: Partial<Pick<WorkoutHistoryItem, "name">>) => {
     setWorkoutHistory((prev) =>
@@ -312,16 +454,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const addSavedWorkout = useCallback((item: Omit<SavedWorkout, "id">) => {
     if (persist && userId) {
-      WorkoutRepo.saveSavedWorkout(userId, item).then((id) => {
-        setSavedWorkouts((prev) => [...prev, { ...item, id }]);
-      }).catch(() => {});
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "addSavedWorkout",
+        action: async () => {
+          const rowId = await WorkoutRepo.saveSavedWorkout(userId, item);
+          setSavedWorkouts((prev) => [...prev, { ...item, id: rowId }]);
+        },
+        onFailure: notifySaveFailed,
+      });
     } else {
       setSavedWorkouts((prev) => [
         ...prev,
         { ...item, id: `saved_${Date.now()}` },
       ]);
     }
-  }, [userId, persist]);
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const removeSavedWorkout = useCallback((id: string) => {
     const removedIndex = savedWorkouts.findIndex((w) => w.id === id);
@@ -330,6 +478,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return prev.filter((w) => w.id !== id);
     });
     if (persist && userId) {
+      touchPersistedStateDuringRemoteLoad();
       void persistWithHandling({
         operation: "removeSavedWorkout",
         action: () => WorkoutRepo.deleteWorkout(userId, id),
@@ -344,24 +493,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             return next;
           });
         },
+        onFailure: notifySaveFailed,
       });
     }
-  }, [userId, persist, savedWorkouts]);
+  }, [userId, persist, savedWorkouts, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const removeSavedWorkoutByWorkoutId = useCallback((workoutId: string) => {
+    const removedIndex = savedWorkouts.findIndex((w) => w.workout.id === workoutId);
+    const saved = savedWorkouts.find((w) => w.workout.id === workoutId);
     setSavedWorkouts((prev) =>
       prev.filter((w) => w.workout.id !== workoutId)
     );
-    if (persist && userId) {
-      const saved = savedWorkouts.find((w) => w.workout.id === workoutId);
-      if (saved) {
-        void persistWithHandling({
-          operation: "removeSavedWorkoutByWorkoutId",
-          action: () => WorkoutRepo.deleteWorkout(userId, saved.id),
-        });
-      }
+    if (persist && userId && saved) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "removeSavedWorkoutByWorkoutId",
+        action: () => WorkoutRepo.deleteWorkout(userId, saved.id),
+        rollback: () =>
+          setSavedWorkouts((prev) => {
+            if (prev.some((w) => w.id === saved.id)) return prev;
+            const next = [...prev];
+            const i =
+              removedIndex >= 0 ? Math.min(Math.max(removedIndex, 0), next.length) : next.length;
+            next.splice(i, 0, saved);
+            return next;
+          }),
+        onFailure: notifySaveFailed,
+      });
     }
-  }, [userId, persist, savedWorkouts]);
+  }, [userId, persist, savedWorkouts, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const value = useMemo<AppStateContextValue>(
     () => ({
@@ -387,7 +547,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       removePreferencePreset,
       applyPreferencePreset: (id) => {
         const preset = preferencePresets.find((p) => p.id === id);
-        if (preset) setManualPreferences(preset.preferences);
+        if (!preset) return;
+        if (persist && userId) touchPersistedStateDuringRemoteLoad();
+        setManualPreferences(preset.preferences);
       },
       updateManualPreferences,
       setGeneratedWorkout,
@@ -402,6 +564,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setSportPrepWeekPlan,
       setManualWeekPlan,
       setAdaptiveSetup,
+      remoteSyncStatus,
+      remoteSyncError,
+      remoteSyncSkippedMerge,
+      reloadRemoteAppState,
+      dismissRemoteSyncSkippedMerge,
     }),
     [
       activeGymProfileId,
@@ -417,6 +584,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       sportPrepWeekPlan,
       manualWeekPlan,
       adaptiveSetup,
+      remoteSyncStatus,
+      remoteSyncError,
+      remoteSyncSkippedMerge,
       setActiveGymProfile,
       addGymProfile,
       updateGymProfile,
@@ -432,6 +602,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       removeSavedWorkoutByWorkoutId,
       setSportPrepWeekPlan,
       setManualWeekPlan,
+      setAdaptiveSetup,
+      reloadRemoteAppState,
+      dismissRemoteSyncSkippedMerge,
+      persist,
+      userId,
+      touchPersistedStateDuringRemoteLoad,
     ]
   );
 

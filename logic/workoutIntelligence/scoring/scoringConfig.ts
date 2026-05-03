@@ -26,7 +26,8 @@ export const DEFAULT_SELECTION_CONFIG: SelectionConfig = {
   low_energy_high_skill_penalty: -1.5,
   max_grip_exercises_per_session: 4,
   max_shoulder_exercises_per_session: 5,
-  max_heavy_compounds_per_session: 4,
+  /** Squat + hinge with high fatigue: cap at 3 to limit junk volume / lumbar stress in one session. */
+  max_heavy_compounds_per_session: 3,
   pairing_good_bonus: 1.0,
   pairing_bad_penalty: -3.0,
 };

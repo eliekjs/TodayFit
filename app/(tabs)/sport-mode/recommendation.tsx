@@ -7,6 +7,7 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
@@ -28,11 +29,6 @@ import { GOAL_SLUG_TO_LABEL, goalSubFocusPayloadForAdaptiveGoals } from "../../.
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
-import {
-  buildAdaptiveGoalsAndSportsLines,
-  buildAdaptiveScheduleContextLines,
-  buildDailyWorkoutPreferencesSummaryLines,
-} from "../../../lib/workoutPreferenceSummary";
 
 function humanizeSportSlug(slug: string): string {
   return slug
@@ -102,7 +98,7 @@ export default function AdaptiveWeekPlanScreen() {
   const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
-  /** Override preferences for the selected day when regenerating (goal, body, energy). */
+  /** Override preferences for the selected day when regenerating (goal, body, intensity). */
   const [dailyPrefsOverride, setDailyPrefsOverride] = useState<DailyWorkoutPreferences | null>(null);
 
   const todayIso = getTodayLocalDateString();
@@ -121,7 +117,6 @@ export default function AdaptiveWeekPlanScreen() {
       : (plan?.goalSlugs ?? []).filter((g): g is string => Boolean(g));
     return {
       gymProfile: snap?.gymProfile ?? activeProfile,
-      recentLoad: snap?.recentLoad,
       injuries: snap?.injuries,
       subFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
         snapshotGoalIds,
@@ -230,7 +225,6 @@ export default function AdaptiveWeekPlanScreen() {
             preferredTrainingDays: snapshot.preferredTrainingDays,
             defaultSessionDuration: snapshot.defaultSessionDuration,
             energyBaseline: snapshot.energyBaseline,
-            recentLoad: snapshot.recentLoad,
             injuries: snapshot.injuries,
             gymProfile: activeProfile,
             goalMatchPrimaryPct: p1,
@@ -282,7 +276,6 @@ export default function AdaptiveWeekPlanScreen() {
               sportSubFocusSlugsBySport: plan.sportSubFocusSlugsBySport,
               intentLabel: day.intentLabel,
               goalWeightsPct,
-              recentLoad: snap?.recentLoad,
               injuries: snap?.injuries,
               subFocusByGoal,
               workoutTier: snap?.workoutTier ?? manualPreferences.workoutTier ?? "intermediate",
@@ -558,6 +551,14 @@ export default function AdaptiveWeekPlanScreen() {
     );
   }
 
+  if (isReplanning) {
+    return <GenerationLoadingScreen message="Regenerating your week..." />;
+  }
+
+  if (isRegenerating) {
+    return <GenerationLoadingScreen message="Regenerating your workout..." />;
+  }
+
   const selectedDay = selectedSession ?? sportPrepWeekPlan.days[0];
 
   const onSelectSession = (session: PlannedDay) => {
@@ -569,7 +570,7 @@ export default function AdaptiveWeekPlanScreen() {
     setError(null);
     setIsRegenerating(true);
     try {
-      // When user changed only one thing (e.g. energy), merge with existing day goals/intent so the rest stay the same.
+      // When user changed only one thing (e.g. intensity), merge with existing day goals/intent so the rest stay the same.
       const existingPrefs = deriveDailyPreferencesFromDay(selectedDay);
       const mergedPrefs =
         dailyPrefsOverride && Object.keys(dailyPrefsOverride).length > 0
@@ -595,7 +596,6 @@ export default function AdaptiveWeekPlanScreen() {
           manualPreferences.goalMatchTertiaryPct ?? 20,
         ],
         dailyPreferences: mergedPrefs,
-        recentLoad: regenerateGeneratorContext.recentLoad,
         injuries: regenerateGeneratorContext.injuries,
         subFocusByGoal: regenerateGeneratorContext.subFocusByGoal,
         workoutTier:
@@ -698,32 +698,6 @@ export default function AdaptiveWeekPlanScreen() {
       setSavingDay(false);
     }
   };
-
-  const summaryLines: string[] = [];
-  const scheduleSnap = sportPrepWeekPlan?.scheduleSnapshot;
-  if (selectedWorkout?.focus?.length) {
-    const raw =
-      selectedDay?.dayLevelFocus?.displayTitle ?? selectedWorkout.focus.join(" • ");
-    const cleaned = raw.replace(/\s*\(sport-specific\)\s*/gi, "").trim();
-    summaryLines.push(cleaned || raw);
-  }
-  if (selectedWorkout?.durationMinutes != null) {
-    summaryLines.push(`${selectedWorkout.durationMinutes} min`);
-  }
-  summaryLines.push(
-    ...buildAdaptiveGoalsAndSportsLines(scheduleSnap, {
-      manualSubFocusByGoal: manualPreferences.subFocusByGoal,
-    })
-  );
-  summaryLines.push(
-    ...buildAdaptiveScheduleContextLines({
-      labels: scheduleSnap?.adaptiveScheduleLabels,
-      weekEmphasis: scheduleSnap?.emphasis,
-    })
-  );
-  if (selectedDay?.preferences) {
-    summaryLines.push(...buildDailyWorkoutPreferencesSummaryLines(selectedDay.preferences));
-  }
 
   /** Treat plans with a single training session as "one-day" for display. */
   const isSingleSessionPlan = daySlotsWithSessions.length === 1;
@@ -829,8 +803,8 @@ export default function AdaptiveWeekPlanScreen() {
       >
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
           {isSingleSessionPlan
-            ? "We'll focus on just this one session today. You can still tweak or regenerate it below."
-            : "Tap a session to view it. Use the arrows to move sessions between days. You can regenerate an individual day without changing the rest of the plan."}
+            ? "Tweak or regenerate below."
+            : "Tap a session to view it. Use arrows to move days."}
         </Text>
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
           <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
@@ -848,11 +822,7 @@ export default function AdaptiveWeekPlanScreen() {
       ) : null}
 
       {!isSingleSessionPlan && (
-        <Card
-          title="Week overview"
-          style={{ marginTop: 16 }}
-          subtitle="Use ↑↓ arrows to move sessions to different days. Tap a session to view or regenerate it."
-        >
+        <Card title="Week overview" style={{ marginTop: 16 }}>
           {weekOverviewContent}
         </Card>
       )}
@@ -871,17 +841,16 @@ export default function AdaptiveWeekPlanScreen() {
       )}
       {!isLoadingWorkout && selectedWorkout && (
         <View style={{ marginTop: 16, gap: 16 }}>
-          <Card
-            title="Summary"
-            subtitle={summaryLines.join(" • ")}
-            style={styles.summaryCard}
-          >
-            {selectedWorkout.notes != null ? (
-              <Text style={[styles.notes, { color: theme.textMuted }]}>
-                {selectedWorkout.notes}
-              </Text>
-            ) : null}
-          </Card>
+          {selectedWorkout.notes != null && String(selectedWorkout.notes).trim() !== "" ? (
+            <Card title="Coach notes" style={styles.summaryCard}>
+              <Text style={[styles.notes, { color: theme.textMuted }]}>{selectedWorkout.notes}</Text>
+            </Card>
+          ) : null}
+          {selectedWorkout.durationMinutes != null ? (
+            <Text style={[styles.sessionMeta, { color: theme.textMuted }]}>
+              {selectedWorkout.durationMinutes} min
+            </Text>
+          ) : null}
 
           <WorkoutBlockList workout={normalizeGeneratedWorkout(selectedWorkout)} />
 
@@ -919,11 +888,7 @@ export default function AdaptiveWeekPlanScreen() {
               isRegenerating={isRegenerating}
               showAdjustFocusLink={focusSectionsForModal.length > 0}
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
-              helperText={
-                isSingleSessionPlan
-                  ? "Then tap Regenerate workout to rebuild this session."
-                  : undefined
-              }
+              helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}
               regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
               showChips={!!(
                 selectedDay.generatedWorkoutId ||
@@ -1099,6 +1064,9 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     marginBottom: 8,
+  },
+  sessionMeta: {
+    fontSize: 13,
   },
   notes: {
     fontSize: 13,

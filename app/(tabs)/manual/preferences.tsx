@@ -15,10 +15,8 @@ import {
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import {
-  useAppState,
-  defaultManualPreferences,
-} from "../../../context/AppStateContext";
+import { useAppState } from "../../../context/AppStateContext";
+import { defaultManualPreferences } from "../../../context/appStateModel";
 import { useTheme } from "../../../lib/theme";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
@@ -27,9 +25,9 @@ import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
+import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import {
   PRIMARY_FOCUS_OPTIONS,
-  PRIMARY_FOCUS_TO_GOAL_SLUG,
   ENERGY_LEVELS,
   TARGET_OPTIONS,
   MODIFIERS_BY_TARGET,
@@ -38,12 +36,9 @@ import {
   CONSTRAINT_OPTIONS_LOWER,
   WORKOUT_STYLE_OPTIONS,
   UPCOMING_OPTIONS,
-  ZONE2_CARDIO_OPTIONS,
   SUB_FOCUS_BY_PRIMARY,
   normalizeGoalMatchPct,
 } from "../../../lib/preferencesConstants";
-import { isDbConfigured } from "../../../lib/db";
-import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import type { TargetBody } from "../../../lib/types";
 
 if (
@@ -304,26 +299,7 @@ export default function ManualPreferencesScreen() {
       return;
     }
     const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-    let preferredNames: string[] | undefined;
-    if (isDbConfigured() && manualPreferences.primaryFocus.length > 0) {
-      try {
-        const goalSlugs = manualPreferences.primaryFocus
-          .map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f])
-          .filter(Boolean);
-        const goalWeightsPct = [
-          manualPreferences.goalMatchPrimaryPct ?? 50,
-          manualPreferences.goalMatchSecondaryPct ?? 30,
-          manualPreferences.goalMatchTertiaryPct ?? 20,
-        ];
-        preferredNames = await getPreferredExerciseNamesForSportAndGoals(
-          null,
-          goalSlugs,
-          goalWeightsPct.slice(0, goalSlugs.length)
-        );
-      } catch {
-        preferredNames = undefined;
-      }
-    }
+    const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
     const { generateWorkoutAsync } = await loadGeneratorModule();
     const workout = await generateWorkoutAsync(
       manualPreferences,
@@ -444,15 +420,6 @@ export default function ManualPreferencesScreen() {
     manualPreferences.upcoming.length === 0
       ? "None"
       : `${manualPreferences.upcoming.length} picked`;
-  const showZone2Advanced = manualPreferences.primaryFocus.some(
-    (g) =>
-      g === "Body Recomposition" ||
-      g === "Improve Endurance" ||
-      g === "Sport Conditioning"
-  );
-  const z2Count = manualPreferences.preferredZone2Cardio?.length ?? 0;
-  const manualAdvZone2Summary = z2Count === 0 ? "Any" : `${z2Count} picked`;
-
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
@@ -1027,34 +994,6 @@ export default function ManualPreferencesScreen() {
               ))}
             </View>
             </CollapsiblePreferenceSection>
-
-            {showZone2Advanced ? (
-              <CollapsiblePreferenceSection
-                nested
-                title="Zone 2 cardio"
-                subtitle="Choose modalities for the cardio finisher (e.g. run, bike, rower, stair climber). Leave empty for any."
-                summary={manualAdvZone2Summary}
-                expanded={manualAdvNestedOpen.zone2 === true}
-                onToggle={() => toggleManualAdvNested("zone2")}
-              >
-                <View style={styles.chipGroup}>
-                  {ZONE2_CARDIO_OPTIONS.map((opt) => (
-                    <Chip
-                      key={opt.key}
-                      label={opt.label}
-                      selected={manualPreferences.preferredZone2Cardio?.includes(opt.key) ?? false}
-                      onPress={() => {
-                        const current = manualPreferences.preferredZone2Cardio ?? [];
-                        const next = current.includes(opt.key)
-                          ? current.filter((k) => k !== opt.key)
-                          : [...current, opt.key];
-                        updateManualPreferences({ preferredZone2Cardio: next });
-                      }}
-                    />
-                  ))}
-                </View>
-              </CollapsiblePreferenceSection>
-            ) : null}
 
             {hasPrimaryFocus && rankedGoals.length < MAX_GOALS ? (
               <CollapsiblePreferenceSection

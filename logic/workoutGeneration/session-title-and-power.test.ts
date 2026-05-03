@@ -125,6 +125,27 @@ function testWarmupCountByDuration() {
   console.log("  OK: warmup count scales with duration");
 }
 
+function testStrengthShortDurationStillKeepsThreeSets() {
+  const input: GenerateWorkoutInput = {
+    duration_minutes: 20,
+    primary_goal: "strength",
+    energy_level: "medium",
+    available_equipment: ["barbell", "dumbbells", "kettlebells", "bodyweight", "bench"],
+    injuries_or_constraints: [],
+    seed: 1203,
+  };
+  const session = generateWorkoutSession(input, STUB_EXERCISES);
+  const strengthItems = session.blocks
+    .filter((b) => b.block_type === "main_strength" || b.block_type === "accessory")
+    .flatMap((b) => b.items);
+  assert(strengthItems.length > 0, "short strength session has strength/accessory items");
+  assert(
+    strengthItems.every((i) => (i.sets ?? 0) >= 3),
+    "short strength sessions keep at least 3 sets on strength/accessory items"
+  );
+  console.log("  OK: 20-minute strength session keeps >=3 sets for strength/accessory items");
+}
+
 // --- Injury + impact_level: high-impact exercises down-ranked when user has knee/back/ankle ---
 function testImpactPenaltyWithInjury() {
   const boxJump = STUB_EXERCISES.find((e) => e.id === "box_jump");
@@ -152,6 +173,7 @@ function run() {
   testPowerPrescription();
   testBeginnerPrescription();
   testWarmupCountByDuration();
+  testStrengthShortDurationStillKeepsThreeSets();
   testImpactPenaltyWithInjury();
   console.log("\nAll session title and power tests passed.");
 }

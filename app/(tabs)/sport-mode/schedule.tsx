@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, LayoutAnimation } from "react-native";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -21,14 +21,6 @@ import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sp
 import { goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesConstants";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const TIME_HORIZON_LABELS: Record<string, string> = {
-  no_deadline: "No Deadline",
-  "1_3_weeks": "1–3 Weeks",
-  "4_8_weeks": "4–8 Weeks",
-  "2_4_months": "2–4 Months",
-  in_season: "In-Season",
-};
 
 const EMPHASIS_OPTIONS: { id: BodyEmphasisKey; label: string }[] = [
   { id: "none", label: "None" },
@@ -55,6 +47,7 @@ export default function AdaptiveScheduleScreen() {
     activeGymProfileId,
     gymProfiles,
     manualPreferences,
+    updateManualPreferences,
   } = useAppState();
   const { userId } = useAuth();
 
@@ -133,22 +126,12 @@ export default function AdaptiveScheduleScreen() {
     const secondary = adaptiveSetup.rankedGoals[1] ?? null;
     const tertiary = adaptiveSetup.rankedGoals[2] ?? null;
 
-    const energyFromFatigue = (level: string): EnergyLevel => {
+    const energyFromIntensity = (level: string): EnergyLevel => {
       if (level === "Fresh") return "high";
       if (level === "Fatigued") return "low";
       return "medium";
     };
-    const energyFromHorizon = (level: EnergyLevel, timeHorizon: string): EnergyLevel => {
-      if (timeHorizon === "in_season") return "low";
-      if (timeHorizon === "1_3_weeks" && level === "high") return "medium";
-      return level;
-    };
-    const energyBaseline = energyFromHorizon(
-      energyFromFatigue(adaptiveSetup.fatigue),
-      adaptiveSetup.horizon
-    );
-    const horizonLabel =
-      TIME_HORIZON_LABELS[adaptiveSetup.horizon] ?? adaptiveSetup.horizon;
+    const energyBaseline = energyFromIntensity(adaptiveSetup.intensityLevel);
 
     const activeProfile =
       gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
@@ -202,7 +185,6 @@ export default function AdaptiveScheduleScreen() {
         sportSubFocusSlugsBySport: Object.keys(adaptiveSetup.subFocusBySport).length > 0 ? adaptiveSetup.subFocusBySport : undefined,
         defaultSessionDuration: defaultDuration,
         energyBaseline,
-        recentLoad: adaptiveSetup.recentLoad,
         injuries:
           adaptiveSetup.injuryStatus === "No Concerns"
             ? []
@@ -218,9 +200,7 @@ export default function AdaptiveScheduleScreen() {
         workoutTier: manualPreferences.workoutTier ?? "intermediate",
         includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
         adaptiveScheduleLabels: {
-          fatigue: adaptiveSetup.fatigue,
-          horizonLabel,
-          recentLoad: adaptiveSetup.recentLoad,
+          intensityLevel: adaptiveSetup.intensityLevel,
           injuryStatus: adaptiveSetup.injuryStatus,
           ...(adaptiveSetup.injuryStatus !== "No Concerns" &&
           adaptiveSetup.injuryTypes.length > 0
@@ -290,6 +270,10 @@ export default function AdaptiveScheduleScreen() {
   }, [weeklyEmphasis]);
 
   const durationSummary = `${defaultDuration} min`;
+
+  if (!adaptiveSetup) {
+    return <Redirect href="/adaptive" />;
+  }
 
   return (
     <AppScreenWrapper>

@@ -1,6 +1,6 @@
 # Exercise library pruning decisions (phase 5)
 
-- **Generated:** 2026-04-20T20:31:29.364Z
+- **Generated:** 2026-04-26T20:47:29.952Z
 - **Catalog:** `/Users/ellie/todayfit/data/workout-exercise-catalog.json`
 - **Prefill:** `/Users/ellie/todayfit/artifacts/exercise-curation-prefill.json`
 - **LLM validated:** `/Users/ellie/todayfit/artifacts/exercise-curation-llm-validated.json`
@@ -12,43 +12,43 @@
 | Metric | Count |
 | --- | ---: |
 | Total exercises | 4016 |
-| Recommendation: keep_core | 2292 |
-| Recommendation: keep_niche | 966 |
+| Recommendation: keep_core | 471 |
+| Recommendation: keep_niche | 434 |
 | Recommendation: merge_into_canonical | 522 |
-| Recommendation: remove_niche_or_low_value | 212 |
-| Recommendation: review | 24 |
-| Projected rows retained (keep_core + keep_niche + review) | 3282 |
+| Recommendation: remove_niche_or_low_value | 1421 |
+| Recommendation: review | 1168 |
+| Projected rows retained (keep_core + keep_niche + review) | 2073 |
 | Projected rows merged into canonical | 522 |
-| Projected rows removed | 212 |
+| Projected rows removed | 1421 |
 
-- **Retained share:** 81.7% · **Merged share:** 13.0% · **Removed share:** 5.3%
+- **Retained share:** 51.6% · **Merged share:** 13.0% · **Removed share:** 35.4%
 
 - **Intrinsic score quantiles (p10 / p50 / p90):** 0.589 / 0.854 / 0.933
 
 ### Top removal drivers (by `reason_code` frequency)
 
-- `long_or_overloaded_name` — 212
-- `stacked_modifiers_3plus` — 205
-- `penalty_high_confusion` — 202
+- `score_below_remove_threshold` — 1226
+- `long_or_overloaded_name` — 868
+- `keyword_penalty_technicality_substantial` — 615
+- `name_keyword_family_positional_stack_tier_moderate` — 461
+- `aggregate_keyword_burden_0.38` — 454
+- `stacked_modifiers_3plus` — 407
+- `multiple_positional_qualifiers` — 312
+- `name_keyword_family_exotic_implement_tier_strong` — 263
+- `llm_keep_category_niche` — 255
+- `name_keyword_family_bottoms_up_niche_tier_strong` — 244
+- `penalty_high_confusion` — 234
 - `heuristic_extreme_name_burden` — 194
-- `keyword_penalty_technicality_substantial` — 175
-- `name_keyword_family_positional_stack_tier_moderate` — 175
-- `penalty_high_technicality` — 142
-- `keyword_penalty_niche_substantial` — 140
-- `keyword_penalty_confusion_substantial` — 140
-- `aggregate_keyword_burden_0.52` — 138
-- `multiple_positional_qualifiers` — 135
-- `name_keyword_family_bottoms_up_niche_tier_strong` — 105
-- `name_keyword_family_exotic_implement_tier_strong` — 66
-- `aggregate_keyword_burden_0.38` — 35
-- `heuristic_non_clustered_low_value_unique` — 25
-- `llm_keep_category_niche` — 24
-- `score_below_remove_threshold` — 17
-- `penalty_high_niche` — 16
-- `equipment_substitutability_penalty` — 6
-- `name_keyword_family_start_stop_tier_strong` — 4
-- `aggregate_keyword_burden_0.61` — 2
-- `name_keyword_family_gymnastics_skill_niche_tier_strong` — 1
+- `keyword_penalty_niche_substantial` — 161
+- `keyword_penalty_confusion_substantial` — 161
+- `penalty_high_technicality` — 155
+- `aggregate_keyword_burden_0.52` — 152
+- `equipment_substitutability_penalty` — 74
+- `name_keyword_family_gymnastics_skill_niche_tier_strong` — 56
+- `heuristic_non_clustered_low_value_unique` — 45
+- `name_keyword_family_start_stop_tier_strong` — 38
+- `penalty_high_niche` — 38
+- `name_keyword_family_iso_hold_modifier_tier_moderate` — 25
 
 ### Top reason codes — merge
 
@@ -102,15 +102,15 @@
 
 | Family | Exercises | Kept (proj.) | Removed/merged (proj.) | Examples |
 | --- | ---: | ---: | ---: | --- |
-| FF-prefixed / technical codes (`ff_technical`) | 2257 | 1847 | 410 | `ff_ab_wheel_kneeling_rollout`, `ff_ab_wheel_standing_rollout`, `ff_alternating_double_clubbell_front_flag_press`, `ff_alternating_double_clubbell_inside_circle`, `ff_alternating_double_clubbell_outside_circle` |
-| Squat family (`squat`) | 666 | 526 | 140 | `approach_tuck_jump_to_low_squat`, `assisted_pistol_squat`, `back_squat`, `band_resisted_squat_jump`, `banded_hip_circle_squats` |
-| Other / unclassified (`other`) | 657 | 569 | 88 | `1_arm_db_jerks`, `2_point_start`, `2_to_1_broad_jump_land_2`, `2_way_shoulder_raise`, `3_point_start` |
-| Carry family (`carry`) | 134 | 116 | 18 | `farmer_carry`, `farmer_walks`, `ff_barbell_back_rack_carry`, `ff_barbell_front_rack_carry`, `ff_barbell_overhead_carry` |
-| Push-up family (`push_up`) | 128 | 113 | 15 | `alternating_staggered_plyo_push_up`, `archer_push_up`, `band_push_up`, `clap_push_ups`, `close_grip_push_up` |
-| Plank / core stability family (`plank_core`) | 93 | 61 | 32 | `bird_dog`, `bird_dog_row`, `dead_bug`, `dead_bugs`, `ff_alternating_single_arm_dumbbell_feet_elevated_plank_pull_through` |
-| Goblet squat family (`goblet_squat`) | 37 | 34 | 3 | `3_way_goblet_squat`, `ff_dumbbell_goblet_alternating_cossack_squat`, `ff_dumbbell_goblet_alternating_pistol_squat`, `ff_dumbbell_goblet_bulgarian_split_squat`, `ff_dumbbell_goblet_cossack_squat` |
-| Fly family (`fly`) | 30 | 13 | 17 | `butterfly`, `ff_bodyweight_butterfly_sit_up`, `ff_double_cable_chest_fly`, `ff_double_cable_decline_bench_chest_fly`, `ff_double_cable_high_to_low_chest_fly` |
-| Chop / lift family (`chop`) | 14 | 3 | 11 | `cable_woodchops`, `ff_cable_rope_half_kneeling_high_to_low_chop`, `ff_cable_rope_half_kneeling_low_to_high_chop`, `ff_cable_rope_staggered_stance_high_to_low_chop`, `ff_cable_rope_staggered_stance_low_to_high_chop` |
+| FF-prefixed / technical codes (`ff_technical`) | 2257 | 1077 | 1180 | `ff_ab_wheel_kneeling_rollout`, `ff_ab_wheel_standing_rollout`, `ff_alternating_double_clubbell_front_flag_press`, `ff_alternating_double_clubbell_inside_circle`, `ff_alternating_double_clubbell_outside_circle` |
+| Squat family (`squat`) | 666 | 246 | 420 | `approach_tuck_jump_to_low_squat`, `assisted_pistol_squat`, `back_squat`, `band_resisted_squat_jump`, `banded_hip_circle_squats` |
+| Other / unclassified (`other`) | 657 | 524 | 133 | `1_arm_db_jerks`, `2_point_start`, `2_to_1_broad_jump_land_2`, `2_way_shoulder_raise`, `3_point_start` |
+| Carry family (`carry`) | 134 | 62 | 72 | `farmer_carry`, `farmer_walks`, `ff_barbell_back_rack_carry`, `ff_barbell_front_rack_carry`, `ff_barbell_overhead_carry` |
+| Push-up family (`push_up`) | 128 | 76 | 52 | `alternating_staggered_plyo_push_up`, `archer_push_up`, `band_push_up`, `clap_push_ups`, `close_grip_push_up` |
+| Plank / core stability family (`plank_core`) | 93 | 52 | 41 | `bird_dog`, `bird_dog_row`, `dead_bug`, `dead_bugs`, `ff_alternating_single_arm_dumbbell_feet_elevated_plank_pull_through` |
+| Goblet squat family (`goblet_squat`) | 37 | 22 | 15 | `3_way_goblet_squat`, `ff_dumbbell_goblet_alternating_cossack_squat`, `ff_dumbbell_goblet_alternating_pistol_squat`, `ff_dumbbell_goblet_bulgarian_split_squat`, `ff_dumbbell_goblet_cossack_squat` |
+| Fly family (`fly`) | 30 | 12 | 18 | `butterfly`, `ff_bodyweight_butterfly_sit_up`, `ff_double_cable_chest_fly`, `ff_double_cable_decline_bench_chest_fly`, `ff_double_cable_high_to_low_chest_fly` |
+| Chop / lift family (`chop`) | 14 | 2 | 12 | `cable_woodchops`, `ff_cable_rope_half_kneeling_high_to_low_chop`, `ff_cable_rope_half_kneeling_low_to_high_chop`, `ff_cable_rope_staggered_stance_high_to_low_chop`, `ff_cable_rope_staggered_stance_low_to_high_chop` |
 
 ### Examples — low-value unique exercises (removed, not merged)
 

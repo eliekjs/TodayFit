@@ -170,7 +170,7 @@ const EMPHASIS_LABELS: Record<Exclude<BodyEmphasisKey, "none">, string> = {
 };
 
 /**
- * Adaptive plan: show what the user chose on setup (fatigue, phase, load, injuries) — not derived generator energy.
+ * Adaptive plan: show what the user chose on setup (intensity + injuries) — not derived generator energy.
  */
 export function buildAdaptiveScheduleContextLines(opts: {
   labels?: AdaptiveScheduleLabels | null;
@@ -179,9 +179,7 @@ export function buildAdaptiveScheduleContextLines(opts: {
   const lines: string[] = [];
   const L = opts.labels;
   if (L) {
-    lines.push(`Feel: ${L.fatigue}`);
-    lines.push(`Phase: ${L.horizonLabel}`);
-    lines.push(`Recent load: ${L.recentLoad}`);
+    lines.push(`Intensity: ${L.intensityLevel}`);
     if (L.injuryStatus !== "No Concerns") {
       lines.push(
         L.injuryAreas?.length
@@ -265,22 +263,6 @@ export function buildAdaptiveGoalsAndSportsLines(
       return detail.length ? `${base} (${detail.join(", ")})` : base;
     });
     lines.push(`Sports: ${sportParts.join(" • ")}`);
-  }
-
-  if (
-    snapshot.sportVsGoalPct != null &&
-    goals.length > 0 &&
-    sports.length > 0
-  ) {
-    const s = Math.round(snapshot.sportVsGoalPct);
-    lines.push(`Sport vs goals: ${s}% sport · ${100 - s}% goals`);
-  }
-
-  if (snapshot.sportFocusPct?.length === 2 && sports.length === 2) {
-    const [a, b] = snapshot.sportFocusPct;
-    lines.push(
-      `Sport mix: ${Math.round(a)}% ${humanizeSportSlug(sports[0])} · ${Math.round(b)}% ${humanizeSportSlug(sports[1])}`
-    );
   }
 
   if (snapshot.goalDistributionStyle && goals.length > 0) {

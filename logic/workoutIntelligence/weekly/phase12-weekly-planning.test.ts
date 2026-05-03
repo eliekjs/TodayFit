@@ -186,6 +186,64 @@ describe("Phase 12: Weekly planning", () => {
       expect(observedInputs[1]?.week_main_strength_lift_ids_used ?? []).toContain("bench_press");
     });
 
+    it("propagates weekly cardio intent into daily generation inputs", () => {
+      const observedInputs: Array<{
+        primary_goal: string;
+        session_cardio_target_share?: number;
+        weekly_cardio_emphasis?: number;
+      }> = [];
+      const generateSpy = vi
+        .spyOn(dailyGeneratorModule, "generateWorkoutSession")
+        .mockImplementation((input) => {
+          observedInputs.push({
+            primary_goal: input.primary_goal,
+            session_cardio_target_share: input.session_cardio_target_share,
+            weekly_cardio_emphasis: input.weekly_cardio_emphasis,
+          });
+          return {
+            title: "Mock",
+            estimated_duration_minutes: input.duration_minutes,
+            blocks: [
+              {
+                block_type: "conditioning",
+                format: "circuit",
+                title: "Conditioning",
+                reasoning: "mock",
+                estimated_minutes: 12,
+                items: [
+                  {
+                    exercise_id: "jump_rope",
+                    exercise_name: "Jump Rope",
+                    sets: 3,
+                    time_seconds: 45,
+                    rest_seconds: 30,
+                    unilateral: false,
+                  },
+                ],
+              },
+            ],
+          };
+        });
+
+      try {
+        generateAdaptiveWeekWithDailyGenerator(
+          baseInput({
+            primary_goal: "endurance",
+            days_available_per_week: 3,
+          }),
+          { exercisePool: STUB_EXERCISES }
+        );
+      } finally {
+        generateSpy.mockRestore();
+      }
+
+      expect(observedInputs.length).toBe(3);
+      expect(observedInputs.every((x) => (x.weekly_cardio_emphasis ?? 0) > 0.7)).toBe(true);
+      const shares = observedInputs.map((x) => x.session_cardio_target_share ?? 0);
+      expect(Math.max(...shares)).toBeGreaterThanOrEqual(0.45);
+      expect(shares.every((value) => value >= 0.45)).toBe(true);
+    });
+
     it("produces diverse main-lift outcomes across days when pool allows repeats", () => {
       const input = baseInput({
         primary_goal: "strength",

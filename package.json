@@ -13,6 +13,10 @@
     "web:dev": "CI=false expo start --web",
     "web:dev:clear": "CI=false expo start --web --clear",
     "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "ci": "npm run lint && npm run test",
     "test:generator": "npx tsx logic/workoutGeneration/seedTest.ts",
     "test:generator-async": "npx tsx lib/generator.integration.test.ts",
     "review:generator-workouts": "npx tsx scripts/reviewGeneratorWorkouts.ts",
@@ -82,6 +86,7 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2",
+    "vitest": "^3.2.4",
     "xlsx": "^0.18.5"
   },
   "private": true

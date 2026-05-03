@@ -230,8 +230,8 @@ export function findBestHikingReplacement(
   candidates.sort((a, b) => {
     const ca = getHikingPatternCategoriesForExercise(a);
     const cb = getHikingPatternCategoriesForExercise(b);
-    const score = (s: Set<string>) => categories.filter((c) => s.has(c)).length;
-    return score(cb) - score(a);
+    const score = (s: readonly string[]) => categories.filter((c) => s.includes(c)).length;
+    return score(cb) - score(ca);
   });
   return candidates[0];
 }

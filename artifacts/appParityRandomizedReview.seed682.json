@@ -1,0 +1,656 @@
+{
+  "run_meta": {
+    "seed": 682,
+    "mode": "adaptive_sport_mode",
+    "gym_template": "minimal",
+    "gym_name": "Minimal setup"
+  },
+  "exact_user_inputs": {
+    "manual_preferences": {
+      "primaryFocus": [
+        "Calisthenics"
+      ],
+      "subFocusByGoal": {
+        "Calisthenics": [
+          "Full body calisthenics"
+        ]
+      },
+      "targetBody": "Lower",
+      "targetModifier": [],
+      "durationMinutes": 45,
+      "energyLevel": "high",
+      "injuries": [
+        "No restrictions"
+      ],
+      "upcoming": [],
+      "workoutStyle": [],
+      "preferredZone2Cardio": [
+        "bike"
+      ],
+      "goalMatchPrimaryPct": 50,
+      "goalMatchSecondaryPct": 30,
+      "goalMatchTertiaryPct": 20,
+      "workoutTier": "advanced",
+      "includeCreativeVariations": false
+    },
+    "sport_goal_context": {
+      "sport_slugs": [
+        "trail_running"
+      ],
+      "sport_sub_focus": {
+        "trail_running": [
+          "uphill_endurance",
+          "ankle_stability"
+        ]
+      },
+      "sport_weight": 0.65,
+      "include_intent_survival_report": true
+    },
+    "user_available_equipment": [
+      "bodyweight",
+      "dumbbells",
+      "bands",
+      "bench"
+    ],
+    "resolved_generation_input": {
+      "primary_goal": "strength",
+      "secondary_goals": [
+        "endurance"
+      ],
+      "focus_body_parts": [
+        "lower"
+      ],
+      "available_equipment": [
+        "bodyweight",
+        "dumbbells",
+        "bands",
+        "bench"
+      ],
+      "goal_sub_focus": {}
+    }
+  },
+  "exact_app_output": {
+    "id": "w_1777567642078",
+    "focus": [
+      "Calisthenics"
+    ],
+    "durationMinutes": 53,
+    "energyLevel": "high",
+    "generationPreferences": {
+      "primaryFocus": [
+        "Calisthenics"
+      ],
+      "subFocusByGoal": {
+        "Calisthenics": [
+          "Full body calisthenics"
+        ]
+      },
+      "targetBody": "Lower",
+      "targetModifier": [],
+      "durationMinutes": 45,
+      "energyLevel": "high",
+      "injuries": [
+        "No restrictions"
+      ],
+      "upcoming": [],
+      "workoutStyle": [],
+      "preferredZone2Cardio": [
+        "bike"
+      ],
+      "goalMatchPrimaryPct": 50,
+      "goalMatchSecondaryPct": 30,
+      "goalMatchTertiaryPct": 20,
+      "workoutTier": "advanced",
+      "includeCreativeVariations": false
+    },
+    "blocks": [
+      {
+        "block_type": "main_strength",
+        "format": "superset",
+        "title": "Block A",
+        "reasoning": "Compound lifts for strength.",
+        "items": [
+          {
+            "exercise_id": "walking_lunge",
+            "exercise_name": "Walking Lunge",
+            "sets": 5,
+            "reps": 5,
+            "rest_seconds": 120,
+            "coaching_cues": "Heavy load, controlled tempo. Full lockout.",
+            "reasoning_tags": [
+              "main_lift",
+              "strength",
+              "strength",
+              "conditioning"
+            ],
+            "unilateral": true,
+            "recommendation": "maintain",
+            "recommendation_reason": "anchor_default",
+            "session_intent_links": {
+              "goals": [
+                "strength"
+              ],
+              "sport_slugs": [
+                "trail_running"
+              ]
+            }
+          }
+        ],
+        "estimated_minutes": 20
+      },
+      {
+        "block_type": "main_strength",
+        "format": "superset",
+        "title": "Block B",
+        "reasoning": "Compound lifts for strength.",
+        "items": [
+          {
+            "exercise_id": "ff_slider_single_leg_eccentric_hamstring_curl",
+            "exercise_name": "Slider Single Leg Eccentric Hamstring Curl",
+            "sets": 5,
+            "reps": 5,
+            "rest_seconds": 120,
+            "coaching_cues": "Heavy load, controlled tempo. Full lockout.",
+            "reasoning_tags": [
+              "main_lift",
+              "strength",
+              "strength",
+              "hypertrophy"
+            ],
+            "unilateral": true,
+            "recommendation": "maintain",
+            "recommendation_reason": "anchor_default",
+            "session_intent_links": {
+              "goals": [
+                "strength"
+              ],
+              "sport_slugs": [
+                "trail_running"
+              ]
+            }
+          }
+        ],
+        "estimated_minutes": 20
+      },
+      {
+        "block_type": "main_strength",
+        "format": "superset",
+        "title": "Block C",
+        "reasoning": "Compound lifts for strength.",
+        "items": [
+          {
+            "exercise_id": "single_leg_glute_bridge",
+            "exercise_name": "Single-Leg Glute Bridge",
+            "sets": 5,
+            "reps": 5,
+            "rest_seconds": 120,
+            "coaching_cues": "Heavy load, controlled tempo. Full lockout.",
+            "reasoning_tags": [
+              "main_lift",
+              "strength",
+              "strength"
+            ],
+            "unilateral": true,
+            "recommendation": "maintain",
+            "recommendation_reason": "default",
+            "session_intent_links": {
+              "goals": [
+                "strength"
+              ],
+              "sport_slugs": [
+                "trail_running"
+              ]
+            }
+          }
+        ],
+        "estimated_minutes": 20
+      },
+      {
+        "block_type": "conditioning",
+        "format": "circuit",
+        "title": "Conditioning (secondary goal)",
+        "reasoning": "Conditioning for secondary goal; shorter block to preserve primary focus.",
+        "items": [
+          {
+            "exercise_id": "butt_kick_run",
+            "exercise_name": "Butt Kick Run",
+            "sets": 20,
+            "time_seconds": 90,
+            "rest_seconds": 30,
+            "coaching_cues": "Steady effort. Keep heart rate in target zone.",
+            "reasoning_tags": [
+              "conditioning",
+              "conditioning_protocol_default_interval",
+              "athleticism",
+              "conditioning",
+              "power"
+            ],
+            "unilateral": false,
+            "recommendation": "maintain",
+            "recommendation_reason": "default",
+            "session_intent_links": {
+              "goals": [
+                "endurance"
+              ]
+            }
+          }
+        ],
+        "estimated_minutes": 15
+      },
+      {
+        "block_type": "cooldown",
+        "format": "circuit",
+        "title": "Cooldown (stretch)",
+        "reasoning": "Stretching for the body parts and movement patterns you used today. Supports recovery and range of motion.",
+        "items": [
+          {
+            "exercise_id": "ff_superband_pull_through",
+            "exercise_name": "Superband Pull Through",
+            "sets": 1,
+            "reps": 8,
+            "time_seconds": 30,
+            "rest_seconds": 0,
+            "coaching_cues": "Controlled, full range of motion. Breathe steadily.",
+            "reasoning_tags": [
+              "cooldown",
+              "recovery",
+              "strength",
+              "hypertrophy"
+            ],
+            "unilateral": false,
+            "recommendation": "maintain",
+            "recommendation_reason": "default",
+            "session_intent_links": {
+              "goals": [
+                "strength"
+              ]
+            }
+          }
+        ],
+        "estimated_minutes": 4
+      },
+      {
+        "block_type": "accessory",
+        "format": "straight_sets",
+        "title": "Accessory (coverage)",
+        "reasoning": "Post-assembly coverage booster for structure and goal balance.",
+        "items": [
+          {
+            "exercise_id": "stepup",
+            "exercise_name": "Step-up",
+            "sets": 5,
+            "reps": 5,
+            "rest_seconds": 120,
+            "coaching_cues": "Heavy load, controlled tempo. Full lockout.",
+            "reasoning_tags": [
+              "density_booster",
+              "strength",
+              "conditioning"
+            ],
+            "unilateral": true,
+            "session_intent_links": {
+              "goals": [
+                "strength"
+              ]
+            }
+          }
+        ],
+        "estimated_minutes": 5
+      }
+    ]
+  },
+  "exercise_selection_explanations": [
+    {
+      "block_type": "main_strength",
+      "title": "Block A",
+      "format": "superset",
+      "block_reasoning": "Compound lifts for strength.",
+      "structure_reasoning": "Compound lifts for strength.",
+      "items": [
+        {
+          "exercise_id": "walking_lunge",
+          "exercise_name": "Walking Lunge",
+          "prescription": {
+            "sets": 5,
+            "reps": 5,
+            "time_seconds": null,
+            "rest_seconds": 120
+          },
+          "exercise_tags": {
+            "modality": "strength",
+            "movement_pattern": "squat",
+            "goal_tags": [
+              "strength",
+              "conditioning"
+            ],
+            "sport_tags": [
+              "road_running",
+              "trail_running",
+              "hyrox",
+              "american_football",
+              "rugby",
+              "powerbuilding"
+            ],
+            "attribute_tags": [
+              "single_leg",
+              "single_leg_strength",
+              "uphill_conditioning",
+              "legs",
+              "squat",
+              "max_strength",
+              "work_capacity",
+              "bodyweight",
+              "lunge_pattern"
+            ],
+            "stimulus": []
+          },
+          "reasoning_tags": [
+            "main_lift",
+            "strength",
+            "strength",
+            "conditioning"
+          ],
+          "session_intent_links": {
+            "goals": [
+              "strength"
+            ],
+            "sport_slugs": [
+              "trail_running"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "block_type": "main_strength",
+      "title": "Block B",
+      "format": "superset",
+      "block_reasoning": "Compound lifts for strength.",
+      "structure_reasoning": "Compound lifts for strength.",
+      "items": [
+        {
+          "exercise_id": "ff_slider_single_leg_eccentric_hamstring_curl",
+          "exercise_name": "Slider Single Leg Eccentric Hamstring Curl",
+          "prescription": {
+            "sets": 5,
+            "reps": 5,
+            "time_seconds": null,
+            "rest_seconds": 120
+          },
+          "exercise_tags": {
+            "modality": "strength",
+            "movement_pattern": "squat",
+            "goal_tags": [
+              "strength",
+              "hypertrophy"
+            ],
+            "sport_tags": [
+              "backcountry_skiing",
+              "alpine_skiing",
+              "snowboarding",
+              "xc_skiing",
+              "trail_running",
+              "hyrox",
+              "swimming_open_water",
+              "bodybuilding",
+              "track_sprinting",
+              "american_football",
+              "rugby",
+              "volleyball",
+              "powerbuilding"
+            ],
+            "attribute_tags": [
+              "legs",
+              "quads",
+              "knee_stability",
+              "squat_pattern",
+              "pull",
+              "pulling_strength",
+              "max_strength",
+              "bodyweight",
+              "eccentric_strength",
+              "eccentric_quad_strength"
+            ],
+            "stimulus": []
+          },
+          "reasoning_tags": [
+            "main_lift",
+            "strength",
+            "strength",
+            "hypertrophy"
+          ],
+          "session_intent_links": {
+            "goals": [
+              "strength"
+            ],
+            "sport_slugs": [
+              "trail_running"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "block_type": "main_strength",
+      "title": "Block C",
+      "format": "superset",
+      "block_reasoning": "Compound lifts for strength.",
+      "structure_reasoning": "Compound lifts for strength.",
+      "items": [
+        {
+          "exercise_id": "single_leg_glute_bridge",
+          "exercise_name": "Single-Leg Glute Bridge",
+          "prescription": {
+            "sets": 5,
+            "reps": 5,
+            "time_seconds": null,
+            "rest_seconds": 120
+          },
+          "exercise_tags": {
+            "modality": "strength",
+            "movement_pattern": "hinge",
+            "goal_tags": [
+              "strength"
+            ],
+            "sport_tags": [
+              "road_running",
+              "trail_running",
+              "hyrox",
+              "american_football",
+              "rugby",
+              "powerbuilding"
+            ],
+            "attribute_tags": [
+              "glutes",
+              "single_leg",
+              "single_leg_strength",
+              "legs",
+              "hinge",
+              "max_strength",
+              "bodyweight"
+            ],
+            "stimulus": []
+          },
+          "reasoning_tags": [
+            "main_lift",
+            "strength",
+            "strength"
+          ],
+          "session_intent_links": {
+            "goals": [
+              "strength"
+            ],
+            "sport_slugs": [
+              "trail_running"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "block_type": "conditioning",
+      "title": "Conditioning (secondary goal)",
+      "format": "circuit",
+      "block_reasoning": "Conditioning for secondary goal; shorter block to preserve primary focus.",
+      "structure_reasoning": "Conditioning for secondary goal; shorter block to preserve primary focus.",
+      "items": [
+        {
+          "exercise_id": "butt_kick_run",
+          "exercise_name": "Butt Kick Run",
+          "prescription": {
+            "sets": 20,
+            "reps": null,
+            "time_seconds": 90,
+            "rest_seconds": 30
+          },
+          "exercise_tags": {
+            "modality": "conditioning",
+            "movement_pattern": "locomotion",
+            "goal_tags": [
+              "athleticism",
+              "conditioning",
+              "power"
+            ],
+            "sport_tags": [
+              "hyrox",
+              "soccer",
+              "american_football",
+              "rugby",
+              "hockey"
+            ],
+            "attribute_tags": [
+              "speed",
+              "legs",
+              "core",
+              "squat",
+              "work_capacity",
+              "bodyweight",
+              "zone2_aerobic_base"
+            ],
+            "stimulus": [
+              "aerobic_zone2"
+            ]
+          },
+          "reasoning_tags": [
+            "conditioning",
+            "conditioning_protocol_default_interval",
+            "athleticism",
+            "conditioning",
+            "power"
+          ],
+          "session_intent_links": {
+            "goals": [
+              "endurance"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "block_type": "cooldown",
+      "title": "Cooldown (stretch)",
+      "format": "circuit",
+      "block_reasoning": "Stretching for the body parts and movement patterns you used today. Supports recovery and range of motion.",
+      "structure_reasoning": "Stretching for the body parts and movement patterns you used today. Supports recovery and range of motion.",
+      "items": [
+        {
+          "exercise_id": "ff_superband_pull_through",
+          "exercise_name": "Superband Pull Through",
+          "prescription": {
+            "sets": 1,
+            "reps": 8,
+            "time_seconds": 30,
+            "rest_seconds": 0
+          },
+          "exercise_tags": {
+            "modality": "strength",
+            "movement_pattern": "squat",
+            "goal_tags": [
+              "strength",
+              "hypertrophy"
+            ],
+            "sport_tags": [
+              "hyrox",
+              "bodybuilding",
+              "rowing_erg",
+              "american_football",
+              "rugby",
+              "powerbuilding"
+            ],
+            "attribute_tags": [
+              "legs",
+              "hinge_pattern",
+              "posterior_chain",
+              "squat",
+              "max_strength",
+              "bodyweight"
+            ],
+            "stimulus": []
+          },
+          "reasoning_tags": [
+            "cooldown",
+            "recovery",
+            "strength",
+            "hypertrophy"
+          ],
+          "session_intent_links": {
+            "goals": [
+              "strength"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "block_type": "accessory",
+      "title": "Accessory (coverage)",
+      "format": "straight_sets",
+      "block_reasoning": "Post-assembly coverage booster for structure and goal balance.",
+      "structure_reasoning": "Post-assembly coverage booster for structure and goal balance.",
+      "items": [
+        {
+          "exercise_id": "stepup",
+          "exercise_name": "Step-up",
+          "prescription": {
+            "sets": 5,
+            "reps": 5,
+            "time_seconds": null,
+            "rest_seconds": 120
+          },
+          "exercise_tags": {
+            "modality": "strength",
+            "movement_pattern": "squat",
+            "goal_tags": [
+              "strength",
+              "conditioning"
+            ],
+            "sport_tags": [
+              "hyrox",
+              "american_football",
+              "rugby",
+              "powerbuilding"
+            ],
+            "attribute_tags": [
+              "uphill_conditioning",
+              "legs",
+              "squat",
+              "max_strength",
+              "work_capacity"
+            ],
+            "stimulus": []
+          },
+          "reasoning_tags": [
+            "density_booster",
+            "strength",
+            "conditioning"
+          ],
+          "session_intent_links": {
+            "goals": [
+              "strength"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

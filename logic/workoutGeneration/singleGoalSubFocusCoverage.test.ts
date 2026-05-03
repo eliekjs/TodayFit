@@ -42,7 +42,7 @@ function testUpperDayWithLegsSubFocusAddsGoalBlock() {
 
 }
 
-function testMultiGoalSkipsGuarantee() {
+function testMultiGoalStillGuaranteesActiveSubFocus() {
   const base: GenerateWorkoutInput = {
     duration_minutes: 45,
     primary_goal: "hypertrophy",
@@ -56,8 +56,14 @@ function testMultiGoalSkipsGuarantee() {
   };
 
   const session = generateWorkoutSession(base, STUB_EXERCISES);
-  const hasGoalFocus = session.blocks.some((b) => b.title === "Goal focus");
-  assert(!hasGoalFocus, "multi-goal sessions should not inject Goal focus block");
+  const trainingIds = session.blocks
+    .filter((b) => b.block_type !== "warmup" && b.block_type !== "cooldown")
+    .flatMap((b) => b.items.map((i) => i.exercise_id));
+  const legsInTraining = trainingIds.some((id) => hasLegsMatch(id));
+  assert(
+    legsInTraining,
+    "multi-goal sessions should still cover an active sub-focus when it maps to a selected goal (e.g. hypertrophy → muscle: legs)"
+  );
 }
 
 function testPostAssemblySubFocusInjectionDoesNotUnderreportDuration() {
@@ -85,7 +91,7 @@ function testPostAssemblySubFocusInjectionDoesNotUnderreportDuration() {
 
 function main() {
   testUpperDayWithLegsSubFocusAddsGoalBlock();
-  testMultiGoalSkipsGuarantee();
+  testMultiGoalStillGuaranteesActiveSubFocus();
   testPostAssemblySubFocusInjectionDoesNotUnderreportDuration();
   console.log("singleGoalSubFocusCoverage tests passed.");
 }

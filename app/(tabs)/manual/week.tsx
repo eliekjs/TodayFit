@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -24,6 +23,7 @@ import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { saveManualWeek, saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
+import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { collectWeekMainLiftExerciseIds } from "../../../logic/workoutGeneration/collectWeekMainLiftExerciseIds";
 import {
@@ -36,12 +36,12 @@ import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
-import { PRIMARY_FOCUS_TO_GOAL_SLUG, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../../lib/preferencesConstants";
+import { GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../../lib/preferencesConstants";
 import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/dayTitle";
-import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import type { BlockType, DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 
@@ -165,26 +165,7 @@ export default function ManualWeekScreen() {
     const weekStart = startOfWeekMonday(new Date());
     const weekStartStr = dateToISO(weekStart);
 
-    let preferredNames: string[] | undefined;
-    if (isDbConfigured() && manualPreferences.primaryFocus.length > 0) {
-      try {
-        const goalSlugs = manualPreferences.primaryFocus
-          .map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f])
-          .filter(Boolean);
-        const goalWeightsPct = [
-          manualPreferences.goalMatchPrimaryPct ?? 50,
-          manualPreferences.goalMatchSecondaryPct ?? 30,
-          manualPreferences.goalMatchTertiaryPct ?? 20,
-        ];
-        preferredNames = await getPreferredExerciseNamesForSportAndGoals(
-          null,
-          goalSlugs,
-          goalWeightsPct.slice(0, goalSlugs.length)
-        );
-      } catch {
-        preferredNames = undefined;
-      }
-    }
+    const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
 
     try {
       const { generateWorkoutAsync, getExercisePoolForManualGeneration, injurySlugsFromManualPreferences } =
@@ -526,16 +507,7 @@ export default function ManualWeekScreen() {
         };
       }
     }
-    let preferredNames: string[] | undefined;
-    if (isDbConfigured() && dayPrefs.primaryFocus.length > 0) {
-      try {
-        const goalSlugs = dayPrefs.primaryFocus.map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f]).filter(Boolean);
-        const goalWeightsPct = [dayPrefs.goalMatchPrimaryPct ?? 50, dayPrefs.goalMatchSecondaryPct ?? 30, dayPrefs.goalMatchTertiaryPct ?? 20];
-        preferredNames = await getPreferredExerciseNamesForSportAndGoals(null, goalSlugs, goalWeightsPct.slice(0, goalSlugs.length));
-      } catch {
-        preferredNames = undefined;
-      }
-    }
+    const preferredNames = await preferredExerciseNamesForManualPreferences(dayPrefs);
     try {
       const { generateWorkoutAsync } = await loadGeneratorModule();
       const workout = await generateWorkoutAsync(
@@ -608,19 +580,18 @@ export default function ManualWeekScreen() {
     }
   };
 
-  if (generating && !manualWeekPlan) {
-    const oneDayLoading = selectedTrainingDays.length === 1;
+  if (generating) {
+    const oneDayLoading =
+      manualWeekPlan?.days.length === 1 || selectedTrainingDays.length === 1;
     return (
-      <AppScreenWrapper>
-        <StatusBar style="light" />
-        <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textMuted }]}>
-          {oneDayLoading ? "Building your workout…" : "Building your week…"}
-        </Text>
-      </View>
-      </AppScreenWrapper>
+      <GenerationLoadingScreen
+        message={oneDayLoading ? "Building your workout..." : "Building your week..."}
+      />
     );
+  }
+
+  if (isRegenerating) {
+    return <GenerationLoadingScreen message="Regenerating your workout..." />;
   }
 
   if (error && !manualWeekPlan) {
@@ -978,9 +949,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
     gap: 16,
-  },
-  loadingText: {
-    fontSize: 15,
   },
   errorText: {
     fontSize: 13,

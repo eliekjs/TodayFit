@@ -9,6 +9,7 @@ import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import {
@@ -16,9 +17,7 @@ import {
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
 import type { BlockType } from "../../../lib/types";
-import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "../../../lib/preferencesConstants";
-import { isDbConfigured } from "../../../lib/db";
-import { getPreferredExerciseNamesForSportAndGoals } from "../../../lib/db/starterExerciseRepository";
+import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 
 export default function ManualWorkoutScreen() {
@@ -44,6 +43,7 @@ export default function ManualWorkoutScreen() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
   const [swapNumPages, setSwapNumPages] = useState(1);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     if (!swapModal) {
@@ -88,7 +88,7 @@ export default function ManualWorkoutScreen() {
             No workout yet
           </Text>
           <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
-            Set your preferences first and we'll build a session for you.
+            Set your preferences first and we will build a session for you.
           </Text>
           <View style={{ marginTop: 16 }}>
             <PrimaryButton
@@ -128,34 +128,20 @@ export default function ManualWorkoutScreen() {
   }
 
   const onRegenerate = async () => {
-    let preferredNames: string[] | undefined;
-    if (isDbConfigured() && manualPreferences.primaryFocus.length > 0) {
-      try {
-        const goalSlugs = manualPreferences.primaryFocus
-          .map((f) => PRIMARY_FOCUS_TO_GOAL_SLUG[f])
-          .filter(Boolean);
-        const goalWeightsPct = [
-          manualPreferences.goalMatchPrimaryPct ?? 50,
-          manualPreferences.goalMatchSecondaryPct ?? 30,
-          manualPreferences.goalMatchTertiaryPct ?? 20,
-        ];
-        preferredNames = await getPreferredExerciseNamesForSportAndGoals(
-          null,
-          goalSlugs,
-          goalWeightsPct.slice(0, goalSlugs.length)
-        );
-      } catch {
-        preferredNames = undefined;
-      }
+    setIsRegenerating(true);
+    try {
+      const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
+      const { generateWorkoutAsync } = await loadGeneratorModule();
+      const workout = await generateWorkoutAsync(
+        manualPreferences,
+        activeProfile,
+        Date.now(),
+        preferredNames
+      );
+      setGeneratedWorkout(workout);
+    } finally {
+      setIsRegenerating(false);
     }
-    const { generateWorkoutAsync } = await loadGeneratorModule();
-    const workout = await generateWorkoutAsync(
-      manualPreferences,
-      activeProfile,
-      Date.now(),
-      preferredNames
-    );
-    setGeneratedWorkout(workout);
   };
 
   const onSaveForLater = () => {
@@ -178,6 +164,10 @@ export default function ManualWorkoutScreen() {
     setGeneratedWorkout(updated);
     setSwapModal(null);
   };
+
+  if (isRegenerating) {
+    return <GenerationLoadingScreen message="Regenerating your workout..." />;
+  }
 
   return (
     <AppScreenWrapper>

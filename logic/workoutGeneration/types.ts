@@ -251,6 +251,15 @@ export type GenerateWorkoutInput = {
   /** Weight for blending `session_target_qualities` in `mergeTargetVector`. Default 0.35. */
   session_target_qualities_weight?: number;
   /**
+   * Weekly planner day intent: desired session-level cardio time share (0..1).
+   * Used by block intent policy to keep day-to-day cardio emphasis coherent.
+   */
+  session_cardio_target_share?: number;
+  /**
+   * Weekly planner emphasis context (0..1) blended into cardio intent policy.
+   */
+  weekly_cardio_emphasis?: number;
+  /**
    * Exercise IDs already used as main work (main_strength / main_hypertrophy blocks) earlier in the same
    * programmed week. Selection excludes them when possible (pool fallback if no alternatives).
    */
@@ -278,6 +287,11 @@ export type GenerateWorkoutInput = {
    * When absent, generation uses legacy inferred path only. Selection enforcement will consume this in a later phase.
    */
   session_intent_contract?: import("./sessionIntentContract").SessionIntentContract;
+  /**
+   * Direct user-selected session intent (goals/sports/sub-focuses/level) carried end-to-end.
+   * Preferred source for intent linking and downstream selection logic.
+   */
+  session_intent?: import("./sessionIntentContract").SessionIntentSelection;
   /**
    * When not `false`, alpine skiing main_strength / main_hypertrophy scoring shrinks generic additive terms
    * (goal/ontology/history/template-fit, etc.) so sport slot + within-pool quality dominate. Set `false` for legacy full scorer.

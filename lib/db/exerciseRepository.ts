@@ -4,7 +4,7 @@ import type { ExerciseDefinition } from "../types";
 import type { Exercise } from "../../logic/workoutGeneration/types";
 import type { ExerciseRowWithOntology } from "./generatorExerciseAdapter";
 import { mapDbExerciseToGeneratorExercise } from "./generatorExerciseAdapter";
-import { BLOCKED_EXERCISE_IDS } from "../workoutRules";
+import { isBlockedExercise } from "../workoutRules";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -545,7 +545,7 @@ export async function listSupabaseCatalogExerciseRows(): Promise<SupabaseCatalog
 
   const out: SupabaseCatalogExerciseRow[] = [];
   for (const row of rows) {
-    if (BLOCKED_EXERCISE_IDS.has(row.slug)) continue;
+    if (isBlockedExercise({ id: row.slug, name: row.name })) continue;
     const primary = row.primary_muscles ?? [];
     const secondary = row.secondary_muscles ?? [];
     const contraTable = contraByExerciseId.get(row.id) ?? [];
@@ -654,7 +654,7 @@ async function listExercisesForGeneratorImpl(
       progressionsByExerciseId.get(row.id) ?? [],
       regressionsByExerciseId.get(row.id) ?? []
     );
-    if (!BLOCKED_EXERCISE_IDS.has(exercise.id)) result.push(exercise);
+    if (!isBlockedExercise({ id: exercise.id, name: exercise.name })) result.push(exercise);
   }
   return result;
 }

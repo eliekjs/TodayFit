@@ -3,7 +3,7 @@
  * Run: npx tsx lib/workoutRules.test.ts
  */
 import assert from "node:assert/strict";
-import { isWarmupEligibleEquipment } from "./workoutRules";
+import { isBlockedExercise, isWarmupEligibleEquipment } from "./workoutRules";
 
 function run() {
   assert.equal(isWarmupEligibleEquipment(["bodyweight"]), true);
@@ -20,6 +20,13 @@ function run() {
   assert.equal(isWarmupEligibleEquipment(["bodyweight", "pullup_bar"]), false);
   assert.equal(isWarmupEligibleEquipment(["treadmill"]), false);
   assert.equal(isWarmupEligibleEquipment([]), false);
+
+  assert.equal(isBlockedExercise({ id: "non_cm_med_ball_toss", name: "Non CM Med Ball Toss" }), true);
+  assert.equal(isBlockedExercise({ id: "non-cm-box-jump", name: "Non-CM Box Jump" }), true);
+  assert.equal(isBlockedExercise({ id: "piston_run", name: "Piston Run" }), false);
+  assert.equal(isBlockedExercise({ id: "opaque_push", name: "Push" }), true);
+  assert.equal(isBlockedExercise({ id: "opaque_bend", name: "Bend" }), true);
+  assert.equal(isBlockedExercise({ id: "barbell_row", name: "Barbell Row" }), false);
 
   console.log("workoutRules.test.ts: all passed");
 }

@@ -336,7 +336,10 @@ function testHillsIntentCreatesTimeBasedHillRepeatsBlock() {
   const item = block!.items[0];
   assert(item.time_seconds != null, "hill repeats item is time-based");
   assert(item.reps == null, "hill repeats item is not rep-prescribed");
-  assert(item.time_seconds === 60, "hill repeats uses 60s work bouts (stub-based expectation)");
+  assert(
+    item.time_seconds != null && item.time_seconds > 0 && item.time_seconds <= 45,
+    "hill repeats uses short interval work bouts (<=45s)"
+  );
 
   const ex = STUB_EXERCISES.find((e) => e.id === item.exercise_id);
   assert(ex != null, "exercise exists in stub");
@@ -409,6 +412,37 @@ function testEnduranceDurabilityIntentCreatesTimeBasedCircuit() {
   console.log("  OK: endurance durability → time-based durability circuit");
 }
 
+function testThirtyMinuteStrengthStructureAndOrdering() {
+  const seeds = [587507, 587508, 587509, 587510, 587511];
+  for (const seed of seeds) {
+    const input: GenerateWorkoutInput = {
+      duration_minutes: 30,
+      primary_goal: "strength",
+      secondary_goals: ["mobility"],
+      energy_level: "high",
+      available_equipment: ["bodyweight", "dumbbells", "bands", "bench"],
+      injuries_or_constraints: ["shoulder"],
+      goal_sub_focus: { calisthenics: ["handstand_control"] },
+      sport_slugs: ["road_running"],
+      sport_sub_focus: { road_running: ["aerobic_base", "leg_resilience"] },
+      seed,
+    };
+    const session = generateWorkoutSession(input, STUB_EXERCISES);
+    const last = session.blocks[session.blocks.length - 1];
+    assert(last?.block_type === "cooldown", `seed ${seed}: cooldown is always final block`);
+
+    const badSuperset = session.blocks.find(
+      (b) => b.format === "superset" && (b.supersetPairs?.length ?? 0) === 0
+    );
+    assert(!badSuperset, `seed ${seed}: every superset block has explicit pairs`);
+    const oneItemSuperset = session.blocks.find((b) => b.format === "superset" && b.items.length < 2);
+    assert(!oneItemSuperset, `seed ${seed}: no single-item superset blocks`);
+
+    assert(session.estimated_duration_minutes <= 35, `seed ${seed}: 30-minute estimate is not materially inflated`);
+  }
+  console.log("  OK: 30-minute strength sessions keep cooldown last and valid superset structure");
+}
+
 function main() {
   console.log("Phase 6 required-block and cooldown selection tests...");
   testMobilitySecondaryGoalCreatesCooldownBlock();
@@ -424,6 +458,7 @@ function main() {
   testHillsIntentCreatesTimeBasedHillRepeatsBlock();
   testEnduranceZone2LongSteadyIntentCreatesTimeBasedZone2Block();
   testEnduranceDurabilityIntentCreatesTimeBasedCircuit();
+  testThirtyMinuteStrengthStructureAndOrdering();
   console.log("All Phase 6 tests passed.");
 }
 

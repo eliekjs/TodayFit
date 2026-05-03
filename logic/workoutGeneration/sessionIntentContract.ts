@@ -29,6 +29,7 @@ import {
   SOCCER_SUPPORT_COVERAGE_CATEGORIES,
   soccerSportSelectionRules,
 } from "./sportPatternTransfer/fieldSportFamily/soccerRules";
+import type { FocusBodyPart, PrimaryGoal, UserLevel } from "./types";
 
 export type SessionIntentContractFallbackPolicy = {
   /** When true, enforcement may relax ordering/tiers stepwise (e.g. repair passes). */
@@ -76,6 +77,47 @@ export type SessionIntentContract = {
   requiredCoverage: SessionIntentContractRequiredCoverage;
   fallbackPolicy: SessionIntentContractFallbackPolicy;
   degradedModeBehavior: SessionIntentContractDegradedModeBehavior;
+};
+
+/**
+ * Flat, ranked intent entry for scoring and exercise–intent traceability.
+ * Built by the adapter from selected goals / sub-goals / sports / sport sub-focuses.
+ */
+export type IntentEntry = {
+  kind: "goal" | "goal_sub_focus" | "sport" | "sport_sub_focus";
+  /** e.g. "endurance", "threshold_tempo", "trail_running", "uphill_endurance" */
+  slug: string;
+  /** For sub-focuses: which goal/sport owns this entry. */
+  parent_slug?: string;
+  /** 1 = highest priority. Assigned after weight-sorting. */
+  rank: number;
+  /** Normalized 0..1 across all entries (sums to 1). */
+  weight: number;
+  /** Exercise tag slugs (goal_tags / sport_tags / attribute_tags) to match against. */
+  tag_slugs: string[];
+};
+
+/**
+ * Direct user intent payload for a single generated session.
+ * This is separate from sport-pattern contracts and captures the exact selections
+ * from UI/adapter so generator stages can consume intent without lossy translation.
+ */
+export type SessionIntentSelection = {
+  selected_goals: PrimaryGoal[];
+  selected_sports: string[];
+  goal_sub_focus_by_goal: Record<string, string[]>;
+  sport_sub_focus_by_sport: Record<string, string[]>;
+  user_level?: UserLevel;
+  focus_body_parts?: FocusBodyPart[];
+  sport_vs_goal_pct?: number;
+  goal_weights?: number[];
+  sport_weight?: number;
+  /**
+   * Flat ranked list of all intent entries (goals + sub-goals + sports + sport sub-focuses),
+   * sorted descending by weight. Built by the adapter so generator stages and coverage
+   * can score and link exercises directly to user intent without lossy translation.
+   */
+  ranked_intent_entries?: IntentEntry[];
 };
 
 /** Canonical slug for downhill / resort alpine skiing. */

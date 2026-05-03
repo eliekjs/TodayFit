@@ -6,6 +6,9 @@ export default function StackLayout() {
     <Stack
       screenOptions={{
         headerBackTitle: "Back",
+        contentStyle: {
+          backgroundColor: "#041631",
+        },
       }}
     />
   );

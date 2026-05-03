@@ -1,6 +1,6 @@
 # Generator eligibility preview (phase 6)
 
-- **Generated:** 2026-04-20T20:31:33.491Z
+- **Generated:** 2026-04-26T20:47:35.036Z
 - **Catalog:** `/Users/ellie/todayfit/data/workout-exercise-catalog.json`
 - **Pruning artifact:** `/Users/ellie/todayfit/artifacts/exercise-library-pruning-decisions.json`
 - **LLM validated (for breakdowns):** `/Users/ellie/todayfit/artifacts/exercise-curation-llm-validated.json`
@@ -31,81 +31,76 @@
 | --- | ---: | ---: |
 | Catalog total | 4016 | 100% |
 | Baseline pool (gating off) | 4016 | 100.0% |
-| Gated default (core + niche; review off) | 3258 | 81.1% |
-| Gated permissive (core + niche + review) | 3282 | 81.7% |
+| Gated default (core + niche; review off) | 905 | 22.5% |
+| Gated permissive (core + niche + review) | 2073 | 51.6% |
 
-**Projected reduction (default gate vs baseline):** 758 exercises (18.9% of catalog).
+**Projected reduction (default gate vs baseline):** 3111 exercises (77.5% of catalog).
 
 ## Counts by eligibility state
 
 | State | Count |
 | --- | ---: |
-| eligible_core | 2292 |
-| eligible_niche | 966 |
+| eligible_core | 471 |
+| eligible_niche | 434 |
 | excluded_merged | 522 |
-| excluded_removed | 212 |
-| excluded_review | 24 |
+| excluded_removed | 1421 |
+| excluded_review | 1168 |
 | excluded_unknown | 0 |
 
 ## Canonical survivors
 
-- **Clusters with a canonical row:** 265 · **Canonicals retained as eligible (core or niche):** 265
+- **Clusters with a canonical row:** 265 · **Canonicals retained as eligible (core or niche):** 116
 
 ## Excluded counts by pruning recommendation
 
 | Pruning recommendation / reason | Count |
 | --- | ---: |
+| remove_niche_or_low_value | 1421 |
+| review | 1168 |
 | merge_into_canonical | 522 |
-| remove_niche_or_low_value | 212 |
-| review | 24 |
 
 ## Gated pool — movement pattern (top)
 
 | Pattern | Count |
 | --- | ---: |
-| squat | 1643 |
-| lunge | 814 |
-| horizontal_push | 626 |
-| rotation | 578 |
-| anti_rotation | 515 |
-| horizontal_pull | 298 |
-| vertical_push | 193 |
-| hinge | 84 |
-| locomotion | 57 |
-| vertical_pull | 53 |
-| isometric | 44 |
-| carry | 14 |
-| thoracic_mobility | 1 |
+| squat | 442 |
+| horizontal_push | 178 |
+| lunge | 156 |
+| rotation | 154 |
+| anti_rotation | 97 |
+| horizontal_pull | 79 |
+| hinge | 49 |
+| vertical_push | 47 |
+| locomotion | 37 |
+| vertical_pull | 18 |
+| isometric | 5 |
+| carry | 5 |
 
 ## Gated pool — equipment class
 
 | Equipment class | Count |
 | --- | ---: |
-| bodyweight | 1251 |
-| kettlebell | 671 |
-| dumbbell | 445 |
-| _unknown_ | 284 |
-| barbell | 257 |
-| mixed | 140 |
-| specialty | 99 |
-| cable | 67 |
-| band | 37 |
+| bodyweight | 522 |
+| dumbbell | 126 |
+| kettlebell | 93 |
+| barbell | 88 |
+| mixed | 39 |
+| cable | 14 |
+| specialty | 14 |
+| band | 5 |
 | cardio_machine | 4 |
-| machine | 3 |
 
 ## Gated pool — primary role
 
 | Primary role | Count |
 | --- | ---: |
-| compound_strength | 1170 |
-| unilateral_strength | 592 |
-| power_explosive | 407 |
-| accessory_strength | 310 |
-| _unknown_ | 284 |
-| stability_core | 239 |
-| mobility | 172 |
-| conditioning | 66 |
-| injury_prevention | 18 |
+| compound_strength | 455 |
+| power_explosive | 173 |
+| mobility | 87 |
+| accessory_strength | 67 |
+| conditioning | 53 |
+| stability_core | 45 |
+| unilateral_strength | 25 |
 
 ## Examples — excluded merged
 
@@ -127,36 +122,36 @@
 
 ## Examples — excluded removed
 
-- `ff_alternating_double_kettlebell_bottoms_up_decline_bench_press` — Alternating Double Kettlebell Bottoms Up Decline Bench Press
-- `ff_alternating_double_kettlebell_bottoms_up_half_kneeling_overhead_press` — Alternating Double Kettlebell Bottoms Up Half Kneeling Overhead Press
-- `ff_alternating_double_kettlebell_bottoms_up_tall_kneeling_overhead_press` — Alternating Double Kettlebell Bottoms Up Tall Kneeling Overhead Press
-- `ff_alternating_single_arm_kettlebell_bottoms_up_clean_to_front_rack_squat` — Alternating Single Arm Kettlebell Bottoms Up Clean to Front Rack Squat
-- `ff_clubbell_order_foot_elevated_knee_over_toe_split_squat` — Clubbell Order Foot Elevated Knee Over Toe Split Squat
-- `ff_double_clubbell_order_bulgarian_split_squat` — Double Clubbell Order Bulgarian Split Squat
-- `ff_double_clubbell_order_foot_elevated_cossack_squat` — Double Clubbell Order Foot Elevated Cossack Squat
-- `ff_double_clubbell_order_foot_elevated_knee_over_toe_split_squat` — Double Clubbell Order Foot Elevated Knee Over Toe Split Squat
-- `ff_double_clubbell_single_leg_standing_bent_knee_iron_cross` — Double Clubbell Single Leg Standing Bent Knee Iron Cross
-- `ff_double_kettlebell_bottoms_up_bulgarian_split_squat_thruster` — Double Kettlebell Bottoms Up Bulgarian Split Squat Thruster
-- `ff_double_kettlebell_bottoms_up_decline_bench_press` — Double Kettlebell Bottoms Up Decline Bench Press
-- `ff_double_kettlebell_bottoms_up_front_rack_alternating_cossack_squat` — Double Kettlebell Bottoms Up Front Rack Alternating Cossack Squat
-- `ff_double_kettlebell_bottoms_up_front_rack_bulgarian_split_squat` — Double Kettlebell Bottoms Up Front Rack Bulgarian Split Squat
-- `ff_double_kettlebell_bottoms_up_front_rack_foot_elevated_cossack_squat` — Double Kettlebell Bottoms Up Front Rack Foot Elevated Cossack Squat
-- `ff_double_kettlebell_bottoms_up_front_rack_foot_elevated_knee_over_toe_split_squat` — Double Kettlebell Bottoms Up Front Rack Foot Elevated Knee Over Toe Split Squat
+- `aplex_scrotch_stretch_with_without_band` — Aplex Scrotch Stretch (with &amp; without Band)
+- `band_assisted_single_leg_jumps` — Band Assisted Single Leg Jumps
+- `band_resisted_staggered_stance_jumps` — Band Resisted Staggered Stance Jumps
+- `bb_oscillatory_low_squats` — BB Oscillatory Low Squats
+- `bottoms_up_waited_walk` — Bottoms Up Waited Walk
+- `bulgarian_split_squat_jumps` — Bulgarian Split Squat Jumps
+- `clubbell_lunges` — Clubbell Lunges
+- `contralateral_bss_and_goblet` — Contralateral BSS and Goblet
+- `decel_series` — Decel Series
+- `ff_alternating_double_clubbell_front_flag_press` — Alternating Double Clubbell Front Flag Press
+- `ff_alternating_double_clubbell_inside_circle` — Alternating Double Clubbell Inside Circle
+- `ff_alternating_double_clubbell_outside_circle` — Alternating Double Clubbell Outside Circle
+- `ff_alternating_double_clubbell_shield_cast` — Alternating Double Clubbell Shield Cast
+- `ff_alternating_double_clubbell_side_flag_press` — Alternating Double Clubbell Side Flag Press
+- `ff_alternating_double_dumbbell_cross_body_hammer_curl` — Alternating Double Dumbbell Cross Body Hammer Curl
 
 ## Examples — excluded review
 
-- `ff_alternating_double_kettlebell_half_kneeling_overhead_press` — Alternating Double Kettlebell Half Kneeling Overhead Press
-- `ff_alternating_double_kettlebell_tall_kneeling_overhead_press` — Alternating Double Kettlebell Tall Kneeling Overhead Press
-- `ff_bulgarian_bag_back_rack_bulgarian_split_squat` — Bulgarian Bag Back Rack Bulgarian Split Squat
-- `ff_cable_rope_tall_kneeling_overhead_tricep_extension` — Cable Rope Tall Kneeling Overhead Tricep Extension
-- `ff_double_kettlebell_bottoms_up_single_leg_standing_bent_knee_overhead_press` — Double Kettlebell Bottoms Up Single Leg Standing Bent Knee Overhead Press
-- `ff_single_arm_clubbell_order_contralateral_step_up` — Single Arm Clubbell Order Contralateral Step Up
-- `ff_single_arm_clubbell_order_ipsilateral_step_up` — Single Arm Clubbell Order Ipsilateral Step Up
-- `ff_single_arm_dumbbell_suitcase_ipsilateral_curtsy_lunge` — Single Arm Dumbbell Suitcase Ipsilateral Curtsy Lunge
-- `ff_single_arm_dumbbell_suitcase_ipsilateral_forward_lunge` — Single Arm Dumbbell Suitcase Ipsilateral Forward Lunge
-- `ff_single_arm_dumbbell_suitcase_ipsilateral_knee_over_toe_split_squat` — Single Arm Dumbbell Suitcase Ipsilateral Knee Over Toe Split Squat
-- `ff_single_arm_dumbbell_suitcase_ipsilateral_reverse_lunge` — Single Arm Dumbbell Suitcase Ipsilateral Reverse Lunge
-- `ff_single_arm_dumbbell_suitcase_ipsilateral_russian_step_up` — Single Arm Dumbbell Suitcase Ipsilateral Russian Step Up
-- `ff_single_arm_dumbbell_suitcase_ipsilateral_split_squat` — Single Arm Dumbbell Suitcase Ipsilateral Split Squat
-- `ff_single_arm_dumbbell_suitcase_ipsilateral_step_up` — Single Arm Dumbbell Suitcase Ipsilateral Step Up
-- `ff_single_arm_macebell_order_contralateral_step_up` — Single Arm Macebell Order Contralateral Step Up
+- `2_point_start` — 2 Point Start
+- `2_way_shoulder_raise` — Single Leg Front to Lateral Raise
+- `4_way_neck_stretch` — 4 Way Neck Stretch
+- `assisted_pistol_squat` — Assisted Pistol Squat
+- `band_ankle_stretch` — Band Ankle Stretch
+- `band_assisted_tuck_jumps` — Band Assisted Tuck Jumps
+- `band_corkscrew_row` — Band Corkscrew Row
+- `band_face_pull_external_rotation` — Band Face Pull + External Rotation
+- `band_facepulls` — Band Facepulls
+- `band_glute_bridge_with_abduction` — Band Glute Bridge With Abduction
+- `band_goodmorning` — Band Goodmorning
+- `band_internal_rotation` — Band Internal Rotation
+- `band_lat_pulldowns` — Band Lat Pulldowns
+- `band_pancake_stretch` — Band Pancake Stretch
+- `band_pistons` — Band Pistons

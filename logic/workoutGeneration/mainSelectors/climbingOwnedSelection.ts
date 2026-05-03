@@ -3,7 +3,7 @@
  */
 
 import { MAX_SAME_PATTERN_PER_SESSION } from "../../../lib/workoutRules";
-import { getSimilarExerciseClusterId } from "../../../lib/workoutLevel";
+import { getSimilarExerciseClusterId } from "../../../lib/workoutRules";
 import {
   addExerciseToRockSessionCounts,
   computeRockClimbingWithinPoolQualityScore,

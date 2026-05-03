@@ -139,7 +139,7 @@ export function SwapExerciseModal({
                   <ActivityIndicator size="small" color={theme.primary} style={{ marginVertical: 24 }} />
                 ) : searchResults.length === 0 && searchQuery.trim() ? (
                   <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                    No exercises match "{searchQuery}"
+                    {`No exercises match "${searchQuery}"`}
                   </Text>
                 ) : (
                   searchResults.map((opt) => (

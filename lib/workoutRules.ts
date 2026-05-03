@@ -192,6 +192,31 @@ export const INJURY_AVOID_TAGS: Record<string, string[]> = {
 /** Exercise IDs/slugs to always exclude from generation (e.g. user-disliked). */
 export const BLOCKED_EXERCISE_IDS = new Set<string>(["prone_y_raise"]);
 
+function normalizeExerciseIdentity(value: string | undefined): string {
+  return (value ?? "").toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_");
+}
+
+/**
+ * Global exercise hard-block policy.
+ * - Explicit IDs in `BLOCKED_EXERCISE_IDS`
+ * - Any "start stop" variation by id/name (user preference)
+ * - Opaque legacy abbreviations (e.g. "non cm") should never surface user-facing
+ */
+export function isBlockedExercise(exercise: { id?: string; name?: string }): boolean {
+  const id = normalizeExerciseIdentity(exercise.id);
+  if (id && BLOCKED_EXERCISE_IDS.has(id)) return true;
+  const identity = `${id} ${normalizeExerciseIdentity(exercise.name)}`;
+  if (/(?:^|_)start_stop(?:_|$)|\bstart_stop\b/.test(identity)) return true;
+  if (/(?:^|_)non[_\s-]*cm(?:_|$|\b)/.test(identity)) return true;
+  const rawName = (exercise.name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (
+    /^(push|pull|bend|squat|hinge|lunge|press|row|carry|core|upper|lower)$/.test(rawName)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Injury → exercise IDs to exclude (e.g. overhead press for shoulder). */
 export const INJURY_AVOID_EXERCISE_IDS: Record<string, string[]> = {
   shoulder: ["oh_press", "db_shoulder_press", "pullup", "dips"],

@@ -15,11 +15,8 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useWelcome } from "../context/WelcomeContext";
-import { GeometricPatternBackground } from "../components/GeometricPatternBackground";
 
-// Landing: dark teal/blue, geometric feel, logo in teal rounded square, frosted card
-const BG_DARK = "#0e3d4d"; // deep teal-blue
-const BG_TOP = "#0a2f3d";
+// Landing: geometric neon background with frosted card.
 const LOGO_BG = "#2dd4bf"; // vibrant teal (rounded square behind icon)
 const TAGLINE_GREEN = "#86efac"; // light green slogan
 const FROSTED_CARD = "rgba(255,255,255,0.08)";
@@ -42,8 +39,6 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <View style={styles.bgBase} />
-      <GeometricPatternBackground />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
           style={styles.keyboard}
@@ -156,10 +151,6 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  bgBase: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: BG_DARK,
   },
   safe: {
     flex: 1,

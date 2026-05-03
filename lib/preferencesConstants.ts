@@ -5,7 +5,7 @@ import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus";
 export const PRIMARY_FOCUS_OPTIONS = [
   "Build Strength",
   "Build Muscle (Hypertrophy)",
-  "Body Recomposition",
+  "Body Recomp (fat loss & muscle gain)",
   "Sport Conditioning",
   "Improve Endurance",
   "Mobility & Joint Health",
@@ -33,6 +33,8 @@ export const GOAL_SLUG_TO_LABEL: Record<string, string> = {
 export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   "Build Strength": "strength",
   "Build Muscle (Hypertrophy)": "muscle",
+  "Body Recomp (fat loss & muscle gain)": "physique",
+  // Backward-compat for persisted presets created before rename.
   "Body Recomposition": "physique",
   "Sport Conditioning": "conditioning",
   "Improve Endurance": "endurance",
@@ -47,7 +49,7 @@ export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
 export const GOAL_SLUG_TO_PRIMARY_FOCUS: Record<string, string> = {
   strength: "Build Strength",
   muscle: "Build Muscle (Hypertrophy)",
-  physique: "Body Recomposition",
+  physique: "Body Recomp (fat loss & muscle gain)",
   conditioning: "Sport Conditioning",
   endurance: "Improve Endurance",
   mobility: "Mobility & Joint Health",
@@ -149,7 +151,7 @@ export const ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY: Record<string, string> = {
   muscle: "Build Muscle (Hypertrophy)",
   endurance: "Improve Endurance",
   mobility: "Mobility & Joint Health",
-  physique: "Body Recomposition",
+  physique: "Body Recomp (fat loss & muscle gain)",
   resilience: "Recovery",
 };
 

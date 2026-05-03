@@ -1,3 +1,10 @@
+/**
+ * Manual workout generation entry: UI and services call `loadGeneratorModule()` → this module
+ * (not static-imported on tab shell startup). Flow: merge exercise pool (Supabase and/or lazy
+ * static catalog) → `generateWorkoutSession` in `logic/workoutGeneration/dailyGenerator.ts` →
+ * adapters in `lib/dailyGeneratorAdapter.ts`. Sport prep uses `services/workoutBuilder` with the
+ * same dynamic import. For product intent see `docs/WORKOUT_INTENT.md`.
+ */
 import {
   getAvoidTagSlugsFromUpcoming,
   exerciseHasAnyAvoidTag,
@@ -37,7 +44,7 @@ import {
   MAX_NON_CARDIO_CUE_SECONDS,
   ZONE2_HR_GUIDANCE,
   getSimilarExerciseClusterId,
-  BLOCKED_EXERCISE_IDS,
+  isBlockedExercise,
 } from "./workoutRules";
 import {
   HIGH_INTENSITY_CONDITIONING_IDS,
@@ -102,7 +109,7 @@ async function loadMergedExercisePoolForGenerator(injurySlugs: string[]): Promis
     const dbAuthoritative = isDbCatalogAuthoritative(activeCount);
     const fromDb = await listExercisesForGenerator({ injuries: injurySlugs });
     for (const e of fromDb) {
-      if (!BLOCKED_EXERCISE_IDS.has(e.id)) byId.set(e.id, e);
+      if (!isBlockedExercise({ id: e.id, name: e.name })) byId.set(e.id, e);
     }
     if (dbAuthoritative) {
       const pool = [...byId.values()];
@@ -147,7 +154,7 @@ function mergeStaticIntoPool(
   injurySlugs: string[]
 ): Exercise[] {
   for (const def of staticDefs) {
-    if (BLOCKED_EXERCISE_IDS.has(def.id)) continue;
+    if (isBlockedExercise({ id: def.id, name: def.name })) continue;
     if (byId.has(def.id)) continue;
     const ex = exerciseDefinitionToGeneratorExercise(def);
     if (exerciseConflictsWithInjuries(ex, injurySlugs)) continue;
@@ -209,6 +216,13 @@ type StructuredPrescription = {
   coaching_cues: string;
 };
 
+function hasBodyRecompFocus(primaryFocus: string[]): boolean {
+  return (
+    primaryFocus.includes("Body Recomp (fat loss & muscle gain)") ||
+    primaryFocus.includes("Body Recomposition")
+  );
+}
+
 /**
  * Sets/reps/rest per exercise. Factors:
  * - Energy: low → fewer sets (2), high → more (4), medium → 3 (RPE/recovery).
@@ -225,7 +239,7 @@ function prescriptionForExercise(
   let baseSets = energy === "high" ? 4 : energy === "low" ? 2 : 3;
   const maxSets = maxSetsByDuration(durationMinutes);
   baseSets = Math.min(baseSets, maxSets);
-  const isBodyRecomp = primaryFocus.includes("Body Recomposition");
+  const isBodyRecomp = hasBodyRecompFocus(primaryFocus);
 
   if (exercise.modalities.includes("conditioning")) {
     const isZone2 = exercise.tags.includes("zone2");
@@ -610,7 +624,7 @@ export function generateWorkout(
 
   const counts = pickCountByDuration(durationMinutes);
 
-  let exercises = exercisesInput.filter((e) => !BLOCKED_EXERCISE_IDS.has(e.id));
+  let exercises = exercisesInput.filter((e) => !isBlockedExercise({ id: e.id, name: e.name }));
   const eligible = filterByUpcoming(
     filterByBodyPartFocus(
       filterByInjuries(
@@ -853,7 +867,7 @@ export function generateWorkout(
     "Targets supporting muscles and balance for your goals."
   );
 
-  const isBodyRecomp = preferences.primaryFocus.includes("Body Recomposition");
+  const isBodyRecomp = hasBodyRecompFocus(preferences.primaryFocus);
   const wantsZone2Cardio =
     isBodyRecomp ||
     preferences.primaryFocus.some(
