@@ -1,8 +1,189 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTheme } from "../lib/theme";
-import type { BlockType, GeneratedWorkout, WorkoutBlock } from "../lib/types";
+import type { BlockType, GeneratedWorkout, WorkoutBlock, WorkoutItem } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
+import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
+
+// ─── Intent chip helpers ────────────────────────────────────────────────────
+
+const _sportBySlug = new Map(SPORTS_WITH_SUB_FOCUSES.map((s) => [s.slug, s]));
+
+function _humanizeGoalSlug(slug: string): string {
+  const map: Record<string, string> = {
+    strength: "Strength",
+    hypertrophy: "Build Muscle",
+    muscle: "Build Muscle",
+    body_recomp: "Body Recomp",
+    conditioning: "Conditioning",
+    endurance: "Endurance",
+    mobility: "Mobility",
+    recovery: "Recovery",
+    power: "Power",
+    athletic_performance: "Athletic Performance",
+    calisthenics: "Calisthenics",
+    physique: "Physique",
+    resilience: "Resilience",
+  };
+  return (
+    map[slug] ??
+    slug
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ")
+  );
+}
+
+function _formatIntentLabel(intent: {
+  kind: "goal" | "goal_sub_focus" | "sport" | "sport_sub_focus";
+  slug: string;
+  parent_slug?: string;
+}): string {
+  if (intent.kind === "sport" || intent.kind === "sport_sub_focus") {
+    const parentSlug = intent.kind === "sport_sub_focus" ? (intent.parent_slug ?? intent.slug) : intent.slug;
+    const sport = _sportBySlug.get(parentSlug);
+    if (!sport) return _humanizeGoalSlug(intent.slug);
+    if (intent.kind === "sport") return sport.name;
+    const subFocus = sport.sub_focuses.find((sf) => sf.slug === intent.slug);
+    return `${sport.name} → ${subFocus?.name ?? _humanizeGoalSlug(intent.slug)}`;
+  }
+  if (intent.kind === "goal_sub_focus") {
+    const parent = intent.parent_slug ? _humanizeGoalSlug(intent.parent_slug) : null;
+    const label = _humanizeGoalSlug(intent.slug);
+    return parent ? `${parent} → ${label}` : label;
+  }
+  return _humanizeGoalSlug(intent.slug);
+}
+
+/** Returns up to 3 human-readable labels for why this exercise is in the workout. */
+function getIntentLabels(item: WorkoutItem): string[] {
+  const links = item.session_intent_links;
+  if (!links) return [];
+
+  const labels: string[] = [];
+  const declaredSportSubs = links.declared_sport_sub_focuses ?? [];
+  const hasDeclaredSportSubs = declaredSportSubs.length > 0;
+
+  // User explicitly picked sport sub-focuses — show them first even when this exercise’s
+  // tags only weakly match ranked_intent_entries (otherwise chips collapse to internal primary goal).
+  for (const d of declaredSportSubs) {
+    if (labels.length >= 3) break;
+    const label = _formatIntentLabel({
+      kind: "sport_sub_focus",
+      slug: d.slug,
+      parent_slug: d.parent_slug,
+    });
+    if (!labels.includes(label)) labels.push(label);
+  }
+
+  // Show most-specific matched intents first (sub-focus > top-level goal/sport).
+  if (links.matched_intents && links.matched_intents.length > 0) {
+    const nonInferred = links.matched_intents.filter((m) => m.match_strength !== "inferred");
+    const forDisplay =
+      hasDeclaredSportSubs
+        ? nonInferred.filter(
+            (m) => !(m.kind === "goal" && m.slug === "athletic_performance")
+          )
+        : nonInferred;
+    // Prefer sub-focus entries — they are more informative than a bare sport/goal label.
+    const subFocusMatches = forDisplay
+      .filter((m) => m.kind === "sport_sub_focus" || m.kind === "goal_sub_focus")
+      .slice(0, 2)
+      .map(_formatIntentLabel)
+      .filter((lbl) => !labels.includes(lbl));
+    if (subFocusMatches.length > 0) {
+      for (const lbl of subFocusMatches) {
+        if (labels.length >= 3) break;
+        if (!labels.includes(lbl)) labels.push(lbl);
+      }
+    } else {
+      for (const m of forDisplay.slice(0, 2)) {
+        if (labels.length >= 3) break;
+        const lbl = _formatIntentLabel(m);
+        if (!labels.includes(lbl)) labels.push(lbl);
+      }
+    }
+  }
+
+  // Always surface session goals (e.g. "Build Muscle") even when sport chips are shown,
+  // and even when the exercise carries intent_inferred (no specific tag match).
+  for (const goal of links.goals ?? []) {
+    if (hasDeclaredSportSubs && goal === "athletic_performance") continue;
+    const humanized = _humanizeGoalSlug(goal);
+    if (!labels.includes(humanized) && labels.length < 3) labels.push(humanized);
+  }
+
+  // Add sport name if not already covered by a matched_intents sport/sport_sub_focus entry.
+  if (labels.length < 3) {
+    const coveredSportParents = new Set(
+      (links.matched_intents ?? [])
+        .filter((m) => m.kind === "sport" || m.kind === "sport_sub_focus")
+        .map((m) => (m.kind === "sport_sub_focus" ? (m.parent_slug ?? m.slug) : m.slug))
+    );
+    for (const sportSlug of links.sport_slugs ?? []) {
+      if (!coveredSportParents.has(sportSlug) && labels.length < 3) {
+        const sport = _sportBySlug.get(sportSlug);
+        labels.push(sport ? sport.name : _humanizeGoalSlug(sportSlug));
+      }
+    }
+  }
+
+  return [...new Set(labels)].slice(0, 3);
+}
+
+function IntentChips({
+  item,
+  theme,
+}: {
+  item: WorkoutItem;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  const labels = getIntentLabels(item);
+  if (labels.length === 0) return null;
+  return (
+    <View style={intentStyles.row}>
+      <Text style={[intentStyles.forLabel, { color: theme.textMuted }]}>FOR:</Text>
+      <View style={intentStyles.chips}>
+        {labels.map((label) => (
+          <View key={label} style={[intentStyles.chip, { borderColor: theme.primary }]}>
+            <Text style={[intentStyles.chipText, { color: theme.primary }]}>{label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const intentStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginTop: 6,
+    gap: 6,
+  },
+  forLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    paddingTop: 3,
+  },
+  chips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    flex: 1,
+  },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+});
 
 export type WorkoutBlockListProps = {
   workout: GeneratedWorkout;
@@ -124,6 +305,7 @@ function renderBlockContent(
                         ))}
                       </View>
                     )}
+                    <IntentChips item={item} theme={theme} />
                     {noteFor(item.exercise_id)}
                   </View>
                   {showSwap && onSwap && (
@@ -170,6 +352,7 @@ function renderBlockContent(
                 ))}
               </View>
             )}
+            <IntentChips item={item} theme={theme} />
             {noteFor(item.exercise_id)}
           </View>
           {showSwap && onSwap && (

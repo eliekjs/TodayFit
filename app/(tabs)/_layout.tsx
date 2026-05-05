@@ -30,7 +30,7 @@ export default function TabsLayout() {
       tabBar={(props: BottomTabBarProps) => <FilteredTabBar {...props} />}
       screenOptions={{
         sceneStyle: {
-          backgroundColor: "#041631",
+          backgroundColor: "transparent",
         },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,

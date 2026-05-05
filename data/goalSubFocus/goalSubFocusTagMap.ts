@@ -342,26 +342,25 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
   ],
 
   // --- Recovery (goal_slug: resilience) ---
+  // Recovery regional: anatomy tags drive match (see exerciseMatchesResilienceRegionalAnatomy in subFocusSlugMatch).
+  // Avoid generic `recovery` here — it made every recovery-tagged exercise satisfy every region.
   [key("resilience", "hips")]: [
     { tag_slug: "hip_mobility", weight: 1.2 },
-    { tag_slug: "recovery", weight: 1.1 },
+    { tag_slug: "mobility", weight: 1 },
   ],
   [key("resilience", "shoulders")]: [
     { tag_slug: "shoulder stability", weight: 1.2 },
     { tag_slug: "scapular_control", weight: 1.1 },
-    { tag_slug: "recovery", weight: 1 },
   ],
   [key("resilience", "t_spine")]: [
     { tag_slug: "thoracic_mobility", weight: 1.2 },
-    { tag_slug: "recovery", weight: 1 },
   ],
   [key("resilience", "lower_back")]: [
     { tag_slug: "core_stability", weight: 1.2 },
-    { tag_slug: "recovery", weight: 1 },
+    { tag_slug: "anti_rotation", weight: 1.1 },
   ],
   [key("resilience", "ankles")]: [
-    { tag_slug: "balance", weight: 1 },
-    { tag_slug: "recovery", weight: 1.1 },
+    { tag_slug: "ankle_stability", weight: 1.2 },
   ],
   [key("resilience", "full_body")]: [
     { tag_slug: "recovery", weight: 1.2 },

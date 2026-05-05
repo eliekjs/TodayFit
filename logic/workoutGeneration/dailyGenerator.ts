@@ -119,11 +119,13 @@ import { CALISTHENICS_STYLE_STRENGTH_SUB_SLUGS } from "../../data/goalSubFocus/s
 import {
   exerciseMatchesGoalSubFocusSlugUnified,
   exerciseMatchesHypertrophySubFocusSlug,
+  exerciseMatchesSportSubFocusForCoverage,
   subFocusSlugsForGuarantee,
 } from "./subFocusSlugMatch";
 import {
   annotateSessionIntentLinksOnBlocks,
   exerciseMatchesDeclaredGoal,
+  exerciseMatchesSportIntent,
   goalSubFocusKeysForPrimary,
   itemMatchesDeclaredGoal,
 } from "./sessionIntentCoverage";
@@ -3290,6 +3292,18 @@ function buildMainStrength(
       snowAccessoryMode = sportPatternScoreModeFromPoolMode(accGate.poolMode);
     }
 
+    // Multi-sport / sport-mode sessions: accessory supersets should not draw from untagged
+    // "generic gym" moves when enough exercises carry the user's selected sport_tags.
+    const fromSessionSports = input.session_intent?.selected_sports;
+    const sessionSports =
+      fromSessionSports && fromSessionSports.length > 0 ? fromSessionSports : input.sport_slugs;
+    if (sessionSports?.length) {
+      const sportTaggedPool = available.filter((e) => exerciseMatchesSportIntent(e, input));
+      if (sportTaggedPool.length >= pairNeededItems) {
+        available = sportTaggedPool;
+      }
+    }
+
     const primaryIntentAccessoryMatches = primaryIntent
       ? available.filter((e) => exerciseHasStrengthSubFocusSlug(e, primaryIntent))
       : [];
@@ -5771,13 +5785,60 @@ function getActiveGoalSubFocusEntry(input: GenerateWorkoutInput): { goalSlug: st
 }
 
 function collectExerciseIdsFromBlocks(blocks: WorkoutBlock[]): string[] {
-  return blocks.flatMap((b) => b.items.map((i) => i.exercise_id));
+  const ids: string[] = [];
+  for (const b of blocks) {
+    for (const i of b.items) ids.push(i.exercise_id);
+    if (b.supersetPairs?.length) {
+      for (const [a, c] of b.supersetPairs) {
+        ids.push(a.exercise_id, c.exercise_id);
+      }
+    }
+  }
+  return ids;
 }
 
 /** Warmup/cooldown can include light prep; sub-focus guarantee targets training blocks only. */
 function collectExerciseIdsForSubFocusCoverage(blocks: WorkoutBlock[]): string[] {
   const trainingBlocks = blocks.filter((b) => b.block_type !== "warmup" && b.block_type !== "cooldown");
   return collectExerciseIdsFromBlocks(trainingBlocks);
+}
+
+/** Merge filtered pool with any post-assembly picks from guarantee pool so intent links resolve. */
+function buildExerciseByIdForSessionIntentAnnotation(
+  filtered: Exercise[],
+  guaranteePool: Exercise[],
+  mergedBlocks: WorkoutBlock[],
+  /** Exercises picked from pre–sport-profile pool (e.g. sport intent coverage) may be absent from `filtered`. */
+  extraResolvePools: Exercise[] = []
+): Map<string, Exercise> {
+  const m = new Map(filtered.map((e) => [e.id, e]));
+  const fallbacks = [...guaranteePool, ...extraResolvePools];
+  for (const id of collectExerciseIdsFromBlocks(mergedBlocks)) {
+    if (m.has(id)) continue;
+    const g = fallbacks.find((e) => e.id === id);
+    if (g) m.set(id, g);
+  }
+  return m;
+}
+
+function exerciseMatchesUserSportTagExercise(exercise: Exercise, sportKey: string): boolean {
+  const want = tagToSlug(getCanonicalSportSlug(sportKey));
+  for (const t of exercise.tags.sport_tags ?? []) {
+    if (tagToSlug(getCanonicalSportSlug(String(t))) === want) return true;
+  }
+  return false;
+}
+
+function sessionHasUserSportTagCoverage(
+  blocks: WorkoutBlock[],
+  exerciseById: Map<string, Exercise>,
+  sportKey: string
+): boolean {
+  for (const id of collectExerciseIdsForSubFocusCoverage(blocks)) {
+    const ex = exerciseById.get(id);
+    if (ex && exerciseMatchesUserSportTagExercise(ex, sportKey)) return true;
+  }
+  return false;
 }
 
 function sessionHasGoalSubFocusCoverage(
@@ -6098,6 +6159,169 @@ function ensureWeeklySubFocusSessionMinimums(
       "Adds training volume aligned to your ranked sub-goals so each one shows up across the week (minimum targets per sub-goal).",
     items: itemsToAdd,
     estimated_minutes: Math.min(8 * itemsToAdd.length, 36),
+  };
+  if (cooldownIdx >= 0) mergedBlocks.splice(cooldownIdx, 0, newBlock);
+  else mergedBlocks.push(newBlock);
+}
+
+/**
+ * Ensures each selected sport sub-focus (and each sport with no sub-focuses) is represented on
+ * ≥1 training exercise. Complements goal-only `ensureSelectedGoalSubFocusCoverage`: sport tags
+ * were blended in scoring without per-sport quotas, so a secondary sport could disappear from chips.
+ */
+function ensureSelectedSportSubFocusCoverage(
+  mergedBlocks: WorkoutBlock[],
+  input: GenerateWorkoutInput,
+  /** Injury + hard-constraints pool (typically `sportIntentRescuePool`, full pool without pruning gate). */
+  sportIntentCandidatePool: Exercise[],
+  guaranteePool: Exercise[],
+  filtered: Exercise[],
+  used: Set<string>,
+  _recentIds: Set<string>,
+  _movementCounts: Map<string, number>,
+  rng: () => number,
+  fatigueState: FatigueState | undefined,
+  fatigueVolumeScale: number | undefined,
+  _historyContext: TrainingHistoryContext | undefined,
+  _sessionFatigueRegions: Map<string, number>
+): void {
+  const sportsFromIntent = input.session_intent?.selected_sports;
+  const rankedSports =
+    sportsFromIntent && sportsFromIntent.length > 0 ? sportsFromIntent : input.sport_slugs ?? [];
+
+  const sportSubRaw =
+    input.session_intent?.sport_sub_focus_by_sport &&
+    Object.keys(input.session_intent.sport_sub_focus_by_sport).length > 0
+      ? input.session_intent.sport_sub_focus_by_sport
+      : input.sport_sub_focus;
+
+  const sportKeysForSubPairs = [
+    ...new Set([...rankedSports, ...Object.keys(sportSubRaw ?? {})]),
+  ];
+  if (sportKeysForSubPairs.length === 0) return;
+
+  const exerciseById = new Map<string, Exercise>();
+  for (const e of sportIntentCandidatePool) exerciseById.set(e.id, e);
+  for (const e of guaranteePool) exerciseById.set(e.id, e);
+  for (const e of filtered) exerciseById.set(e.id, e);
+
+  const itemsToAdd: WorkoutItem[] = [];
+
+  const blockTypeForPrescription = (): BlockType =>
+    input.primary_goal === "strength" ||
+    input.primary_goal === "power" ||
+    input.primary_goal === "calisthenics"
+      ? "main_strength"
+      : "main_hypertrophy";
+
+  const subFocusPairCoverageCount = (sportKey: string, subSlug: string): number => {
+    let n = 0;
+    for (const id of collectExerciseIdsForSubFocusCoverage(mergedBlocks)) {
+      const ex = exerciseById.get(id);
+      if (ex && exerciseMatchesSportSubFocusForCoverage(ex, sportKey, subSlug)) n++;
+    }
+    return n;
+  };
+
+  const seenSubPairs = new Set<string>();
+  for (const sportKey of sportKeysForSubPairs) {
+    const canon = getCanonicalSportSlug(sportKey);
+    const slugs =
+      sportSubRaw?.[sportKey] ??
+      sportSubRaw?.[canon] ??
+      [];
+    for (const subSlug of slugs) {
+      const pairKey = `${canon}::${tagToSlug(subSlug)}`;
+      if (seenSubPairs.has(pairKey)) continue;
+      seenSubPairs.add(pairKey);
+      if (subFocusPairCoverageCount(sportKey, subSlug) > 0) continue;
+
+      const matchingPool = sportIntentCandidatePool.filter(
+        (e) => !used.has(e.id) && exerciseMatchesSportSubFocusForCoverage(e, sportKey, subSlug)
+      );
+      if (matchingPool.length === 0) continue;
+
+      // Do not use `selectExercises` here: pattern caps / cluster rules can reject the only
+      // candidate that satisfies a missing (sport, sub-focus) pair (common for single-slot fixes).
+      const picked = matchingPool[Math.floor(rng() * matchingPool.length)]!;
+      used.add(picked.id);
+      const p = getPrescription(
+        picked,
+        blockTypeForPrescription(),
+        input.energy_level,
+        input.primary_goal,
+        true,
+        fatigueVolumeScale,
+        input.style_prefs?.user_level
+      );
+      itemsToAdd.push({
+        exercise_id: picked.id,
+        exercise_name: picked.name,
+        sets: Math.max(2, Math.min(p.sets ?? 3, 4)),
+        reps: p.reps,
+        time_seconds: p.time_seconds,
+        rest_seconds: p.rest_seconds,
+        coaching_cues: p.coaching_cues,
+        reasoning_tags: ["sport_sub_focus", canon, subSlug, ...(picked.tags.goal_tags ?? [])],
+        unilateral: picked.unilateral ?? false,
+      });
+      exerciseById.set(picked.id, picked);
+    }
+  }
+
+  const seenSportTagFallback = new Set<string>();
+  for (const sportKey of rankedSports) {
+    const canon = getCanonicalSportSlug(sportKey);
+    const slugs =
+      sportSubRaw?.[sportKey] ??
+      sportSubRaw?.[canon] ??
+      [];
+    if (slugs.length > 0) continue;
+    if (seenSportTagFallback.has(canon)) continue;
+    seenSportTagFallback.add(canon);
+    if (sessionHasUserSportTagCoverage(mergedBlocks, exerciseById, sportKey)) continue;
+
+    const matchingPool = sportIntentCandidatePool.filter(
+      (e) => !used.has(e.id) && exerciseMatchesUserSportTagExercise(e, sportKey)
+    );
+    if (matchingPool.length === 0) continue;
+
+    const picked = matchingPool[Math.floor(rng() * matchingPool.length)]!;
+    used.add(picked.id);
+    const p = getPrescription(
+      picked,
+      blockTypeForPrescription(),
+      input.energy_level,
+      input.primary_goal,
+      true,
+      fatigueVolumeScale,
+      input.style_prefs?.user_level
+    );
+    itemsToAdd.push({
+      exercise_id: picked.id,
+      exercise_name: picked.name,
+      sets: Math.max(2, Math.min(p.sets ?? 3, 4)),
+      reps: p.reps,
+      time_seconds: p.time_seconds,
+      rest_seconds: p.rest_seconds,
+      coaching_cues: p.coaching_cues,
+      reasoning_tags: ["sport_intent", canon, ...(picked.tags.goal_tags ?? [])],
+      unilateral: picked.unilateral ?? false,
+    });
+    exerciseById.set(picked.id, picked);
+  }
+
+  if (itemsToAdd.length === 0) return;
+
+  const cooldownIdx = mergedBlocks.findIndex((b) => b.block_type === "cooldown");
+  const newBlock: WorkoutBlock = {
+    block_type: "accessory",
+    format: "straight_sets",
+    title: "Sport intent coverage",
+    reasoning:
+      "Adds at least one movement per selected sport sub-goal (or per sport when no sub-goals), so session intent chips reflect every choice.",
+    items: itemsToAdd,
+    estimated_minutes: Math.min(6 * itemsToAdd.length, 24),
   };
   if (cooldownIdx >= 0) mergedBlocks.splice(cooldownIdx, 0, newBlock);
   else mergedBlocks.push(newBlock);
@@ -7400,6 +7624,15 @@ export function generateWorkoutSession(
   // 2. Filter exercises: equipment + energy + avoid (filterByHardConstraints), then constraint-based injury/body-part (single source of truth with validator).
   const hardFiltered = filterByHardConstraints(effectiveExercisePool, input);
   const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
+  /**
+   * Injury-safe + hard-constraints pool from the **full** session pool (no pruning gate).
+   * Used to satisfy sport sub-focus coverage when the gated pool dropped secondary-sport or
+   * uncatalogued exercises the user still needs for intent chips.
+   */
+  const sportIntentRescuePool = filterByHardConstraints(exercisePool, input).filter((e) => {
+    const shape = toConstraintEligibilityShape(e);
+    return isExerciseAllowedByInjuries(shape, constraints);
+  });
   /** Injury-safe pool without body-part split — used to guarantee goal sub-focus on any training day. */
   let guaranteePool = hardFiltered.filter((e) => {
     const shape = toConstraintEligibilityShape(e);
@@ -7530,7 +7763,17 @@ export function generateWorkoutSession(
           !used.has(e.id) &&
           !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
       );
-      const pairs = pickBestSupersetPairs(accessoryPool, 1, used) as [Exercise, Exercise][];
+      let accessoryPoolForPairs = accessoryPool;
+      const fromSessionSportsPow = input.session_intent?.selected_sports;
+      const sessionSportsPow =
+        fromSessionSportsPow && fromSessionSportsPow.length > 0
+          ? fromSessionSportsPow
+          : input.sport_slugs;
+      if (sessionSportsPow?.length) {
+        const sportTaggedPow = accessoryPool.filter((e) => exerciseMatchesSportIntent(e, input));
+        if (sportTaggedPow.length >= 2) accessoryPoolForPairs = sportTaggedPow;
+      }
+      const pairs = pickBestSupersetPairs(accessoryPoolForPairs, 1, used) as [Exercise, Exercise][];
       if (pairs.length > 0) {
         const [exA, exB] = pairs[0];
         used.add(exA.id);
@@ -8796,6 +9039,24 @@ export function generateWorkoutSession(
   );
   mergedBlocks = removeEmptyBlocks(mergedBlocks);
 
+  // After duration trim / accessory ratio: inject sport sub-focus coverage so later passes do not drop it.
+  ensureSelectedSportSubFocusCoverage(
+    mergedBlocks,
+    input,
+    sportIntentRescuePool,
+    guaranteePool,
+    filtered,
+    used,
+    recentIds,
+    movementCounts,
+    rng,
+    fatigueState,
+    fatigueVolumeScale,
+    historyContext,
+    sessionFatigueRegions
+  );
+  mergedBlocks = removeEmptyBlocks(mergedBlocks);
+
   // 8. Post-assembly validation and repair (Phase 8)
   const sumBlockMinutes = mergedBlocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
   const req = input.duration_minutes;
@@ -8963,7 +9224,16 @@ export function generateWorkoutSession(
       }
     : undefined;
 
-  annotateSessionIntentLinksOnBlocks(mergedBlocks, input, new Map(filtered.map((e) => [e.id, e])));
+  annotateSessionIntentLinksOnBlocks(
+    mergedBlocks,
+    input,
+    buildExerciseByIdForSessionIntentAnnotation(
+      filtered,
+      guaranteePool,
+      mergedBlocks,
+      sportIntentRescuePool
+    )
+  );
 
   mergedBlocks = ensureCooldownIsLastBlock(mergedBlocks);
 

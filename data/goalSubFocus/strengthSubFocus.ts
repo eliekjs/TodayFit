@@ -44,6 +44,7 @@ export type ExerciseForStrengthSubFocus = {
   tags?: {
     attribute_tags?: string[];
     goal_tags?: string[];
+    stimulus?: string[];
   };
   movement_pattern?: string;
   primary_movement_family?: string;
@@ -110,6 +111,45 @@ export function exerciseHasStrengthSubFocusSlug(exercise: ExerciseForStrengthSub
 
   if (CALISTHENICS_STYLE_STRENGTH_SUB_SET.has(norm)) {
     return exerciseMatchesCalisthenicsStyleStrengthSlug(exercise, norm);
+  }
+
+  // Athletic Performance sub-focuses (goal_slug = "strength" under Athletic Performance primary focus).
+  // Evidence: NSCA — plyometric training (loaded jump squats, lateral bounds, horizontal jumps) is
+  // the strongest stimulus for COD improvement; Olympic derivatives and sprint-loaded exercises drive
+  // power/speed adaptation (NSCA Basics of Strength & Conditioning, 2024).
+  if (norm === "agility_cod") {
+    // Direct attribute_tag match already handled above (e.g. exercises tagged 'agility_cod').
+    // Infer from related tags applied by the COD migration (agility, lateral_power, single_leg_strength).
+    if (attrs.includes("agility") || attrs.includes("lateral_power") || attrs.includes("single_leg_strength")) return true;
+    const stimulus = (exercise.tags?.stimulus ?? []).map(toSlug);
+    // Plyometric + unilateral / lateral lower-body pattern → COD-relevant.
+    if (stimulus.includes("plyometric") &&
+        (finePatterns.some(p => ["lunge", "locomotion"].includes(p)) || family === "lower_body")) return true;
+    return false;
+  }
+
+  if (norm === "power_explosive") {
+    // Infer from explosive_power attribute tag or plyometric stimulus.
+    if (attrs.includes("explosive_power") || attrs.includes("plyometric") || attrs.includes("power")) return true;
+    const stimulus = (exercise.tags?.stimulus ?? []).map(toSlug);
+    if (stimulus.includes("plyometric")) return true;
+    // Olympic derivatives flagged via movement_pattern or fine-patterns.
+    if (movementPattern === "power" || finePatterns.some(p => ["power", "olympic"].includes(p))) return true;
+    // Goal tag "power" (e.g. hang clean, power clean).
+    const goalTags = (exercise.tags?.goal_tags ?? []).map(toSlug);
+    if (goalTags.includes("power") || goalTags.includes("athletic_performance")) return true;
+    return false;
+  }
+
+  if (norm === "speed_sprint") {
+    // Infer from speed/agility attribute tags or plyometric stimulus.
+    if (attrs.includes("speed") || attrs.includes("agility") || attrs.includes("plyometric")) return true;
+    const stimulus = (exercise.tags?.stimulus ?? []).map(toSlug);
+    if (stimulus.includes("plyometric")) return true;
+    // Sprint-type exercises (id contains 'sprint' or 'run').
+    const id = toSlug(exercise.id ?? "");
+    if (id.includes("sprint") || id.includes("running") || id.includes("bound")) return true;
+    return false;
   }
 
   // Overlay: use same match primitives (best-effort).

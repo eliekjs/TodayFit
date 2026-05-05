@@ -692,6 +692,40 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "grip", weight: 1 },
   ],
 
+  // --- Baseball / Softball ---
+  [key("baseball", "rotational_power")]: [
+    { tag_slug: "rotation", weight: 1.3 },
+    { tag_slug: "explosive_power", weight: 1.2 },
+    { tag_slug: "core_anti_rotation", weight: 1.1 },
+    { tag_slug: "power", weight: 1 },
+  ],
+  [key("baseball", "shoulder_stability")]: [
+    { tag_slug: "shoulder_stability", weight: 1.3 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+    { tag_slug: "scapular_strength", weight: 1 },
+    { tag_slug: "rotator_cuff", weight: 1.2 },
+  ],
+  [key("baseball", "hip_mobility_speed")]: [
+    { tag_slug: "hip_stability", weight: 1.2 },
+    { tag_slug: "hips", weight: 1.1 },
+    { tag_slug: "single_leg_strength", weight: 1.1 },
+    { tag_slug: "explosive_power", weight: 1 },
+    { tag_slug: "glute_strength", weight: 1 },
+  ],
+  [key("baseball", "core_stability")]: [
+    { tag_slug: "core_anti_rotation", weight: 1.3 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "core_bracing", weight: 1 },
+    { tag_slug: "core_anti_extension", weight: 1 },
+  ],
+  [key("baseball", "reactive_speed")]: [
+    { tag_slug: "explosive_power", weight: 1.3 },
+    { tag_slug: "agility", weight: 1.2 },
+    { tag_slug: "speed", weight: 1.1 },
+    { tag_slug: "plyometric", weight: 1 },
+    { tag_slug: "reactive_power", weight: 1 },
+  ],
+
   // --- Soccer ---
   [key("soccer", "aerobic_base")]: [
     { tag_slug: "zone2_cardio", weight: 1.2 },

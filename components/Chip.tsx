@@ -1,12 +1,19 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type GestureResponderEvent,
+  type ViewStyle,
+} from "react-native";
 import { useTheme } from "../lib/theme";
 
 type Props = {
   label: string;
   selected?: boolean;
   disabled?: boolean;
-  onPress?: () => void;
+  onPress?: (event: GestureResponderEvent) => void;
   style?: ViewStyle;
 };
 
@@ -46,7 +53,7 @@ export function Chip({ label, selected = false, disabled = false, onPress, style
   return (
     <Pressable
       style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
-      onPress={onPress}
+      onPress={(e) => onPress(e)}
     >
       {content}
     </Pressable>

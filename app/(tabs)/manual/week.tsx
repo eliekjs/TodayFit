@@ -585,13 +585,23 @@ export default function ManualWeekScreen() {
       manualWeekPlan?.days.length === 1 || selectedTrainingDays.length === 1;
     return (
       <GenerationLoadingScreen
-        message={oneDayLoading ? "Building your workout..." : "Building your week..."}
+        message={oneDayLoading ? "Building your session…" : "Building your week…"}
+        subtitle={
+          oneDayLoading
+            ? "Choosing blocks that fit your schedule."
+            : "Generating each training day in order."
+        }
       />
     );
   }
 
   if (isRegenerating) {
-    return <GenerationLoadingScreen message="Regenerating your workout..." />;
+    return (
+      <GenerationLoadingScreen
+        message="Regenerating your workout…"
+        subtitle="Applying your day edits to a fresh session."
+      />
+    );
   }
 
   if (error && !manualWeekPlan) {

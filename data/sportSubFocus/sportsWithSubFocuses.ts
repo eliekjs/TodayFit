@@ -229,6 +229,18 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
 
   // --- Field / Court ---
   {
+    slug: "baseball",
+    name: "Baseball / Softball",
+    category: "Court/Field",
+    sub_focuses: [
+      { slug: "rotational_power", name: "Rotational Power", priority_weight: 1 },
+      { slug: "shoulder_stability", name: "Shoulder Stability", priority_weight: 2 },
+      { slug: "hip_mobility_speed", name: "Hip Mobility & Speed", priority_weight: 3 },
+      { slug: "core_stability", name: "Core Stability", priority_weight: 4 },
+      { slug: "reactive_speed", name: "Reactive Speed", priority_weight: 5 },
+    ],
+  },
+  {
     slug: "soccer",
     name: "Soccer",
     category: "Court/Field",

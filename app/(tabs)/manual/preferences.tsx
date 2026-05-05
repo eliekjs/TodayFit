@@ -10,6 +10,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  Alert,
   type LayoutChangeEvent,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -20,6 +21,7 @@ import { defaultManualPreferences } from "../../../context/appStateModel";
 import { useTheme } from "../../../lib/theme";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
@@ -85,6 +87,7 @@ export default function ManualPreferencesScreen() {
   const { scope } = useLocalSearchParams<{ scope?: string }>();
   const theme = useTheme();
   const isWeek = scope === "week";
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -298,17 +301,24 @@ export default function ManualPreferencesScreen() {
       router.push("/manual/week");
       return;
     }
-    const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-    const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
-    const { generateWorkoutAsync } = await loadGeneratorModule();
-    const workout = await generateWorkoutAsync(
-      manualPreferences,
-      profile,
-      undefined,
-      preferredNames
-    );
-    setGeneratedWorkout(workout);
-    router.push("/manual/workout");
+    setIsGenerating(true);
+    try {
+      const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
+      const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
+      const { generateWorkoutAsync } = await loadGeneratorModule();
+      const workout = await generateWorkoutAsync(
+        manualPreferences,
+        profile,
+        undefined,
+        preferredNames
+      );
+      setGeneratedWorkout(workout);
+      router.push("/manual/workout");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn’t build workout", msg);
+      setIsGenerating(false);
+    }
   };
 
   const onReset = () => {
@@ -420,6 +430,16 @@ export default function ManualPreferencesScreen() {
     manualPreferences.upcoming.length === 0
       ? "None"
       : `${manualPreferences.upcoming.length} picked`;
+
+  if (isGenerating) {
+    return (
+      <GenerationLoadingScreen
+        message="Building your session…"
+        subtitle="Matching movements to your gym and goals."
+      />
+    );
+  }
+
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />

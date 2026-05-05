@@ -9,6 +9,9 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  useWindowDimensions,
+  Modal,
+  type GestureResponderEvent,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -18,6 +21,7 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAppState } from "../../../context/AppStateContext";
 import type { AdaptiveSetup } from "../../../context/appStateModel";
@@ -73,6 +77,14 @@ const MAX_TOTAL_SUB_GOALS_WEEK = 5;
 const MAX_TOTAL_PRIORITY_PICKS_DAY = 2;
 const MAX_TOTAL_PRIORITY_PICKS_WEEK = 3;
 
+/** Screen-space point for anchoring the selection-limit tooltip (e.g. from press `nativeEvent`). */
+type LimitPopupAnchor = { pageX: number; pageY: number };
+
+type LimitPopupState = {
+  message: string;
+  anchor: LimitPopupAnchor;
+};
+
 type AdaptiveAdvNestedKey =
   | "additionalGoals"
   | "sportVsGoals"
@@ -84,6 +96,9 @@ type AdaptiveAdvNestedKey =
 
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const windowBoxRef = useRef({ width: windowWidth, height: windowHeight });
+  windowBoxRef.current = { width: windowWidth, height: windowHeight };
   const router = useRouter();
   const { scope } = useLocalSearchParams<{ scope?: string }>();
   const {
@@ -141,7 +156,7 @@ export default function AdaptiveModeScreen() {
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
   const [oneDayDuration, setOneDayDuration] = useState<number>(45);
-  const [limitPopupMessage, setLimitPopupMessage] = useState<string | null>(null);
+  const [limitPopup, setLimitPopup] = useState<LimitPopupState | null>(null);
   const limitPopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const defaultOneDayBodyBias = useMemo<NonNullable<DailyWorkoutPreferences["bodyRegionBias"]>>(() => {
     if (manualPreferences.targetBody === "Upper") return "upper";
@@ -150,16 +165,19 @@ export default function AdaptiveModeScreen() {
   }, [manualPreferences.targetBody]);
   const [oneDayBodyBias, setOneDayBodyBias] =
     useState<NonNullable<DailyWorkoutPreferences["bodyRegionBias"]>>(defaultOneDayBodyBias);
-  const showLimitPopup = useCallback((message: string) => {
+  const showLimitPopup = useCallback((message: string, anchor?: LimitPopupAnchor) => {
     if (limitPopupTimerRef.current) {
       clearTimeout(limitPopupTimerRef.current);
     }
-    setLimitPopupMessage(message);
+    const { width: w, height: h } = windowBoxRef.current;
+    const resolved: LimitPopupAnchor =
+      anchor ?? { pageX: w / 2, pageY: h * (isOneDay ? 0.28 : 0.32) };
+    setLimitPopup({ message, anchor: resolved });
     limitPopupTimerRef.current = setTimeout(() => {
-      setLimitPopupMessage(null);
+      setLimitPopup(null);
       limitPopupTimerRef.current = null;
-    }, 2400);
-  }, []);
+    }, 2600);
+  }, [isOneDay]);
 
   useEffect(() => {
     const loadSports = async () => {
@@ -207,17 +225,24 @@ export default function AdaptiveModeScreen() {
     };
   }, [rankedSportSlugs.join(",")]);
 
-  const addSport = (slug: string) => {
+  const addSport = (slug: string, pressEvent?: GestureResponderEvent) => {
+    const anchor = pressEvent
+      ? { pageX: pressEvent.nativeEvent.pageX, pageY: pressEvent.nativeEvent.pageY }
+      : undefined;
     const current = rankedSportSlugs.filter((s): s is string => s != null);
     const currentGoalsCount = rankedGoals.filter((g): g is string => g != null).length;
     if (current.includes(slug) || current.length >= 2) return;
     if (isOneDay && current.length === 1 && currentGoalsCount > 0) {
-      showLimitPopup("For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal.");
+      showLimitPopup(
+        "For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal.",
+        anchor
+      );
       return;
     }
     if (current.length + currentGoalsCount >= totalPriorityCap) {
       showLimitPopup(
-        `You can select up to ${totalPriorityCap} total across sports and goals in ${isOneDay ? "one-day" : "week"} mode.`
+        `You can select up to ${totalPriorityCap} total across sports and goals in ${isOneDay ? "one-day" : "week"} mode.`,
+        anchor
       );
       return;
     }
@@ -244,7 +269,14 @@ export default function AdaptiveModeScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
   };
 
-  const toggleSportSubFocus = (sportSlug: string, qualitySlug: string) => {
+  const toggleSportSubFocus = (
+    sportSlug: string,
+    qualitySlug: string,
+    pressEvent?: GestureResponderEvent
+  ) => {
+    const anchor = pressEvent
+      ? { pageX: pressEvent.nativeEvent.pageX, pageY: pressEvent.nativeEvent.pageY }
+      : undefined;
     const current = subFocusBySport[sportSlug] ?? [];
     const has = current.includes(qualitySlug);
     const totalGoalSubGoals = Object.values(manualPreferences.subFocusByGoal).reduce<number>(
@@ -264,7 +296,8 @@ export default function AdaptiveModeScreen() {
       if (current.length >= 3) return;
       if (totalGoalSubGoals + totalSportSubGoals >= totalSubGoalCap) {
         showLimitPopup(
-          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`
+          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`,
+          anchor
         );
         return;
       }
@@ -425,20 +458,24 @@ export default function AdaptiveModeScreen() {
   const primarySport = primarySlug ? resolveActiveSportForSlug(sports, primarySlug) : null;
   const secondarySport = secondarySlug ? resolveActiveSportForSlug(sports, secondarySlug) : null;
 
-  const addGoal = (goalId: string) => {
+  const addGoal = (goalId: string, pressEvent?: GestureResponderEvent) => {
+    const anchor = pressEvent
+      ? { pageX: pressEvent.nativeEvent.pageX, pageY: pressEvent.nativeEvent.pageY }
+      : undefined;
     const currentCount = rankedGoals.filter((g): g is string => g != null).length;
     const currentSportsCount = rankedSportSlugs.filter((s): s is string => s != null).length;
     const maxGoalsAllowed = isOneDay ? 1 : 3;
     if (currentCount >= maxGoalsAllowed || rankedGoals.includes(goalId)) return;
     if (isOneDay && currentSportsCount >= 2) {
-      showLimitPopup("For one-day Sport Mode, 2 sports means no additional goals.");
+      showLimitPopup("For one-day Sport Mode, 2 sports means no additional goals.", anchor);
       return;
     }
     if (currentCount + currentSportsCount >= totalPriorityCap) {
       showLimitPopup(
         isOneDay
           ? "For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal."
-          : `You can select up to ${totalPriorityCap} total across sports and goals in week mode.`
+          : `You can select up to ${totalPriorityCap} total across sports and goals in week mode.`,
+        anchor
       );
       return;
     }
@@ -480,7 +517,14 @@ export default function AdaptiveModeScreen() {
     updateManualPreferences({ ...norm, subFocusByGoal: nextSub });
   };
 
-  const toggleAdaptiveGoalSubGoal = (manualPrimaryLabel: string, subOpt: string) => {
+  const toggleAdaptiveGoalSubGoal = (
+    manualPrimaryLabel: string,
+    subOpt: string,
+    pressEvent?: GestureResponderEvent
+  ) => {
+    const anchor = pressEvent
+      ? { pageX: pressEvent.nativeEvent.pageX, pageY: pressEvent.nativeEvent.pageY }
+      : undefined;
     const current = manualPreferences.subFocusByGoal[manualPrimaryLabel] ?? [];
     const exists = current.includes(subOpt);
     if (exists) {
@@ -503,7 +547,8 @@ export default function AdaptiveModeScreen() {
       );
       if (totalOthers + current.length + totalSportSubGoals >= totalSubGoalCap) {
         showLimitPopup(
-          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`
+          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`,
+          anchor
         );
         return;
       }
@@ -625,24 +670,40 @@ export default function AdaptiveModeScreen() {
     });
   const rankedSportEntries = selectedSportSlugs.map((slug, idx) => {
     const sport = resolveActiveSportForSlug(sports, slug);
-    const subFocusLabels = (subFocusBySport[slug] ?? []).map((subSlug) => {
+    const subFocusItems = (subFocusBySport[slug] ?? []).map((subSlug) => {
       const sportSubFocus = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === getCanonicalSportSlug(slug));
       const fromSubFocus = sportSubFocus?.sub_focuses.find((sf) => sf.slug === subSlug)?.name;
-      if (fromSubFocus) return fromSubFocus;
+      if (fromSubFocus) return { qualitySlug: subSlug, label: fromSubFocus };
       const fromQuality = qualitiesBySport[slug]?.find((q) => q.slug === subSlug)?.name;
-      return fromQuality ?? subSlug;
+      return { qualitySlug: subSlug, label: fromQuality ?? subSlug };
     });
     return {
       slug,
       rank: idx + 1,
       label: sport?.name ?? slug,
-      subFocusLabels,
+      subFocusItems,
     };
   });
-  const topPriorityRows = [
+  type PriorityStackRow =
+    | {
+        kind: "sport";
+        title: string;
+        detail: string;
+      }
+    | {
+        kind: "goal";
+        title: string;
+        detail: string;
+      }
+    | {
+        kind: "body";
+        title: string;
+        detail: string;
+      };
+  const topPriorityRows: PriorityStackRow[] = [
     rankedSportEntries.length > 0
       ? {
-          rank: 1,
+          kind: "sport",
           title: "Sport focus",
           detail:
             rankedSportEntries.length === 1
@@ -652,19 +713,19 @@ export default function AdaptiveModeScreen() {
       : null,
     rankedGoalEntries.length > 0
       ? {
-          rank: 2,
+          kind: "goal",
           title: "Goal focus",
           detail: rankedGoalEntries.map((g) => g.label).join(" + "),
         }
       : null,
     isOneDay
       ? {
-          rank: 3,
+          kind: "body",
           title: "Body-part focus",
           detail: bodySectionSummary,
         }
       : null,
-  ].filter((entry): entry is { rank: number; title: string; detail: string } => entry != null);
+  ].filter((entry): entry is PriorityStackRow => entry != null);
   const selectedContextBubbles = [
     { id: "level", label: `Level: ${manualPreferences.workoutTier ?? "intermediate"}` },
     ...(manualPreferences.includeCreativeVariations === true
@@ -681,6 +742,15 @@ export default function AdaptiveModeScreen() {
       : []),
     ...(isOneDay ? [{ id: "duration", label: `Session: ${oneDayDuration} min` }] : []),
   ];
+
+  if (isGeneratingOneDay) {
+    return (
+      <GenerationLoadingScreen
+        message="Building your session…"
+        subtitle="Turning your sports and goals into today’s workout."
+      />
+    );
+  }
 
   return (
     <AppScreenWrapper>
@@ -742,228 +812,168 @@ export default function AdaptiveModeScreen() {
 
           {topPriorityRows.length > 0 ? (
             <View style={styles.priorityStack}>
-              {topPriorityRows.map((row) => (
-                <View key={row.rank} style={[styles.priorityRow, { borderColor: theme.border }]}>
+              {topPriorityRows.map((row, stackIdx) => {
+                const displayRank = stackIdx + 1;
+                return (
                   <View
-                    style={[
-                      styles.priorityRankBadge,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderColor: theme.primary,
-                      },
-                    ]}
+                    key={`${row.kind}-${stackIdx}`}
+                    style={[styles.priorityRow, { borderColor: theme.border }]}
                   >
-                    <Text style={[styles.priorityRankText, { color: theme.chipSelectedText }]}>
-                      {row.rank}
-                    </Text>
+                    <View style={styles.priorityRowInner}>
+                      <View
+                        style={[
+                          styles.priorityRankBadge,
+                          {
+                            backgroundColor: theme.chipSelectedBackground,
+                            borderColor: theme.primary,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.priorityRankText, { color: theme.chipSelectedText }]}>
+                          {displayRank}
+                        </Text>
+                      </View>
+                      <View style={styles.priorityTextWrap}>
+                        <Text style={[styles.priorityRowDetail, { color: theme.text }]}>{row.detail}</Text>
+                        <Text style={[styles.priorityRowTitle, { color: theme.textMuted }]}>{row.title}</Text>
+
+                        {row.kind === "sport" ? (
+                          <View style={styles.priorityCardChips}>
+                            {rankedSportEntries.map((sport) => (
+                              <View key={`card-sport-${sport.slug}`} style={styles.priorityCardChipBlock}>
+                                {rankedSportEntries.length > 1 ? (
+                                  <Text
+                                    style={[styles.priorityCardSubLabel, { color: theme.textMuted }]}
+                                    numberOfLines={1}
+                                  >
+                                    {sport.label}
+                                  </Text>
+                                ) : null}
+                                {sport.subFocusItems.length > 0 ? (
+                                  <View style={styles.chipGroup}>
+                                    {sport.subFocusItems.map((item, subIdx) => (
+                                      <Pressable
+                                        key={`${sport.slug}-${item.qualitySlug}`}
+                                        style={styles.rankedChipWrap}
+                                        onPress={(e) => toggleSportSubFocus(sport.slug, item.qualitySlug, e)}
+                                      >
+                                        <View
+                                          style={[
+                                            styles.rankBadgeSmall,
+                                            {
+                                              backgroundColor: theme.chipSelectedBackground,
+                                              borderWidth: 1,
+                                              borderColor: theme.primary,
+                                            },
+                                          ]}
+                                        >
+                                          <Text
+                                            style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                          >
+                                            {subIdx + 1}
+                                          </Text>
+                                        </View>
+                                        <View
+                                          style={[
+                                            styles.rankedChipInner,
+                                            {
+                                              backgroundColor: theme.chipSelectedBackground,
+                                              borderWidth: 1,
+                                              borderColor: theme.primary,
+                                            },
+                                          ]}
+                                        >
+                                          <Text
+                                            style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                                            numberOfLines={2}
+                                          >
+                                            {item.label}
+                                          </Text>
+                                        </View>
+                                      </Pressable>
+                                    ))}
+                                  </View>
+                                ) : null}
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+
+                        {row.kind === "goal" ? (
+                          <View style={styles.priorityCardChips}>
+                            {rankedGoalEntries.map((goal) => {
+                              const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goal.goalId];
+                              return (
+                                <View key={`card-goal-${goal.goalId}`} style={styles.priorityCardChipBlock}>
+                                  {rankedGoalEntries.length > 1 ? (
+                                    <Text
+                                      style={[styles.priorityCardSubLabel, { color: theme.textMuted }]}
+                                      numberOfLines={2}
+                                    >
+                                      {goal.label}
+                                    </Text>
+                                  ) : null}
+                                  {goal.subGoals.length > 0 && manualLabel ? (
+                                    <View style={styles.chipGroup}>
+                                      {goal.subGoals.map((sub, subIdx) => (
+                                        <Pressable
+                                          key={`${goal.goalId}-${sub}`}
+                                          style={styles.rankedChipWrap}
+                                          onPress={(e) => toggleAdaptiveGoalSubGoal(manualLabel, sub, e)}
+                                        >
+                                          <View
+                                            style={[
+                                              styles.rankBadgeSmall,
+                                              {
+                                                backgroundColor: theme.chipSelectedBackground,
+                                                borderWidth: 1,
+                                                borderColor: theme.primary,
+                                              },
+                                            ]}
+                                          >
+                                            <Text
+                                              style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
+                                            >
+                                              {subIdx + 1}
+                                            </Text>
+                                          </View>
+                                          <View
+                                            style={[
+                                              styles.rankedChipInner,
+                                              {
+                                                backgroundColor: theme.chipSelectedBackground,
+                                                borderWidth: 1,
+                                                borderColor: theme.primary,
+                                              },
+                                            ]}
+                                          >
+                                            <Text
+                                              style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                                              numberOfLines={2}
+                                            >
+                                              {sub}
+                                            </Text>
+                                          </View>
+                                        </Pressable>
+                                      ))}
+                                    </View>
+                                  ) : null}
+                                </View>
+                              );
+                            })}
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.priorityTextWrap}>
-                    <Text style={[styles.priorityRowDetail, { color: theme.text }]}>{row.detail}</Text>
-                    <Text style={[styles.priorityRowTitle, { color: theme.textMuted }]}>{row.title}</Text>
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ) : (
             <Text style={{ fontSize: 13, color: theme.textMuted }}>
               Choose your sport and goals to see ranked priorities.
             </Text>
           )}
-
-          {rankedSportEntries.length > 0 ? (
-            <View style={styles.priorityGroupBlock}>
-              <Text style={[styles.priorityGroupTitle, { color: theme.text }]}>Sports</Text>
-              <View style={styles.chipGroup}>
-                {rankedSportEntries.map((sport) => (
-                  <View key={sport.slug} style={styles.rankedChipWrap}>
-                    <View
-                      style={[
-                        styles.rankBadgeSmall,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.primary,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
-                        {sport.rank}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.rankedChipInner,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.primary,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                        numberOfLines={1}
-                      >
-                        {sport.label}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-              {rankedSportEntries.some((s) => s.subFocusLabels.length > 0) ? (
-                <View style={styles.linkedSubGoalTree}>
-                  {rankedSportEntries
-                    .filter((sport) => sport.subFocusLabels.length > 0)
-                    .map((sport) => (
-                      <View key={`sport-tree-${sport.slug}`} style={styles.linkedSubGoalRow}>
-                        <Text style={[styles.linkedSubGoalParentLabel, { color: theme.textMuted }]}>
-                          {sport.label}
-                        </Text>
-                        <View style={[styles.linkedSubGoalChildren, { borderLeftColor: theme.border }]}>
-                          <View style={styles.chipGroup}>
-                            {sport.subFocusLabels.map((sub, subIdx) => (
-                              <View key={`${sport.slug}-${sub}`} style={styles.rankedChipWrap}>
-                                <View
-                                  style={[
-                                    styles.rankBadgeSmall,
-                                    {
-                                      backgroundColor: theme.chipSelectedBackground,
-                                      borderWidth: 1,
-                                      borderColor: theme.primary,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
-                                  >
-                                    {subIdx + 1}
-                                  </Text>
-                                </View>
-                                <View
-                                  style={[
-                                    styles.rankedChipInner,
-                                    {
-                                      backgroundColor: theme.chipSelectedBackground,
-                                      borderWidth: 1,
-                                      borderColor: theme.primary,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
-                                    numberOfLines={1}
-                                  >
-                                    {sub}
-                                  </Text>
-                                </View>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-
-          {rankedGoalEntries.length > 0 ? (
-            <View style={styles.priorityGroupBlock}>
-              <Text style={[styles.priorityGroupTitle, { color: theme.text }]}>Goals</Text>
-              <View style={styles.chipGroup}>
-                {rankedGoalEntries.map((goal) => (
-                  <View key={goal.goalId} style={styles.rankedChipWrap}>
-                    <View
-                      style={[
-                        styles.rankBadgeSmall,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.primary,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
-                        {goal.rank}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.rankedChipInner,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.primary,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                        numberOfLines={1}
-                      >
-                        {goal.label}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              {rankedGoalEntries.some((goal) => goal.subGoals.length > 0) ? (
-                <View style={styles.linkedSubGoalTree}>
-                  {rankedGoalEntries
-                    .filter((goal) => goal.subGoals.length > 0)
-                    .map((goal) => (
-                      <View key={`goal-tree-${goal.goalId}`} style={styles.linkedSubGoalRow}>
-                        <Text style={[styles.linkedSubGoalParentLabel, { color: theme.textMuted }]}>
-                          {goal.label}
-                        </Text>
-                        <View style={[styles.linkedSubGoalChildren, { borderLeftColor: theme.border }]}>
-                          <View style={styles.chipGroup}>
-                            {goal.subGoals.map((sub, subIdx) => (
-                              <View key={`${goal.goalId}-${sub}`} style={styles.rankedChipWrap}>
-                                <View
-                                  style={[
-                                    styles.rankBadgeSmall,
-                                    {
-                                      backgroundColor: theme.chipSelectedBackground,
-                                      borderWidth: 1,
-                                      borderColor: theme.primary,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
-                                  >
-                                    {subIdx + 1}
-                                  </Text>
-                                </View>
-                                <View
-                                  style={[
-                                    styles.rankedChipInner,
-                                    {
-                                      backgroundColor: theme.chipSelectedBackground,
-                                      borderWidth: 1,
-                                      borderColor: theme.primary,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
-                                    numberOfLines={1}
-                                  >
-                                    {sub}
-                                  </Text>
-                                </View>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                </View>
-              ) : null}
-            </View>
-          ) : null}
 
           <View style={styles.priorityGroupBlock}>
             <Text style={[styles.priorityGroupTitle, { color: theme.text }]}>Selected filters</Text>
@@ -1090,7 +1100,7 @@ export default function AdaptiveModeScreen() {
                     key={sport.id}
                     label={sport.name}
                     selected={false}
-                    onPress={() => addSport(sport.slug)}
+                    onPress={(e) => addSport(sport.slug, e)}
                   />
                 ))}
               </View>
@@ -1130,7 +1140,7 @@ export default function AdaptiveModeScreen() {
                                 <Pressable
                                   key={qSlug}
                                   style={styles.rankedChipWrap}
-                                  onPress={() => toggleSportSubFocus(slug, qSlug)}
+                                  onPress={(e) => toggleSportSubFocus(slug, qSlug, e)}
                                 >
                                   <View
                                     style={[
@@ -1179,7 +1189,7 @@ export default function AdaptiveModeScreen() {
                                 label={o.name}
                                 selected={false}
                                 disabled={!canAddSub}
-                                onPress={() => toggleSportSubFocus(slug, o.slug)}
+                                onPress={(e) => toggleSportSubFocus(slug, o.slug, e)}
                               />
                             ))}
                         </View>
@@ -1263,7 +1273,7 @@ export default function AdaptiveModeScreen() {
                 key={goal.id}
                 label={goal.label}
                 selected={false}
-                onPress={() => addGoal(goal.id)}
+                onPress={(e) => addGoal(goal.id, e)}
               />
             ))}
           </View>
@@ -1568,7 +1578,7 @@ export default function AdaptiveModeScreen() {
                                 <Pressable
                                   key={sub}
                                   style={styles.rankedChipWrap}
-                                  onPress={() => toggleAdaptiveGoalSubGoal(manualLabel, sub)}
+                                  onPress={(e) => toggleAdaptiveGoalSubGoal(manualLabel, sub, e)}
                                 >
                                   <View
                                     style={[
@@ -1616,7 +1626,7 @@ export default function AdaptiveModeScreen() {
                                   label={opt}
                                   selected={false}
                                   disabled={!canAddSub}
-                                  onPress={() => toggleAdaptiveGoalSubGoal(manualLabel, opt)}
+                                  onPress={(e) => toggleAdaptiveGoalSubGoal(manualLabel, opt, e)}
                                 />
                               ))}
                           </View>
@@ -1795,22 +1805,80 @@ export default function AdaptiveModeScreen() {
         </View>
         </View>
       </ScrollView>
-      {limitPopupMessage ? (
-        <View pointerEvents="none" style={styles.limitPopupWrap}>
-          <View
-            style={[
-              styles.limitPopupCard,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.primary,
-              },
-            ]}
-          >
-            <Text style={[styles.limitPopupTitle, { color: theme.text }]}>Selection limit</Text>
-            <Text style={[styles.limitPopupText, { color: theme.textMuted }]}>{limitPopupMessage}</Text>
+      <Modal visible={limitPopup != null} transparent animationType="fade" statusBarTranslucent>
+        {limitPopup != null ? (
+          <View pointerEvents="none" style={styles.limitPopupOverlay}>
+            {(() => {
+              const margin = 16;
+              const caretH = 8;
+              const gap = 10;
+              const approxBubbleH = 92;
+              const maxBubbleW = Math.min(300, windowWidth - margin * 2);
+              const { pageX: ax, pageY: ay } = limitPopup.anchor;
+              let placement: "above" | "below" = "above";
+              let top = ay - approxBubbleH - caretH - gap;
+              if (top < 52) {
+                placement = "below";
+                top = ay + caretH + gap + 4;
+              }
+              if (top + approxBubbleH > windowHeight - 24) {
+                top = Math.max(52, windowHeight - approxBubbleH - 24);
+              }
+              const left = Math.min(
+                Math.max(margin, ax - maxBubbleW / 2),
+                windowWidth - margin - maxBubbleW
+              );
+              const bubbleCenterX = left + maxBubbleW / 2;
+              const caretOffset = Math.max(
+                -maxBubbleW / 2 + 22,
+                Math.min(maxBubbleW / 2 - 22, ax - bubbleCenterX)
+              );
+              const caretLeft = maxBubbleW / 2 + caretOffset - 7;
+              return (
+                <View
+                  style={[
+                    styles.limitPopupBubble,
+                    {
+                      top,
+                      left,
+                      width: maxBubbleW,
+                      backgroundColor: theme.card,
+                      borderColor: theme.primary,
+                      shadowColor: "#000",
+                    },
+                    placement === "above" ? { paddingBottom: 12 } : { paddingTop: 14 },
+                  ]}
+                >
+                  {placement === "below" ? (
+                    <View
+                      style={[
+                        styles.limitPopupCaretUp,
+                        {
+                          left: caretLeft,
+                          borderBottomColor: theme.primary,
+                        },
+                      ]}
+                    />
+                  ) : null}
+                  <Text style={[styles.limitPopupTitle, { color: theme.primary }]}>Selection limit</Text>
+                  <Text style={[styles.limitPopupText, { color: theme.text }]}>{limitPopup.message}</Text>
+                  {placement === "above" ? (
+                    <View
+                      style={[
+                        styles.limitPopupCaretDown,
+                        {
+                          left: caretLeft,
+                          borderTopColor: theme.primary,
+                        },
+                      ]}
+                    />
+                  ) : null}
+                </View>
+              );
+            })()}
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </Modal>
     </AppScreenWrapper>
   );
 }
@@ -1954,9 +2022,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
+  },
+  priorityRowInner: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 10,
+  },
+  priorityCardChips: {
+    marginTop: 10,
+    gap: 8,
+  },
+  priorityCardChipBlock: {
+    gap: 4,
+  },
+  priorityCardSubLabel: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   priorityRankBadge: {
     width: 24,
@@ -1994,22 +2075,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 0.4,
-  },
-  linkedSubGoalTree: {
-    marginTop: 2,
-    gap: 8,
-  },
-  linkedSubGoalRow: {
-    gap: 6,
-  },
-  linkedSubGoalParentLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  linkedSubGoalChildren: {
-    borderLeftWidth: 2,
-    paddingLeft: 10,
-    marginLeft: 2,
   },
   filterBubble: {
     borderWidth: 1,
@@ -2093,5 +2158,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     marginBottom: 10,
+  },
+  limitPopupOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 200,
+    elevation: 200,
+  },
+  limitPopupBubble: {
+    position: "absolute",
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  limitPopupTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.65,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  limitPopupText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  /** Caret pointing down (bubble sits above the tap). */
+  limitPopupCaretDown: {
+    position: "absolute",
+    bottom: -7,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+  },
+  /** Caret pointing up (bubble sits below the tap). */
+  limitPopupCaretUp: {
+    position: "absolute",
+    top: -7,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderBottomWidth: 8,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
   },
 });

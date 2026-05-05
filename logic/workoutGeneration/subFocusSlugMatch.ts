@@ -3,6 +3,7 @@
  */
 
 import { getExerciseTagsForGoalSubFocuses } from "../../data/goalSubFocus";
+import { getExerciseTagsForSubFocuses, getCanonicalSportSlug } from "../../data/sportSubFocus";
 import {
   exerciseHasStrengthSubFocusSlug,
 } from "../../data/goalSubFocus/strengthSubFocus";
@@ -58,11 +59,95 @@ function getExerciseTagSlugsForCoverage(exercise: Exercise): Set<string> {
   return slugs;
 }
 
+/**
+ * Recovery goal uses goal_slug `resilience`. User already declared Recovery — regional anatomy
+ * (mobility / stretch / stability signals) should qualify without requiring a duplicate `recovery` tag
+ * on every drill (see goalSubFocusTagMap resilience:* entries).
+ */
+function exerciseMatchesResilienceRegionalAnatomy(exercise: Exercise, subSlug: string): boolean {
+  const norm = tagToSlug(subSlug);
+  const exTags = getExerciseTagSlugsForCoverage(exercise);
+  const muscles = new Set((exercise.muscle_groups ?? []).map((m) => tagToSlug(m)));
+  const targets = [
+    ...(exercise.mobility_targets ?? []),
+    ...(exercise.stretch_targets ?? []),
+  ].map((t) => tagToSlug(t));
+  const hasTarget = (sub: string) => targets.some((t) => t.includes(sub));
+
+  if (norm === "t_spine") {
+    if (exTags.has("thoracic_mobility") || exTags.has("t_spine")) return true;
+    if (hasTarget("thoracic") || hasTarget("t_spine")) return true;
+    return false;
+  }
+  if (norm === "lower_back") {
+    if (exTags.has("anti_rotation")) return true;
+    if (hasTarget("low_back") || hasTarget("lumbar")) return true;
+    if (
+      exTags.has("core_stability") &&
+      (muscles.has("lower_back") || muscles.has("low_back") || hasTarget("low_back") || hasTarget("lumbar"))
+    ) {
+      return true;
+    }
+    return false;
+  }
+  if (norm === "ankles") {
+    if (exTags.has("ankle_stability")) return true;
+    if (hasTarget("calves") || hasTarget("ankle")) return true;
+    return false;
+  }
+  if (norm === "hips") {
+    if (exTags.has("hip_mobility") || exTags.has("hips")) return true;
+    if (hasTarget("hip")) return true;
+    return false;
+  }
+  if (norm === "shoulders") {
+    return (
+      exTags.has("shoulder_stability") ||
+      exTags.has("scapular_control") ||
+      exTags.has("scapular_strength") ||
+      exTags.has("rotator_cuff")
+    );
+  }
+  return false;
+}
+
 export function subFocusSlugsForGuarantee(goalSlug: string, slugs: string[]): string[] {
   if (goalSlug === "muscle" || goalSlug === "physique") {
     return slugs.filter((s) => tagToSlug(s) !== "balanced");
   }
   return slugs;
+}
+
+/**
+ * True when the exercise carries at least one tag from the sport sub-focus → tag map
+ * (same signal as `ranked_intent_entries` sport_sub_focus matching).
+ */
+export function exerciseMatchesSportSubFocusSlug(
+  exercise: Exercise,
+  sportKey: string,
+  subSlug: string
+): boolean {
+  const entries = getExerciseTagsForSubFocuses(sportKey, [subSlug]);
+  if (!entries.length) return false;
+  const exTags = getExerciseTagSlugsForCoverage(exercise);
+  return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
+}
+
+/**
+ * Session coverage: require canonical sport_tags match so shared quality tags (e.g. explosive_power)
+ * from another sport’s work do not satisfy a different sport’s sub-focus slot.
+ */
+export function exerciseMatchesSportSubFocusForCoverage(
+  exercise: Exercise,
+  sportKey: string,
+  subSlug: string
+): boolean {
+  const want = tagToSlug(getCanonicalSportSlug(sportKey));
+  const hasSport = (exercise.tags.sport_tags ?? []).some(
+    (t) => tagToSlug(getCanonicalSportSlug(String(t))) === want
+  );
+  if (!hasSport) return false;
+  return exerciseMatchesSportSubFocusSlug(exercise, sportKey, subSlug);
 }
 
 export function exerciseMatchesGoalSubFocusSlugUnified(
@@ -79,6 +164,7 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
   }
   if (goalSlug === "mobility" || goalSlug === "resilience") {
     if (exerciseHasSubFocusSlug(exercise, slug)) return true;
+    if (goalSlug === "resilience" && exerciseMatchesResilienceRegionalAnatomy(exercise, slug)) return true;
     const entries = getExerciseTagsForGoalSubFocuses(goalSlug, [slug]);
     if (!entries.length) return false;
     const exTags = getExerciseTagSlugsForCoverage(exercise);

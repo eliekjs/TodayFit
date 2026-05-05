@@ -110,6 +110,74 @@ export function exerciseHasSubFocusSlug(exercise: ExerciseForSubFocus, slug: str
     if (attrs.includes("hills")) return true;
     return exerciseLooksLikeHillConditioning(exercise);
   }
+
+  // Threshold / tempo: direct slug + energy-system tags (DB often uses lactate_threshold / zone3_cardio only).
+  if (norm === "threshold_tempo") {
+    if (attrs.includes("threshold_tempo")) return true;
+    if (attrs.includes("lactate_threshold") || attrs.includes("zone3_cardio")) return true;
+    return false;
+  }
+
+  // Upper-body power (conditioning): explicit slug, or plyometric stimulus with upper-body signals.
+  if (norm === "upper_body_power") {
+    if (attrs.includes("upper_body_power")) return true;
+    const stimulus = (exercise.tags?.stimulus ?? []).map(toSlug);
+    if (!stimulus.includes("plyometric")) return false;
+    const fam = toSlug(exercise.primary_movement_family ?? "");
+    if (fam.includes("upper") || fam === "push" || fam === "pull") return true;
+    const muscles = new Set((exercise.muscle_groups ?? []).map(toSlug));
+    return (
+      muscles.has("chest") ||
+      muscles.has("shoulders") ||
+      muscles.has("triceps") ||
+      muscles.has("lats") ||
+      muscles.has("biceps") ||
+      muscles.has("upper_back")
+    );
+  }
+
+  // Conditioning / Endurance overlay slugs: used both as selection filters (filterPoolByOverlay)
+  // and for session-intent annotation. Match using the same shape signals as filterPoolByOverlay
+  // so coverage counts reflect exercises that will actually be selected.
+  if (norm === "upper" || norm === "lower" || norm === "core" || norm === "full_body") {
+    return exerciseMatchesConditioningOverlay(exercise, norm);
+  }
+
+  return false;
+}
+
+/** Mirrors filterPoolByOverlay() logic so coverage matching and pool filtering agree. */
+function exerciseMatchesConditioningOverlay(exercise: ExerciseForSubFocus, ov: string): boolean {
+  if (ov === "full_body") {
+    // Full-body overlay = compound multi-region. Match exercises with both upper and lower muscle signals.
+    const muscles = new Set((exercise.muscle_groups ?? []).map(toSlug));
+    const hasUpper = muscles.has("chest") || muscles.has("shoulders") || muscles.has("triceps") ||
+      muscles.has("lats") || muscles.has("back") || muscles.has("biceps") || muscles.has("upper_back");
+    const hasLower = muscles.has("legs") || muscles.has("quads") || muscles.has("glutes") ||
+      muscles.has("hamstrings") || muscles.has("calves");
+    if (hasUpper && hasLower) return true;
+    const fam = toSlug(exercise.primary_movement_family ?? "");
+    if (fam === "lower_body" && (hasUpper)) return true;
+    return false;
+  }
+
+  const fam = toSlug(exercise.primary_movement_family ?? "");
+  const muscles = new Set((exercise.muscle_groups ?? []).map(toSlug));
+
+  if (ov === "upper") {
+    if (fam.includes("upper") || fam === "push" || fam === "pull") return true;
+    return muscles.has("chest") || muscles.has("triceps") || muscles.has("shoulders") ||
+      muscles.has("lats") || muscles.has("biceps") || muscles.has("upper_back");
+  }
+  if (ov === "lower") {
+    if (fam.includes("lower") || fam === "squat" || fam === "hinge" || fam === "legs") return true;
+    return muscles.has("legs") || muscles.has("quads") || muscles.has("glutes") ||
+      muscles.has("hamstrings") || muscles.has("calves");
+  }
+  if (ov === "core") {
+    if (fam === "core" || fam.includes("rotate")) return true;
+    return muscles.has("core");
+  }
   return false;
 }
 

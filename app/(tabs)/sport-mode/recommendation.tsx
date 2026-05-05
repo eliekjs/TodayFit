@@ -552,11 +552,21 @@ export default function AdaptiveWeekPlanScreen() {
   }
 
   if (isReplanning) {
-    return <GenerationLoadingScreen message="Regenerating your week..." />;
+    return (
+      <GenerationLoadingScreen
+        message="Regenerating your week…"
+        subtitle="Rebuilding the plan around your priorities."
+      />
+    );
   }
 
   if (isRegenerating) {
-    return <GenerationLoadingScreen message="Regenerating your workout..." />;
+    return (
+      <GenerationLoadingScreen
+        message="Regenerating your workout…"
+        subtitle="Refreshing this day’s session."
+      />
+    );
   }
 
   const selectedDay = selectedSession ?? sportPrepWeekPlan.days[0];
@@ -841,11 +851,6 @@ export default function AdaptiveWeekPlanScreen() {
       )}
       {!isLoadingWorkout && selectedWorkout && (
         <View style={{ marginTop: 16, gap: 16 }}>
-          {selectedWorkout.notes != null && String(selectedWorkout.notes).trim() !== "" ? (
-            <Card title="Coach notes" style={styles.summaryCard}>
-              <Text style={[styles.notes, { color: theme.textMuted }]}>{selectedWorkout.notes}</Text>
-            </Card>
-          ) : null}
           {selectedWorkout.durationMinutes != null ? (
             <Text style={[styles.sessionMeta, { color: theme.textMuted }]}>
               {selectedWorkout.durationMinutes} min
@@ -1062,13 +1067,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 24,
   },
-  summaryCard: {
-    marginBottom: 8,
-  },
   sessionMeta: {
-    fontSize: 13,
-  },
-  notes: {
     fontSize: 13,
   },
 });

@@ -44,6 +44,42 @@ export function collectUniqueSessionGoals(input: GenerateWorkoutInput): PrimaryG
   return [...new Set([input.primary_goal, ...(input.secondary_goals ?? [])])];
 }
 
+/**
+ * Flattens user-selected sport sub-focuses (canonical sport slug + sub slug) for UI chips.
+ * Merges `session_intent.sport_sub_focus_by_sport` with legacy `input.sport_sub_focus`.
+ */
+export function collectDeclaredSportSubFocuses(
+  input: GenerateWorkoutInput
+): { parent_slug: string; slug: string }[] {
+  const bySport: Record<string, Set<string>> = {};
+  const add = (sportKey: string, slugs: string[]) => {
+    const canon = getCanonicalSportSlug(String(sportKey).toLowerCase().replace(/\s/g, "_"));
+    if (!bySport[canon]) bySport[canon] = new Set();
+    for (const s of slugs) {
+      if (s) bySport[canon].add(String(s).toLowerCase().replace(/\s/g, "_"));
+    }
+  };
+
+  const fromSession = input.session_intent?.sport_sub_focus_by_sport;
+  if (fromSession) {
+    for (const [k, v] of Object.entries(fromSession)) {
+      if (v?.length) add(k, v);
+    }
+  }
+  const legacy = input.sport_sub_focus;
+  if (legacy) {
+    for (const [k, v] of Object.entries(legacy)) {
+      if (v?.length) add(k, v);
+    }
+  }
+
+  const out: { parent_slug: string; slug: string }[] = [];
+  for (const [parent_slug, set] of Object.entries(bySport)) {
+    for (const slug of set) out.push({ parent_slug, slug });
+  }
+  return out;
+}
+
 /** Union of `goal_sub_focus` object keys that apply to any active session goal. */
 export function collectActiveGoalSubFocusKeys(input: GenerateWorkoutInput): Set<string> {
   const fromSessionIntent = input.session_intent?.goal_sub_focus_by_goal ?? {};
@@ -222,6 +258,10 @@ export function buildWorkoutItemSessionIntentLinks(
   blockType: BlockType
 ): NonNullable<WorkoutItem["session_intent_links"]> {
   const computed = computeSessionIntentLinks(ex, input);
+  const declaredSportSubs = collectDeclaredSportSubFocuses(input);
+  const declaredSportField =
+    declaredSportSubs.length > 0 ? { declared_sport_sub_focuses: declaredSportSubs } : {};
+
   const sportMatched =
     (input.session_intent?.selected_sports?.length
       ? input.session_intent.selected_sports
@@ -235,21 +275,48 @@ export function buildWorkoutItemSessionIntentLinks(
       ? { matched_intents: computed.matched_intents }
       : {};
 
+  // All session fitness goals (for display on every exercise, even when the exercise
+  // doesn't directly carry the goal tag — user needs to see why each block is in their workout).
+  const sessionGoals = collectUniqueSessionGoals(input).map((g) => g as string);
+
   if (computed.goals.length > 0 || computed.sub_focus.length > 0) {
+    // Merge directly-matched goals with all session goals so no declared goal is hidden.
+    const mergedGoals = [...new Set([...computed.goals, ...sessionGoals])];
     return {
-      goals: computed.goals,
+      goals: mergedGoals,
       ...(computed.sub_focus.length ? { sub_focus: computed.sub_focus } : {}),
       ...(sportMatched.length ? { sport_slugs: sportMatched } : {}),
+      ...declaredSportField,
       ...matchedIntentsField,
     };
   }
   if (sportMatched.length) {
-    return { sport_slugs: sportMatched, ...matchedIntentsField };
+    // Include session fitness goals alongside sport slugs so both show as chips.
+    return { goals: sessionGoals, sport_slugs: sportMatched, ...declaredSportField, ...matchedIntentsField };
   }
   if (SESSION_PREP_BLOCK_TYPES.has(blockType)) {
-    return { goals: [input.primary_goal], session_prep: true, ...matchedIntentsField };
+    return { goals: sessionGoals, session_prep: true, ...declaredSportField, ...matchedIntentsField };
   }
-  return { goals: [input.primary_goal], intent_inferred: true, ...matchedIntentsField };
+  // Fallback: exercise has no specific tag match; still show the session goal.
+  return { goals: sessionGoals, intent_inferred: true, ...declaredSportField, ...matchedIntentsField };
+}
+
+/**
+ * When an exercise id is missing from the annotation map (e.g. picked from an edge pool),
+ * still attach session-level chips so UI never shows a blank "FOR:" row.
+ */
+export function buildFallbackSessionIntentLinks(
+  input: GenerateWorkoutInput,
+  blockType: BlockType
+): NonNullable<WorkoutItem["session_intent_links"]> {
+  const declaredSportSubs = collectDeclaredSportSubFocuses(input);
+  const declaredSportField =
+    declaredSportSubs.length > 0 ? { declared_sport_sub_focuses: declaredSportSubs } : {};
+  const sessionGoals = collectUniqueSessionGoals(input).map((g) => g as string);
+  if (SESSION_PREP_BLOCK_TYPES.has(blockType)) {
+    return { goals: sessionGoals, session_prep: true, ...declaredSportField };
+  }
+  return { goals: sessionGoals, intent_inferred: true, ...declaredSportField };
 }
 
 export function annotateSessionIntentLinksOnBlocks(
@@ -261,8 +328,9 @@ export function annotateSessionIntentLinksOnBlocks(
     const bt = block.block_type as BlockType;
     for (const item of block.items) {
       const ex = exerciseById.get(item.exercise_id);
-      if (!ex) continue;
-      item.session_intent_links = buildWorkoutItemSessionIntentLinks(ex, input, bt);
+      item.session_intent_links = ex
+        ? buildWorkoutItemSessionIntentLinks(ex, input, bt)
+        : buildFallbackSessionIntentLinks(input, bt);
     }
   }
 }

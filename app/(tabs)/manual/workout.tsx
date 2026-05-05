@@ -166,7 +166,12 @@ export default function ManualWorkoutScreen() {
   };
 
   if (isRegenerating) {
-    return <GenerationLoadingScreen message="Regenerating your workout..." />;
+    return (
+      <GenerationLoadingScreen
+        message="Regenerating your workout…"
+        subtitle="Refreshing exercises with your latest preferences."
+      />
+    );
   }
 
   return (
@@ -180,13 +185,7 @@ export default function ManualWorkoutScreen() {
           title="Summary"
           subtitle={summaryLines.join(" • ")}
           style={styles.summaryCard}
-        >
-          {generatedWorkout.notes != null ? (
-            <Text style={[styles.notes, { color: theme.textMuted }]}>
-              {generatedWorkout.notes}
-            </Text>
-          ) : null}
-        </Card>
+        />
 
         <WorkoutBlockList
           workout={generatedWorkout}
@@ -268,9 +267,6 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     marginBottom: 8,
-  },
-  notes: {
-    fontSize: 13,
   },
   footer: {
     marginTop: 16,

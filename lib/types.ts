@@ -271,6 +271,12 @@ export type WorkoutItem = {
     /** True when links default to the primary goal because tag metadata had no explicit overlap. */
     intent_inferred?: boolean;
     /**
+     * Sport sub-focuses the user explicitly selected for this session (from sport mode / planner).
+     * Shown on every exercise in the UI even when tag overlap for `matched_intents` is weak,
+     * so chips reflect the user’s sub-sport intent rather than only the internal primary goal.
+     */
+    declared_sport_sub_focuses?: { parent_slug: string; slug: string }[];
+    /**
      * Ranked list of which user intent entries (goal / sub-goal / sport / sport sub-focus)
      * this exercise directly or partially matches. Populated when `ranked_intent_entries` is
      * present on the session input; provides full traceability from exercise → user intent.

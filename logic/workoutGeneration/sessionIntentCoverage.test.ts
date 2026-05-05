@@ -5,10 +5,15 @@
  */
 
 import { describe, it, expect } from "vitest";
+import type { WorkoutBlock } from "../../lib/types";
 import type { Exercise } from "./types";
 import type { GenerateWorkoutInput } from "./types";
 import {
+  annotateSessionIntentLinksOnBlocks,
+  buildFallbackSessionIntentLinks,
+  buildWorkoutItemSessionIntentLinks,
   collectActiveGoalSubFocusKeys,
+  collectDeclaredSportSubFocuses,
   collectUniqueSessionGoals,
   computeSessionIntentLinks,
   exerciseMatchesDeclaredGoal,
@@ -87,6 +92,121 @@ describe("sessionIntentCoverage", () => {
     const links = computeSessionIntentLinks(ex, input);
     expect(links.goals).toContain("hypertrophy");
     expect(links.sub_focus.some((s) => s.goal_slug === "muscle" && s.sub_slug === "legs")).toBe(true);
+  });
+
+  it("collectDeclaredSportSubFocuses merges session_intent and legacy sport_sub_focus", () => {
+    const input: GenerateWorkoutInput = {
+      duration_minutes: 45,
+      primary_goal: "athletic_performance",
+      energy_level: "medium",
+      available_equipment: [],
+      injuries_or_constraints: [],
+      sport_sub_focus: { trail_running: ["ankle_stability"] },
+      session_intent: {
+        selected_goals: ["athletic_performance"],
+        selected_sports: ["trail_running"],
+        goal_sub_focus_by_goal: {},
+        sport_sub_focus_by_sport: { trail_running: ["uphill_endurance"] },
+      },
+    };
+    const rows = collectDeclaredSportSubFocuses(input);
+    const keys = new Set(rows.map((r) => `${r.parent_slug}:${r.slug}`));
+    expect(keys.has("trail_running:uphill_endurance")).toBe(true);
+    expect(keys.has("trail_running:ankle_stability")).toBe(true);
+  });
+
+  it("buildFallbackSessionIntentLinks carries declared sport sub-focuses without exercise metadata", () => {
+    const input: GenerateWorkoutInput = {
+      duration_minutes: 45,
+      primary_goal: "athletic_performance",
+      energy_level: "medium",
+      available_equipment: [],
+      injuries_or_constraints: [],
+      session_intent: {
+        selected_goals: ["athletic_performance"],
+        selected_sports: ["cycling"],
+        goal_sub_focus_by_goal: {},
+        sport_sub_focus_by_sport: { cycling: ["threshold"] },
+      },
+    };
+    const links = buildFallbackSessionIntentLinks(input, "accessory");
+    expect(links.declared_sport_sub_focuses?.some((d) => d.slug === "threshold")).toBe(true);
+    expect(links.intent_inferred).toBe(true);
+  });
+
+  it("annotateSessionIntentLinksOnBlocks uses fallback when exercise is missing from map", () => {
+    const input: GenerateWorkoutInput = {
+      duration_minutes: 45,
+      primary_goal: "athletic_performance",
+      energy_level: "medium",
+      available_equipment: [],
+      injuries_or_constraints: [],
+      session_intent: {
+        selected_goals: ["athletic_performance"],
+        selected_sports: ["cycling"],
+        goal_sub_focus_by_goal: {},
+        sport_sub_focus_by_sport: { cycling: ["threshold"] },
+      },
+    };
+    const block: WorkoutBlock = {
+      block_type: "accessory",
+      format: "superset",
+      title: "Accessory",
+      items: [
+        {
+          exercise_id: "not-in-annotation-map",
+          exercise_name: "Ghost Move",
+          sets: 3,
+          reps: 8,
+          rest_seconds: 60,
+          coaching_cues: "",
+          unilateral: false,
+        },
+      ],
+    };
+    annotateSessionIntentLinksOnBlocks([block], input, new Map());
+    expect(block.items[0].session_intent_links?.declared_sport_sub_focuses?.length).toBeGreaterThan(0);
+  });
+
+  it("buildWorkoutItemSessionIntentLinks attaches declared_sport_sub_focuses for UI chips", () => {
+    const ex: Exercise = {
+      id: "squat",
+      name: "Back Squat",
+      movement_pattern: "squat",
+      muscle_groups: ["legs"],
+      modality: "strength",
+      equipment_required: ["barbell"],
+      difficulty: 2,
+      time_cost: "medium",
+      tags: { goal_tags: ["athleticism"], attribute_tags: ["squat_pattern"] },
+    };
+    const input: GenerateWorkoutInput = {
+      duration_minutes: 45,
+      primary_goal: "athletic_performance",
+      energy_level: "medium",
+      available_equipment: ["barbell"],
+      injuries_or_constraints: [],
+      session_intent: {
+        selected_goals: ["athletic_performance"],
+        selected_sports: ["basketball"],
+        goal_sub_focus_by_goal: {},
+        sport_sub_focus_by_sport: { basketball: ["vertical_jump", "core_stability"] },
+        ranked_intent_entries: [
+          { kind: "goal", slug: "athletic_performance", rank: 1, weight: 0.5, tag_slugs: ["athleticism", "power"] },
+          {
+            kind: "sport_sub_focus",
+            slug: "vertical_jump",
+            parent_slug: "basketball",
+            rank: 2,
+            weight: 0.25,
+            tag_slugs: ["nonexistent_tag_for_test"],
+          },
+        ],
+      },
+    };
+    const links = buildWorkoutItemSessionIntentLinks(ex, input, "main_strength");
+    expect(links.declared_sport_sub_focuses?.length).toBe(2);
+    expect(links.declared_sport_sub_focuses?.some((d) => d.slug === "vertical_jump")).toBe(true);
   });
 
   it("exerciseSatisfiesSessionIntent accepts sport-tagged exercises when sport_slugs set", () => {
