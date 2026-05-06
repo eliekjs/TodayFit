@@ -75,6 +75,63 @@ const SYNTH_RUGBY_SPEED: Exercise = {
   impact_level: "medium",
 };
 
+const CLIMBING_PROPORTION_EXERCISES: Exercise[] = [
+  "lockoff_pull",
+  "finger_grip_curl",
+  "scapular_pull",
+  "hollow_body_lockoff",
+  "forearm_pronation",
+  "cable_high_row_climb",
+].map((id, idx) => ({
+  id: `synth_climb_${id}`,
+  name: `Synthetic Climb ${idx + 1}`,
+  movement_pattern: idx % 3 === 0 ? "pull" : idx % 3 === 1 ? "carry" : "rotate",
+  muscle_groups: ["back", "arms", "core"],
+  modality: idx % 2 === 0 ? "strength" : "hypertrophy",
+  equipment_required: idx % 2 === 0 ? ["bodyweight"] : ["dumbbells"],
+  difficulty: 2,
+  time_cost: "low",
+  tags: {
+    goal_tags: ["hypertrophy", "strength"],
+    sport_tags: ["rock_climbing"],
+    energy_fit: ["low", "medium", "high"],
+    stimulus: ["grip"],
+    attribute_tags: ["grip_strength", "lockoff_strength", "scapular_control"],
+  },
+  exercise_role: idx < 2 ? "accessory" : "main_compound",
+  primary_movement_family: "upper_pull",
+  stability_demand: "medium",
+  grip_demand: "high",
+})) as Exercise[];
+
+const RUGBY_PROPORTION_EXERCISES: Exercise[] = [
+  "sprint_bound",
+  "decel_split_squat",
+  "lateral_shuttle",
+  "reactive_step_drop",
+  "single_leg_power",
+].map((id, idx) => ({
+  id: `synth_rugby_${id}`,
+  name: `Synthetic Rugby ${idx + 1}`,
+  movement_pattern: idx % 2 === 0 ? "locomotion" : "squat",
+  muscle_groups: ["legs", "core"],
+  modality: "strength",
+  equipment_required: ["bodyweight"],
+  difficulty: 2,
+  time_cost: "low",
+  tags: {
+    goal_tags: ["athleticism", "power"],
+    sport_tags: ["rugby"],
+    energy_fit: ["low", "medium", "high"],
+    stimulus: ["plyometric"],
+    attribute_tags: ["speed", "explosive_power"],
+  },
+  exercise_role: idx < 2 ? "accessory" : "main_compound",
+  primary_movement_family: "lower_body",
+  stability_demand: "medium",
+  impact_level: "medium",
+})) as Exercise[];
+
 describe("sport sub-focus session coverage", () => {
   it("sport sub-focus tag map + sport tag for coverage vs tag-only match", () => {
     expect(exerciseMatchesSportSubFocusSlug(SYNTH_RUGBY_SPEED, "rugby", "speed_power")).toBe(true);
@@ -137,5 +194,83 @@ describe("sport sub-focus session coverage", () => {
     const coverageBlock = session.blocks.find((b) => b.title === "Sport intent coverage");
     expect(coverageBlock).toBeTruthy();
     expect(coverageBlock!.items.some((i) => i.exercise_id === SYNTH_RUGBY_SPEED.id)).toBe(true);
+  });
+
+  it.each([
+    { sportWeight: 0.2 },
+    { sportWeight: 0.35 },
+    { sportWeight: 0.5 },
+    { sportWeight: 0.65 },
+    { sportWeight: 0.8 },
+  ])("repairs selected exercises so climbing share is represented for sportWeight=$sportWeight", ({ sportWeight }) => {
+    const prefs: ManualPreferences = {
+      primaryFocus: ["Build Muscle (Hypertrophy)"],
+      targetBody: "Full body",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      subFocusByGoal: {},
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    };
+
+    const sportCtx: SportGoalContext = {
+      sport_slugs: ["rock_climbing"],
+      sport_weight: sportWeight,
+      goal_weights: [1],
+    };
+
+    const input = manualPreferencesToGenerateWorkoutInput(prefs, GYM, 88_001, undefined, sportCtx);
+    const session = generateWorkoutSession(input, [...STUB_EXERCISES, ...CLIMBING_PROPORTION_EXERCISES]);
+    const trainingItems = session.blocks
+      .filter((b) => b.block_type !== "warmup" && b.block_type !== "cooldown")
+      .flatMap((b) => b.items);
+
+    const climbingTagged = trainingItems.filter((item) =>
+      (item.session_intent_links?.sport_slugs ?? []).includes("rock_climbing")
+    );
+
+    const target = Math.round(trainingItems.length * sportWeight);
+    expect(climbingTagged.length).toBeGreaterThanOrEqual(Math.max(1, target));
+  });
+
+  it("handles multi-sport proportional coverage (rock_climbing + rugby) at 70% sport share", () => {
+    const prefs: ManualPreferences = {
+      primaryFocus: ["Build Muscle (Hypertrophy)"],
+      targetBody: "Full body",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      subFocusByGoal: {},
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    };
+    const sportCtx: SportGoalContext = {
+      sport_slugs: ["rock_climbing", "rugby"],
+      sport_weight: 0.7,
+      goal_weights: [1],
+    };
+    const input = manualPreferencesToGenerateWorkoutInput(prefs, GYM, 88_002, undefined, sportCtx);
+    const session = generateWorkoutSession(input, [
+      ...STUB_EXERCISES,
+      ...CLIMBING_PROPORTION_EXERCISES,
+      ...RUGBY_PROPORTION_EXERCISES,
+    ]);
+    const trainingItems = session.blocks
+      .filter((b) => b.block_type !== "warmup" && b.block_type !== "cooldown")
+      .flatMap((b) => b.items);
+    const climbing = trainingItems.filter((item) =>
+      (item.session_intent_links?.sport_slugs ?? []).includes("rock_climbing")
+    ).length;
+    const rugby = trainingItems.filter((item) =>
+      (item.session_intent_links?.sport_slugs ?? []).includes("rugby")
+    ).length;
+    const perSportTarget = Math.floor((trainingItems.length * 0.7) / 2);
+    expect(climbing).toBeGreaterThanOrEqual(Math.max(1, perSportTarget));
+    expect(rugby).toBeGreaterThanOrEqual(Math.max(1, perSportTarget));
   });
 });

@@ -188,6 +188,8 @@ export default function ExecuteScreen() {
       {
         energyLevel,
         swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+        workoutTier: manualPreferences.workoutTier ?? "intermediate",
+        includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
       },
       swapSuggestionPage
     ).then(
@@ -201,7 +203,14 @@ export default function ExecuteScreen() {
     return () => {
       cancelled = true;
     };
-  }, [swapModal?.exerciseId, swapModal?.blockType, manualPreferences.energyLevel, swapSuggestionPage]);
+  }, [
+    swapModal?.exerciseId,
+    swapModal?.blockType,
+    manualPreferences.energyLevel,
+    manualPreferences.workoutTier,
+    manualPreferences.includeCreativeVariations,
+    swapSuggestionPage,
+  ]);
 
   const onSwapChoose = (optionId: string, optionName: string) => {
     if (!generatedWorkout || !swapModal) return;

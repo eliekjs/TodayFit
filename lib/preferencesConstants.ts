@@ -33,6 +33,8 @@ export const GOAL_SLUG_TO_LABEL: Record<string, string> = {
 export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   "Build Strength": "strength",
   "Build Muscle (Hypertrophy)": "muscle",
+  /** Normalized bias label from older UI strings */
+  Hypertrophy: "muscle",
   "Body Recomp (fat loss & muscle gain)": "physique",
   // Backward-compat for persisted presets created before rename.
   "Body Recomposition": "physique",
@@ -153,6 +155,20 @@ export const ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY: Record<string, string> = {
   mobility: "Mobility & Joint Health",
   physique: "Body Recomp (fat loss & muscle gain)",
   resilience: "Recovery",
+  conditioning: "Sport Conditioning",
+};
+
+/**
+ * Map day-level goal bias chips → canonical Manual primary-focus label for the generator.
+ * Keeps `Build Muscle (Hypertrophy)` so adapter maps to hypertrophy, not strength.
+ */
+export const GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL: Record<string, string> = {
+  strength: "Build Strength",
+  hypertrophy: "Build Muscle (Hypertrophy)",
+  endurance: "Improve Endurance",
+  mobility: "Mobility & Joint Health",
+  recovery: "Recovery",
+  power: "Power & Explosiveness",
 };
 
 /** Build goal sub-focus map for `planWeek` / workout builder from Sport Mode goals + saved preferences. */

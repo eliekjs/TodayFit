@@ -40,7 +40,12 @@ import {
   UPCOMING_OPTIONS,
   SUB_FOCUS_BY_PRIMARY,
   normalizeGoalMatchPct,
+  PRIMARY_FOCUS_TO_GOAL_SLUG,
 } from "../../../lib/preferencesConstants";
+import {
+  computeDeclaredIntentSplitFromPrefs,
+  buildWorkoutIntentTitle,
+} from "../../../lib/workoutIntentSplit";
 import type { TargetBody } from "../../../lib/types";
 
 if (
@@ -431,11 +436,29 @@ export default function ManualPreferencesScreen() {
       ? "None"
       : `${manualPreferences.upcoming.length} picked`;
 
+  const prefsFocusSplit = (() => {
+    const goalLabels = manualPreferences.primaryFocus.slice(0, 3);
+    if (goalLabels.length === 0) return [];
+    const goalSlugs = goalLabels.map((l) => PRIMARY_FOCUS_TO_GOAL_SLUG[l] ?? "strength");
+    return computeDeclaredIntentSplitFromPrefs({
+      sportSlugs: [],
+      goalSlugs,
+      sportVsGoalPct: 0,
+      goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+      goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+      goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+    });
+  })();
+  const prefsWorkoutTitle =
+    prefsFocusSplit.length > 0 ? buildWorkoutIntentTitle(prefsFocusSplit) : undefined;
+
   if (isGenerating) {
     return (
       <GenerationLoadingScreen
         message="Building your session…"
         subtitle="Matching movements to your gym and goals."
+        focusSplit={prefsFocusSplit.length > 0 ? prefsFocusSplit : undefined}
+        workoutTitle={prefsWorkoutTitle}
       />
     );
   }

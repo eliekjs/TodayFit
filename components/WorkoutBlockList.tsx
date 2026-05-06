@@ -154,6 +154,50 @@ function IntentChips({
   );
 }
 
+function BlockGoalBadge({
+  block,
+  theme,
+}: {
+  block: WorkoutBlock;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  const intent = block.goal_intent;
+  if (!intent) return null;
+
+  const goalLabel = _humanizeGoalSlug(intent.goal_slug);
+  const subLabel = intent.sub_focus_slug ? _humanizeGoalSlug(intent.sub_focus_slug) : null;
+  const label = subLabel ? `${goalLabel} · ${subLabel}` : goalLabel;
+
+  return (
+    <View style={blockGoalStyles.row}>
+      <View style={[blockGoalStyles.badge, { backgroundColor: theme.primarySoft, borderColor: theme.primary }]}>
+        <Text style={[blockGoalStyles.badgeText, { color: theme.primary }]}>
+          {label.toUpperCase()}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const blockGoalStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    marginBottom: 8,
+    marginTop: 2,
+  },
+  badge: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.7,
+  },
+});
+
 const intentStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
@@ -188,7 +232,12 @@ const intentStyles = StyleSheet.create({
 export type WorkoutBlockListProps = {
   workout: GeneratedWorkout;
   showSwap?: boolean;
-  onSwap?: (exerciseId: string, exerciseName: string, blockType: BlockType) => void;
+  onSwap?: (
+    exerciseId: string,
+    exerciseName: string,
+    blockType: BlockType,
+    swapPoolExerciseIds?: string[]
+  ) => void;
   showTags?: boolean;
   /** Optional notes per exercise id (e.g. from completed workout history). */
   exerciseNotes?: Record<string, string>;
@@ -223,6 +272,7 @@ export function WorkoutBlockList({
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               {block.title ?? block.block_type}
             </Text>
+            <BlockGoalBadge block={block} theme={theme} />
             {renderBlockContent(
               block,
               block.block_type,
@@ -244,7 +294,14 @@ function renderBlockContent(
   blockType: BlockType,
   theme: ReturnType<typeof useTheme>,
   showSwap: boolean,
-  onSwap: ((exerciseId: string, exerciseName: string, blockType: BlockType) => void) | undefined,
+  onSwap:
+    | ((
+        exerciseId: string,
+        exerciseName: string,
+        blockType: BlockType,
+        swapPoolExerciseIds?: string[]
+      ) => void)
+    | undefined,
   showTags: boolean,
   exerciseNotes?: Record<string, string>
 ) {
@@ -310,11 +367,18 @@ function renderBlockContent(
                   </View>
                   {showSwap && onSwap && (
                     <Pressable
-                      onPress={() => onSwap(item.exercise_id, item.exercise_name, blockType)}
+                      onPress={() =>
+                        onSwap(
+                          item.exercise_id,
+                          item.exercise_name,
+                          blockType,
+                          block.goal_intent?.swap_pool_exercise_ids
+                        )
+                      }
                       style={[styles.swapBtn, { borderColor: theme.border }]}
                     >
                       <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>
-                        Swap
+                        Swap exercise
                       </Text>
                     </Pressable>
                   )}
@@ -357,11 +421,18 @@ function renderBlockContent(
           </View>
           {showSwap && onSwap && (
             <Pressable
-              onPress={() => onSwap(item.exercise_id, item.exercise_name, blockType)}
+              onPress={() =>
+                onSwap(
+                  item.exercise_id,
+                  item.exercise_name,
+                  blockType,
+                  block.goal_intent?.swap_pool_exercise_ids
+                )
+              }
               style={[styles.swapBtn, { borderColor: theme.border }]}
             >
               <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>
-                Swap
+                Swap exercise
               </Text>
             </Pressable>
           )}

@@ -11,7 +11,7 @@ import {
   type IntentKey,
 } from "./weeklyEmphasis";
 import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../lib/dayTitle";
-import { GOAL_SLUG_TO_LABEL, GOAL_SLUG_TO_PRIMARY_FOCUS } from "../../lib/preferencesConstants";
+import { GOAL_SLUG_TO_LABEL, GOAL_SLUG_TO_PRIMARY_FOCUS, GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL } from "../../lib/preferencesConstants";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus";
 import { sessionIntentContractForSportSlug } from "../../logic/workoutGeneration/sessionIntentContract";
 import {
@@ -203,6 +203,8 @@ export type RegenerateDayInput = {
   includeCreativeVariations?: boolean;
   /** Override preferences for this single workout (goal, body region, energy, style). */
   dailyPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
+  /** Penalize re-picking these exercise ids (same-day regenerate variety). */
+  avoidRepeatingExerciseIds?: string[];
 };
 
 export type RegenerateDayResult = {
@@ -1507,9 +1509,11 @@ export async function regenerateDay(
     const sessionIntent = sessionIntentForKey(key, input.date, 60, energy);
     const bodyRegionBias = bodyRegionBiasFromDailyPreferences(input.dailyPreferences);
     if (input.dailyPreferences?.goalBias) {
+      const bias = input.dailyPreferences.goalBias;
       sessionIntent.focus = [
-        GOAL_SLUG_TO_PRIMARY_FOCUS[input.dailyPreferences.goalBias] ??
-          GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ??
+        GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL[bias] ??
+          GOAL_SLUG_TO_PRIMARY_FOCUS[bias] ??
+          GOAL_BIAS_TO_LABEL[bias] ??
           sessionIntent.focus?.[0] ??
           "Build Strength",
       ];
@@ -1547,6 +1551,8 @@ export async function regenerateDay(
           ? { subFocusByGoal: input.subFocusByGoal }
           : {}),
         ...(regContractGuest ? { session_intent_contract: regContractGuest } : {}),
+        regenerationAvoidExerciseIds:
+          input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
       }
     );
     const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1567,6 +1573,10 @@ export async function regenerateDay(
       daySpecificBodyFocuses: input.dailyPreferences?.specificBodyFocus ?? null,
       displayTitle,
     };
+    const guestPrefs =
+      input.dailyPreferences && Object.keys(input.dailyPreferences).length > 0
+        ? input.dailyPreferences
+        : undefined;
     const day: PlannedDay = {
       id: `guest-${input.date}`,
       date: input.date,
@@ -1575,6 +1585,7 @@ export async function regenerateDay(
       status: "planned",
       generatedWorkoutId: null,
       dayLevelFocus,
+      ...(guestPrefs ? { preferences: guestPrefs } : {}),
     };
     return { day, workout };
   }
@@ -1611,9 +1622,11 @@ export async function regenerateDay(
     energy
   );
   if (input.dailyPreferences?.goalBias) {
+    const bias = input.dailyPreferences.goalBias;
     sessionIntent.focus = [
-      GOAL_SLUG_TO_PRIMARY_FOCUS[input.dailyPreferences.goalBias] ??
-        GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ??
+      GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL[bias] ??
+        GOAL_SLUG_TO_PRIMARY_FOCUS[bias] ??
+        GOAL_BIAS_TO_LABEL[bias] ??
         sessionIntent.focus?.[0] ??
         "Build Strength",
     ];
@@ -1653,6 +1666,8 @@ export async function regenerateDay(
         ? { subFocusByGoal: input.subFocusByGoal }
         : {}),
       ...(regContractDb ? { session_intent_contract: regContractDb } : {}),
+      regenerationAvoidExerciseIds:
+        input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
     }
   );
   const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1688,6 +1703,11 @@ export async function regenerateDay(
     displayTitle: title,
   };
 
+  const dbPrefs =
+    input.dailyPreferences && Object.keys(input.dailyPreferences).length > 0
+      ? input.dailyPreferences
+      : undefined;
+
   const day: PlannedDay = {
     id: updated.id as string,
     date: updated.date as string,
@@ -1696,6 +1716,7 @@ export async function regenerateDay(
     status: (updated.status as "planned" | "completed" | "skipped") ?? "planned",
     generatedWorkoutId: (updated.generated_workout_id as string) ?? null,
     dayLevelFocus,
+    ...(dbPrefs ? { preferences: dbPrefs } : {}),
   };
 
   return {

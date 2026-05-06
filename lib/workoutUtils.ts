@@ -1,5 +1,26 @@
 import type { GeneratedWorkout, WorkoutItem, WorkoutBlock } from "./types";
 
+/** All exercise ids in a generated workout (main + supersets), in block order. */
+export function collectWorkoutExerciseIds(workout: GeneratedWorkout | null | undefined): string[] {
+  if (!workout?.blocks?.length) return [];
+  const out: string[] = [];
+  for (const block of workout.blocks) {
+    const pairs = block.supersetPairs;
+    if (pairs?.length) {
+      for (const pair of pairs) {
+        for (const item of pair) {
+          if (item.exercise_id) out.push(item.exercise_id);
+        }
+      }
+      continue;
+    }
+    for (const item of block.items ?? []) {
+      if (item.exercise_id) out.push(item.exercise_id);
+    }
+  }
+  return out;
+}
+
 /**
  * Replace one exercise with another across all blocks and superset pairs.
  * Preserves prescription (sets, reps, etc.) for the slot.

@@ -9,6 +9,7 @@ import type { WorkoutBlock } from "../../lib/types";
 import type { Exercise } from "./types";
 import type { GenerateWorkoutInput } from "./types";
 import {
+  allocateFitnessGoalsToSlots,
   annotateSessionIntentLinksOnBlocks,
   buildFallbackSessionIntentLinks,
   buildWorkoutItemSessionIntentLinks,
@@ -113,6 +114,17 @@ describe("sessionIntentCoverage", () => {
     const keys = new Set(rows.map((r) => `${r.parent_slug}:${r.slug}`));
     expect(keys.has("trail_running:uphill_endurance")).toBe(true);
     expect(keys.has("trail_running:ankle_stability")).toBe(true);
+  });
+
+  it("allocateFitnessGoalsToSlots respects weights (10 slots, 50/30/20)", () => {
+    const goals = ["strength", "hypertrophy", "endurance"] as const;
+    const weights = [0.5, 0.3, 0.2];
+    const seq = allocateFitnessGoalsToSlots([...goals], weights, 10, 42);
+    const counts = { strength: 0, hypertrophy: 0, endurance: 0 };
+    for (const g of seq) counts[g as keyof typeof counts]++;
+    expect(counts.strength).toBe(5);
+    expect(counts.hypertrophy).toBe(3);
+    expect(counts.endurance).toBe(2);
   });
 
   it("buildFallbackSessionIntentLinks carries declared sport sub-focuses without exercise metadata", () => {

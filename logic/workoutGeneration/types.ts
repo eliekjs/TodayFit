@@ -347,7 +347,13 @@ export type GenerateWorkoutInput = {
 // --- Output contract (aligned with lib/types for GeneratedWorkout.blocks) ---
 import type { WorkoutBlock as LibWorkoutBlock } from "../../lib/types";
 import type { HikingSessionEnforcementSnapshot } from "./sportPatternTransfer/types";
-export type { BlockType, BlockFormat, WorkoutItem, WorkoutBlock } from "../../lib/types";
+export type {
+  BlockType,
+  BlockFormat,
+  WorkoutItem,
+  WorkoutBlock,
+  WorkoutBlockGoalIntent,
+} from "../../lib/types";
 
 export type ScoringDebug = {
   exercise_id: string;

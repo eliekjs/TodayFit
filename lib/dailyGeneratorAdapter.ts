@@ -231,7 +231,14 @@ function primaryFocusLabelToGoal(label: string): PrimaryGoal {
   if (label === "Sport preparation") return "athletic_performance";
   // Power & Explosiveness must map to power (its goal slug is "conditioning" for sub-focus tags only).
   if (label.includes("Power")) return "power";
-  const slug = PRIMARY_FOCUS_TO_GOAL_SLUG[label] ?? "strength";
+  const lower = label.toLowerCase();
+  if (lower === "hypertrophy" || lower.includes("build muscle") || lower.includes("muscle (hypertrophy)")) {
+    return "hypertrophy";
+  }
+  if (lower.includes("endurance") || lower.includes("engine")) return "endurance";
+  if (lower.includes("mobility") || lower.includes("joint health")) return "mobility";
+  if (lower.includes("recovery") || lower.includes("prehab")) return "recovery";
+  const slug = PRIMARY_FOCUS_TO_GOAL_SLUG[label] ?? PRIMARY_FOCUS_TO_GOAL_SLUG[label.trim()] ?? "strength";
   const slugToGoal: Record<string, PrimaryGoal> = {
     strength: "strength",
     muscle: "hypertrophy",
@@ -272,6 +279,8 @@ export type SportGoalContext = {
   sport_sub_focus?: Record<string, string[]>;
   goal_weights?: number[];
   sport_weight?: number;
+  /** Penalize re-picking these ids on regenerate so the session visibly refreshes. */
+  regeneration_avoid_exercise_ids?: string[];
   /** Explicit sport-day intent (planner → generator); optional for non-sport modes. */
   session_intent_contract?: SessionIntentContract;
   /** When true, generator attaches `WorkoutSession.debug.intent_survival_report`. */
@@ -449,6 +458,20 @@ export function manualPreferencesToGenerateWorkoutInput(
     ),
   };
 
+  const avoidIds = sportGoalContext?.regeneration_avoid_exercise_ids?.filter(Boolean) ?? [];
+  const recent_history:
+    | import("../logic/workoutGeneration/types").RecentSessionSummary[]
+    | undefined =
+    avoidIds.length > 0
+      ? [
+          {
+            exercise_ids: avoidIds,
+            muscle_groups: [],
+            modality: "regeneration_penalty",
+          },
+        ]
+      : undefined;
+
   return {
     duration_minutes: durationMinutes,
     primary_goal,
@@ -457,6 +480,7 @@ export function manualPreferencesToGenerateWorkoutInput(
     energy_level: preferences.energyLevel ?? "medium",
     available_equipment,
     injuries_or_constraints,
+    recent_history,
     style_prefs: hasStylePrefs ? style_prefs : undefined,
     seed: seedNum,
     goal_sub_focus: Object.keys(goal_sub_focus).length ? goal_sub_focus : undefined,
@@ -543,6 +567,8 @@ const JOINT_STRESS_PREFIXES = [
 ];
 
 import { normalizeMatchableTagSlugs, normalizeSlug } from "./ontology";
+import { computeActualIntentSplit, computeDeclaredIntentSplit } from "./workoutIntentSplit";
+import { runIntentProportionGuardrail } from "../logic/workoutGeneration/intentProportionGuardrail";
 import {
   inferCreativeVariationFromSource,
   inferWorkoutLevelsFromExtendedSource,
@@ -896,12 +922,14 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
 
 /**
  * Convert WorkoutSession (dailyGenerator output) to GeneratedWorkout (app type).
- * Preserves blocks; adds id, focus, durationMinutes, energyLevel for the UI.
+ * Preserves blocks; adds id, focus, durationMinutes, energyLevel, intentSplit, and
+ * intentProportionCheck for the UI (pie chart, title, and alignment audit).
  */
 export function workoutSessionToGeneratedWorkout(
   session: WorkoutSession,
   preferences: ManualPreferences,
-  id?: string
+  id?: string,
+  generatorInput?: import("../logic/workoutGeneration/types").GenerateWorkoutInput
 ): GeneratedWorkout {
   const scores = session.debug?.sport_profile_exercise_scores;
   const blocks =
@@ -922,12 +950,40 @@ export function workoutSessionToGeneratedWorkout(
           }),
         }))
       : session.blocks;
+
+  const workoutId = id ?? `w_${Date.now()}`;
+  const focus = preferences.primaryFocus?.length ? preferences.primaryFocus : [session.title];
+  const generationPreferences = cloneManualPreferencesSnapshot(preferences);
+  const declaredIntentSplit = generatorInput
+    ? computeDeclaredIntentSplit(generatorInput)
+    : undefined;
+  const intentSplit = declaredIntentSplit
+    ? computeActualIntentSplit(
+        {
+          id: workoutId,
+          focus,
+          durationMinutes: session.estimated_duration_minutes,
+          energyLevel: preferences.energyLevel ?? null,
+          generationPreferences,
+          blocks,
+        },
+        declaredIntentSplit
+      )
+    : undefined;
+
+  const intentProportionCheck =
+    generatorInput && blocks.length > 0
+      ? runIntentProportionGuardrail(blocks as import("../lib/types").WorkoutBlock[], generatorInput)
+      : undefined;
+
   return {
-    id: id ?? `w_${Date.now()}`,
-    focus: preferences.primaryFocus?.length ? preferences.primaryFocus : [session.title],
+    id: workoutId,
+    focus,
     durationMinutes: session.estimated_duration_minutes,
     energyLevel: preferences.energyLevel ?? null,
-    generationPreferences: cloneManualPreferencesSnapshot(preferences),
+    generationPreferences,
     blocks,
+    ...(intentSplit ? { intentSplit } : {}),
+    ...(intentProportionCheck ? { intentProportionCheck } : {}),
   };
 }

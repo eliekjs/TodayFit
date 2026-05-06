@@ -19,6 +19,7 @@ import {
 import type { BlockType } from "../../../lib/types";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
+import { buildWorkoutIntentTitle } from "../../../lib/workoutIntentSplit";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -38,6 +39,7 @@ export default function ManualWorkoutScreen() {
     exerciseId: string;
     exerciseName: string;
     blockType: BlockType;
+    swapPoolExerciseIds?: string[];
   } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
@@ -60,6 +62,9 @@ export default function ManualWorkoutScreen() {
       {
         energyLevel,
         swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+        swapPoolExerciseIds: swapModal.swapPoolExerciseIds,
+        workoutTier: manualPreferences.workoutTier ?? "intermediate",
+        includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
       },
       swapSuggestionPage
     ).then(
@@ -73,7 +78,15 @@ export default function ManualWorkoutScreen() {
     return () => {
       cancelled = true;
     };
-  }, [swapModal?.exerciseId, swapModal?.blockType, manualPreferences.energyLevel, swapSuggestionPage]);
+  }, [
+    swapModal?.exerciseId,
+    swapModal?.blockType,
+    swapModal?.swapPoolExerciseIds,
+    manualPreferences.energyLevel,
+    manualPreferences.workoutTier,
+    manualPreferences.includeCreativeVariations,
+    swapSuggestionPage,
+  ]);
 
   const activeProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
@@ -126,6 +139,9 @@ export default function ManualWorkoutScreen() {
       summaryLines.push(`${e.charAt(0).toUpperCase()}${e.slice(1)} energy`);
     }
   }
+
+  const intentSplit = generatedWorkout.intentSplit;
+  const workoutTitle = intentSplit ? buildWorkoutIntentTitle(intentSplit) : null;
 
   const onRegenerate = async () => {
     setIsRegenerating(true);
@@ -182,7 +198,7 @@ export default function ManualWorkoutScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Card
-          title="Summary"
+          title={workoutTitle ?? "Summary"}
           subtitle={summaryLines.join(" • ")}
           style={styles.summaryCard}
         />
@@ -190,8 +206,8 @@ export default function ManualWorkoutScreen() {
         <WorkoutBlockList
           workout={generatedWorkout}
           showSwap
-          onSwap={(exerciseId, exerciseName, blockType) =>
-            setSwapModal({ exerciseId, exerciseName, blockType })
+          onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds) =>
+            setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds })
           }
         />
 

@@ -303,6 +303,18 @@ export type WorkoutItem = {
   };
 };
 
+/** When set, this block was built for a specific session goal / sub-focus; swaps should prefer `swap_pool_exercise_ids`. */
+export type WorkoutBlockGoalIntent = {
+  /** Primary goal slug (e.g. strength, hypertrophy). */
+  goal_slug: string;
+  /** Sub-focus slug under `goal_sub_focus` (e.g. squat, chest). */
+  sub_focus_slug?: string;
+  /** Key in `goal_sub_focus` / manual adapter (e.g. strength, muscle). */
+  goal_sub_focus_key?: string;
+  /** Exercises that matched this section’s intent pool at generation time (for swap UI). */
+  swap_pool_exercise_ids: string[];
+};
+
 export type WorkoutBlock = {
   block_type: BlockType;
   format: BlockFormat;
@@ -312,6 +324,8 @@ export type WorkoutBlock = {
   estimated_minutes?: number;
   /** For UI: "A ↔ B" pairing on main block. */
   supersetPairs?: [WorkoutItem, WorkoutItem][];
+  /** Optional: this block is dedicated to one goal/sub-focus; drives swap pool. */
+  goal_intent?: WorkoutBlockGoalIntent;
 };
 
 export type GeneratedWorkout = {
@@ -323,6 +337,36 @@ export type GeneratedWorkout = {
   blocks: WorkoutBlock[];
   /** Preferences used to generate this workout (accurate summary; avoids showing implicit defaults as “selected”). */
   generationPreferences?: ManualPreferences;
+  /**
+   * Declared intent split: top-3 focus areas (sport + goal) by percentage.
+   * Computed from session_intent at generation time; drives the pie chart and workout title.
+   */
+  intentSplit?: Array<{
+    slug: string;
+    label: string;
+    pct: number;
+    weight: number;
+    kind: "sport" | "goal";
+    color: string;
+  }>;
+  /**
+   * Post-generation proportion check: declared vs actual exercise split alignment.
+   * Populated by the guardrail after annotating session_intent_links.
+   */
+  intentProportionCheck?: {
+    overall_aligned: boolean;
+    max_delta_pct: number;
+    working_exercise_count: number;
+    checks: Array<{
+      slug: string;
+      kind: "sport" | "goal";
+      label: string;
+      declared_pct: number;
+      actual_pct: number;
+      delta_pct: number;
+      passes: boolean;
+    }>;
+  };
 };
 
 /** In-memory manual week: 7 generated workouts keyed by date. */
@@ -393,6 +437,8 @@ export function normalizeGeneratedWorkout(
     energyLevel: EnergyLevel | null;
     notes?: string;
     generationPreferences?: ManualPreferences;
+    intentSplit?: GeneratedWorkout["intentSplit"];
+    intentProportionCheck?: GeneratedWorkout["intentProportionCheck"];
     sections?: WorkoutSection[];
     blocks?: WorkoutBlock[];
   }
@@ -406,6 +452,8 @@ export function normalizeGeneratedWorkout(
       notes: workout.notes,
       generationPreferences: workout.generationPreferences,
       blocks: workout.blocks,
+      ...(workout.intentSplit ? { intentSplit: workout.intentSplit } : {}),
+      ...(workout.intentProportionCheck ? { intentProportionCheck: workout.intentProportionCheck } : {}),
     };
   }
   if (workout.sections?.length) {

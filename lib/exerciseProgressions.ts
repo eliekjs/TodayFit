@@ -1,9 +1,17 @@
-import type { BlockType, ExerciseDefinition } from "./types";
+import type { BlockType, ExerciseDefinition, WorkoutTierPreference } from "./types";
 import { getSubstitutes } from "./generation/exerciseSubstitution";
 import type { ExerciseLike } from "./generation/exerciseSubstitution";
 import { isCooldownEligibleEquipment, isWarmupEligibleEquipment } from "./workoutRules";
 import { isDbConfigured } from "./db";
 import { getExercise, getProgressionsRegressions, listExercises } from "./db/exerciseRepository";
+import {
+  exerciseMatchesWorkoutTier,
+  inferCreativeVariationFromSource,
+  inferWorkoutLevelsWithExplanation,
+  isComplexSkillLiftForNonAdvanced,
+  isHardBlockedForBeginnerTier,
+  type WorkoutLevelExtendedSource,
+} from "./workoutLevel";
 
 export type ProgressionsRegressionsOption = { id: string; name: string };
 
@@ -50,6 +58,23 @@ export type ProgressionsRegressionsOptions = {
   energyLevel?: "low" | "medium" | "high";
   /** Block context for swap UI: warmup = bodyweight/band activation only; cooldown = stretching only. */
   swapBlockRole?: SwapBlockRole;
+  /**
+   * When provided, candidates that carry at least one of these tag or modality slugs sort first
+   * (e.g. hypertrophy-aligned swaps for a hypertrophy-labelled exercise).
+   */
+  preferredGoalTagSlugs?: string[];
+  /**
+   * Match swap difficulty to the session’s experience tier (defaults to intermediate).
+   * Excludes advanced-only / complex skill lifts for non-advanced users, mirroring the generator.
+   */
+  workoutTier?: WorkoutTierPreference;
+  /** When false (default), omit creative/complex-variation swaps (same as generation without creative mode). */
+  includeCreativeVariations?: boolean;
+  /**
+   * When set (from `WorkoutBlock.goal_intent`), swap suggestions prefer exercises in this pool
+   * after tier/role filtering — same intent section as the original pick.
+   */
+  swapPoolExerciseIds?: string[];
 };
 
 /** Map workout block type to swap filtering (main work blocks use normal substitution rules). */
@@ -59,8 +84,156 @@ export function blockTypeToSwapBlockRole(blockType: BlockType | string): SwapBlo
   return "main";
 }
 
+/** Map generator / UI session goal slug to exercise tag slugs used for swap ranking. */
+export function generatorGoalToSwapTagSlugs(goal: string | undefined | null): string[] | undefined {
+  if (!goal) return undefined;
+  const g = goal.toLowerCase().replace(/\s/g, "_");
+  const map: Record<string, string[]> = {
+    strength: ["strength"],
+    hypertrophy: ["hypertrophy"],
+    muscle: ["hypertrophy"],
+    body_recomp: ["hypertrophy", "strength"],
+    conditioning: ["conditioning"],
+    endurance: ["endurance", "conditioning"],
+    mobility: ["mobility"],
+    recovery: ["recovery", "mobility"],
+    resilience: ["recovery"],
+    power: ["power", "plyometric"],
+    athletic_performance: ["athleticism", "strength", "power"],
+    calisthenics: ["strength", "hypertrophy"],
+    physique: ["hypertrophy", "strength"],
+  };
+  return map[g] ?? [g];
+}
+
+function exerciseDefMatchesGoalTags(def: ExerciseDefinition, slugs: string[]): boolean {
+  if (!slugs.length) return false;
+  const lower = new Set(tagSlugsLower(def.tags));
+  for (const m of def.modalities ?? []) lower.add(m.toLowerCase());
+  for (const s of slugs) {
+    if (lower.has(s.toLowerCase())) return true;
+  }
+  return false;
+}
+
 function tagSlugsLower(tags: string[] | undefined): string[] {
   return (tags ?? []).map((t) => t.toLowerCase());
+}
+
+function definitionToWorkoutLevelExtendedSource(def: ExerciseDefinition): WorkoutLevelExtendedSource {
+  return {
+    id: def.id,
+    name: def.name,
+    tags: def.tags ?? [],
+    workout_levels: def.workout_levels,
+    modality: def.modalities?.[0],
+    equipment_required: def.equipment,
+  };
+}
+
+/** Placeholder / junk rows that must never be offered as swaps (e.g. muscle-only OTA stubs). */
+export function isDisallowedSwapPlaceholder(def: ExerciseDefinition): boolean {
+  if (def.id === "glutes") return true;
+  const n = def.name.trim().toLowerCase();
+  if (n === "glutes") return true;
+  return false;
+}
+
+/**
+ * True when this catalog exercise is appropriate for the swap UI given session tier and creative prefs.
+ * Aligns with generator gates (tier overlap, complex lifts for non-advanced, creative tag).
+ */
+export function exerciseDefinitionEligibleForSwap(
+  def: ExerciseDefinition,
+  opts: { workoutTier: WorkoutTierPreference; includeCreativeVariations: boolean }
+): boolean {
+  if (isDisallowedSwapPlaceholder(def)) return false;
+  const tier = opts.workoutTier;
+  if (tier === "beginner") {
+    if (
+      isHardBlockedForBeginnerTier({
+        workout_level_tags: def.workout_levels,
+        difficulty: undefined,
+      })
+    ) {
+      return false;
+    }
+  }
+  if (tier !== "advanced") {
+    if (
+      isComplexSkillLiftForNonAdvanced({
+        id: def.id,
+        name: def.name,
+        tags: def.tags,
+        modality: def.modalities?.[0],
+      })
+    ) {
+      return false;
+    }
+  }
+  if (!opts.includeCreativeVariations) {
+    if (
+      inferCreativeVariationFromSource({
+        id: def.id,
+        name: def.name,
+        tags: def.tags ?? [],
+        workout_levels: def.workout_levels,
+      })
+    ) {
+      return false;
+    }
+  }
+  const inferred = inferWorkoutLevelsWithExplanation(definitionToWorkoutLevelExtendedSource(def));
+  return exerciseMatchesWorkoutTier(inferred.levels, tier);
+}
+
+function resolvedSwapSessionPrefs(opts: ProgressionsRegressionsOptions | undefined): {
+  workoutTier: WorkoutTierPreference;
+  includeCreativeVariations: boolean;
+} {
+  return {
+    workoutTier: opts?.workoutTier ?? "intermediate",
+    includeCreativeVariations: opts?.includeCreativeVariations === true,
+  };
+}
+
+function filterSwapOptionRows(
+  opts: ProgressionsRegressionsOptions | undefined,
+  rows: ProgressionsRegressionsOption[],
+  byId: Map<string, ExerciseDefinition>
+): ProgressionsRegressionsOption[] {
+  const { workoutTier, includeCreativeVariations } = resolvedSwapSessionPrefs(opts);
+  return rows.filter((o) => {
+    const def = byId.get(o.id);
+    if (!def) return false;
+    return exerciseDefinitionEligibleForSwap(def, { workoutTier, includeCreativeVariations });
+  });
+}
+
+function filterExerciseDefsForSwap(
+  opts: ProgressionsRegressionsOptions | undefined,
+  defs: ExerciseDefinition[]
+): ExerciseDefinition[] {
+  const { workoutTier, includeCreativeVariations } = resolvedSwapSessionPrefs(opts);
+  return defs.filter((d) =>
+    exerciseDefinitionEligibleForSwap(d, { workoutTier, includeCreativeVariations })
+  );
+}
+
+async function applyTierFilterToCombined(
+  exerciseId: string,
+  options: ProgressionsRegressionsOptions | undefined,
+  combined: ProgressionsRegressionsOption[]
+): Promise<ProgressionsRegressionsOption[]> {
+  if (!isDbConfigured() || combined.length === 0) return combined;
+  try {
+    const [targetDef, poolDefs] = await Promise.all([getExercise(exerciseId), listExercises()]);
+    if (!targetDef || !poolDefs?.length) return combined;
+    const byId = buildSlugToDefMap(poolDefs, targetDef);
+    return filterSwapOptionRows(options, combined, byId);
+  } catch {
+    return combined;
+  }
 }
 
 /**
@@ -147,7 +320,9 @@ async function expandSwapCandidatesList(
       /* keep combined */
     }
   }
-  if (!isDbConfigured() || combined.length >= MIN_EXPANDED_CANDIDATES) return combined;
+  if (!isDbConfigured() || combined.length >= MIN_EXPANDED_CANDIDATES) {
+    return combined;
+  }
   try {
     const [targetDef, poolDefs] = await Promise.all([
       getExercise(exerciseId),
@@ -159,6 +334,7 @@ async function expandSwapCandidatesList(
     if (role != null && role !== "main") {
       poolForSubs = poolDefs.filter((d) => exerciseMatchesSwapBlockRole(d, role));
     }
+    poolForSubs = filterExerciseDefsForSwap(options, poolForSubs);
     const pool = poolForSubs.map(definitionToExerciseLike);
     const existingIds = new Set<string>([exerciseId, ...combined.map((x) => x.id)]);
     const substitutes = getSubstitutes(target, pool, {
@@ -188,7 +364,37 @@ export async function getSwapSuggestionsPage(
   page: number
 ): Promise<{ suggestions: ProgressionsRegressionsOption[]; numPages: number }> {
   const res = await getProgressionsRegressionsForExercise(exerciseId, options);
-  const expanded = await expandSwapCandidatesList(exerciseId, options, res);
+  let expanded = await expandSwapCandidatesList(exerciseId, options, res);
+
+  if (options?.preferredGoalTagSlugs?.length && isDbConfigured()) {
+    try {
+      const poolDefs = await listExercises();
+      const byId = new Map(poolDefs.map((d) => [d.id, d]));
+      const want = options.preferredGoalTagSlugs.map((s) => s.toLowerCase());
+      const scored = expanded.map((o) => {
+        const d = byId.get(o.id);
+        return { o, match: d != null && exerciseDefMatchesGoalTags(d, want) };
+      });
+      scored.sort((a, b) => (a.match === b.match ? 0 : a.match ? -1 : 1));
+      expanded = scored.map((x) => x.o);
+    } catch {
+      /* keep order */
+    }
+  }
+
+  if (options?.swapPoolExerciseIds?.length) {
+    const poolSet = new Set(options.swapPoolExerciseIds);
+    const inPool: ProgressionsRegressionsOption[] = [];
+    const rest: ProgressionsRegressionsOption[] = [];
+    for (const o of expanded) {
+      if (poolSet.has(o.id)) inPool.push(o);
+      else rest.push(o);
+    }
+    expanded = [...inPool, ...rest];
+  }
+
+  expanded = await applyTierFilterToCombined(exerciseId, options, expanded);
+
   const numPages = Math.max(1, Math.ceil(expanded.length / SWAP_PAGE_SIZE));
   const safePage = ((page % numPages) + numPages) % numPages;
   const start = safePage * SWAP_PAGE_SIZE;
@@ -207,19 +413,23 @@ async function fillToAtLeastThree(
   const role = options?.swapBlockRole;
   let regressions = result.regressions;
   let progressions = result.progressions;
-  if (isDbConfigured() && role != null && role !== "main") {
+  if (isDbConfigured()) {
     try {
       const [targetDef, poolDefs] = await Promise.all([getExercise(exerciseId), listExercises()]);
       if (targetDef && poolDefs?.length) {
         const byId = buildSlugToDefMap(poolDefs, targetDef);
-        regressions = regressions.filter((o) => {
-          const def = byId.get(o.id);
-          return def != null && exerciseMatchesSwapBlockRole(def, role);
-        });
-        progressions = progressions.filter((o) => {
-          const def = byId.get(o.id);
-          return def != null && exerciseMatchesSwapBlockRole(def, role);
-        });
+        if (role != null && role !== "main") {
+          regressions = regressions.filter((o) => {
+            const def = byId.get(o.id);
+            return def != null && exerciseMatchesSwapBlockRole(def, role);
+          });
+          progressions = progressions.filter((o) => {
+            const def = byId.get(o.id);
+            return def != null && exerciseMatchesSwapBlockRole(def, role);
+          });
+        }
+        regressions = filterSwapOptionRows(options, regressions, byId);
+        progressions = filterSwapOptionRows(options, progressions, byId);
       }
     } catch {
       /* keep */
@@ -241,6 +451,7 @@ async function fillToAtLeastThree(
     if (role != null && role !== "main") {
       poolForSubs = poolDefs.filter((d) => exerciseMatchesSwapBlockRole(d, role));
     }
+    poolForSubs = filterExerciseDefsForSwap(options, poolForSubs);
     const pool = poolForSubs.map(definitionToExerciseLike);
     const substitutes = getSubstitutes(target, pool, {
       maxResults: MIN_SUGGESTIONS,
@@ -288,6 +499,7 @@ export async function getProgressionsRegressionsForExercise(
           if (options?.swapBlockRole && options.swapBlockRole !== "main") {
             poolForSubs = poolDefs.filter((d) => exerciseMatchesSwapBlockRole(d, options.swapBlockRole));
           }
+          poolForSubs = filterExerciseDefsForSwap(options, poolForSubs);
           const pool = poolForSubs.map(definitionToExerciseLike);
           const substitutes = getSubstitutes(target, pool, { maxResults: 5, energyLevel: options?.energyLevel });
           const similar = substitutes.map((s) => ({ id: s.exercise.id, name: s.exercise.name }));

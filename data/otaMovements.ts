@@ -5497,28 +5497,6 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "progressions": []
   },
   {
-    "id": "glutes",
-    "name": "Glutes",
-    "muscles": [
-      "legs"
-    ],
-    "modalities": [
-      "strength",
-      "hypertrophy"
-    ],
-    "equipment": [
-      "bodyweight"
-    ],
-    "tags": [
-      "ota_movements",
-      "strength",
-      "lower",
-      "posterior chain"
-    ],
-    "regressions": [],
-    "progressions": []
-  },
-  {
     "id": "goblet_squat",
     "name": "Goblet Squat",
     "muscles": [

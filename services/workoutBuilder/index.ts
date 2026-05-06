@@ -61,6 +61,8 @@ export type SportGoalOptions = {
   subFocusByGoal?: Record<string, string[]>;
   /** Populate `GenerateWorkoutInput.include_intent_survival_report` for debug tracing. */
   includeIntentSurvivalReport?: boolean;
+  /** Ids from the prior generated workout to penalize on regenerate (variety). */
+  regenerationAvoidExerciseIds?: string[];
 };
 
 /**
@@ -146,6 +148,8 @@ export async function buildWorkoutForSessionIntent(
               : undefined,
           sport_weight:
             options?.sportVsGoalPct != null ? options.sportVsGoalPct / 100 : undefined,
+          regeneration_avoid_exercise_ids:
+            options?.regenerationAvoidExerciseIds?.length ? options.regenerationAvoidExerciseIds : undefined,
           include_intent_survival_report: options?.includeIntentSurvivalReport === true,
           intent_survival_upstream:
             options?.includeIntentSurvivalReport === true

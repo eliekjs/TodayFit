@@ -29,6 +29,19 @@ import { GOAL_SLUG_TO_LABEL, goalSubFocusPayloadForAdaptiveGoals } from "../../.
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
+import { collectWorkoutExerciseIds, replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import {
+  getSwapSuggestionsPage,
+  blockTypeToSwapBlockRole,
+  generatorGoalToSwapTagSlugs,
+} from "../../../lib/exerciseProgressions";
+import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
+import type { BlockType } from "../../../lib/types";
+import {
+  computeDeclaredIntentSplitFromPrefs,
+  buildWorkoutIntentTitle,
+  type IntentSplitEntry,
+} from "../../../lib/workoutIntentSplit";
 
 function humanizeSportSlug(slug: string): string {
   return slug
@@ -66,6 +79,28 @@ function pickDefaultPlannedDay(plan: PlanWeekResult): PlannedDay | null {
   return plan.days[0] ?? null;
 }
 
+function assignedGoalForExercise(
+  workout: GeneratedWorkout | null,
+  exerciseId: string
+): string | undefined {
+  if (!workout?.blocks?.length) return undefined;
+  for (const b of workout.blocks) {
+    const pairs = b.supersetPairs;
+    if (pairs?.length) {
+      for (const pair of pairs) {
+        for (const it of pair) {
+          if (it.exercise_id === exerciseId) return it.session_intent_links?.goals?.[0];
+        }
+      }
+      continue;
+    }
+    for (const it of b.items ?? []) {
+      if (it.exercise_id === exerciseId) return it.session_intent_links?.goals?.[0];
+    }
+  }
+  return undefined;
+}
+
 const isWeb = Platform.OS === "web";
 
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -100,6 +135,16 @@ export default function AdaptiveWeekPlanScreen() {
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
   /** Override preferences for the selected day when regenerating (goal, body, intensity). */
   const [dailyPrefsOverride, setDailyPrefsOverride] = useState<DailyWorkoutPreferences | null>(null);
+  const [swapModal, setSwapModal] = useState<{
+    exerciseId: string;
+    exerciseName: string;
+    blockType: BlockType;
+    swapPoolExerciseIds?: string[];
+  } | null>(null);
+  const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
+  const [swapLoading, setSwapLoading] = useState(false);
+  const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
+  const [swapNumPages, setSwapNumPages] = useState(1);
 
   const todayIso = getTodayLocalDateString();
 
@@ -114,16 +159,53 @@ export default function AdaptiveWeekPlanScreen() {
       ? [snap.primaryGoalSlug, snap.secondaryGoalSlug, snap.tertiaryGoalSlug].filter(
           (g): g is string => Boolean(g)
         )
-      : (plan?.goalSlugs ?? []).filter((g): g is string => Boolean(g));
+      : [];
+    const goalIdsForSubFocus =
+      plan?.goalSlugs?.filter((g): g is string => Boolean(g)).length
+        ? (plan!.goalSlugs!.filter((g): g is string => Boolean(g)))
+        : snapshotGoalIds;
     return {
       gymProfile: snap?.gymProfile ?? activeProfile,
       injuries: snap?.injuries,
       subFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
-        snapshotGoalIds,
+        goalIdsForSubFocus,
         manualPreferences.subFocusByGoal
       ),
     };
   }, [sportPrepWeekPlan, activeProfile, manualPreferences.subFocusByGoal]);
+
+  /** Declared intent split for pie chart and workout title. */
+  const planFocusSplit = useMemo((): IntentSplitEntry[] => {
+    const plan = sportPrepWeekPlan;
+    if (!plan) return [];
+    const snap = plan.scheduleSnapshot;
+    const rankedSports = snap?.rankedSportSlugs ?? (plan.sportSlug ? [plan.sportSlug] : []);
+    const goalSlugs = plan.goalSlugs ?? [];
+
+    // Sport vs goal share: sportVsGoalPct from plan (default 50 when both sports and goals present)
+    const hasSport = rankedSports.length > 0;
+    const hasGoals = goalSlugs.length > 0;
+    const sportVsGoalPct =
+      hasSport && hasGoals
+        ? (plan.sportVsGoalPct ?? 50)
+        : hasSport
+          ? 100
+          : 0;
+
+    return computeDeclaredIntentSplitFromPrefs({
+      sportSlugs: rankedSports,
+      goalSlugs,
+      sportVsGoalPct,
+      goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
+      goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
+      goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+    });
+  }, [sportPrepWeekPlan, manualPreferences.goalMatchPrimaryPct, manualPreferences.goalMatchSecondaryPct, manualPreferences.goalMatchTertiaryPct]);
+
+  const planWorkoutTitle = useMemo(
+    () => (planFocusSplit.length > 0 ? buildWorkoutIntentTitle(planFocusSplit) : undefined),
+    [planFocusSplit]
+  );
 
   const focusSectionsForModal = useMemo((): FocusSection[] => {
     const plan = sportPrepWeekPlan;
@@ -334,6 +416,58 @@ export default function AdaptiveWeekPlanScreen() {
     });
   }, [sportPrepWeekPlan]);
 
+  useEffect(() => {
+    if (!swapModal) {
+      setSwapSuggested([]);
+      setSwapSuggestionPage(0);
+      setSwapNumPages(1);
+      return;
+    }
+    let cancelled = false;
+    setSwapLoading(true);
+    const energyLevel = manualPreferences.energyLevel ?? "medium";
+    const goal = assignedGoalForExercise(selectedWorkout, swapModal.exerciseId);
+    const preferredGoalTagSlugs = generatorGoalToSwapTagSlugs(goal);
+    const workoutTier =
+      sportPrepWeekPlan?.scheduleSnapshot?.workoutTier ??
+      manualPreferences.workoutTier ??
+      "intermediate";
+    const includeCreativeVariations =
+      (sportPrepWeekPlan?.scheduleSnapshot?.includeCreativeVariations ??
+        manualPreferences.includeCreativeVariations) === true;
+    getSwapSuggestionsPage(
+      swapModal.exerciseId,
+      {
+        energyLevel,
+        swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+        preferredGoalTagSlugs,
+        swapPoolExerciseIds: swapModal.swapPoolExerciseIds,
+        workoutTier,
+        includeCreativeVariations,
+      },
+      swapSuggestionPage
+    ).then(({ suggestions, numPages }) => {
+      if (cancelled) return;
+      setSwapSuggested(suggestions);
+      setSwapNumPages(numPages);
+      setSwapLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    swapModal?.exerciseId,
+    swapModal?.blockType,
+    swapModal?.swapPoolExerciseIds,
+    swapSuggestionPage,
+    manualPreferences.energyLevel,
+    manualPreferences.workoutTier,
+    manualPreferences.includeCreativeVariations,
+    sportPrepWeekPlan?.scheduleSnapshot?.workoutTier,
+    sportPrepWeekPlan?.scheduleSnapshot?.includeCreativeVariations,
+    selectedWorkout,
+  ]);
+
   /** Group sessions by date (7 day slots, Mon–Sun). Each slot can have one or more sessions. */
   const daySlots = useMemo(() => {
     if (!sportPrepWeekPlan) return [];
@@ -488,18 +622,13 @@ export default function AdaptiveWeekPlanScreen() {
           date: day.date,
           newDate,
         });
-        setSportPrepWeekPlan((current) => {
-          if (!current || current.weeklyPlanInstanceId !== previousPlan.weeklyPlanInstanceId) {
-            return current;
-          }
-          return {
-            ...current,
-            days: current.days.map((d) => (d.id === persisted.id ? { ...d, date: persisted.date } : d)),
-            today:
-              current.today?.id === persisted.id
-                ? { ...current.today, date: persisted.date }
-                : current.today,
-          };
+        setSportPrepWeekPlan({
+          ...previousPlan,
+          days: previousPlan.days.map((d) => (d.id === persisted.id ? { ...d, date: persisted.date } : d)),
+          today:
+            previousPlan.today?.id === persisted.id
+              ? { ...previousPlan.today, date: persisted.date }
+              : previousPlan.today,
         });
       } catch (e) {
         setSportPrepWeekPlan(previousPlan);
@@ -556,6 +685,9 @@ export default function AdaptiveWeekPlanScreen() {
       <GenerationLoadingScreen
         message="Regenerating your week…"
         subtitle="Rebuilding the plan around your priorities."
+        focusSplit={planFocusSplit.length > 0 ? planFocusSplit : undefined}
+        workoutTitle={planWorkoutTitle}
+        onGoBack={() => router.replace("/sport-mode")}
       />
     );
   }
@@ -565,6 +697,9 @@ export default function AdaptiveWeekPlanScreen() {
       <GenerationLoadingScreen
         message="Regenerating your workout…"
         subtitle="Refreshing this day’s session."
+        focusSplit={planFocusSplit.length > 0 ? planFocusSplit : undefined}
+        workoutTitle={planWorkoutTitle}
+        onGoBack={() => router.replace("/sport-mode")}
       />
     );
   }
@@ -575,17 +710,39 @@ export default function AdaptiveWeekPlanScreen() {
     setSelectedSession(session);
   };
 
+  const onSwapChoose = (optionId: string, optionName: string) => {
+    if (!sportPrepWeekPlan || !selectedDay || !selectedWorkout || !swapModal) return;
+    const updatedWorkout = replaceExerciseInWorkout(
+      normalizeGeneratedWorkout(selectedWorkout),
+      swapModal.exerciseId,
+      optionId,
+      optionName
+    );
+    const norm = normalizeGeneratedWorkout(updatedWorkout);
+    setSportPrepWeekPlan({
+      ...sportPrepWeekPlan,
+      guestWorkouts: {
+        ...(sportPrepWeekPlan.guestWorkouts ?? {}),
+        [selectedDay.id]: norm,
+        [selectedDay.date]: norm,
+      },
+      todayWorkout:
+        sportPrepWeekPlan.today?.id === selectedDay.id ? norm : sportPrepWeekPlan.todayWorkout,
+    });
+    setSelectedWorkout(norm);
+    setSwapModal(null);
+  };
+
   const onRegenerate = async () => {
     if (!sportPrepWeekPlan || !selectedDay) return;
     setError(null);
     setIsRegenerating(true);
     try {
-      // When user changed only one thing (e.g. intensity), merge with existing day goals/intent so the rest stay the same.
       const existingPrefs = deriveDailyPreferencesFromDay(selectedDay);
-      const mergedPrefs =
-        dailyPrefsOverride && Object.keys(dailyPrefsOverride).length > 0
-          ? { ...existingPrefs, ...dailyPrefsOverride }
-          : undefined;
+      const mergedDaily: DailyWorkoutPreferences = {
+        ...existingPrefs,
+        ...(dailyPrefsOverride ?? {}),
+      };
 
       const result = await regenerateDay({
         userId: userId ?? undefined,
@@ -605,7 +762,8 @@ export default function AdaptiveWeekPlanScreen() {
           manualPreferences.goalMatchSecondaryPct ?? 30,
           manualPreferences.goalMatchTertiaryPct ?? 20,
         ],
-        dailyPreferences: mergedPrefs,
+        dailyPreferences: mergedDaily,
+        avoidRepeatingExerciseIds: collectWorkoutExerciseIds(selectedWorkout),
         injuries: regenerateGeneratorContext.injuries,
         subFocusByGoal: regenerateGeneratorContext.subFocusByGoal,
         workoutTier:
@@ -644,7 +802,7 @@ export default function AdaptiveWeekPlanScreen() {
       setSportPrepWeekPlan(updatedPlan);
       setSelectedSession(result.day);
       setSelectedWorkout(result.workout);
-      setDailyPrefsOverride(null);
+      setDailyPrefsOverride(Object.keys(mergedDaily).length > 0 ? mergedDaily : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -851,13 +1009,28 @@ export default function AdaptiveWeekPlanScreen() {
       )}
       {!isLoadingWorkout && selectedWorkout && (
         <View style={{ marginTop: 16, gap: 16 }}>
+          {(() => {
+            const split = selectedWorkout.intentSplit ?? planFocusSplit;
+            const title = split.length > 0 ? buildWorkoutIntentTitle(split) : null;
+            return title ? (
+              <Text style={{ fontSize: 16, fontWeight: "700", color: theme.primary }}>
+                {title}
+              </Text>
+            ) : null;
+          })()}
           {selectedWorkout.durationMinutes != null ? (
             <Text style={[styles.sessionMeta, { color: theme.textMuted }]}>
               {selectedWorkout.durationMinutes} min
             </Text>
           ) : null}
 
-          <WorkoutBlockList workout={normalizeGeneratedWorkout(selectedWorkout)} />
+          <WorkoutBlockList
+              workout={normalizeGeneratedWorkout(selectedWorkout)}
+              showSwap
+              onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds) =>
+                setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds })
+              }
+            />
 
           <View style={styles.footer}>
             {selectedDay.status === "planned" ? (
@@ -948,6 +1121,18 @@ export default function AdaptiveWeekPlanScreen() {
         </View>
       )}
 
+      <SwapExerciseModal
+        visible={swapModal != null}
+        onClose={() => setSwapModal(null)}
+        exerciseId={swapModal?.exerciseId ?? ""}
+        exerciseName={swapModal?.exerciseName ?? ""}
+        suggested={swapSuggested}
+        loading={swapLoading}
+        onChoose={onSwapChoose}
+        moreSuggestionsAvailable={swapNumPages > 1}
+        onMoreSuggestions={() => setSwapSuggestionPage((p) => p + 1)}
+        loadingMoreSuggestions={swapLoading}
+      />
       <AdjustFocusModal
         visible={showAdjustFocusModal}
         onClose={() => setShowAdjustFocusModal(false)}

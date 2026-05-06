@@ -9,6 +9,7 @@ import type {
   GenerateWorkoutInput,
   WorkoutSession,
   WorkoutBlock,
+  WorkoutBlockGoalIntent,
   WorkoutItem,
   ScoringDebug,
   RegenerateMode,
@@ -2215,8 +2216,13 @@ function selectExercises(
     opts.blockType === "power"
       ? 5.5
       : 2.5;
+  // Activation: ontology + target-match bonuses can stack ~4–8pts ahead of otherwise-good prep moves,
+  // collapsing the randomized tier to a single exercise (often wall_slide). Widen band so seeded
+  // picks vary across sessions without relaxing filters.
+  const effectiveTierBand =
+    opts.blockType === "warmup" ? Math.max(tierBand, 10) : tierBand;
   const bestScore = topOverall[0]?.score ?? 0;
-  const tierThreshold = Math.max(0, bestScore - tierBand);
+  const tierThreshold = Math.max(0, bestScore - effectiveTierBand);
   const topTier = topOverall.filter((x) => x.score >= tierThreshold);
   const randomPoolSize = Math.min(50, Math.max(25, topTier.length));
   const randomPool = topTier.slice(0, randomPoolSize);
@@ -2341,7 +2347,7 @@ function selectExercises(
       chosen_exercise_ids: finalChosen.map((c) => c.id),
       chosen_why: finalChosen.map(
         (_, i) =>
-          `pick_${i + 1}: random_within_top_score_tier (band=${tierBand}); best_in_view≈${bestScore.toFixed(3)}`
+          `pick_${i + 1}: random_within_top_score_tier (band=${effectiveTierBand}); best_in_view≈${bestScore.toFixed(3)}`
       ),
     });
   }
@@ -2424,7 +2430,21 @@ function buildWarmup(
     preferredWarmupTargets.length > 0
       ? equipmentPool.filter((e) => exerciseWarmupTargetsOverlap(e, preferredWarmupTargets))
       : equipmentPool;
-  const finalPool = focusRelevantPool.length > 0 ? focusRelevantPool : equipmentPool;
+  let finalPool = focusRelevantPool.length > 0 ? focusRelevantPool : equipmentPool;
+  /** When ontology target overlap yields a thin list, scoring has few competitors; bulk up with warmup-eligible moves (selection still boosts matches via prefs). */
+  const MIN_ACTIVATION_CANDIDATE_POOL = 24;
+  if (finalPool.length > 0 && finalPool.length < MIN_ACTIVATION_CANDIDATE_POOL) {
+    const seen = new Set(finalPool.map((e) => e.id));
+    const merged = [...finalPool];
+    for (const e of equipmentPool) {
+      if (merged.length >= MIN_ACTIVATION_CANDIDATE_POOL) break;
+      if (!seen.has(e.id)) {
+        seen.add(e.id);
+        merged.push(e);
+      }
+    }
+    finalPool = merged;
+  }
 
   const count = input.duration_minutes <= 25 ? 1 : input.duration_minutes <= 40 ? 2 : 3;
   const movementCounts = new Map<string, number>();
@@ -2609,6 +2629,557 @@ function buildCooldown(
   };
 }
 
+// --- Goal-dedicated main blocks (≥2 sub-focuses; general sessions only — no sport-pattern transfer) ---
+const GOAL_DEDICATED_SWAP_POOL_CAP = 200;
+const GOAL_DEDICATED_SCORE_SHORTLIST = 12;
+
+type GoalDedicatedSubFocusEntry = { slug: string; goalKey: string; weight: number };
+
+function hasSportPatternTransferForGoalDedicated(input: GenerateWorkoutInput): boolean {
+  return (
+    hikingPatternTransferApplies(input) ||
+    roadRunningPatternTransferApplies(input) ||
+    trailRunningPatternTransferApplies(input) ||
+    soccerPatternTransferApplies(input) ||
+    rockClimbingPatternTransferApplies(input) ||
+    (resolveSnowSportKind(input) != null && snowSportBodyFocusAllows(input))
+  );
+}
+
+function getPrimarySubFocusWeightedEntriesDedicated(
+  input: GenerateWorkoutInput,
+  primary: PrimaryGoal
+): GoalDedicatedSubFocusEntry[] {
+  const gsf = input.goal_sub_focus ?? {};
+  const gw = input.goal_sub_focus_weights ?? {};
+  const keys = goalSubFocusKeysForPrimary(primary);
+  const raw: GoalDedicatedSubFocusEntry[] = [];
+  for (const goalKey of keys) {
+    const slugs = gsf[goalKey];
+    if (!slugs?.length) continue;
+    const weights = gw[goalKey] ?? slugs.map(() => 1 / slugs.length);
+    for (let i = 0; i < slugs.length; i++) {
+      raw.push({ slug: slugs[i]!, goalKey, weight: weights[i] ?? 0 });
+    }
+  }
+  const bySlug = new Map<string, GoalDedicatedSubFocusEntry>();
+  for (const e of raw) {
+    const prev = bySlug.get(e.slug);
+    if (!prev || e.weight > prev.weight) bySlug.set(e.slug, e);
+  }
+  return [...bySlug.values()].sort((a, b) => b.weight - a.weight);
+}
+
+/** Multiple sub-focuses with distinct sections + swap pools; not used for calisthenics or sport-transfer sessions. */
+export function shouldUseGoalDedicatedMainBlocks(input: GenerateWorkoutInput): boolean {
+  if (hasSportPatternTransferForGoalDedicated(input)) return false;
+  const primary = input.primary_goal;
+  if (primary !== "strength" && primary !== "hypertrophy" && primary !== "body_recomp") return false;
+  const entries = getPrimarySubFocusWeightedEntriesDedicated(input, primary);
+  const meaningful = entries.filter((e) => e.slug !== "balanced");
+  return meaningful.length >= 2;
+}
+
+function allocateSlotsBySubFocusWeights<T extends string>(
+  keys: T[],
+  weights: number[],
+  nSlots: number
+): Map<T, number> {
+  const out = new Map<T, number>();
+  if (nSlots <= 0 || keys.length === 0) return out;
+  const w =
+    weights.length === keys.length && weights.some((x) => x > 0)
+      ? [...weights]
+      : keys.map(() => 1 / keys.length);
+  const sumW = w.reduce((s, x) => s + x, 0);
+  const norm = sumW > 0 ? w.map((x) => x / sumW) : w.map(() => 1 / w.length);
+  const counts = norm.map((x) => Math.floor(nSlots * x));
+  const rem = nSlots - counts.reduce((s, c) => s + c, 0);
+  const fracs = norm.map((x, i) => ({ i, r: nSlots * x - counts[i]! }));
+  fracs.sort((a, b) => b.r - a.r);
+  for (let k = 0; k < rem; k++) {
+    counts[fracs[k % fracs.length]!.i]! += 1;
+  }
+  for (let i = 0; i < keys.length; i++) {
+    out.set(keys[i]!, counts[i]!);
+  }
+  return out;
+}
+
+function exerciseMatchesGoalDedicatedSubFocus(
+  ex: Exercise,
+  primary: PrimaryGoal,
+  goalKey: string,
+  slug: string
+): boolean {
+  if (primary === "hypertrophy") {
+    return exerciseMatchesHypertrophySubFocusSlug(ex, slug);
+  }
+  if (primary === "body_recomp") {
+    return (
+      exerciseMatchesHypertrophySubFocusSlug(ex, slug) ||
+      exerciseMatchesGoalSubFocusSlugUnified(ex, goalKey, slug)
+    );
+  }
+  return exerciseMatchesGoalSubFocusSlugUnified(ex, goalKey, slug);
+}
+
+function humanizeGoalDedicatedSlug(slug: string): string {
+  return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function capSwapPoolIds(ids: string[], cap: number): string[] {
+  return [...new Set(ids)].sort().slice(0, cap);
+}
+
+function pickFromScoredShortlistRandom(
+  pool: Exercise[],
+  input: GenerateWorkoutInput,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  count: number,
+  rng: () => number,
+  fatigueState: FatigueState | undefined,
+  selectionOptions: NonNullable<Parameters<typeof selectExercises>[7]>
+): Exercise[] {
+  if (count <= 0 || pool.length === 0) return [];
+  const opts = selectionOptions ?? {};
+  const sessionTargetVector = shouldUseSessionTargetVector(input)
+    ? buildSessionTargetVectorFromInput(input)
+    : undefined;
+  const scoreOpts: ScoreExerciseOptions = {
+    blockType: opts.blockType,
+    sessionFatigueRegions: opts.sessionFatigueRegions,
+    preferredWarmupCooldownTargets: opts.preferredWarmupCooldownTargets,
+    sessionMovementPatternCounts: opts.sessionMovementPatternCounts,
+    sessionHasBilateralLowerBody: opts.sessionHasBilateralLowerBody,
+    historyContext: opts.historyContext,
+    sessionTargetVector,
+    hikingPatternSlotRule: opts.hikingPatternSlotRule,
+    hikingPatternScoreMode: opts.hikingPatternScoreMode,
+    hikingQualityContext: opts.hikingQualityContext,
+    trailRunningPatternSlotRule: opts.trailRunningPatternSlotRule,
+    trailRunningPatternScoreMode: opts.trailRunningPatternScoreMode,
+    trailRunningQualityContext: opts.trailRunningQualityContext,
+    roadRunningPatternSlotRule: opts.roadRunningPatternSlotRule,
+    roadRunningPatternScoreMode: opts.roadRunningPatternScoreMode,
+    roadRunningQualityContext: opts.roadRunningQualityContext,
+    soccerPatternSlotRule: opts.soccerPatternSlotRule,
+    soccerPatternScoreMode: opts.soccerPatternScoreMode,
+    soccerQualityContext: opts.soccerQualityContext,
+    alpineSkiingPatternSlotRule: opts.alpineSkiingPatternSlotRule,
+    alpineSkiingPatternScoreMode: opts.alpineSkiingPatternScoreMode,
+    alpineSkiingQualityContext: opts.alpineSkiingQualityContext,
+    rockClimbingPatternSlotRule: opts.rockClimbingPatternSlotRule,
+    rockClimbingPatternScoreMode: opts.rockClimbingPatternScoreMode,
+    rockClimbingQualityContext: opts.rockClimbingQualityContext,
+    sportMainScoringMode: opts.sportMainScoringMode,
+  };
+
+  const scored = pool.map((ex) => ({
+    ex,
+    score: scoreExercise(ex, input, recentIds, movementCounts, fatigueState, scoreOpts).score,
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored.slice(0, Math.min(GOAL_DEDICATED_SCORE_SHORTLIST, scored.length)).map((x) => x.ex);
+  const arr = [...top];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const t = arr[i]!;
+    arr[i] = arr[j]!;
+    arr[j] = t;
+  }
+  const picked = arr.slice(0, Math.min(count, arr.length));
+  for (const ex of picked) {
+    movementCounts.set(ex.movement_pattern, (movementCounts.get(ex.movement_pattern) ?? 0) + 1);
+    if (opts.sessionFatigueRegions) addExerciseFatigueRegionsToSession(opts.sessionFatigueRegions, ex);
+  }
+  return picked;
+}
+
+/**
+ * Intent-aligned weights for superset pairing without calling `scoreExercise` (avoids cross-session
+ * side effects via rolling history when accessory picks change).
+ */
+export function buildSupersetIntentPreferenceScores(pool: Exercise[], input: GenerateWorkoutInput): Map<string, number> {
+  const prefWeights = buildPreferredTagWeightsFromSubFocus(input);
+  const stv = shouldUseSessionTargetVector(input) ? buildSessionTargetVectorFromInput(input) : undefined;
+  const sportSlugs = input.sport_slugs;
+  const primaryTags = goalToTags(input.primary_goal);
+  const map = new Map<string, number>();
+  for (const ex of pool) {
+    let s = 0;
+    const exSlugs = getExerciseTagSlugs(ex);
+    for (const [slug, w] of prefWeights) {
+      if (exSlugs.has(slug)) s += w;
+    }
+    for (const t of ex.tags.goal_tags ?? []) {
+      if (primaryTags.includes(t)) s += WEIGHT_PRIMARY_GOAL;
+    }
+    if (sportSlugs?.length) {
+      const exerciseSportTags = new Set(
+        (ex.tags.sport_tags ?? []).map((x) => tagToSlug(getCanonicalSportSlug(x)))
+      );
+      for (let i = 0; i < sportSlugs.length; i++) {
+        const slug = tagToSlug(getCanonicalSportSlug(sportSlugs[i]));
+        if (exerciseSportTags.has(slug)) {
+          s += i === 0 ? SPORT_TAG_MATCH_PRIMARY : SPORT_TAG_MATCH_SECONDARY;
+          break;
+        }
+      }
+    }
+    if (stv && stv.size > 0) {
+      const eqWeights = toExerciseWithQualities(ex as GeneratorExercise).training_quality_weights;
+      if (eqWeights && Object.keys(eqWeights).length > 0) {
+        s += alignmentScore(eqWeights, stv) * WEIGHT_QUALITY_ALIGNMENT;
+      }
+    }
+    map.set(ex.id, s);
+  }
+  return map;
+}
+
+function tryBuildGoalDedicatedMainStrengthInject(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  rng: () => number,
+  fatigueVolumeScale: number | undefined,
+  fatigueState: FatigueState | undefined,
+  sessionFatigueRegions: Map<string, number> | undefined,
+  historyContext: TrainingHistoryContext | undefined,
+  cardioTargetExerciseShare: number | undefined
+): { blocks: WorkoutBlock[] } | undefined {
+  const primary = input.primary_goal;
+  if (primary !== "strength" || !shouldUseGoalDedicatedMainBlocks(input)) return undefined;
+
+  const entries = getPrimarySubFocusWeightedEntriesDedicated(input, primary).filter((e) => e.slug !== "balanced");
+  if (entries.length < 2) return undefined;
+
+  const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
+  let mainPool = exercises.filter(
+    (e) =>
+      (e.modality === "strength" || e.modality === "power") &&
+      !used.has(e.id) &&
+      mainStrengthPatterns.has(effectiveMainWorkPattern(e)) &&
+      !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
+  );
+  mainPool = applyWeekMainLiftExclusion(mainPool, input);
+
+  const goalRules = getGoalRules(primary);
+  let compoundMin = goalRules.compoundLiftMin ?? 1;
+  if (input.duration_minutes <= 30) compoundMin = Math.min(compoundMin, 1);
+  if (input.energy_level === "low") compoundMin = Math.min(compoundMin, 1);
+  const targetMainLiftCountByDuration = input.duration_minutes >= 75 ? 4 : input.duration_minutes >= 45 ? 3 : 2;
+  const mainLiftCount = Math.min(Math.max(compoundMin, targetMainLiftCountByDuration), mainPool.length);
+  if (mainLiftCount < 2) return undefined;
+
+  const slugs = entries.map((e) => e.slug);
+  const weights = entries.map((e) => e.weight);
+  const alloc = allocateSlotsBySubFocusWeights(slugs, weights, mainLiftCount);
+  const wantsSupersets = input.style_prefs?.wants_supersets !== false;
+
+  const baseSelectionOpts = {
+    blockType: "main_strength" as const,
+    sessionFatigueRegions,
+    sessionMovementPatternCounts: movementCounts,
+    sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+    historyContext,
+    ...(cardioTargetExerciseShare != null && cardioTargetExerciseShare > 0
+      ? { targetCardioExerciseShare: cardioTargetExerciseShare }
+      : {}),
+  };
+
+  const outBlocks: WorkoutBlock[] = [];
+  const strengthReason =
+    "Compound lifts for strength — this section matches one of your ranked strength sub-focuses.";
+
+  for (const entry of entries) {
+    const n = alloc.get(entry.slug) ?? 0;
+    if (n <= 0) continue;
+
+    let poolSeg = mainPool.filter(
+      (e) =>
+        !used.has(e.id) &&
+        exerciseMatchesGoalDedicatedSubFocus(e, primary, entry.goalKey, entry.slug)
+    );
+    if (poolSeg.length < n) return undefined;
+
+    const swapPoolIds = capSwapPoolIds(
+      mainPool
+        .filter((e) => exerciseMatchesGoalDedicatedSubFocus(e, primary, entry.goalKey, entry.slug))
+        .map((e) => e.id),
+      GOAL_DEDICATED_SWAP_POOL_CAP
+    );
+
+    const picked = pickFromScoredShortlistRandom(
+      poolSeg,
+      input,
+      recentIds,
+      movementCounts,
+      n,
+      rng,
+      fatigueState,
+      baseSelectionOpts
+    );
+    if (picked.length < n) return undefined;
+
+    const goal_intent: WorkoutBlockGoalIntent = {
+      goal_slug: primary,
+      sub_focus_slug: entry.slug,
+      goal_sub_focus_key: entry.goalKey,
+      swap_pool_exercise_ids: swapPoolIds,
+    };
+
+    const label = humanizeGoalDedicatedSlug(entry.slug);
+    const pairMain =
+      wantsSupersets &&
+      picked.length === 2 &&
+      supersetCompatibility(picked[0]!, picked[1]!) !== "bad";
+
+    if (pairMain) {
+      const [a, b] = picked as [Exercise, Exercise];
+      used.add(a.id);
+      used.add(b.id);
+      const pA = getPrescription(a, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+      const pB = getPrescription(b, "main_strength", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+      const itemA: WorkoutItem = {
+        exercise_id: a.id,
+        exercise_name: a.name,
+        sets: pA.sets,
+        reps: pA.reps,
+        rest_seconds: pA.rest_seconds,
+        coaching_cues: pA.coaching_cues,
+        reasoning_tags: ["main_lift", "strength", ...(a.tags.goal_tags ?? [])],
+        unilateral: a.unilateral ?? false,
+      };
+      const itemB: WorkoutItem = {
+        exercise_id: b.id,
+        exercise_name: b.name,
+        sets: pB.sets,
+        reps: pB.reps,
+        rest_seconds: pB.rest_seconds,
+        coaching_cues: pB.coaching_cues,
+        reasoning_tags: ["main_lift", "strength", ...(b.tags.goal_tags ?? [])],
+        unilateral: b.unilateral ?? false,
+      };
+      const restPerRoundSec = Math.max(pA.rest_seconds ?? 0, pB.rest_seconds ?? 0);
+      const restForEstimateSec = Math.min(restPerRoundSec, 90);
+      const workMinPerRound = 1.1;
+      outBlocks.push({
+        block_type: "main_strength",
+        format: "superset",
+        title: `Main strength (${label})`,
+        reasoning: strengthReason,
+        goal_intent,
+        items: [itemA, itemB],
+        supersetPairs: [[itemA, itemB]],
+        estimated_minutes: Math.max(pA.sets, pB.sets) * (workMinPerRound + restForEstimateSec / 60),
+      });
+    } else {
+      const items: WorkoutItem[] = [];
+      let est = 0;
+      for (const mainLift of picked) {
+        used.add(mainLift.id);
+        const p = getPrescription(
+          mainLift,
+          "main_strength",
+          input.energy_level,
+          input.primary_goal,
+          false,
+          fatigueVolumeScale,
+          input.style_prefs?.user_level
+        );
+        est += p.sets * (0.6 + Math.min(p.rest_seconds || 0, 75) / 60);
+        items.push({
+          exercise_id: mainLift.id,
+          exercise_name: mainLift.name,
+          sets: p.sets,
+          reps: p.reps,
+          rest_seconds: p.rest_seconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["main_lift", "strength", ...(mainLift.tags.goal_tags ?? [])],
+          unilateral: mainLift.unilateral ?? false,
+        });
+      }
+      outBlocks.push({
+        block_type: "main_strength",
+        format: "straight_sets",
+        title: `Main strength (${label})`,
+        reasoning: strengthReason,
+        goal_intent,
+        items,
+        estimated_minutes: Math.max(est, 4),
+      });
+    }
+  }
+
+  return outBlocks.length > 0 ? { blocks: outBlocks } : undefined;
+}
+
+function tryBuildGoalDedicatedHypertrophyBlocks(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  rng: () => number,
+  wantsSupersets: boolean,
+  fatigueVolumeScale: number | undefined,
+  fatigueState: FatigueState | undefined,
+  sessionFatigueRegions: Map<string, number> | undefined,
+  historyContext: TrainingHistoryContext | undefined,
+  cardioTargetExerciseShare: number | undefined
+): WorkoutBlock[] | undefined {
+  const primary = input.primary_goal;
+  if (
+    (primary !== "hypertrophy" && primary !== "body_recomp") ||
+    !shouldUseGoalDedicatedMainBlocks(input)
+  ) {
+    return undefined;
+  }
+
+  const entries = getPrimarySubFocusWeightedEntriesDedicated(input, primary).filter((e) => e.slug !== "balanced");
+  if (entries.length < 2) return undefined;
+
+  const mainWorkPatternSet = new Set(["push", "pull", "squat", "hinge", "rotate"]);
+  let pool = exercises.filter(
+    (e) =>
+      (e.modality === "hypertrophy" || e.modality === "strength") &&
+      !used.has(e.id) &&
+      mainWorkPatternSet.has(effectiveMainWorkPattern(e)) &&
+      !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
+  );
+  pool = applyWeekMainLiftExclusion(pool, input);
+
+  const goalRules = getGoalRules(primary);
+  const maxExercises = goalRules.maxStrengthExercises ?? 8;
+  const mainBlockRange = goalRules.mainBlockMovementCount ?? { min: 2, max: 4 };
+  const durationScale =
+    input.duration_minutes <= 30 ? mainBlockRange.min
+    : input.duration_minutes >= 55 ? mainBlockRange.max
+    : Math.round((mainBlockRange.min + mainBlockRange.max) / 2);
+  let pairCount = input.duration_minutes <= 30 ? 2 : input.duration_minutes <= 60 ? 3 : 4;
+  if (input.energy_level === "low") pairCount = Math.min(pairCount, 2);
+  const wantCount = Math.min(pairCount * 2, durationScale * 2, maxExercises, pool.length);
+  if (wantCount < 2) return undefined;
+
+  const slugs = entries.map((e) => e.slug);
+  const weights = entries.map((e) => e.weight);
+  const alloc = allocateSlotsBySubFocusWeights(slugs, weights, wantCount);
+
+  const baseSelectionOpts = {
+    blockType: "main_hypertrophy" as const,
+    sessionFatigueRegions,
+    sessionMovementPatternCounts: movementCounts,
+    sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+    historyContext,
+    ...(cardioTargetExerciseShare != null && cardioTargetExerciseShare > 0
+      ? { targetCardioExerciseShare: cardioTargetExerciseShare }
+      : {}),
+  };
+
+  const blocks: WorkoutBlock[] = [];
+
+  for (const entry of entries) {
+    const n = alloc.get(entry.slug) ?? 0;
+    if (n <= 0) continue;
+
+    let poolSeg = pool.filter(
+      (e) =>
+        !used.has(e.id) &&
+        exerciseMatchesGoalDedicatedSubFocus(e, primary, entry.goalKey, entry.slug)
+    );
+    if (poolSeg.length < n) return undefined;
+
+    const swapPoolIds = capSwapPoolIds(
+      pool
+        .filter((e) => exerciseMatchesGoalDedicatedSubFocus(e, primary, entry.goalKey, entry.slug))
+        .map((e) => e.id),
+      GOAL_DEDICATED_SWAP_POOL_CAP
+    );
+
+    const chosen = pickFromScoredShortlistRandom(
+      poolSeg,
+      input,
+      recentIds,
+      movementCounts,
+      n,
+      rng,
+      fatigueState,
+      baseSelectionOpts
+    );
+    if (chosen.length < n) return undefined;
+
+    for (const ex of chosen) {
+      used.add(ex.id);
+    }
+
+    const goal_intent: WorkoutBlockGoalIntent = {
+      goal_slug: primary,
+      sub_focus_slug: entry.slug,
+      goal_sub_focus_key: entry.goalKey,
+      swap_pool_exercise_ids: swapPoolIds,
+    };
+
+    const label = humanizeGoalDedicatedSlug(entry.slug);
+    const targetPairCount = Math.floor(chosen.length / 2);
+    const dedicatedPairPrefs = buildSupersetIntentPreferenceScores(chosen, input);
+    const rawPairs: Exercise[][] =
+      targetPairCount > 0 && chosen.length >= 2
+        ? (pickBestSupersetPairs(chosen, targetPairCount, new Set<string>(), undefined, dedicatedPairPrefs) as [Exercise, Exercise][])
+        : [];
+    let pairs: Exercise[][] = rawPairs;
+    const usedInPairs = new Set(pairs.flatMap(([a, b]) => [a.id, b.id]));
+    const leftover = chosen.filter((e) => !usedInPairs.has(e.id));
+    for (const ex of leftover) pairs.push([ex]);
+    if (pairs.length === 0 && chosen.length) pairs.push([chosen[0]!]);
+
+    const format: BlockFormat =
+      wantsSupersets && pairs.every((p) => p.length === 2) ? "superset" : "straight_sets";
+
+    const items: WorkoutItem[] = pairs.flatMap((pair) =>
+      pair.map((e) => {
+        const p = getPrescription(e, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+        return {
+          exercise_id: e.id,
+          exercise_name: e.name,
+          sets: p.sets,
+          reps: p.reps,
+          rest_seconds: p.rest_seconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["hypertrophy", ...(e.tags.goal_tags ?? [])],
+          unilateral: e.unilateral ?? false,
+        };
+      })
+    );
+
+    const supersetPairs: [WorkoutItem, WorkoutItem][] | undefined =
+      format === "superset" ? pairs.map((_, i) => [items[2 * i]!, items[2 * i + 1]!]) : undefined;
+
+    const formulaMinutes = Math.ceil(items.length / 2) * 5;
+    const durationAwareMinutes =
+      input.duration_minutes != null && input.duration_minutes > 0
+        ? Math.min(Math.max(formulaMinutes, input.duration_minutes - 10), 75)
+        : formulaMinutes;
+
+    blocks.push({
+      block_type: "main_hypertrophy",
+      format,
+      title: `Main hypertrophy (${label})`,
+      reasoning: `Volume for ${label.toLowerCase()} — matches your ranked muscle-building sub-focus.`,
+      goal_intent,
+      items,
+      ...(supersetPairs && supersetPairs.length > 0 ? { supersetPairs } : {}),
+      estimated_minutes: durationAwareMinutes,
+    });
+  }
+
+  return blocks.length > 0 ? blocks : undefined;
+}
+
 // --- Main block: strength (2 compound lifts when goal=strength, then optional supersets) ---
 function buildMainStrength(
   exercises: Exercise[],
@@ -2638,7 +3209,8 @@ function buildMainStrength(
   sportPatternRockClimbingEmphasis?: number,
   intentTrace?: IntentSurvivalCollector,
   mainSelectorTrace?: MainSelectorSessionTrace,
-  cardioTargetExerciseShare?: number
+  cardioTargetExerciseShare?: number,
+  goalDedicatedInject?: { blocks: WorkoutBlock[] } | null
 ): WorkoutBlock[] {
   const normalizeFocus = (value: string) => value.toLowerCase().trim().replace(/\s+/g, "_");
   const isFullBodyStrengthSession =
@@ -3004,6 +3576,19 @@ function buildMainStrength(
   };
 
   let mainLifts: Exercise[] = [];
+  if (goalDedicatedInject?.blocks.length) {
+    const exerciseById = new Map(exercises.map((e) => [e.id, e]));
+    for (const b of goalDedicatedInject.blocks) {
+      blocks.push(b);
+      for (const it of b.items) {
+        used.add(it.exercise_id);
+      }
+    }
+    mainLifts = goalDedicatedInject.blocks
+      .flatMap((b) => b.items)
+      .map((it) => exerciseById.get(it.exercise_id))
+      .filter((e): e is Exercise => e != null);
+  } else {
   if (sportHandles && snowMainRule && intentContractForSportMain && primarySportIsAlpineSkiing(input)) {
     mainSelectorTrace?.entries.push({
       phase: "main_strength",
@@ -3213,6 +3798,7 @@ function buildMainStrength(
         estimated_minutes: p.sets * (0.6 + Math.min(p.rest_seconds || 0, 75) / 60),
       });
     }
+  }
   }
 
   // Accessory block control:
@@ -3457,7 +4043,8 @@ function buildMainStrength(
       }
     }
 
-    let pairs = pickBestSupersetPairs(poolForPairs, pairCount, used) as [Exercise, Exercise][];
+    const accessoryPairPrefs = buildSupersetIntentPreferenceScores(poolForPairs, input);
+    let pairs = pickBestSupersetPairs(poolForPairs, pairCount, used, undefined, accessoryPairPrefs) as [Exercise, Exercise][];
     if (sportHandles?.sportSlug === "rock_climbing" && rockAccessoryRule && pairs.length > 0 && mainLifts.length > 0) {
       mainSelectorTrace?.entries.push({
         phase: "accessory",
@@ -4540,9 +5127,10 @@ function buildMainHypertrophy(
   }
 
   const targetPairCount = Math.floor(chosen.length / 2);
+  const mainHypePairPrefs = buildSupersetIntentPreferenceScores(chosen, input);
   const rawPairs: Exercise[][] =
     targetPairCount > 0 && chosen.length >= 2
-      ? (pickBestSupersetPairs(chosen, targetPairCount, new Set<string>()) as [Exercise, Exercise][])
+      ? (pickBestSupersetPairs(chosen, targetPairCount, new Set<string>(), undefined, mainHypePairPrefs) as [Exercise, Exercise][])
       : [];
   const pairs: Exercise[][] = rawPairs;
   const usedInPairs = new Set(pairs.flatMap(([a, b]) => [a.id, b.id]));
@@ -5340,10 +5928,14 @@ function buildEnduranceMain(
     intentSlugs.length > 0
       ? filterPoolByDirectSubFocus(availableForPairs, intentSlugs)
       : availableForPairs;
+  const pairPoolEffective = pairPool.length >= 2 ? pairPool : availableForPairs;
+  const endurancePairPrefs = buildSupersetIntentPreferenceScores(pairPoolEffective, input);
   const pairs = pickBestSupersetPairs(
-    pairPool.length >= 2 ? pairPool : availableForPairs,
+    pairPoolEffective,
     supersetPairCount,
-    used
+    used,
+    undefined,
+    endurancePairPrefs
   ) as [Exercise, Exercise][];
   if (pairs.length > 0) {
     for (const [exA, exB] of pairs) {
@@ -6325,6 +6917,228 @@ function ensureSelectedSportSubFocusCoverage(
   };
   if (cooldownIdx >= 0) mergedBlocks.splice(cooldownIdx, 0, newBlock);
   else mergedBlocks.push(newBlock);
+}
+
+/**
+ * Proportional sport-intent repair.
+ *
+ * Product contract: if the loading screen / title says "Climbing 50%", a visible share
+ * of working exercises must actually be climbing-tagged. Earlier coverage only ensured
+ * "at least one sport exercise"; this pass replaces generic working items with
+ * sport-matched alternatives until the selected sport share is represented.
+ */
+function enforceSportIntentExerciseProportions(
+  mergedBlocks: WorkoutBlock[],
+  input: GenerateWorkoutInput,
+  sportIntentCandidatePool: Exercise[],
+  guaranteePool: Exercise[],
+  filtered: Exercise[],
+  used: Set<string>,
+  rng: () => number,
+  fatigueVolumeScale: number | undefined
+): void {
+  const sportWeight = Math.max(0, Math.min(1, input.sport_weight ?? input.session_intent?.sport_weight ?? 0));
+  if (sportWeight <= 0) return;
+
+  const rankedSportsRaw =
+    input.session_intent?.selected_sports && input.session_intent.selected_sports.length > 0
+      ? input.session_intent.selected_sports
+      : input.sport_slugs ?? [];
+  const rankedSports = [...new Set(rankedSportsRaw.map((s) => getCanonicalSportSlug(s)))];
+  if (rankedSports.length === 0) return;
+
+  const exerciseById = new Map<string, Exercise>();
+  for (const e of sportIntentCandidatePool) exerciseById.set(e.id, e);
+  for (const e of guaranteePool) exerciseById.set(e.id, e);
+  for (const e of filtered) exerciseById.set(e.id, e);
+
+  type Slot = {
+    block: WorkoutBlock;
+    blockIndex: number;
+    itemIndex: number;
+    item: WorkoutItem;
+    ex: Exercise | undefined;
+  };
+
+  const workingSlots = (): Slot[] => {
+    const slots: Slot[] = [];
+    for (let bi = 0; bi < mergedBlocks.length; bi++) {
+      const block = mergedBlocks[bi]!;
+      if (block.block_type === "warmup" || block.block_type === "cooldown") continue;
+      for (let ii = 0; ii < block.items.length; ii++) {
+        const item = block.items[ii]!;
+        slots.push({
+          block,
+          blockIndex: bi,
+          itemIndex: ii,
+          item,
+          ex: exerciseById.get(item.exercise_id),
+        });
+      }
+    }
+    return slots;
+  };
+
+  const blockReplacePriority = (blockType: BlockType): number => {
+    if (blockType === "accessory") return 0;
+    if (blockType === "conditioning") return 1;
+    if (blockType === "main_hypertrophy") return 2;
+    if (blockType === "main_strength") return 3;
+    return 4;
+  };
+
+  const makeItem = (ex: Exercise, blockType: BlockType, sportSlug: string): WorkoutItem => {
+    const p = getPrescription(
+      ex,
+      blockType,
+      input.energy_level,
+      input.primary_goal,
+      blockType !== "main_strength",
+      fatigueVolumeScale,
+      input.style_prefs?.user_level
+    );
+    return {
+      exercise_id: ex.id,
+      exercise_name: ex.name,
+      sets: p.sets,
+      reps: p.reps,
+      time_seconds: p.time_seconds,
+      rest_seconds: p.rest_seconds,
+      coaching_cues: p.coaching_cues,
+      reasoning_tags: ["sport_intent_proportion", sportSlug, ...(ex.tags.goal_tags ?? [])],
+      unilateral: ex.unilateral ?? false,
+    };
+  };
+
+  const resolvePrimarySportForSlot = (slot: Slot): string | undefined => {
+    const ex = slot.ex;
+    if (!ex) return undefined;
+    for (const sport of rankedSports) {
+      if (exerciseMatchesUserSportTagExercise(ex, sport)) return sport;
+    }
+    return undefined;
+  };
+
+  const replaceSlotExercise = (slot: Slot, next: Exercise, sportSlug: string): void => {
+    used.delete(slot.item.exercise_id);
+    used.add(next.id);
+    const nextItem = makeItem(next, slot.block.block_type as BlockType, sportSlug);
+    const previousId = slot.item.exercise_id;
+    slot.block.items[slot.itemIndex] = nextItem;
+    if (slot.block.supersetPairs?.length) {
+      slot.block.supersetPairs = slot.block.supersetPairs.map((pair) =>
+        pair.map((item) => (item.exercise_id === previousId ? nextItem : item)) as [WorkoutItem, WorkoutItem]
+      );
+    }
+    exerciseById.set(next.id, next);
+  };
+
+  const slots = workingSlots();
+  if (slots.length === 0) return;
+
+  const totalSportSlots = Math.max(1, Math.round(slots.length * sportWeight));
+  const perSportExact = totalSportSlots / rankedSports.length;
+  const targetBySport: Record<string, number> = {};
+  let allocated = 0;
+  const remainders: Array<{ sport: string; remainder: number }> = [];
+  for (const sport of rankedSports) {
+    const base = Math.floor(perSportExact);
+    targetBySport[sport] = base;
+    allocated += base;
+    remainders.push({ sport, remainder: perSportExact - base });
+  }
+  remainders.sort((a, b) => b.remainder - a.remainder);
+  let remaining = totalSportSlots - allocated;
+  let r = 0;
+  while (remaining > 0 && remainders.length > 0) {
+    const sport = remainders[r % remainders.length]!.sport;
+    targetBySport[sport] = (targetBySport[sport] ?? 0) + 1;
+    remaining--;
+    r++;
+  }
+
+  const countBySport = (): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    for (const sport of rankedSports) counts[sport] = 0;
+    for (const slot of workingSlots()) {
+      const sport = resolvePrimarySportForSlot(slot);
+      if (sport) counts[sport] = (counts[sport] ?? 0) + 1;
+    }
+    return counts;
+  };
+
+  const pickReplacementCandidate = (sport: string): Exercise | undefined => {
+    const candidates = sportIntentCandidatePool.filter(
+      (e) => !used.has(e.id) && exerciseMatchesUserSportTagExercise(e, sport)
+    );
+    if (candidates.length === 0) return undefined;
+    return candidates[Math.floor(rng() * candidates.length)];
+  };
+
+  const chooseSlotToReplace = (
+    desiredSport: string,
+    counts: Record<string, number>
+  ): Slot | undefined => {
+    const all = workingSlots().map((slot) => ({
+      slot,
+      sport: resolvePrimarySportForSlot(slot),
+    }));
+    const underTargetSports = new Set(
+      rankedSports.filter((s) => (counts[s] ?? 0) < (targetBySport[s] ?? 0))
+    );
+    // Prefer truly generic slots first so we do not steal from another under-target sport.
+    const generic = all
+      .filter((row) => row.sport == null)
+      .map((row) => row.slot)
+      .sort((a, b) => {
+        const p = blockReplacePriority(a.block.block_type as BlockType) - blockReplacePriority(b.block.block_type as BlockType);
+        if (p !== 0) return p;
+        return a.blockIndex - b.blockIndex || a.itemIndex - b.itemIndex;
+      });
+    if (generic.length > 0) return generic[0];
+
+    // Then allow replacing from over-target sports only.
+    const overTarget = all
+      .filter((row) => {
+        if (!row.sport) return false;
+        if (row.sport === desiredSport) return false;
+        if (underTargetSports.has(row.sport)) return false;
+        return (counts[row.sport] ?? 0) > (targetBySport[row.sport] ?? 0);
+      })
+      .map((row) => row.slot)
+      .sort((a, b) => {
+        const p = blockReplacePriority(a.block.block_type as BlockType) - blockReplacePriority(b.block.block_type as BlockType);
+        if (p !== 0) return p;
+        return a.blockIndex - b.blockIndex || a.itemIndex - b.itemIndex;
+      });
+    if (overTarget.length > 0) return overTarget[0];
+    return undefined;
+  };
+
+  // Iteratively fill deficits until stable or no feasible moves remain.
+  for (let guard = 0; guard < slots.length * 3; guard++) {
+    const counts = countBySport();
+    const deficits = rankedSports
+      .map((sport) => ({
+        sport,
+        need: (targetBySport[sport] ?? 0) - (counts[sport] ?? 0),
+      }))
+      .filter((d) => d.need > 0)
+      .sort((a, b) => b.need - a.need);
+    if (deficits.length === 0) break;
+
+    let progressed = false;
+    for (const d of deficits) {
+      const candidate = pickReplacementCandidate(d.sport);
+      if (!candidate) continue;
+      const slot = chooseSlotToReplace(d.sport, counts);
+      if (!slot) continue;
+      replaceSlotExercise(slot, candidate, d.sport);
+      progressed = true;
+      break;
+    }
+    if (!progressed) break;
+  }
 }
 
 /** Post-build repair for mountain snow family (alpine, snowboard, backcountry, XC). */
@@ -7773,7 +8587,8 @@ export function generateWorkoutSession(
         const sportTaggedPow = accessoryPool.filter((e) => exerciseMatchesSportIntent(e, input));
         if (sportTaggedPow.length >= 2) accessoryPoolForPairs = sportTaggedPow;
       }
-      const pairs = pickBestSupersetPairs(accessoryPoolForPairs, 1, used) as [Exercise, Exercise][];
+      const powerPairPrefs = buildSupersetIntentPreferenceScores(accessoryPoolForPairs, input);
+      const pairs = pickBestSupersetPairs(accessoryPoolForPairs, 1, used, undefined, powerPairPrefs) as [Exercise, Exercise][];
       if (pairs.length > 0) {
         const [exA, exB] = pairs[0];
         used.add(exA.id);
@@ -7812,6 +8627,19 @@ export function generateWorkoutSession(
       }
     }
   } else if (primary === "strength") {
+    const strengthGoalDedicatedInject = tryBuildGoalDedicatedMainStrengthInject(
+      filtered,
+      input,
+      used,
+      recentIds,
+      movementCounts,
+      rng,
+      fatigueVolumeScale,
+      fatigueState,
+      sessionFatigueRegions,
+      historyContext,
+      blockIntentProfile.targetCardioExerciseShare
+    );
     blocks.push(
       ...buildMainStrength(
         filtered,
@@ -7841,41 +8669,63 @@ export function generateWorkoutSession(
         sportPatternRockClimbingEmphasis,
         intentCollector,
         mainSelectorTrace,
-        blockIntentProfile.targetCardioExerciseShare
+        blockIntentProfile.targetCardioExerciseShare,
+        strengthGoalDedicatedInject ?? undefined
       )
     );
   } else if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
-    blocks.push(
-      ...buildMainHypertrophy(
-        filtered,
-        input,
-        used,
-        recentIds,
-        movementCounts,
-        rng,
-        wantsSupersets,
-        fatigueVolumeScale,
-        fatigueState,
-        sessionFatigueRegions,
-        historyContext,
-        hikingEnforcementSnapshot,
-        trailRunningEnforcementSnapshot,
-        roadRunningEnforcementSnapshot,
-        soccerEnforcementSnapshot,
-        alpineSkiingEnforcementSnapshot,
-        rockClimbingEnforcementSnapshot,
-        sessionSportPatternCategoryCounts,
-        sportPatternHikingEmphasis,
-        sportPatternTrailEmphasis,
-        sportPatternRoadEmphasis,
-        sportPatternSoccerEmphasis,
-        sportPatternAlpineEmphasis,
-        sportPatternRockClimbingEmphasis,
-        intentCollector,
-        mainSelectorTrace,
-        blockIntentProfile.targetCardioExerciseShare
-      )
-    );
+    const hypeDedicated =
+      primary === "hypertrophy" || primary === "body_recomp"
+        ? tryBuildGoalDedicatedHypertrophyBlocks(
+            filtered,
+            input,
+            used,
+            recentIds,
+            movementCounts,
+            rng,
+            wantsSupersets,
+            fatigueVolumeScale,
+            fatigueState,
+            sessionFatigueRegions,
+            historyContext,
+            blockIntentProfile.targetCardioExerciseShare
+          )
+        : undefined;
+    if (hypeDedicated?.length) {
+      blocks.push(...hypeDedicated);
+    } else {
+      blocks.push(
+        ...buildMainHypertrophy(
+          filtered,
+          input,
+          used,
+          recentIds,
+          movementCounts,
+          rng,
+          wantsSupersets,
+          fatigueVolumeScale,
+          fatigueState,
+          sessionFatigueRegions,
+          historyContext,
+          hikingEnforcementSnapshot,
+          trailRunningEnforcementSnapshot,
+          roadRunningEnforcementSnapshot,
+          soccerEnforcementSnapshot,
+          alpineSkiingEnforcementSnapshot,
+          rockClimbingEnforcementSnapshot,
+          sessionSportPatternCategoryCounts,
+          sportPatternHikingEmphasis,
+          sportPatternTrailEmphasis,
+          sportPatternRoadEmphasis,
+          sportPatternSoccerEmphasis,
+          sportPatternAlpineEmphasis,
+          sportPatternRockClimbingEmphasis,
+          intentCollector,
+          mainSelectorTrace,
+          blockIntentProfile.targetCardioExerciseShare
+        )
+      );
+    }
   } else if (primary === "endurance" || primary === "conditioning") {
     const conditioningProfile: SubFocusProfile | null =
       (input.goal_sub_focus?.[primary]?.length ?? 0) > 0
@@ -9054,6 +9904,16 @@ export function generateWorkoutSession(
     fatigueVolumeScale,
     historyContext,
     sessionFatigueRegions
+  );
+  enforceSportIntentExerciseProportions(
+    mergedBlocks,
+    input,
+    sportIntentRescuePool,
+    guaranteePool,
+    filtered,
+    used,
+    rng,
+    fatigueVolumeScale
   );
   mergedBlocks = removeEmptyBlocks(mergedBlocks);
 
