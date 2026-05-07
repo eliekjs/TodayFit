@@ -752,6 +752,9 @@ export default function AdaptiveModeScreen() {
     const hasSport = selectedSportSlugs.length > 0;
     const hasGoals = goalSlugs.length > 0;
     const effSportVsGoal = hasSport && hasGoals ? sportVsGoalPct : hasSport ? 100 : 0;
+    const orderedGoalLabelsForSubs = filledAdaptiveGoals
+      .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+      .filter((lab): lab is string => Boolean(lab));
     return computeDeclaredIntentSplitFromPrefs({
       sportSlugs: selectedSportSlugs,
       goalSlugs,
@@ -759,6 +762,15 @@ export default function AdaptiveModeScreen() {
       goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
       goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
       goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+      sportShareAmongSportsPct:
+        selectedSportSlugs.length === 2
+          ? ([sportFocusPct[0]!, sportFocusPct[1]!] as [number, number])
+          : undefined,
+      sportSubFocusBySport: Object.keys(subFocusBySport).length ? subFocusBySport : undefined,
+      orderedPrimaryLabelsForSubFocus:
+        orderedGoalLabelsForSubs.length > 0 ? orderedGoalLabelsForSubs : undefined,
+      subFocusByGoal: manualPreferences.subFocusByGoal,
+      weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
   })();
   const oneDayWorkoutTitle =
@@ -1867,7 +1879,6 @@ export default function AdaptiveModeScreen() {
                       width: maxBubbleW,
                       backgroundColor: theme.card,
                       borderColor: theme.primary,
-                      shadowColor: "#000",
                     },
                     placement === "above" ? { paddingBottom: 12 } : { paddingTop: 14 },
                   ]}
@@ -2193,9 +2204,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
+    ...Platform.select({
+      web: {
+        boxShadow: "0px 6px 12px rgba(0, 0, 0, 0.22)",
+      },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+      },
+    }),
     elevation: 12,
   },
   limitPopupTitle: {

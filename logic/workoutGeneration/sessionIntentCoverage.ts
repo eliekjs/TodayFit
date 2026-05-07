@@ -3,12 +3,15 @@
  * Used by dailyGenerator so every workout ties moves to user intent (product + traceability).
  */
 
-import type { BlockType, WorkoutItem } from "../../lib/types";
+import type { BlockType, WorkoutBlockGoalIntent, WorkoutItem } from "../../lib/types";
 import type { Exercise, GenerateWorkoutInput, PrimaryGoal, WorkoutBlock } from "./types";
 import type { IntentEntry } from "./sessionIntentContract";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
 import { exerciseCountsAsCooldownMobilityForValidator } from "./cooldownSelection";
-import { exerciseMatchesGoalSubFocusSlugUnified } from "./subFocusSlugMatch";
+import {
+  exerciseMatchesGoalSubFocusSlugUnified,
+  exerciseMatchesSportSubFocusForCoverage,
+} from "./subFocusSlugMatch";
 
 /** Maps generator PrimaryGoal to keys used in `goal_sub_focus` / manual adapter (muscle, physique, …). */
 export function goalSubFocusKeysForPrimary(primary: PrimaryGoal): string[] {
@@ -115,6 +118,22 @@ export function exerciseMatchesDeclaredGoal(ex: Exercise, goal: PrimaryGoal): bo
   return false;
 }
 
+function exerciseMatchesGoalSubFocusIntentRanked(
+  ex: Exercise,
+  parentPrimary: PrimaryGoal,
+  subSlug: string
+): boolean {
+  for (const key of goalSubFocusKeysForPrimary(parentPrimary)) {
+    if (exerciseMatchesGoalSubFocusSlugUnified(ex, key, subSlug)) return true;
+  }
+  return false;
+}
+
+function exerciseMatchesRankedSportSlug(ex: Exercise, sportSlug: string): boolean {
+  const want = getCanonicalSportSlug(sportSlug);
+  return (ex.tags.sport_tags ?? []).some((t) => getCanonicalSportSlug(String(t)) === want);
+}
+
 export function exerciseMatchesSportIntent(ex: Exercise, input: GenerateWorkoutInput): boolean {
   const sports = input.session_intent?.selected_sports?.length
     ? input.session_intent.selected_sports
@@ -154,9 +173,10 @@ export type SessionIntentComputation = {
 };
 
 /**
- * For each ranked intent entry, checks whether the exercise has matching tags.
- * "direct" = match found in goal_tags or sport_tags (primary intent signal).
- * "partial" = match found only in attribute_tags or stimulus (secondary signal).
+ * For each ranked intent entry, map exercise → intent with sport/goal-aware rules.
+ * Sport sub-focus requires canonical `sport_tags` plus tags from SUB_FOCUS_TAG_MAP (avoids generic
+ * quality overlap falsely hitting every climbing sub-goal). Goal sub-focus uses the same unified
+ * slug matcher as coverage. Unknown entries fall back to legacy overlap on `tag_slugs`.
  */
 function computeMatchedIntents(
   ex: Exercise,
@@ -177,22 +197,52 @@ function computeMatchedIntents(
 
   const matched: MatchedIntentEntry[] = [];
   for (const entry of rankedEntries) {
-    const normSlugs = entry.tag_slugs.map(norm);
-    const hasAny = normSlugs.some((t) => allTags.has(t));
-    if (!hasAny) continue;
-    const isDirect = normSlugs.some((t) => directTags.has(t));
+    let matchedEntry = false;
+    let matchDirect = false;
+
+    if (entry.kind === "sport_sub_focus" && entry.parent_slug) {
+      matchedEntry = exerciseMatchesSportSubFocusForCoverage(ex, entry.parent_slug, entry.slug);
+      matchDirect = matchedEntry;
+    } else if (entry.kind === "goal_sub_focus" && entry.parent_slug) {
+      matchedEntry = exerciseMatchesGoalSubFocusIntentRanked(
+        ex,
+        entry.parent_slug as PrimaryGoal,
+        entry.slug
+      );
+      matchDirect = matchedEntry;
+    } else if (entry.kind === "goal") {
+      matchedEntry = exerciseMatchesDeclaredGoal(ex, entry.slug as PrimaryGoal);
+      matchDirect = matchedEntry;
+    } else if (entry.kind === "sport") {
+      matchedEntry = exerciseMatchesRankedSportSlug(ex, entry.slug);
+      matchDirect = matchedEntry;
+    } else {
+      const normSlugs = entry.tag_slugs.map(norm);
+      matchedEntry = normSlugs.length > 0 && normSlugs.some((t) => allTags.has(t));
+      matchDirect = normSlugs.some((t) => directTags.has(t));
+    }
+
+    if (!matchedEntry) continue;
+
     const result: MatchedIntentEntry = {
       kind: entry.kind,
       slug: entry.slug,
-      match_strength: isDirect ? "direct" : "partial",
+      match_strength: matchDirect ? "direct" : "partial",
       rank: entry.rank,
       weight: entry.weight,
     };
     if (entry.parent_slug != null) result.parent_slug = entry.parent_slug;
     matched.push(result);
   }
-  // Sort by ascending rank (best match first)
   matched.sort((a, b) => a.rank - b.rank);
+
+  // If the exercise already matched a sport sub-focus, the bare "athletic_performance" goal
+  // entry conveys no useful information — suppress it so UI chips are specific, not generic.
+  const hasSportSubFocusHit = matched.some((m) => m.kind === "sport_sub_focus");
+  if (hasSportSubFocusHit) {
+    return matched.filter((m) => !(m.kind === "goal" && m.slug === "athletic_performance"));
+  }
+
   return matched;
 }
 
@@ -298,36 +348,87 @@ export function allocateFitnessGoalsToSlots(
   return seq;
 }
 
-function filterSubFocusForPrimary(
-  primary: PrimaryGoal,
-  rows: { goal_slug: string; sub_slug: string }[],
-  ex: Exercise | undefined
-): { goal_slug: string; sub_slug: string }[] {
-  const keySet = new Set(goalSubFocusKeysForPrimary(primary));
-  const matched = rows.filter((r) => keySet.has(r.goal_slug));
-  if (matched.length === 0) return [];
-  if (matched.length === 1 || !ex) return [matched[0]!];
-  const withEx = matched.filter((r) => exerciseMatchesGoalSubFocusSlugUnified(ex, r.goal_slug, r.sub_slug));
-  return [withEx[0] ?? matched[0]!];
+function matchStrengthOrder(m: MatchedIntentEntry): number {
+  return m.match_strength === "direct" ? 0 : m.match_strength === "partial" ? 1 : 2;
+}
+
+function intentSpecificityRank(m: MatchedIntentEntry): number {
+  if (m.kind === "sport_sub_focus") return 0;
+  if (m.kind === "goal_sub_focus") return 1;
+  if (m.kind === "goal") return 2;
+  return 3;
 }
 
 function filterMatchedIntentsForPrimary(
   primary: PrimaryGoal,
-  matched: MatchedIntentEntry[] | undefined
+  matched: MatchedIntentEntry[] | undefined,
+  ex: Exercise | undefined
 ): MatchedIntentEntry[] | undefined {
   if (!matched?.length) return undefined;
-  const out = matched.filter((m) => {
-    if (m.kind === "goal") return m.slug === primary;
-    if (m.kind === "goal_sub_focus") return m.parent_slug === primary;
-    return true;
+
+  const sortByStrengthThenRank = (a: MatchedIntentEntry, b: MatchedIntentEntry) => {
+    const s = matchStrengthOrder(a) - matchStrengthOrder(b);
+    if (s !== 0) return s;
+    return a.rank - b.rank;
+  };
+
+  const picked: MatchedIntentEntry[] = [];
+
+  const sportSubs = matched.filter((m) => m.kind === "sport_sub_focus");
+  const bareSports = matched.filter((m) => m.kind === "sport");
+  const hasSportSpecific = sportSubs.length > 0 || bareSports.length > 0;
+
+  // When the session is sport-focused (athletic_performance) and there are direct sport/sub-focus
+  // hits, suppress the bare "athletic_performance" goal entry — it adds no information beyond
+  // what the sport chips already say.
+  const suppressAthletic = primary === "athletic_performance" && hasSportSpecific;
+
+  if (!suppressAthletic) {
+    const goalRows = matched.filter((m) => m.kind === "goal");
+    const primaryGoalRow = goalRows.find((m) => m.slug === primary);
+    if (primaryGoalRow) picked.push(primaryGoalRow);
+    else if (goalRows.length) picked.push([...goalRows].sort(sortByStrengthThenRank)[0]!);
+
+    const secondaryGoalRows = goalRows.filter(
+      (m) =>
+        m.slug !== primary && ex != null && exerciseMatchesDeclaredGoal(ex, m.slug as PrimaryGoal)
+    );
+    if (secondaryGoalRows.length) picked.push([...secondaryGoalRows].sort(sortByStrengthThenRank)[0]!);
+
+    const goalSubs = matched.filter((m) => m.kind === "goal_sub_focus");
+    const primarySubs = goalSubs.filter((m) => m.parent_slug === primary);
+    if (primarySubs.length) picked.push([...primarySubs].sort(sortByStrengthThenRank)[0]!);
+
+    const extraSubs = goalSubs.filter(
+      (m) =>
+        m.parent_slug !== primary &&
+        ex != null &&
+        m.parent_slug != null &&
+        exerciseMatchesGoalSubFocusIntentRanked(ex, m.parent_slug as PrimaryGoal, m.slug)
+    );
+    if (extraSubs.length) picked.push([...extraSubs].sort(sortByStrengthThenRank)[0]!);
+  }
+
+  // Sport sub-focus is always the most specific and most useful chip.
+  if (sportSubs.length) picked.push([...sportSubs].sort(sortByStrengthThenRank)[0]!);
+  if (!sportSubs.length && bareSports.length) picked.push([...bareSports].sort(sortByStrengthThenRank)[0]!);
+
+  const seen = new Set<string>();
+  const merged: MatchedIntentEntry[] = [];
+  for (const p of picked) {
+    const k = `${p.kind}:${p.slug}:${p.parent_slug ?? ""}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(p);
+  }
+
+  merged.sort((a, b) => {
+    const t = intentSpecificityRank(a) - intentSpecificityRank(b);
+    if (t !== 0) return t;
+    return sortByStrengthThenRank(a, b);
   });
-  const goalSubs = out.filter((m) => m.kind === "goal_sub_focus");
-  const sports = out.filter((m) => m.kind === "sport" || m.kind === "sport_sub_focus");
-  const goalRows = out.filter((m) => m.kind === "goal");
-  const pickedSubs = goalSubs.length ? [goalSubs.sort((a, b) => a.rank - b.rank)[0]!] : [];
-  const pickedGoals = goalRows.length ? [goalRows.sort((a, b) => a.rank - b.rank)[0]!] : [];
-  const merged = [...pickedGoals, ...pickedSubs, ...sports];
-  return merged.length ? merged : undefined;
+
+  return merged.slice(0, 2).length ? merged.slice(0, 2) : undefined;
 }
 
 function applyPrimaryToSessionIntentLinks(
@@ -335,19 +436,63 @@ function applyPrimaryToSessionIntentLinks(
   primary: PrimaryGoal,
   ex: Exercise | undefined
 ): NonNullable<WorkoutItem["session_intent_links"]> {
-  const subFocus = filterSubFocusForPrimary(primary, base.sub_focus ?? [], ex);
-  const matched = filterMatchedIntentsForPrimary(primary, base.matched_intents);
+  const subFocus = dedupeSubFocus(base.sub_focus ?? []);
+
+  let goalsOut: string[] = [primary as string];
+  if (ex != null && base.goals?.length) {
+    const extra = base.goals.filter(
+      (g) => g !== primary && exerciseMatchesDeclaredGoal(ex, g as PrimaryGoal)
+    );
+    goalsOut = [...new Set([primary as string, ...extra])];
+  }
+
+  const matched = filterMatchedIntentsForPrimary(primary, base.matched_intents, ex);
   const out: NonNullable<WorkoutItem["session_intent_links"]> = {
     declared_sport_sub_focuses: base.declared_sport_sub_focuses,
     sport_slugs: base.sport_slugs,
-    goals: [primary as string],
+    ...(base.session_sport_slugs?.length ? { session_sport_slugs: base.session_sport_slugs } : {}),
+    goals: goalsOut,
     ...(subFocus.length ? { sub_focus: subFocus } : {}),
     ...(matched?.length ? { matched_intents: matched } : {}),
+    ...(base.session_prep ? { session_prep: true as const } : {}),
+    ...(base.intent_inferred ? { intent_inferred: true as const } : {}),
   };
   return out;
 }
 
 const SESSION_PREP_BLOCK_TYPES = new Set<BlockType>(["warmup", "cooldown"]);
+
+/**
+ * Keep intent-dedicated blocks pure: if a block is allocated to a sub-intent
+ * (goal sub-focus, sport, or sport sub-focus), do not also assign a fitness-goal slot.
+ */
+function isSubIntentDedicatedBlock(goalIntent: WorkoutBlockGoalIntent | undefined): boolean {
+  if (!goalIntent) return false;
+  if (goalIntent.intent_kind === "goal") return false;
+  if (
+    goalIntent.intent_kind === "goal_sub_focus" ||
+    goalIntent.intent_kind === "sport" ||
+    goalIntent.intent_kind === "sport_sub_focus"
+  ) {
+    return true;
+  }
+  // Backward compatibility: older dedicated blocks can omit intent_kind.
+  return goalIntent.sub_focus_slug != null;
+}
+
+function enforceSubIntentSeparationOnLinks(
+  base: NonNullable<WorkoutItem["session_intent_links"]> | undefined,
+  goalIntent: WorkoutBlockGoalIntent | undefined
+): NonNullable<WorkoutItem["session_intent_links"]> | undefined {
+  if (!base || !isSubIntentDedicatedBlock(goalIntent)) return base;
+  return {
+    ...base,
+    goals: [],
+    ...(base.matched_intents?.length
+      ? { matched_intents: base.matched_intents.filter((m) => m.kind !== "goal") }
+      : {}),
+  };
+}
 
 export function buildWorkoutItemSessionIntentLinks(
   ex: Exercise,
@@ -356,16 +501,23 @@ export function buildWorkoutItemSessionIntentLinks(
 ): NonNullable<WorkoutItem["session_intent_links"]> {
   const computed = computeSessionIntentLinks(ex, input);
   const declaredSportSubs = collectDeclaredSportSubFocuses(input);
+  const declaredFiltered = declaredSportSubs.filter((d) =>
+    exerciseMatchesSportSubFocusForCoverage(ex, d.parent_slug, d.slug)
+  );
   const declaredSportField =
-    declaredSportSubs.length > 0 ? { declared_sport_sub_focuses: declaredSportSubs } : {};
+    declaredFiltered.length > 0 ? { declared_sport_sub_focuses: declaredFiltered } : {};
 
-  const sportMatched =
-    (input.session_intent?.selected_sports?.length
+  const sessionSports: string[] =
+    input.session_intent?.selected_sports?.length
       ? input.session_intent.selected_sports
-      : input.sport_slugs
-    )?.filter((s) =>
-      (ex.tags.sport_tags ?? []).some((t) => getCanonicalSportSlug(String(t)) === getCanonicalSportSlug(s))
-    ) ?? [];
+      : (input.sport_slugs ?? []);
+
+  const sportMatched = sessionSports.filter((s) =>
+    (ex.tags.sport_tags ?? []).some((t) => getCanonicalSportSlug(String(t)) === getCanonicalSportSlug(s))
+  );
+
+  const sessionSportField =
+    sessionSports.length > 0 ? { session_sport_slugs: sessionSports } : {};
 
   const matchedIntentsField =
     computed.matched_intents && computed.matched_intents.length > 0
@@ -379,16 +531,23 @@ export function buildWorkoutItemSessionIntentLinks(
       ...(computed.sub_focus.length ? { sub_focus: computed.sub_focus } : {}),
       ...(sportMatched.length ? { sport_slugs: sportMatched } : {}),
       ...declaredSportField,
+      ...sessionSportField,
       ...matchedIntentsField,
     };
   }
   if (sportMatched.length) {
-    return { goals: [], sport_slugs: sportMatched, ...declaredSportField, ...matchedIntentsField };
+    return {
+      goals: [],
+      sport_slugs: sportMatched,
+      ...declaredSportField,
+      ...sessionSportField,
+      ...matchedIntentsField,
+    };
   }
   if (SESSION_PREP_BLOCK_TYPES.has(blockType)) {
-    return { goals: [], session_prep: true, ...declaredSportField, ...matchedIntentsField };
+    return { goals: [], session_prep: true, ...sessionSportField };
   }
-  return { goals: [], intent_inferred: true, ...declaredSportField, ...matchedIntentsField };
+  return { goals: [], intent_inferred: true, ...sessionSportField, ...matchedIntentsField };
 }
 
 /**
@@ -399,13 +558,16 @@ export function buildFallbackSessionIntentLinks(
   input: GenerateWorkoutInput,
   blockType: BlockType
 ): NonNullable<WorkoutItem["session_intent_links"]> {
-  const declaredSportSubs = collectDeclaredSportSubFocuses(input);
-  const declaredSportField =
-    declaredSportSubs.length > 0 ? { declared_sport_sub_focuses: declaredSportSubs } : {};
+  const sessionSports: string[] =
+    input.session_intent?.selected_sports?.length
+      ? input.session_intent.selected_sports
+      : (input.sport_slugs ?? []);
+  const sessionSportField =
+    sessionSports.length > 0 ? { session_sport_slugs: sessionSports } : {};
   if (SESSION_PREP_BLOCK_TYPES.has(blockType)) {
-    return { goals: [], session_prep: true, ...declaredSportField };
+    return { goals: [], session_prep: true, ...sessionSportField };
   }
-  return { goals: [], intent_inferred: true, ...declaredSportField };
+  return { goals: [], intent_inferred: true, ...sessionSportField };
 }
 
 export function annotateSessionIntentLinksOnBlocks(
@@ -417,9 +579,10 @@ export function annotateSessionIntentLinksOnBlocks(
     const bt = block.block_type as BlockType;
     for (const item of block.items) {
       const ex = exerciseById.get(item.exercise_id);
-      item.session_intent_links = ex
+      const links = ex
         ? buildWorkoutItemSessionIntentLinks(ex, input, bt)
         : buildFallbackSessionIntentLinks(input, bt);
+      item.session_intent_links = enforceSubIntentSeparationOnLinks(links, block.goal_intent);
     }
   }
 
@@ -429,24 +592,31 @@ export function annotateSessionIntentLinksOnBlocks(
     input.goal_weights ??
     selectedFitnessGoals.map(() => 1 / Math.max(selectedFitnessGoals.length, 1));
 
-  const workingItems: { blockType: BlockType; item: WorkoutItem; ex: Exercise | undefined }[] = [];
+  const workingItems: {
+    blockType: BlockType;
+    goalIntent: WorkoutBlockGoalIntent | undefined;
+    item: WorkoutItem;
+    ex: Exercise | undefined;
+  }[] = [];
   for (const block of mergedBlocks) {
     const bt = block.block_type as BlockType;
     if (SESSION_PREP_BLOCK_TYPES.has(bt)) continue;
     for (const item of block.items) {
       workingItems.push({
         blockType: bt,
+        goalIntent: block.goal_intent,
         item,
         ex: exerciseById.get(item.exercise_id),
       });
     }
   }
 
-  const n = workingItems.length;
+  const fitnessAssignableItems = workingItems.filter((row) => !isSubIntentDedicatedBlock(row.goalIntent));
+  const n = fitnessAssignableItems.length;
   if (n > 0 && selectedFitnessGoals.length > 0) {
     const seq = allocateFitnessGoalsToSlots(selectedFitnessGoals, weights, n, input.seed ?? 0);
     for (let i = 0; i < n; i++) {
-      const { item, ex } = workingItems[i]!;
+      const { item, ex } = fitnessAssignableItems[i]!;
       const base = item.session_intent_links;
       if (!base) continue;
       const g = seq[i] ?? selectedFitnessGoals[0]!;

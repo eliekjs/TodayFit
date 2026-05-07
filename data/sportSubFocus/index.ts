@@ -25,6 +25,12 @@ export {
   getSportDefinition,
 } from "./sportDefinitions";
 export { SUB_FOCUS_TAG_MAP } from "./subFocusTagMap";
+export {
+  exerciseTagSetHasSpeedAgilityDynamicMovement,
+  isSpeedAgilityPowerStyleSubFocusSlug,
+  SPEED_AGILITY_DYNAMIC_MOVEMENT_TAG_SLUGS,
+  SPEED_AGILITY_POWER_STYLE_SUB_FOCUS_SLUGS,
+} from "./speedAgilitySubFocusShared";
 export { SPORT_SUBFOCUS_EXERCISE_TAGS, NEW_TAGS_TO_ADD } from "./exerciseTagTaxonomy";
 export { getCanonicalSportSlug, LEGACY_TO_CANONICAL_SPORT } from "./canonicalSportSlug";
 

@@ -1,0 +1,93 @@
+# Lacrosse sub-focus exercise pools (generator-converted catalog)
+
+Generated from the static catalog through the generator exercise adapter, using current sport sub-focus matching.
+
+## speed
+- Matches: 92
+- Tags: speed (1.2), explosive_power (1)
+- Top 40:
+  - Box Jump — power — tags: explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — tags: explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — tags: speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — tags: speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — tags: speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — tags: speed — dynamic: speed, reactive_power
+  - Jump Lunge — power — tags: explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — tags: explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — tags: speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — tags: speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — tags: speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — tags: speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — tags: speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — tags: speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — tags: speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — tags: speed — dynamic: speed, agility
+  - 2 Point Start — conditioning — tags: speed — dynamic: speed
+  - 3 Point Start — conditioning — tags: speed — dynamic: speed
+  - 40 Start — conditioning — tags: speed — dynamic: speed
+  - 60 Start — conditioning — tags: speed — dynamic: speed
+  - A Skip — conditioning — tags: speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — tags: speed — dynamic: speed
+  - Arm Pump Drill — conditioning — tags: speed — dynamic: speed
+  - B Skip with Power — conditioning — tags: speed — dynamic: speed
+  - Back Pedal to Accelerate — conditioning — tags: speed — dynamic: speed
+  - Backpedal to Hip Flip — conditioning — tags: speed — dynamic: speed
+  - Band Piston Sprint — conditioning — tags: speed — dynamic: speed
+  - Build Up Sprint — conditioning — tags: speed — dynamic: speed
+  - Butt Kick Run — conditioning — tags: speed — dynamic: speed
+  - Carioca Run — conditioning — tags: speed — dynamic: speed
+  - Crossover Bounds — conditioning — tags: speed — dynamic: speed
+  - Crossover Run — conditioning — tags: speed — dynamic: speed
+  - Crouching Start — conditioning — tags: speed — dynamic: speed
+  - Dead Leg Run — conditioning — tags: speed — dynamic: speed
+  - Decel Series — conditioning — tags: speed — dynamic: speed
+  - Dowel Rod Cue — conditioning — tags: speed — dynamic: speed
+  - Falling Starts — conditioning — tags: speed — dynamic: speed
+  - Figure 8 — conditioning — tags: speed — dynamic: speed
+  - Full Arc or Circle Run — conditioning — tags: speed — dynamic: speed
+  - Ground Starts — conditioning — tags: speed — dynamic: speed
+
+## change_of_direction
+- Matches: 396
+- Tags: agility (1.3), reactive_power (1.15), plyometric (1), speed (0.9), explosive_power (0.9), single_leg_strength (0.7), balance (0.4)
+- Top 40:
+  - Box Jump — power — tags: plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — tags: plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — tags: agility, reactive_power, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — tags: reactive_power, speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — tags: reactive_power, speed — dynamic: speed, reactive_power
+  - Depth Jump — power — tags: reactive_power, plyometric — dynamic: reactive_power, plyometric
+  - Jump Lunge — power — tags: plyometric, explosive_power, single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — tags: plyometric, explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — tags: agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — tags: agility, reactive_power — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — tags: speed — dynamic: speed
+  - 3 Point Start — conditioning — tags: speed — dynamic: speed
+  - 40 Start — conditioning — tags: speed — dynamic: speed
+  - 60 Start — conditioning — tags: speed — dynamic: speed
+  - A Skip — conditioning — tags: speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — tags: speed — dynamic: speed
+  - Alternating Single Arm Dumbbell Hang Power Clean — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Dumbbell Hang Snatch — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Dumbbell Power Snatch — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Dumbbell Squat Snatch — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Bottoms Up Clean — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Bottoms Up Clean to Front Rack Squat — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Bottoms Up Clean to Overhead Press — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Bottoms Up Clean to Split Jerk — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Bottoms Up Clean to Thruster — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Bottoms Up Dead Clean — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Bottoms Up Snatch — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Clean — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Clean to Bent Press — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Clean to Front Rack Squat — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Clean to Overhead Press — strength — tags: plyometric — dynamic: plyometric
+  - Alternating Single Arm Kettlebell Clean to Push Jerk — strength — tags: plyometric — dynamic: plyometric

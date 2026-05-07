@@ -25,7 +25,11 @@ import {
 import { Chip } from "../../../components/Chip";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
-import { GOAL_SLUG_TO_LABEL, goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesConstants";
+import {
+  GOAL_SLUG_TO_LABEL,
+  GOAL_SLUG_TO_PRIMARY_FOCUS,
+  goalSubFocusPayloadForAdaptiveGoals,
+} from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
@@ -192,6 +196,16 @@ export default function AdaptiveWeekPlanScreen() {
           ? 100
           : 0;
 
+    const dualSportPct = plan.sportFocusPct ?? snap?.sportFocusPct;
+    const sportSubMap = plan.sportSubFocusSlugsBySport ?? snap?.sportSubFocusSlugsBySport;
+    const orderedManualGoalLabels = goalSlugs
+      .map((s) => GOAL_SLUG_TO_PRIMARY_FOCUS[s])
+      .filter((x): x is string => Boolean(x));
+    const subFocusMerged = {
+      ...manualPreferences.subFocusByGoal,
+      ...(snap?.goalSubFocusByGoal ?? {}),
+    };
+
     return computeDeclaredIntentSplitFromPrefs({
       sportSlugs: rankedSports,
       goalSlugs,
@@ -199,8 +213,22 @@ export default function AdaptiveWeekPlanScreen() {
       goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
       goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
       goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+      sportShareAmongSportsPct:
+        rankedSports.length === 2 && dualSportPct ? dualSportPct : undefined,
+      sportSubFocusBySport: sportSubMap,
+      orderedPrimaryLabelsForSubFocus:
+        orderedManualGoalLabels.length > 0 ? orderedManualGoalLabels : undefined,
+      subFocusByGoal: subFocusMerged,
+      weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
-  }, [sportPrepWeekPlan, manualPreferences.goalMatchPrimaryPct, manualPreferences.goalMatchSecondaryPct, manualPreferences.goalMatchTertiaryPct]);
+  }, [
+    sportPrepWeekPlan,
+    manualPreferences.goalMatchPrimaryPct,
+    manualPreferences.goalMatchSecondaryPct,
+    manualPreferences.goalMatchTertiaryPct,
+    manualPreferences.subFocusByGoal,
+    manualPreferences.weekSubFocusPrimaryLabels,
+  ]);
 
   const planWorkoutTitle = useMemo(
     () => (planFocusSplit.length > 0 ? buildWorkoutIntentTitle(planFocusSplit) : undefined),

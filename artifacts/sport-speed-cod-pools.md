@@ -1,0 +1,276 @@
+# Sport speed/COD pools (generator-converted catalog)
+
+Generated from the static catalog through the generator exercise adapter, using current sport sub-focus matching.
+
+## lacrosse:speed
+- Matches: 92
+- Tags: speed (1.2), explosive_power (1)
+- Top 25:
+  - Box Jump — power — explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — speed — dynamic: speed, reactive_power
+  - Jump Lunge — power — explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — speed — dynamic: speed, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Arm Pump Drill — conditioning — speed — dynamic: speed
+  - B Skip with Power — conditioning — speed — dynamic: speed
+  - Back Pedal to Accelerate — conditioning — speed — dynamic: speed
+
+## lacrosse:change_of_direction
+- Matches: 396
+- Tags: agility (1.3), reactive_power (1.15), plyometric (1), speed (0.9), explosive_power (0.9), single_leg_strength (0.7), balance (0.4)
+- Top 25:
+  - Box Jump — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — agility, reactive_power, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Depth Jump — power — reactive_power, plyometric — dynamic: reactive_power, plyometric
+  - Jump Lunge — power — plyometric, explosive_power, single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — plyometric, explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility, reactive_power — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Alternating Single Arm Dumbbell Hang Power Clean — strength — plyometric — dynamic: plyometric
+
+## soccer:change_of_direction
+- Matches: 396
+- Tags: agility (1.3), reactive_power (1.15), plyometric (1), speed (0.9), explosive_power (0.9), single_leg_strength (0.7), balance (0.4)
+- Top 25:
+  - Box Jump — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — agility, reactive_power, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Depth Jump — power — reactive_power, plyometric — dynamic: reactive_power, plyometric
+  - Jump Lunge — power — plyometric, explosive_power, single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — plyometric, explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility, reactive_power — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Alternating Single Arm Dumbbell Hang Power Clean — strength — plyometric — dynamic: plyometric
+
+## american_football:change_of_direction
+- Matches: 396
+- Tags: agility (1.3), reactive_power (1.15), plyometric (1), speed (0.9), explosive_power (0.9), single_leg_strength (0.7), balance (0.4)
+- Top 25:
+  - Box Jump — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — agility, reactive_power, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Depth Jump — power — reactive_power, plyometric — dynamic: reactive_power, plyometric
+  - Jump Lunge — power — plyometric, explosive_power, single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — plyometric, explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility, reactive_power — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Alternating Single Arm Dumbbell Hang Power Clean — strength — plyometric — dynamic: plyometric
+
+## rugby:change_of_direction
+- Matches: 396
+- Tags: agility (1.3), reactive_power (1.15), plyometric (1), speed (0.9), explosive_power (0.9), single_leg_strength (0.7), balance (0.4)
+- Top 25:
+  - Box Jump — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — agility, reactive_power, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Depth Jump — power — reactive_power, plyometric — dynamic: reactive_power, plyometric
+  - Jump Lunge — power — plyometric, explosive_power, single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — plyometric, explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility, reactive_power — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Alternating Single Arm Dumbbell Hang Power Clean — strength — plyometric — dynamic: plyometric
+
+## hockey:change_of_direction
+- Matches: 396
+- Tags: agility (1.3), reactive_power (1.15), plyometric (1), speed (0.9), explosive_power (0.9), single_leg_strength (0.7), balance (0.4)
+- Top 25:
+  - Box Jump — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — agility, reactive_power, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Depth Jump — power — reactive_power, plyometric — dynamic: reactive_power, plyometric
+  - Jump Lunge — power — plyometric, explosive_power, single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — plyometric, explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility, reactive_power — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Alternating Single Arm Dumbbell Hang Power Clean — strength — plyometric — dynamic: plyometric
+
+## basketball:change_of_direction
+- Matches: 396
+- Tags: agility (1.3), reactive_power (1.15), plyometric (1), speed (0.9), explosive_power (0.9), knee_stability (0.55), single_leg_strength (0.55)
+- Top 25:
+  - Box Jump — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Jump Squat — power — plyometric, explosive_power — dynamic: explosive, explosive_power, plyometric
+  - Lateral Shuffle to Ball Drop — conditioning — agility, reactive_power, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — reactive_power, speed — dynamic: speed, reactive_power
+  - Depth Jump — power — reactive_power, plyometric — dynamic: reactive_power, plyometric
+  - Jump Lunge — power — plyometric, explosive_power, single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Bound — power — plyometric, explosive_power — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility, reactive_power — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Alternating Single Arm Dumbbell Hang Power Clean — strength — plyometric — dynamic: plyometric
+
+## basketball:lateral_speed
+- Matches: 30
+- Tags: agility (1.2), single_leg_strength (1)
+- Top 25:
+  - Lateral Shuffle to Ball Drop — conditioning — agility — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility — dynamic: speed, agility
+  - Jump Lunge — power — single_leg_strength — dynamic: explosive_power, plyometric
+  - Lateral Power Shuffle — conditioning — agility — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility — dynamic: reactive_power, agility
+  - Ascending Skater Jumps — power — agility — dynamic: agility
+  - Bodyweight Hand Assisted Skater Squat — strength — agility — dynamic: agility
+  - Bodyweight Skater Jump — power — agility — dynamic: agility
+  - Bodyweight Skater Squat — strength — agility — dynamic: agility
+  - Double Kettlebell Front Rack Skater Squat — strength — agility — dynamic: agility
+  - Kettlebell Horn Grip Skater Squat — strength — agility — dynamic: agility
+  - Landmine Zercher Skater Squat — strength — agility — dynamic: agility
+  - Reaction Skater Jumps — power — agility — dynamic: agility
+  - Resisted Skater Hops — power — agility — dynamic: agility
+  - Single Arm Suspension Contralateral Skater Squat — strength — agility — dynamic: agility
+  - Single Arm Suspension Ipsilateral Skater Squat — strength — agility — dynamic: agility
+  - Skater Jumps — power — agility — dynamic: agility
+  - Skater Jumps With Cones 45 Degree Stability — power — agility — dynamic: agility
+
+## court_racquet:lateral_speed
+- Matches: 107
+- Tags: agility (1.2), speed (1)
+- Top 25:
+  - Lateral Shuffle to Ball Drop — conditioning — agility, speed — dynamic: speed, reactive_power, agility
+  - Ascending-Descending Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Back Pedal Ball Drops — conditioning — speed — dynamic: speed, reactive_power
+  - Ball Drops — conditioning — speed — dynamic: speed, reactive_power
+  - Lateral Power Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle Mirror Drill — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to React Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Lateral Shuffle with Ball React (facing or against wall) — conditioning — agility, speed — dynamic: speed, agility
+  - Power Shuffle to Sprint — conditioning — agility, speed — dynamic: speed, agility
+  - Resisted/Assisted Lateral Shuffle — conditioning — agility, speed — dynamic: speed, agility
+  - Skater Jumps With Cones 45 to 90 Reactive — power — agility — dynamic: reactive_power, agility
+  - 2 Point Start — conditioning — speed — dynamic: speed
+  - 3 Point Start — conditioning — speed — dynamic: speed
+  - 40 Start — conditioning — speed — dynamic: speed
+  - 60 Start — conditioning — speed — dynamic: speed
+  - A Skip — conditioning — speed — dynamic: speed
+  - Accelerate to Back Pedal — conditioning — speed — dynamic: speed
+  - Arm Pump Drill — conditioning — speed — dynamic: speed
+  - Ascending Skater Jumps — power — agility — dynamic: agility
+  - B Skip with Power — conditioning — speed — dynamic: speed
+  - Back Pedal to Accelerate — conditioning — speed — dynamic: speed
+  - Backpedal to Hip Flip — conditioning — speed — dynamic: speed
+  - Band Piston Sprint — conditioning — speed — dynamic: speed
+
+## Shared COD/lateral candidate count
+112

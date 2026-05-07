@@ -447,6 +447,9 @@ export default function ManualPreferencesScreen() {
       goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
       goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
       goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+      orderedPrimaryLabelsForSubFocus: goalLabels,
+      subFocusByGoal: manualPreferences.subFocusByGoal,
+      weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
   })();
   const prefsWorkoutTitle =

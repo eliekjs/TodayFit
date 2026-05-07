@@ -55,80 +55,89 @@ function _formatIntentLabel(intent: {
   return _humanizeGoalSlug(intent.slug);
 }
 
-/** Returns up to 3 human-readable labels for why this exercise is in the workout. */
+/** True for the internal "athletic_performance" goal slug — too generic to show users. */
+function _isAthletic(m: { kind: string; slug: string }): boolean {
+  return m.kind === "goal" && m.slug === "athletic_performance";
+}
+
+/**
+ * Returns 1–2 human-readable labels for why this exercise is in the workout.
+ * Rules (in priority order):
+ *  1. Session prep (warmup/cooldown) — no FOR chip; shows nothing.
+ *  2. Specific matched intents (sport sub-focus > goal sub-focus > bare sport),
+ *     "athletic_performance" goal entries are never displayed (too generic).
+ *  3. Exercises that matched a sport tag but not a specific sub-focus → sport name.
+ *  4. Exercises with no sport connection in a sport session → session sport names as context.
+ *  5. Non-sport sessions → humanized goal name.
+ */
 function getIntentLabels(item: WorkoutItem): string[] {
   const links = item.session_intent_links;
   if (!links) return [];
 
+  // Warmup / cooldown: block title already provides context; no FOR chip needed.
+  if (links.session_prep) return [];
+
   const labels: string[] = [];
-  const declaredSportSubs = links.declared_sport_sub_focuses ?? [];
-  const hasDeclaredSportSubs = declaredSportSubs.length > 0;
 
-  // User explicitly picked sport sub-focuses — show them first even when this exercise’s
-  // tags only weakly match ranked_intent_entries (otherwise chips collapse to internal primary goal).
-  for (const d of declaredSportSubs) {
-    if (labels.length >= 3) break;
-    const label = _formatIntentLabel({
-      kind: "sport_sub_focus",
-      slug: d.slug,
-      parent_slug: d.parent_slug,
-    });
-    if (!labels.includes(label)) labels.push(label);
+  // 1. Specific matched intent entries — skip athletic_performance and inferred.
+  const specificMatched = (links.matched_intents ?? []).filter(
+    (m) => m.match_strength !== "inferred" && !_isAthletic(m)
+  );
+  const strengthOrder = (m: (typeof specificMatched)[number]) =>
+    m.match_strength === "direct" ? 0 : 1;
+  const tier = (m: (typeof specificMatched)[number]) =>
+    m.kind === "sport_sub_focus" ? 0 : m.kind === "goal_sub_focus" ? 1 : m.kind === "sport" ? 2 : 3;
+
+  const orderedMatched = [...specificMatched].sort((a, b) => {
+    const td = tier(a) - tier(b);
+    if (td !== 0) return td;
+    const sw = strengthOrder(a) - strengthOrder(b);
+    if (sw !== 0) return sw;
+    return a.rank - b.rank;
+  });
+
+  for (const m of orderedMatched) {
+    if (labels.length >= 2) break;
+    const lbl = _formatIntentLabel(m);
+    if (!labels.includes(lbl)) labels.push(lbl);
   }
 
-  // Show most-specific matched intents first (sub-focus > top-level goal/sport).
-  if (links.matched_intents && links.matched_intents.length > 0) {
-    const nonInferred = links.matched_intents.filter((m) => m.match_strength !== "inferred");
-    const forDisplay =
-      hasDeclaredSportSubs
-        ? nonInferred.filter(
-            (m) => !(m.kind === "goal" && m.slug === "athletic_performance")
-          )
-        : nonInferred;
-    // Prefer sub-focus entries — they are more informative than a bare sport/goal label.
-    const subFocusMatches = forDisplay
-      .filter((m) => m.kind === "sport_sub_focus" || m.kind === "goal_sub_focus")
-      .slice(0, 2)
-      .map(_formatIntentLabel)
-      .filter((lbl) => !labels.includes(lbl));
-    if (subFocusMatches.length > 0) {
-      for (const lbl of subFocusMatches) {
-        if (labels.length >= 3) break;
-        if (!labels.includes(lbl)) labels.push(lbl);
-      }
-    } else {
-      for (const m of forDisplay.slice(0, 2)) {
-        if (labels.length >= 3) break;
-        const lbl = _formatIntentLabel(m);
-        if (!labels.includes(lbl)) labels.push(lbl);
-      }
-    }
-  }
-
-  // Always surface session goals (e.g. "Build Muscle") even when sport chips are shown,
-  // and even when the exercise carries intent_inferred (no specific tag match).
-  for (const goal of links.goals ?? []) {
-    if (hasDeclaredSportSubs && goal === "athletic_performance") continue;
-    const humanized = _humanizeGoalSlug(goal);
-    if (!labels.includes(humanized) && labels.length < 3) labels.push(humanized);
-  }
-
-  // Add sport name if not already covered by a matched_intents sport/sport_sub_focus entry.
-  if (labels.length < 3) {
-    const coveredSportParents = new Set(
-      (links.matched_intents ?? [])
+  // 2. Exercise has a sport tag that matches the session sport (but no sub-focus).
+  if (labels.length < 2) {
+    const coveredParents = new Set(
+      orderedMatched
         .filter((m) => m.kind === "sport" || m.kind === "sport_sub_focus")
         .map((m) => (m.kind === "sport_sub_focus" ? (m.parent_slug ?? m.slug) : m.slug))
     );
     for (const sportSlug of links.sport_slugs ?? []) {
-      if (!coveredSportParents.has(sportSlug) && labels.length < 3) {
-        const sport = _sportBySlug.get(sportSlug);
-        labels.push(sport ? sport.name : _humanizeGoalSlug(sportSlug));
-      }
+      if (labels.length >= 2) break;
+      if (coveredParents.has(sportSlug)) continue;
+      const sport = _sportBySlug.get(sportSlug);
+      const lbl = sport ? sport.name : _humanizeGoalSlug(sportSlug);
+      if (!labels.includes(lbl)) labels.push(lbl);
     }
   }
 
-  return [...new Set(labels)].slice(0, 3);
+  // 3. Non-sport goal fallback (strength, hypertrophy, mobility…) — skip athletic_performance.
+  if (labels.length === 0) {
+    for (const goal of (links.goals ?? []).filter((g) => g !== "athletic_performance")) {
+      if (labels.length >= 2) break;
+      const humanized = _humanizeGoalSlug(goal);
+      if (!labels.includes(humanized)) labels.push(humanized);
+    }
+  }
+
+  // 4. Last resort for sport sessions: show session sport context so the chip is never blank.
+  if (labels.length === 0 && (links.session_sport_slugs?.length ?? 0) > 0) {
+    for (const sportSlug of (links.session_sport_slugs ?? []).slice(0, 2)) {
+      if (labels.length >= 2) break;
+      const sport = _sportBySlug.get(sportSlug);
+      const lbl = sport ? sport.name : _humanizeGoalSlug(sportSlug);
+      if (!labels.includes(lbl)) labels.push(lbl);
+    }
+  }
+
+  return [...new Set(labels)].slice(0, 2);
 }
 
 function IntentChips({

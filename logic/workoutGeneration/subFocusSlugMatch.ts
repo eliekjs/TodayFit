@@ -8,6 +8,10 @@ import {
   exerciseHasStrengthSubFocusSlug,
 } from "../../data/goalSubFocus/strengthSubFocus";
 import { exerciseHasSubFocusSlug } from "../../data/goalSubFocus/conditioningSubFocus";
+import {
+  exerciseTagSetHasSpeedAgilityDynamicMovement,
+  isSpeedAgilityPowerStyleSubFocusSlug,
+} from "../../data/sportSubFocus/speedAgilitySubFocusShared";
 import type { Exercise } from "./types";
 
 function tagToSlug(s: string): string {
@@ -57,6 +61,10 @@ function getExerciseTagSlugsForCoverage(exercise: Exercise): Set<string> {
   const pairing = (exercise.pairing_category ?? "").trim();
   if (pairing) add(pairing);
   return slugs;
+}
+
+function requiresSpeedAgilityDynamicGate(subSlug: string): boolean {
+  return isSpeedAgilityPowerStyleSubFocusSlug(subSlug);
 }
 
 /**
@@ -130,6 +138,8 @@ export function exerciseMatchesSportSubFocusSlug(
   const entries = getExerciseTagsForSubFocuses(sportKey, [subSlug]);
   if (!entries.length) return false;
   const exTags = getExerciseTagSlugsForCoverage(exercise);
+  if (requiresSpeedAgilityDynamicGate(subSlug) && !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags))
+    return false;
   return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
 }
 

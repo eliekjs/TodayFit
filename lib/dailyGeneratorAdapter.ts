@@ -35,6 +35,7 @@ import type {
 
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
+import { sportSubFocusSelectionsImplyEnduranceSecondary } from "../data/sportSubFocus/enduranceSportPrepSecondaryGoal";
 import {
   buildWeeklySubFocusKeysFromPreferences,
   computeWeeklySubFocusSessionMinimums,
@@ -64,13 +65,11 @@ function clampDuration(mins: number | null): AllowedDuration {
   return 75;
 }
 
-/** Sub-focus slugs that mean the user wants engine / uphill work, not strength-only gym days. */
-const TRAIL_ULTRA_ENDURANCE_SUBFOCUS_SLUGS = new Set(["aerobic_base", "uphill_endurance"]);
-
 /**
- * When sport prep passes trail/ultra aerobic or uphill sub-focus but the session primary is still strength,
- * treat endurance as an explicit secondary goal so constraints require a conditioning finisher (existing path
- * in `resolveWorkoutConstraints` + `generateWorkoutSession` §6).
+ * When sport prep selects an endurance-engine sport (`enduranceSportPrepSecondaryGoal.ts`) plus an
+ * engine-relevant sub-focus, but the session primary is still strength/hypertrophy/etc., append `endurance`
+ * so constraints can require conditioning/Zone-style work (`resolveWorkoutConstraints` +
+ * `generateWorkoutSession`). Trail/ultra (aerobic_base / uphill_endurance) stays covered via that module.
  */
 function shouldAppendEnduranceSecondaryFromSportSubFocus(
   primaryGoal: PrimaryGoal,
@@ -83,9 +82,7 @@ function shouldAppendEnduranceSecondaryFromSportSubFocus(
   if (!sub) return false;
   for (const [sportKey, slugs] of Object.entries(sub)) {
     const canon = getCanonicalSportSlug(sportKey);
-    if (canon !== "trail_running" && canon !== "ultra_running") continue;
-    if (!slugs?.some((s) => TRAIL_ULTRA_ENDURANCE_SUBFOCUS_SLUGS.has(s))) continue;
-    return true;
+    if (sportSubFocusSelectionsImplyEnduranceSecondary(canon, slugs)) return true;
   }
   return false;
 }
@@ -164,9 +161,13 @@ function buildRankedIntentEntries(
     if (!claimedSubFocusKeys.has(subFocusKey)) {
       claimedSubFocusKeys.add(subFocusKey);
       const subSlugs = goalSubFocusByGoal[subFocusKey] ?? [];
+      const goalSubRankWeights = subSlugs.map(
+        (_, j) => SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / Math.max(subSlugs.length, 1)
+      );
+      const goalSubRankSum = goalSubRankWeights.reduce((s, w) => s + w, 0) || 1;
       for (let j = 0; j < subSlugs.length; j++) {
         const subSlug = subSlugs[j]!;
-        const subRankWeight = SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / subSlugs.length;
+        const subRankWeight = (goalSubRankWeights[j] ?? 1 / subSlugs.length) / goalSubRankSum;
         const subWeight = goalAbsWeight * subRankWeight;
         const tagEntries = getExerciseTagsForGoalSubFocuses(subFocusKey, [subSlug]);
         entries.push({
@@ -198,9 +199,13 @@ function buildRankedIntentEntries(
 
       const sportSubSlugs =
         sportSubFocusBySport[sport] ?? sportSubFocusBySport[canonSport] ?? [];
+      const sportSubRankWeights = sportSubSlugs.map(
+        (_, j) => SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / Math.max(sportSubSlugs.length, 1)
+      );
+      const sportSubRankSum = sportSubRankWeights.reduce((s, w) => s + w, 0) || 1;
       for (let j = 0; j < sportSubSlugs.length; j++) {
         const subSlug = sportSubSlugs[j]!;
-        const subRankWeight = SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / sportSubSlugs.length;
+        const subRankWeight = (sportSubRankWeights[j] ?? 1 / sportSubSlugs.length) / sportSubRankSum;
         const subWeight = perSportWeight * subRankWeight;
         const tagEntries = getExerciseTagsForSubFocuses(sport, [subSlug]);
         entries.push({

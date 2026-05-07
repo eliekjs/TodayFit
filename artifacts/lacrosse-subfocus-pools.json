@@ -1,0 +1,2420 @@
+{
+  "generated_at": "2026-05-07T03:19:49.099Z",
+  "source": "static catalog via exerciseDefinitionToGeneratorExercise",
+  "pools": {
+    "speed": {
+      "tag_weights": [
+        {
+          "tag_slug": "speed",
+          "weight": 1.2
+        },
+        {
+          "tag_slug": "explosive_power",
+          "weight": 1
+        }
+      ],
+      "count": 92,
+      "top_100": [
+        {
+          "id": "box_jump",
+          "name": "Box Jump",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "explosive_power"
+          ],
+          "dynamic_tags": [
+            "explosive",
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "jump_squat",
+          "name": "Jump Squat",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "explosive_power"
+          ],
+          "dynamic_tags": [
+            "explosive",
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_to_ball_drop",
+          "name": "Lateral Shuffle to Ball Drop",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "reactive_power",
+            "agility"
+          ]
+        },
+        {
+          "id": "ascending_descending_lateral_shuffle",
+          "name": "Ascending-Descending Lateral Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "back_pedal_ball_drops",
+          "name": "Back Pedal Ball Drops",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "reactive_power"
+          ]
+        },
+        {
+          "id": "ball_drops",
+          "name": "Ball Drops",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "reactive_power"
+          ]
+        },
+        {
+          "id": "jump_lunge",
+          "name": "Jump Lunge",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "explosive_power"
+          ],
+          "dynamic_tags": [
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "lateral_bound",
+          "name": "Lateral Bound",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "explosive_power"
+          ],
+          "dynamic_tags": [
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "lateral_power_shuffle",
+          "name": "Lateral Power Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle",
+          "name": "Lateral Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_mirror_drill",
+          "name": "Lateral Shuffle Mirror Drill",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_to_react_sprint",
+          "name": "Lateral Shuffle to React Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_to_sprint",
+          "name": "Lateral Shuffle to Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_with_ball_react_facing_or_against_wall",
+          "name": "Lateral Shuffle with Ball React (facing or against wall)",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "power_shuffle_to_sprint",
+          "name": "Power Shuffle to Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "resisted_lateral_shuffle",
+          "name": "Resisted/Assisted Lateral Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "2_point_start",
+          "name": "2 Point Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "3_point_start",
+          "name": "3 Point Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "40_start",
+          "name": "40 Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "60_start",
+          "name": "60 Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "a_skip",
+          "name": "A Skip",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "accelerate_to_back_pedal",
+          "name": "Accelerate to Back Pedal",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "arm_pump_drill",
+          "name": "Arm Pump Drill",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "b_skip_with_power",
+          "name": "B Skip with Power",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "back_pedal_to_accelerate",
+          "name": "Back Pedal to Accelerate",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "backpedal_to_hip_flip",
+          "name": "Backpedal to Hip Flip",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "band_piston_sprint",
+          "name": "Band Piston Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "build_up_sprint",
+          "name": "Build Up Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "butt_kick_run",
+          "name": "Butt Kick Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "carioca_run",
+          "name": "Carioca Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "crossover_bounds",
+          "name": "Crossover Bounds",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "crossover_run",
+          "name": "Crossover Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "crouching_start",
+          "name": "Crouching Start",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "dead_leg_run",
+          "name": "Dead Leg Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "decel_series",
+          "name": "Decel Series",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "dowel_rod_cue",
+          "name": "Dowel Rod Cue",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "falling_starts",
+          "name": "Falling Starts",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "figure_8",
+          "name": "Figure 8",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "full_arc_or_circle_run",
+          "name": "Full Arc or Circle Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "ground_starts",
+          "name": "Ground Starts",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "half_arc",
+          "name": "Half Arc Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "half_kneeling_arm_pump",
+          "name": "Half Kneeling Arm Pump",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "half_kneeling_starts",
+          "name": "Half Kneeling Starts",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "high_knee_butt_kick_run",
+          "name": "High Knee Butt Kick Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "high_knee_run",
+          "name": "High Knee Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "jump_back_starts",
+          "name": "Jump Back Starts",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "jump_cut_drill",
+          "name": "Jump Cut Drill",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "jump_cut_drill_with_reaction",
+          "name": "Jump Cut Drill with Reaction",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "kick_up_starts",
+          "name": "Kick Up Starts",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "l_drill",
+          "name": "L Drill",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "lateral_butt_kick_run",
+          "name": "Lateral Butt Kick Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "lateral_ground_start",
+          "name": "Lateral Ground Start",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "lateral_half_kneeling_starts",
+          "name": "Lateral Half Kneeling Starts",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "lateral_high_knee_run",
+          "name": "Lateral High Knee Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "low_hurdle_lateral_run",
+          "name": "Lateral Low Hurdle Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "low_hurdle_lateral_to_linear",
+          "name": "Lateral Low Hurdle to Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "lateral_short_shuttle",
+          "name": "Lateral Short Shuttle",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "lateral_wall_drill",
+          "name": "Lateral Wall Drill",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "linear",
+          "name": "Linear",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "stop_and_go",
+          "name": "Linear Stop and Go",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "low_box_hip_switches",
+          "name": "Low Box Hip Switches",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "low_box_hip_switches",
+          "name": "Low Box Hip Switches",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "mountain_climber_starts_2",
+          "name": "Mountain Climber Starts",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "pad_cue",
+          "name": "Pad Cue",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "partner_lean_start",
+          "name": "Partner Lean Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "piston_run",
+          "name": "Piston Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "power_carioca",
+          "name": "Power Carioca",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "pro_shuttle",
+          "name": "Pro Shuttle",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "pro_shuttle",
+          "name": "Pro Shuttle",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "push_up_start",
+          "name": "Push Up Start",
+          "modality": "conditioning",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "quarter_arc",
+          "name": "Quarter Arc Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "resisted_ground_starts",
+          "name": "Resisted Ground Starts",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "resisted_crossover_run",
+          "name": "Resisted/Assisted Crossover Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "short_shuttle",
+          "name": "Short Shuttle",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "single_leg_high_knee_mini_hurdles",
+          "name": "Single Leg High Knee Mini Hurdles",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "single_leg_high_knees",
+          "name": "Single Leg High Knees",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "single_leg_push_off",
+          "name": "Single Leg Push Off",
+          "modality": "conditioning",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "single_leg_step_over",
+          "name": "Single Leg Step Over",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "single_leg_step_over_mini_hurdles",
+          "name": "Single Leg Step Over Mini Hurdles",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "sled_march",
+          "name": "Sled March",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "sled_push",
+          "name": "Sled Push",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "sled_resisted_sprint",
+          "name": "Sled Resisted Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "stance_to_wall_drill",
+          "name": "Stance to Wall Drill",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "straight_leg_bounds",
+          "name": "Straight Leg Bounds",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "tempo_run",
+          "name": "Tempo Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "thigh_pop_run",
+          "name": "Thigh Pop Run",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "wall_drill_double_switch",
+          "name": "Wall Drill Double Switch",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "wall_drill_single_switch",
+          "name": "Wall Drill Single Switch",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "wall_drill_timed",
+          "name": "Wall Drill Timed",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "wall_sprint_drill",
+          "name": "Wall Sprint Drill",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "y_cut_drill",
+          "name": "Y Cut Drill",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "y_cut_drill_with_reaction",
+          "name": "Y Cut Drill with Reaction",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        }
+      ]
+    },
+    "change_of_direction": {
+      "tag_weights": [
+        {
+          "tag_slug": "agility",
+          "weight": 1.3
+        },
+        {
+          "tag_slug": "reactive_power",
+          "weight": 1.15
+        },
+        {
+          "tag_slug": "plyometric",
+          "weight": 1
+        },
+        {
+          "tag_slug": "speed",
+          "weight": 0.9
+        },
+        {
+          "tag_slug": "explosive_power",
+          "weight": 0.9
+        },
+        {
+          "tag_slug": "single_leg_strength",
+          "weight": 0.7
+        },
+        {
+          "tag_slug": "balance",
+          "weight": 0.4
+        }
+      ],
+      "count": 396,
+      "top_100": [
+        {
+          "id": "box_jump",
+          "name": "Box Jump",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric",
+            "explosive_power"
+          ],
+          "dynamic_tags": [
+            "explosive",
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "jump_squat",
+          "name": "Jump Squat",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric",
+            "explosive_power"
+          ],
+          "dynamic_tags": [
+            "explosive",
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_to_ball_drop",
+          "name": "Lateral Shuffle to Ball Drop",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "reactive_power",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "reactive_power",
+            "agility"
+          ]
+        },
+        {
+          "id": "ascending_descending_lateral_shuffle",
+          "name": "Ascending-Descending Lateral Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "back_pedal_ball_drops",
+          "name": "Back Pedal Ball Drops",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "reactive_power",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "reactive_power"
+          ]
+        },
+        {
+          "id": "ball_drops",
+          "name": "Ball Drops",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "reactive_power",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "reactive_power"
+          ]
+        },
+        {
+          "id": "depth_drop",
+          "name": "Depth Jump",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "reactive_power",
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "reactive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "jump_lunge",
+          "name": "Jump Lunge",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric",
+            "explosive_power",
+            "single_leg_strength"
+          ],
+          "dynamic_tags": [
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "lateral_bound",
+          "name": "Lateral Bound",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric",
+            "explosive_power"
+          ],
+          "dynamic_tags": [
+            "explosive_power",
+            "plyometric"
+          ]
+        },
+        {
+          "id": "lateral_power_shuffle",
+          "name": "Lateral Power Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle",
+          "name": "Lateral Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_mirror_drill",
+          "name": "Lateral Shuffle Mirror Drill",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_to_react_sprint",
+          "name": "Lateral Shuffle to React Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_to_sprint",
+          "name": "Lateral Shuffle to Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "lateral_shuffle_with_ball_react_facing_or_against_wall",
+          "name": "Lateral Shuffle with Ball React (facing or against wall)",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "power_shuffle_to_sprint",
+          "name": "Power Shuffle to Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "resisted_lateral_shuffle",
+          "name": "Resisted/Assisted Lateral Shuffle",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed",
+            "agility"
+          ]
+        },
+        {
+          "id": "skater_jumps_with_cones_45_to_90_reactive",
+          "name": "Skater Jumps With Cones 45 to 90 Reactive",
+          "modality": "power",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility",
+            "reactive_power"
+          ],
+          "dynamic_tags": [
+            "reactive_power",
+            "agility"
+          ]
+        },
+        {
+          "id": "2_point_start",
+          "name": "2 Point Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "3_point_start",
+          "name": "3 Point Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "40_start",
+          "name": "40 Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "60_start",
+          "name": "60 Start",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "a_skip",
+          "name": "A Skip",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "accelerate_to_back_pedal",
+          "name": "Accelerate to Back Pedal",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_dumbbell_hang_power_clean",
+          "name": "Alternating Single Arm Dumbbell Hang Power Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_dumbbell_hang_snatch",
+          "name": "Alternating Single Arm Dumbbell Hang Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_dumbbell_power_snatch",
+          "name": "Alternating Single Arm Dumbbell Power Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_dumbbell_squat_snatch",
+          "name": "Alternating Single Arm Dumbbell Squat Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_bottoms_up_clean",
+          "name": "Alternating Single Arm Kettlebell Bottoms Up Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_bottoms_up_clean_to_front_rack_squat",
+          "name": "Alternating Single Arm Kettlebell Bottoms Up Clean to Front Rack Squat",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_bottoms_up_clean_to_overhead_press",
+          "name": "Alternating Single Arm Kettlebell Bottoms Up Clean to Overhead Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_bottoms_up_clean_to_split_jerk",
+          "name": "Alternating Single Arm Kettlebell Bottoms Up Clean to Split Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_bottoms_up_clean_to_thruster",
+          "name": "Alternating Single Arm Kettlebell Bottoms Up Clean to Thruster",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_bottoms_up_dead_clean",
+          "name": "Alternating Single Arm Kettlebell Bottoms Up Dead Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_bottoms_up_snatch",
+          "name": "Alternating Single Arm Kettlebell Bottoms Up Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean",
+          "name": "Alternating Single Arm Kettlebell Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean_to_bent_press",
+          "name": "Alternating Single Arm Kettlebell Clean to Bent Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean_to_front_rack_squat",
+          "name": "Alternating Single Arm Kettlebell Clean to Front Rack Squat",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean_to_overhead_press",
+          "name": "Alternating Single Arm Kettlebell Clean to Overhead Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean_to_push_jerk",
+          "name": "Alternating Single Arm Kettlebell Clean to Push Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean_to_push_press",
+          "name": "Alternating Single Arm Kettlebell Clean to Push Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean_to_split_jerk",
+          "name": "Alternating Single Arm Kettlebell Clean to Split Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_clean_to_thruster",
+          "name": "Alternating Single Arm Kettlebell Clean to Thruster",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_clean",
+          "name": "Alternating Single Arm Kettlebell Dead Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_clean_to_front_rack_squat",
+          "name": "Alternating Single Arm Kettlebell Dead Clean to Front Rack Squat",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_clean_to_overhead_press",
+          "name": "Alternating Single Arm Kettlebell Dead Clean to Overhead Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_clean_to_push_jerk",
+          "name": "Alternating Single Arm Kettlebell Dead Clean to Push Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_clean_to_push_press",
+          "name": "Alternating Single Arm Kettlebell Dead Clean to Push Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_clean_to_thruster",
+          "name": "Alternating Single Arm Kettlebell Dead Clean to Thruster",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_half_snatch",
+          "name": "Alternating Single Arm Kettlebell Dead Half Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_dead_snatch",
+          "name": "Alternating Single Arm Kettlebell Dead Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_half_snatch",
+          "name": "Alternating Single Arm Kettlebell Half Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_snatch",
+          "name": "Alternating Single Arm Kettlebell Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_snatch_to_overhead_squat",
+          "name": "Alternating Single Arm Kettlebell Snatch to Overhead Squat",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_clean",
+          "name": "Alternating Single Arm Kettlebell Start Stop Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_clean_to_front_rack_squat",
+          "name": "Alternating Single Arm Kettlebell Start Stop Clean to Front Rack Squat",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_clean_to_overhead_press",
+          "name": "Alternating Single Arm Kettlebell Start Stop Clean to Overhead Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_clean_to_push_jerk",
+          "name": "Alternating Single Arm Kettlebell Start Stop Clean to Push Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_clean_to_push_press",
+          "name": "Alternating Single Arm Kettlebell Start Stop Clean to Push Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_clean_to_split_jerk",
+          "name": "Alternating Single Arm Kettlebell Start Stop Clean to Split Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_clean_to_thruster",
+          "name": "Alternating Single Arm Kettlebell Start Stop Clean to Thruster",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_half_snatch",
+          "name": "Alternating Single Arm Kettlebell Start Stop Half Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_start_stop_snatch",
+          "name": "Alternating Single Arm Kettlebell Start Stop Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_waiter_clean",
+          "name": "Alternating Single Arm Kettlebell Waiter Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_alternating_single_arm_kettlebell_waiter_snatch",
+          "name": "Alternating Single Arm Kettlebell Waiter Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "approach_box_jump",
+          "name": "Approach Box Jump",
+          "modality": "power",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "arm_pump_drill",
+          "name": "Arm Pump Drill",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "ascending_skater_jumps",
+          "name": "Ascending Skater Jumps",
+          "modality": "power",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "agility"
+          ],
+          "dynamic_tags": [
+            "agility"
+          ]
+        },
+        {
+          "id": "b_skip_with_power",
+          "name": "B Skip with Power",
+          "modality": "conditioning",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "back_pedal_to_accelerate",
+          "name": "Back Pedal to Accelerate",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "backpedal_to_hip_flip",
+          "name": "Backpedal to Hip Flip",
+          "modality": "conditioning",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "band_piston_sprint",
+          "name": "Band Piston Sprint",
+          "modality": "conditioning",
+          "movement_pattern": "locomotion",
+          "matched_tags": [
+            "speed"
+          ],
+          "dynamic_tags": [
+            "speed"
+          ]
+        },
+        {
+          "id": "band_snatch",
+          "name": "Band Snatch",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_deficit_snatch_grip_deadlift",
+          "name": "Barbell Deficit Snatch Grip Deadlift",
+          "modality": "strength",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_clean",
+          "name": "Barbell Hang Power Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_clean_to_front_rack_squat",
+          "name": "Barbell Hang Power Clean to Front Rack Squat",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_clean_to_overhead_press",
+          "name": "Barbell Hang Power Clean to Overhead Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_clean_to_push_jerk",
+          "name": "Barbell Hang Power Clean to Push Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_clean_to_push_press",
+          "name": "Barbell Hang Power Clean to Push Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_clean_to_split_jerk",
+          "name": "Barbell Hang Power Clean to Split Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_clean_to_squat_jerk",
+          "name": "Barbell Hang Power Clean to Squat Jerk",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_power_snatch",
+          "name": "Barbell Hang Power Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_clean",
+          "name": "Barbell Hang Squat Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_clean_to_overhead_press",
+          "name": "Barbell Hang Squat Clean to Overhead Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_clean_to_push_jerk",
+          "name": "Barbell Hang Squat Clean to Push Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_clean_to_push_press",
+          "name": "Barbell Hang Squat Clean to Push Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_clean_to_split_jerk",
+          "name": "Barbell Hang Squat Clean to Split Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_clean_to_squat_jerk",
+          "name": "Barbell Hang Squat Clean to Squat Jerk",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_clean_to_thruster",
+          "name": "Barbell Hang Squat Clean to Thruster",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_hang_squat_snatch",
+          "name": "Barbell Hang Squat Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_clean",
+          "name": "Barbell Power Clean",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_clean_to_front_rack_squat",
+          "name": "Barbell Power Clean to Front Rack Squat",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_clean_to_overhead_press",
+          "name": "Barbell Power Clean to Overhead Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_clean_to_push_jerk",
+          "name": "Barbell Power Clean to Push Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_clean_to_push_press",
+          "name": "Barbell Power Clean to Push Press",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_clean_to_split_jerk",
+          "name": "Barbell Power Clean to Split Jerk",
+          "modality": "strength",
+          "movement_pattern": "push",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_clean_to_squat_jerk",
+          "name": "Barbell Power Clean to Squat Jerk",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_power_snatch",
+          "name": "Barbell Power Snatch",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_snatch_balance",
+          "name": "Barbell Snatch Balance",
+          "modality": "strength",
+          "movement_pattern": "squat",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        },
+        {
+          "id": "ff_barbell_snatch_grip_deadlift",
+          "name": "Barbell Snatch Grip Deadlift",
+          "modality": "strength",
+          "movement_pattern": "pull",
+          "matched_tags": [
+            "plyometric"
+          ],
+          "dynamic_tags": [
+            "plyometric"
+          ]
+        }
+      ]
+    }
+  }
+}

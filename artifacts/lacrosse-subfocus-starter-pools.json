@@ -1,0 +1,1128 @@
+{
+  "derived_from": "supabase/migrations/*.sql",
+  "pools": {
+    "speed": [
+      {
+        "slug": "box_jump",
+        "matched_tags": [
+          "explosive_power",
+          "speed"
+        ],
+        "all_tags": [
+          "agility",
+          "core",
+          "core_stability",
+          "crossfit",
+          "explosive_power",
+          "jumping",
+          "knee_stability",
+          "legs",
+          "plyometric",
+          "power",
+          "rotation",
+          "single_leg_strength",
+          "speed",
+          "squat_pattern",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "jump_squat",
+        "matched_tags": [
+          "explosive_power",
+          "speed"
+        ],
+        "all_tags": [
+          "agility",
+          "core",
+          "crossfit",
+          "explosive_power",
+          "jumping",
+          "knee_stability",
+          "legs",
+          "plyometric",
+          "power",
+          "single_leg_strength",
+          "speed",
+          "squat_pattern",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "lateral_lunge",
+        "matched_tags": [
+          "explosive_power",
+          "speed"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "cycling_mtb",
+          "explosive_power",
+          "glute_strength",
+          "hips",
+          "legs",
+          "lunge_pattern",
+          "single_leg_strength",
+          "speed",
+          "strength"
+        ]
+      },
+      {
+        "slug": "squat_clean",
+        "matched_tags": [
+          "explosive_power",
+          "speed"
+        ],
+        "all_tags": [
+          "compound",
+          "core",
+          "explosive_power",
+          "full_body",
+          "hinge_pattern",
+          "legs",
+          "plyometric",
+          "power",
+          "speed",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "banded_walk",
+        "matched_tags": [
+          "speed"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "glutes",
+          "hip_stability",
+          "legs",
+          "mobility",
+          "single_leg_strength",
+          "speed",
+          "strength"
+        ]
+      },
+      {
+        "slug": "bounding",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "explosive_power",
+          "plyometric",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "bulgarian_split_squat",
+        "matched_tags": [
+          "speed"
+        ],
+        "all_tags": [
+          "aerobic_base\"]'::jsonb\nWHERE slug = 'treadmill_incline_walk' AND NOT (tags ? 'zone2_cardio');\n\n-- Leg resilience (eccentric",
+          "agility",
+          "alpine_skiing",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (grappling / clinch)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (shared with BJJ pattern)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "backcountry_skiing",
+          "balance",
+          "bodybuilding",
+          "calves",
+          "calves)\nUPDATE public.starter_exercises SET tags = tags || '[\"eccentric_quad_strength",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\n\n-- Leg strength (squat/lunge for stance and loading)\nUPDATE public.starter_exercises SET tags = tags || '[\"squat_pattern",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hip_stability",
+          "core",
+          "cycling",
+          "cycling_mtb",
+          "dumbbell",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "glutes",
+          "grip",
+          "grip_endurance",
+          "hiking_backpacking",
+          "hinge_pattern",
+          "hip_stability",
+          "hips",
+          "hypertrophy",
+          "knee",
+          "knee_stability",
+          "lunge_pattern",
+          "posterior_chain",
+          "quads",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "snowboarding",
+          "speed",
+          "squat_pattern",
+          "strength",
+          "strength_endurance",
+          "trail",
+          "triathlon",
+          "ultra_running",
+          "work_capacity",
+          "xc_skiing",
+          "zone2_cardio"
+        ]
+      },
+      {
+        "slug": "burpee",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "conditioning",
+          "crossfit",
+          "explosive_power",
+          "hyrox",
+          "ocr_spartan",
+          "plyometric",
+          "tactical_fitness",
+          "work_capacity",
+          "zone3_cardio"
+        ]
+      },
+      {
+        "slug": "cable_woodchop",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "balance\"]'::jsonb\nWHERE slug = 'step_up' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"agility",
+          "core",
+          "core_anti_extension\"]'::jsonb\nWHERE slug = 'burpee' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"core_anti_extension",
+          "core_anti_rotation",
+          "core_stability",
+          "core_stability\"]'::jsonb\nWHERE slug = 'plank' AND NOT (tags ? 'core_anti_extension');\n\n-- Core rotation\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "explosive_power",
+          "power",
+          "rotation",
+          "scapular_control",
+          "scapular_control\"]'::jsonb\nWHERE slug = 'band_pullapart' AND NOT (tags ? 'shoulder_stability');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "shoulder_stability",
+          "shoulder_stability\"]'::jsonb\nWHERE slug = 'rower_intervals' AND NOT (tags ? 'scapular_control');\n\n-- Pop-up power: explosive push from prone (burpee); core anti-extension (plank)\nUPDATE public.starter_exercises SET tags = tags || '[\"explosive_power",
+          "single_leg_strength",
+          "single_leg_strength\"]'::jsonb\nWHERE slug = 'single_leg_rdl' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "strength",
+          "work_capacity"
+        ]
+      },
+      {
+        "slug": "front_squat",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "barbell",
+          "bodybuilding",
+          "core",
+          "core_stability",
+          "crossfit",
+          "explosive_power",
+          "general_strength",
+          "glutes",
+          "hinge_pattern",
+          "hypertrophy",
+          "max_strength",
+          "mobility",
+          "posterior_chain",
+          "quads",
+          "rotation",
+          "squat_pattern",
+          "strength",
+          "strongman",
+          "strongman\"]'::jsonb\nWHERE slug = 'landmine_press' AND NOT (tags ? 'strongman');\nUPDATE public.starter_exercises SET tags = tags || '[\"max_strength",
+          "t_spine",
+          "track_field",
+          "track_sprinting",
+          "vertical_push"
+        ]
+      },
+      {
+        "slug": "jump_lunge",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "balance",
+          "explosive_power",
+          "legs",
+          "plyometric",
+          "power",
+          "single_leg_strength"
+        ]
+      },
+      {
+        "slug": "lateral_bound",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "explosive",
+          "explosive_power",
+          "legs",
+          "plyometric",
+          "power",
+          "single_leg_strength",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "medball_rotational_throw",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "balance\"]'::jsonb\nWHERE slug = 'step_up' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"agility",
+          "core",
+          "core_anti_extension\"]'::jsonb\nWHERE slug = 'burpee' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"core_anti_extension",
+          "core_anti_rotation",
+          "core_rotation",
+          "core_stability",
+          "core_stability\"]'::jsonb\nWHERE slug = 'plank' AND NOT (tags ? 'core_anti_extension');\n\n-- Core rotation\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "explosive_power",
+          "power",
+          "rotation",
+          "scapular_control",
+          "scapular_control\"]'::jsonb\nWHERE slug = 'band_pullapart' AND NOT (tags ? 'shoulder_stability');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "shoulder_stability",
+          "shoulder_stability\"]'::jsonb\nWHERE slug = 'rower_intervals' AND NOT (tags ? 'scapular_control');\n\n-- Pop-up power: explosive push from prone (burpee); core anti-extension (plank)\nUPDATE public.starter_exercises SET tags = tags || '[\"explosive_power",
+          "single_leg_strength",
+          "single_leg_strength\"]'::jsonb\nWHERE slug = 'single_leg_rdl' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "work_capacity"
+        ]
+      },
+      {
+        "slug": "medball_slam",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "conditioning",
+          "core",
+          "explosive_power",
+          "power",
+          "rotation",
+          "work_capacity"
+        ]
+      },
+      {
+        "slug": "reverse_lunge",
+        "matched_tags": [
+          "speed"
+        ],
+        "all_tags": [
+          "aerobic_base\"]'::jsonb\nWHERE slug = 'treadmill_incline_walk' AND NOT (tags ? 'zone2_cardio');\n\n-- Leg resilience (eccentric",
+          "agility",
+          "alpine_skiing",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (grappling / clinch)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (shared with BJJ pattern)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "ankle_stability",
+          "backcountry_skiing",
+          "balance",
+          "calves",
+          "calves)\nUPDATE public.starter_exercises SET tags = tags || '[\"eccentric_quad_strength",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\n\n-- Leg strength (squat/lunge for stance and loading)\nUPDATE public.starter_exercises SET tags = tags || '[\"squat_pattern",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hip_stability",
+          "core",
+          "cycling",
+          "cycling_mtb",
+          "dumbbell",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "glutes",
+          "grip",
+          "grip_endurance",
+          "hiking_backpacking",
+          "hip_stability",
+          "hips",
+          "hyrox",
+          "knee",
+          "knee_stability",
+          "lunge_pattern",
+          "ocr_spartan",
+          "posterior_chain",
+          "quads",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "snowboarding",
+          "speed",
+          "squat_pattern",
+          "strength",
+          "strength_endurance",
+          "trail",
+          "ultra_running",
+          "work_capacity",
+          "xc_skiing",
+          "zone2_cardio"
+        ]
+      },
+      {
+        "slug": "russian_twist",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "core",
+          "core_anti_rotation",
+          "core_rotation",
+          "explosive_power",
+          "rotation",
+          "strength"
+        ]
+      },
+      {
+        "slug": "trap_bar_deadlift",
+        "matched_tags": [
+          "explosive_power"
+        ],
+        "all_tags": [
+          "barbell",
+          "bodybuilding",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hinge_pattern",
+          "core",
+          "core_stability",
+          "crossfit",
+          "cycling",
+          "cycling_mtb",
+          "explosive_power",
+          "explosive_power\"]'::jsonb\nWHERE slug = 'back_squat' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"single_leg_strength",
+          "explosive_power\"]'::jsonb\nWHERE slug = 'bulgarian_split_squat' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"hinge_pattern",
+          "general_strength",
+          "glute_strength",
+          "glutes",
+          "grip",
+          "grip_endurance",
+          "hamstrings",
+          "hinge_pattern",
+          "hypertrophy",
+          "hyrox",
+          "lunge_pattern",
+          "max_strength",
+          "ocr_spartan",
+          "posterior_chain",
+          "power",
+          "quads",
+          "rotation",
+          "rowing_erg",
+          "running",
+          "single_leg_strength",
+          "squat_pattern",
+          "strength",
+          "strongman",
+          "strongman\"]'::jsonb\nWHERE slug = 'landmine_press' AND NOT (tags ? 'strongman');\nUPDATE public.starter_exercises SET tags = tags || '[\"max_strength",
+          "track_field",
+          "track_sprinting",
+          "triathlon",
+          "vertical_push",
+          "work_capacity",
+          "xc_skiing"
+        ]
+      }
+    ],
+    "change_of_direction": [
+      {
+        "slug": "banded_walk",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "glutes",
+          "hip_stability",
+          "legs",
+          "mobility",
+          "single_leg_strength",
+          "speed",
+          "strength"
+        ]
+      },
+      {
+        "slug": "bulgarian_split_squat",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "aerobic_base\"]'::jsonb\nWHERE slug = 'treadmill_incline_walk' AND NOT (tags ? 'zone2_cardio');\n\n-- Leg resilience (eccentric",
+          "agility",
+          "alpine_skiing",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (grappling / clinch)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (shared with BJJ pattern)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "backcountry_skiing",
+          "balance",
+          "bodybuilding",
+          "calves",
+          "calves)\nUPDATE public.starter_exercises SET tags = tags || '[\"eccentric_quad_strength",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\n\n-- Leg strength (squat/lunge for stance and loading)\nUPDATE public.starter_exercises SET tags = tags || '[\"squat_pattern",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hip_stability",
+          "core",
+          "cycling",
+          "cycling_mtb",
+          "dumbbell",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "glutes",
+          "grip",
+          "grip_endurance",
+          "hiking_backpacking",
+          "hinge_pattern",
+          "hip_stability",
+          "hips",
+          "hypertrophy",
+          "knee",
+          "knee_stability",
+          "lunge_pattern",
+          "posterior_chain",
+          "quads",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "snowboarding",
+          "speed",
+          "squat_pattern",
+          "strength",
+          "strength_endurance",
+          "trail",
+          "triathlon",
+          "ultra_running",
+          "work_capacity",
+          "xc_skiing",
+          "zone2_cardio"
+        ]
+      },
+      {
+        "slug": "cable_woodchop",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "balance\"]'::jsonb\nWHERE slug = 'step_up' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"agility",
+          "core",
+          "core_anti_extension\"]'::jsonb\nWHERE slug = 'burpee' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"core_anti_extension",
+          "core_anti_rotation",
+          "core_stability",
+          "core_stability\"]'::jsonb\nWHERE slug = 'plank' AND NOT (tags ? 'core_anti_extension');\n\n-- Core rotation\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "explosive_power",
+          "power",
+          "rotation",
+          "scapular_control",
+          "scapular_control\"]'::jsonb\nWHERE slug = 'band_pullapart' AND NOT (tags ? 'shoulder_stability');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "shoulder_stability",
+          "shoulder_stability\"]'::jsonb\nWHERE slug = 'rower_intervals' AND NOT (tags ? 'scapular_control');\n\n-- Pop-up power: explosive push from prone (burpee); core anti-extension (plank)\nUPDATE public.starter_exercises SET tags = tags || '[\"explosive_power",
+          "single_leg_strength",
+          "single_leg_strength\"]'::jsonb\nWHERE slug = 'single_leg_rdl' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "strength",
+          "work_capacity"
+        ]
+      },
+      {
+        "slug": "lateral_bound",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "explosive",
+          "explosive_power",
+          "legs",
+          "plyometric",
+          "power",
+          "single_leg_strength",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "lateral_lunge",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "cycling_mtb",
+          "explosive_power",
+          "glute_strength",
+          "hips",
+          "legs",
+          "lunge_pattern",
+          "single_leg_strength",
+          "speed",
+          "strength"
+        ]
+      },
+      {
+        "slug": "medball_rotational_throw",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "balance",
+          "balance\"]'::jsonb\nWHERE slug = 'step_up' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"agility",
+          "core",
+          "core_anti_extension\"]'::jsonb\nWHERE slug = 'burpee' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"core_anti_extension",
+          "core_anti_rotation",
+          "core_rotation",
+          "core_stability",
+          "core_stability\"]'::jsonb\nWHERE slug = 'plank' AND NOT (tags ? 'core_anti_extension');\n\n-- Core rotation\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "explosive_power",
+          "power",
+          "rotation",
+          "scapular_control",
+          "scapular_control\"]'::jsonb\nWHERE slug = 'band_pullapart' AND NOT (tags ? 'shoulder_stability');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "shoulder_stability",
+          "shoulder_stability\"]'::jsonb\nWHERE slug = 'rower_intervals' AND NOT (tags ? 'scapular_control');\n\n-- Pop-up power: explosive push from prone (burpee); core anti-extension (plank)\nUPDATE public.starter_exercises SET tags = tags || '[\"explosive_power",
+          "single_leg_strength",
+          "single_leg_strength\"]'::jsonb\nWHERE slug = 'single_leg_rdl' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "work_capacity"
+        ]
+      },
+      {
+        "slug": "pallof_hold",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "anti_rotation",
+          "balance",
+          "balance\"]'::jsonb\nWHERE slug = 'step_up' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"agility",
+          "core",
+          "core_anti_rotation",
+          "core_stability",
+          "hips",
+          "single_leg_strength",
+          "single_leg_strength\"]'::jsonb\nWHERE slug = 'single_leg_rdl' AND NOT (tags ? 'agility');\nUPDATE public.starter_exercises SET tags = tags || '[\"rotation",
+          "strength",
+          "trunk"
+        ]
+      },
+      {
+        "slug": "reverse_lunge",
+        "matched_tags": [
+          "agility",
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "aerobic_base\"]'::jsonb\nWHERE slug = 'treadmill_incline_walk' AND NOT (tags ? 'zone2_cardio');\n\n-- Leg resilience (eccentric",
+          "agility",
+          "alpine_skiing",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (grappling / clinch)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (shared with BJJ pattern)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "ankle_stability",
+          "backcountry_skiing",
+          "balance",
+          "calves",
+          "calves)\nUPDATE public.starter_exercises SET tags = tags || '[\"eccentric_quad_strength",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\n\n-- Leg strength (squat/lunge for stance and loading)\nUPDATE public.starter_exercises SET tags = tags || '[\"squat_pattern",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hip_stability",
+          "core",
+          "cycling",
+          "cycling_mtb",
+          "dumbbell",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "glutes",
+          "grip",
+          "grip_endurance",
+          "hiking_backpacking",
+          "hip_stability",
+          "hips",
+          "hyrox",
+          "knee",
+          "knee_stability",
+          "lunge_pattern",
+          "ocr_spartan",
+          "posterior_chain",
+          "quads",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "snowboarding",
+          "speed",
+          "squat_pattern",
+          "strength",
+          "strength_endurance",
+          "trail",
+          "ultra_running",
+          "work_capacity",
+          "xc_skiing",
+          "zone2_cardio"
+        ]
+      },
+      {
+        "slug": "box_jump",
+        "matched_tags": [
+          "agility",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "core",
+          "core_stability",
+          "crossfit",
+          "explosive_power",
+          "jumping",
+          "knee_stability",
+          "legs",
+          "plyometric",
+          "power",
+          "rotation",
+          "single_leg_strength",
+          "speed",
+          "squat_pattern",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "jump_lunge",
+        "matched_tags": [
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "balance",
+          "explosive_power",
+          "legs",
+          "plyometric",
+          "power",
+          "single_leg_strength"
+        ]
+      },
+      {
+        "slug": "jump_squat",
+        "matched_tags": [
+          "agility",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "agility",
+          "core",
+          "crossfit",
+          "explosive_power",
+          "jumping",
+          "knee_stability",
+          "legs",
+          "plyometric",
+          "power",
+          "single_leg_strength",
+          "speed",
+          "squat_pattern",
+          "track_field",
+          "track_sprinting"
+        ]
+      },
+      {
+        "slug": "single_leg_rdl",
+        "matched_tags": [
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "aerobic_base\"]'::jsonb\nWHERE slug = 'treadmill_incline_walk' AND NOT (tags ? 'zone2_cardio');\n\n-- Leg resilience (eccentric",
+          "alpine_skiing",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (grappling / clinch)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "anaerobic_capacity\"]'::jsonb\nWHERE slug = 'kettlebell_swing' AND NOT (tags ? 'work_capacity');\n\n-- Grip/carry and hip stability (shared with BJJ pattern)\nUPDATE public.starter_exercises SET tags = tags || '[\"grip",
+          "ankle_stability",
+          "ankles",
+          "backcountry_skiing",
+          "balance",
+          "calves",
+          "calves)\nUPDATE public.starter_exercises SET tags = tags || '[\"eccentric_quad_strength",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hip_stability",
+          "core",
+          "cycling",
+          "cycling_mtb",
+          "dumbbell",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "glutes",
+          "grip_endurance",
+          "hamstrings",
+          "hiking_backpacking",
+          "hinge_pattern",
+          "hip_stability",
+          "hips",
+          "knee",
+          "knee_stability",
+          "posterior_chain",
+          "rowing_erg",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "snowboarding",
+          "squat_pattern",
+          "strength",
+          "strength_endurance",
+          "trail",
+          "triathlon",
+          "ultra_running",
+          "work_capacity",
+          "xc_skiing",
+          "zone2_cardio"
+        ]
+      },
+      {
+        "slug": "standing_calf_raise",
+        "matched_tags": [
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "alpine_skiing",
+          "ankle_stability",
+          "ankles",
+          "balance",
+          "balance\"]'::jsonb\nWHERE slug = 'bulgarian_split_squat' AND NOT (tags ? 'knee_stability');\nUPDATE public.starter_exercises SET tags = tags || '[\"jumping",
+          "calves",
+          "eccentric_quad_strength",
+          "hiking_backpacking",
+          "hypertrophy",
+          "jumping",
+          "knee_stability",
+          "machine",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "snowboarding",
+          "trail",
+          "ultra_running"
+        ]
+      },
+      {
+        "slug": "step_up",
+        "matched_tags": [
+          "balance",
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "alpine_skiing",
+          "backcountry_skiing",
+          "balance",
+          "core",
+          "cycling",
+          "cycling_mtb",
+          "dumbbell",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "glutes",
+          "hiking",
+          "hiking_backpacking",
+          "hyrox",
+          "knee_stability",
+          "lunge_pattern",
+          "ocr_spartan",
+          "posterior_chain",
+          "quads",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "ski",
+          "snowboarding",
+          "squat_pattern",
+          "strength",
+          "strength_endurance",
+          "trail",
+          "triathlon",
+          "ultra_running",
+          "xc_skiing"
+        ]
+      },
+      {
+        "slug": "back_squat",
+        "matched_tags": [
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "alpine_skiing",
+          "ankles",
+          "backcountry_skiing",
+          "barbell",
+          "bodybuilding",
+          "core",
+          "crossfit",
+          "cycling",
+          "cycling_mtb",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "general_strength",
+          "glute_strength",
+          "glutes",
+          "hiking_backpacking",
+          "hinge_pattern",
+          "hips",
+          "hypertrophy",
+          "hyrox",
+          "knee_stability",
+          "lunge_pattern",
+          "max_strength",
+          "mobility",
+          "ocr_spartan",
+          "posterior_chain",
+          "quads",
+          "rowing_erg",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "snowboarding",
+          "squat_pattern",
+          "strength",
+          "strength_endurance",
+          "strongman",
+          "strongman\"]'::jsonb\nWHERE slug = 'landmine_press' AND NOT (tags ? 'strongman');\nUPDATE public.starter_exercises SET tags = tags || '[\"max_strength",
+          "track_field",
+          "track_sprinting",
+          "trail",
+          "triathlon",
+          "ultra_running",
+          "vertical_push",
+          "xc_skiing"
+        ]
+      },
+      {
+        "slug": "box_step_up",
+        "matched_tags": [
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "backcountry_skiing",
+          "eccentric_quad_strength",
+          "glute_strength",
+          "hiking_backpacking",
+          "knee_stability",
+          "rucking",
+          "single_leg_strength",
+          "squat_pattern"
+        ]
+      },
+      {
+        "slug": "calf_raise",
+        "matched_tags": [
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "balance\"]'::jsonb\nWHERE slug = 'bulgarian_split_squat' AND NOT (tags ? 'knee_stability');\nUPDATE public.starter_exercises SET tags = tags || '[\"jumping",
+          "calves",
+          "knee_stability",
+          "single_leg_strength"
+        ]
+      },
+      {
+        "slug": "goblet_squat",
+        "matched_tags": [
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "alpine_skiing",
+          "backcountry_skiing",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\n\n-- Leg strength (squat/lunge for stance and loading)\nUPDATE public.starter_exercises SET tags = tags || '[\"squat_pattern",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "grip",
+          "grip_endurance",
+          "hiking_backpacking",
+          "knee_stability",
+          "lunge_pattern",
+          "rucking",
+          "single_leg_strength",
+          "snowboarding",
+          "squat_pattern"
+        ]
+      },
+      {
+        "slug": "hip_thrust",
+        "matched_tags": [
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "alpine_skiing",
+          "backcountry_skiing",
+          "barbell",
+          "bodybuilding",
+          "cycling",
+          "cycling_mtb",
+          "eccentric_quad_strength",
+          "eccentric_strength",
+          "glute_strength",
+          "glutes",
+          "hiking_backpacking",
+          "hinge_pattern",
+          "hypertrophy",
+          "knee_stability",
+          "posterior_chain",
+          "rowing_erg",
+          "rucking",
+          "running",
+          "single_leg_strength",
+          "squat_pattern",
+          "strength_endurance",
+          "trail",
+          "triathlon",
+          "ultra_running",
+          "xc_skiing"
+        ]
+      },
+      {
+        "slug": "romanian_deadlift",
+        "matched_tags": [
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "barbell",
+          "bodybuilding",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hinge_pattern",
+          "core",
+          "crossfit",
+          "cycling",
+          "cycling_mtb",
+          "eccentric_strength",
+          "explosive_power\"]'::jsonb\nWHERE slug = 'back_squat' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"single_leg_strength",
+          "explosive_power\"]'::jsonb\nWHERE slug = 'bulgarian_split_squat' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"hinge_pattern",
+          "general_strength",
+          "glute_strength",
+          "glutes",
+          "grip",
+          "grip_endurance",
+          "hamstrings",
+          "hinge_pattern",
+          "hypertrophy",
+          "hyrox",
+          "lunge_pattern",
+          "max_strength",
+          "ocr_spartan",
+          "posterior_chain",
+          "power",
+          "rowing_erg",
+          "running",
+          "single_leg_strength",
+          "squat_pattern",
+          "strength",
+          "strongman",
+          "strongman\"]'::jsonb\nWHERE slug = 'landmine_press' AND NOT (tags ? 'strongman');\nUPDATE public.starter_exercises SET tags = tags || '[\"max_strength",
+          "track_field",
+          "track_sprinting",
+          "triathlon",
+          "vertical_push",
+          "work_capacity",
+          "xc_skiing"
+        ]
+      },
+      {
+        "slug": "tibialis_raise",
+        "matched_tags": [
+          "balance"
+        ],
+        "all_tags": [
+          "alpine_skiing",
+          "ankle_stability",
+          "ankles",
+          "balance",
+          "bands",
+          "bodyweight",
+          "calves",
+          "prehab",
+          "running",
+          "shins",
+          "ski",
+          "trail"
+        ]
+      },
+      {
+        "slug": "trap_bar_deadlift",
+        "matched_tags": [
+          "single_leg_strength"
+        ],
+        "all_tags": [
+          "barbell",
+          "bodybuilding",
+          "carry\"]'::jsonb\nWHERE slug = 'farmer_carry' AND NOT (tags ? 'grip_endurance');\nUPDATE public.starter_exercises SET tags = tags || '[\"hinge_pattern",
+          "core",
+          "core_stability",
+          "crossfit",
+          "cycling",
+          "cycling_mtb",
+          "explosive_power",
+          "explosive_power\"]'::jsonb\nWHERE slug = 'back_squat' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"single_leg_strength",
+          "explosive_power\"]'::jsonb\nWHERE slug = 'bulgarian_split_squat' AND NOT (tags ? 'explosive_power');\nUPDATE public.starter_exercises SET tags = tags || '[\"hinge_pattern",
+          "general_strength",
+          "glute_strength",
+          "glutes",
+          "grip",
+          "grip_endurance",
+          "hamstrings",
+          "hinge_pattern",
+          "hypertrophy",
+          "hyrox",
+          "lunge_pattern",
+          "max_strength",
+          "ocr_spartan",
+          "posterior_chain",
+          "power",
+          "quads",
+          "rotation",
+          "rowing_erg",
+          "running",
+          "single_leg_strength",
+          "squat_pattern",
+          "strength",
+          "strongman",
+          "strongman\"]'::jsonb\nWHERE slug = 'landmine_press' AND NOT (tags ? 'strongman');\nUPDATE public.starter_exercises SET tags = tags || '[\"max_strength",
+          "track_field",
+          "track_sprinting",
+          "triathlon",
+          "vertical_push",
+          "work_capacity",
+          "xc_skiing"
+        ]
+      }
+    ]
+  }
+}

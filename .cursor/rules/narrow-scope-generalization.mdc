@@ -1,0 +1,24 @@
+---
+description: Pause on narrow-scope fixes; evaluate global parallels, shared helpers, and test coverage
+alwaysApply: true
+---
+
+# Narrow-scope change → global parity check
+
+**Narrow-scope change:** A fix or behavior change aimed at **one** exercise slug, sport, goal, app mode/flow, sub-focus, or other **single scenario**—including one-off branches, magic strings, or special cases in generation, scoring, filtering, or UI.
+
+This is **not** the same as an intentionally narrow *subsystem* PR (see `AGENTS.md` §1 “incremental and narrow” for autonomous run scope). Even when the PR stays small, **entity-level** fixes must be checked for parallel entities.
+
+## Mandatory pause (before shipping)
+
+1. **Find parallels** — Same generator path (`logic/workoutGeneration/`, `logic/workoutIntelligence/`), same sub-focus / intent pattern, same block type, or same data source (exercise record, sport config, goal weights).
+2. **Duplication / drift** — Would copying this pattern N times create forks? If yes, prefer **one** shared helper, config map, or data-layer constant over scattered conditionals.
+3. **Tests** — If the logic should generalize, extend or add tests across **at least one** additional representative scenario (another sport, goal, block type, or mode), not only the triggering case.
+
+## Intentional narrow scope only
+
+If after the check the change **must** stay single-entity or single-scenario, add a **one-line rationale** in the PR description or commit message (e.g. “Lacrosse-only: rule X per product spec; other sports unchanged”).
+
+## Alignment
+
+Types, generator entry points, and ontology expectations remain as in `AGENTS.md` §1 (alignment bullet).

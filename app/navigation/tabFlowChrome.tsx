@@ -181,3 +181,11 @@ export function FlowHeaderRight() {
     </View>
   );
 }
+
+/**
+ * Expo Router treats files under app/ as routes.
+ * This module is shared chrome utilities, so render nothing when visited directly.
+ */
+export default function TabFlowChromeRoute() {
+  return null;
+}

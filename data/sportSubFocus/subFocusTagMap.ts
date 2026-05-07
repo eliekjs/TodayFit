@@ -5,6 +5,12 @@
  */
 
 import type { SubFocusTagMap } from "./types";
+import {
+  SHARED_TAG_WEIGHTS_COURT_CHANGE_OF_DIRECTION,
+  SHARED_TAG_WEIGHTS_FIELD_CHANGE_OF_DIRECTION,
+  SHARED_TAG_WEIGHTS_LINEAR_SPEED,
+  SHARED_TAG_WEIGHTS_SPEED_POWER,
+} from "./speedAgilitySubFocusShared";
 
 function key(sport: string, subFocus: string): string {
   return `${sport}:${subFocus}`;
@@ -731,14 +737,8 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "zone2_cardio", weight: 1.2 },
     { tag_slug: "aerobic_base", weight: 1 },
   ],
-  [key("soccer", "speed")]: [
-    { tag_slug: "speed", weight: 1.2 },
-    { tag_slug: "explosive_power", weight: 1 },
-  ],
-  [key("soccer", "change_of_direction")]: [
-    { tag_slug: "agility", weight: 1.2 },
-    { tag_slug: "single_leg_strength", weight: 1 },
-  ],
+  [key("soccer", "speed")]: [...SHARED_TAG_WEIGHTS_LINEAR_SPEED],
+  [key("soccer", "change_of_direction")]: [...SHARED_TAG_WEIGHTS_FIELD_CHANGE_OF_DIRECTION],
   [key("soccer", "hamstring_resilience")]: [
     { tag_slug: "hamstrings", weight: 1 },
     { tag_slug: "eccentric_strength", weight: 1 },
@@ -749,16 +749,8 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- American Football (tackle & flag; legacy flag_football slug maps here) ---
-  [key("american_football", "speed_power")]: [
-    { tag_slug: "explosive_power", weight: 1.2 },
-    { tag_slug: "speed", weight: 1.2 },
-    { tag_slug: "plyometric", weight: 0.9 },
-  ],
-  [key("american_football", "change_of_direction")]: [
-    { tag_slug: "agility", weight: 1.2 },
-    { tag_slug: "single_leg_strength", weight: 1 },
-    { tag_slug: "balance", weight: 0.9 },
-  ],
+  [key("american_football", "speed_power")]: [...SHARED_TAG_WEIGHTS_SPEED_POWER],
+  [key("american_football", "change_of_direction")]: [...SHARED_TAG_WEIGHTS_FIELD_CHANGE_OF_DIRECTION],
   [key("american_football", "max_strength")]: [
     { tag_slug: "max_strength", weight: 1.3 },
     { tag_slug: "compound", weight: 1 },
@@ -785,15 +777,8 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- Lacrosse ---
-  [key("lacrosse", "speed")]: [
-    { tag_slug: "speed", weight: 1.2 },
-    { tag_slug: "explosive_power", weight: 1 },
-  ],
-  [key("lacrosse", "change_of_direction")]: [
-    { tag_slug: "agility", weight: 1.2 },
-    { tag_slug: "single_leg_strength", weight: 1 },
-    { tag_slug: "balance", weight: 0.9 },
-  ],
+  [key("lacrosse", "speed")]: [...SHARED_TAG_WEIGHTS_LINEAR_SPEED],
+  [key("lacrosse", "change_of_direction")]: [...SHARED_TAG_WEIGHTS_FIELD_CHANGE_OF_DIRECTION],
   [key("lacrosse", "rotational_power")]: [
     { tag_slug: "rotation", weight: 1.2 },
     { tag_slug: "explosive_power", weight: 1 },
@@ -890,11 +875,7 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- Rugby (aligned sub-goals with American football) ---
-  [key("rugby", "change_of_direction")]: [
-    { tag_slug: "agility", weight: 1.2 },
-    { tag_slug: "single_leg_strength", weight: 1 },
-    { tag_slug: "balance", weight: 0.9 },
-  ],
+  [key("rugby", "change_of_direction")]: [...SHARED_TAG_WEIGHTS_FIELD_CHANGE_OF_DIRECTION],
   [key("rugby", "max_strength")]: [
     { tag_slug: "max_strength", weight: 1.3 },
     { tag_slug: "compound", weight: 1 },
@@ -919,11 +900,7 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "grip", weight: 1.2 },
     { tag_slug: "carry", weight: 0.9 },
   ],
-  [key("rugby", "speed_power")]: [
-    { tag_slug: "explosive_power", weight: 1.2 },
-    { tag_slug: "speed", weight: 1.2 },
-    { tag_slug: "plyometric", weight: 0.9 },
-  ],
+  [key("rugby", "speed_power")]: [...SHARED_TAG_WEIGHTS_SPEED_POWER],
 
   // --- Racquet & Court Sports (Tennis, Pickleball, Badminton, Squash combined) ---
   [key("court_racquet", "lateral_speed")]: [
@@ -948,15 +925,8 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- Hockey ---
-  [key("hockey", "speed")]: [
-    { tag_slug: "speed", weight: 1.2 },
-    { tag_slug: "explosive_power", weight: 1 },
-  ],
-  [key("hockey", "change_of_direction")]: [
-    { tag_slug: "agility", weight: 1.2 },
-    { tag_slug: "single_leg_strength", weight: 1 },
-    { tag_slug: "balance", weight: 0.9 },
-  ],
+  [key("hockey", "speed")]: [...SHARED_TAG_WEIGHTS_LINEAR_SPEED],
+  [key("hockey", "change_of_direction")]: [...SHARED_TAG_WEIGHTS_FIELD_CHANGE_OF_DIRECTION],
   [key("hockey", "leg_power")]: [
     { tag_slug: "explosive_power", weight: 1.2 },
     { tag_slug: "plyometric", weight: 1 },
@@ -1060,10 +1030,7 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "agility", weight: 1.2 },
     { tag_slug: "single_leg_strength", weight: 1 },
   ],
-  [key("basketball", "change_of_direction")]: [
-    { tag_slug: "agility", weight: 1.2 },
-    { tag_slug: "knee_stability", weight: 1 },
-  ],
+  [key("basketball", "change_of_direction")]: [...SHARED_TAG_WEIGHTS_COURT_CHANGE_OF_DIRECTION],
   [key("basketball", "core_stability")]: [
     { tag_slug: "core_stability", weight: 1.2 },
     { tag_slug: "core_anti_extension", weight: 1 },

@@ -203,12 +203,17 @@ export default function ManualWeekScreen() {
       goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
       goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
       goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
+      orderedPrimaryLabelsForSubFocus: goalLabels,
+      subFocusByGoal: manualPreferences.subFocusByGoal,
+      weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
   }, [
     manualPreferences.primaryFocus,
     manualPreferences.goalMatchPrimaryPct,
     manualPreferences.goalMatchSecondaryPct,
     manualPreferences.goalMatchTertiaryPct,
+    manualPreferences.subFocusByGoal,
+    manualPreferences.weekSubFocusPrimaryLabels,
   ]);
 
   const weekWorkoutTitle = useMemo(

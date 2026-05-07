@@ -271,11 +271,15 @@ export type WorkoutItem = {
     /** True when links default to the primary goal because tag metadata had no explicit overlap. */
     intent_inferred?: boolean;
     /**
-     * Sport sub-focuses the user explicitly selected for this session (from sport mode / planner).
-     * Shown on every exercise in the UI even when tag overlap for `matched_intents` is weak,
-     * so chips reflect the user’s sub-sport intent rather than only the internal primary goal.
+     * Sport sub-focuses the user selected that **this exercise actually matches** (sport tag +
+     * sub-focus tag map). Omit when none apply so FOR chips stay exercise-specific.
      */
     declared_sport_sub_focuses?: { parent_slug: string; slug: string }[];
+    /**
+     * All sports selected for this session (regardless of whether this exercise matches).
+     * Used as a UI fallback chip when no specific sub-focus or sport match applies.
+     */
+    session_sport_slugs?: string[];
     /**
      * Ranked list of which user intent entries (goal / sub-goal / sport / sport sub-focus)
      * this exercise directly or partially matches. Populated when `ranked_intent_entries` is
@@ -305,6 +309,10 @@ export type WorkoutItem = {
 
 /** When set, this block was built for a specific session goal / sub-focus; swaps should prefer `swap_pool_exercise_ids`. */
 export type WorkoutBlockGoalIntent = {
+  /** Which ranked intent leaf created this block. */
+  intent_kind?: "goal" | "goal_sub_focus" | "sport" | "sport_sub_focus";
+  /** Parent goal/sport for sub-focus leaves. */
+  parent_slug?: string;
   /** Primary goal slug (e.g. strength, hypertrophy). */
   goal_slug: string;
   /** Sub-focus slug under `goal_sub_focus` (e.g. squat, chest). */
@@ -338,15 +346,16 @@ export type GeneratedWorkout = {
   /** Preferences used to generate this workout (accurate summary; avoids showing implicit defaults as “selected”). */
   generationPreferences?: ManualPreferences;
   /**
-   * Declared intent split: top-3 focus areas (sport + goal) by percentage.
-   * Computed from session_intent at generation time; drives the pie chart and workout title.
+   * Declared/actual intent split: focus areas (goals, sub-goals, sports) by percentage.
+   * Computed at generation time; drives the pie chart and workout title.
    */
   intentSplit?: Array<{
     slug: string;
     label: string;
     pct: number;
     weight: number;
-    kind: "sport" | "goal";
+    kind: "sport" | "goal" | "goal_sub_focus" | "sport_sub_focus";
+    parent_slug?: string;
     color: string;
   }>;
   /**
