@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { useTheme } from "../lib/theme";
 import { Chip } from "./Chip";
 import type { WorkoutTierPreference } from "../lib/types";
@@ -36,8 +36,20 @@ export function ExperienceLevelToggle({
 
   return (
     <View style={[styles.wrap, { marginTop }]}>
-      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>
+      <Text
+        style={[styles.title, { color: theme.text }, Platform.OS === "web" && styles.webLabelPassthrough]}
+      >
+        {title}
+      </Text>
+      <Text
+        style={[
+          styles.subtitle,
+          { color: theme.textMuted },
+          Platform.OS === "web" && styles.webLabelPassthrough,
+        ]}
+      >
+        {subtitle}
+      </Text>
       <View style={styles.chipRow}>
         <Chip
           label="Beginner"
@@ -65,6 +77,9 @@ export function ExperienceLevelToggle({
 }
 
 const styles = StyleSheet.create({
+  webLabelPassthrough: {
+    pointerEvents: "none",
+  },
   wrap: {
     marginBottom: 4,
   },

@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { defaultManualPreferences } from "../../../context/appStateModel";
@@ -105,6 +106,7 @@ export default function ManualPreferencesScreen() {
   const [bottomBarHeight, setBottomBarHeight] = useState(180);
   const router = useRouter();
   const navigation = useNavigation();
+  const headerHeight = useHeaderHeight();
   const { scope } = useLocalSearchParams<{ scope?: string }>();
   const theme = useTheme();
   const isWeek = scope === "week";
@@ -574,14 +576,37 @@ export default function ManualPreferencesScreen() {
       <StatusBar style="light" />
       <ScrollView
         ref={scrollViewRef}
-        contentContainerStyle={[styles.content, { paddingBottom: bottomBarHeight + 24 }]}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingBottom: bottomBarHeight + 24,
+            ...(Platform.OS === "web"
+              ? {
+                  /** Tab header + safe area: HeaderHeightContext can be 0 on web; keep content below chrome. */
+                  paddingTop: Math.max(headerHeight + 24, 128),
+                }
+              : {}),
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View ref={scrollContentRef} collapsable={false}>
-        <Text style={[styles.screenTitle, { color: theme.text }]}>
+        <Text
+          style={[
+            styles.screenTitle,
+            { color: theme.text },
+            Platform.OS === "web" && styles.webHeroTextPassthrough,
+          ]}
+        >
           {isWeek ? "Plan your week" : "Build today’s workout"}
         </Text>
-        <Text style={[styles.screenSubtitle, { color: theme.textMuted }]}>
+        <Text
+          style={[
+            styles.screenSubtitle,
+            { color: theme.textMuted },
+            Platform.OS === "web" && styles.webHeroTextPassthrough,
+          ]}
+        >
           {isWeek
             ? "Two quick choices, then pick your training days. Fine-tune anytime in Advanced options."
             : "Three quick choices. You can fine-tune later."}
@@ -1439,7 +1464,13 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    /** Top/bottom vertical padding applied in ScrollView so web can reserve header chrome. */
+    paddingTop: 24,
+    paddingBottom: 24,
+  },
+  /** RN Web: large hero Text can sit above accordion rows in the hit tree and block Pressable taps. */
+  webHeroTextPassthrough: {
+    pointerEvents: "none",
   },
   screenTitle: {
     fontSize: 24,

@@ -15,6 +15,7 @@ import {
   type GestureResponderEvent,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -878,7 +879,12 @@ export default function AdaptiveModeScreen() {
       <StatusBar style="light" />
       <ScrollView
         ref={adaptiveScrollRef}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          ...(Platform.OS === "web"
+            ? [{ paddingTop: Math.max(headerHeight + 16, 128) }]
+            : []),
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View ref={adaptiveContentRef} collapsable={false}>
@@ -2061,7 +2067,8 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   searchRow: {
     marginTop: 8,

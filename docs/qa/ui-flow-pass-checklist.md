@@ -130,6 +130,22 @@ Week URL: `/manual/preferences?scope=week`
 - **H2** Hard navigation to `/manual/workout` after other routes — persisted workout still loads.
 - **H3** `npm run lint` — **0 errors**, 19 warnings (unchanged class).
 
+### Continuation 2 (same branch, engineering + QA)
+
+**Code shipped to improve web taps / layout**
+
+- `GeometricPatternBackground`: `pointerEvents` on **style** (not deprecated prop); SVG layer non-interactive.
+- `CollapsiblePreferenceSection`: label `Text` + column wrappers pass pointer events through to the header `Pressable`.
+- `ExperienceLevelToggle` + manual prefs hero titles: web-only `pointerEvents: 'none'` on static copy.
+- `Chip`: web-only label passthrough so the outer `Pressable` receives taps.
+- `manual/preferences` + `sport-mode/index` **`ScrollView`**: web `paddingTop` uses `useHeaderHeight()` with a **128px floor** so the first accordion rows sit below the tab header (fixes layout where bbox for “Session length” was `y≈12` vs `y≈437` after fix).
+- **Cursor browser tool:** ref-click on accordions can still report interception at `top=0` even when element bbox is lower (likely coordinate space / scroll-container quirk). **Manual retest** in a real browser recommended for C1–C5 / F3 wizard taps.
+
+**Routes re-checked after changes**
+
+- Direct navigation to `/manual/preferences`, `/sport-mode`, `/manual/workout`, `/manual/execute`, `/library` — OK.
+- **H1 / H4 / D4 / F4** — still not automated (Start over, completion → history, adaptive back, vitest subset).
+
 ---
 
 ## Issues discovered (2026-05-08 web pass, sample)
@@ -137,4 +153,4 @@ Week URL: `/manual/preferences?scope=week`
 1. **Build workout (web):** Visual overlap between native-style header chrome and inline actions (“Reset”, “Save preset”, hero)—treat as **web stacking / safe-area** issue; verify with responsive widths.
 2. **A11y tree:** Routes like `/profiles` sometimes still expose headings for **Library** and **Today** in addition to **Gym Profile**—possible hidden tab scaffold on web worth auditing.
 3. **Week prefs document title:** `navigation.setOptions` updates OS header; DOM-level `heading`/`title` may lag—confirm with manual visual check after load.
-4. **Web automation / hit-testing (2026-05-08 follow-up):** Flow screens (`manual/preferences`, `sport-mode?scope=day`) report **click target intercepted** by a non-interactive top `<div>` (~372×64 or larger strip). Likely stacked header / safe-area / ornament; blocks Playwright-style ref clicks until z-index or pointer-events fixed.
+4. **Web hit-testing (updated):** Addressed in product code (header inset, text/chip pointer passthrough, background). **MCP browser** ref-clicks may still fail on some RN-web `Pressable`s; validate with Safari/Chrome manually.

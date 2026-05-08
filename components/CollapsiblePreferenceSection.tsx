@@ -77,19 +77,27 @@ export function CollapsiblePreferenceSection({
         accessibilityState={{ expanded }}
         accessibilityLabel={`${title}. ${summary}. ${expanded ? "Collapse" : "Expand"}`}
       >
-        <View style={styles.headerTextCol}>
-          <Text style={[selectedValueStyle, { color: theme.text }]} numberOfLines={2}>
+        <View style={[styles.headerTextCol, styles.passThroughWrap]}>
+          <Text
+            style={[selectedValueStyle, { color: theme.text }, styles.headerLabelPassThrough]}
+            numberOfLines={2}
+          >
             {summary}
           </Text>
-          <Text style={[titleStyle, { color: theme.textMuted }]} numberOfLines={1}>
+          <Text
+            style={[titleStyle, { color: theme.textMuted }, styles.headerLabelPassThrough]}
+            numberOfLines={1}
+          >
             {title}
           </Text>
           {expanded && subtitle != null && subtitle.trim().length > 0 ? (
-            <Text style={[subtitleStyle, { color: theme.textMuted }]}>{subtitle}</Text>
+            <Text style={[subtitleStyle, { color: theme.textMuted }, styles.headerLabelPassThrough]}>
+              {subtitle}
+            </Text>
           ) : null}
         </View>
-        <View style={styles.headerRight}>
-          <Text style={[styles.chevron, { color: theme.textMuted }]}>
+        <View style={[styles.headerRight, styles.passThroughWrap]}>
+          <Text style={[styles.chevron, { color: theme.textMuted }, styles.headerLabelPassThrough]}>
             {expanded ? "▼" : "▶"}
           </Text>
         </View>
@@ -104,6 +112,13 @@ export function CollapsiblePreferenceSection({
 }
 
 const styles = StyleSheet.create({
+  /** RN Web: text nodes can steal taps from the parent Pressable; labels stay visual-only for hit-testing. */
+  headerLabelPassThrough: {
+    pointerEvents: "none",
+  },
+  passThroughWrap: {
+    pointerEvents: "box-none",
+  },
   wrapper: {
     marginBottom: 4,
   },

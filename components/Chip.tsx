@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Platform,
   type GestureResponderEvent,
   type ViewStyle,
 } from "react-native";
@@ -41,6 +42,7 @@ export function Chip({ label, selected = false, disabled = false, onPress, style
           {
             color: selected ? theme.chipSelectedText : theme.text,
           },
+          Platform.OS === "web" && styles.labelPointerPassthrough,
         ]}
       >
         {label}
@@ -69,5 +71,8 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: "500",
+  },
+  labelPointerPassthrough: {
+    pointerEvents: "none",
   },
 });

@@ -197,8 +197,8 @@ export function GeometricPatternBackground() {
   }, [width, height]);
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+    <View style={[StyleSheet.absoluteFill, styles.nonInteractive]}>
+      <Svg width={width} height={height} style={[StyleSheet.absoluteFill, styles.nonInteractive]}>
         <Defs>
           <LinearGradient id="bgBase" x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor="#052f35" />
@@ -229,3 +229,9 @@ export function GeometricPatternBackground() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  nonInteractive: {
+    pointerEvents: "none",
+  },
+});
