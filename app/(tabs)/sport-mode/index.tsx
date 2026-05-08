@@ -878,6 +878,7 @@ export default function AdaptiveModeScreen() {
     <AppScreenWrapper>
       <StatusBar style="light" />
       <ScrollView
+        style={styles.scrollFill}
         ref={adaptiveScrollRef}
         contentContainerStyle={[
           styles.content,
@@ -2064,6 +2065,10 @@ export default function AdaptiveModeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollFill: {
+    flex: 1,
+    ...(Platform.OS === "web" ? ({ minHeight: 0 } as const) : null),
   },
   content: {
     paddingHorizontal: 20,

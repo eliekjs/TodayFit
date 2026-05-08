@@ -575,6 +575,7 @@ export default function ManualPreferencesScreen() {
     <AppScreenWrapper>
       <StatusBar style="light" />
       <ScrollView
+        style={styles.scrollFill}
         ref={scrollViewRef}
         contentContainerStyle={[
           styles.content,
@@ -1461,6 +1462,11 @@ export default function ManualPreferencesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  /** Fill tab scene height so the sticky bottom bar’s `bottom: 0` anchors to the viewport, not mid-layout (web). */
+  scrollFill: {
+    flex: 1,
+    ...(Platform.OS === "web" ? ({ minHeight: 0 } as const) : null),
   },
   content: {
     paddingHorizontal: 20,

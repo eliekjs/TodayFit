@@ -146,6 +146,15 @@ Week URL: `/manual/preferences?scope=week`
 - Direct navigation to `/manual/preferences`, `/sport-mode`, `/manual/workout`, `/manual/execute`, `/library` — OK.
 - **H1 / H4 / D4 / F4** — still not automated (Start over, completion → history, adaptive back, vitest subset).
 
+### Continuation 3 (execution + layout follow-up)
+
+| Phase | Result | Notes |
+|-------|--------|--------|
+| **H4** | Partial | `vitest run logic/workoutGeneration/cooldownWarmupExclusion.test.ts` — **8 passed**. `recoveryBodyFocusTargeting.test.ts` / `warmupPoolRandomization.test.ts` use **node `assert`** harness (not `vitest` imports) and are **not** listed in `vitest.config.ts` `include` — run with `npx tsx` if needed until migrated. |
+| **C (automation)** | Partial | After `scrollIntoView` on Session length, **bounding box** usable; **mouse_click_xy** at row center registers a hit (inner `div`). **`browser_click`** on accordion ref still **intercepted** by a large non-interactive layer (`372×230`). |
+| **Layout (web)** | Fix attempted | **Cause hypothesis:** sticky footer used `position:absolute; bottom:0` while `ScrollView` had **no `flex:1`**, so the scene height chain collapsed and the footer anchored incorrectly (footer chrome bleeding under/over the stack header in screenshots). **Changes:** `AppScreenWrapper` → **`foreground`** `View` (`flex:1`, `position:relative`, web `minHeight:0`); **`scrollFill`** on manual prefs + sport mode `ScrollView`; container **`position:relative`**. **Re-verify** in desktop Safari/Chrome — Cursor embedded browser still showed overlapping header/footer text in screenshots until cache/HMR settles. |
+| **H1 / D4 / F4** | Open | Start over, session complete → history, adaptive back — not run this round. |
+
 ---
 
 ## Issues discovered (2026-05-08 web pass, sample)

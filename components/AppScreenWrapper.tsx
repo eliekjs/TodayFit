@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, type ViewStyle } from "react-native";
+import { View, StyleSheet, Platform, type ViewStyle } from "react-native";
 import { GeometricPatternBackground } from "./GeometricPatternBackground";
 
 type Props = {
@@ -12,7 +12,7 @@ export function AppScreenWrapper({ children, style }: Props) {
   return (
     <View style={[styles.container, style]}>
       <GeometricPatternBackground />
-      {children}
+      <View style={styles.foreground}>{children}</View>
     </View>
   );
 }
@@ -20,5 +20,18 @@ export function AppScreenWrapper({ children, style }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    /** Anchor for absolute children (e.g. sticky footers) on web; default static can mis-place `bottom: 0`. */
+    position: "relative",
+    ...(Platform.OS === "web"
+      ? ({
+          minHeight: 0,
+        } as const)
+      : null),
+  },
+  /** Scene content above background; flex chain fixes web sticky footers anchoring mid-screen. */
+  foreground: {
+    flex: 1,
+    position: "relative",
+    ...(Platform.OS === "web" ? ({ minHeight: 0 } as const) : null),
   },
 });
