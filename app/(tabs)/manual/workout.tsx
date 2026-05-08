@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
@@ -174,6 +174,10 @@ export default function ManualWorkoutScreen() {
       );
       if (generationCancelledRef.current) return;
       setGeneratedWorkout(workout);
+    } catch (e) {
+      if (generationCancelledRef.current) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't regenerate workout", msg);
     } finally {
       setIsRegenerating(false);
     }

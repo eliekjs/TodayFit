@@ -92,6 +92,62 @@ export function isCooldownEligible(exercise: Exercise): boolean {
 }
 
 /**
+ * Recovery-only eligibility: keep exercises purely passive/gentle.
+ *
+ * Hard excludes:
+ *  - Any strength/power/conditioning/hypertrophy modality, regardless of tags.
+ *  - High-impact exercises (plyometric, jumping, throwing).
+ *  - High difficulty (≥ 4) exercises.
+ *  - Exercises with no positive gentle signal (see below) unless modality is
+ *    already "mobility" or "recovery" and they cleared the above gates.
+ *
+ * Positive signals (at least one required when modality is NOT already mobility/recovery):
+ *  - exercise_role is stretch / cooldown / mobility / breathing
+ *  - has mobility_targets or stretch_targets
+ *  - name/id contains a rolling/foam-roll keyword
+ *
+ * Note: cooldown_relevance is intentionally NOT required — most exercises in
+ * the DB do not have it populated yet.
+ */
+export function isGentleRecoveryExercise(exercise: Exercise): boolean {
+  const modality = (exercise.modality ?? "").toLowerCase();
+
+  // Hard exclude demanding modalities even if also tagged "recovery"
+  if (
+    modality === "strength" ||
+    modality === "hypertrophy" ||
+    modality === "power" ||
+    modality === "conditioning"
+  ) {
+    return false;
+  }
+
+  // High impact = plyometric, throwing, sprinting — not recovery-appropriate
+  if ((exercise.impact_level ?? "none") === "high") return false;
+
+  // High difficulty — not appropriate for a passive recovery day
+  if (exercise.difficulty >= 4) return false;
+
+  // Positive recovery signals
+  const role = exercise.exercise_role?.toLowerCase().replace(/\s/g, "_");
+  const hasRecoveryRole =
+    role === "stretch" || role === "cooldown" || role === "mobility" || role === "breathing";
+  const hasTargets =
+    (exercise.mobility_targets?.length ?? 0) > 0 || (exercise.stretch_targets?.length ?? 0) > 0;
+  const idOrName = `${exercise.id} ${exercise.name}`.toLowerCase();
+  const rollingSignal =
+    idOrName.includes("foam_roll") ||
+    idOrName.includes("foam roll") ||
+    idOrName.includes("rolling") ||
+    idOrName.includes("roller");
+
+  // Mobility/recovery modality that cleared the hard gates above is accepted;
+  // otherwise we require at least one explicit gentle signal.
+  const safeModality = modality === "mobility" || modality === "recovery";
+  return safeModality || hasRecoveryRole || hasTargets || rollingSignal;
+}
+
+/**
  * Score for how well an exercise matches preferred cooldown targets (0 = no match, higher = better).
  */
 function scoreTargetMatch(exercise: Exercise, preferredTargets: string[]): number {

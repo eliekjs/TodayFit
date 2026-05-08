@@ -67,6 +67,7 @@ export function genericSelectHypertrophyChosen(args: GenericHypertrophySelection
     pick,
     exerciseMatchesHypertrophySubFocusSlug,
     used,
+    hypertrophyRemainderEligible,
   } = args;
 
   let chosen: Exercise[] = [];
@@ -85,7 +86,10 @@ export function genericSelectHypertrophyChosen(args: GenericHypertrophySelection
 
       const remaining = wantCount - chosen.length;
       if (remaining > 0) {
-        const remainingPool = pool.filter((e) => !chosen.some((c) => c.id === e.id));
+        let remainingPool = pool.filter((e) => !chosen.some((c) => c.id === e.id));
+        if (hypertrophyRemainderEligible) {
+          remainingPool = remainingPool.filter(hypertrophyRemainderEligible);
+        }
         if (remainingPool.length > 0) {
           const secondPick = pick(remainingPool, remaining, "main_hypertrophy_subfocus_remainder");
           chosen = [...chosen, ...secondPick];

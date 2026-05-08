@@ -32,6 +32,7 @@ export default defineConfig({
       "logic/workoutGeneration/supersetPairPreferenceBoost.test.ts",
       "logic/workoutGeneration/supersetIntentPreferenceScores.test.ts",
       "logic/workoutGeneration/bodyRecompConditioningPolicy.test.ts",
+      "logic/workoutGeneration/upperHypertrophySessionGate.test.ts",
       "logic/workoutIntelligence/scoring/exerciseScoring.test.ts",
       "logic/workoutIntelligence/scoring/qualityResolution.test.ts",
       "logic/workoutIntelligence/weekly/phase12-weekly-planning.test.ts",

@@ -232,7 +232,10 @@ export function createAlpineSportMainHandles(deps: SportMainSelectorDeps): Sport
 
           const remaining = wantCount - chosen.length;
           if (remaining > 0) {
-            const remainingPool = pool.filter((e) => !chosen.some((c) => c.id === e.id));
+            let remainingPool = pool.filter((e) => !chosen.some((c) => c.id === e.id));
+            if (ctx.hypertrophyRemainderEligible) {
+              remainingPool = remainingPool.filter(ctx.hypertrophyRemainderEligible);
+            }
             if (remainingPool.length > 0) {
               const secondPick = alpineOwnedPickMany(
                 remainingPool,

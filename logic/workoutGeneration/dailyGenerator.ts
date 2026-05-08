@@ -63,6 +63,7 @@ import {
   selectCooldownMobilityExercises as selectOntologyCooldown,
   getPreferredCooldownTargetsFromFamilies,
   exerciseCountsAsCooldownMobilityForValidator,
+  isGentleRecoveryExercise,
   isWarmupPrimaryCooldownExcluded,
   MAIN_WORK_EXCLUDED_ROLES,
 } from "./cooldownSelection";
@@ -97,6 +98,7 @@ import {
   computeOntologyScoreComponents,
   getEffectiveFatigueRegions,
   getPreferredWarmupTargetsFromFocus,
+  getPreferredWarmupTargetsFromRegionalMobilitySubs,
   mergeSportBiasIntoWarmupFocusBodyParts,
   exerciseWarmupTargetsOverlap,
 } from "./ontologyScoring";
@@ -310,6 +312,11 @@ import {
 } from "./mainSelectors";
 import type { AlpinePickEnvironment, MainSelectorSessionTrace, ScoreExerciseLike } from "./mainSelectors/types";
 import { sessionIntentContractForSportSlug, type IntentEntry } from "./sessionIntentContract";
+import {
+  exerciseIsPrimaryLowerBodyHypertrophyMovement,
+  shouldGateLowerBodyHypertrophyRemainder,
+  shouldOmitOptionalHypertrophyUpperOnlyConditioning,
+} from "./upperHypertrophySessionGate";
 import type { SportPatternGateResult } from "./sportPattern/framework/types";
 import { sportPatternScoreModeFromPoolMode } from "./sportPattern/framework";
 import {
@@ -2545,8 +2552,9 @@ function buildWarmup(
   const movementCounts = new Map<string, number>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
   const warmupTargetCount = Math.min(count, finalPool.length || 2);
-  const candidatePoolForWarmup =
-    primaryMatchPool.length >= warmupTargetCount ? primaryMatchPool : finalPool;
+  // Keep warmup picks random across the full relevant pool; score bonuses still
+  // prioritize primary intent targets without hard-locking the candidate set.
+  const candidatePoolForWarmup = finalPool;
 
   const { exercises: chosen } = selectExercises(
     candidatePoolForWarmup,
@@ -2639,6 +2647,7 @@ function buildCooldown(
   const cooldownPool = equipmentOk.filter(
     (e) =>
       exerciseCountsAsCooldownMobilityForValidator(e) &&
+      (!recoveryEmphasis || isGentleRecoveryExercise(e)) &&
       !isWarmupPrimaryCooldownExcluded(e)
   );
 
@@ -5232,10 +5241,16 @@ function buildMainHypertrophy(
   );
 
   const isHypertrophyPrimary = input.primary_goal === "hypertrophy";
-  const muscleSubFocusRanked = isHypertrophyPrimary ? (input.goal_sub_focus?.muscle ?? []) : [];
+  const muscleSubFocusRanked = isHypertrophyPrimary
+    ? (input.goal_sub_focus?.muscle ?? input.goal_sub_focus?.hypertrophy ?? [])
+    : [];
   const hasBalanced = muscleSubFocusRanked.includes("balanced");
   const directSubFocusSlugs = muscleSubFocusRanked.filter((s) => s !== "balanced");
   const dominantSlug = directSubFocusSlugs[0];
+  const hypertrophyRemainderEligible =
+    shouldGateLowerBodyHypertrophyRemainder(input, directSubFocusSlugs)
+      ? (e: Exercise) => !exerciseIsPrimaryLowerBodyHypertrophyMovement(e)
+      : undefined;
 
   const selectionOptions = {
     blockType: "main_hypertrophy",
@@ -5460,6 +5475,7 @@ function buildMainHypertrophy(
       gateSnapshot: alpineSkiingEnforcement?.main_hypertrophy,
       traceNotes: traceHypertrophy?.notes,
       exerciseMatchesHypertrophySubFocusSlug,
+      hypertrophyRemainderEligible,
     });
   } else if (
     sportHandlesHypertrophy &&
@@ -5504,6 +5520,7 @@ function buildMainHypertrophy(
       gateSnapshot: rockClimbingEnforcement?.main_hypertrophy,
       traceNotes: traceHypertrophyRock?.notes,
       exerciseMatchesHypertrophySubFocusSlug,
+      hypertrophyRemainderEligible,
     });
   } else {
     mainSelectorTrace?.entries.push({
@@ -5522,6 +5539,7 @@ function buildMainHypertrophy(
       exerciseMatchesHypertrophySubFocusSlug,
       pick: pickHypertrophyMain,
       used,
+      hypertrophyRemainderEligible,
     });
 
     if (snowHypertrophyRule && snowSportAppliesH && snowKindH && chosen.length > 0) {
@@ -6442,19 +6460,65 @@ function buildMobilityRecoveryMain(
   exercises: Exercise[],
   input: GenerateWorkoutInput,
   used: Set<string>,
-  rng: () => number
+  rng: () => number,
+  preferredTargets: string[] = []
 ): WorkoutBlock[] {
+  const isRecovery = input.primary_goal === "recovery";
   const mobilityPool = exercises.filter(
     (e) =>
       (e.modality === "mobility" || e.modality === "recovery") &&
+      (!isRecovery || isGentleRecoveryExercise(e)) &&
       !used.has(e.id)
   );
-  const isRecovery = input.primary_goal === "recovery";
   const count =
     input.duration_minutes <= 30
       ? isRecovery ? 6 : 4
       : isRecovery ? 9 : 6;
-  const chosen = shuffleWithSeed([...mobilityPool], rng).slice(0, count);
+
+  const regionalSubs =
+    input.primary_goal === "recovery"
+      ? input.goal_sub_focus?.resilience ?? []
+      : input.primary_goal === "mobility"
+        ? input.goal_sub_focus?.mobility ?? []
+        : [];
+  const regionalGoalSlug = input.primary_goal === "recovery" ? ("resilience" as const) : ("mobility" as const);
+
+  let workingPool = mobilityPool;
+  if (regionalSubs.length > 0) {
+    const subMatched = mobilityPool.filter((e) =>
+      regionalSubs.some((slug) => exerciseMatchesGoalSubFocusSlugUnified(e, regionalGoalSlug, slug))
+    );
+    if (subMatched.length > 0) workingPool = subMatched;
+  }
+
+  const recoveryPreferredTargets = [
+    ...new Set([
+      ...getPreferredWarmupTargetsFromFocus(input.focus_body_parts ?? []),
+      ...getPreferredWarmupTargetsFromRegionalMobilitySubs(regionalSubs),
+      ...preferredTargets,
+    ]),
+  ];
+  const targetMatchedPool =
+    recoveryPreferredTargets.length > 0
+      ? workingPool.filter((e) => exerciseWarmupTargetsOverlap(e, recoveryPreferredTargets))
+      : workingPool;
+  const candidatePool = targetMatchedPool.length > 0 ? targetMatchedPool : workingPool;
+  const movementCounts = new Map<string, number>();
+  const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
+  const pickCount = Math.min(count, candidatePool.length);
+  const { exercises: chosen } = selectExercises(
+    candidatePool,
+    input,
+    recentIds,
+    movementCounts,
+    pickCount,
+    rng,
+    undefined,
+    {
+      blockType: "cooldown",
+      preferredWarmupCooldownTargets: recoveryPreferredTargets,
+    }
+  );
   chosen.forEach((e) => used.add(e.id));
 
   const items: WorkoutItem[] = chosen.map((e) => {
@@ -8841,15 +8905,20 @@ function ensureBlockGoalIntentFallbacks(
       : [input.primary_goal, ...(input.secondary_goals ?? [])];
   const fallbackGoal =
     selectedGoals.find((g) => g === input.primary_goal) ?? selectedGoals[0] ?? input.primary_goal;
-  const conditioningGoal =
-    selectedGoals.find((g) => g === "endurance" || g === "conditioning") ?? fallbackGoal;
+  const declaredConditioningGoal =
+    selectedGoals.find((g) => g === "endurance" || g === "conditioning");
 
   for (const block of blocks) {
     if (block.goal_intent) continue;
     if (block.block_type === "warmup" || block.block_type === "cooldown") continue;
     if ((block.items?.length ?? 0) === 0) continue;
 
-    const goalSlug = block.block_type === "conditioning" ? conditioningGoal : fallbackGoal;
+    // Conditioning blocks only get a badge when the user actually declared a
+    // conditioning/endurance goal. Inheriting the session's muscle/strength goal slug
+    // ("hypertrophy" → "BUILD MUSCLE") onto a conditioning block is misleading.
+    if (block.block_type === "conditioning" && !declaredConditioningGoal) continue;
+
+    const goalSlug = block.block_type === "conditioning" ? declaredConditioningGoal! : fallbackGoal;
     const matchingSwapIds = Array.from(
       new Set(
         [...exerciseById.values()]
@@ -9266,7 +9335,11 @@ export function generateWorkoutSession(
       )
     );
   } else if (primary === "mobility" || primary === "recovery") {
-    blocks.push(...buildMobilityRecoveryMain(filtered, input, used, rng));
+    // Mobility/recovery stretches should follow regional sub-focus (e.g. hips) even when body-part
+    // focus is upper vs lower; use injury+equipment-safe pool without body-part stripping (like goal guarantees).
+    blocks.push(
+      ...buildMobilityRecoveryMain(guaranteePool, input, used, rng, blockIntentProfile.cooldownPreferredTargets)
+    );
   } else {
     const intentAthleticInject = tryBuildIntentSlotAllocatedMainInject(
       filtered,
@@ -9689,9 +9762,12 @@ export function generateWorkoutSession(
     input,
     preferEnduranceIntentForFinisher ? ["endurance", "conditioning"] : ["conditioning", "endurance"]
   );
+  const omitOptionalUpperOnlyHypertrophyConditioning =
+    shouldOmitOptionalHypertrophyUpperOnlyConditioning(input);
   let skipConditioning =
     hasConditioningBlock ||
     !blockIntentProfile.allowConditioningBlock ||
+    (omitOptionalUpperOnlyHypertrophyConditioning && !requiredConditioning) ||
     (!requiredConditioning &&
       (conditioningStrategy === "none" ||
         (goalRules.conditioningOnlyIfHighEnergy &&
@@ -10232,6 +10308,7 @@ export function generateWorkoutSession(
       if (!isExerciseAllowedByInjuries(shape, constraints)) continue;
       if ((goal === "conditioning" || goal === "endurance") && ex.modality !== "conditioning") continue;
       if ((goal === "mobility" || goal === "recovery") && !exerciseCountsAsCooldownMobilityForValidator(ex)) continue;
+      if (goal === "recovery" && !isGentleRecoveryExercise(ex)) continue;
       if (exerciseMatchesDeclaredGoal(ex, goal)) return ex;
     }
     return null;
@@ -10339,7 +10416,12 @@ export function generateWorkoutSession(
     }
   }
 
-  while (countWorkItems() < minWorkItemsByDuration) {
+  // Recovery / mobility primary sessions intentionally contain only cooldown/mobility blocks;
+  // those are classified as "support" blocks by nonSupportBlock, so countWorkItems() returns 0
+  // and the booster would spuriously inject strength exercises. Skip the booster entirely.
+  const skipDensityBooster = primary === "recovery" || primary === "mobility";
+
+  while (!skipDensityBooster && countWorkItems() < minWorkItemsByDuration) {
     const candidate = filtered.find((ex) => {
       if (used.has(ex.id)) return false;
       const shape = toConstraintEligibilityShape(ex);

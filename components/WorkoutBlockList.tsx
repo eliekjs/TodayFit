@@ -79,14 +79,21 @@ function getIntentLabels(item: WorkoutItem): string[] {
 
   const labels: string[] = [];
 
-  // 1. Specific matched intent entries — skip athletic_performance and inferred.
+  // 1. Specific matched intents from ranked_intent_entries (most precise source).
+  //    Priority: sport_sub_focus > goal_sub_focus > goal > bare sport.
+  //    This matches intentSpecificityRank in sessionIntentCoverage.ts — goal ranks
+  //    before bare sport so a hypertrophy exercise in a soccer session shows
+  //    "Build Muscle" rather than "Soccer".
   const specificMatched = (links.matched_intents ?? []).filter(
     (m) => m.match_strength !== "inferred" && !_isAthletic(m)
   );
   const strengthOrder = (m: (typeof specificMatched)[number]) =>
     m.match_strength === "direct" ? 0 : 1;
   const tier = (m: (typeof specificMatched)[number]) =>
-    m.kind === "sport_sub_focus" ? 0 : m.kind === "goal_sub_focus" ? 1 : m.kind === "sport" ? 2 : 3;
+    m.kind === "sport_sub_focus" ? 0
+    : m.kind === "goal_sub_focus" ? 1
+    : m.kind === "goal" ? 2        // goal before bare sport (aligns with intentSpecificityRank)
+    : m.kind === "sport" ? 3 : 4;
 
   const orderedMatched = [...specificMatched].sort((a, b) => {
     const td = tier(a) - tier(b);
@@ -102,7 +109,19 @@ function getIntentLabels(item: WorkoutItem): string[] {
     if (!labels.includes(lbl)) labels.push(lbl);
   }
 
-  // 2. Exercise has a sport tag that matches the session sport (but no sub-focus).
+  // 2. Fitness goal fallback — preferred over bare sport tag when no specific match was
+  //    shown yet. Ensures exercises in goal-primary blocks (hypertrophy, strength, etc.)
+  //    display their goal context rather than an incidental sport tag.
+  if (labels.length === 0) {
+    for (const goal of (links.goals ?? []).filter((g) => g !== "athletic_performance")) {
+      if (labels.length >= 2) break;
+      const humanized = _humanizeGoalSlug(goal);
+      if (!labels.includes(humanized)) labels.push(humanized);
+    }
+  }
+
+  // 3. Exercise has a sport tag matching the session sport but no sub-focus match.
+  //    Runs after goal fallback so sport only appears as a secondary or fallback label.
   if (labels.length < 2) {
     const coveredParents = new Set(
       orderedMatched
@@ -115,15 +134,6 @@ function getIntentLabels(item: WorkoutItem): string[] {
       const sport = _sportBySlug.get(sportSlug);
       const lbl = sport ? sport.name : _humanizeGoalSlug(sportSlug);
       if (!labels.includes(lbl)) labels.push(lbl);
-    }
-  }
-
-  // 3. Non-sport goal fallback (strength, hypertrophy, mobility…) — skip athletic_performance.
-  if (labels.length === 0) {
-    for (const goal of (links.goals ?? []).filter((g) => g !== "athletic_performance")) {
-      if (labels.length >= 2) break;
-      const humanized = _humanizeGoalSlug(goal);
-      if (!labels.includes(humanized)) labels.push(humanized);
     }
   }
 

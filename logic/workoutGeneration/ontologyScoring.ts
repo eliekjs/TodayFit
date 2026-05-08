@@ -407,6 +407,34 @@ export const FOCUS_TO_WARMUP_TARGETS: Record<string, string[]> = {
   full_body: ["thoracic_spine", "shoulders", "hip_flexors", "glutes"],
 };
 
+/** Recovery / Mobility regional sub-focus slugs (`goal_sub_focus.resilience` / `.mobility`) → stretch/mobility ontology targets used for pool overlap + cooldown scoring alignment. */
+export const REGIONAL_MOBILITY_SUBFOCUS_TO_WARMUP_TARGETS: Record<string, string[]> = {
+  hips: ["hip_flexors", "glutes", "hamstrings"],
+  shoulders: ["shoulders", "thoracic_spine"],
+  t_spine: ["thoracic_spine"],
+  lower_back: ["low_back", "hip_flexors"],
+  ankles: ["calves", "quadriceps"],
+  full_body: ["thoracic_spine", "shoulders", "hip_flexors", "glutes"],
+};
+
+export function getPreferredWarmupTargetsFromRegionalMobilitySubs(subFocusSlugs: string[] | undefined): string[] {
+  if (!subFocusSlugs?.length) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const s of subFocusSlugs) {
+    const slugKey = norm(s);
+    const targets = REGIONAL_MOBILITY_SUBFOCUS_TO_WARMUP_TARGETS[slugKey];
+    if (!targets?.length) continue;
+    for (const t of targets) {
+      if (!seen.has(t)) {
+        seen.add(t);
+        out.push(t);
+      }
+    }
+  }
+  return out;
+}
+
 export function getPreferredWarmupTargetsFromFocus(focusBodyParts: string[] | undefined): string[] {
   if (!focusBodyParts?.length) return [];
   const out: string[] = [];

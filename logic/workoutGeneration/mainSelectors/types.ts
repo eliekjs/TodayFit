@@ -101,6 +101,8 @@ export type AlpineHypertrophyVolumeContext = {
   gateSnapshot?: SportPatternGateResult;
   traceNotes?: string[];
   exerciseMatchesHypertrophySubFocusSlug: (e: Exercise, slug: string) => boolean;
+  /** Optional filter for remainder volume after dominant sub-focus fills (see generic main selector). */
+  hypertrophyRemainderEligible?: (e: Exercise) => boolean;
 };
 
 /**
@@ -138,4 +140,9 @@ export type GenericHypertrophySelectionArgs = {
   exerciseMatchesHypertrophySubFocusSlug: (e: Exercise, slug: string) => boolean;
   /** When set, first-segment hypertrophy picks are registered (legacy parity with pre-split generator). */
   used?: Set<string>;
+  /**
+   * When set, remainder picks after dominant sub-focus fills must pass this predicate (e.g. exclude
+   * lower-body volume on upper-only body-part days).
+   */
+  hypertrophyRemainderEligible?: (e: Exercise) => boolean;
 };
