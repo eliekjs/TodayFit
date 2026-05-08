@@ -24,6 +24,7 @@ export const defaultManualPreferences: ManualPreferences = {
   injuries: [],
   upcoming: [],
   subFocusByGoal: {},
+  subFocusPctByGoal: {},
   workoutStyle: [],
   preferredZone2Cardio: [],
   goalMatchPrimaryPct: 50,

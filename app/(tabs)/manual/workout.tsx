@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
@@ -20,6 +20,7 @@ import type { BlockType } from "../../../lib/types";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 import { buildWorkoutIntentTitle } from "../../../lib/workoutIntentSplit";
+import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -31,8 +32,10 @@ export default function ManualWorkoutScreen() {
     setManualExecutionStarted,
     addSavedWorkout,
     savedWorkouts,
+    manualGoalPreferencesScope,
   } = useAppState();
   const router = useRouter();
+  const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
   const theme = useTheme();
 
   const [swapModal, setSwapModal] = useState<{
@@ -46,6 +49,18 @@ export default function ManualWorkoutScreen() {
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
   const [swapNumPages, setSwapNumPages] = useState(1);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const generationCancelledRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      generationCancelledRef.current = false;
+      setIsRegenerating(false);
+      return () => {
+        generationCancelledRef.current = true;
+        setIsRegenerating(false);
+      };
+    }, [])
+  );
 
   useEffect(() => {
     if (!swapModal) {
@@ -106,7 +121,7 @@ export default function ManualWorkoutScreen() {
           <View style={{ marginTop: 16 }}>
             <PrimaryButton
               label="Go to Preferences"
-              onPress={() => router.push("/manual/preferences")}
+              onPress={() => router.push(manualPrefsHref)}
             />
           </View>
           {savedWorkouts.length > 0 && (
@@ -144,16 +159,20 @@ export default function ManualWorkoutScreen() {
   const workoutTitle = intentSplit ? buildWorkoutIntentTitle(intentSplit) : null;
 
   const onRegenerate = async () => {
+    generationCancelledRef.current = false;
     setIsRegenerating(true);
     try {
       const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
+      if (generationCancelledRef.current) return;
       const { generateWorkoutAsync } = await loadGeneratorModule();
+      if (generationCancelledRef.current) return;
       const workout = await generateWorkoutAsync(
         manualPreferences,
         activeProfile,
         Date.now(),
         preferredNames
       );
+      if (generationCancelledRef.current) return;
       setGeneratedWorkout(workout);
     } finally {
       setIsRegenerating(false);
@@ -226,7 +245,7 @@ export default function ManualWorkoutScreen() {
           <PrimaryButton
             label="Edit Preferences"
             variant="ghost"
-            onPress={() => router.push("/manual/preferences")}
+            onPress={() => router.push(manualPrefsHref)}
             style={{ marginTop: 8 }}
           />
           <PrimaryButton

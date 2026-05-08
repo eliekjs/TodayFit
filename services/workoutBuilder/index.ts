@@ -59,6 +59,8 @@ export type SportGoalOptions = {
   includeCreativeVariations?: boolean;
   /** Per–primary-focus sub-goal labels (Manual `subFocusByGoal` keys). Biases exercise selection. */
   subFocusByGoal?: Record<string, string[]>;
+  /** Optional integer % per primary-focus sub-goal (same shape as ManualPreferences.subFocusPctByGoal). */
+  subFocusPctByGoal?: Record<string, Record<string, number>>;
   /** Populate `GenerateWorkoutInput.include_intent_survival_report` for debug tracing. */
   includeIntentSurvivalReport?: boolean;
   /** Ids from the prior generated workout to penalize on regenerate (variety). */
@@ -90,6 +92,10 @@ export async function buildWorkoutForSessionIntent(
     subFocusByGoal:
       options?.subFocusByGoal && Object.keys(options.subFocusByGoal).length > 0
         ? { ...options.subFocusByGoal }
+        : {},
+    subFocusPctByGoal:
+      options?.subFocusPctByGoal && Object.keys(options.subFocusPctByGoal).length > 0
+        ? { ...options.subFocusPctByGoal }
         : {},
     workoutStyle: [],
     workoutTier: options?.workoutTier ?? "intermediate",
@@ -148,6 +154,10 @@ export async function buildWorkoutForSessionIntent(
               : undefined,
           sport_weight:
             options?.sportVsGoalPct != null ? options.sportVsGoalPct / 100 : undefined,
+          sport_focus_pct:
+            options?.rankedSportSlugs?.length === 2 && options?.sportFocusPct
+              ? options.sportFocusPct
+              : undefined,
           regeneration_avoid_exercise_ids:
             options?.regenerationAvoidExerciseIds?.length ? options.regenerationAvoidExerciseIds : undefined,
           include_intent_survival_report: options?.includeIntentSurvivalReport === true,

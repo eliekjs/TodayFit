@@ -69,10 +69,13 @@ export const CARDIO_POLICY_BY_PRIMARY_GOAL: Record<PrimaryGoal, ConditioningPoli
     preferredConditioningFormats: ["circuit", "straight_sets"],
   },
   body_recomp: {
-    allowConditioningBlock: true,
+    // Conditioning blocks are not a default feature of body-recomp sessions — user intent
+    // (conditioning/endurance secondary goal) overrides this via the secondary-goal policy in
+    // blockIntentProfile.ts, which sets allowConditioningBlock=true + conditioningRequired=true.
+    allowConditioningBlock: false,
     conditioningRequired: false,
-    sessionCardioShare: 0.24,
-    targetCardioExerciseShare: 0.16,
+    sessionCardioShare: 0.15,
+    targetCardioExerciseShare: 0.0,
     preferredMainFormats: ["superset", "circuit"],
     preferredConditioningFormats: ["circuit", "straight_sets"],
   },

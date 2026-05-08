@@ -128,8 +128,10 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     setRange: { min: 3, max: 4 },
     restRange: { min: 45, max: 60 },
     preferredFormats: ["superset", "straight_sets"],
-    conditioningStrategy: "mandatory",
-    conditioningDuration: { min: 20, max: 40 },
+    // Conditioning is not a default feature of recomp sessions; a conditioning block is only
+    // added when the user has an explicit secondary conditioning/endurance goal.
+    conditioningStrategy: "none",
+    conditioningDuration: { min: 8, max: 12 },
     cueStyle: {
       strength: "Lower intensity. Focus on time under tension.",
       cardio: "Steady lower-intensity effort.",
@@ -370,11 +372,11 @@ export function getConditioningIntervalStructure(
 export function getNonZone2ConditioningIntervalStructure(
   totalMinutes: number
 ): ConditioningIntervalStructure {
-  const workSeconds = totalMinutes <= 12 ? 20 : totalMinutes <= 20 ? 30 : 40;
-  const restSeconds = Math.max(20, 60 - workSeconds);
+  const workSeconds = totalMinutes <= 12 ? 20 : totalMinutes <= 20 ? 30 : 45;
+  const restSeconds = Math.max(30, 75 - workSeconds);
   const rounds = Math.max(
-    6,
-    Math.min(30, Math.round((totalMinutes * 60) / (workSeconds + restSeconds)))
+    3,
+    Math.min(6, Math.round((totalMinutes * 60) / (workSeconds + restSeconds)))
   );
   return {
     sets: rounds,
@@ -407,18 +409,16 @@ export function getConditioningStructureByIntent(
     };
   }
   if (intent === "intervals_hiit" || intent === "hiit_intervals" || intent === "intervals") {
-    // EMOM-style: each "set" is 1 minute.
-    // - 20–30 min: 20s work / 40s rest
-    // - 30–35 min: 30s work / 30s rest
-    // - 35+ min: 40s work / 20s rest
-    const workSeconds = totalMinutes <= 25 ? 20 : totalMinutes <= 35 ? 30 : 40;
-    const sets = Math.max(10, Math.min(40, Math.round(totalMinutes)));
+    // Short intervals only. Longer aerobic volume belongs in a separate steady-cardio block,
+    // not as 20-40 repeated rounds of one drill.
+    const workSeconds = totalMinutes <= 25 ? 30 : 45;
+    const sets = Math.max(4, Math.min(6, Math.round(totalMinutes / 5)));
     return {
       sets,
       time_seconds: workSeconds,
-      rest_seconds: workSeconds === 40 ? 20 : 30,
+      rest_seconds: workSeconds === 45 ? 30 : 30,
       format: "circuit",
-      reasoning: "EMOM-style intervals (time-based work with defined rest).",
+      reasoning: "Short capped intervals; use a separate aerobic block for longer endurance volume.",
     };
   }
   if (intent === "threshold_tempo") {
@@ -544,7 +544,7 @@ export function getExplosiveConditioningStructure(): ConditioningIntervalStructu
 export function getHighIntensityConditioningStructure(
   totalWorkMinutes: number
 ): ConditioningIntervalStructure {
-  const rounds = Math.max(1, Math.min(20, Math.round(totalWorkMinutes)));
+  const rounds = Math.max(3, Math.min(6, Math.round(totalWorkMinutes / 3)));
   const restSeconds = 60;
   return {
     sets: rounds,
@@ -559,7 +559,7 @@ export function getHighIntensityConditioningStructure(
 export function getSprintBurstConditioningStructure(
   totalWorkMinutes: number
 ): ConditioningIntervalStructure {
-  const sets = Math.max(5, Math.min(10, Math.round(totalWorkMinutes)));
+  const sets = Math.max(4, Math.min(6, Math.round(totalWorkMinutes / 3)));
   const workSeconds = totalWorkMinutes <= 7 ? 20 : 30;
   const restSeconds = workSeconds === 20 ? 30 : 60;
   return {

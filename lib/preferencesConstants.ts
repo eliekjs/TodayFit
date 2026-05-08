@@ -1,5 +1,6 @@
 import type { BodyPartFocusKey, TargetBody, WorkoutStyleKey } from "./types";
 import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus";
+import { normalizeSubFocusPctRecord } from "./subFocusWeights";
 
 /** Core: primary focus options (multi-select, suggest up to 2). */
 export const PRIMARY_FOCUS_OPTIONS = [
@@ -22,6 +23,8 @@ export const GOAL_SLUG_TO_LABEL: Record<string, string> = {
   endurance: "Endurance",
   conditioning: "Sport conditioning",
   mobility: "Mobility & joint health",
+  athletic_performance: "Athletic performance",
+  power: "Power",
   climbing: "Climbing",
   trail_running: "Trail running",
   ski: "Ski / snow",
@@ -41,9 +44,9 @@ export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   "Sport Conditioning": "conditioning",
   "Improve Endurance": "endurance",
   "Mobility & Joint Health": "mobility",
-  "Athletic Performance": "strength",
-  "Calisthenics": "strength",
-  "Power & Explosiveness": "conditioning",
+  "Athletic Performance": "athletic_performance",
+  "Calisthenics": "calisthenics",
+  "Power & Explosiveness": "power",
   "Recovery": "resilience",
 };
 
@@ -55,6 +58,9 @@ export const GOAL_SLUG_TO_PRIMARY_FOCUS: Record<string, string> = {
   conditioning: "Sport Conditioning",
   endurance: "Improve Endurance",
   mobility: "Mobility & Joint Health",
+  athletic_performance: "Athletic Performance",
+  power: "Power & Explosiveness",
+  calisthenics: "Calisthenics",
   resilience: "Recovery",
   climbing: "Sport Conditioning",
   trail_running: "Improve Endurance",
@@ -144,6 +150,96 @@ export const SUB_FOCUS_BY_PRIMARY: Record<string, string[]> = (() => {
   return out;
 })();
 
+/** Aerobic / anaerobic engine sub-focus slugs — not strength-power development (Power & Explosiveness / plyo slugs stay allowed there). */
+export const ENGINE_CARDIO_SUB_FOCUS_SLUGS: readonly string[] = [
+  "zone2_aerobic_base",
+  "intervals_hiit",
+  "threshold_tempo",
+  "hills",
+  "zone2_long_steady",
+  "intervals",
+  "durability",
+];
+
+const ENGINE_CARDIO_SUB_FOCUS_SLUG_SET = new Set(ENGINE_CARDIO_SUB_FOCUS_SLUGS);
+
+/** Primary goals that may show engine / sport-conditioning style sub-focus chips (matches `PRIMARY_FOCUS_OPTIONS` strings). */
+const PRIMARY_FOCUS_ALLOWLIST_CONDITIONING_SUB_FOCUS = new Set<string>([
+  "Sport Conditioning",
+  "Improve Endurance",
+  "Athletic Performance",
+  "Power & Explosiveness",
+]);
+
+const ENGINE_CARDIO_SUB_FOCUS_DISPLAY_NAME_SET: ReadonlySet<string> = (() => {
+  const names = new Set<string>();
+  for (const label of ["Sport Conditioning", "Improve Endurance"] as const) {
+    const entry = GOAL_SUB_FOCUS_OPTIONS[label];
+    if (!entry) continue;
+    for (const f of entry.subFocuses) {
+      if (ENGINE_CARDIO_SUB_FOCUS_SLUG_SET.has(f.slug)) names.add(f.name);
+    }
+  }
+  return names;
+})();
+
+/**
+ * Whether this Manual primary-focus label may offer conditioning / engine-cardio-related sub-focus options.
+ * Denylist: hypertrophy-, strength-, recomp-, mobility-, calisthenics-, recovery-primary flows.
+ */
+export function primaryFocusAllowsConditioningSubFocus(goalLabel: string): boolean {
+  return PRIMARY_FOCUS_ALLOWLIST_CONDITIONING_SUB_FOCUS.has(goalLabel);
+}
+
+/** True if this display label is sport/endurance-type engine conditioning (cross-check for stale persisted prefs). */
+export function engineCardioSubFocusDisplayName(displayName: string): boolean {
+  return ENGINE_CARDIO_SUB_FOCUS_DISPLAY_NAME_SET.has(displayName);
+}
+
+/** True if `(goalLabel, displayName)` pairs engine conditioning intents with a primary that forbids them. */
+export function conditioningSubFocusInvalidForPrimaryGoal(
+  goalLabel: string,
+  displayName: string
+): boolean {
+  if (primaryFocusAllowsConditioningSubFocus(goalLabel)) return false;
+  const slug = GOAL_SUB_FOCUS_OPTIONS[goalLabel]?.subFocuses.find((f) => f.name === displayName)?.slug;
+  if (slug != null && ENGINE_CARDIO_SUB_FOCUS_SLUG_SET.has(slug)) return true;
+  return ENGINE_CARDIO_SUB_FOCUS_DISPLAY_NAME_SET.has(displayName);
+}
+
+export function collectInvalidConditioningSubFocusSelections(
+  subFocusByGoal: Record<string, string[]>
+): { goalLabel: string; displayName: string }[] {
+  const out: { goalLabel: string; displayName: string }[] = [];
+  for (const [goalLabel, labels] of Object.entries(subFocusByGoal)) {
+    for (const displayName of labels ?? []) {
+      if (conditioningSubFocusInvalidForPrimaryGoal(goalLabel, displayName)) {
+        out.push({ goalLabel, displayName });
+      }
+    }
+  }
+  return out;
+}
+
+/** Sub-focus chip labels offered in Manual / Adaptive UI for one primary goal (filters engine options when disallowed). */
+export function subFocusChoicesForManualPrimaryGoal(goalLabel: string): string[] {
+  const all = SUB_FOCUS_BY_PRIMARY[goalLabel] ?? [];
+  return all.filter((name) => !conditioningSubFocusInvalidForPrimaryGoal(goalLabel, name));
+}
+
+/** Remove engine/cardio-conditioning sub-focus labels from goals whose primary forbids them; deletes empty keys. */
+export function normalizeSubFocusByGoalAgainstConditioningPolicy(
+  subFocusByGoal: Record<string, string[]>
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [goalLabel, labels] of Object.entries(subFocusByGoal)) {
+    if (!labels?.length) continue;
+    const next = labels.filter((d) => !conditioningSubFocusInvalidForPrimaryGoal(goalLabel, d));
+    if (next.length > 0) out[goalLabel] = next;
+  }
+  return out;
+}
+
 /**
  * Sport Mode training goal ids (same as `primaryGoalSlug` in planWeek) → Manual primary focus
  * label. Used to read/write `subFocusByGoal` for goal sub-focus chips.
@@ -156,6 +252,9 @@ export const ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY: Record<string, string> = {
   physique: "Body Recomp (fat loss & muscle gain)",
   resilience: "Recovery",
   conditioning: "Sport Conditioning",
+  athletic_performance: "Athletic Performance",
+  power: "Power & Explosiveness",
+  calisthenics: "Calisthenics",
 };
 
 /**
@@ -176,14 +275,39 @@ export function goalSubFocusPayloadForAdaptiveGoals(
   rankedGoalIds: string[],
   subFocusByGoal: Record<string, string[]>
 ): Record<string, string[]> {
+  const cleaned = normalizeSubFocusByGoalAgainstConditioningPolicy(subFocusByGoal);
   const out: Record<string, string[]> = {};
   for (const id of rankedGoalIds) {
     const label = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id];
-    if (label && (subFocusByGoal[label]?.length ?? 0) > 0) {
-      out[label] = [...(subFocusByGoal[label] ?? [])];
+    if (label && (cleaned[label]?.length ?? 0) > 0) {
+      out[label] = [...(cleaned[label] ?? [])];
     }
   }
   return out;
+}
+
+/**
+ * Same ranked-goal filter as `goalSubFocusPayloadForAdaptiveGoals`, for sub-focus blend % map.
+ * When `canonicalSubsByGoal` is set (typically the sanitised subs map sent to planWeek), only those
+ * labels remain and percentages are renormalised per goal.
+ */
+export function goalSubFocusPctPayloadForAdaptiveGoals(
+  rankedGoalIds: string[],
+  subFocusPctByGoal: Record<string, Record<string, number>> | undefined,
+  canonicalSubsByGoal?: Record<string, string[]>
+): Record<string, Record<string, number>> | undefined {
+  if (!subFocusPctByGoal || Object.keys(subFocusPctByGoal).length === 0) return undefined;
+  const out: Record<string, Record<string, number>> = {};
+  for (const id of rankedGoalIds) {
+    const label = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id];
+    if (!label) continue;
+    const slice = subFocusPctByGoal[label];
+    if (!slice || Object.keys(slice).length === 0) continue;
+    const canon = canonicalSubsByGoal?.[label];
+    if (canon?.length) out[label] = normalizeSubFocusPctRecord(canon, slice);
+    else out[label] = { ...slice };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 /**

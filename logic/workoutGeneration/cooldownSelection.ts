@@ -35,6 +35,16 @@ export function exerciseCountsAsCooldownMobilityForValidator(exercise: Exercise)
   return isMobilityOrStretchExercise(exercise as unknown as ExerciseWithQualities);
 }
 
+/**
+ * Activation-first prep drills (ontology: high warmup relevance, low cooldown relevance).
+ * Keeps moves like wall slides / scapular prep in warmup rather than as a lone cooldown finisher.
+ */
+export function isWarmupPrimaryCooldownExcluded(exercise: Exercise): boolean {
+  const w = exercise.warmup_relevance;
+  const c = exercise.cooldown_relevance;
+  return w === "high" && (c === "low" || c === "none" || c == null);
+}
+
 /** Roles that should NOT appear in main work (compound/accessory) blocks. */
 export const MAIN_WORK_EXCLUDED_ROLES = new Set([
   "cooldown",

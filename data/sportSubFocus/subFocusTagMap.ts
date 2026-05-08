@@ -951,7 +951,8 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "explosive_power", weight: 1.3 },
     { tag_slug: "plyometric", weight: 1.2 },
     { tag_slug: "power", weight: 1 },
-    { tag_slug: "squat_pattern", weight: 0.9 },
+    /** Strength patterns still transfer to jump height, but plyos/jumps should rank ahead of generic squat work. */
+    { tag_slug: "squat_pattern", weight: 0.55 },
   ],
   [key("volleyball", "landing_mechanics")]: [
     { tag_slug: "eccentric_strength", weight: 1.2 },

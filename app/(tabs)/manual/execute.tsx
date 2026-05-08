@@ -8,6 +8,7 @@ import {
   TextInput,
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
+import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
@@ -65,8 +66,10 @@ export default function ExecuteScreen() {
     manualSessionProgress,
     setManualSessionProgress,
     setManualExecutionStarted,
+    manualGoalPreferencesScope,
   } = useAppState();
   const router = useRouter();
+  const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
   const theme = useTheme();
 
   const allExercises = useMemo(
@@ -75,7 +78,8 @@ export default function ExecuteScreen() {
         ? generatedWorkout.blocks.flatMap((block) => {
             const pairs = getSupersetPairsForBlock(block);
             if (pairs && pairs.length > 0) {
-              return pairs.flatMap((pair, idx) =>
+              const swapPoolExerciseIds = block.goal_intent?.swap_pool_exercise_ids;
+            return pairs.flatMap((pair, idx) =>
                 pair.map((item) => ({
                   ...item,
                   id: item.exercise_id,
@@ -83,9 +87,11 @@ export default function ExecuteScreen() {
                   prescription: formatPrescription(item),
                   sectionTitle: `${block.title ?? block.block_type} • Pair ${idx + 1} (${formatSupersetPairLabel(pair)})`,
                   blockType: block.block_type,
+                  swapPoolExerciseIds,
                 }))
               );
             }
+            const swapPoolExerciseIds = block.goal_intent?.swap_pool_exercise_ids;
             return block.items.map((item) => ({
               ...item,
               id: item.exercise_id,
@@ -93,6 +99,7 @@ export default function ExecuteScreen() {
               prescription: formatPrescription(item),
               sectionTitle: block.title ?? block.block_type,
               blockType: block.block_type,
+              swapPoolExerciseIds,
             }));
           })
         : [],
@@ -130,6 +137,7 @@ export default function ExecuteScreen() {
     exerciseId: string;
     exerciseName: string;
     blockType: BlockType;
+    swapPoolExerciseIds?: string[];
   } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
@@ -190,6 +198,7 @@ export default function ExecuteScreen() {
         swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
         workoutTier: manualPreferences.workoutTier ?? "intermediate",
         includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
+        swapPoolExerciseIds: swapModal.swapPoolExerciseIds,
       },
       swapSuggestionPage
     ).then(
@@ -235,7 +244,7 @@ export default function ExecuteScreen() {
 
   const onFinish = () => {
     if (generatedWorkout == null) {
-      router.replace("/manual/preferences");
+      router.replace(manualPrefsHref);
       return;
     }
     lastPersistWorkoutIdRef.current = null;
@@ -284,7 +293,7 @@ export default function ExecuteScreen() {
           <View style={{ marginTop: 16 }}>
             <PrimaryButton
               label="Back to Preferences"
-              onPress={() => router.replace("/manual/preferences")}
+              onPress={() => router.replace(manualPrefsHref)}
             />
           </View>
         </View>
@@ -365,6 +374,7 @@ export default function ExecuteScreen() {
                       exerciseId: exercise.exercise_id,
                       exerciseName: exercise.exercise_name,
                       blockType: exercise.blockType,
+                      swapPoolExerciseIds: exercise.swapPoolExerciseIds,
                     })
                   }
                   style={[styles.swapButton, { borderColor: theme.border }]}

@@ -7,7 +7,7 @@ import {
   Pressable,
   Platform,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../lib/theme";
@@ -56,6 +56,7 @@ import {
 import { WeekDayFocusPlanner } from "../../../components/WeekDayFocusPlanner";
 import type { BlockType, DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
+import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
 
 const isWeb = Platform.OS === "web";
 
@@ -124,8 +125,24 @@ export default function ManualWeekScreen() {
     setResumeProgress,
     setManualExecutionStarted,
     adaptiveSetup,
+    setManualGoalPreferencesScope,
   } = useAppState();
   const { userId } = useAuth();
+  const weekPrefsHref = manualGoalPreferencesHref("week");
+
+  useFocusEffect(
+    useCallback(() => {
+      generationCancelledRef.current = false;
+      setGenerating(false);
+      setIsRegenerating(false);
+      setManualGoalPreferencesScope("week");
+      return () => {
+        generationCancelledRef.current = true;
+        setGenerating(false);
+        setIsRegenerating(false);
+      };
+    }, [setManualGoalPreferencesScope])
+  );
 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -157,6 +174,7 @@ export default function ManualWeekScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollContentRef = useRef<View>(null);
   const dayFocusSectionRef = useRef<View>(null);
+  const generationCancelledRef = useRef(false);
   const scrollToDayFocusSection = useCallback(() => {
     const content = scrollContentRef.current;
     const section = dayFocusSectionRef.current;
@@ -205,6 +223,7 @@ export default function ManualWeekScreen() {
       goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
       orderedPrimaryLabelsForSubFocus: goalLabels,
       subFocusByGoal: manualPreferences.subFocusByGoal,
+      subFocusPctByGoal: manualPreferences.subFocusPctByGoal,
       weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
   }, [
@@ -213,6 +232,7 @@ export default function ManualWeekScreen() {
     manualPreferences.goalMatchSecondaryPct,
     manualPreferences.goalMatchTertiaryPct,
     manualPreferences.subFocusByGoal,
+    manualPreferences.subFocusPctByGoal,
     manualPreferences.weekSubFocusPrimaryLabels,
   ]);
 
@@ -285,6 +305,7 @@ export default function ManualWeekScreen() {
   }, []);
 
   const generateWeek = useCallback(async () => {
+    generationCancelledRef.current = false;
     setError(null);
     setGenerating(true);
     const profile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
@@ -292,10 +313,12 @@ export default function ManualWeekScreen() {
     const weekStartStr = dateToISO(weekStart);
 
     const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
+    if (generationCancelledRef.current) return;
 
     try {
       const { generateWorkoutAsync, getExercisePoolForManualGeneration, injurySlugsFromManualPreferences } =
         await loadGeneratorModule();
+      if (generationCancelledRef.current) return;
       const injurySlugs = injurySlugsFromManualPreferences(manualPreferences);
       const exercisePool = await getExercisePoolForManualGeneration(injurySlugs);
       if (exercisePool.length === 0) {
@@ -405,6 +428,7 @@ export default function ManualWeekScreen() {
           resolved.sportGoalContext,
           { exercisePool }
         );
+        if (generationCancelledRef.current) return;
         accumulateWeeklySubFocusCountsFromGeneratedWorkout(
           weeklySubFocusCounts,
           workout,
@@ -419,6 +443,7 @@ export default function ManualWeekScreen() {
         );
         days.push({ date: dateToISO(date), workout, displayTitle });
       }
+      if (generationCancelledRef.current) return;
       setWeekSetupStep("pickDays");
       if (days.length === 1) {
         setGeneratedWorkout(days[0].workout);
@@ -620,13 +645,14 @@ export default function ManualWeekScreen() {
   const goalBiasToPrimaryFocus = useCallback((goalBias: DailyWorkoutPreferences["goalBias"]): string | undefined => {
     if (!goalBias) return undefined;
     if (goalBias === "hypertrophy") return GOAL_SLUG_TO_PRIMARY_FOCUS["muscle"];
-    if (goalBias === "power") return "Power & Explosiveness";
+    if (goalBias === "power") return GOAL_SLUG_TO_PRIMARY_FOCUS["power"];
     return GOAL_SLUG_TO_PRIMARY_FOCUS[goalBias];
   }, []);
 
   const onRegenerateDay = useCallback(async () => {
     const plan = manualWeekPlan;
     if (!plan || !selectedSession) return;
+    generationCancelledRef.current = false;
     setError(null);
     setIsRegenerating(true);
     const profile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
@@ -686,8 +712,10 @@ export default function ManualWeekScreen() {
       }
     }
     const preferredNames = await preferredExerciseNamesForManualPreferences(dayPrefs);
+    if (generationCancelledRef.current) return;
     try {
       const { generateWorkoutAsync } = await loadGeneratorModule();
+      if (generationCancelledRef.current) return;
       const workout = await generateWorkoutAsync(
         dayPrefs,
         profile,
@@ -697,6 +725,7 @@ export default function ManualWeekScreen() {
           regeneration_avoid_exercise_ids: collectWorkoutExerciseIds(selectedSession.workout),
         }
       );
+      if (generationCancelledRef.current) return;
       const bodyKey = (dayPrefs.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
       const specificEmphasis = (dayPrefs.targetModifier ?? []).map((m) => m.toLowerCase()).filter(Boolean);
       const displayTitle = formatDayTitle(dayPrefs.primaryFocus.length ? dayPrefs.primaryFocus : ["Workout"], bodyKey, specificEmphasis.length ? specificEmphasis : undefined);
@@ -706,6 +735,7 @@ export default function ManualWeekScreen() {
       setManualWeekPlan({ ...plan, days: newDays });
       setSelectedSession((prev) => (prev ? { ...prev, workout, displayTitle } : null));
     } catch (e) {
+      if (generationCancelledRef.current) return;
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsRegenerating(false);
@@ -773,7 +803,7 @@ export default function ManualWeekScreen() {
         }
         focusSplit={weekFocusSplit.length > 0 ? weekFocusSplit : undefined}
         workoutTitle={weekWorkoutTitle}
-        onGoBack={() => router.push("/manual/preferences")}
+        onGoBack={() => router.push(weekPrefsHref)}
       />
     );
   }
@@ -785,7 +815,7 @@ export default function ManualWeekScreen() {
         subtitle="Applying your day edits to a fresh session."
         focusSplit={weekFocusSplit.length > 0 ? weekFocusSplit : undefined}
         workoutTitle={weekWorkoutTitle}
-        onGoBack={() => router.push("/manual/preferences")}
+        onGoBack={() => router.push(weekPrefsHref)}
       />
     );
   }
@@ -1129,7 +1159,7 @@ export default function ManualWeekScreen() {
               label="Back to Preferences"
               variant="ghost"
               onPress={() => {
-                router.push("/manual/preferences");
+                router.push(weekPrefsHref);
               }}
               style={{ marginTop: 8 }}
             />

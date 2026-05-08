@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../lib/theme";
@@ -29,6 +29,7 @@ import {
   GOAL_SLUG_TO_LABEL,
   GOAL_SLUG_TO_PRIMARY_FOCUS,
   goalSubFocusPayloadForAdaptiveGoals,
+  goalSubFocusPctPayloadForAdaptiveGoals,
 } from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
@@ -132,6 +133,20 @@ export default function AdaptiveWeekPlanScreen() {
   const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isReplanning, setIsReplanning] = useState(false);
+  const generationCancelledRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      generationCancelledRef.current = false;
+      setIsRegenerating(false);
+      setIsReplanning(false);
+      return () => {
+        generationCancelledRef.current = true;
+        setIsRegenerating(false);
+        setIsReplanning(false);
+      };
+    }, [])
+  );
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isMovingSession, setIsMovingSession] = useState(false);
   const [savingDay, setSavingDay] = useState(false);
@@ -168,15 +183,27 @@ export default function AdaptiveWeekPlanScreen() {
       plan?.goalSlugs?.filter((g): g is string => Boolean(g)).length
         ? (plan!.goalSlugs!.filter((g): g is string => Boolean(g)))
         : snapshotGoalIds;
+    const subGoalsMerged = goalSubFocusPayloadForAdaptiveGoals(
+      goalIdsForSubFocus,
+      manualPreferences.subFocusByGoal
+    );
     return {
       gymProfile: snap?.gymProfile ?? activeProfile,
       injuries: snap?.injuries,
-      subFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
-        goalIdsForSubFocus,
-        manualPreferences.subFocusByGoal
-      ),
+      subFocusByGoal: subGoalsMerged,
+      subFocusPctByGoal:
+        goalSubFocusPctPayloadForAdaptiveGoals(
+          goalIdsForSubFocus,
+          manualPreferences.subFocusPctByGoal,
+          subGoalsMerged
+        ) ?? snap?.goalSubFocusPctByGoal,
     };
-  }, [sportPrepWeekPlan, activeProfile, manualPreferences.subFocusByGoal]);
+  }, [
+    sportPrepWeekPlan,
+    activeProfile,
+    manualPreferences.subFocusByGoal,
+    manualPreferences.subFocusPctByGoal,
+  ]);
 
   /** Declared intent split for pie chart and workout title. */
   const planFocusSplit = useMemo((): IntentSplitEntry[] => {
@@ -205,6 +232,10 @@ export default function AdaptiveWeekPlanScreen() {
       ...manualPreferences.subFocusByGoal,
       ...(snap?.goalSubFocusByGoal ?? {}),
     };
+    const subFocusPctMerged: Record<string, Record<string, number>> = {
+      ...(manualPreferences.subFocusPctByGoal ?? {}),
+      ...(snap?.goalSubFocusPctByGoal ?? {}),
+    };
 
     return computeDeclaredIntentSplitFromPrefs({
       sportSlugs: rankedSports,
@@ -219,6 +250,8 @@ export default function AdaptiveWeekPlanScreen() {
       orderedPrimaryLabelsForSubFocus:
         orderedManualGoalLabels.length > 0 ? orderedManualGoalLabels : undefined,
       subFocusByGoal: subFocusMerged,
+      subFocusPctByGoal:
+        Object.keys(subFocusPctMerged).length > 0 ? subFocusPctMerged : undefined,
       weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
   }, [
@@ -227,6 +260,7 @@ export default function AdaptiveWeekPlanScreen() {
     manualPreferences.goalMatchSecondaryPct,
     manualPreferences.goalMatchTertiaryPct,
     manualPreferences.subFocusByGoal,
+    manualPreferences.subFocusPctByGoal,
     manualPreferences.weekSubFocusPrimaryLabels,
   ]);
 
@@ -307,15 +341,21 @@ export default function AdaptiveWeekPlanScreen() {
             snapshot.secondaryGoalSlug,
             snapshot.tertiaryGoalSlug,
           ].filter((g): g is string => g != null && g !== "");
+          const replanGoalSubs = goalSubFocusPayloadForAdaptiveGoals(
+            snapshotGoalIds,
+            manualPreferences.subFocusByGoal
+          );
           const newPlan = await planWeek({
             userId: userId ?? undefined,
             weekStartDate: snapshot.weekStartDate,
             primaryGoalSlug: snapshot.primaryGoalSlug,
             secondaryGoalSlug: snapshot.secondaryGoalSlug ?? null,
             tertiaryGoalSlug: snapshot.tertiaryGoalSlug ?? null,
-            goalSubFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
+            goalSubFocusByGoal: replanGoalSubs,
+            goalSubFocusPctByGoal: goalSubFocusPctPayloadForAdaptiveGoals(
               snapshotGoalIds,
-              manualPreferences.subFocusByGoal
+              manualPreferences.subFocusPctByGoal,
+              replanGoalSubs
             ),
             sportSlug: snapshot.sportSlug ?? null,
             sportQualitySlugs: snapshot.sportQualitySlugs,
@@ -346,8 +386,10 @@ export default function AdaptiveWeekPlanScreen() {
               (snapshot.includeCreativeVariations ?? manualPreferences.includeCreativeVariations) === true,
             adaptiveScheduleLabels: snapshot.adaptiveScheduleLabels,
           });
+          if (generationCancelledRef.current) return;
           setSportPrepWeekPlan(newPlan);
         } catch (e) {
+          if (generationCancelledRef.current) return;
           setError(e instanceof Error ? e.message : String(e));
         } finally {
           setIsReplanning(false);
@@ -371,6 +413,12 @@ export default function AdaptiveWeekPlanScreen() {
             snapshotGoalIds,
             manualPreferences.subFocusByGoal
           );
+          const subFocusPctByGoalLoop =
+            goalSubFocusPctPayloadForAdaptiveGoals(
+              snapshotGoalIds,
+              manualPreferences.subFocusPctByGoal,
+              subFocusByGoal
+            ) ?? snap?.goalSubFocusPctByGoal;
           for (const day of trainingDays) {
             const result = await regenerateDay({
               userId: userId ?? undefined,
@@ -388,11 +436,13 @@ export default function AdaptiveWeekPlanScreen() {
               goalWeightsPct,
               injuries: snap?.injuries,
               subFocusByGoal,
+              subFocusPctByGoal: subFocusPctByGoalLoop ?? undefined,
               workoutTier: snap?.workoutTier ?? manualPreferences.workoutTier ?? "intermediate",
               includeCreativeVariations:
                 (snap?.includeCreativeVariations ??
                   manualPreferences.includeCreativeVariations) === true,
             });
+            if (generationCancelledRef.current) return;
             if (result.workout) {
               updatedGuestWorkouts[result.day.id] = result.workout;
               updatedGuestWorkouts[result.day.date] = result.workout;
@@ -413,8 +463,10 @@ export default function AdaptiveWeekPlanScreen() {
                   : nextPlan.todayWorkout,
             };
           }
+          if (generationCancelledRef.current) return;
           setSportPrepWeekPlan(nextPlan);
         } catch (e) {
+          if (generationCancelledRef.current) return;
           setError(e instanceof Error ? e.message : String(e));
         } finally {
           setIsReplanning(false);
@@ -763,6 +815,7 @@ export default function AdaptiveWeekPlanScreen() {
 
   const onRegenerate = async () => {
     if (!sportPrepWeekPlan || !selectedDay) return;
+    generationCancelledRef.current = false;
     setError(null);
     setIsRegenerating(true);
     try {
@@ -794,6 +847,7 @@ export default function AdaptiveWeekPlanScreen() {
         avoidRepeatingExerciseIds: collectWorkoutExerciseIds(selectedWorkout),
         injuries: regenerateGeneratorContext.injuries,
         subFocusByGoal: regenerateGeneratorContext.subFocusByGoal,
+        subFocusPctByGoal: regenerateGeneratorContext.subFocusPctByGoal ?? undefined,
         workoutTier:
           sportPrepWeekPlan.scheduleSnapshot?.workoutTier ??
           manualPreferences.workoutTier ??
@@ -803,6 +857,7 @@ export default function AdaptiveWeekPlanScreen() {
             manualPreferences.includeCreativeVariations) === true,
       });
 
+      if (generationCancelledRef.current) return;
       const updatedDays = sportPrepWeekPlan.days.map((d) =>
         d.id === result.day.id ? result.day : d
       );
@@ -832,6 +887,7 @@ export default function AdaptiveWeekPlanScreen() {
       setSelectedWorkout(result.workout);
       setDailyPrefsOverride(Object.keys(mergedDaily).length > 0 ? mergedDaily : null);
     } catch (e) {
+      if (generationCancelledRef.current) return;
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsRegenerating(false);

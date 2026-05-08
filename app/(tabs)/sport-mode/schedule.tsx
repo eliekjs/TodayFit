@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, LayoutAnimation } from "react-native";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -18,7 +18,10 @@ import type { EnergyLevel, BodyEmphasisKey } from "../../../lib/types";
 import { listSportsForPrep, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
-import { goalSubFocusPayloadForAdaptiveGoals } from "../../../lib/preferencesConstants";
+import {
+  goalSubFocusPayloadForAdaptiveGoals,
+  goalSubFocusPctPayloadForAdaptiveGoals,
+} from "../../../lib/preferencesConstants";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -56,6 +59,18 @@ export default function AdaptiveScheduleScreen() {
   const [defaultDuration, setDefaultDuration] = useState<number>(45);
   const [weeklyEmphasis, setWeeklyEmphasis] = useState<BodyEmphasisKey | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const generationCancelledRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      generationCancelledRef.current = false;
+      setIsSubmitting(false);
+      return () => {
+        generationCancelledRef.current = true;
+        setIsSubmitting(false);
+      };
+    }, [])
+  );
   const [error, setError] = useState<string | null>(null);
   const [sports, setSports] = useState<Sport[]>([]);
   const [sectionGymOpen, setSectionGymOpen] = useState(false);
@@ -112,6 +127,7 @@ export default function AdaptiveScheduleScreen() {
 
   const onGenerate = useCallback(async () => {
     if (!adaptiveSetup) return;
+    generationCancelledRef.current = false;
     setError(null);
     if (!isDbConfigured()) {
       setError("Configure Supabase (env vars) to use Sport Mode.");
@@ -155,14 +171,20 @@ export default function AdaptiveScheduleScreen() {
     setIsSubmitting(true);
     try {
       const rankedGoalIds = adaptiveSetup.rankedGoals.filter((g): g is string => g != null);
+      const payloadGoalSubs = goalSubFocusPayloadForAdaptiveGoals(
+        rankedGoalIds,
+        manualPreferences.subFocusByGoal
+      );
       const plan = await planWeek({
         userId: userId ?? undefined,
         primaryGoalSlug: primary,
         secondaryGoalSlug: secondary,
         tertiaryGoalSlug: tertiary,
-        goalSubFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
+        goalSubFocusByGoal: payloadGoalSubs,
+        goalSubFocusPctByGoal: goalSubFocusPctPayloadForAdaptiveGoals(
           rankedGoalIds,
-          manualPreferences.subFocusByGoal
+          manualPreferences.subFocusPctByGoal,
+          payloadGoalSubs
         ),
         sportSlug: adaptiveSetup.rankedSportSlugs[0] ?? null,
         sportSubFocusSlugs:
@@ -208,10 +230,12 @@ export default function AdaptiveScheduleScreen() {
             : {}),
         },
       });
+      if (generationCancelledRef.current) return;
       setSportPrepWeekPlan(plan);
       setAdaptiveSetup(null);
       router.replace("/sport-mode/recommendation");
     } catch (e) {
+      if (generationCancelledRef.current) return;
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setIsSubmitting(false);

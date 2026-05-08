@@ -466,7 +466,7 @@ function getUserSelectedTagSlugs(
   // When only Calisthenics is selected and no sub-focus (e.g. user said "full body"), default to full-body calisthenics core moves (pull-ups, push-ups, dips, core).
   const calisthenicsOnly = primaryFocus.length === 1 && primaryFocus[0] === "Calisthenics";
   if (calisthenicsOnly && (!subFocusByGoal["Calisthenics"] || subFocusByGoal["Calisthenics"].length === 0)) {
-    const weights = getExerciseTagsForGoalSubFocuses("strength", ["full_body_calisthenics"]);
+    const weights = getExerciseTagsForGoalSubFocuses("calisthenics", ["full_body_calisthenics"]);
     for (const { tag_slug } of weights) slugs.add(tag_slug);
   }
 

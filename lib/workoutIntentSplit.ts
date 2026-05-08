@@ -14,12 +14,10 @@ import {
   GOAL_SLUG_TO_LABEL,
   GOAL_SLUG_TO_PRIMARY_FOCUS,
   normalizeGoalMatchPct,
+  normalizeSubFocusByGoalAgainstConditioningPolicy,
 } from "./preferencesConstants";
-import {
-  GOAL_SUB_FOCUS_OPTIONS,
-  resolveGoalSubFocusSlugs,
-  resolveSubFocusProfile,
-} from "../data/goalSubFocus";
+import { GOAL_SUB_FOCUS_OPTIONS, resolveGoalSubFocusSlugs } from "../data/goalSubFocus";
+import { buildMergedGoalSubFocusSlugWeights, sanitizeSubFocusPctMaps } from "./subFocusWeights";
 import {
   goalSubFocusKeysForPrimary,
   goalTagAliases,
@@ -67,6 +65,9 @@ function manualGoalSlugToPrimaryGoal(slug: string): PrimaryGoal {
     endurance: "endurance",
     mobility: "mobility",
     resilience: "recovery",
+    calisthenics: "calisthenics",
+    athletic_performance: "athletic_performance",
+    power: "power",
   };
   if (m[norm]) return m[norm]!;
   return norm as PrimaryGoal;
@@ -324,6 +325,8 @@ export type DeclaredIntentSplitFromPrefsOpts = {
   sportShareAmongSportsPct?: [number, number];
   /** Manual primary-focus label → sub-goals (same as ManualPreferences.subFocusByGoal). */
   subFocusByGoal?: Record<string, string[]>;
+  /** Optional blend per ManualPreferences.subFocusPctByGoal */
+  subFocusPctByGoal?: Record<string, Record<string, number>>;
   /** Like ManualPreferences.weekSubFocusPrimaryLabels: labels to merge subs from when set. */
   weekSubFocusPrimaryLabels?: string[];
   /** Ordered primary-focus labels matching `goalSlugs` (preferred for sub-goal merge when goal slugs are adaptive IDs). */
@@ -336,9 +339,8 @@ function mergeGoalSubFocusMapsFromPrefs(opts: DeclaredIntentSplitFromPrefsOpts):
   goal_sub_focus: GoalSubFocusInput;
   goal_sub_focus_weights: GoalSubFocusWeightsInput;
 } {
-  const goal_sub_focus: GoalSubFocusInput = {};
-  const goal_sub_focus_weights: GoalSubFocusWeightsInput = {};
-  const subMap = opts.subFocusByGoal ?? {};
+  const subMap = normalizeSubFocusByGoalAgainstConditioningPolicy(opts.subFocusByGoal ?? {});
+  const subFocusPctAligned = sanitizeSubFocusPctMaps(subMap, opts.subFocusPctByGoal);
   const labelsForMerge =
     opts.weekSubFocusPrimaryLabels != null && opts.weekSubFocusPrimaryLabels.length > 0
       ? opts.weekSubFocusPrimaryLabels
@@ -347,23 +349,11 @@ function mergeGoalSubFocusMapsFromPrefs(opts: DeclaredIntentSplitFromPrefsOpts):
         ? opts.orderedPrimaryLabelsForSubFocus
         : opts.goalSlugs.map((slug) => manualLabelForGoalSlug(slug)).filter((x): x is string => Boolean(x));
 
-  for (const label of labelsForMerge) {
-    const subLabels = subMap[label] ?? [];
-    if (!subLabels.length) continue;
-    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(label, subLabels);
-    if (!goalSlug || !subFocusSlugs.length) continue;
-    const existing = goal_sub_focus[goalSlug] ?? [];
-    goal_sub_focus[goalSlug] = [...new Set([...existing, ...subFocusSlugs])];
-  }
-
-  for (const [goalSlug, rankedSlugs] of Object.entries(goal_sub_focus)) {
-    const profile = resolveSubFocusProfile({ goalSlug, rankedSubFocusSlugs: rankedSlugs });
-    goal_sub_focus_weights[goalSlug] = rankedSlugs.map(
-      (s) => profile.resolvedWeights[s] ?? 1 / rankedSlugs.length
-    );
-  }
-
-  return { goal_sub_focus, goal_sub_focus_weights };
+  return buildMergedGoalSubFocusSlugWeights({
+    labelsForSubFocusMerge: labelsForMerge,
+    subFocusByGoal: subMap,
+    subFocusPctByGoal: subFocusPctAligned,
+  });
 }
 
 function canonicalizeSportSubFocusMap(src: Record<string, string[]>): Record<string, string[]> {

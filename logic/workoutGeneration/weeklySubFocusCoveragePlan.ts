@@ -3,6 +3,7 @@
  */
 
 import type { ManualPreferences, GeneratedWorkout } from "../../lib/types";
+import { normalizeSubFocusByGoalAgainstConditioningPolicy } from "../../lib/preferencesConstants";
 import { resolveGoalSubFocusSlugs } from "../../data/goalSubFocus";
 import type { Exercise } from "./types";
 import { exerciseMatchesGoalSubFocusSlugUnified } from "./subFocusSlugMatch";
@@ -12,7 +13,8 @@ export type WeeklySubFocusKey = { goalSlug: string; subSlug: string };
 export function buildWeeklySubFocusKeysFromPreferences(prefs: ManualPreferences): WeeklySubFocusKey[] {
   const seen = new Set<string>();
   const out: WeeklySubFocusKey[] = [];
-  for (const [label, subs] of Object.entries(prefs.subFocusByGoal ?? {})) {
+  const cleaned = normalizeSubFocusByGoalAgainstConditioningPolicy(prefs.subFocusByGoal ?? {});
+  for (const [label, subs] of Object.entries(cleaned)) {
     if (!subs?.length) continue;
     const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(label, subs);
     if (!goalSlug || !subFocusSlugs.length) continue;

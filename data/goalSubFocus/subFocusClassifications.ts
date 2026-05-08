@@ -17,12 +17,6 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     upper: "overlay",
     lower: "overlay",
     core: "overlay",
-    // Power & Explosiveness (same goal slug)
-    lower_body_power_plyos: "intent",
-    olympic_triple_extension: "intent",
-    upper_body_power: "intent",
-    vertical_jump: "intent",
-    sprint: "intent",
   },
   endurance: {
     zone2_long_steady: "intent",
@@ -31,6 +25,24 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     hills: "intent",
     durability: "intent",
   },
+  athletic_performance: {
+    speed_sprint: "intent",
+    vertical_jump: "intent",
+    power_explosive: "intent",
+    agility_cod: "intent",
+    core: "overlay",
+    upper: "overlay",
+    lower: "overlay",
+    full_body: "overlay",
+  },
+  power: {
+    lower_body_power_plyos: "intent",
+    olympic_triple_extension: "intent",
+    upper_body_power: "intent",
+    vertical_jump: "intent",
+    sprint: "intent",
+    full_body: "overlay",
+  },
   strength: {
     squat: "intent",
     deadlift_hinge: "intent",
@@ -38,10 +50,6 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     overhead_press: "intent",
     pull: "intent",
     full_body: "overlay",
-    speed_sprint: "intent",
-    vertical_jump: "intent",
-    power_explosive: "intent",
-    agility_cod: "intent",
     core: "overlay",
     upper: "overlay",
     lower: "overlay",
@@ -51,6 +59,16 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     push_ups: "intent",
     dips: "intent",
     handstand: "intent",
+    front_lever_advanced: "intent",
+  },
+  calisthenics: {
+    full_body_calisthenics: "intent",
+    legs_pistol: "intent",
+    pull_ups: "intent",
+    push_ups: "intent",
+    dips: "intent",
+    handstand: "intent",
+    core: "intent",
     front_lever_advanced: "intent",
   },
   muscle: {
@@ -93,11 +111,24 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
 
 /** Optional conflict groups per goal. Slugs in the same group are resolved by user rank (first = highest weight). */
 const SUB_FOCUS_CONFLICT_BY_GOAL: Record<string, SubFocusConflictConfig> = {
-  conditioning: {
+  athletic_performance: {
+    intent: [["speed_sprint", "vertical_jump", "power_explosive", "agility_cod"]],
+    overlay: [["core", "upper", "lower", "full_body"]],
+  },
+  power: {
     intent: [
-      ["zone2_aerobic_base", "intervals_hiit", "threshold_tempo", "hills"],
-      ["lower_body_power_plyos", "olympic_triple_extension", "upper_body_power", "vertical_jump", "sprint"],
+      [
+        "lower_body_power_plyos",
+        "olympic_triple_extension",
+        "upper_body_power",
+        "vertical_jump",
+        "sprint",
+      ],
     ],
+    overlay: [["full_body"]],
+  },
+  conditioning: {
+    intent: [["zone2_aerobic_base", "intervals_hiit", "threshold_tempo", "hills"]],
     overlay: [["full_body", "upper", "lower", "core"]],
   },
   endurance: {
@@ -106,10 +137,14 @@ const SUB_FOCUS_CONFLICT_BY_GOAL: Record<string, SubFocusConflictConfig> = {
   strength: {
     intent: [
       ["squat", "deadlift_hinge", "bench_press", "overhead_press", "pull", "full_body"],
-      ["speed_sprint", "vertical_jump", "power_explosive", "agility_cod"],
       ["full_body_calisthenics", "legs_pistol", "pull_ups", "push_ups", "dips", "handstand", "front_lever_advanced"],
     ],
     overlay: [["full_body", "upper", "lower", "core"]],
+  },
+  calisthenics: {
+    intent: [
+      ["full_body_calisthenics", "legs_pistol", "pull_ups", "push_ups", "dips", "handstand", "front_lever_advanced", "core"],
+    ],
   },
   // mobility / resilience: only full_body is overlay; rest are intent (body region). No overlay conflict group.
 };

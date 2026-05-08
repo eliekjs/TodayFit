@@ -165,11 +165,19 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
   goalSlug: string,
   slug: string
 ): boolean {
-  if (goalSlug === "strength") return exerciseHasStrengthSubFocusSlug(exercise, slug);
+  if (goalSlug === "strength" || goalSlug === "calisthenics") return exerciseHasStrengthSubFocusSlug(exercise, slug);
+  if (goalSlug === "athletic_performance") {
+    if (exerciseHasStrengthSubFocusSlug(exercise, slug)) return true;
+    const entries = getExerciseTagsForGoalSubFocuses("athletic_performance", [slug]);
+    if (!entries.length) return false;
+    const exTags = getExerciseTagSlugsForCoverage(exercise);
+    if (requiresSpeedAgilityDynamicGate(slug) && !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags)) return false;
+    return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
+  }
   if (goalSlug === "muscle" || goalSlug === "physique") {
     return exerciseMatchesHypertrophySubFocusSlug(exercise, slug);
   }
-  if (goalSlug === "conditioning" || goalSlug === "endurance") {
+  if (goalSlug === "conditioning" || goalSlug === "endurance" || goalSlug === "power") {
     return exerciseHasSubFocusSlug(exercise, slug);
   }
   if (goalSlug === "mobility" || goalSlug === "resilience") {

@@ -92,6 +92,11 @@ export type ManualPreferences = {
    */
   subFocusByGoal: Record<string, string[]>;
   /**
+   * Optional blend within each primary goal: display sub-focus label → integer % (0–100).
+   * Selected subs for that goal should sum to 100. When omitted for a goal, generator uses rank-based resolver weights (legacy).
+   */
+  subFocusPctByGoal?: Record<string, Record<string, number>>;
+  /**
    * When generating a single day inside a week, `primaryFocus` may be narrowed to that day’s goal while
    * sub-goals should still reflect the user’s full ranked goals (so e.g. Calisthenics + Handstand still
    * bias an upper day dedicated to another primary). Optional; when unset, `primaryFocus` drives sub-focus merge.

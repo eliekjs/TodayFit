@@ -76,7 +76,7 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "ankles", name: "Ankles" },
     { slug: "full_body", name: "Full-body" },
   ]),
-  "Athletic Performance": entry("strength", [
+  "Athletic Performance": entry("athletic_performance", [
     { slug: "speed_sprint", name: "Speed / Sprint" },
     { slug: "vertical_jump", name: "Vertical jump" },
     { slug: "power_explosive", name: "Power / Explosive" },
@@ -86,7 +86,7 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "lower", name: "Lower" },
     { slug: "full_body", name: "Full-body" },
   ]),
-  Calisthenics: entry("strength", [
+  Calisthenics: entry("calisthenics", [
     { slug: "full_body_calisthenics", name: "Full body" },
     { slug: "legs_pistol", name: "Legs / Pistol & single-leg" },
     { slug: "pull_ups", name: "Pull-ups" },
@@ -96,7 +96,7 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "core", name: "Core" },
     { slug: "front_lever_advanced", name: "Front lever / Advanced" },
   ]),
-  "Power & Explosiveness": entry("conditioning", [
+  "Power & Explosiveness": entry("power", [
     { slug: "lower_body_power_plyos", name: "Lower body power / Plyos" },
     { slug: "olympic_triple_extension", name: "Olympic / Triple extension" },
     { slug: "upper_body_power", name: "Upper body power" },

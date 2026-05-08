@@ -24,7 +24,7 @@ export const STRENGTH_INTENT_SLUGS = [
 
 export const STRENGTH_OVERLAY_SLUGS = ["upper", "lower", "core", "full_body"] as const;
 
-/** Calisthenics-style sub-focuses under goal slug `strength` (from Calisthenics / athletic bodyweight primary). */
+/** Calisthenics-style sub-focus slugs (matched via `exerciseHasStrengthSubFocusSlug`; tag map keys use goal slug `calisthenics`). */
 export const CALISTHENICS_STYLE_STRENGTH_SUB_SLUGS = [
   "full_body_calisthenics",
   "legs_pistol",

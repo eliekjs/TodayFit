@@ -110,6 +110,19 @@ describe("mainWorkPrimaryForIntentEntry", () => {
     expect(mainWorkPrimaryForIntentEntry(entry, "hypertrophy")).toBe("power");
   });
 
+  it("routes vertical_jump sport sub-focus through power-style main work", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "vertical_jump",
+      parent_slug: "volleyball",
+      rank: 1,
+      weight: 0.4,
+      tag_slugs: [],
+    };
+    expect(isPowerStyleSportIntentEntry(entry)).toBe(true);
+    expect(mainWorkPrimaryForIntentEntry(entry, "strength")).toBe("power");
+  });
+
   it("keeps compatible non-speed sport leaves on the session primary", () => {
     const entry: IntentEntry = {
       kind: "sport_sub_focus",

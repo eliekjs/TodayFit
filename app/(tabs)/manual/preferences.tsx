@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useLayoutEffect } from "react";
+import React, { useState, useRef, useCallback, useLayoutEffect, type RefObject } from "react";
 import {
   View,
   Text,
@@ -38,15 +38,24 @@ import {
   CONSTRAINT_OPTIONS_LOWER,
   WORKOUT_STYLE_OPTIONS,
   UPCOMING_OPTIONS,
-  SUB_FOCUS_BY_PRIMARY,
   normalizeGoalMatchPct,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
+  collectInvalidConditioningSubFocusSelections,
+  subFocusChoicesForManualPrimaryGoal,
 } from "../../../lib/preferencesConstants";
+import {
+  equalIntegerPctsForLabels,
+  normalizeSubFocusPctRecord,
+  redistributeSubFocusPctsOnRemoval,
+} from "../../../lib/subFocusWeights";
+import { SubFocusWeightsEditor } from "../../../components/SubFocusWeightsEditor";
 import {
   computeDeclaredIntentSplitFromPrefs,
   buildWorkoutIntentTitle,
 } from "../../../lib/workoutIntentSplit";
 import type { TargetBody } from "../../../lib/types";
+import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
+import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
 
 if (
   Platform.OS === "android" &&
@@ -63,6 +72,11 @@ const MAX_UPCOMING = 3;
 
 const DEFAULT_SESSION_MINUTES = 45 as const;
 
+function primaryGoalsMultisetChanged(prev: string[], next: string[]): boolean {
+  if (prev.length !== next.length) return true;
+  return [...prev].sort().join("\0") !== [...next].sort().join("\0");
+}
+
 export default function ManualPreferencesScreen() {
   const {
     manualPreferences,
@@ -72,6 +86,7 @@ export default function ManualPreferencesScreen() {
     setGeneratedWorkout,
     setActiveGymProfile,
     addPreferencePreset,
+    setManualGoalPreferencesScope,
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
   const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
@@ -81,6 +96,7 @@ export default function ManualPreferencesScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollContentRef = useRef<View>(null);
   const advancedSectionRef = useRef<View>(null);
+  const subFocusWeightsSectionRef = useRef<View>(null);
   const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
@@ -93,6 +109,8 @@ export default function ManualPreferencesScreen() {
   const theme = useTheme();
   const isWeek = scope === "week";
   const [isGenerating, setIsGenerating] = useState(false);
+  const generationCancelledRef = useRef(false);
+  const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -102,6 +120,12 @@ export default function ManualPreferencesScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Reset any stale loading state when the screen comes into focus so the
+      // form is always shown on re-focus even if generation was abandoned.
+      generationCancelledRef.current = false;
+      setIsGenerating(false);
+      setManualGoalPreferencesScope(isWeek ? "week" : "day");
+      setDismissedConflictIds([]);
       const updates: Partial<typeof defaultManualPreferences> = {};
       if (manualPreferences.durationMinutes == null) {
         updates.durationMinutes = DEFAULT_SESSION_MINUTES;
@@ -112,11 +136,18 @@ export default function ManualPreferencesScreen() {
       if (Object.keys(updates).length > 0) {
         updateManualPreferences(updates);
       }
+      return () => {
+        // Mark any in-flight generation as cancelled so stale callbacks don't
+        // push routes or update state after the user has navigated away.
+        generationCancelledRef.current = true;
+        setIsGenerating(false);
+      };
     }, [
       isWeek,
       manualPreferences.durationMinutes,
       manualPreferences.targetBody,
       updateManualPreferences,
+      setManualGoalPreferencesScope,
     ])
   );
 
@@ -160,11 +191,22 @@ export default function ManualPreferencesScreen() {
     const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
     const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
     const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
+    const hadEngineMismatch =
+      collectInvalidConditioningSubFocusSelections(manualPreferences.subFocusByGoal).length > 0;
     if (exists) {
       const nextFocus = current.filter((v) => v !== option);
       const nextSub = { ...manualPreferences.subFocusByGoal };
       delete nextSub[option];
       const norm = normalizeGoalMatchPct(p1, p2, p3, nextFocus.length);
+      if (
+        hadEngineMismatch &&
+        primaryGoalsMultisetChanged(manualPreferences.primaryFocus, nextFocus)
+      ) {
+        Alert.alert(
+          "Sub-goals updated",
+          "Removed conditioning sub-goals that don't apply to your selected primary goals."
+        );
+      }
       updateManualPreferences({
         primaryFocus: nextFocus,
         subFocusByGoal: nextSub,
@@ -174,6 +216,15 @@ export default function ManualPreferencesScreen() {
       if (current.length >= MAX_GOALS) return;
       const nextFocus = [...current, option];
       const norm = normalizeGoalMatchPct(p1, p2, p3, nextFocus.length);
+      if (
+        hadEngineMismatch &&
+        primaryGoalsMultisetChanged(manualPreferences.primaryFocus, nextFocus)
+      ) {
+        Alert.alert(
+          "Sub-goals updated",
+          "Removed conditioning sub-goals that don't apply to your selected primary goals."
+        );
+      }
       updateManualPreferences({ primaryFocus: nextFocus, ...norm });
     }
   };
@@ -190,12 +241,28 @@ export default function ManualPreferencesScreen() {
       : [option, ...current].slice(0, MAX_GOALS);
     const norm = normalizeGoalMatchPct(p1, p2, p3, nextFocus.length);
     const nextSub = { ...manualPreferences.subFocusByGoal };
+    const nextPct = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
     current.forEach((g) => {
-      if (!nextFocus.includes(g)) delete nextSub[g];
+      if (!nextFocus.includes(g)) {
+        delete nextSub[g];
+        delete nextPct[g];
+      }
     });
+    const hadEngineMismatch =
+      collectInvalidConditioningSubFocusSelections(manualPreferences.subFocusByGoal).length > 0;
+    if (
+      hadEngineMismatch &&
+      primaryGoalsMultisetChanged(manualPreferences.primaryFocus, nextFocus)
+    ) {
+      Alert.alert(
+        "Sub-goals updated",
+        "Removed conditioning sub-goals that don't apply to your selected primary goals."
+      );
+    }
     updateManualPreferences({
       primaryFocus: nextFocus,
       subFocusByGoal: nextSub,
+      subFocusPctByGoal: nextPct,
       ...norm,
     });
   };
@@ -214,11 +281,19 @@ export default function ManualPreferencesScreen() {
     const exists = current.includes(subOpt);
     if (exists) {
       const next = current.filter((v) => v !== subOpt);
+      const prevGoalPct = manualPreferences.subFocusPctByGoal?.[goal] ?? {};
+      const nextPctMap = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
+      if (next.length === 0) {
+        delete nextPctMap[goal];
+      } else {
+        nextPctMap[goal] = redistributeSubFocusPctsOnRemoval(next, prevGoalPct);
+      }
       updateManualPreferences({
         subFocusByGoal: {
           ...manualPreferences.subFocusByGoal,
           [goal]: next,
         },
+        subFocusPctByGoal: nextPctMap,
       });
     } else {
       if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
@@ -227,11 +302,15 @@ export default function ManualPreferencesScreen() {
         0
       );
       if (totalOthers + current.length >= MAX_TOTAL_SUB_GOALS) return;
+      const nextSubs = [...current, subOpt];
+      const nextPctMap = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
+      nextPctMap[goal] = equalIntegerPctsForLabels(nextSubs);
       updateManualPreferences({
         subFocusByGoal: {
           ...manualPreferences.subFocusByGoal,
-          [goal]: [...current, subOpt],
+          [goal]: nextSubs,
         },
+        subFocusPctByGoal: nextPctMap,
       });
     }
   };
@@ -306,22 +385,27 @@ export default function ManualPreferencesScreen() {
       router.push("/manual/week");
       return;
     }
+    generationCancelledRef.current = false;
     setIsGenerating(true);
     try {
       const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
       const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
+      if (generationCancelledRef.current) return;
       const { generateWorkoutAsync } = await loadGeneratorModule();
+      if (generationCancelledRef.current) return;
       const workout = await generateWorkoutAsync(
         manualPreferences,
         profile,
         undefined,
         preferredNames
       );
+      if (generationCancelledRef.current) return;
       setGeneratedWorkout(workout);
       router.push("/manual/workout");
     } catch (e) {
+      if (generationCancelledRef.current) return;
       const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert("Couldn’t build workout", msg);
+      Alert.alert("Couldn't build workout", msg);
       setIsGenerating(false);
     }
   };
@@ -347,38 +431,6 @@ export default function ManualPreferencesScreen() {
     router.push("/profiles");
   };
 
-  const toggleRefinements = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setRefinementsOpen((v) => !v);
-  };
-
-  const openAdvancedAndScroll = useCallback(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setRefinementsOpen(true);
-    requestAnimationFrame(() => {
-      const scroll = scrollViewRef.current;
-      const content = scrollContentRef.current;
-      const section = advancedSectionRef.current;
-      if (!scroll || !content || !section) return;
-      section.measureLayout(
-        content as unknown as View,
-        (_x: number, y: number) => {
-          scroll.scrollTo({ y: Math.max(0, y - 12), animated: true });
-        },
-        () => {}
-      );
-    });
-  }, []);
-
-  const onBottomBarLayout = useCallback((event: LayoutChangeEvent) => {
-    const nextHeight = Math.ceil(event.nativeEvent.layout.height);
-    setBottomBarHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, []);
-
-  const modifierOptions = manualPreferences.targetBody
-    ? MODIFIERS_BY_TARGET[manualPreferences.targetBody]
-    : [];
-
   type ManualAdvNestedKey =
     | "energy"
     | "goalWeights"
@@ -394,6 +446,51 @@ export default function ManualPreferencesScreen() {
   const toggleManualAdvNested = useCallback((key: ManualAdvNestedKey) => {
     setManualAdvNestedOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
+
+  const toggleRefinements = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setRefinementsOpen((v) => !v);
+  };
+
+  type OpenAdvancedScrollOptions = {
+    nestedKey?: ManualAdvNestedKey;
+    scrollTargetRef?: RefObject<View | null>;
+  };
+
+  const openAdvancedAndScroll = useCallback((options?: OpenAdvancedScrollOptions) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setRefinementsOpen(true);
+    if (options?.nestedKey != null) {
+      const key = options.nestedKey;
+      setManualAdvNestedOpen((prev) => ({ ...prev, [key]: true }));
+    }
+    const runScroll = () => {
+      const scroll = scrollViewRef.current;
+      const content = scrollContentRef.current;
+      const section =
+        options?.scrollTargetRef?.current ?? advancedSectionRef.current;
+      if (!scroll || !content || !section) return;
+      section.measureLayout(
+        content as unknown as View,
+        (_x: number, y: number) => {
+          scroll.scrollTo({ y: Math.max(0, y - 12), animated: true });
+        },
+        () => {}
+      );
+    };
+    requestAnimationFrame(() => {
+      requestAnimationFrame(runScroll);
+    });
+  }, []);
+
+  const onBottomBarLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+    setBottomBarHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, []);
+
+  const modifierOptions = manualPreferences.targetBody
+    ? MODIFIERS_BY_TARGET[manualPreferences.targetBody]
+    : [];
 
   const manualAdvEnergySummary =
     manualPreferences.energyLevel != null
@@ -436,6 +533,11 @@ export default function ManualPreferencesScreen() {
       ? "None"
       : `${manualPreferences.upcoming.length} picked`;
 
+  const activeProfileEquipmentKeys = activeProfile?.equipment ?? [];
+  const preferenceConflicts = detectPreferenceConflicts(manualPreferences, {
+    gymEquipmentKeys: activeProfileEquipmentKeys,
+  });
+
   const prefsFocusSplit = (() => {
     const goalLabels = manualPreferences.primaryFocus.slice(0, 3);
     if (goalLabels.length === 0) return [];
@@ -449,6 +551,7 @@ export default function ManualPreferencesScreen() {
       goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
       orderedPrimaryLabelsForSubFocus: goalLabels,
       subFocusByGoal: manualPreferences.subFocusByGoal,
+      subFocusPctByGoal: manualPreferences.subFocusPctByGoal,
       weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
   })();
@@ -591,7 +694,7 @@ export default function ManualPreferencesScreen() {
               Sub-goals <Text style={{ fontWeight: "400" }}>(optional, up to 3 total)</Text>
             </Text>
             {rankedGoals.map((goal, goalIdx) => {
-              const subOptions = SUB_FOCUS_BY_PRIMARY[goal] ?? [];
+              const subOptions = subFocusChoicesForManualPrimaryGoal(goal);
               const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
               const canAddSub =
                 selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
@@ -679,6 +782,21 @@ export default function ManualPreferencesScreen() {
                 </View>
               );
             })}
+            {subGoalsTotalCount > 0 ? (
+              <Pressable
+                onPress={() =>
+                  openAdvancedAndScroll({
+                    nestedKey: "subGoals",
+                    scrollTargetRef: subFocusWeightsSectionRef,
+                  })
+                }
+                style={styles.subGoalBlendLinkWrap}
+              >
+                <Text style={[styles.subGoalBlendLinkText, { color: theme.primary }]}>
+                  Set percentage blend (Advanced)
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
 
@@ -753,6 +871,17 @@ export default function ManualPreferencesScreen() {
             )}
           </CollapsiblePreferenceSection>
         ) : null}
+
+        <PreferenceConflictBanner
+          conflicts={preferenceConflicts}
+          dismissedIds={dismissedConflictIds}
+          currentPrefs={manualPreferences}
+          onDismiss={(id) => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setDismissedConflictIds((prev) => [...prev, id]);
+          }}
+          onApplyResolution={(patch) => updateManualPreferences(patch)}
+        />
 
         <View ref={advancedSectionRef} collapsable={false}>
         {/* ——— Advanced options (collapsible) ——— */}
@@ -900,6 +1029,60 @@ export default function ManualPreferencesScreen() {
                 </View>
               </CollapsiblePreferenceSection>
             )}
+
+            {hasPrimaryFocus && subGoalsTotalCount > 0 ? (
+              <View ref={subFocusWeightsSectionRef} collapsable={false}>
+                <CollapsiblePreferenceSection
+                  nested
+                  title="Sub-goal percentage blend"
+                  subtitle="Split each goal between its sub-goals (100% per goal)."
+                  summary={manualAdvSubGoalsSummary}
+                  expanded={manualAdvNestedOpen.subGoals === true}
+                  onToggle={() => toggleManualAdvNested("subGoals")}
+                >
+                  {rankedGoals
+                    .map((goal) => {
+                      const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
+                      return { goal, selectedSubs };
+                    })
+                    .filter((row) => row.selectedSubs.length > 0)
+                    .map((row, visIdx) => {
+                      const { goal, selectedSubs } = row;
+                      return (
+                      <View
+                        key={`sub-pct-${goal}`}
+                        style={{ marginTop: visIdx > 0 ? 14 : 0 }}
+                      >
+                        {rankedGoals.length > 1 ? (
+                          <Text
+                            style={[styles.modifierLabel, { color: theme.textMuted, marginTop: 0 }]}
+                          >
+                            {goal}
+                          </Text>
+                        ) : null}
+                        <SubFocusWeightsEditor
+                          theme={theme}
+                          goalLabel={goal}
+                          selectedSubsOrdered={selectedSubs}
+                          pctBySub={normalizeSubFocusPctRecord(
+                            selectedSubs,
+                            manualPreferences.subFocusPctByGoal?.[goal]
+                          )}
+                          onCommit={(gl, next) =>
+                            updateManualPreferences({
+                              subFocusPctByGoal: {
+                                ...(manualPreferences.subFocusPctByGoal ?? {}),
+                                [gl]: next,
+                              },
+                            })
+                          }
+                        />
+                      </View>
+                    );
+                    })}
+                </CollapsiblePreferenceSection>
+              </View>
+            ) : null}
 
             {/* Sport mode hint when user has athletic/sport goals */}
             {hasPrimaryFocus &&
@@ -1094,7 +1277,10 @@ export default function ManualPreferencesScreen() {
               : "Choose session length, training goal, body emphasis, and gym profile to continue."}
           </Text>
         ) : null}
-        <Pressable onPress={openAdvancedAndScroll} style={styles.advancedLinkWrap}>
+        <Pressable
+          onPress={() => openAdvancedAndScroll()}
+          style={styles.advancedLinkWrap}
+        >
           <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
             Advanced options (energy, injuries, extra goals…)
           </Text>
@@ -1282,6 +1468,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   advancedLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  subGoalBlendLinkWrap: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+  },
+  subGoalBlendLinkText: {
     fontSize: 14,
     fontWeight: "500",
   },

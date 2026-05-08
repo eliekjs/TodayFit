@@ -71,8 +71,10 @@ export type ProgressionsRegressionsOptions = {
   /** When false (default), omit creative/complex-variation swaps (same as generation without creative mode). */
   includeCreativeVariations?: boolean;
   /**
-   * When set (from `WorkoutBlock.goal_intent`), swap suggestions prefer exercises in this pool
-   * after tier/role filtering — same intent section as the original pick.
+   * When set (from `WorkoutBlock.goal_intent.swap_pool_exercise_ids`), swap suggestions are
+   * **restricted** to this pool — the same filtered candidate set the generator used for this slot.
+   * Tier and creative-variation filters are still applied within the pool.
+   * Falls back to tag-similarity expansion when absent or empty (backward compat).
    */
   swapPoolExerciseIds?: string[];
 };
@@ -355,16 +357,79 @@ async function expandSwapCandidatesList(
 }
 
 /**
+ * When the generator recorded the slot-specific candidate pool, build the swap list directly from
+ * those IDs so swaps respect the same tier/equipment/injury/goal constraints as generation.
+ * Progressions/regressions of the target exercise are placed first (similarity-preferred order);
+ * remaining pool IDs follow in stable iteration order. The current exercise is excluded.
+ * Returns an empty array when the DB is not configured or no pool IDs resolve to known exercises.
+ */
+async function buildSwapCandidatesFromPool(
+  exerciseId: string,
+  options: ProgressionsRegressionsOptions
+): Promise<ProgressionsRegressionsOption[]> {
+  const poolIds = options.swapPoolExerciseIds!;
+  const poolSet = new Set(poolIds);
+  poolSet.delete(exerciseId);
+  if (poolSet.size === 0 || !isDbConfigured()) return [];
+  try {
+    const [progRes, poolDefs] = await Promise.all([
+      getProgressionsRegressions(exerciseId),
+      listExercises(),
+    ]);
+    const nameMap = new Map(poolDefs.map((d) => [d.id, d.name]));
+    const candidates: ProgressionsRegressionsOption[] = [];
+    const seen = new Set<string>([exerciseId]);
+    // Progressions/regressions that are also in the pool sort first (higher similarity).
+    for (const o of [...progRes.regressions, ...progRes.progressions]) {
+      if (seen.has(o.id) || !poolSet.has(o.id)) continue;
+      const name = nameMap.get(o.id) ?? o.name;
+      candidates.push({ id: o.id, name });
+      seen.add(o.id);
+    }
+    // Remaining pool IDs in stable order.
+    for (const id of poolSet) {
+      if (seen.has(id)) continue;
+      const name = nameMap.get(id);
+      if (name) {
+        candidates.push({ id, name });
+        seen.add(id);
+      }
+    }
+    return candidates;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Returns one page (up to 3) of swap suggestions for the exercise swap modal.
  * Increment `page` and call again to show the next 3 candidates; wraps with modulo when `page >= numPages`.
+ *
+ * When `options.swapPoolExerciseIds` is provided (populated by the generator from the slot's
+ * filtered candidate pool), candidates are **restricted** to that set so swaps honor the same
+ * tier/equipment/injury/goal constraints that were applied during workout generation.
+ * Falls back to tag-similarity expansion when no pool is recorded (older workouts, warmup/cooldown).
  */
 export async function getSwapSuggestionsPage(
   exerciseId: string,
   options: ProgressionsRegressionsOptions | undefined,
   page: number
 ): Promise<{ suggestions: ProgressionsRegressionsOption[]; numPages: number }> {
-  const res = await getProgressionsRegressionsForExercise(exerciseId, options);
-  let expanded = await expandSwapCandidatesList(exerciseId, options, res);
+  let expanded: ProgressionsRegressionsOption[];
+
+  if (options?.swapPoolExerciseIds?.length) {
+    // Use the generation-time slot pool directly.
+    expanded = await buildSwapCandidatesFromPool(exerciseId, options);
+    if (expanded.length === 0) {
+      // Pool IDs couldn't be resolved (DB not configured or empty intersection) — fall back to
+      // tag-similarity so the swap modal still shows options on older workouts.
+      const res = await getProgressionsRegressionsForExercise(exerciseId, options);
+      expanded = await expandSwapCandidatesList(exerciseId, options, res);
+    }
+  } else {
+    const res = await getProgressionsRegressionsForExercise(exerciseId, options);
+    expanded = await expandSwapCandidatesList(exerciseId, options, res);
+  }
 
   if (options?.preferredGoalTagSlugs?.length && isDbConfigured()) {
     try {
@@ -380,17 +445,6 @@ export async function getSwapSuggestionsPage(
     } catch {
       /* keep order */
     }
-  }
-
-  if (options?.swapPoolExerciseIds?.length) {
-    const poolSet = new Set(options.swapPoolExerciseIds);
-    const inPool: ProgressionsRegressionsOption[] = [];
-    const rest: ProgressionsRegressionsOption[] = [];
-    for (const o of expanded) {
-      if (poolSet.has(o.id)) inPool.push(o);
-      else rest.push(o);
-    }
-    expanded = [...inPool, ...rest];
   }
 
   expanded = await applyTierFilterToCombined(exerciseId, options, expanded);

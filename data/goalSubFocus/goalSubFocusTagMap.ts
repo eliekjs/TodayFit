@@ -49,7 +49,59 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "power", weight: 0.9 },
   ],
 
-  // --- Athletic Performance (goal_slug: strength) ---
+  // --- Athletic Performance (goal_slug: athletic_performance) ---
+  [key("athletic_performance", "speed_sprint")]: [
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "legs", weight: 1 },
+  ],
+  [key("athletic_performance", "vertical_jump")]: [
+    { tag_slug: "plyometric", weight: 1.3 },
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "legs", weight: 1 },
+  ],
+  [key("athletic_performance", "power_explosive")]: [
+    { tag_slug: "power", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.1 },
+    { tag_slug: "compound", weight: 1 },
+  ],
+  [key("athletic_performance", "agility_cod")]: [
+    { tag_slug: "agility", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "lateral_power", weight: 1.2 },
+    { tag_slug: "single_leg_strength", weight: 1.1 },
+    { tag_slug: "balance", weight: 1 },
+    { tag_slug: "single_leg", weight: 1 },
+    { tag_slug: "legs", weight: 1 },
+  ],
+  [key("athletic_performance", "core")]: [
+    { tag_slug: "core_stability", weight: 1.3 },
+    { tag_slug: "core", weight: 1.1 },
+  ],
+  [key("athletic_performance", "upper")]: [
+    { tag_slug: "push", weight: 1.1 },
+    { tag_slug: "pull", weight: 1.1 },
+    { tag_slug: "chest", weight: 1 },
+    { tag_slug: "back", weight: 1 },
+    { tag_slug: "shoulders", weight: 1 },
+  ],
+  [key("athletic_performance", "lower")]: [
+    { tag_slug: "squat", weight: 1.1 },
+    { tag_slug: "hinge", weight: 1.1 },
+    { tag_slug: "legs", weight: 1.1 },
+    { tag_slug: "glutes", weight: 1 },
+    { tag_slug: "quads", weight: 1 },
+  ],
+  [key("athletic_performance", "full_body")]: [
+    { tag_slug: "compound", weight: 1.3 },
+    { tag_slug: "squat", weight: 1 },
+    { tag_slug: "hinge", weight: 1 },
+    { tag_slug: "push", weight: 1 },
+    { tag_slug: "pull", weight: 1 },
+    { tag_slug: "power", weight: 0.9 },
+  ],
+
+  // --- Legacy: athletic presets may still store these under goal_slug strength ---
   [key("strength", "speed_sprint")]: [
     { tag_slug: "plyometric", weight: 1.2 },
     { tag_slug: "power", weight: 1.2 },
@@ -146,6 +198,61 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "core", weight: 1.1 },
   ],
   [key("strength", "front_lever_advanced")]: [
+    { tag_slug: "pull", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "lats", weight: 1 },
+  ],
+
+  // --- Calisthenics primary (goal_slug: calisthenics) — same tags as legacy strength:* keys for these slugs ---
+  [key("calisthenics", "full_body_calisthenics")]: [
+    { tag_slug: "pull", weight: 1.2 },
+    { tag_slug: "push", weight: 1.2 },
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "squat", weight: 1.1 },
+    { tag_slug: "legs", weight: 1 },
+    { tag_slug: "single_leg", weight: 1 },
+    { tag_slug: "lats", weight: 1 },
+    { tag_slug: "chest", weight: 1 },
+    { tag_slug: "triceps", weight: 1 },
+    { tag_slug: "upper_back", weight: 1 },
+    { tag_slug: "scapular_control", weight: 1 },
+    { tag_slug: "core", weight: 1 },
+  ],
+  [key("calisthenics", "legs_pistol")]: [
+    { tag_slug: "squat", weight: 1.3 },
+    { tag_slug: "legs", weight: 1.2 },
+    { tag_slug: "single_leg", weight: 1.2 },
+    { tag_slug: "balance", weight: 1.1 },
+    { tag_slug: "quads", weight: 1.1 },
+    { tag_slug: "glutes", weight: 1 },
+    { tag_slug: "core", weight: 0.9 },
+  ],
+  [key("calisthenics", "pull_ups")]: [
+    { tag_slug: "pull", weight: 1.3 },
+    { tag_slug: "lats", weight: 1.2 },
+    { tag_slug: "back", weight: 1.1 },
+  ],
+  [key("calisthenics", "push_ups")]: [
+    { tag_slug: "push", weight: 1.3 },
+    { tag_slug: "chest", weight: 1.1 },
+    { tag_slug: "triceps", weight: 1 },
+  ],
+  [key("calisthenics", "dips")]: [
+    { tag_slug: "push", weight: 1.2 },
+    { tag_slug: "triceps", weight: 1.2 },
+    { tag_slug: "chest", weight: 1 },
+  ],
+  [key("calisthenics", "handstand")]: [
+    { tag_slug: "push", weight: 1.1 },
+    { tag_slug: "shoulders", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+    { tag_slug: "core", weight: 1 },
+  ],
+  [key("calisthenics", "core")]: [
+    { tag_slug: "core_stability", weight: 1.3 },
+    { tag_slug: "core", weight: 1.1 },
+  ],
+  [key("calisthenics", "front_lever_advanced")]: [
     { tag_slug: "pull", weight: 1.2 },
     { tag_slug: "core_stability", weight: 1.2 },
     { tag_slug: "lats", weight: 1 },
@@ -283,6 +390,42 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "power", weight: 1.2 },
     { tag_slug: "conditioning", weight: 1.1 },
     { tag_slug: "legs", weight: 1 },
+  ],
+
+  // --- Power & Explosiveness (goal_slug: power) ---
+  [key("power", "lower_body_power_plyos")]: [
+    { tag_slug: "power", weight: 1.3 },
+    { tag_slug: "plyometric", weight: 1.2 },
+    { tag_slug: "squat", weight: 1 },
+    { tag_slug: "legs", weight: 1 },
+  ],
+  [key("power", "olympic_triple_extension")]: [
+    { tag_slug: "power", weight: 1.3 },
+    { tag_slug: "hinge", weight: 1.1 },
+    { tag_slug: "compound", weight: 1 },
+  ],
+  [key("power", "upper_body_power")]: [
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "push", weight: 1.1 },
+    { tag_slug: "plyometric", weight: 1 },
+  ],
+  [key("power", "vertical_jump")]: [
+    { tag_slug: "plyometric", weight: 1.3 },
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "legs", weight: 1 },
+  ],
+  [key("power", "sprint")]: [
+    { tag_slug: "power", weight: 1.2 },
+    { tag_slug: "conditioning", weight: 1.1 },
+    { tag_slug: "legs", weight: 1 },
+  ],
+  [key("power", "full_body")]: [
+    { tag_slug: "compound", weight: 1.3 },
+    { tag_slug: "squat", weight: 1 },
+    { tag_slug: "hinge", weight: 1 },
+    { tag_slug: "push", weight: 1 },
+    { tag_slug: "pull", weight: 1 },
+    { tag_slug: "power", weight: 0.9 },
   ],
 
   // --- Improve Endurance (goal_slug: endurance) ---

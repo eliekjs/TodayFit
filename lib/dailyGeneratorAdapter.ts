@@ -6,14 +6,16 @@
 
 import type { ManualPreferences, GeneratedWorkout, ExerciseDefinition } from "./types";
 import type { GymProfile } from "../data/gymProfiles";
-import { deriveBodyPartFocus, deriveBodyPartFocusFromSubFocus, deriveSubFocus } from "./preferencesConstants";
-import { getAvoidTagSlugsFromUpcoming } from "./filterTagRules";
-import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "./preferencesConstants";
 import {
-  resolveGoalSubFocusSlugs,
-  resolveSubFocusProfile,
-  getExerciseTagsForGoalSubFocuses,
-} from "../data/goalSubFocus";
+  deriveBodyPartFocus,
+  deriveBodyPartFocusFromSubFocus,
+  deriveSubFocus,
+  normalizeSubFocusByGoalAgainstConditioningPolicy,
+  PRIMARY_FOCUS_TO_GOAL_SLUG,
+} from "./preferencesConstants";
+import { getAvoidTagSlugsFromUpcoming } from "./filterTagRules";
+import { getExerciseTagsForGoalSubFocuses } from "../data/goalSubFocus";
+import { buildMergedGoalSubFocusSlugWeights, sanitizeSubFocusPctMaps } from "./subFocusWeights";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
 import { getExerciseTagsForSubFocuses } from "../data/sportSubFocus";
 import type {
@@ -93,8 +95,9 @@ function shouldAppendEnduranceSecondaryFromSportSubFocus(
 const SUB_FOCUS_RANK_WEIGHTS = [0.5, 0.3, 0.2] as const;
 
 /**
- * Maps a PrimaryGoal to the key used in `goal_sub_focus_by_goal` (from GOAL_SUB_FOCUS_OPTIONS).
- * "strength" is used for athletic_performance and calisthenics by the options resolver.
+ * Maps a PrimaryGoal to the key used in merged `goal_sub_focus` (from GOAL_SUB_FOCUS_OPTIONS).
+ * hypertrophy → muscle, body_recomp → physique, recovery → resilience; athletic_performance and power use their own buckets
+ * (`goalSubFocusKeysForPrimary` adds legacy aliases for persisted maps).
  */
 function primaryGoalToSubFocusKey(goal: PrimaryGoal): string {
   switch (goal) {
@@ -121,19 +124,49 @@ function goalTagSlugsForEntry(goal: PrimaryGoal): string[] {
  * Sub-focuses are weighted within their parent (50/30/20 split by rank).
  * All weights are normalized to sum = 1 and entries are ranked descending by weight (rank 1 = highest).
  */
+function normIntentSubSlug(s: string): string {
+  return String(s).toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+}
+
+/** Shares of the sport budget across ranked sports (sums to 1). Honors dual-sport % when provided. */
+function sportSharesAmongRankedSports(
+  sportSlugs: string[],
+  sportFocusPct?: [number, number]
+): number[] {
+  const n = sportSlugs.length;
+  if (n === 0) return [];
+  if (n === 2 && sportFocusPct) {
+    const a = Math.max(0, sportFocusPct[0] ?? 0);
+    const b = Math.max(0, sportFocusPct[1] ?? 0);
+    const sum = a + b;
+    if (sum <= 0) return [0.5, 0.5];
+    return [a / sum, b / sum];
+  }
+  return sportSlugs.map(() => 1 / n);
+}
+
 function buildRankedIntentEntries(
   selectedGoals: PrimaryGoal[],
   goalSubFocusByGoal: Record<string, string[]>,
   sportSlugs: string[],
   sportSubFocusBySport: Record<string, string[]>,
   goalWeights: number[] | undefined,
-  sportWeight: number | undefined
+  sportWeight: number | undefined,
+  sportFocusPct?: [number, number]
 ): IntentEntry[] {
   const entries: IntentEntry[] = [];
 
   const sportWeightFraction =
     sportSlugs.length > 0 && sportWeight != null ? Math.max(0, Math.min(1, sportWeight)) : 0;
   const goalWeightFraction = 1 - sportWeightFraction;
+
+  const sportSubSlugCoverage = new Set<string>();
+  for (const sport of sportSlugs) {
+    const canonSport = getCanonicalSportSlug(sport);
+    const subs =
+      sportSubFocusBySport[sport] ?? sportSubFocusBySport[canonSport] ?? [];
+    for (const s of subs) sportSubSlugCoverage.add(normIntentSubSlug(s));
+  }
 
   // Normalize goal weights (sum-to-1 within goals slice, then scale by goalWeightFraction)
   const rawGoalWeights =
@@ -149,44 +182,59 @@ function buildRankedIntentEntries(
     const goal = selectedGoals[i]!;
     const goalAbsWeight = normGoalWeights[i] ?? goalWeightFraction / Math.max(selectedGoals.length, 1);
 
-    entries.push({
-      kind: "goal",
-      slug: goal,
-      rank: 0,
-      weight: goalAbsWeight,
-      tag_slugs: goalTagSlugsForEntry(goal),
-    });
-
     const subFocusKey = primaryGoalToSubFocusKey(goal);
-    if (!claimedSubFocusKeys.has(subFocusKey)) {
+    if (claimedSubFocusKeys.has(subFocusKey)) continue;
+
+    const subSlugsRaw = goalSubFocusByGoal[subFocusKey] ?? [];
+    const subSlugs = subSlugsRaw.filter(
+      (s) => !sportSubSlugCoverage.has(normIntentSubSlug(s))
+    );
+
+    if (subSlugsRaw.length > 0 && subSlugs.length === 0) {
       claimedSubFocusKeys.add(subFocusKey);
-      const subSlugs = goalSubFocusByGoal[subFocusKey] ?? [];
-      const goalSubRankWeights = subSlugs.map(
-        (_, j) => SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / Math.max(subSlugs.length, 1)
-      );
-      const goalSubRankSum = goalSubRankWeights.reduce((s, w) => s + w, 0) || 1;
-      for (let j = 0; j < subSlugs.length; j++) {
-        const subSlug = subSlugs[j]!;
-        const subRankWeight = (goalSubRankWeights[j] ?? 1 / subSlugs.length) / goalSubRankSum;
-        const subWeight = goalAbsWeight * subRankWeight;
-        const tagEntries = getExerciseTagsForGoalSubFocuses(subFocusKey, [subSlug]);
-        entries.push({
-          kind: "goal_sub_focus",
-          slug: subSlug,
-          parent_slug: goal,
-          rank: 0,
-          weight: subWeight,
-          tag_slugs: tagEntries.map((e) => e.tag_slug),
-        });
-      }
+      continue;
+    }
+
+    claimedSubFocusKeys.add(subFocusKey);
+
+    if (subSlugs.length === 0) {
+      entries.push({
+        kind: "goal",
+        slug: goal,
+        rank: 0,
+        weight: goalAbsWeight,
+        tag_slugs: goalTagSlugsForEntry(goal),
+      });
+      continue;
+    }
+
+    const goalSubRankWeights = subSlugs.map(
+      (_, j) => SUB_FOCUS_RANK_WEIGHTS[j] ?? 1 / Math.max(subSlugs.length, 1)
+    );
+    const goalSubRankSum = goalSubRankWeights.reduce((s, w) => s + w, 0) || 1;
+    for (let j = 0; j < subSlugs.length; j++) {
+      const subSlug = subSlugs[j]!;
+      const subRankWeight = (goalSubRankWeights[j] ?? 1 / subSlugs.length) / goalSubRankSum;
+      const subWeight = goalAbsWeight * subRankWeight;
+      const tagEntries = getExerciseTagsForGoalSubFocuses(subFocusKey, [subSlug]);
+      entries.push({
+        kind: "goal_sub_focus",
+        slug: subSlug,
+        parent_slug: goal,
+        rank: 0,
+        weight: subWeight,
+        tag_slugs: tagEntries.map((e) => e.tag_slug),
+      });
     }
   }
 
   // Sports
   const numSports = sportSlugs.length;
   if (numSports > 0) {
-    const perSportWeight = sportWeightFraction / numSports;
-    for (const sport of sportSlugs) {
+    const amongSports = sportSharesAmongRankedSports(sportSlugs, sportFocusPct);
+    for (let si = 0; si < sportSlugs.length; si++) {
+      const sport = sportSlugs[si]!;
+      const perSportWeight = sportWeightFraction * (amongSports[si] ?? 1 / numSports);
       const canonSport = getCanonicalSportSlug(sport);
       entries.push({
         kind: "sport",
@@ -252,6 +300,9 @@ function primaryFocusLabelToGoal(label: string): PrimaryGoal {
     endurance: "endurance",
     mobility: "mobility",
     resilience: "recovery",
+    calisthenics: "calisthenics",
+    athletic_performance: "athletic_performance",
+    power: "power",
   };
   if (slugToGoal[slug]) return slugToGoal[slug];
   if (label.includes("Athletic")) return "athletic_performance";
@@ -284,6 +335,8 @@ export type SportGoalContext = {
   sport_sub_focus?: Record<string, string[]>;
   goal_weights?: number[];
   sport_weight?: number;
+  /** When two sports are ranked: [first sport %, second sport %] (e.g. 60/40). Must match `sport_slugs` order. */
+  sport_focus_pct?: [number, number];
   /** Penalize re-picking these ids on regenerate so the session visibly refreshes. */
   regeneration_avoid_exercise_ids?: string[];
   /** Explicit sport-day intent (planner → generator); optional for non-sport modes. */
@@ -316,7 +369,10 @@ export function manualPreferencesToGenerateWorkoutInput(
 ): GenerateWorkoutInput {
   const durationMinutes = clampDuration(preferences.durationMinutes);
   const bodyPartFromTarget = deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier);
-  const subFocus = deriveSubFocus(preferences.primaryFocus, preferences.subFocusByGoal ?? {});
+  const subFocusByGoalSanitized = normalizeSubFocusByGoalAgainstConditioningPolicy(
+    preferences.subFocusByGoal ?? {}
+  );
+  const subFocus = deriveSubFocus(preferences.primaryFocus, subFocusByGoalSanitized);
   const bodyPartFromSubFocus = deriveBodyPartFocusFromSubFocus(subFocus);
   const bodyPartFocus =
     bodyPartFromTarget.length > 0 ? bodyPartFromTarget : bodyPartFromSubFocus;
@@ -349,28 +405,19 @@ export function manualPreferencesToGenerateWorkoutInput(
     secondary_goals = [...secondary_goals, "endurance"];
   }
 
-  // Goal sub-focus: goal slug -> sub-focus slugs from primaryFocus + subFocusByGoal
-  const goal_sub_focus: Record<string, string[]> = {};
-  const subFocusByGoal = preferences.subFocusByGoal ?? {};
+  const subFocusByGoal = subFocusByGoalSanitized;
   const weekSubLabels = preferences.weekSubFocusPrimaryLabels;
   const labelsForSubFocusMerge =
     weekSubLabels != null && weekSubLabels.length > 0 ? weekSubLabels : preferences.primaryFocus;
-  for (const label of labelsForSubFocusMerge) {
-    const subLabels = subFocusByGoal[label] ?? [];
-    if (!subLabels.length) continue;
-    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(label, subLabels);
-    if (!goalSlug || !subFocusSlugs.length) continue;
-    const existing = goal_sub_focus[goalSlug] ?? [];
-    goal_sub_focus[goalSlug] = [...new Set([...existing, ...subFocusSlugs])];
-  }
-  // Resolver: rank-based weights (intent vs overlay, same-class conflict by user priority).
-  const goal_sub_focus_weights: Record<string, number[]> = {};
-  for (const [goalSlug, rankedSlugs] of Object.entries(goal_sub_focus)) {
-    if (!rankedSlugs?.length) continue;
-    const profile = resolveSubFocusProfile({ goalSlug, rankedSubFocusSlugs: rankedSlugs });
-    // Weights in same order as goal_sub_focus[goalSlug] for getExerciseTagsForGoalSubFocuses(goalSlug, slugs, weights).
-    goal_sub_focus_weights[goalSlug] = rankedSlugs.map((s) => profile.resolvedWeights[s] ?? 1 / rankedSlugs.length);
-  }
+  const subFocusPctByGoalAligned = sanitizeSubFocusPctMaps(
+    subFocusByGoal,
+    preferences.subFocusPctByGoal
+  );
+  const { goal_sub_focus, goal_sub_focus_weights } = buildMergedGoalSubFocusSlugWeights({
+    labelsForSubFocusMerge,
+    subFocusByGoal,
+    subFocusPctByGoal: subFocusPctByGoalAligned,
+  });
 
   // Goal weights from match percentages (normalize to sum 1)
   const p1 = (preferences.goalMatchPrimaryPct ?? 50) / 100;
@@ -407,6 +454,7 @@ export function manualPreferencesToGenerateWorkoutInput(
               d: durationMinutes,
               primary_goal,
               subFocusByGoal,
+              subFocusPctByGoal: subFocusPctByGoalAligned ?? preferences.subFocusPctByGoal ?? {},
               goalWeightsPct: [
                 preferences.goalMatchPrimaryPct ?? 50,
                 preferences.goalMatchSecondaryPct ?? 30,
@@ -459,7 +507,8 @@ export function manualPreferencesToGenerateWorkoutInput(
       sportGoalContext?.sport_slugs ?? [],
       sportGoalContext?.sport_sub_focus ?? {},
       sportGoalContext?.goal_weights ?? goal_weights,
-      sportGoalContext?.sport_weight
+      sportGoalContext?.sport_weight,
+      sportGoalContext?.sport_focus_pct
     ),
   };
 
@@ -572,7 +621,7 @@ const JOINT_STRESS_PREFIXES = [
 ];
 
 import { normalizeMatchableTagSlugs, normalizeSlug } from "./ontology";
-import { computeActualIntentSplit, computeDeclaredIntentSplit } from "./workoutIntentSplit";
+import { computeDeclaredIntentSplit } from "./workoutIntentSplit";
 import { runIntentProportionGuardrail } from "../logic/workoutGeneration/intentProportionGuardrail";
 import {
   inferCreativeVariationFromSource,
@@ -962,19 +1011,7 @@ export function workoutSessionToGeneratedWorkout(
   const declaredIntentSplit = generatorInput
     ? computeDeclaredIntentSplit(generatorInput)
     : undefined;
-  const intentSplit = declaredIntentSplit
-    ? computeActualIntentSplit(
-        {
-          id: workoutId,
-          focus,
-          durationMinutes: session.estimated_duration_minutes,
-          energyLevel: preferences.energyLevel ?? null,
-          generationPreferences,
-          blocks,
-        },
-        declaredIntentSplit
-      )
-    : undefined;
+  const intentSplit = declaredIntentSplit;
 
   const intentProportionCheck =
     generatorInput && blocks.length > 0

@@ -66,6 +66,8 @@ export type PlanWeekInput = {
   goalMatchTertiaryPct?: number;
   /** Goal sub-focus labels keyed by Manual primary focus (from Sport Mode or advanced prefs). */
   goalSubFocusByGoal?: Record<string, string[]>;
+  /** Optional blend % keyed like `goalSubFocusByGoal`. */
+  goalSubFocusPctByGoal?: Record<string, Record<string, number>>;
   /** Weekly body emphasis: more volume on this area; week still trains full body. */
   emphasis?: import("../../lib/types").BodyEmphasisKey | null;
   /** Goal distribution: dedicate entire days to goals vs blend. Default blend. */
@@ -125,6 +127,7 @@ export type ScheduleSnapshot = {
   sportSubFocusSlugsBySport?: Record<string, string[]>;
   /** Manual primary-focus label → sub-goal names (same shape as planWeek `goalSubFocusByGoal`). */
   goalSubFocusByGoal?: Record<string, string[]>;
+  goalSubFocusPctByGoal?: Record<string, Record<string, number>>;
   preferredTrainingDays?: number[];
   defaultSessionDuration: number;
   energyBaseline: EnergyLevel;
@@ -197,6 +200,7 @@ export type RegenerateDayInput = {
   injuries?: string[];
   /** Per–primary-focus sub-goals (same shape as `planWeek` / `buildWorkoutForSlot`). */
   subFocusByGoal?: Record<string, string[]>;
+  subFocusPctByGoal?: Record<string, Record<string, number>>;
   /** Plan-level tier when dailyPreferences does not override workoutTier. */
   workoutTier?: import("../../lib/types").WorkoutTierPreference;
   /** Plan-level creative variations when dailyPreferences does not override. */
@@ -972,6 +976,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           workoutTier: input.workoutTier ?? "intermediate",
           includeCreativeVariations: input.includeCreativeVariations === true,
           subFocusByGoal: input.goalSubFocusByGoal,
+          ...(input.goalSubFocusPctByGoal &&
+          Object.keys(input.goalSubFocusPctByGoal).length > 0
+            ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }
+            : {}),
           ...(sessionIntentContract ? { session_intent_contract: sessionIntentContract } : {}),
         }
       );
@@ -1028,6 +1036,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         workoutTier: input.workoutTier ?? "intermediate",
         includeCreativeVariations: input.includeCreativeVariations === true,
         subFocusByGoal: input.goalSubFocusByGoal,
+        ...(input.goalSubFocusPctByGoal &&
+        Object.keys(input.goalSubFocusPctByGoal).length > 0
+          ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }
+          : {}),
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1131,6 +1143,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       goalSubFocusByGoal:
         input.goalSubFocusByGoal && Object.keys(input.goalSubFocusByGoal).length > 0
           ? { ...input.goalSubFocusByGoal }
+          : undefined,
+      goalSubFocusPctByGoal:
+        input.goalSubFocusPctByGoal && Object.keys(input.goalSubFocusPctByGoal).length > 0
+          ? { ...input.goalSubFocusPctByGoal }
           : undefined,
       adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
     };
@@ -1457,6 +1473,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       input.goalSubFocusByGoal && Object.keys(input.goalSubFocusByGoal).length > 0
         ? { ...input.goalSubFocusByGoal }
         : undefined,
+    goalSubFocusPctByGoal:
+      input.goalSubFocusPctByGoal && Object.keys(input.goalSubFocusPctByGoal).length > 0
+        ? { ...input.goalSubFocusPctByGoal }
+        : undefined,
     adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
   };
 
@@ -1549,6 +1569,9 @@ export async function regenerateDay(
         includeCreativeVariations: resolvedIncludeCreative,
         ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
           ? { subFocusByGoal: input.subFocusByGoal }
+          : {}),
+        ...(input.subFocusPctByGoal && Object.keys(input.subFocusPctByGoal).length > 0
+          ? { subFocusPctByGoal: input.subFocusPctByGoal }
           : {}),
         ...(regContractGuest ? { session_intent_contract: regContractGuest } : {}),
         regenerationAvoidExerciseIds:
@@ -1664,6 +1687,9 @@ export async function regenerateDay(
       includeCreativeVariations: resolvedIncludeCreative,
       ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
         ? { subFocusByGoal: input.subFocusByGoal }
+        : {}),
+      ...(input.subFocusPctByGoal && Object.keys(input.subFocusPctByGoal).length > 0
+        ? { subFocusPctByGoal: input.subFocusPctByGoal }
         : {}),
       ...(regContractDb ? { session_intent_contract: regContractDb } : {}),
       regenerationAvoidExerciseIds:

@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBar } from "@react-navigation/bottom-tabs";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../lib/theme";
+import { manualGoalPreferencesHref } from "../../lib/manualGoalPreferencesHref";
 import { useAppState } from "../../context/AppStateContext";
 
 /** Order defines tab bar left-to-right; index (Today) is center and app home. */
@@ -72,11 +73,13 @@ export function AdaptiveRecommendationBackButton() {
 export function ManualWeekBackButton() {
   const router = useRouter();
   const theme = useTheme();
+  const { manualGoalPreferencesScope } = useAppState();
   return (
     <Pressable
       onPress={() => {
+        const href = manualGoalPreferencesHref(manualGoalPreferencesScope);
         if (router.canGoBack()) router.back();
-        else router.push("/manual/preferences");
+        else router.push(href);
       }}
       style={{ paddingLeft: 16 }}
     >
@@ -107,11 +110,12 @@ export function ManualExecuteBackButton() {
 export function EditWorkoutBackButton() {
   const router = useRouter();
   const theme = useTheme();
+  const { manualGoalPreferencesScope } = useAppState();
   return (
     <Pressable
       onPress={() => {
-        if (router.canGoBack()) router.back();
-        else router.push("/manual/preferences");
+        const href = manualGoalPreferencesHref(manualGoalPreferencesScope);
+        router.dismissTo(href);
       }}
       style={{ paddingLeft: 16 }}
     >
@@ -153,6 +157,7 @@ export function RestartFlowButton() {
     setManualExecutionStarted,
     setSportPrepWeekPlan,
     setAdaptiveSetup,
+    setManualGoalPreferencesScope,
   } = useAppState();
   const onRestart = () => {
     setManualWeekPlan(null);
@@ -162,6 +167,7 @@ export function RestartFlowButton() {
     setManualExecutionStarted(false);
     setSportPrepWeekPlan(null);
     setAdaptiveSetup(null);
+    setManualGoalPreferencesScope("day");
     router.replace("/");
   };
   return (

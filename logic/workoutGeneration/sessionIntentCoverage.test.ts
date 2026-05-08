@@ -50,8 +50,20 @@ describe("sessionIntentCoverage", () => {
     expect(keys.has("hypertrophy")).toBe(true);
   });
 
-  it("goalSubFocusKeysForPrimary maps power to conditioning sub-focus bucket", () => {
+  it("goalSubFocusKeysForPrimary maps power to power bucket (and conditioning for legacy prefs)", () => {
+    expect(goalSubFocusKeysForPrimary("power")).toContain("power");
     expect(goalSubFocusKeysForPrimary("power")).toContain("conditioning");
+  });
+
+  it("goalSubFocusKeysForPrimary maps athletic_performance to athletic bucket (and strength for legacy prefs)", () => {
+    expect(goalSubFocusKeysForPrimary("athletic_performance")).toContain("athletic_performance");
+    expect(goalSubFocusKeysForPrimary("athletic_performance")).toContain("strength");
+  });
+
+  it("goalSubFocusKeysForPrimary maps calisthenics to calisthenics bucket (and strength for legacy prefs)", () => {
+    const keys = goalSubFocusKeysForPrimary("calisthenics");
+    expect(keys).toContain("calisthenics");
+    expect(keys).toContain("strength");
   });
 
   it("exerciseMatchesDeclaredGoal reads goal_tags and modality fallbacks", () => {

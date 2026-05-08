@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback, type RefObject } from "react";
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -13,7 +14,7 @@ import {
   Modal,
   type GestureResponderEvent,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
@@ -35,17 +36,27 @@ import {
   CONSTRAINT_OPTIONS,
   DURATIONS,
   normalizeGoalMatchPct,
-  SUB_FOCUS_BY_PRIMARY,
   ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
   TARGET_OPTIONS,
   goalSubFocusPayloadForAdaptiveGoals,
+  goalSubFocusPctPayloadForAdaptiveGoals,
+  collectInvalidConditioningSubFocusSelections,
+  subFocusChoicesForManualPrimaryGoal,
 } from "../../../lib/preferencesConstants";
+import {
+  equalIntegerPctsForLabels,
+  normalizeSubFocusPctRecord,
+  redistributeSubFocusPctsOnRemoval,
+} from "../../../lib/subFocusWeights";
+import { SubFocusWeightsEditor } from "../../../components/SubFocusWeightsEditor";
 import { listSportsForPrep, getQualitiesForSport, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
 import { planWeek } from "../../../services/sportPrepPlanner";
 import type { DailyWorkoutPreferences, EnergyLevel, TargetBody } from "../../../lib/types";
+import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
+import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
 
 if (
   Platform.OS === "android" &&
@@ -150,6 +161,7 @@ export default function AdaptiveModeScreen() {
   const adaptiveScrollRef = useRef<ScrollView>(null);
   const adaptiveContentRef = useRef<View>(null);
   const adaptiveAdvancedRef = useRef<View>(null);
+  const adaptiveGoalSubFocusBlendRef = useRef<View>(null);
   const [adaptiveAdvNestedOpen, setAdaptiveAdvNestedOpen] = useState<
     Partial<Record<AdaptiveAdvNestedKey, boolean>>
   >({});
@@ -159,6 +171,19 @@ export default function AdaptiveModeScreen() {
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
+  const generationCancelledRef = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      generationCancelledRef.current = false;
+      setIsGeneratingOneDay(false);
+      return () => {
+        generationCancelledRef.current = true;
+        setIsGeneratingOneDay(false);
+      };
+    }, [])
+  );
+  const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
   const [oneDayDuration, setOneDayDuration] = useState<number>(45);
   const [limitPopup, setLimitPopup] = useState<LimitPopupState | null>(null);
   const limitPopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -352,6 +377,7 @@ export default function AdaptiveModeScreen() {
 
     if (isOneDay) {
       (async () => {
+        generationCancelledRef.current = false;
         setIsGeneratingOneDay(true);
         try {
           const primary = rankedGoals[0] ?? null;
@@ -367,14 +393,20 @@ export default function AdaptiveModeScreen() {
           const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
           const todayDOW = (new Date().getDay() + 6) % 7;
           const rankedGoalIds = rankedGoals.filter((g): g is string => g != null);
+          const payloadGoalSubs = goalSubFocusPayloadForAdaptiveGoals(
+            rankedGoalIds,
+            manualPreferences.subFocusByGoal
+          );
           const plan = await planWeek({
             userId: userId ?? undefined,
             primaryGoalSlug: primary,
             secondaryGoalSlug: secondary,
             tertiaryGoalSlug: tertiary,
-            goalSubFocusByGoal: goalSubFocusPayloadForAdaptiveGoals(
+            goalSubFocusByGoal: payloadGoalSubs,
+            goalSubFocusPctByGoal: goalSubFocusPctPayloadForAdaptiveGoals(
               rankedGoalIds,
-              manualPreferences.subFocusByGoal
+              manualPreferences.subFocusPctByGoal,
+              payloadGoalSubs
             ),
             sportSlug: rankedSportSlugs[0] ?? null,
             sportSubFocusSlugs:
@@ -414,10 +446,12 @@ export default function AdaptiveModeScreen() {
                 : {}),
             },
           });
+          if (generationCancelledRef.current) return;
           setSportPrepWeekPlan(plan);
           setAdaptiveSetup(null);
           router.replace("/sport-mode/recommendation");
         } catch (e) {
+          if (generationCancelledRef.current) return;
           setError(e instanceof Error ? e.message : String(e));
         } finally {
           setIsGeneratingOneDay(false);
@@ -517,8 +551,20 @@ export default function AdaptiveModeScreen() {
     const norm = normalizeGoalMatchPct(p1, p2, p3, Math.max(0, currentCount - 1));
     const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
     const nextSub = { ...manualPreferences.subFocusByGoal };
-    if (manualLabel) delete nextSub[manualLabel];
-    updateManualPreferences({ ...norm, subFocusByGoal: nextSub });
+    const nextPct = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
+    if (manualLabel) {
+      delete nextSub[manualLabel];
+      delete nextPct[manualLabel];
+    }
+    const hadEngineMismatch =
+      collectInvalidConditioningSubFocusSelections(manualPreferences.subFocusByGoal).length > 0;
+    if (hadEngineMismatch) {
+      Alert.alert(
+        "Sub-goals updated",
+        "Removed conditioning sub-goals that don't apply to your selected primary goals."
+      );
+    }
+    updateManualPreferences({ ...norm, subFocusByGoal: nextSub, subFocusPctByGoal: nextPct });
   };
 
   const toggleAdaptiveGoalSubGoal = (
@@ -532,11 +578,20 @@ export default function AdaptiveModeScreen() {
     const current = manualPreferences.subFocusByGoal[manualPrimaryLabel] ?? [];
     const exists = current.includes(subOpt);
     if (exists) {
+      const next = current.filter((v) => v !== subOpt);
+      const prevGoalPct = manualPreferences.subFocusPctByGoal?.[manualPrimaryLabel] ?? {};
+      const nextPctMap = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
+      if (next.length === 0) {
+        delete nextPctMap[manualPrimaryLabel];
+      } else {
+        nextPctMap[manualPrimaryLabel] = redistributeSubFocusPctsOnRemoval(next, prevGoalPct);
+      }
       updateManualPreferences({
         subFocusByGoal: {
           ...manualPreferences.subFocusByGoal,
-          [manualPrimaryLabel]: current.filter((v) => v !== subOpt),
+          [manualPrimaryLabel]: next,
         },
+        subFocusPctByGoal: nextPctMap,
       });
     } else {
       if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
@@ -557,11 +612,15 @@ export default function AdaptiveModeScreen() {
         return;
       }
       setError(null);
+      const nextSubs = [...current, subOpt];
+      const nextPctMap = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
+      nextPctMap[manualPrimaryLabel] = equalIntegerPctsForLabels(nextSubs);
       updateManualPreferences({
         subFocusByGoal: {
           ...manualPreferences.subFocusByGoal,
-          [manualPrimaryLabel]: [...current, subOpt],
+          [manualPrimaryLabel]: nextSubs,
         },
+        subFocusPctByGoal: nextPctMap,
       });
     }
   };
@@ -588,23 +647,39 @@ export default function AdaptiveModeScreen() {
     else setOneDayBodyBias("full");
   }, []);
 
-  const openAdaptiveAdvancedAndScroll = useCallback(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setAdvancedOpen(true);
-    requestAnimationFrame(() => {
-      const scroll = adaptiveScrollRef.current;
-      const content = adaptiveContentRef.current;
-      const section = adaptiveAdvancedRef.current;
-      if (!scroll || !content || !section) return;
-      section.measureLayout(
-        content as unknown as View,
-        (_x: number, y: number) => {
-          scroll.scrollTo({ y: Math.max(0, y - 12), animated: true });
-        },
-        () => {}
-      );
-    });
-  }, []);
+  type OpenAdaptiveAdvancedScrollOptions = {
+    nestedKey?: AdaptiveAdvNestedKey;
+    scrollTargetRef?: RefObject<View | null>;
+  };
+
+  const openAdaptiveAdvancedAndScroll = useCallback(
+    (options?: OpenAdaptiveAdvancedScrollOptions) => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setAdvancedOpen(true);
+      if (options?.nestedKey != null) {
+        const key = options.nestedKey;
+        setAdaptiveAdvNestedOpen((prev) => ({ ...prev, [key]: true }));
+      }
+      const runScroll = () => {
+        const scroll = adaptiveScrollRef.current;
+        const content = adaptiveContentRef.current;
+        const section =
+          options?.scrollTargetRef?.current ?? adaptiveAdvancedRef.current;
+        if (!scroll || !content || !section) return;
+        section.measureLayout(
+          content as unknown as View,
+          (_x: number, y: number) => {
+            scroll.scrollTo({ y: Math.max(0, y - 12), animated: true });
+          },
+          () => {}
+        );
+      };
+      requestAnimationFrame(() => {
+        requestAnimationFrame(runScroll);
+      });
+    },
+    []
+  );
 
   const oneDayGoalCount = rankedGoals.filter((g): g is string => g != null).length;
   const oneDaySportCount = selectedSportSlugs.length;
@@ -618,6 +693,16 @@ export default function AdaptiveModeScreen() {
     selectedSportSlugs.length >= 1 &&
     oneDayCombinationValid &&
     (!isOneDay || oneDayDuration > 0);
+
+  const oneDayTargetBodyForConflict: TargetBody | null =
+    oneDayBodyBias === "upper" ? "Upper" : oneDayBodyBias === "lower" ? "Lower" : "Full";
+  const sportModeConflicts = isOneDay
+    ? detectPreferenceConflicts(manualPreferences, {
+        sportSlugs: selectedSportSlugs,
+        targetBodyOverride: oneDayTargetBodyForConflict,
+        gymEquipmentKeys: activeGymProfile?.equipment ?? [],
+      })
+    : [];
 
   const adaptiveAdvSportVsSummary = `${sportVsGoalPct}% sport · ${100 - sportVsGoalPct}% goals`;
   const agw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
@@ -770,6 +855,7 @@ export default function AdaptiveModeScreen() {
       orderedPrimaryLabelsForSubFocus:
         orderedGoalLabelsForSubs.length > 0 ? orderedGoalLabelsForSubs : undefined,
       subFocusByGoal: manualPreferences.subFocusByGoal,
+      subFocusPctByGoal: manualPreferences.subFocusPctByGoal,
       weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
     });
   })();
@@ -1312,6 +1398,21 @@ export default function AdaptiveModeScreen() {
               />
             ))}
           </View>
+          {adaptiveSubGoalsTotalCount > 0 ? (
+            <Pressable
+              onPress={() =>
+                openAdaptiveAdvancedAndScroll({
+                  nestedKey: "goalSubGoals",
+                  scrollTargetRef: adaptiveGoalSubFocusBlendRef,
+                })
+              }
+              style={styles.subGoalBlendLinkWrap}
+            >
+              <Text style={[styles.subGoalBlendLinkText, { color: theme.primary }]}>
+                Set percentage blend (Advanced)
+              </Text>
+            </Pressable>
+          ) : null}
         </CollapsiblePreferenceSection>
 
         {isOneDay ? (
@@ -1562,6 +1663,7 @@ export default function AdaptiveModeScreen() {
             ) : null}
 
             {filledAdaptiveGoals.length > 0 ? (
+              <View ref={adaptiveGoalSubFocusBlendRef} collapsable={false}>
               <CollapsiblePreferenceSection
                 nested
                 title="Goal sub-focus"
@@ -1573,7 +1675,7 @@ export default function AdaptiveModeScreen() {
                 {filledAdaptiveGoals.map((goalId, goalIdx) => {
                   const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
                   const goalMeta = ADAPTIVE_GOALS.find((g) => g.id === goalId);
-                  const subOptions = manualLabel ? SUB_FOCUS_BY_PRIMARY[manualLabel] ?? [] : [];
+                  const subOptions = manualLabel ? subFocusChoicesForManualPrimaryGoal(manualLabel) : [];
                   const selectedSubs =
                     manualLabel != null
                       ? manualPreferences.subFocusByGoal[manualLabel] ?? []
@@ -1665,6 +1767,25 @@ export default function AdaptiveModeScreen() {
                                 />
                               ))}
                           </View>
+                          {selectedSubs.length > 0 ? (
+                            <SubFocusWeightsEditor
+                              theme={theme}
+                              goalLabel={manualLabel}
+                              selectedSubsOrdered={selectedSubs}
+                              pctBySub={normalizeSubFocusPctRecord(
+                                selectedSubs,
+                                manualPreferences.subFocusPctByGoal?.[manualLabel]
+                              )}
+                              onCommit={(gl, next) =>
+                                updateManualPreferences({
+                                  subFocusPctByGoal: {
+                                    ...(manualPreferences.subFocusPctByGoal ?? {}),
+                                    [gl]: next,
+                                  },
+                                })
+                              }
+                            />
+                          ) : null}
                         </View>
                       ) : (
                         <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
@@ -1675,6 +1796,7 @@ export default function AdaptiveModeScreen() {
                   );
                 })}
               </CollapsiblePreferenceSection>
+              </View>
             ) : null}
 
             {selectedSportSlugs.length === 2 ? (
@@ -1815,6 +1937,19 @@ export default function AdaptiveModeScreen() {
 
         </View>
 
+        {isOneDay && (
+          <PreferenceConflictBanner
+            conflicts={sportModeConflicts}
+            dismissedIds={dismissedConflictIds}
+            currentPrefs={manualPreferences}
+            onDismiss={(id) => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setDismissedConflictIds((prev) => [...prev, id]);
+            }}
+            onApplyResolution={(patch) => updateManualPreferences(patch)}
+          />
+        )}
+
         <View style={styles.footer}>
           <PrimaryButton
             label={
@@ -1832,7 +1967,10 @@ export default function AdaptiveModeScreen() {
                 : "Choose at least one sport to continue."}
             </Text>
           ) : null}
-          <Pressable onPress={openAdaptiveAdvancedAndScroll} style={styles.advancedLinkWrap}>
+          <Pressable
+            onPress={() => openAdaptiveAdvancedAndScroll()}
+            style={styles.advancedLinkWrap}
+          >
             <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
               Advanced options (sport %, goal weights, fatigue, injuries…)
             </Text>
@@ -2172,6 +2310,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   advancedLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  subGoalBlendLinkWrap: {
+    marginTop: 12,
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+  },
+  subGoalBlendLinkText: {
     fontSize: 14,
     fontWeight: "500",
   },

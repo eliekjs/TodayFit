@@ -14,7 +14,10 @@ import {
 } from "./subFocusSlugMatch";
 import { exerciseMatchesDeclaredGoal } from "./sessionIntentCoverage";
 import { allocateSlotsBySubFocusWeights } from "./slotAllocationHelpers";
-import { isSpeedAgilityPowerStyleSubFocusSlug } from "../../data/sportSubFocus/speedAgilitySubFocusShared";
+import {
+  isSpeedAgilityPowerStyleSubFocusSlug,
+  normTagSlug,
+} from "../../data/sportSubFocus/speedAgilitySubFocusShared";
 
 function tagToSlug(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -126,7 +129,10 @@ export function isIntentMainWorkCandidate(ex: Exercise, primary: PrimaryGoal): b
 }
 
 export function isPowerStyleSportIntentEntry(entry: IntentEntry): boolean {
-  return entry.kind === "sport_sub_focus" && isSpeedAgilityPowerStyleSubFocusSlug(entry.slug);
+  if (entry.kind !== "sport_sub_focus") return false;
+  // Vertical jump is trained with power/explosive prescriptions; do not add to speed/COD dynamic gate in subFocusSlugMatch.
+  if (normTagSlug(entry.slug) === "vertical_jump") return true;
+  return isSpeedAgilityPowerStyleSubFocusSlug(entry.slug);
 }
 
 export function mainWorkPrimaryForIntentEntry(entry: IntentEntry, sessionPrimary: PrimaryGoal): PrimaryGoal {

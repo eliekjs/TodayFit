@@ -1,5 +1,6 @@
 import { getSupabase } from "./client";
 import type { ManualPreferences, PreferencePreset } from "../types";
+import { sanitizeSubFocusPctMaps } from "../subFocusWeights";
 
 const DEFAULT_MANUAL_PREFERENCES: ManualPreferences = {
   primaryFocus: [],
@@ -10,6 +11,7 @@ const DEFAULT_MANUAL_PREFERENCES: ManualPreferences = {
   injuries: [],
   upcoming: [],
   subFocusByGoal: {},
+  subFocusPctByGoal: {},
   workoutStyle: [],
   preferredZone2Cardio: [],
   goalMatchPrimaryPct: 50,
@@ -58,6 +60,24 @@ function asSubFocusByGoal(value: unknown): Record<string, string[]> | undefined 
   return out;
 }
 
+function asSubFocusPctByGoal(
+  value: unknown
+): ManualPreferences["subFocusPctByGoal"] | undefined {
+  if (!isRecord(value)) return undefined;
+  const out: Record<string, Record<string, number>> = {};
+  for (const [goalKey, rawGoal] of Object.entries(value)) {
+    if (typeof goalKey !== "string" || !isRecord(rawGoal)) continue;
+    const inner: Record<string, number> = {};
+    for (const [subKey, rawPct] of Object.entries(rawGoal)) {
+      if (typeof subKey !== "string") continue;
+      const n = asNumber(rawPct);
+      if (n != null && n >= 0 && n <= 100) inner[subKey] = Math.round(n);
+    }
+    if (Object.keys(inner).length > 0) out[goalKey] = inner;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
   const prefs = isRecord(raw) ? raw : {};
   const weeklySubFocusCoverage = isRecord(prefs.weeklySubFocusCoverage)
@@ -73,6 +93,11 @@ function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
         )
       )
     : {};
+  const subFocusByGoal =
+    asSubFocusByGoal(prefs.subFocusByGoal) ?? DEFAULT_MANUAL_PREFERENCES.subFocusByGoal;
+  const rawSubFocusPct = asSubFocusPctByGoal(prefs.subFocusPctByGoal);
+  const subFocusPctByGoal =
+    sanitizeSubFocusPctMaps(subFocusByGoal, rawSubFocusPct ?? undefined) ?? {};
   return {
     ...DEFAULT_MANUAL_PREFERENCES,
     primaryFocus: asStringArray(prefs.primaryFocus) ?? DEFAULT_MANUAL_PREFERENCES.primaryFocus,
@@ -82,7 +107,8 @@ function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
     energyLevel: asEnergyLevel(prefs.energyLevel) ?? DEFAULT_MANUAL_PREFERENCES.energyLevel,
     injuries: asStringArray(prefs.injuries) ?? DEFAULT_MANUAL_PREFERENCES.injuries,
     upcoming: asStringArray(prefs.upcoming) ?? DEFAULT_MANUAL_PREFERENCES.upcoming,
-    subFocusByGoal: asSubFocusByGoal(prefs.subFocusByGoal) ?? DEFAULT_MANUAL_PREFERENCES.subFocusByGoal,
+    subFocusByGoal,
+    subFocusPctByGoal,
     workoutStyle: asStringArray(prefs.workoutStyle) ?? DEFAULT_MANUAL_PREFERENCES.workoutStyle,
     preferredZone2Cardio: asStringArray(prefs.preferredZone2Cardio) ?? DEFAULT_MANUAL_PREFERENCES.preferredZone2Cardio,
     goalMatchPrimaryPct: asNumber(prefs.goalMatchPrimaryPct) ?? DEFAULT_MANUAL_PREFERENCES.goalMatchPrimaryPct,

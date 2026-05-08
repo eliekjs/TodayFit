@@ -31,6 +31,16 @@ import type { AdaptiveSetup } from "./appStateModel";
 import { defaultManualPreferences } from "./appStateModel";
 import { loadRemoteAppState } from "./loadRemoteAppState";
 import type { LoadedRemoteAppState } from "./loadRemoteAppState";
+import type { ManualGoalPreferencesScope } from "../lib/manualGoalPreferencesHref";
+import { normalizeSubFocusByGoalAgainstConditioningPolicy } from "../lib/preferencesConstants";
+import { sanitizeSubFocusPctMaps } from "../lib/subFocusWeights";
+
+/** Strip engine/cardio-conditioning sub-focus labels mismatched to primary goals; sync % maps. */
+function sanitizeManualPreferenceSubLayers(prefs: ManualPreferences): ManualPreferences {
+  const subFocusByGoal = normalizeSubFocusByGoalAgainstConditioningPolicy(prefs.subFocusByGoal ?? {});
+  const subFocusPctSanitized = sanitizeSubFocusPctMaps(subFocusByGoal, prefs.subFocusPctByGoal);
+  return { ...prefs, subFocusByGoal, subFocusPctByGoal: subFocusPctSanitized ?? {} };
+}
 
 type RemoteSyncStatus = "idle" | "loading" | "ready" | "error";
 
@@ -53,6 +63,12 @@ type AppStateContextValue = {
   manualWeekPlan: ManualWeekPlan | null;
   /** Adaptive mode: goals/sports/etc. from first page; used on schedule page to generate plan. */
   adaptiveSetup: AdaptiveSetup | null;
+  /**
+   * Ephemeral manual Goal-Oriented flow: which `/manual/preferences` variant (day vs week) navigation should target.
+   * Not persisted.
+   */
+  manualGoalPreferencesScope: ManualGoalPreferencesScope;
+  setManualGoalPreferencesScope: (scope: ManualGoalPreferencesScope) => void;
   setActiveGymProfile: (id: string) => void;
   addGymProfile: (profile: Omit<GymProfile, "id" | "isActive">) => void;
   updateGymProfile: (id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => void;
@@ -113,7 +129,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const active = profiles.find((p) => p.isActive) ?? profiles[0];
       setActiveGymProfileId(active?.id ?? null);
     }
-    if (prefs) setManualPreferences(prefs);
+    if (prefs) setManualPreferences(sanitizeManualPreferenceSubLayers(prefs));
     setPreferencePresets(presets);
     setWorkoutHistory(history);
     setSavedWorkouts(saved);
@@ -161,6 +177,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [sportPrepWeekPlan, setSportPrepWeekPlan] = useState<PlanWeekResult | null>(null);
   const [manualWeekPlan, setManualWeekPlan] = useState<ManualWeekPlan | null>(null);
   const [adaptiveSetup, setAdaptiveSetup] = useState<AdaptiveSetup | null>(null);
+  const [manualGoalPreferencesScope, setManualGoalPreferencesScope] =
+    useState<ManualGoalPreferencesScope>("day");
   const manualPreferencesPersistQueueRef = useRef<{
     persistUserId: string;
     enqueue: (preferences: ManualPreferences) => void;
@@ -407,7 +425,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const updateManualPreferences = useCallback((update: Partial<ManualPreferences>) => {
     setManualPreferences((prev) => {
-      const next = { ...prev, ...update };
+      const next = sanitizeManualPreferenceSubLayers({ ...prev, ...update });
       if (persist && userId) {
         touchPersistedStateDuringRemoteLoad();
         if (
@@ -538,6 +556,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       sportPrepWeekPlan,
       manualWeekPlan,
       adaptiveSetup,
+      manualGoalPreferencesScope,
+      setManualGoalPreferencesScope,
       setActiveGymProfile,
       addGymProfile,
       updateGymProfile,
@@ -549,7 +569,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const preset = preferencePresets.find((p) => p.id === id);
         if (!preset) return;
         if (persist && userId) touchPersistedStateDuringRemoteLoad();
-        setManualPreferences(preset.preferences);
+        setManualPreferences(sanitizeManualPreferenceSubLayers(preset.preferences));
       },
       updateManualPreferences,
       setGeneratedWorkout,
@@ -584,6 +604,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       sportPrepWeekPlan,
       manualWeekPlan,
       adaptiveSetup,
+      manualGoalPreferencesScope,
       remoteSyncStatus,
       remoteSyncError,
       remoteSyncSkippedMerge,
@@ -603,6 +624,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setSportPrepWeekPlan,
       setManualWeekPlan,
       setAdaptiveSetup,
+      setManualGoalPreferencesScope,
       reloadRemoteAppState,
       dismissRemoteSyncSkippedMerge,
       persist,

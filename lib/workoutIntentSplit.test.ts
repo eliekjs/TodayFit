@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeDeclaredIntentSplitFromPrefs } from "./workoutIntentSplit";
+import { workoutSessionToGeneratedWorkout } from "./dailyGeneratorAdapter";
+import type { ManualPreferences } from "./types";
 
 describe("workoutIntentSplit", () => {
   it("includes goal sub-focus slices that sum to 100%", () => {
@@ -43,5 +45,67 @@ describe("workoutIntentSplit", () => {
     expect(split[0]!.pct).toBeGreaterThanOrEqual(61);
     expect(split[0]!.pct).toBeLessThanOrEqual(63);
     expect(split[1]!.pct).toBe(100 - split[0]!.pct);
+  });
+
+  it("keeps generated workout header percentages on declared sub-goal weights", () => {
+    const prefs: ManualPreferences = {
+      primaryFocus: ["Build Strength", "Build Muscle"],
+      targetBody: null,
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      subFocusByGoal: {
+        "Build Strength": ["Squat"],
+        "Build Muscle": ["Glutes"],
+      },
+      goalMatchPrimaryPct: 60,
+      goalMatchSecondaryPct: 40,
+      goalMatchTertiaryPct: 0,
+      workoutTier: "intermediate",
+    };
+
+    const workout = workoutSessionToGeneratedWorkout(
+      {
+        title: "Strength",
+        estimated_duration_minutes: 45,
+        blocks: [
+          {
+            block_type: "main_strength",
+            format: "straight_sets",
+            items: [
+              {
+                exercise_id: "squat",
+                exercise_name: "Squat",
+                sets: 3,
+                reps: 5,
+                rest_seconds: 120,
+                coaching_cues: "",
+                reasoning_tags: ["strength"],
+                session_intent_links: { goals: ["strength"] },
+              },
+            ],
+          },
+        ],
+      },
+      prefs,
+      "w_test",
+      {
+        duration_minutes: 45,
+        primary_goal: "strength",
+        secondary_goals: ["hypertrophy"],
+        goal_weights: [0.6, 0.4],
+        goal_sub_focus: { strength: ["squat"], muscle: ["glutes"] },
+        goal_sub_focus_weights: { strength: [1], muscle: [1] },
+        energy_level: "medium",
+        available_equipment: ["bodyweight"],
+        injuries_or_constraints: [],
+      }
+    );
+
+    expect(workout.intentSplit?.map((entry) => entry.pct)).toEqual([60, 40]);
+    expect(workout.intentSplit?.every((entry) => entry.kind === "goal_sub_focus")).toBe(true);
   });
 });
