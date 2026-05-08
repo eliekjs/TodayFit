@@ -1212,7 +1212,7 @@ export default function AdaptiveModeScreen() {
               )}
               {sports.length > 0 && filteredSportsFlat.length === 0 && (
                 <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
-                  No sports match "{sportsSearch}".
+                  {`No sports match "${sportsSearch}".`}
                 </Text>
               )}
               <View style={styles.chipGroup} key={`sport-picker-${selectedSportSlugs.join(",")}`}>

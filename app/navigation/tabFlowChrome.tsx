@@ -21,7 +21,14 @@ export function FilteredTabBar(props: BottomTabBarProps) {
   const filteredRoutes = state.routes.filter((r) => isTabVisible(String(r.name)));
   const currentRoute = state.routes[state.index];
   const filteredIndex = filteredRoutes.findIndex((r) => r.key === currentRoute?.key);
-  const activeIndex = filteredIndex >= 0 ? filteredIndex : 0;
+  /** Flow screens (manual/*, sport-mode/*) are not tab routes; highlight Today, not Library. */
+  const todayFilteredIndex = filteredRoutes.findIndex((r) => String(r.name) === "index");
+  const activeIndex =
+    filteredIndex >= 0
+      ? filteredIndex
+      : todayFilteredIndex >= 0
+        ? todayFilteredIndex
+        : 0;
   const filteredState = {
     ...state,
     routes: filteredRoutes,

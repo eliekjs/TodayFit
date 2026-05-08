@@ -21,7 +21,6 @@ const LOGO_BG = "#2dd4bf"; // vibrant teal (rounded square behind icon)
 const TAGLINE_GREEN = "#86efac"; // light green slogan
 const FROSTED_CARD = "rgba(255,255,255,0.08)";
 const INPUT_BG = "rgba(0,0,0,0.25)";
-const FORGOT_GREEN = "#4ade80";
 const BTN_GRADIENT_LEFT = "#22c55e";
 const BTN_GRADIENT_RIGHT = "#3b82f6";
 const SOCIAL_BG = "rgba(0,0,0,0.2)";
@@ -96,10 +95,14 @@ export default function WelcomeScreen() {
                 pointerEvents="none"
               />
 
+              <Text style={styles.previewHint}>
+                Preview build: sign-in fields are placeholders. Tap below to use the app.
+              </Text>
+
               {isLogin && (
-                <Pressable onPress={enterApp} style={styles.forgotWrap}>
-                  <Text style={styles.forgotText}>Forgot password?</Text>
-                </Pressable>
+                <Text style={styles.forgotStatic}>
+                  Forgot password? Recovery is not available in this preview.
+                </Text>
               )}
 
               <Pressable
@@ -113,7 +116,7 @@ export default function WelcomeScreen() {
                   style={styles.primaryBtn}
                 >
                   <Text style={styles.primaryBtnText}>
-                    {isLogin ? "Login" : "Create Account"}
+                    Continue to app
                   </Text>
                 </LinearGradient>
               </Pressable>
@@ -233,16 +236,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputLast: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  forgotWrap: {
-    alignSelf: "flex-end",
-    marginBottom: 20,
+  previewHint: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.62)",
+    textAlign: "center",
+    marginBottom: 14,
+    lineHeight: 18,
   },
-  forgotText: {
-    fontSize: 14,
-    color: FORGOT_GREEN,
-    fontWeight: "500",
+  forgotStatic: {
+    fontSize: 13,
+    alignSelf: "center",
+    textAlign: "center",
+    marginBottom: 16,
+    color: "rgba(255,255,255,0.45)",
+    fontWeight: "400",
   },
   primaryBtnWrap: {
     marginBottom: 20,
