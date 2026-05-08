@@ -78,21 +78,19 @@ export default function WelcomeScreen() {
               </View>
 
               <TextInput
-                style={styles.input}
+                style={[styles.input, styles.inputNonInteractive]}
                 placeholder="Email"
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={false}
-                pointerEvents="none"
               />
               <TextInput
-                style={[styles.input, styles.inputLast]}
+                style={[styles.input, styles.inputLast, styles.inputNonInteractive]}
                 placeholder="Password"
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 secureTextEntry
                 editable={false}
-                pointerEvents="none"
               />
 
               <Text style={styles.previewHint}>
@@ -234,6 +232,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#fff",
     marginBottom: 12,
+  },
+  inputNonInteractive: {
+    pointerEvents: "none",
   },
   inputLast: {
     marginBottom: 10,
