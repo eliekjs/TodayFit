@@ -107,9 +107,28 @@ Week URL: `/manual/preferences?scope=week`
 
 ## Last run log (paste session notes)
 
-_Date / branch / tester / platform (web iOS/Android)_
+| Field | Value |
+|--------|--------|
+| Date | 2026-05-08 (continuation pass) |
+| Branch | `ux/product-flow-pass-2026-05-08` |
+| Platform | Web, `http://localhost:8082`, mobile-width canvas |
 
--
+**Completed this session**
+
+- **B1** Today hub (`/`) — headline present (`Customize` in DOM).
+- **C1–C4** Manual preferences — collapsible **buttons** visible in a11y tree; **clicks intercepted** by a full-width overlay `<div>` at top of viewport (same on `sport-mode?scope=day`) so sections could not be toggled via automation on this canvas.
+- **C5** Not re-run (blocked by overlay); prior session: generate path works when CTA reachable.
+- **D1** `/manual/week` — loads with title **This week’s workouts** (had persisted week state).
+- **D2** `/manual/workout` — **Today’s Workout** (persisted generated workout).
+- **D3** `/manual/execute` — **Execute** title; route OK.
+- **D4** Not exercised (complete → history).
+- **E1** `/library` — OK.
+- **E3** `/history/weeks/test-id` — dev-style route label in tree; screen requires auth/DB for real data (see `history/weeks/[id].tsx`).
+- **F2** `sport-mode?scope=day` — extra sections vs week-only sport (session length, body emphasis) visible in tree.
+- **F3** `/sport-mode/schedule`, `/sport-mode/recommendation` — direct navigation OK (titles present).
+- **G1** `/profiles` — **Gym Profile**; no stray Library/Today **headings** in this snapshot (improved vs earlier pass).
+- **H2** Hard navigation to `/manual/workout` after other routes — persisted workout still loads.
+- **H3** `npm run lint` — **0 errors**, 19 warnings (unchanged class).
 
 ---
 
@@ -118,3 +137,4 @@ _Date / branch / tester / platform (web iOS/Android)_
 1. **Build workout (web):** Visual overlap between native-style header chrome and inline actions (“Reset”, “Save preset”, hero)—treat as **web stacking / safe-area** issue; verify with responsive widths.
 2. **A11y tree:** Routes like `/profiles` sometimes still expose headings for **Library** and **Today** in addition to **Gym Profile**—possible hidden tab scaffold on web worth auditing.
 3. **Week prefs document title:** `navigation.setOptions` updates OS header; DOM-level `heading`/`title` may lag—confirm with manual visual check after load.
+4. **Web automation / hit-testing (2026-05-08 follow-up):** Flow screens (`manual/preferences`, `sport-mode?scope=day`) report **click target intercepted** by a non-interactive top `<div>` (~372×64 or larger strip). Likely stacked header / safe-area / ornament; blocks Playwright-style ref clicks until z-index or pointer-events fixed.
