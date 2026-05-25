@@ -35,6 +35,7 @@ import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
 import { collectWorkoutExerciseIds, replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   getSwapSuggestionsPage,
   blockTypeToSwapBlockRole,
@@ -126,6 +127,8 @@ export default function AdaptiveWeekPlanScreen() {
     setResumeProgress,
     setManualSessionProgress,
     setManualExecutionStarted,
+    workoutHistory,
+    savedWorkouts,
   } = useAppState();
 
   const [selectedSession, setSelectedSession] = useState<PlannedDay | null>(null);
@@ -796,7 +799,8 @@ export default function AdaptiveWeekPlanScreen() {
       normalizeGeneratedWorkout(selectedWorkout),
       swapModal.exerciseId,
       optionId,
-      optionName
+      optionName,
+      getCuratedExerciseDescription(optionId)
     );
     const norm = normalizeGeneratedWorkout(updatedWorkout);
     setSportPrepWeekPlan({
@@ -845,6 +849,11 @@ export default function AdaptiveWeekPlanScreen() {
         ],
         dailyPreferences: mergedDaily,
         avoidRepeatingExerciseIds: collectWorkoutExerciseIds(selectedWorkout),
+        historySources: {
+          workoutHistory,
+          savedWorkouts,
+          regenerationAvoidExerciseIds: collectWorkoutExerciseIds(selectedWorkout),
+        },
         injuries: regenerateGeneratorContext.injuries,
         subFocusByGoal: regenerateGeneratorContext.subFocusByGoal,
         subFocusPctByGoal: regenerateGeneratorContext.subFocusPctByGoal ?? undefined,

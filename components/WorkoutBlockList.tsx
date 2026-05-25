@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTheme } from "../lib/theme";
 import type { BlockType, GeneratedWorkout, WorkoutBlock, WorkoutItem } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
+import { formatExerciseDisplayCue } from "../lib/exerciseDisplayCue";
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
 
 // ─── Intent chip helpers ────────────────────────────────────────────────────
@@ -336,6 +337,15 @@ function renderBlockContent(
         </Text>
       </View>
     ) : null;
+  const cueFor = (item: WorkoutItem) => {
+    const cue = formatExerciseDisplayCue(item);
+    if (!cue) return null;
+    return (
+      <Text style={[styles.exerciseCue, { color: theme.textMuted }]} numberOfLines={4}>
+        {cue}
+      </Text>
+    );
+  };
   if (pairs && pairs.length > 0) {
     return (
       <>
@@ -369,6 +379,7 @@ function renderBlockContent(
                     >
                       {formatPrescription(item, { includeRest: false })}
                     </Text>
+                    {cueFor(item)}
                     {showTags && (item.tags?.length ?? 0) > 0 && (
                       <View style={styles.tagsRow}>
                         {(item.tags ?? []).slice(0, 3).map((tag) => (
@@ -423,6 +434,7 @@ function renderBlockContent(
             >
               {formatPrescription(item, { includeRest: true })}
             </Text>
+            {cueFor(item)}
             {showTags && (item.tags?.length ?? 0) > 0 && (
               <View style={styles.tagsRow}>
                 {(item.tags ?? []).slice(0, 3).map((tag) => (
@@ -505,6 +517,11 @@ const styles = StyleSheet.create({
   exercisePrescription: {
     fontSize: 13,
     marginTop: 2,
+  },
+  exerciseCue: {
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 17,
   },
   tagsRow: {
     flexDirection: "row",

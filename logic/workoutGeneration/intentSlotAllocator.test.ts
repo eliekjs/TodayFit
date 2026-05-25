@@ -5,8 +5,10 @@ import {
   allocateSlotsAcrossLeaves,
   deriveLeafEntries,
   estimateIntentWorkingExerciseSlots,
+  isMainWorkCandidateForIntentEntry,
   isIntentMainWorkCandidate,
   isPowerStyleSportIntentEntry,
+  isStabilityPrehabSportIntentEntry,
   mainWorkPrimaryForIntentEntry,
   matchesIntentEntry,
   primaryGoalToSubFocusKey,
@@ -121,6 +123,73 @@ describe("mainWorkPrimaryForIntentEntry", () => {
     };
     expect(isPowerStyleSportIntentEntry(entry)).toBe(true);
     expect(mainWorkPrimaryForIntentEntry(entry, "strength")).toBe("power");
+  });
+
+  it("does not route stability/prehab sport sub-focuses into main compound slots", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "knee_resilience",
+      parent_slug: "volleyball",
+      rank: 1,
+      weight: 0.4,
+      tag_slugs: ["knee_stability"],
+    };
+    const squat: Exercise = {
+      id: "pause_squat",
+      name: "Pause Squat",
+      modality: "strength",
+      movement_pattern: "squat",
+      muscle_groups: ["quads"],
+      tags: {
+        sport_tags: ["volleyball"],
+        goal_tags: ["strength"],
+        attribute_tags: ["knee_stability", "eccentric_quad_strength"],
+      },
+      exercise_role: "main_compound",
+    } as Exercise;
+    expect(isStabilityPrehabSportIntentEntry(entry)).toBe(true);
+    expect(isMainWorkCandidateForIntentEntry(squat, entry, "strength")).toBe(false);
+  });
+
+  it("requires dynamic evidence for explosive jump main-work candidates", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "vertical_jump",
+      parent_slug: "volleyball",
+      rank: 1,
+      weight: 0.4,
+      tag_slugs: ["explosive_power", "plyometric"],
+    };
+    const heavySquat: Exercise = {
+      id: "heavy_squat",
+      name: "Heavy Squat",
+      modality: "strength",
+      movement_pattern: "squat",
+      muscle_groups: ["quads"],
+      tags: {
+        sport_tags: ["volleyball"],
+        goal_tags: ["power"],
+        attribute_tags: ["squat_pattern"],
+      },
+      exercise_role: "main_compound",
+    } as Exercise;
+    const jump: Exercise = {
+      ...heavySquat,
+      id: "approach_jump",
+      name: "Approach Jump",
+      modality: "power",
+      movement_pattern: "locomotion",
+      tags: {
+        sport_tags: ["volleyball"],
+        goal_tags: ["power"],
+        stimulus: ["plyometric"],
+        attribute_tags: ["explosive_power", "reactive_power"],
+      },
+      exercise_role: "accessory",
+      impact_level: "medium",
+    } as Exercise;
+    expect(isMainWorkCandidateForIntentEntry(heavySquat, entry, "power")).toBe(false);
+    expect(isMainWorkCandidateForIntentEntry(jump, entry, "power")).toBe(true);
   });
 
   it("keeps compatible non-speed sport leaves on the session primary", () => {

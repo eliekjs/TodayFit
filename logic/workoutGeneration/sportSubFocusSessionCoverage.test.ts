@@ -142,6 +142,37 @@ describe("sport sub-focus session coverage", () => {
     expect(exerciseMatchesSportSubFocusForCoverage(SYNTH_RUGBY_SPEED, "rugby", "speed_power")).toBe(true);
   });
 
+  it("requires dynamic movement evidence for vertical jump coverage", () => {
+    const slowSquat = {
+      ...SYNTH_RUGBY_SPEED,
+      id: "synth_volleyball_slow_squat",
+      name: "Synthetic Volleyball Slow Squat",
+      modality: "strength",
+      tags: {
+        goal_tags: ["power"],
+        sport_tags: ["volleyball"],
+        attribute_tags: ["squat_pattern"],
+      },
+      exercise_role: "main_compound",
+    } as Exercise;
+    const reactiveJump = {
+      ...SYNTH_RUGBY_SPEED,
+      id: "synth_volleyball_reactive_jump",
+      name: "Synthetic Volleyball Reactive Jump",
+      modality: "power",
+      tags: {
+        goal_tags: ["power"],
+        sport_tags: ["volleyball"],
+        stimulus: ["plyometric"],
+        attribute_tags: ["explosive_power", "reactive_power"],
+      },
+      movement_pattern: "locomotion",
+      exercise_role: "accessory",
+    } as Exercise;
+    expect(exerciseMatchesSportSubFocusForCoverage(slowSquat, "volleyball", "vertical_jump")).toBe(false);
+    expect(exerciseMatchesSportSubFocusForCoverage(reactiveJump, "volleyball", "vertical_jump")).toBe(true);
+  });
+
   it("adds coverage so both golf and rugby sport_sub_focus appear in matched_intents on training work", () => {
     const prefs: ManualPreferences = {
       primaryFocus: ["Athletic Performance"],

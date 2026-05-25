@@ -1,0 +1,1619 @@
+{
+  "version": 1,
+  "entries": {
+    "goblet_squat": {
+      "description": "Hold one dumbbell vertically at chest height with feet about shoulder width. Sit the hips down between the heels, keeping the chest tall and knees tracking with the toes. Drive through the whole foot to stand, and avoid tipping forward or letting the knees cave in.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "rdl_dumbbell": {
+      "description": "Stand tall with dumbbells in front of the thighs and knees softly bent. Push the hips back while the weights skim close to the legs until you feel hamstring tension. Stand by driving the hips forward, and keep the back long instead of rounding to chase depth.",
+      "sources": [
+        "https://blog.nasm.org/romanian-deadlift",
+        "https://exrx.net/WeightExercises/Hamstrings/DBRomanianDeadlift"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "split_squat": {
+      "description": "Place the rear foot on a bench and set the front foot far enough forward to lower straight down. Bend the front knee and back knee until the front thigh is near parallel. Press through the front foot to rise, keeping the front knee over the middle toes instead of collapsing inward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBLunge",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "bench_press_barbell": {
+      "description": "Lie on the bench with eyes under the bar, feet planted, and shoulder blades pulled back. Lower the bar toward the mid-chest with elbows slightly tucked. Press up until the arms are straight, keeping the wrists stacked and the hips on the bench.",
+      "sources": [
+        "https://exrx.net/WeightExercises/PectoralSternal/BBBenchPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "db_bench": {
+      "description": "Lie on a bench with a dumbbell in each hand at chest height and feet planted. Press the weights up over the chest, then lower them until the elbows are just below the bench line. Keep shoulder blades set and avoid letting the dumbbells drift behind the shoulders.",
+      "sources": [
+        "https://exrx.net/WeightExercises/PectoralSternal/DBBenchPress",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "oh_press": {
+      "description": "Stand with the bar at the front of the shoulders and hands just outside shoulder width. Brace the ribs down, press the bar overhead, and move the head through once the bar clears the face. Finish with biceps near the ears without leaning back to turn it into a chest press.",
+      "sources": [
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "pullup": {
+      "description": "Hang from the bar with hands overhand and shoulders pulled away from the ears. Drive elbows down and pull the chest toward the bar, using assistance if needed to keep the motion smooth. Lower until the arms are long again, avoiding kicks or swinging reps.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "lat_pulldown": {
+      "description": "Sit tall with thighs secured and grip the bar slightly wider than the shoulders. Pull the bar to the upper chest by driving elbows down and back. Let the arms reach up again without shrugging or leaning far behind the cable.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/CBPulldown"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "db_row": {
+      "description": "Set one hand and knee on a bench with the other foot on the floor. Pull the dumbbell toward the hip, keeping the elbow close and the back flat. Pause briefly at the top, then lower without twisting the torso open.",
+      "sources": [
+        "https://exrx.net/WeightExercises/BackGeneral/DBBentOverRow",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "plank": {
+      "description": "Set forearms on the floor with elbows under shoulders and legs straight behind you. Brace the abs and glutes so the body forms one line from head to heels. Keep breathing and avoid sagging the hips or hiking them high.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "dead_bug": {
+      "description": "Lie on your back with knees over hips and arms reaching toward the ceiling. Brace so the low back stays heavy on the floor as you extend the opposite arm and leg. Return slowly and switch sides, stopping the reach before the back arches.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "hip_thrust": {
+      "description": "Sit with the upper back against a bench and the bar padded across the hips. Drive through the heels to lift the hips until the torso is level with the floor. Tuck the ribs down and finish with the glutes, not by over-arching the lower back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "kb_swing": {
+      "description": "Stand with a kettlebell just in front of the feet and hinge to grab the handle. Hike it back between the legs, then snap the hips forward so the bell floats to chest height. Keep arms relaxed and avoid squatting the bell up with the shoulders.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/blog/6823/how-to-do-a-kettlebell-swing/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "farmer_carry": {
+      "description": "Stand tall with a heavy weight in each hand at your sides. Walk with short steady steps while keeping shoulders down and ribs stacked over hips. Avoid leaning, shrugging, or letting the weights swing into the legs.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/RectusAbdominis/DBFarmersWalk"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "band_pullapart": {
+      "description": "Hold a light band at chest height with arms straight and hands shoulder width. Pull the hands apart until the band reaches the chest, then return with tension. Keep ribs down and avoid shrugging or bending the elbows to finish the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nasm.org/exercise-library/band-pull-apart"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "face_pull": {
+      "description": "Set a cable rope around upper-chest height and hold the ends with thumbs pointing back. Pull the rope toward the face while elbows travel out and slightly back. Pause with shoulder blades drawn together, avoiding a low row or a backward lean.",
+      "sources": [
+        "https://www.nasm.org/exercise-library/cable-face-pull",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "walking_lunge": {
+      "description": "Stand tall, step forward, and lower until both knees bend to about right angles. Push through the front foot and bring the back leg through into the next step. Keep the torso upright and the front knee tracking over the toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBLunge",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "stepup": {
+      "description": "Stand facing a sturdy box or bench with one foot fully on top. Drive through the working foot to stand tall on the box, then step down with control. Keep the knee aligned over the toes and avoid pushing off hard from the floor leg.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBStepUp",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "cat_camel": {
+      "description": "Start on hands and knees with hands under shoulders and knees under hips. Slowly round the back toward the ceiling, then gently arch it while lifting the chest. Move one segment at a time and avoid forcing the end positions.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/15/cat-cow/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "t_spine_rotation": {
+      "description": "Start on hands and knees and place one hand lightly behind the head. Rotate the elbow down toward the opposite wrist, then open the chest and elbow toward the ceiling. Keep the hips mostly still so the motion comes from the upper back.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "zone2_bike": {
+      "description": "Set the bike so the knee stays slightly bent at the bottom of each pedal stroke. Pedal at a steady pace you could sustain while speaking in short sentences. Keep shoulders relaxed and avoid bouncing in the saddle as fatigue builds.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/blog/5683/indoor-cycling-bike-setup/",
+        "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "zone2_treadmill": {
+      "description": "Walk or run at a steady incline or speed that lets you breathe rhythmically and speak in short sentences. Keep posture tall, arms relaxed, and feet landing under the body. Avoid racing the pace early; the goal is a smooth sustainable effort.",
+      "sources": [
+        "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "zone2_rower": {
+      "description": "Sit tall on the rower with shins near vertical and arms long. Drive with the legs first, then swing the torso slightly back and pull the handle to the lower ribs. Recover in reverse order and avoid yanking with the arms before the legs push.",
+      "sources": [
+        "https://www.concept2.com/training/technique/rowing-machine-technique",
+        "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "zone2_stair_climber": {
+      "description": "Stand tall on the stair climber and use the rails only for light balance. Step at a steady pace you can maintain while breathing under control. Keep the whole foot on each step and avoid leaning your body weight into your hands.",
+      "sources": [
+        "https://www.verywellfit.com/stair-climbing-workouts-3498682",
+        "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "treadmill_sprint_intervals": {
+      "description": "Warm up, then set a speed where each sprint can stay powerful and controlled. Run tall with quick arm drive, feet landing under the hips, and eyes forward. Step off or slow down for recovery before form breaks down.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "leg_press_machine": {
+      "description": "Sit with the back flat against the pad and feet about shoulder width on the platform. Lower the sled until the knees bend comfortably, then press it away without locking the knees hard. Keep the knees tracking over the toes and the hips from curling off the pad.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/LVLegPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "worlds_greatest_stretch": {
+      "description": "Step into a long lunge with both hands inside the front foot. Drop the hips, then rotate the inside arm toward the ceiling while following the hand with your eyes. Keep the back leg long and move slowly instead of bouncing through the stretch.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "hip_90_90": {
+      "description": "Sit with one leg bent in front at about 90 degrees and the other bent to the side at about 90 degrees. Keep the chest tall as you rotate both knees to switch sides. Use the hands for balance as needed, and avoid forcing the hips through a pinchy range.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "frog_stretch": {
+      "description": "Start on hands and knees, then slide the knees wide with the inner edges of the feet on the floor. Shift the hips back until you feel a stretch through the inner thighs. Keep the spine neutral and ease out if the knees feel twisted.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "pigeon_stretch": {
+      "description": "From a plank or tabletop, bring one shin forward and let the back leg extend behind you. Square the hips as much as comfortable, then lower to the hands or forearms. Keep the front foot relaxed and avoid forcing the knee angle.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "childs_pose": {
+      "description": "Kneel with big toes together and knees comfortable, then sit the hips back toward the heels. Reach the arms forward and let the chest soften toward the floor. Breathe slowly and avoid jamming the shoulders up by the ears.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "thread_needle": {
+      "description": "Start on hands and knees, then slide one arm under the chest with the palm facing up. Let the shoulder and side of the head move toward the floor while the hips stay over the knees. Rotate gently and avoid collapsing all your weight into the neck.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "open_book_ts": {
+      "description": "Lie on your side with knees bent and arms reaching straight in front of the chest. Open the top arm across the body toward the floor behind you, following it with your eyes. Keep the knees stacked so the twist comes from the upper back, not the low back.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "sleeper_stretch": {
+      "description": "Lie on your side with the lower shoulder and elbow bent to about 90 degrees. Use the top hand to gently guide the forearm toward the floor. Keep the shoulder blade set and stop before the front of the shoulder feels pinched.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "cross_body_stretch": {
+      "description": "Bring one arm across the chest at shoulder height. Use the other arm to draw it closer while keeping the shoulder down. Hold steady and avoid twisting the torso to make the stretch feel bigger.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "lat_stretch_door": {
+      "description": "Hold a door frame or sturdy post with one hand around shoulder height. Sit the hips back and slightly away until you feel the side of the back lengthen. Keep the ribs from flaring and avoid pulling with a bent wrist.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "standing_hamstring_stretch": {
+      "description": "Stand tall and place one heel on the floor or a low step with toes up. Hinge forward from the hips until the back of the thigh stretches. Keep the back long and avoid rounding down toward the knee.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "figure_four_stretch": {
+      "description": "Lie on your back and cross one ankle over the opposite thigh. Pull the uncrossed leg toward the chest until the outside hip stretches. Keep the head relaxed and avoid pressing directly on the knee joint.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "standing_quad_stretch": {
+      "description": "Stand tall and hold a wall or rail for balance. Bend one knee, catch the ankle, and bring the heel toward the glute. Keep knees close together and ribs down instead of arching the back.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "calf_stretch_wall": {
+      "description": "Face a wall with one foot forward and the other leg straight behind you. Press the back heel down as you lean the hips toward the wall. Keep the rear toes pointing forward and avoid bouncing.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://exrx.net/WeightExercises/Gastrocnemius/BWStandingCalfRaise"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "hip_flexor_stretch": {
+      "description": "Kneel with one foot forward and the back knee on a pad. Tuck the pelvis slightly, squeeze the back-side glute, and shift the hips forward. Keep the ribs stacked over the hips instead of leaning back.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "chest_stretch_doorway": {
+      "description": "Place one forearm on a door frame with the elbow around shoulder height. Step through slowly until the front of the chest opens. Keep the shoulder down and avoid turning the stretch into a low-back arch.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "breathing_diaphragmatic": {
+      "description": "Lie on your back or sit tall with one hand on the chest and one on the belly. Inhale through the nose so the lower ribs and belly expand, then exhale slowly. Keep the shoulders quiet and avoid lifting the chest on every breath.",
+      "sources": [
+        "https://my.clevelandclinic.org/health/articles/9445-diaphragmatic-breathing",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "inchworm": {
+      "description": "Stand tall, hinge at the hips, and walk the hands out to a high plank. Pause with shoulders over wrists, then walk the feet toward the hands or hands back toward the feet. Keep the hips from sagging in the plank and soften the knees if the hamstrings limit the hinge.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://blog.nasm.org/how-to-do-a-push-up"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "standing_hip_circle": {
+      "description": "Stand tall and hold a wall or rack lightly for balance. Lift one knee, circle it out and around, then reverse the path with slow control. Keep the pelvis level and avoid leaning the torso to create extra motion.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/balance-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "90_90_hip_switch": {
+      "description": "Sit with both knees bent to about 90 degrees and hands behind you if needed. Rotate the knees side to side, letting the hips turn while the chest stays tall. Move within a smooth range and avoid forcing the knees to the floor.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "push_up": {
+      "description": "Start in a high plank with hands just outside the shoulders and feet set behind you. Lower the chest toward the floor with elbows angled back, then press the floor away. Keep the body in one line and avoid letting the hips sag first.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "australian_pull_up": {
+      "description": "Set a bar around waist height and hang under it with heels on the floor. Pull the chest toward the bar by driving elbows back, then lower until the arms are long. Keep the body straight and avoid shrugging at the top.",
+      "sources": [
+        "https://exrx.net/WeightExercises/BackGeneral/BWSupineRow",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "tricep_dip_bench": {
+      "description": "Sit on the edge of a bench with hands beside the hips and feet forward. Slide the hips just off the bench, bend the elbows to lower, then press back up. Keep the chest open and avoid letting shoulders roll forward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Triceps/BWBenchDip",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "glute_bridge": {
+      "description": "Lie on your back with knees bent and feet flat near the hips. Press through the heels to lift the hips until shoulders, hips, and knees line up. Squeeze the glutes at the top and avoid arching the low back to get higher.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "single_leg_glute_bridge": {
+      "description": "Lie on your back with one foot planted and the other leg lifted. Drive through the planted heel to raise the hips while keeping the pelvis level. Lower slowly and avoid twisting toward the lifted leg.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "bodyweight_squat": {
+      "description": "Stand with feet about shoulder width and toes slightly turned out. Sit the hips down and back while the knees track over the toes, then stand tall. Keep the chest lifted and avoid collapsing the arches or knees inward.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://exrx.net/WeightExercises/Quadriceps/DBSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "mountain_climber": {
+      "description": "Start in a high plank with shoulders over wrists. Drive one knee toward the chest, switch legs, and keep a steady plank as the feet move. Brace the ribs down and avoid bouncing the hips high.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "burpee": {
+      "description": "Stand tall, squat down, and place the hands on the floor. Step or jump back to a plank, return the feet under you, and stand or jump up. Land softly and keep the plank firm instead of letting the hips sag.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://blog.nasm.org/how-to-do-a-push-up"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "close_grip_push_up": {
+      "description": "Start in a high plank with hands under or just inside the shoulders. Lower with elbows tracking close to the ribs, then press back up. Keep the body straight and avoid flaring the elbows wide as reps get hard.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "inverted_row_feet_elevated": {
+      "description": "Set a bar around waist height and place the heels on a box or bench. Hang with arms long, then pull the chest to the bar while keeping the body straight. Lower under control and avoid letting the hips drop.",
+      "sources": [
+        "https://exrx.net/WeightExercises/BackGeneral/BWSupineRow",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "box_jump": {
+      "description": "Stand a short step from a sturdy box with feet about hip width. Dip into a quarter squat, swing the arms, and jump to land with the whole foot on the box. Land softly with knees tracking over toes, then step down instead of jumping down repeatedly.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/balance-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "jump_squat": {
+      "description": "Stand with feet about shoulder width and sit into a quick squat. Drive through the floor to jump, then land softly back into the next squat. Keep the knees aligned with the toes and stop before landings get loud or stiff.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/Quadriceps/DBSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "jump_lunge": {
+      "description": "Start in a split stance and lower until both knees bend. Jump straight up, switch legs in the air, and land softly in the opposite lunge. Keep the torso tall and land with the front knee over the middle toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBLunge",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "lateral_bound": {
+      "description": "Stand on one leg with the opposite foot hovering. Push sideways to the other leg and land softly with the knee bent. Stick the landing before the next rep and avoid letting the knee cave inward.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/balance-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "push_press": {
+      "description": "Start with the bar at the shoulders and feet about hip width. Dip a few inches by bending knees and hips, then drive up and press the bar overhead. Keep the torso vertical in the dip and avoid turning it into a deep squat.",
+      "sources": [
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "pause_squat": {
+      "description": "Set up for a squat with feet rooted and chest tall. Lower to the bottom position, pause without relaxing, then drive up through the whole foot. Keep knees tracking with toes during the pause instead of bouncing out of the bottom.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "pause_deadlift": {
+      "description": "Set up with the bar close to the shins and brace before lifting. Pull the bar from the floor, pause just below the knees, then finish by standing tall. Keep the lats tight and avoid letting the bar drift away during the pause.",
+      "sources": [
+        "https://blog.nasm.org/romanian-deadlift",
+        "https://exrx.net/WeightExercises/ErectorSpinae/BBDeadlift"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "pause_bench": {
+      "description": "Set up on the bench with feet planted and shoulder blades pulled back. Lower the bar to the mid-chest, pause briefly without sinking the shoulders, then press up. Keep wrists stacked over elbows and avoid bouncing the bar off the chest.",
+      "sources": [
+        "https://exrx.net/WeightExercises/PectoralSternal/BBBenchPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "lying_leg_curl": {
+      "description": "Lie on the machine with knees lined up near the pivot and the pad above the heels. Curl the pad toward the hips, then lower until the knees are almost straight. Keep the hips pressed into the pad and avoid jerking the weight.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Hamstrings/LVLyingLegCurl"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "seated_leg_curl": {
+      "description": "Sit in the machine with the knee joint lined up to the pivot and the pad behind the lower legs. Curl the heels down and back, then return slowly. Keep the hips against the seat and avoid lifting the thighs as you pull.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Hamstrings/LVLyingLegCurl"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "leg_extension": {
+      "description": "Sit in the machine with knees lined up to the pivot and the shin pad above the ankles. Extend the knees until the legs are straight, then lower with control. Keep the hips down and avoid swinging the pad up with momentum.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/LVLegExtension"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "chest_press_machine": {
+      "description": "Set the seat so the handles start around mid-chest. Press the handles forward until the arms are straight, then bring them back with control. Keep shoulder blades against the pad and avoid shrugging as you press.",
+      "sources": [
+        "https://exrx.net/WeightExercises/PectoralSternal/LVChestPress",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "cable_row": {
+      "description": "Sit tall with feet braced and arms reaching toward the cable. Pull the handle to the lower ribs by driving elbows back, then return until arms are long. Keep the chest up and avoid rocking the torso to move the weight.",
+      "sources": [
+        "https://exrx.net/WeightExercises/BackGeneral/CBStraightBackSeatedRow",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "chin_up": {
+      "description": "Hang from the bar with palms facing you and arms long. Pull the chest toward the bar by driving elbows down, then lower under control. Keep legs quiet and avoid craning the neck to finish the rep.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWUnderhandChinup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "scapular_pull_up": {
+      "description": "Hang from a bar with arms straight and shoulders relaxed but active. Pull the shoulder blades down to lift the body slightly without bending the elbows, then return slowly. Keep ribs down and avoid turning it into a full pull-up.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "dead_hang": {
+      "description": "Grip a pull-up bar and step into a hanging position with feet off the floor or lightly assisted. Let the arms stay long while keeping a gentle brace through the ribs. Breathe steadily and avoid shrugging painfully into the ears.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "hanging_knee_raise": {
+      "description": "Hang from a bar with shoulders active and legs together. Tuck the knees toward the chest, then lower them without swinging. Start each rep from stillness and avoid using a big backward kick.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "hanging_leg_raise": {
+      "description": "Hang from a bar with shoulders active and legs straight or softly bent. Raise the legs toward the front of the body, then lower them slowly. Keep the motion controlled and avoid swinging the torso to start each rep.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "lying_leg_raise": {
+      "description": "Lie on your back with legs straight and hands by your sides or under the hips. Brace the abs, lower the legs toward the floor, then raise them back up. Stop the descent before the low back lifts away from the floor.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "hollow_body_hold": {
+      "description": "Lie on your back and press the low back into the floor. Lift the shoulders and legs, reaching arms long so the body forms a shallow curve. Keep breathing and bring the legs higher if the back starts to arch.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "hollow_rock": {
+      "description": "Start in a hollow hold with low back pressed into the floor and arms reaching overhead. Rock gently from shoulders to hips without changing the body shape. Keep the ribs down and make the movement smaller if the back arches.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "l_sit": {
+      "description": "Sit between parallettes or bars with hands pressing down beside the hips. Lock the arms, lift the hips, and extend both legs forward. Push the shoulders down away from the ears and avoid rounding so far that the feet drop.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "tuck_l_sit": {
+      "description": "Set hands on parallettes or bars beside the hips. Press down, lift the hips, and hold the knees tucked toward the chest. Keep elbows straight and shoulders depressed instead of hanging from the joints.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "foot_supported_l_sit": {
+      "description": "Sit between parallettes or blocks with heels lightly on the floor. Press the hands down to lift the hips while keeping the legs long. Use just enough heel support to stay tall, and avoid shrugging the shoulders.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "pike_push_up": {
+      "description": "Start in a pike position with hips high and hands on the floor. Bend the elbows to lower the head between the hands, then press back up. Keep hips high and avoid turning the rep into a regular push-up.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "incline_pike_push_up": {
+      "description": "Place hands on a box or bench and walk the feet in until the hips are high. Lower the head toward the hands, then press back up. Keep the torso angled down and avoid letting the elbows flare straight out.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "handstand_push_up_wall": {
+      "description": "Kick or walk into a wall-supported handstand with hands under shoulders. Lower the head toward the floor or pad, then press back up. Brace the ribs and keep elbows tracking back instead of flaring wide.",
+      "sources": [
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "decline_push_up": {
+      "description": "Place the feet on a bench or box and hands on the floor just outside the shoulders. Lower the chest toward the floor, then press back to a straight plank. Keep the hips level and avoid sliding the shoulders up toward the ears.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "archer_push_up": {
+      "description": "Start in a wide push-up stance. Shift the chest toward one hand as that elbow bends, keeping the other arm straighter, then press back to center. Keep the torso square and use a smaller range if the shoulder rolls forward.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "wide_push_up": {
+      "description": "Set up in a high plank with hands wider than shoulder width. Lower the chest between the hands, then press the floor away. Keep elbows angled slightly back and avoid letting the head drop ahead of the shoulders.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "diamond_push_up": {
+      "description": "Start in a high plank with hands close together under the chest. Lower with elbows tracking near the ribs, then press back up. Keep wrists comfortable and avoid letting the elbows flare wide as you fatigue.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ring_row": {
+      "description": "Hold the rings and lean back with arms straight and body in one line. Pull the rings toward the lower ribs, then lower until arms are long. Keep rings close to the body and avoid letting the hips sag.",
+      "sources": [
+        "https://exrx.net/WeightExercises/BackGeneral/BWSupineRow",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ring_push_up": {
+      "description": "Hold the rings under the shoulders and step back into a plank. Lower the chest between the rings, then press up while keeping the rings steady. Brace the body and avoid letting the rings drift far out to the sides.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ring_dip": {
+      "description": "Support yourself on rings with elbows straight and shoulders pressed down. Bend the elbows to lower until the shoulders stay comfortable, then press back up. Keep rings close and avoid letting shoulders roll forward at the bottom.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Triceps/BWDip",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ring_support_hold": {
+      "description": "Start above the rings with arms straight and rings close to the hips. Press the shoulders down and hold the body tall with legs quiet. Keep elbows locked out gently and avoid letting the rings drift away from your sides.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Triceps/BWDip",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "parallel_bar_support_hold": {
+      "description": "Stand between parallel bars and press through straight arms to lift the body. Keep shoulders down, ribs stacked, and legs still. Hold tall without shrugging or sinking between the shoulders.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Triceps/BWDip",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "bar_dip": {
+      "description": "Support yourself on parallel bars with arms straight and shoulders down. Bend the elbows to lower, then press back to the top. Keep the chest controlled and avoid dropping below a shoulder position you can own.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Triceps/BWDip",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "pistol_squat": {
+      "description": "Stand on one leg with the other leg reaching forward. Sit the hips down into a single-leg squat, then drive through the standing foot to rise. Keep the knee tracking over the toes and use a counterbalance if the heel wants to lift.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBSquat",
+        "https://www.nhs.uk/live-well/exercise/balance-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "assisted_pistol_squat": {
+      "description": "Hold a strap, post, or counterweight and stand on one leg. Lower into a pistol squat while using the assistance only as much as needed. Keep the working heel down and avoid pulling yourself up with the arms.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBSquat",
+        "https://www.nhs.uk/live-well/exercise/balance-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "shrimp_squat": {
+      "description": "Stand on one leg and bend the other knee behind you. Lower until the back knee moves toward the floor, then press through the standing foot to rise. Keep hips square and avoid diving the chest forward to find depth.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBSquat",
+        "https://www.nhs.uk/live-well/exercise/balance-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "nordic_curl": {
+      "description": "Kneel with ankles secured and body tall from knees to head. Slowly lean forward by extending the knees, then use the hamstrings and hands as needed to return. Keep hips extended and avoid folding at the waist.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Hamstrings/LVLyingLegCurl",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "nordic_curl_assisted": {
+      "description": "Kneel with ankles secured and hold a band or use the hands for help. Lower the body forward in one long line, then assist just enough to come back up. Keep glutes lightly squeezed so the hips do not hinge backward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Hamstrings/LVLyingLegCurl",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "bodyweight_calf_raise": {
+      "description": "Stand tall with feet hip width and a wall nearby for balance. Rise onto the balls of the feet, pause, then lower the heels slowly. Keep ankles tracking straight and avoid rolling to the outside edges of the feet.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Gastrocnemius/BWStandingCalfRaise",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "single_leg_calf_raise": {
+      "description": "Stand on one foot with light support from a wall or rail. Lift the heel as high as you can, pause, then lower with control. Keep the ankle stacked over the toes and avoid bouncing out of the bottom.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Gastrocnemius/BWStandingCalfRaise",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "skin_the_cat": {
+      "description": "Hang from rings or a bar with a firm grip and shoulders active. Tuck the knees and rotate the hips backward between the arms, then reverse the path slowly. Keep the movement small at first and avoid relaxing the shoulders at end range.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "wall_walk": {
+      "description": "Start in a push-up position with feet against a wall. Walk the feet up the wall as the hands move closer, stopping where you can stay braced. Walk back down under control and avoid letting the low back sag.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "wall_handstand_hold": {
+      "description": "Face away from a wall and walk or kick into a supported handstand. Press the floor away, stack ribs over hips, and keep legs active against the wall. Hold only as high as you can without arching hard through the low back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "scapular_push_up": {
+      "description": "Start in a high plank with arms straight and hands under shoulders. Let the chest sink slightly between the shoulder blades, then push the floor away to spread them apart. Keep elbows straight and avoid bending into a full push-up.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "wall_slide": {
+      "description": "Stand with back near a wall and ribs down. Slide the arms up and down the wall while keeping wrists and elbows as close as comfortable. Avoid arching the low back just to keep contact with the wall.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "crab_walk": {
+      "description": "Sit with feet flat and hands behind you, then lift the hips into a tabletop. Walk opposite hand and foot together in small steps. Keep the chest open and avoid letting the shoulders collapse toward the ears.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "bear_crawl": {
+      "description": "Start on hands and knees, then lift the knees a few inches off the floor. Crawl forward with opposite hand and foot while keeping the back flat. Take small quiet steps and avoid rocking the hips side to side.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "superman_hold": {
+      "description": "Lie face down with arms reaching forward and legs long. Lift the arms, chest, and legs slightly from the floor, then hold while looking down. Keep the neck long and avoid throwing the head back.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "reverse_hyper": {
+      "description": "Lie face down on a bench or reverse-hyper setup with hips near the edge. Brace the upper body and lift the legs behind you until they line up with the torso. Squeeze the glutes and avoid swinging the legs past control.",
+      "sources": [
+        "https://exrx.net/WeightExercises/GluteusMaximus/BWReverseHyperextension",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_dead_bug": {
+      "description": "Lie on your back with knees over hips and press a stability ball lightly between hands and knees. Extend the opposite arm and leg while the other hand and knee keep pressure on the ball. Return slowly and keep the low back from arching off the floor.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_glute_bridge": {
+      "description": "Lie on your back with knees bent and feet flat near the hips. Press through the heels to lift the hips until shoulders, hips, and knees line up. Squeeze the glutes at the top and avoid arching the low back to get higher.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_bird_dog": {
+      "description": "Start on hands and knees with hands under shoulders and knees under hips. Reach one arm and the opposite leg long, pause, then return without shifting the hips. Keep the back flat and avoid twisting open as the limbs move.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_russian_twist": {
+      "description": "Sit on a stability ball and walk the feet forward until the upper back rests on the ball. Hold the hands together over the chest and rotate the ribs side to side. Keep hips lifted and avoid letting the ball roll under you.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/WtRussianTwist",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_feet_elevated_crunch": {
+      "description": "Lie on your back with calves resting on a stability ball and knees bent. Curl the shoulders toward the hips, then lower until the shoulder blades touch down. Keep the neck relaxed and avoid pulling the head forward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_hanging_knee_raise": {
+      "description": "Hang from rings with shoulders active and legs together. Tuck the knees toward the chest, then lower them until the body is still. Keep the rings quiet and avoid swinging to start the next rep.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_mountain_climber": {
+      "description": "Grip the parallettes and set a strong plank with shoulders over hands. Drive one knee toward the chest, switch legs, and keep the handles steady. Brace the ribs down and avoid bouncing the hips up and down.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_push_up": {
+      "description": "Hold the parallettes under the shoulders and step back into a plank. Lower the chest between the handles, then press back up. Keep wrists neutral and avoid sinking the hips as the depth increases.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_knee_hover_bird_dog": {
+      "description": "Start on hands and knees, then lift both knees a few inches from the floor. Reach one arm and the opposite leg long without shifting the hips. Return with control and keep the back flat instead of twisting open.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_v_up_pass": {
+      "description": "Lie on your back holding a stability ball between the hands. Raise arms and legs together, pass the ball to the feet, and lower both ends with control. Keep the low back heavy on the floor and shorten the range if it arches.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_dead_bug": {
+      "description": "Lie on your back with knees over hips and arms reaching toward the ceiling. Brace so the low back stays heavy on the floor as you extend the opposite arm and leg. Return slowly and switch sides, stopping the reach before the back arches.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_alternating_heel_taps": {
+      "description": "Lie on your back with knees bent, feet flat, and shoulders slightly lifted. Reach one hand toward the same-side heel, return to center, then reach to the other side. Keep the ribs down and avoid yanking the neck side to side.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_flutter_kicks": {
+      "description": "Lie on your back with legs long and hands by your sides or under the hips. Lift both legs slightly and alternate small up-and-down kicks. Keep the low back pressed down and raise the legs higher if the back arches.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_kneeling_forearm_plank": {
+      "description": "Set forearms on the floor with elbows under shoulders and knees on the ground. Brace the abs and glutes so shoulders, hips, and knees make one line. Keep breathing and avoid sitting the hips back toward the heels.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_seated_ab_circles": {
+      "description": "Sit with knees bent and lean back until the abs brace. Keep the hands together and draw slow circles in front of the torso. Stay tall through the chest and avoid rounding the back as the circle gets bigger.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/WtRussianTwist",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_hanging_oblique_knee_raise": {
+      "description": "Hang from rings with shoulders active and legs together. Tuck the knees toward one side of the chest, lower under control, then alternate sides. Start each rep from stillness and avoid twisting with momentum.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_stir_the_pot": {
+      "description": "Place forearms on a stability ball and step back into a plank. Make small circles with the forearms while the feet stay planted. Keep ribs down and hips level, using smaller circles if the low back starts to sway.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_alternating_lateral_kick_through": {
+      "description": "Start in a bear crawl position with knees hovering. Rotate the hips and kick one leg under the body to the opposite side, then return to the hover. Move side to side with control and avoid collapsing the supporting shoulder.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_hanging_l_sit_flutter_kicks": {
+      "description": "Hang from rings with shoulders active and raise both legs to an L-sit height you can control. Alternate small flutter kicks while keeping the torso still. Lower the legs if your grip slips or the body starts swinging.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slam_ball_russian_twist": {
+      "description": "Sit with knees bent and hold the slam ball close to the chest. Lean back slightly, rotate the ribs to one side, then rotate to the other side. Keep the ball close and avoid rounding the low back to chase speed.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/WtRussianTwist",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_dumbbell_crush_grip_otis_up": {
+      "description": "Lie face up holding one dumbbell vertically between both palms over the chest. Curl the shoulders and upper back off the floor as you reach the weight upward, then lower with control. Keep the ribs down and avoid swinging the arms to sit up.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_side_plank_reach_through": {
+      "description": "Set up in a side plank with a dumbbell in the top hand. Reach the weight under the ribs as the torso rotates, then open back to the starting position. Keep hips lifted and avoid letting the shoulder collapse toward the ear.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ab_wheel_kneeling_rollout": {
+      "description": "Kneel with the ab wheel under the shoulders and ribs tucked down. Roll forward only as far as you can keep the hips and ribs connected, then pull the wheel back under you. Avoid letting the low back sag at the farthest point.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/WtWheelRollout",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_cable_seated_crunch": {
+      "description": "Sit facing away from the cable with the rope held near the sides of the head. Curl the ribs toward the pelvis, then return until the torso is tall again. Keep hips planted and avoid pulling the rope with the arms.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_cable_kneeling_crunch": {
+      "description": "Kneel under a high cable and hold the rope beside the head. Curl the ribs toward the pelvis, then rise until the torso is tall. Keep the hips mostly still and avoid turning the rep into an arm pull.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/CBKneelingCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_medicine_ball_v_up": {
+      "description": "Lie on your back holding a medicine ball with arms extended overhead. Lift the arms and legs together into a V shape, then lower with control. Keep the low back from popping off the floor as the limbs descend.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_suspension_knee_tuck": {
+      "description": "Place feet in suspension straps and set a high plank with shoulders over wrists. Pull both knees toward the chest, then extend the legs back to plank. Keep hips level and avoid letting the straps swing side to side.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_suspension_lateral_knee_tuck": {
+      "description": "Place feet in suspension straps and hold a strong high plank. Draw both knees toward one elbow, extend back to center, then alternate sides. Keep shoulders stacked over wrists and avoid twisting through the low back.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_suspension_archer_row": {
+      "description": "Hold the suspension handles and lean back with arms straight. Pull more strongly with one arm while the other arm reaches out to the side, then return under control. Keep the body in one line and avoid rotating the hips open.",
+      "sources": [
+        "https://exrx.net/WeightExercises/BackGeneral/BWSupineRow",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_turkish_get_up": {
+      "description": "Lie on your back with one arm locked out holding a dumbbell above the shoulder and the same-side knee bent. Roll to the elbow, come to the hand, bridge the hips, sweep the leg under, and stand while watching the weight. Reverse the steps slowly and keep the loaded shoulder stacked over the hand.",
+      "sources": [
+        "https://www.strongfirst.com/ground-force-method-turkish-getup/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_bear_crawl": {
+      "description": "Start on hands and knees, then lift the knees a few inches off the floor. Crawl forward with opposite hand and foot while keeping the back flat. Take small quiet steps and avoid rocking the hips side to side.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_knee_tuck": {
+      "description": "Place shins on a stability ball and hands on the floor in a high plank. Pull the knees toward the chest as the ball rolls in, then extend back to plank. Keep shoulders over wrists and avoid dropping the hips between reps.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_hanging_leg_raise": {
+      "description": "Hang from rings with shoulders active and legs straight or softly bent. Raise the legs in front of the body, then lower them slowly. Keep the rings quiet and avoid using a backswing to lift the legs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_l_sit": {
+      "description": "Sit between parallettes and grip the handles beside the hips. Press down to lift the hips and extend the legs forward into an L shape. Keep elbows straight and shoulders down instead of shrugging into the ears.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_standing_walkout_plank": {
+      "description": "Stand tall, hinge forward, and walk the hands out to a high plank. Pause with shoulders over wrists, then walk the hands back and stand. Keep the ribs braced in the plank and bend the knees if the hamstrings pull hard.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_eccentric_pull_up": {
+      "description": "Start at the top of a ring pull-up with chest near the rings and shoulders down. Lower slowly until the arms are long, then use the feet or a box to return to the top. Keep the body quiet and avoid dropping through the last few inches.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_climb": {
+      "description": "Set a barbell securely where it cannot roll and start in a plank with hands on the bar. Move one hand at a time along the bar or up the set path while keeping the body braced. Take small steps and stop if the bar shifts or the hips sag.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_ipsilateral_bird_dog": {
+      "description": "Start on hands and knees with a flat back. Reach the arm and leg on the same side away from each other, then return with control. Keep the supporting hand and knee rooted and avoid tipping the hips open.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_copenhagen_plank_knee_to_elbow": {
+      "description": "Set up in a side plank with the top knee supported on a bench and the lower leg free. Lift the hips, then draw the lower knee toward the lower elbow before extending again. Keep the torso long and avoid twisting toward the floor.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_eccentric_chin_up": {
+      "description": "Start at the top of a ring chin-up with palms turned toward you and chest high. Lower slowly until the arms are straight, then step back to the top. Keep shoulders active and avoid dropping quickly through the bottom.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWUnderhandChinup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_seated_shoulder_external_rotation": {
+      "description": "Sit tall with one elbow supported at shoulder height and bent to 90 degrees. Rotate the dumbbell upward and backward, then lower slowly to the start. Keep the elbow fixed and use a light weight instead of twisting the torso.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Infraspinatus/DBExternalRotation",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_dumbbell_seated_cuban_rotation": {
+      "description": "Sit tall holding light dumbbells with elbows lifted out to the sides and bent. Rotate the forearms upward until the weights are above the elbows, then return slowly. Keep the ribs down and avoid shrugging to move heavier weights.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Infraspinatus/DBExternalRotation",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_dumbbell_cuban_rotation": {
+      "description": "Stand tall holding light dumbbells with elbows raised to the sides and bent. Rotate the forearms up until the weights point toward the ceiling, then lower with control. Keep shoulders away from ears and avoid leaning back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Infraspinatus/DBExternalRotation",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_cable_half_kneeling_contralateral_shoulder_external_rotation_90_degrees": {
+      "description": "Set a cable around shoulder height and kneel with the working arm farthest from the stack. Hold the elbow at shoulder height and rotate the hand backward against the cable. Keep the ribs stacked over the hips and avoid letting the elbow drift down.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Infraspinatus/DBExternalRotation",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_miniband_fire_hydrant": {
+      "description": "Loop a miniband above the knees and start on hands and knees. Keeping the knee bent, lift one thigh out to the side, then return without dropping the pelvis. Move from the hip and avoid twisting the low back open.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_medicine_ball_russian_twist": {
+      "description": "Sit with knees bent and hold the medicine ball near the chest. Lean back slightly and rotate the ribs side to side, tapping the ball lightly if comfortable. Keep the spine long and avoid throwing the ball with the arms.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/WtRussianTwist",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_side_plank": {
+      "description": "Lie on one side with elbow under shoulder and feet stacked or staggered. Lift the hips until the body forms a straight line from head to feet. Keep the top shoulder back and avoid letting the hips roll toward the floor.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_cable_reverse_crunch": {
+      "description": "Lie on your back with a low cable attached near the feet or ankles. Curl the knees toward the chest by lifting the hips slightly, then lower with control. Keep the movement from the pelvis and avoid swinging the legs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_cable_rope_half_kneeling_high_to_low_chop": {
+      "description": "Set a cable rope on the high setting and kneel with the outside knee down. Pull the rope diagonally high to low across the body while the hips stay square. Rotate through the ribs and shoulders, not by arching or twisting the low back.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_cable_rope_half_kneeling_low_to_high_chop": {
+      "description": "Set a cable rope on the low setting and kneel with the outside knee down. Pull the rope diagonally low to high across the body while the hips stay square. Rotate through the ribs and shoulders, not by arching or twisting the low back.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_double_kettlebell_bottoms_up_overhead_lateral_lunge": {
+      "description": "Hold two kettlebells bottoms-up overhead and stand with one foot on a slider. Slide that foot out into a lateral lunge while the standing knee bends, then pull back to center. Keep wrists stacked, ribs down, and make the slide shorter if the bells wobble.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSideLunge",
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_cable_rope_staggered_stance_high_to_low_chop": {
+      "description": "Stand in a staggered stance beside the cable with the rope set for a high to low path. Pull diagonally across the body while the feet stay planted and the torso rotates. Keep the pelvis quiet and avoid yanking the rope with only the arms.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_cable_rope_staggered_stance_low_to_high_chop": {
+      "description": "Stand in a staggered stance beside the cable with the rope set for a low to high path. Pull diagonally across the body while the feet stay planted and the torso rotates. Keep the pelvis quiet and avoid yanking the rope with only the arms.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_windmill": {
+      "description": "Stand with feet wide and one dumbbell locked out overhead. Turn the feet slightly away from the loaded arm, hinge the hips back, and slide the free hand down the inside leg. Keep eyes on the weight and avoid bending sideways through a rounded back.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_double_kettlebell_bottoms_up_front_rack_lateral_lunge": {
+      "description": "Hold two kettlebells bottoms-up in the front rack and place one foot on a slider. Slide that foot sideways as the standing leg bends into a lateral lunge, then return to standing. Keep elbows under the bells and avoid letting the knee cave inward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSideLunge",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_double_kettlebell_front_rack_lateral_lunge": {
+      "description": "Hold two kettlebells in the front rack and stand with one foot on a slider. Slide the foot out as you sit into the opposite hip, then pull it back under you. Keep the chest tall and knee tracking over the toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSideLunge",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_feet_on_wall_mountain_climber": {
+      "description": "Start in a high plank with both feet pressing into a wall behind you. Drive one knee toward the chest, return it to the wall, and switch sides. Keep shoulders over wrists and avoid letting the hips sag as the feet move.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_double_kettlebell_suitcase_reverse_lunge": {
+      "description": "Hold kettlebells at your sides and place one foot on a slider. Slide that foot back into a reverse lunge, then pull it forward to stand. Keep the front heel grounded and avoid leaning toward one weight.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBLunge",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_hollow_body_hold": {
+      "description": "Lie on your back and press the low back into the floor. Lift the shoulders and legs, reaching arms long so the body forms a shallow curve. Keep breathing and bring the legs higher if the back starts to arch.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_dumbbell_crush_grip_hollow_body_hold": {
+      "description": "Lie on your back holding one dumbbell between both palms over the chest. Press the low back into the floor, lift shoulders and legs, and hold a hollow shape. Keep the weight over the chest and raise the legs if the back starts to arch.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bar_inverted_hanging_crunch": {
+      "description": "Hang upside down from a secure bar or hooks and keep the torso controlled. Curl the ribs toward the pelvis, then lower until the body is long again. Move slowly and avoid swinging the head and legs to create momentum.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_inverted_hanging_oblique_crunch": {
+      "description": "Hang inverted from a secure bar or hooks with the body still. Curl one side of the ribs toward the opposite hip, then lower and switch sides. Keep the movement small and avoid twisting with momentum.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_double_kettlebell_front_rack_reverse_lunge": {
+      "description": "Hold two kettlebells in the front rack and place one foot on a slider. Slide that foot straight back into a reverse lunge, then pull it forward to stand. Keep elbows tucked and the front knee aligned over the toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBLunge",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_supine_alternating_single_leg_raise": {
+      "description": "Lie on your back with both legs long and arms by your sides. Lift one leg toward the ceiling, lower it with control, then switch sides. Keep the low back heavy on the floor and avoid kicking quickly through the reps.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_supine_leg_raise": {
+      "description": "Lie on your back with legs straight and hands by your sides or under the hips. Brace the abs, lower the legs toward the floor, then raise them back up. Stop the descent before the low back lifts away from the floor.",
+      "sources": [
+        "https://exrx.net/WeightExercises/HipFlexors/BWHangingLegRaise",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_miniband_bicycle_crunch": {
+      "description": "Lie on your back with a miniband around the feet or thighs and hands lightly behind the head. Rotate one elbow toward the opposite knee as the other leg extends, then switch sides. Keep the low back controlled and avoid pulling on the neck.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_side_plank_reach_through": {
+      "description": "Set up in a side plank with elbow under shoulder and top arm reaching up. Thread the top arm under the ribs as the torso rotates, then open back up. Keep hips lifted and avoid collapsing into the bottom shoulder.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_sit_up": {
+      "description": "Lie on your back with knees bent and feet planted. Curl the torso up to sit tall, then lower one segment at a time. Keep the feet quiet and avoid throwing the arms to create momentum.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_butterfly_sit_up": {
+      "description": "Lie on your back with soles of the feet together and knees open. Reach the arms overhead, sit up, and touch near the feet before lowering. Keep the movement smooth and avoid yanking the neck forward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_mountain_climber": {
+      "description": "Start in a high plank with each foot on a slider. Pull one knee toward the chest, slide it back, and alternate sides. Keep shoulders over wrists and avoid letting the hips bounce high.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_pike": {
+      "description": "Start in a high plank with both feet on sliders. Keeping legs mostly straight, pull the feet toward the hands and lift the hips into a pike. Return slowly to plank and avoid letting the low back sag at the end.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_pike": {
+      "description": "Start in a high plank with shins or feet on a stability ball. Pull the ball toward the hands as the hips lift into a pike, then roll back to plank. Keep shoulders stacked over wrists and move slowly enough that the ball stays under control.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_wide_mountain_climber": {
+      "description": "Start in a high plank with feet on sliders. Slide one foot outside the same-side hand, return to plank, and switch sides. Keep the chest lifted between the shoulders and avoid rounding the back hard to reach farther.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_crunch": {
+      "description": "Lie with the low back supported on a stability ball and feet planted wide enough for balance. Curl the ribs toward the pelvis, then lower over the ball with control. Keep the neck relaxed and avoid rolling the ball under the hips.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_feet_elevated_oblique_crunch": {
+      "description": "Lie on your back with calves on a stability ball and hands lightly behind the head. Curl one shoulder toward the opposite hip, lower, then alternate sides. Keep the ball quiet and avoid pulling the head with the hands.",
+      "sources": [
+        "https://exrx.net/WeightExercises/RectusAbdominis/BWCrunch",
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_kneeling_rollout": {
+      "description": "Kneel with forearms on a stability ball and ribs tucked down. Roll the ball forward only as far as you can keep the hips from sagging, then pull it back. Keep the glutes lightly squeezed and avoid arching at the farthest reach.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_single_leg_knee_tuck": {
+      "description": "Start in a high plank with one shin or foot on a stability ball and the other leg lifted. Pull the supported knee toward the chest, then extend back to plank. Keep hips level and avoid letting the ball drift sideways.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_single_leg_pike": {
+      "description": "Start in a high plank with one foot on a stability ball and the other leg lifted. Pull the ball toward the hands as the hips rise, then roll back to plank. Move slowly and keep the shoulders stacked over the wrists.",
+      "sources": [
+        "https://blog.nasm.org/how-to-do-a-push-up",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_dumbbell_z_press": {
+      "description": "Sit on the floor with legs straight or slightly apart and hold dumbbells at the shoulders. Brace tall and press both weights overhead, then lower to the shoulders. Keep the ribs down and avoid leaning back to finish the press.",
+      "sources": [
+        "https://exrx.net/WeightExercises/DeltoidAnterior/DBShoulderPress",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_slider_double_kettlebell_overhead_reverse_lunge": {
+      "description": "Hold two kettlebells overhead and place one foot on a slider. Slide that foot back into a reverse lunge, then pull it forward to stand. Keep wrists stacked over shoulders and use a shorter slide if the ribs flare.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/DBLunge",
+        "https://exrx.net/WeightExercises/DeltoidAnterior/BBMilitaryPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_dumbbell_romanian_deadlift": {
+      "description": "Stand with a dumbbell in each hand in front of the thighs. Hinge the hips back while the weights stay close to the legs, then stand by driving the hips forward. Keep a long spine and avoid rounding lower just to reach the floor.",
+      "sources": [
+        "https://blog.nasm.org/romanian-deadlift",
+        "https://exrx.net/WeightExercises/Hamstrings/DBRomanianDeadlift"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_side_plank": {
+      "description": "Set up in a side plank with elbow under shoulder and hold a dumbbell in the top hand or at the top hip. Lift the hips and hold a straight line from head to feet. Keep the weight controlled and avoid rolling the torso forward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Obliques/BWSidePlank",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_single_leg_glute_bridge": {
+      "description": "Lie on your back with one foot planted and the other leg lifted. Drive through the planted heel to raise the hips while keeping the pelvis level. Lower slowly and avoid twisting toward the lifted leg.",
+      "sources": [
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/",
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_dumbbell_glute_bridge": {
+      "description": "Lie on your back with knees bent, feet flat, and a dumbbell held across the hips. Press through the heels to lift the hips, then lower with control. Keep ribs down and avoid arching the low back to move the weight higher.",
+      "sources": [
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_glute_bridge_isometric_with_alternating_single_leg_extension": {
+      "description": "Lift into a glute bridge with both feet planted and hips level. Hold the bridge as you extend one leg, return it, then switch sides. Keep the pelvis from dropping or rotating when each foot leaves the floor.",
+      "sources": [
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_miniband_side_lying_clamshell": {
+      "description": "Loop a miniband above the knees and lie on one side with hips and knees bent. Keep feet together as you open the top knee, then lower it slowly. Keep the pelvis stacked and avoid rolling backward to lift higher.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_miniband_ankle_side_lying_hip_abduction": {
+      "description": "Loop a miniband around the ankles and lie on one side with legs straight. Lift the top leg slightly back and up, then lower with control. Keep toes facing forward and avoid rolling the hips open.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_miniband_bench_seated_hip_abduction": {
+      "description": "Sit tall on a bench with a miniband above the knees and feet planted. Press the knees apart against the band, then return slowly. Keep the feet down and avoid rocking the torso to create extra motion.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_miniband_glute_bridge_hip_abduction": {
+      "description": "Loop a miniband above the knees and set up in a glute bridge. Lift the hips, press the knees apart against the band, then bring them back to hip width. Keep the ribs down and avoid letting the knees collapse inward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_hip_thrust": {
+      "description": "Rest the upper back on a stability ball with feet planted and hips low. Drive through the heels to lift the hips until the torso is level, then lower with control. Keep the ball steady and avoid over-arching the low back at the top.",
+      "sources": [
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_dumbbell_hip_thrust": {
+      "description": "Rest the upper back on a stability ball and hold a dumbbell across the hips. Press through the heels to lift the hips, then lower slowly while the ball stays steady. Keep ribs tucked and avoid letting the knees cave inward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/GluteusMaximus/BBHipThrust",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "monster_walks": {
+      "description": "Stand in a quarter squat with a mini band above the knees or around the ankles. Step forward and slightly out, keeping feet wide and the band taut. Keep knees tracking over toes and hips level; do not swing the legs.",
+      "sources": [
+        "https://redefiningstrength.com/mini-band-monster-walks/",
+        "https://liftmanual.com/monster-walk/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "lateral_monster_walk": {
+      "description": "Set a mini band above the knees or around the ankles and sit into a small squat. Step sideways in short controlled steps while keeping constant band tension. Keep toes forward, knees pushed out, and hips from bobbing up and down.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/6936/6-glute-medius-exercises-for-strength-stability/",
+        "https://liftmanual.com/resistance-band-lateral-walk/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "half_kneeling_thoracic_opener": {
+      "description": "Start in half kneeling with the front knee stacked over the ankle and torso tall. Reach both arms forward, then rotate one arm open from your mid-back. Exhale as you open; keep hips quiet and avoid twisting through the low back.",
+      "sources": [
+        "https://library.theprehabguys.com/vimeo-video/half-kneeling-thoracic-rotation-open-ball/",
+        "https://blog.overtimeathletes.com/half-kneeling-thoracic-opener-for-mobility/"
+      ],
+      "reviewed_at": "2026-05-25"
+    }
+  }
+}

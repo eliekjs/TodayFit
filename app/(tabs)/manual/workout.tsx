@@ -12,6 +12,7 @@ import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -21,6 +22,8 @@ import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualP
 import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 import { buildWorkoutIntentTitle } from "../../../lib/workoutIntentSplit";
 import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
+import { composeRunGenerationSeed } from "../../../lib/dailyGeneratorAdapter";
+import { collectWorkoutExerciseIds } from "../../../lib/workoutUtils";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -33,6 +36,8 @@ export default function ManualWorkoutScreen() {
     addSavedWorkout,
     savedWorkouts,
     manualGoalPreferencesScope,
+    workoutHistory,
+    manualSessionProgress,
   } = useAppState();
   const router = useRouter();
   const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
@@ -169,8 +174,20 @@ export default function ManualWorkoutScreen() {
       const workout = await generateWorkoutAsync(
         manualPreferences,
         activeProfile,
-        Date.now(),
-        preferredNames
+        composeRunGenerationSeed(),
+        preferredNames,
+        {
+          regeneration_avoid_exercise_ids: collectWorkoutExerciseIds(generatedWorkout),
+        },
+        {
+          historySources: {
+            workoutHistory,
+            savedWorkouts,
+            inProgressWorkout: generatedWorkout,
+            inProgressProgress: manualSessionProgress,
+            regenerationAvoidExerciseIds: collectWorkoutExerciseIds(generatedWorkout),
+          },
+        }
       );
       if (generationCancelledRef.current) return;
       setGeneratedWorkout(workout);
@@ -198,7 +215,8 @@ export default function ManualWorkoutScreen() {
       generatedWorkout,
       swapModal.exerciseId,
       optionId,
-      optionName
+      optionName,
+      getCuratedExerciseDescription(optionId)
     );
     setGeneratedWorkout(updated);
     setSwapModal(null);

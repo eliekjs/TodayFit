@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppState } from "../../../context/AppStateContext";
 import { defaultManualPreferences } from "../../../context/appStateModel";
 import { useTheme } from "../../../lib/theme";
@@ -88,6 +89,9 @@ export default function ManualPreferencesScreen() {
     setActiveGymProfile,
     addPreferencePreset,
     setManualGoalPreferencesScope,
+    workoutHistory,
+    savedWorkouts,
+    manualSessionProgress,
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
   const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
@@ -103,7 +107,8 @@ export default function ManualPreferencesScreen() {
   const [savePresetName, setSavePresetName] = useState("");
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
-  const [bottomBarHeight, setBottomBarHeight] = useState(180);
+  const [bottomBarHeight, setBottomBarHeight] = useState(145);
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
   const headerHeight = useHeaderHeight();
@@ -399,7 +404,15 @@ export default function ManualPreferencesScreen() {
         manualPreferences,
         profile,
         undefined,
-        preferredNames
+        preferredNames,
+        undefined,
+        {
+          historySources: {
+            workoutHistory,
+            savedWorkouts,
+            inProgressProgress: manualSessionProgress,
+          },
+        }
       );
       if (generationCancelledRef.current) return;
       setGeneratedWorkout(workout);
@@ -663,7 +676,7 @@ export default function ManualPreferencesScreen() {
                       {
                         backgroundColor: theme.chipSelectedBackground,
                         borderWidth: 1,
-                        borderColor: theme.primary,
+                        borderColor: theme.chipSelectedBorder,
                       },
                     ]}
                   >
@@ -679,7 +692,7 @@ export default function ManualPreferencesScreen() {
                       {
                         backgroundColor: theme.chipSelectedBackground,
                         borderWidth: 1,
-                        borderColor: theme.primary,
+                        borderColor: theme.chipSelectedBorder,
                       },
                     ]}
                   >
@@ -736,7 +749,7 @@ export default function ManualPreferencesScreen() {
                           {
                             backgroundColor: theme.chipSelectedBackground,
                             borderWidth: 1,
-                            borderColor: theme.primary,
+                            borderColor: theme.chipSelectedBorder,
                           },
                         ]}
                       >
@@ -763,7 +776,7 @@ export default function ManualPreferencesScreen() {
                               {
                                 backgroundColor: theme.chipSelectedBackground,
                                 borderWidth: 1,
-                                borderColor: theme.primary,
+                                borderColor: theme.chipSelectedBorder,
                               },
                             ]}
                           >
@@ -777,7 +790,7 @@ export default function ManualPreferencesScreen() {
                               {
                                 backgroundColor: theme.chipSelectedBackground,
                                 borderWidth: 1,
-                                borderColor: theme.primary,
+                                borderColor: theme.chipSelectedBorder,
                               },
                             ]}
                           >
@@ -860,7 +873,7 @@ export default function ManualPreferencesScreen() {
         {!isWeek ? (
           <CollapsiblePreferenceSection
             title="Body emphasis"
-            subtitle="Still full-body—we’ll lean a bit more on this area."
+            subtitle="Main strength work follows upper, lower, or full body. Optional modifiers narrow push/pull or quad/posterior."
             summary={bodySummary}
             expanded={sectionBodyOpen}
             onToggle={() => {
@@ -1199,7 +1212,7 @@ export default function ManualPreferencesScreen() {
                         {
                           backgroundColor: theme.chipSelectedBackground,
                           borderWidth: 1,
-                          borderColor: theme.primary,
+                          borderColor: theme.chipSelectedBorder,
                         },
                       ]}
                     >
@@ -1218,7 +1231,7 @@ export default function ManualPreferencesScreen() {
                         {
                           backgroundColor: theme.chipSelectedBackground,
                           borderWidth: 1,
-                          borderColor: theme.primary,
+                          borderColor: theme.chipSelectedBorder,
                         },
                       ]}
                     >
@@ -1286,12 +1299,26 @@ export default function ManualPreferencesScreen() {
         style={[
           styles.bottomBar,
           {
-            backgroundColor: theme.background,
+            backgroundColor: theme.cardOpaque,
             borderTopColor: theme.border,
+            paddingBottom: 10 + Math.max(insets.bottom, 8),
+            ...Platform.select({
+              web: {
+                boxShadow: "0 -6px 20px rgba(0, 0, 0, 0.28)",
+              },
+              default: {
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: -3 },
+                shadowOpacity: 0.22,
+                shadowRadius: 10,
+                elevation: 14,
+              },
+            }),
           },
         ]}
       >
         <PrimaryButton
+          compact
           label={isWeek ? "Next: Choose training days" : "Build workout"}
           onPress={onGenerate}
           disabled={!canProceed}
@@ -1313,6 +1340,7 @@ export default function ManualPreferencesScreen() {
         </Pressable>
         <View style={styles.bottomBarRow}>
           <PrimaryButton
+            compact
             label="Reset"
             variant="secondary"
             onPress={onReset}
@@ -1360,7 +1388,7 @@ export default function ManualPreferencesScreen() {
                       style={[
                         styles.profileRow,
                         {
-                          borderColor: isActive ? theme.primary : theme.border,
+                          borderColor: isActive ? theme.chipSelectedBorder : theme.border,
                           backgroundColor: isActive
                             ? theme.primarySoft
                             : "transparent",
@@ -1380,7 +1408,7 @@ export default function ManualPreferencesScreen() {
                         {profile.name}
                       </Text>
                       {isActive && (
-                        <Text style={{ color: theme.primary, fontSize: 12 }}>
+                        <Text style={{ color: theme.chipSelectedText, fontSize: 12 }}>
                           Active
                         </Text>
                       )}
@@ -1494,18 +1522,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   ctaHint: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: "center",
-    marginTop: 10,
-    marginBottom: 4,
+    marginTop: 6,
+    marginBottom: 2,
     paddingHorizontal: 8,
+    lineHeight: 17,
   },
   advancedLinkWrap: {
-    paddingVertical: 10,
+    paddingVertical: 6,
     alignItems: "center",
   },
   advancedLinkText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
   },
   subGoalBlendLinkWrap: {
@@ -1687,26 +1716,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     borderTopWidth: 1,
   },
   bottomBarRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
-    gap: 12,
+    marginTop: 6,
+    gap: 10,
   },
   resetBtn: {
     flex: 0,
     minWidth: 100,
   },
   savePresetWrap: {
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   savePresetText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
   },
   modalBackdrop: {

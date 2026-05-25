@@ -133,19 +133,53 @@ function buildCooldownTargets(input: GenerateWorkoutInput, cardioDominant: boole
   return unique(targets);
 }
 
+/**
+ * Whether this session input should **allow** the generator's standalone conditioning finisher for the
+ * primary goal (before secondary-goal merges). Calisthenics defaults false unless explicit engine intent;
+ * other primaries mirror `CARDIO_POLICY_BY_PRIMARY_GOAL.allowConditioningBlock`.
+ *
+ * Does **not** encode sport-profile forcing — sport prep adds conditioning in `generateWorkoutSession`
+ * when `sportProfileBiasedTowardConditioning` even if base policy disallows optional cardio.
+ */
+export function shouldIncludeConditioningBlock(input: GenerateWorkoutInput): boolean {
+  if (input.primary_goal !== "calisthenics") {
+    return CARDIO_POLICY_BY_PRIMARY_GOAL[input.primary_goal].allowConditioningBlock;
+  }
+  const secondaryCardio = (input.secondary_goals ?? []).some(hasCardioGoal);
+  if (secondaryCardio) return true;
+  if ((input.weekly_cardio_emphasis ?? 0) > 0) return true;
+  if ((input.session_cardio_target_share ?? 0) > 0) return true;
+  if ((input.style_prefs?.conditioning_minutes ?? 0) > 0) return true;
+  return false;
+}
+
 function resolveBasePolicy(input: GenerateWorkoutInput): ConditioningPolicy {
   const secondaryGoals = input.secondary_goals ?? [];
   const hasSecondaryCardioGoal = secondaryGoals.some(hasCardioGoal);
   const base = CARDIO_POLICY_BY_PRIMARY_GOAL[input.primary_goal];
-  if (!hasSecondaryCardioGoal) return base;
+
+  let effectiveBase = base;
+  if (
+    input.primary_goal === "calisthenics" &&
+    shouldIncludeConditioningBlock(input)
+  ) {
+    effectiveBase = {
+      ...base,
+      allowConditioningBlock: true,
+      sessionCardioShare: clamp01(Math.max(base.sessionCardioShare, 0.18)),
+      targetCardioExerciseShare: clamp01(Math.max(base.targetCardioExerciseShare, 0.12)),
+    };
+  }
+
+  if (!hasSecondaryCardioGoal) return effectiveBase;
   return {
-    ...base,
+    ...effectiveBase,
     allowConditioningBlock: true,
     conditioningRequired: true,
-    sessionCardioShare: clamp01(base.sessionCardioShare + CARDIO_SECONDARY_SHARE_BONUS),
-    targetCardioExerciseShare: clamp01(base.targetCardioExerciseShare + CARDIO_SECONDARY_EXERCISE_SHARE_BONUS),
-    preferredMainFormats: ["circuit", ...base.preferredMainFormats.filter((f) => f !== "circuit")],
-    preferredConditioningFormats: ["circuit", ...base.preferredConditioningFormats.filter((f) => f !== "circuit")],
+    sessionCardioShare: clamp01(effectiveBase.sessionCardioShare + CARDIO_SECONDARY_SHARE_BONUS),
+    targetCardioExerciseShare: clamp01(effectiveBase.targetCardioExerciseShare + CARDIO_SECONDARY_EXERCISE_SHARE_BONUS),
+    preferredMainFormats: ["circuit", ...effectiveBase.preferredMainFormats.filter((f) => f !== "circuit")],
+    preferredConditioningFormats: ["circuit", ...effectiveBase.preferredConditioningFormats.filter((f) => f !== "circuit")],
   };
 }
 

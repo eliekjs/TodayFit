@@ -65,6 +65,8 @@ export type SportGoalOptions = {
   includeIntentSurvivalReport?: boolean;
   /** Ids from the prior generated workout to penalize on regenerate (variety). */
   regenerationAvoidExerciseIds?: string[];
+  /** App session history for Phase 11 personalization. */
+  historySources?: import("../../lib/buildAppTrainingHistory").AppHistorySources;
 };
 
 /**
@@ -209,7 +211,8 @@ export async function buildWorkoutForSessionIntent(
     gymProfile,
     resolvedSeed,
     preferredNames,
-    sportGoalContext
+    sportGoalContext,
+    { historySources: options?.historySources }
   );
 
   return {

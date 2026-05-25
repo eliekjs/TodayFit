@@ -13,12 +13,15 @@ type ButtonVariant = "primary" | "secondary" | "ghost";
 type Props = PressableProps & {
   label: string;
   variant?: ButtonVariant;
+  /** Smaller tap target + label (e.g. dense footers); default stays full-size app-wide. */
+  compact?: boolean;
   style?: ViewStyle;
 };
 
 export function PrimaryButton({
   label,
   variant = "primary",
+  compact = false,
   style,
   disabled,
   ...rest
@@ -41,6 +44,7 @@ export function PrimaryButton({
     <Pressable
       style={({ pressed }) => [
         styles.base,
+        compact && styles.baseCompact,
         {
           backgroundColor: backgroundByVariant[variant],
           opacity: disabled ? 0.45 : pressed ? 0.85 : 1,
@@ -53,7 +57,7 @@ export function PrimaryButton({
     >
       <Text
         style={[
-          styles.label,
+          compact ? styles.labelCompact : styles.label,
           {
             color: textColorByVariant[variant],
           },
@@ -74,8 +78,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  baseCompact: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 40,
+  },
   label: {
     fontSize: 16,
+    fontWeight: "600",
+  },
+  labelCompact: {
+    fontSize: 14,
     fontWeight: "600",
   },
 });

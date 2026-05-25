@@ -59,7 +59,7 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
   const supabase = requireClient();
   let query = supabase
     .from("exercises")
-    .select("id, slug, name, primary_muscles, secondary_muscles, equipment, modalities, is_active, aliases")
+    .select("id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, is_active, aliases")
     .eq("is_active", true);
 
   if (filters?.equipment?.length) {
@@ -136,6 +136,7 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
     id: string;
     slug: string;
     name: string;
+    description?: string | null;
     primary_muscles: string[];
     secondary_muscles: string[];
     equipment: string[];
@@ -250,7 +251,7 @@ export async function getExercise(idOrSlug: string): Promise<ExerciseDefinition 
 
   const { progressions: progList, regressions: regList } = await getProgressionsRegressions(row.id);
 
-  return {
+  const def: ExerciseDefinition = {
     id: row.slug,
     name: row.name,
     muscles: row.primary_muscles as ExerciseDefinition["muscles"],
@@ -261,6 +262,9 @@ export async function getExercise(idOrSlug: string): Promise<ExerciseDefinition 
     progressions: progList.map((p) => p.id),
     regressions: regList.map((r) => r.id),
   };
+  const desc = (row as { description?: string | null }).description?.trim();
+  if (desc) def.description = desc;
+  return def;
 }
 
 /**

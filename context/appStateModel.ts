@@ -11,7 +11,7 @@ export type AdaptiveSetup = {
   sportFocusPct: [number, number];
   /** When both sports and goals selected: 0–100 = sport(s) share; additional goals = 100 - sportVsGoalPct. Omit or 50 = default. */
   sportVsGoalPct?: number;
-  /** Weekly body emphasis: more volume on this area; week still trains full body. */
+  /** Weekly body emphasis: biases gym-day templates toward this region (week still rotates upper/lower/full per planner). */
   weeklyEmphasis?: BodyEmphasisKey | null;
 };
 

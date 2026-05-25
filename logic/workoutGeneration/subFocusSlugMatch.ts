@@ -12,6 +12,12 @@ import {
   exerciseTagSetHasSpeedAgilityDynamicMovement,
   isSpeedAgilityPowerStyleSubFocusSlug,
 } from "../../data/sportSubFocus/speedAgilitySubFocusShared";
+import {
+  isExplosivePlyometricSportSubFocusSlug,
+  isStabilityPrehabSportSubFocusSlug,
+  tagSetHasDynamicPowerSignal,
+  tagSetHasStabilityPrehabSignal,
+} from "../../data/sportSubFocus/subFocusIntentArchetypes";
 import type { Exercise } from "./types";
 
 function tagToSlug(s: string): string {
@@ -64,7 +70,7 @@ function getExerciseTagSlugsForCoverage(exercise: Exercise): Set<string> {
 }
 
 function requiresSpeedAgilityDynamicGate(subSlug: string): boolean {
-  return isSpeedAgilityPowerStyleSubFocusSlug(subSlug);
+  return isSpeedAgilityPowerStyleSubFocusSlug(subSlug) || isExplosivePlyometricSportSubFocusSlug(subSlug);
 }
 
 /**
@@ -138,8 +144,16 @@ export function exerciseMatchesSportSubFocusSlug(
   const entries = getExerciseTagsForSubFocuses(sportKey, [subSlug]);
   if (!entries.length) return false;
   const exTags = getExerciseTagSlugsForCoverage(exercise);
-  if (requiresSpeedAgilityDynamicGate(subSlug) && !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags))
+  if (
+    requiresSpeedAgilityDynamicGate(subSlug) &&
+    !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) &&
+    !tagSetHasDynamicPowerSignal(exTags)
+  ) {
     return false;
+  }
+  if (isStabilityPrehabSportSubFocusSlug(subSlug) && !tagSetHasStabilityPrehabSignal(exTags)) {
+    return false;
+  }
   return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
 }
 
@@ -171,7 +185,11 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
     const entries = getExerciseTagsForGoalSubFocuses("athletic_performance", [slug]);
     if (!entries.length) return false;
     const exTags = getExerciseTagSlugsForCoverage(exercise);
-    if (requiresSpeedAgilityDynamicGate(slug) && !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags)) return false;
+    if (
+      requiresSpeedAgilityDynamicGate(slug) &&
+      !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) &&
+      !tagSetHasDynamicPowerSignal(exTags)
+    ) return false;
     return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
   }
   if (goalSlug === "muscle" || goalSlug === "physique") {

@@ -14,7 +14,7 @@ export type BodyPartFocusKey =
   | "Quad"
   | "Posterior";
 
-/** Weekly training emphasis: which area gets slightly more volume; week still trains full body. */
+/** Weekly gym emphasis: biases template mix (extra upper/lower/pull/etc. days); sessions follow each day’s upper/lower/full assignment. */
 export type BodyEmphasisKey =
   | "upper_body"
   | "lower_body"
@@ -197,6 +197,8 @@ export type Modality =
 export type ExerciseDefinition = {
   id: string;
   name: string;
+  /** Short user-facing what/how copy (1–4 sentences). From DB or curated repo data. */
+  description?: string;
   muscles: MuscleGroup[];
   modalities: Modality[];
   contraindications?: ContraindicationKey[];
@@ -261,6 +263,8 @@ export type WorkoutItem = {
   time_seconds?: number;
   rest_seconds: number;
   coaching_cues: string;
+  /** Catalog exercise help text (what it is + key form cue). Prefer over coaching_cues in UI. */
+  exercise_description?: string;
   reasoning_tags?: string[];
   tags?: string[];
   /**

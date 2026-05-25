@@ -88,10 +88,13 @@ export const CARDIO_POLICY_BY_PRIMARY_GOAL: Record<PrimaryGoal, ConditioningPoli
     preferredConditioningFormats: ["circuit", "straight_sets"],
   },
   calisthenics: {
-    allowConditioningBlock: true,
+    // Bodyweight skill/strength sessions default without a standalone cardio finisher; explicit
+    // conditioning/endurance secondary, cardio dials, or sport-profile bias overrides via blockIntentProfile /
+    // generateWorkoutSession (see shouldIncludeConditioningBlock).
+    allowConditioningBlock: false,
     conditioningRequired: false,
-    sessionCardioShare: 0.2,
-    targetCardioExerciseShare: 0.14,
+    sessionCardioShare: 0.12,
+    targetCardioExerciseShare: 0,
     preferredMainFormats: ["superset", "circuit"],
     preferredConditioningFormats: ["circuit", "straight_sets"],
   },

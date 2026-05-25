@@ -148,6 +148,26 @@ export function isGentleRecoveryExercise(exercise: Exercise): boolean {
 }
 
 /**
+ * Recovery-primary sessions are cooldown-first: gentle stretches and breathing, not activation drills
+ * or loaded mobility (e.g. cossack, cuban rotation patterns). Stricter than {@link isGentleRecoveryExercise}.
+ */
+export function isRecoveryPrimaryFriendlyExercise(exercise: Exercise): boolean {
+  if (!isGentleRecoveryExercise(exercise)) return false;
+  if (isWarmupPrimaryCooldownExcluded(exercise)) return false;
+
+  const id = exercise.id.toLowerCase();
+  const name = (exercise.name ?? "").toLowerCase();
+  const haystack = `${id} ${name}`;
+
+  if (/\bcossack\b/.test(haystack)) return false;
+  if (/\bcuban\b/.test(haystack)) return false;
+  if (/\binchworm\b/.test(haystack) || /\binch_worm\b/.test(id)) return false;
+  if (/\bstraight_leg_raise\b/.test(id) || name.includes("straight leg raise")) return false;
+
+  return true;
+}
+
+/**
  * Score for how well an exercise matches preferred cooldown targets (0 = no match, higher = better).
  */
 function scoreTargetMatch(exercise: Exercise, preferredTargets: string[]): number {

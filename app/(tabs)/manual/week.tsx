@@ -25,6 +25,7 @@ import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../
 import { isDbConfigured } from "../../../lib/db";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
+import { composeRunGenerationSeed } from "../../../lib/dailyGeneratorAdapter";
 import { collectWeekMainLiftExerciseIds } from "../../../logic/workoutGeneration/collectWeekMainLiftExerciseIds";
 import {
   accumulateWeeklySubFocusCountsFromGeneratedWorkout,
@@ -32,6 +33,7 @@ import {
 } from "../../../logic/workoutGeneration/weeklySubFocusCoveragePlan";
 import type { Exercise } from "../../../logic/workoutGeneration/types";
 import { replaceExerciseInWorkout, collectWorkoutExerciseIds } from "../../../lib/workoutUtils";
+import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -126,6 +128,9 @@ export default function ManualWeekScreen() {
     setManualExecutionStarted,
     adaptiveSetup,
     setManualGoalPreferencesScope,
+    workoutHistory,
+    savedWorkouts,
+    manualSessionProgress,
   } = useAppState();
   const { userId } = useAuth();
   const weekPrefsHref = manualGoalPreferencesHref("week");
@@ -420,13 +425,22 @@ export default function ManualWeekScreen() {
                 }
               : undefined,
         };
+        const priorBatchSessions = days.map((d) => d.workout);
         const workout = await generateWorkoutAsync(
           dayPrefs,
           profile,
           dateToISO(date),
           preferredNames,
           resolved.sportGoalContext,
-          { exercisePool }
+          {
+            exercisePool,
+            historySources: {
+              workoutHistory,
+              savedWorkouts,
+              inProgressProgress: manualSessionProgress,
+              priorBatchSessions,
+            },
+          }
         );
         if (generationCancelledRef.current) return;
         accumulateWeeklySubFocusCountsFromGeneratedWorkout(
@@ -629,7 +643,8 @@ export default function ManualWeekScreen() {
         selectedSession.workout,
         swapModal.exerciseId,
         optionId,
-        optionName
+        optionName,
+        getCuratedExerciseDescription(optionId)
       );
       const newDays = plan.days.map((d) =>
         d.date === selectedSession.date ? { ...d, workout: updatedWorkout } : d
@@ -719,10 +734,18 @@ export default function ManualWeekScreen() {
       const workout = await generateWorkoutAsync(
         dayPrefs,
         profile,
-        `${selectedSession.date}_${Date.now()}`,
+        composeRunGenerationSeed(selectedSession.date),
         preferredNames,
         {
           regeneration_avoid_exercise_ids: collectWorkoutExerciseIds(selectedSession.workout),
+        },
+        {
+          historySources: {
+            workoutHistory,
+            savedWorkouts,
+            inProgressProgress: manualSessionProgress,
+            regenerationAvoidExerciseIds: collectWorkoutExerciseIds(selectedSession.workout),
+          },
         }
       );
       if (generationCancelledRef.current) return;

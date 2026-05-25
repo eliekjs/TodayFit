@@ -4,6 +4,9 @@
  */
 
 import type { SubFocusTagMapEntry } from "./types";
+import {
+  tagSetHasDynamicPowerSignal,
+} from "./subFocusIntentArchetypes";
 
 function normSubFocusSlug(slug: string): string {
   return slug.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -46,10 +49,7 @@ export const SPEED_AGILITY_DYNAMIC_MOVEMENT_TAG_SLUGS = new Set([
 ]);
 
 export function exerciseTagSetHasSpeedAgilityDynamicMovement(exTagsNormalized: Set<string>): boolean {
-  for (const tag of SPEED_AGILITY_DYNAMIC_MOVEMENT_TAG_SLUGS) {
-    if (exTagsNormalized.has(tag)) return true;
-  }
-  return false;
+  return tagSetHasDynamicPowerSignal(exTagsNormalized);
 }
 
 // --- Duplicated SUB_FOCUS_TAG_MAP rows (sport-agnostic weights) ---

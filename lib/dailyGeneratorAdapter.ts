@@ -29,6 +29,7 @@ import type {
   MovementPattern,
   UserLevel,
 } from "../logic/workoutGeneration/types";
+import type { TrainingHistoryContext } from "../logic/workoutGeneration/historyTypes";
 import type {
   SessionIntentContract,
   SessionIntentSelection,
@@ -365,7 +366,8 @@ export function manualPreferencesToGenerateWorkoutInput(
   gymProfile?: GymProfile,
   seedExtra?: string | number,
   preferredExerciseIds?: string[],
-  sportGoalContext?: SportGoalContext
+  sportGoalContext?: SportGoalContext,
+  trainingHistory?: TrainingHistoryContext
 ): GenerateWorkoutInput {
   const durationMinutes = clampDuration(preferences.durationMinutes);
   const bodyPartFromTarget = deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier);
@@ -535,6 +537,7 @@ export function manualPreferencesToGenerateWorkoutInput(
     available_equipment,
     injuries_or_constraints,
     recent_history,
+    training_history: trainingHistory,
     style_prefs: hasStylePrefs ? style_prefs : undefined,
     seed: seedNum,
     goal_sub_focus: Object.keys(goal_sub_focus).length ? goal_sub_focus : undefined,
@@ -581,6 +584,23 @@ export function createWorkoutGenerationEntropy(): string {
     /* ignore */
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+/**
+ * Seed payload for one generation/regeneration run. Always mixes optional caller `base` with fresh
+ * entropy and high-resolution time so repeated taps cannot reuse the same seed (unlike `Date.now()` alone).
+ * Pass to `generateWorkoutAsync` / `manualPreferencesToGenerateWorkoutInput` as `seedExtra` (string → hashed).
+ */
+export function composeRunGenerationSeed(base?: string | number): string {
+  const entropy = createWorkoutGenerationEntropy();
+  let perfMs = Date.now();
+  try {
+    const p = globalThis.performance;
+    if (p && typeof p.now === "function") perfMs = p.now();
+  } catch {
+    /* ignore */
+  }
+  return JSON.stringify({ base: base ?? null, entropy, perfMs });
 }
 
 /** Map lib Modality to generator Modality (generator has skill, recovery). */
@@ -643,6 +663,7 @@ import { mergePhase8UnilateralOntologyIntoExercise } from "./exerciseMetadata/ph
 import { applyExerciseMetadataOverrides } from "./exerciseMetadata/applyMetadataOverrides";
 import type { ExerciseMetadataPatch } from "./exerciseMetadata/metadataOverrideTypes";
 import exerciseMetadataOverrides from "../data/exerciseMetadataOverrides.json";
+import { resolveExerciseDescription } from "./exerciseDescriptionsCurated";
 
 const EXERCISE_METADATA_OVERRIDES = exerciseMetadataOverrides as Record<string, ExerciseMetadataPatch>;
 
@@ -888,9 +909,12 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
     inferredSpecialtyEquipment.length > 0 ? inferredSpecialtyEquipment : rawEquipment;
   const tags = buildExerciseTags(def);
 
+  const catalogDescription = resolveExerciseDescription(def.id, def.description);
+
   const exercise: Exercise = {
     id: def.id,
     name: def.name,
+    ...(catalogDescription ? { description: catalogDescription } : {}),
     movement_pattern: deriveMovementPattern(def),
     muscle_groups,
     modality,

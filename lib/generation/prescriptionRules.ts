@@ -231,7 +231,9 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     setRange: { min: 3, max: 4 },
     restRange: { min: 45, max: 90 },
     preferredFormats: ["superset", "straight_sets"],
-    conditioningStrategy: "optional_short",
+    // No default aerobic finisher — volume is skill/strength density (mirrors body_recomp policy).
+    // Optional cardio appears only when conditioning/endurance secondary, explicit cardio dials, or sport prep.
+    conditioningStrategy: "none",
     cueStyle: {
       strength: "Bodyweight control. Full ROM.",
     },

@@ -64,6 +64,7 @@ import {
   getPreferredCooldownTargetsFromFamilies,
   exerciseCountsAsCooldownMobilityForValidator,
   isGentleRecoveryExercise,
+  isRecoveryPrimaryFriendlyExercise,
   isWarmupPrimaryCooldownExcluded,
   MAIN_WORK_EXCLUDED_ROLES,
 } from "./cooldownSelection";
@@ -129,7 +130,9 @@ import {
 import {
   deriveLeafEntries,
   isIntentMainWorkCandidate,
+  isMainWorkCandidateForIntentEntry,
   isPowerStyleSportIntentEntry,
+  isStabilityPrehabSportIntentEntry,
   mainWorkPrimaryForIntentEntry,
   matchesIntentEntry,
   primaryGoalToSubFocusKey,
@@ -158,7 +161,14 @@ import {
   getCanonicalSportSlug,
   getExerciseTagsForSubFocuses,
 } from "../../data/sportSubFocus";
+import {
+  isExplosivePlyometricSportSubFocusSlug,
+  isStabilityPrehabSportSubFocusSlug,
+  tagSetHasDynamicPowerSignal,
+  tagSetHasStabilityPrehabSignal,
+} from "../../data/sportSubFocus/subFocusIntentArchetypes";
 import { hashString } from "../../lib/dailyGeneratorAdapter";
+import { attachExerciseDescriptionsToSession } from "../../lib/workoutUtils";
 import {
   logPruningGateToConsole,
   mergePruningGateFlags,
@@ -418,6 +428,25 @@ function shuffleWithSeed<T>(arr: T[], rng: () => number): T[] {
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
+}
+
+/** Ids from the just-generated workout to avoid on "regenerate" (soft score penalty alone often leaves them in the top tier). */
+function regenerationPenaltyExerciseIds(input: GenerateWorkoutInput): Set<string> {
+  const out = new Set<string>();
+  for (const h of input.recent_history ?? []) {
+    if (h.modality === "regeneration_penalty") {
+      for (const id of h.exercise_ids) out.add(id);
+    }
+  }
+  return out;
+}
+
+/**
+ * Independent RNG stream per workout slot so each slot's shuffle is keyed by the session seed
+ * and slot identity (not by how many draws earlier blocks consumed from the session RNG).
+ */
+function rngForWorkoutSlot(sessionSeed: number, domain: string, slotKey: string | number): () => number {
+  return createSeededRng(hashString(JSON.stringify({ sessionSeed, domain, slotKey })));
 }
 
 /** Map generator input to WorkoutSelectionInput for resolveWorkoutConstraints (Phase 6). */
@@ -2042,6 +2071,7 @@ function selectExercisesSportPatternIterative(
   const soccerQ = opts.soccerQualityContext;
   const aq = opts.alpineSkiingQualityContext;
   const rq = opts.rockClimbingQualityContext;
+  const regenAvoidIter = regenerationPenaltyExerciseIds(input);
   const addSessionSportCounts = (ex: Exercise) => {
     if (hq) addExerciseToHikingSessionCounts(ex, hq.sessionHikingCategoryCounts);
     else if (roadQ) addExerciseToRoadRunningSessionCounts(ex, roadQ.sessionTrailCategoryCounts);
@@ -2055,7 +2085,11 @@ function selectExercisesSportPatternIterative(
     else if (rq) addExerciseToRockSessionCounts(ex, rq.sessionRockCategoryCounts);
   };
   for (let round = 0; chosen.length < count && round < Math.max(pool.length * 4, 24); round++) {
-    const remaining = pool.filter((e) => !chosen.some((c) => c.id === e.id));
+    let remaining = pool.filter((e) => !chosen.some((c) => c.id === e.id));
+    if (regenAvoidIter.size > 0) {
+      const alt = remaining.filter((e) => !regenAvoidIter.has(e.id));
+      if (alt.length >= Math.max(3, Math.floor(remaining.length * 0.35))) remaining = alt;
+    }
     if (remaining.length === 0) break;
     const scoreOpts: ScoreExerciseOptions = {
       blockType: opts.blockType,
@@ -2094,8 +2128,13 @@ function selectExercisesSportPatternIterative(
     const bestScore = topOverall[0]?.score ?? 0;
     const tierThreshold = Math.max(0, bestScore - tierBand);
     const topTier = topOverall.filter((x) => x.score >= tierThreshold);
-    const randomPoolSize = Math.min(50, Math.max(25, topTier.length));
-    const randomPool = topTier.slice(0, randomPoolSize);
+    let tierForSamplingIter = topTier;
+    if (regenAvoidIter.size > 0) {
+      const altTier = topTier.filter((x) => !regenAvoidIter.has(x.exercise.id));
+      if (altTier.length >= Math.max(5, Math.floor(topTier.length * 0.35))) tierForSamplingIter = altTier;
+    }
+    const randomPoolSize = Math.min(50, Math.max(25, tierForSamplingIter.length));
+    const randomPool = tierForSamplingIter.slice(0, randomPoolSize);
     let picked = false;
     for (let i = 0; i < Math.max(100, randomPool.length * 5) && !picked; i++) {
       const idx = Math.floor(rng() * Math.max(1, randomPool.length));
@@ -2130,7 +2169,14 @@ function selectExercisesSportPatternIterative(
       picked = true;
     }
     if (!picked) {
-      for (const { exercise } of topOverall) {
+      const fillOrderedIter =
+        regenAvoidIter.size > 0
+          ? [
+              ...topOverall.filter((x) => !regenAvoidIter.has(x.exercise.id)),
+              ...topOverall.filter((x) => regenAvoidIter.has(x.exercise.id)),
+            ]
+          : topOverall;
+      for (const { exercise } of fillOrderedIter) {
         if (chosen.some((c) => c.id === exercise.id)) continue;
         const nextCount = (movementCounts.get(exercise.movement_pattern) ?? 0) + 1;
         if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
@@ -2324,9 +2370,20 @@ function selectExercises(
   const bestScore = topOverall[0]?.score ?? 0;
   const tierThreshold = Math.max(0, bestScore - effectiveTierBand);
   const topTier = topOverall.filter((x) => x.score >= tierThreshold);
-  const randomPoolSize = Math.min(50, Math.max(25, topTier.length));
-  const randomPool = topTier.slice(0, randomPoolSize);
+  const regenAvoidSelect = regenerationPenaltyExerciseIds(input);
+  let tierForSampling = topTier;
+  if (regenAvoidSelect.size > 0) {
+    const altTier = topTier.filter((x) => !regenAvoidSelect.has(x.exercise.id));
+    if (altTier.length >= Math.max(5, Math.floor(topTier.length * 0.35))) tierForSampling = altTier;
+  }
+  const randomPoolSize = Math.min(50, Math.max(25, tierForSampling.length));
+  const randomPool = tierForSampling.slice(0, randomPoolSize);
   const chosen: Exercise[] = [];
+  /** Recovery-primary cooldown lists many stretches that share the same coarse movement_pattern; relax the session cap. */
+  const patternCap =
+    opts.blockType === "cooldown" && input.primary_goal === "recovery"
+      ? Math.max(MAX_SAME_PATTERN_PER_SESSION, 12)
+      : MAX_SAME_PATTERN_PER_SESSION;
 
   // Category-fill pass: ensure we hit MIN_MOVEMENT_CATEGORIES when possible (movement-pattern balancing engine)
   let patternsToPrefer = getPatternsToPrefer(movementCounts, MIN_MOVEMENT_CATEGORIES, [...BALANCE_CATEGORY_PATTERNS]);
@@ -2361,12 +2418,16 @@ function selectExercises(
   for (let k = 0; k < needCategories && chosen.length < count; k++) {
     const targetPattern = patternsToPrefer[k];
     if (!targetPattern) break;
-    const candidates = topOverall.filter(
+    let candidates = topOverall.filter(
       (x) =>
         x.exercise.movement_pattern === targetPattern &&
         !chosen.some((c) => c.id === x.exercise.id) &&
         !wouldBeThreeSameClusterInARow(chosen, x.exercise)
     );
+    if (regenAvoidSelect.size > 0) {
+      const nonRep = candidates.filter((x) => !regenAvoidSelect.has(x.exercise.id));
+      if (nonRep.length > 0) candidates = nonRep;
+    }
     // Pattern priority: prefer exercises whose primary (first) fine pattern maps to target legacy
     const best = candidates.length === 0 ? undefined : candidates.sort((a, b) => {
       const aPrimary = a.exercise.movement_patterns?.[0]
@@ -2394,7 +2455,7 @@ function selectExercises(
         : randomPool[Math.floor(rng() * Math.max(1, randomPool.length))];
     if (!item || chosen.some((c) => c.id === item.exercise.id)) continue;
     const nextCount = (movementCounts.get(item.exercise.movement_pattern) ?? 0) + 1;
-    if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
+    if (nextCount > patternCap) continue;
     if (wouldBeThreeSameClusterInARow(chosen, item.exercise)) continue;
     chosen.push(item.exercise);
     movementCounts.set(item.exercise.movement_pattern, nextCount);
@@ -2402,11 +2463,18 @@ function selectExercises(
   }
 
   // If we didn't fill, add from top in order (respecting pattern cap and consecutive-cluster cap)
-  for (const { exercise } of topOverall) {
+  const fillOrdered =
+    regenAvoidSelect.size > 0
+      ? [
+          ...topOverall.filter((x) => !regenAvoidSelect.has(x.exercise.id)),
+          ...topOverall.filter((x) => regenAvoidSelect.has(x.exercise.id)),
+        ]
+      : topOverall;
+  for (const { exercise } of fillOrdered) {
     if (chosen.length >= count) break;
     if (chosen.some((c) => c.id === exercise.id)) continue;
     const nextCount = (movementCounts.get(exercise.movement_pattern) ?? 0) + 1;
-    if (nextCount > MAX_SAME_PATTERN_PER_SESSION) continue;
+    if (nextCount > patternCap) continue;
     if (wouldBeThreeSameClusterInARow(chosen, exercise)) continue;
     chosen.push(exercise);
     movementCounts.set(exercise.movement_pattern, nextCount);
@@ -2825,6 +2893,12 @@ function pickFromScoredShortlistRandom(
   selectionOptions: NonNullable<Parameters<typeof selectExercises>[7]>
 ): Exercise[] {
   if (count <= 0 || pool.length === 0) return [];
+  const regenAvoid = regenerationPenaltyExerciseIds(input);
+  let workPool = pool;
+  if (regenAvoid.size > 0 && count > 0) {
+    const alt = pool.filter((ex) => !regenAvoid.has(ex.id));
+    if (alt.length >= count) workPool = alt;
+  }
   const opts = selectionOptions ?? {};
   const sessionTargetVector = shouldUseSessionTargetVector(input)
     ? buildSessionTargetVectorFromInput(input)
@@ -2858,7 +2932,7 @@ function pickFromScoredShortlistRandom(
     sportMainScoringMode: opts.sportMainScoringMode,
   };
 
-  const scored = pool.map((ex) => ({
+  const scored = workPool.map((ex) => ({
     ex,
     score: scoreExercise(ex, input, recentIds, movementCounts, fatigueState, scoreOpts).score,
   }));
@@ -3012,6 +3086,7 @@ function tryBuildIntentSlotAllocatedMainInject(
     const entry = leaves[i]!;
     const nMain = allocMain.get(String(i)) ?? 0;
     if (nMain <= 0) continue;
+    if (isStabilityPrehabSportIntentEntry(entry)) continue;
     const entryPrimary = mainWorkPrimaryForIntentEntry(entry, primary);
     const entryBlockType: BlockType = isPowerStyleSportIntentEntry(entry) ? "power" : mainBlockType;
 
@@ -3023,21 +3098,22 @@ function tryBuildIntentSlotAllocatedMainInject(
       (e) =>
         !used.has(e.id) &&
         matchesIntentEntry(e, entry) &&
-        isIntentMainWorkCandidate(e, entryPrimary)
+        isMainWorkCandidateForIntentEntry(e, entry, entryPrimary)
     );
     pool = applyWeekMainLiftExclusion(pool, input);
-    let fallback = exercises.filter((e) => !used.has(e.id) && isIntentMainWorkCandidate(e, entryPrimary));
+    let fallback = exercises.filter((e) => !used.has(e.id) && isMainWorkCandidateForIntentEntry(e, entry, entryPrimary));
     fallback = applyWeekMainLiftExclusion(fallback, input);
     const pickPool = pool.length >= nMain ? pool : fallback;
     if (pickPool.length < nMain) continue;
 
+    const slotRng = rngForWorkoutSlot(input.seed ?? 0, "intent_slot_main", `${i}_${entry.kind}_${entry.slug}`);
     const picked = pickFromScoredShortlistRandom(
       pickPool,
       input,
       recentIds,
       movementCounts,
       nMain,
-      rng,
+      slotRng,
       fatigueState,
       { ...baseOpts, blockType: entryBlockType }
     );
@@ -3045,7 +3121,7 @@ function tryBuildIntentSlotAllocatedMainInject(
 
     const swapPoolIds = capSwapPoolIds(
       (pool.length >= nMain ? pool : exercises)
-        .filter((e) => matchesIntentEntry(e, entry) && isIntentMainWorkCandidate(e, entryPrimary))
+        .filter((e) => matchesIntentEntry(e, entry) && isMainWorkCandidateForIntentEntry(e, entry, entryPrimary))
         .map((e) => e.id),
       GOAL_DEDICATED_SWAP_POOL_CAP
     );
@@ -3289,13 +3365,14 @@ function tryBuildGoalDedicatedMainStrengthInject(
       GOAL_DEDICATED_SWAP_POOL_CAP
     );
 
+    const slotRng = rngForWorkoutSlot(input.seed ?? 0, "goal_dedicated_strength", `${entry.goalKey}_${entry.slug}`);
     const picked = pickFromScoredShortlistRandom(
       poolSeg,
       input,
       recentIds,
       movementCounts,
       n,
-      rng,
+      slotRng,
       fatigueState,
       baseSelectionOpts
     );
@@ -3476,13 +3553,14 @@ function tryBuildGoalDedicatedHypertrophyBlocks(
       GOAL_DEDICATED_SWAP_POOL_CAP
     );
 
+    const slotRng = rngForWorkoutSlot(input.seed ?? 0, "goal_dedicated_hype", `${entry.goalKey}_${entry.slug}`);
     const chosen = pickFromScoredShortlistRandom(
       poolSeg,
       input,
       recentIds,
       movementCounts,
       n,
-      rng,
+      slotRng,
       fatigueState,
       baseSelectionOpts
     );
@@ -4423,7 +4501,8 @@ function buildMainStrength(
       historyContext,
       recentIds,
     });
-    let pairs = pickBestSupersetPairs(poolForPairs, pairCount, used, undefined, accessoryPairPrefs) as [Exercise, Exercise][];
+    // Sample among top-tier pairs (see pickBestSupersetPairs); omitting rng forced idx 0 every session.
+    let pairs = pickBestSupersetPairs(poolForPairs, pairCount, used, rng, accessoryPairPrefs) as [Exercise, Exercise][];
     if (sportHandles?.sportSlug === "rock_climbing" && rockAccessoryRule && pairs.length > 0 && mainLifts.length > 0) {
       mainSelectorTrace?.entries.push({
         phase: "accessory",
@@ -6385,7 +6464,7 @@ function buildEnduranceMain(
     pairPoolEffective,
     supersetPairCount,
     used,
-    undefined,
+    rng,
     endurancePairPrefs
   ) as [Exercise, Exercise][];
   if (pairs.length > 0) {
@@ -6467,13 +6546,16 @@ function buildMobilityRecoveryMain(
   const mobilityPool = exercises.filter(
     (e) =>
       (e.modality === "mobility" || e.modality === "recovery") &&
-      (!isRecovery || isGentleRecoveryExercise(e)) &&
+      (!isRecovery || isRecoveryPrimaryFriendlyExercise(e)) &&
       !used.has(e.id)
   );
-  const count =
-    input.duration_minutes <= 30
-      ? isRecovery ? 6 : 4
-      : isRecovery ? 9 : 6;
+  const durationMinutes = input.duration_minutes ?? 45;
+  /** Recovery-primary: one unified list covers the whole session (no separate activation + cooldown). */
+  const count = isRecovery
+    ? Math.min(14, Math.max(7, Math.ceil(durationMinutes / 4)))
+    : durationMinutes <= 30
+      ? 4
+      : 6;
 
   const regionalSubs =
     input.primary_goal === "recovery"
@@ -6536,12 +6618,57 @@ function buildMobilityRecoveryMain(
     };
   });
 
+  if (
+    isRecovery &&
+    items.length > 0 &&
+    !items.some((it) => it.exercise_id === "breathing_cooldown") &&
+    items.length < 14
+  ) {
+    const breath =
+      exercises.find(
+        (e) =>
+          e.id === "breathing_cooldown" &&
+          !used.has(e.id) &&
+          isCooldownEligibleEquipment(e.equipment_required ?? [])
+      ) ?? exercises.find((e) => e.id === "breathing_cooldown" && !used.has(e.id));
+    if (breath && isRecoveryPrimaryFriendlyExercise(breath)) {
+      used.add(breath.id);
+      const p = getPrescription(
+        breath,
+        "cooldown",
+        input.energy_level,
+        input.primary_goal,
+        undefined,
+        undefined,
+        input.style_prefs?.user_level
+      );
+      items.push({
+        exercise_id: breath.id,
+        exercise_name: breath.name,
+        sets: p.sets,
+        reps: p.reps,
+        time_seconds: p.time_seconds ?? 45,
+        rest_seconds: p.rest_seconds,
+        coaching_cues: p.coaching_cues,
+        reasoning_tags: ["mobility", "recovery", ...(breath.tags.goal_tags ?? [])],
+        unilateral: breath.unilateral ?? false,
+      });
+    }
+  }
+
   return [
     {
       block_type: "cooldown",
       format: "circuit",
+      ...(isRecovery
+        ? {
+            title: "Today's moves",
+            reasoning:
+              "Easy stretches and breathing for recovery — no separate activation vs cooldown; stay gentle.",
+          }
+        : {}),
       items,
-      estimated_minutes: input.duration_minutes - 10,
+      estimated_minutes: isRecovery ? durationMinutes : Math.max(1, durationMinutes - 10),
     },
   ];
 }
@@ -7303,11 +7430,55 @@ function ensureSelectedSportSubFocusCoverage(
       ? "main_strength"
       : "main_hypertrophy";
 
+  const coveragePrescriptionContext = (subSlug: string): { blockType: BlockType; primaryGoal: PrimaryGoal } => {
+    if (isExplosivePlyometricSportSubFocusSlug(subSlug)) return { blockType: "power", primaryGoal: "power" };
+    if (isStabilityPrehabSportSubFocusSlug(subSlug)) return { blockType: "accessory", primaryGoal: "recovery" };
+    return { blockType: blockTypeForPrescription(), primaryGoal: input.primary_goal };
+  };
+
+  const scoreCoverageCandidate = (exercise: Exercise, subSlug: string): number => {
+    const tags = getExerciseTagSlugs(exercise);
+    const role = (exercise.exercise_role ?? "").toLowerCase().replace(/\s/g, "_");
+    const movement = (exercise.movement_pattern ?? "").toLowerCase().replace(/\s/g, "_");
+    const isMainCompound = role === "main_compound";
+    let score = 0;
+    if (isExplosivePlyometricSportSubFocusSlug(subSlug)) {
+      if (tagSetHasDynamicPowerSignal(tags)) score += 10;
+      if (exercise.modality === "power") score += 5;
+      if (tags.has("plyometric") || tags.has("jumping") || tags.has("reactive_power")) score += 4;
+      if (exercise.impact_level === "medium" || exercise.impact_level === "high") score += 2;
+      if (isMainCompound && !tags.has("plyometric") && !tags.has("jumping")) score -= 5;
+      if (exercise.modality === "hypertrophy") score -= 4;
+    } else if (isStabilityPrehabSportSubFocusSlug(subSlug)) {
+      if (tagSetHasStabilityPrehabSignal(tags)) score += 10;
+      if (exercise.stability_demand === "medium" || exercise.stability_demand === "high") score += 4;
+      if (exercise.unilateral || tags.has("single_leg") || tags.has("single_leg_strength")) score += 3;
+      if (["accessory", "isolation", "prehab", "activation"].includes(role)) score += 4;
+      if (isMainCompound) score -= 8;
+      if ((movement === "squat" || movement === "hinge") && !exercise.unilateral && !tags.has("single_leg_strength")) score -= 4;
+    }
+    return score;
+  };
+
+  const pickCoverageCandidate = (pool: Exercise[], subSlug: string): Exercise => {
+    const scored = pool
+      .map((exercise) => ({ exercise, score: scoreCoverageCandidate(exercise, subSlug) + rng() * 0.001 }))
+      .sort((a, b) => b.score - a.score);
+    return scored[0]?.exercise ?? pool[Math.floor(rng() * pool.length)]!;
+  };
+
   const subFocusPairCoverageCount = (sportKey: string, subSlug: string): number => {
     let n = 0;
     for (const id of collectExerciseIdsForSubFocusCoverage(mergedBlocks)) {
       const ex = exerciseById.get(id);
-      if (ex && exerciseMatchesSportSubFocusForCoverage(ex, sportKey, subSlug)) n++;
+      if (!ex || !exerciseMatchesSportSubFocusForCoverage(ex, sportKey, subSlug)) continue;
+      if (
+        (isExplosivePlyometricSportSubFocusSlug(subSlug) || isStabilityPrehabSportSubFocusSlug(subSlug)) &&
+        scoreCoverageCandidate(ex, subSlug) < 10
+      ) {
+        continue;
+      }
+      n++;
     }
     return n;
   };
@@ -7332,25 +7503,31 @@ function ensureSelectedSportSubFocusCoverage(
 
       // Do not use `selectExercises` here: pattern caps / cluster rules can reject the only
       // candidate that satisfies a missing (sport, sub-focus) pair (common for single-slot fixes).
-      const picked = matchingPool[Math.floor(rng() * matchingPool.length)]!;
+      // Within that coverage pool, archetype scoring keeps explosive intents dynamic and
+      // resilience/stability intents accessory/control-oriented.
+      const picked = pickCoverageCandidate(matchingPool, subSlug);
       used.add(picked.id);
+      const prescriptionContext = coveragePrescriptionContext(subSlug);
       const p = getPrescription(
         picked,
-        blockTypeForPrescription(),
+        prescriptionContext.blockType,
         input.energy_level,
-        input.primary_goal,
+        prescriptionContext.primaryGoal,
         true,
         fatigueVolumeScale,
         input.style_prefs?.user_level
       );
+      const isStabilityCoverage = isStabilityPrehabSportSubFocusSlug(subSlug);
       itemsToAdd.push({
         exercise_id: picked.id,
         exercise_name: picked.name,
-        sets: Math.max(2, Math.min(p.sets ?? 3, 4)),
-        reps: p.reps,
+        sets: isStabilityCoverage ? Math.max(2, Math.min(p.sets ?? 3, 3)) : Math.max(2, Math.min(p.sets ?? 3, 4)),
+        reps: isStabilityCoverage && p.reps != null ? Math.max(10, p.reps) : p.reps,
         time_seconds: p.time_seconds,
-        rest_seconds: p.rest_seconds,
-        coaching_cues: p.coaching_cues,
+        rest_seconds: isStabilityCoverage ? Math.min(p.rest_seconds, 45) : p.rest_seconds,
+        coaching_cues: isStabilityCoverage
+          ? "Controlled tempo. Own the joint position before adding load."
+          : p.coaching_cues,
         reasoning_tags: ["sport_sub_focus", canon, subSlug, ...(picked.tags.goal_tags ?? [])],
         unilateral: picked.unilateral ?? false,
       });
@@ -9070,18 +9247,22 @@ export function generateWorkoutSession(
     }
   }
 
-  // 3. Build warmup
-  const warmup = buildWarmup(
-    filtered,
-    input,
-    used,
-    rng,
-    fatigueState,
-    historyContext,
-    strengthProfileForWarmup,
-    blockIntentProfile.warmupPreferredTargets
-  );
-  const blocks: WorkoutBlock[] = [warmup];
+  // 3. Build warmup (recovery-primary uses a single unified block instead — no separate activation)
+  const blocks: WorkoutBlock[] =
+    primary === "recovery"
+      ? []
+      : [
+          buildWarmup(
+            filtered,
+            input,
+            used,
+            rng,
+            fatigueState,
+            historyContext,
+            strengthProfileForWarmup,
+            blockIntentProfile.warmupPreferredTargets
+          ),
+        ];
 
   const wantsSupersets = input.style_prefs?.wants_supersets !== false;
   const sessionFatigueRegions = new Map<string, number>();
@@ -9140,7 +9321,7 @@ export function generateWorkoutSession(
         if (sportTaggedPow.length >= 2) accessoryPoolForPairs = sportTaggedPow;
       }
       const powerPairPrefs = buildSupersetIntentPreferenceScores(accessoryPoolForPairs, input);
-      const pairs = pickBestSupersetPairs(accessoryPoolForPairs, 1, used, undefined, powerPairPrefs) as [Exercise, Exercise][];
+      const pairs = pickBestSupersetPairs(accessoryPoolForPairs, 1, used, rng, powerPairPrefs) as [Exercise, Exercise][];
       if (pairs.length > 0) {
         const [exA, exB] = pairs[0];
         used.add(exA.id);
@@ -9775,9 +9956,10 @@ export function generateWorkoutSession(
           !rankedCardioIntentsFinisher?.length)));
 
   const spForComposition = input.sport_profile_for_scoring;
+  // Sport prep profiles (running, field sports, etc.) may require a conditioning finisher even when the
+  // primary goal's base policy disables optional cardio (e.g. calisthenics-primary or body recomp).
   if (
     !hasConditioningBlock &&
-    blockIntentProfile.allowConditioningBlock &&
     spForComposition &&
     sportProfileBiasedTowardConditioning(spForComposition) &&
     skipConditioning
@@ -10035,14 +10217,16 @@ export function generateWorkoutSession(
     usedTitles.add(t);
   }
 
-  // 7. Build cooldown (required-block: mobility secondary goal → min mobility exercises + visible block)
+  // 7. Build cooldown (recovery-primary already ends with the unified recovery circuit — skip duplicate cooldown)
   const mainWorkFamilies = getMainWorkFamiliesFromBlocks(blocks, filtered);
-  const cooldown = buildCooldown(filtered, input, used, rng, {
-    constraints,
-    mainWorkFamilies,
-    preferredTargets: blockIntentProfile.cooldownPreferredTargets,
-  });
-  blocks.push(cooldown);
+  if (primary !== "recovery") {
+    const cooldown = buildCooldown(filtered, input, used, rng, {
+      constraints,
+      mainWorkFamilies,
+      preferredTargets: blockIntentProfile.cooldownPreferredTargets,
+    });
+    blocks.push(cooldown);
+  }
 
   // Merge consecutive blocks with the same title so we never show two blocks with the same name
   let mergedBlocks = mergeConsecutiveBlocksWithSameTitle(blocks);
@@ -10308,7 +10492,11 @@ export function generateWorkoutSession(
       if (!isExerciseAllowedByInjuries(shape, constraints)) continue;
       if ((goal === "conditioning" || goal === "endurance") && ex.modality !== "conditioning") continue;
       if ((goal === "mobility" || goal === "recovery") && !exerciseCountsAsCooldownMobilityForValidator(ex)) continue;
-      if (goal === "recovery" && !isGentleRecoveryExercise(ex)) continue;
+      if (goal === "recovery") {
+        if (input.primary_goal === "recovery") {
+          if (!isRecoveryPrimaryFriendlyExercise(ex)) continue;
+        } else if (!isGentleRecoveryExercise(ex)) continue;
+      }
       if (exerciseMatchesDeclaredGoal(ex, goal)) return ex;
     }
     return null;
@@ -10765,10 +10953,13 @@ export function generateWorkoutSession(
       : {}),
   };
 
+  const withExerciseDescriptions = (s: WorkoutSession): WorkoutSession =>
+    attachExerciseDescriptionsToSession(s, exercisePool);
+
   const validation = validateWorkoutAgainstConstraints(session, constraints, filtered);
-  if (validation.valid) return session;
+  if (validation.valid) return withExerciseDescriptions(session);
   if (validation.repairedWorkout) {
-    return validation.repairedWorkout as WorkoutSession;
+    return withExerciseDescriptions(validation.repairedWorkout as WorkoutSession);
   }
   let fallbackSession = session;
   let fallbackValidation = validation;
@@ -10788,9 +10979,11 @@ export function generateWorkoutSession(
     const regeneratedUnresolvedCriticalTypes =
       unresolvedCriticalValidationTypes(regeneratedValidation);
     if (regeneratedValidation.valid || regeneratedUnresolvedCriticalTypes.length === 0) {
-      return regeneratedValidation.violations.length > 0
-        ? appendValidationFallbackDebug(regeneratedSession, regeneratedValidation)
-        : regeneratedSession;
+      const out =
+        regeneratedValidation.violations.length > 0
+          ? appendValidationFallbackDebug(regeneratedSession, regeneratedValidation)
+          : regeneratedSession;
+      return withExerciseDescriptions(out);
     }
     fallbackSession = regeneratedSession;
     fallbackValidation = regeneratedValidation;
@@ -10908,9 +11101,11 @@ export function generateWorkoutSession(
     };
     const forcedValidation = validateWorkoutAgainstConstraints(forcedSession, constraints, filtered);
     if (forcedValidation.valid || unresolvedCriticalValidationTypes(forcedValidation).length === 0) {
-      return forcedValidation.violations.length > 0
-        ? appendValidationFallbackDebug(forcedSession, forcedValidation)
-        : forcedSession;
+      const out =
+        forcedValidation.violations.length > 0
+          ? appendValidationFallbackDebug(forcedSession, forcedValidation)
+          : forcedSession;
+      return withExerciseDescriptions(out);
     }
   }
 
@@ -10929,15 +11124,17 @@ export function generateWorkoutSession(
         .filter((v) => v.repaired !== true && CRITICAL_UNRESOLVED_VALIDATION_TYPES.has(v.type))
         .map((v) => ({ type: v.type, exerciseId: v.exerciseId, description: v.description }))
     );
-    return sessionWithValidationFallbackDebug === session
-      ? safeguardedSession
-      : {
-          ...safeguardedSession,
-          debug: {
-            ...(safeguardedSession.debug ?? {}),
-            ...(sessionWithValidationFallbackDebug.debug ?? {}),
-          },
-        };
+    const merged =
+      sessionWithValidationFallbackDebug === session
+        ? safeguardedSession
+        : {
+            ...safeguardedSession,
+            debug: {
+              ...(safeguardedSession.debug ?? {}),
+              ...(sessionWithValidationFallbackDebug.debug ?? {}),
+            },
+          };
+    return withExerciseDescriptions(merged);
   }
   if (fallbackValidation.violations.length > 0) {
     console.warn(
@@ -10945,7 +11142,7 @@ export function generateWorkoutSession(
       fallbackValidation.violations.map((v) => ({ type: v.type, description: v.description }))
     );
   }
-  return sessionWithValidationFallbackDebug;
+  return withExerciseDescriptions(sessionWithValidationFallbackDebug);
 }
 
 // --- Regenerate ---

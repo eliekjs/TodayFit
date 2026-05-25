@@ -112,6 +112,7 @@ type AdaptiveAdvNestedKey =
 
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
+  const headerHeight = useHeaderHeight();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const windowBoxRef = useRef({ width: windowWidth, height: windowHeight });
   windowBoxRef.current = { width: windowWidth, height: windowHeight };
@@ -953,7 +954,7 @@ export default function AdaptiveModeScreen() {
                           styles.priorityRankBadge,
                           {
                             backgroundColor: theme.chipSelectedBackground,
-                            borderColor: theme.primary,
+                            borderColor: theme.chipSelectedBorder,
                           },
                         ]}
                       >
@@ -991,7 +992,7 @@ export default function AdaptiveModeScreen() {
                                             {
                                               backgroundColor: theme.chipSelectedBackground,
                                               borderWidth: 1,
-                                              borderColor: theme.primary,
+                                              borderColor: theme.chipSelectedBorder,
                                             },
                                           ]}
                                         >
@@ -1007,7 +1008,7 @@ export default function AdaptiveModeScreen() {
                                             {
                                               backgroundColor: theme.chipSelectedBackground,
                                               borderWidth: 1,
-                                              borderColor: theme.primary,
+                                              borderColor: theme.chipSelectedBorder,
                                             },
                                           ]}
                                         >
@@ -1055,7 +1056,7 @@ export default function AdaptiveModeScreen() {
                                               {
                                                 backgroundColor: theme.chipSelectedBackground,
                                                 borderWidth: 1,
-                                                borderColor: theme.primary,
+                                                borderColor: theme.chipSelectedBorder,
                                               },
                                             ]}
                                           >
@@ -1071,7 +1072,7 @@ export default function AdaptiveModeScreen() {
                                               {
                                                 backgroundColor: theme.chipSelectedBackground,
                                                 borderWidth: 1,
-                                                borderColor: theme.primary,
+                                                borderColor: theme.chipSelectedBorder,
                                               },
                                             ]}
                                           >
@@ -1149,7 +1150,7 @@ export default function AdaptiveModeScreen() {
                         {
                           backgroundColor: theme.chipSelectedBackground,
                           borderWidth: 1,
-                          borderColor: theme.primary,
+                          borderColor: theme.chipSelectedBorder,
                         },
                       ]}
                     >
@@ -1163,7 +1164,7 @@ export default function AdaptiveModeScreen() {
                         {
                           backgroundColor: theme.chipSelectedBackground,
                           borderWidth: 1,
-                          borderColor: theme.primary,
+                          borderColor: theme.chipSelectedBorder,
                         },
                       ]}
                     >
@@ -1276,7 +1277,7 @@ export default function AdaptiveModeScreen() {
                                       {
                                         backgroundColor: theme.chipSelectedBackground,
                                         borderWidth: 1,
-                                        borderColor: theme.primary,
+                                        borderColor: theme.chipSelectedBorder,
                                       },
                                     ]}
                                   >
@@ -1292,7 +1293,7 @@ export default function AdaptiveModeScreen() {
                                       {
                                         backgroundColor: theme.chipSelectedBackground,
                                         borderWidth: 1,
-                                        borderColor: theme.primary,
+                                        borderColor: theme.chipSelectedBorder,
                                       },
                                     ]}
                                   >
@@ -1358,7 +1359,7 @@ export default function AdaptiveModeScreen() {
                         {
                           backgroundColor: theme.chipSelectedBackground,
                           borderWidth: 1,
-                          borderColor: theme.primary,
+                          borderColor: theme.chipSelectedBorder,
                         },
                       ]}
                     >
@@ -1372,7 +1373,7 @@ export default function AdaptiveModeScreen() {
                         {
                           backgroundColor: theme.chipSelectedBackground,
                           borderWidth: 1,
-                          borderColor: theme.primary,
+                          borderColor: theme.chipSelectedBorder,
                         },
                       ]}
                     >
@@ -1702,7 +1703,7 @@ export default function AdaptiveModeScreen() {
                             {
                               backgroundColor: theme.chipSelectedBackground,
                               borderWidth: 1,
-                              borderColor: theme.primary,
+                              borderColor: theme.chipSelectedBorder,
                             },
                           ]}
                         >
@@ -1730,7 +1731,7 @@ export default function AdaptiveModeScreen() {
                                       {
                                         backgroundColor: theme.chipSelectedBackground,
                                         borderWidth: 1,
-                                        borderColor: theme.primary,
+                                        borderColor: theme.chipSelectedBorder,
                                       },
                                     ]}
                                   >
@@ -1746,7 +1747,7 @@ export default function AdaptiveModeScreen() {
                                       {
                                         backgroundColor: theme.chipSelectedBackground,
                                         borderWidth: 1,
-                                        borderColor: theme.primary,
+                                        borderColor: theme.chipSelectedBorder,
                                       },
                                     ]}
                                   >
@@ -1959,6 +1960,7 @@ export default function AdaptiveModeScreen() {
 
         <View style={styles.footer}>
           <PrimaryButton
+            compact
             label={
               isOneDay
                 ? (isGeneratingOneDay ? "Generating…" : "Get today's workout")
@@ -2023,7 +2025,7 @@ export default function AdaptiveModeScreen() {
                       left,
                       width: maxBubbleW,
                       backgroundColor: theme.card,
-                      borderColor: theme.primary,
+                      borderColor: theme.chipSelectedBorder,
                     },
                     placement === "above" ? { paddingBottom: 12 } : { paddingTop: 14 },
                   ]}
@@ -2034,7 +2036,7 @@ export default function AdaptiveModeScreen() {
                         styles.limitPopupCaretUp,
                         {
                           left: caretLeft,
-                          borderBottomColor: theme.primary,
+                          borderBottomColor: theme.chipSelectedBorder,
                         },
                       ]}
                     />
@@ -2047,7 +2049,7 @@ export default function AdaptiveModeScreen() {
                         styles.limitPopupCaretDown,
                         {
                           left: caretLeft,
-                          borderTopColor: theme.primary,
+                          borderTopColor: theme.chipSelectedBorder,
                         },
                       ]}
                     />
@@ -2309,20 +2311,22 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   footer: {
-    marginTop: 24,
-    marginBottom: 24,
+    marginTop: 20,
+    marginBottom: 20,
   },
   footerHint: {
-    fontSize: 13,
+    fontSize: 12,
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 6,
+    lineHeight: 17,
+    paddingHorizontal: 6,
   },
   advancedLinkWrap: {
-    paddingVertical: 12,
+    paddingVertical: 8,
     alignItems: "center",
   },
   advancedLinkText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
   },
   subGoalBlendLinkWrap: {

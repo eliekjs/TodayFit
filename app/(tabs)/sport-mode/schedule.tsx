@@ -384,7 +384,7 @@ export default function AdaptiveScheduleScreen() {
 
         <CollapsiblePreferenceSection
           title="Weekly body emphasis"
-          subtitle="Still full-body—we’ll lean a bit more on this area."
+          subtitle="Optional bias toward one region on top of rotating upper, lower, and occasional full gym days."
           summary={emphasisSummary}
           expanded={sectionEmphasisOpen}
           onToggle={() => {

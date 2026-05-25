@@ -52,8 +52,8 @@ export function WeekDayFocusPlanner({
                       },
                     ]}
                   >
-                    <View style={[styles.radioOuter, { borderColor: isSel ? theme.primary : theme.textMuted }]}>
-                      {isSel ? <View style={[styles.radioInner, { backgroundColor: theme.primary }]} /> : null}
+                    <View style={[styles.radioOuter, { borderColor: isSel ? theme.primarySolid : theme.textMuted }]}>
+                      {isSel ? <View style={[styles.radioInner, { backgroundColor: theme.primarySolid }]} /> : null}
                     </View>
                     <View style={styles.optionText}>
                       <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>

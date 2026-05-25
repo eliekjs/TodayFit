@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
+  Alert,
 } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -14,6 +15,9 @@ import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
 import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
+import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
+import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
+import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
 
 type ActionCardProps = {
   icon: React.ComponentProps<typeof Ionicons>["name"];
@@ -100,11 +104,22 @@ export default function HomeScreen() {
     setManualWeekPlan,
     manualExecutionStarted,
     setManualExecutionStarted,
+    activeGymProfileId,
+    gymProfiles,
+    workoutHistory,
+    savedWorkouts,
+    manualSessionProgress,
   } = useAppState();
+  const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
+  const trainTodayCancelledRef = useRef(false);
   const primaryGoal =
     manualPreferences.primaryFocus[0] ?? "Not set";
   const secondaryGoal =
     manualPreferences.primaryFocus[1] ?? "Not set";
+  const activeProfile =
+    gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
+  const canTrainToday =
+    manualPreferences.primaryFocus.length >= 1 && activeProfile != null;
 
   const hasInProgress =
     manualWeekPlan != null || sportPrepWeekPlan != null || generatedWorkout != null;
@@ -131,11 +146,63 @@ export default function HomeScreen() {
   };
   const continueWeek = () => router.push("/manual/week");
 
+  const onTrainToday = async () => {
+    if (!canTrainToday || !activeProfile) return;
+    trainTodayCancelledRef.current = false;
+    setIsTrainTodayGenerating(true);
+    try {
+      const prefs = {
+        ...manualPreferences,
+        durationMinutes: manualPreferences.durationMinutes ?? 45,
+      };
+      const preferredNames = await preferredExerciseNamesForManualPreferences(prefs);
+      if (trainTodayCancelledRef.current) return;
+      const { generateWorkoutAsync } = await loadGeneratorModule();
+      if (trainTodayCancelledRef.current) return;
+      const workout = await generateWorkoutAsync(
+        prefs,
+        activeProfile,
+        undefined,
+        preferredNames,
+        undefined,
+        {
+          historySources: {
+            workoutHistory,
+            savedWorkouts,
+            inProgressProgress: manualSessionProgress,
+          },
+        }
+      );
+      if (trainTodayCancelledRef.current) return;
+      setGeneratedWorkout(workout);
+      router.push("/manual/workout");
+    } catch (e) {
+      if (trainTodayCancelledRef.current) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't build workout", msg);
+    } finally {
+      setIsTrainTodayGenerating(false);
+    }
+  };
+
   if (!isHydrated) {
     return null;
   }
   if (!hasEntered) {
     return <Redirect href="/welcome" />;
+  }
+
+  if (isTrainTodayGenerating) {
+    return (
+      <GenerationLoadingScreen
+        message="Building your session…"
+        subtitle="Using your goals, gym, and recent workouts."
+        onGoBack={() => {
+          trainTodayCancelledRef.current = true;
+          setIsTrainTodayGenerating(false);
+        }}
+      />
+    );
   }
 
   return (
@@ -246,6 +313,38 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {canTrainToday && !hasInProgress && (
+          <View
+            style={[
+              styles.trainTodayCard,
+              { backgroundColor: theme.card, borderColor: "rgba(45,212,191,0.35)" },
+            ]}
+          >
+            <Text style={[styles.trainTodayTitle, { color: theme.text }]}>Train today</Text>
+            <Text style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}>
+              {primaryGoal}
+              {secondaryGoal !== "Not set" ? ` · ${secondaryGoal}` : ""}
+              {activeProfile ? ` · ${activeProfile.name}` : ""}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.trainTodayButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
+              onPress={onTrainToday}
+            >
+              <LinearGradient
+                colors={["rgba(45,212,191,0.85)", "rgba(59,130,246,0.8)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.trainTodayButton}
+              >
+                <Text style={styles.trainTodayButtonText}>Build today&apos;s workout</Text>
+              </LinearGradient>
+            </Pressable>
+            <Text style={[styles.trainTodayHint, { color: theme.textMuted }]}>
+              Uses your saved goals and gym. Sport prep and advanced options stay in the cards below.
+            </Text>
+          </View>
+        )}
+
         <ActionCard
           icon="barbell-outline"
           title="Goal-Oriented Training"
@@ -265,24 +364,29 @@ export default function HomeScreen() {
           theme={theme}
         />
 
-        <View style={[styles.goalSummary, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <View style={styles.goalRow}>
-            <Text style={[styles.goalLabel, { color: theme.textMuted }]}>
-              Primary Goal:
-            </Text>
-            <Text style={[styles.goalValue, { color: theme.text }]}>
-              {primaryGoal}
+        {!canTrainToday && (
+          <View style={[styles.goalSummary, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={styles.goalRow}>
+              <Text style={[styles.goalLabel, { color: theme.textMuted }]}>
+                Primary Goal:
+              </Text>
+              <Text style={[styles.goalValue, { color: theme.text }]}>
+                {primaryGoal}
+              </Text>
+            </View>
+            <View style={styles.goalRow}>
+              <Text style={[styles.goalLabel, { color: theme.textMuted }]}>
+                Secondary Goal:
+              </Text>
+              <Text style={[styles.goalValue, { color: theme.text }]}>
+                {secondaryGoal}
+              </Text>
+            </View>
+            <Text style={[styles.trainTodayHint, { color: theme.textMuted, marginTop: 8 }]}>
+              Pick at least one goal in Goal-Oriented or Sport-Focused training to enable Train today.
             </Text>
           </View>
-          <View style={styles.goalRow}>
-            <Text style={[styles.goalLabel, { color: theme.textMuted }]}>
-              Secondary Goal:
-            </Text>
-            <Text style={[styles.goalValue, { color: theme.text }]}>
-              {secondaryGoal}
-            </Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -315,6 +419,37 @@ const styles = StyleSheet.create({
   },
   continueCardRow: {
     paddingVertical: 10,
+  },
+  trainTodayCard: {
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    gap: 10,
+  },
+  trainTodayTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  trainTodaySubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  trainTodayButtonWrap: {
+    marginTop: 4,
+  },
+  trainTodayButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  trainTodayButtonText: {
+    color: "#0f172a",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  trainTodayHint: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   continueCardRowSecond: {
     marginTop: 4,

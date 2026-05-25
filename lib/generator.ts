@@ -61,6 +61,8 @@ import {
   manualPreferencesToGenerateWorkoutInput,
   workoutSessionToGeneratedWorkout,
 } from "./dailyGeneratorAdapter";
+import type { AppHistorySources } from "./buildAppTrainingHistory";
+import { buildAppTrainingHistory } from "./buildAppTrainingHistory";
 
 function exerciseConflictsWithInjuries(ex: Exercise, injurySlugs: string[]): boolean {
   if (!injurySlugs.length) return false;
@@ -146,6 +148,8 @@ export async function getExercisePoolForManualGeneration(injurySlugs: string[]):
 export type GenerateWorkoutAsyncOptions = {
   /** When set, skips loading/merging the catalog for this call (same injury filter as `getExercisePoolForManualGeneration`). */
   exercisePool?: Exercise[];
+  /** Completed / in-progress sessions from app state → Phase 11 training_history. */
+  historySources?: AppHistorySources;
 };
 
 function mergeStaticIntoPool(
@@ -958,6 +962,7 @@ export function generateWorkout(
  * When preferredExerciseSlugsOrNames is provided, the generator prefers those exercises (match by id or name) when scoring.
  * When sportGoalContext is provided (e.g. from adaptive/sport-prep), sport_slugs, sport_sub_focus, goal_weights, and sport_weight are passed to the daily generator.
  * When `seedExtra` is omitted, a fresh entropy token is used so repeated runs with the same preferences produce different workouts (explicit `seedExtra` keeps deterministic output for tests / replay).
+ * From UI regenerates, prefer `composeRunGenerationSeed()` / `composeRunGenerationSeed(dayDate)` from `./dailyGeneratorAdapter` instead of `Date.now()` alone so each tap mixes cryptographic entropy and sub-ms time.
  * Pass `options.exercisePool` from `getExercisePoolForManualGeneration` when generating several workouts in one flow (e.g. manual week) so the pool is not re-merged per day.
  */
 export async function generateWorkoutAsync(
@@ -979,12 +984,16 @@ export async function generateWorkoutAsync(
       "No exercises available for generation. With Supabase, seed the catalog (npx tsx scripts/seedExercisesToDb.ts) or check injury filters. Without Supabase, static data should load. See docs/SINGLE_EXERCISE_SOURCE.md."
     );
   }
+  const trainingHistory = options?.historySources
+    ? buildAppTrainingHistory(options.historySources)
+    : undefined;
   const input = manualPreferencesToGenerateWorkoutInput(
     preferences,
     gymProfile,
     sessionSeed,
     preferredExerciseSlugsOrNames,
-    sportGoalContext
+    sportGoalContext,
+    trainingHistory
   );
   const session = generateWorkoutSession(input, pool);
   return workoutSessionToGeneratedWorkout(session, preferences, `w_${Date.now()}`, input);

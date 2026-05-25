@@ -23,6 +23,8 @@ import {
   type ExecutionProgress,
 } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import { formatExerciseDisplayCue } from "../../../lib/exerciseDisplayCue";
+import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -227,7 +229,8 @@ export default function ExecuteScreen() {
       generatedWorkout,
       swapModal.exerciseId,
       optionId,
-      optionName
+      optionName,
+      getCuratedExerciseDescription(optionId)
     );
     setGeneratedWorkout(updated);
     setProgress((prev) => {
@@ -352,6 +355,18 @@ export default function ExecuteScreen() {
                   >
                     {exercise.prescription} • {exercise.sectionTitle}
                   </Text>
+                  {(() => {
+                    const cue = formatExerciseDisplayCue(exercise);
+                    if (!cue) return null;
+                    return (
+                      <Text
+                        style={[styles.exerciseCue, { color: theme.textMuted }]}
+                        numberOfLines={4}
+                      >
+                        {cue}
+                      </Text>
+                    );
+                  })()}
                   <TextInput
                     style={[
                       styles.notesInput,
@@ -471,6 +486,11 @@ const styles = StyleSheet.create({
   exerciseMeta: {
     fontSize: 12,
     marginTop: 2,
+  },
+  exerciseCue: {
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 17,
   },
   swapButton: {
     borderWidth: 1,

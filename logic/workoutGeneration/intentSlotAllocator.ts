@@ -16,8 +16,12 @@ import { exerciseMatchesDeclaredGoal } from "./sessionIntentCoverage";
 import { allocateSlotsBySubFocusWeights } from "./slotAllocationHelpers";
 import {
   isSpeedAgilityPowerStyleSubFocusSlug,
-  normTagSlug,
 } from "../../data/sportSubFocus/speedAgilitySubFocusShared";
+import {
+  isExplosivePlyometricSportSubFocusSlug,
+  isStabilityPrehabSportSubFocusSlug,
+  tagSetHasDynamicPowerSignal,
+} from "../../data/sportSubFocus/subFocusIntentArchetypes";
 
 function tagToSlug(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -109,6 +113,21 @@ function effectiveMainWorkPatternForIntent(ex: Exercise): string {
     .replace(/\s/g, "_");
 }
 
+function exerciseTagSet(ex: Exercise): Set<string> {
+  const out = new Set<string>();
+  const add = (s: string | undefined) => {
+    if (s) out.add(tagToSlug(s));
+  };
+  for (const t of ex.tags.goal_tags ?? []) add(t);
+  for (const t of ex.tags.sport_tags ?? []) add(t);
+  for (const t of ex.tags.stimulus ?? []) add(t);
+  for (const t of ex.tags.attribute_tags ?? []) add(t);
+  for (const t of ex.muscle_groups ?? []) add(t);
+  add(ex.movement_pattern);
+  add(ex.pairing_category);
+  return out;
+}
+
 /**
  * True when the exercise is suitable as a main compound for the given primary (strength-style gate
  * or hypertrophy main-work pattern set).
@@ -130,9 +149,33 @@ export function isIntentMainWorkCandidate(ex: Exercise, primary: PrimaryGoal): b
 
 export function isPowerStyleSportIntentEntry(entry: IntentEntry): boolean {
   if (entry.kind !== "sport_sub_focus") return false;
-  // Vertical jump is trained with power/explosive prescriptions; do not add to speed/COD dynamic gate in subFocusSlugMatch.
-  if (normTagSlug(entry.slug) === "vertical_jump") return true;
-  return isSpeedAgilityPowerStyleSubFocusSlug(entry.slug);
+  return isSpeedAgilityPowerStyleSubFocusSlug(entry.slug) || isExplosivePlyometricSportSubFocusSlug(entry.slug);
+}
+
+export function isStabilityPrehabSportIntentEntry(entry: IntentEntry): boolean {
+  return entry.kind === "sport_sub_focus" && isStabilityPrehabSportSubFocusSlug(entry.slug);
+}
+
+export function isMainWorkCandidateForIntentEntry(
+  ex: Exercise,
+  entry: IntentEntry,
+  primary: PrimaryGoal
+): boolean {
+  if (isStabilityPrehabSportIntentEntry(entry)) return false;
+  if (entry.kind === "sport_sub_focus" && isExplosivePlyometricSportSubFocusSlug(entry.slug)) {
+    if (ex.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(ex.exercise_role.toLowerCase().replace(/\s/g, "_"))) {
+      return false;
+    }
+    if (!(ex.modality === "power" || ex.modality === "strength" || ex.modality === "conditioning")) return false;
+    const tags = exerciseTagSet(ex);
+    if (!tagSetHasDynamicPowerSignal(tags)) return false;
+    const role = (ex.exercise_role ?? "").toLowerCase().replace(/\s/g, "_");
+    const hasJumpOrReactiveSignal = tags.has("plyometric") || tags.has("jumping") || tags.has("reactive_power");
+    if (role === "main_compound" && ex.modality !== "power" && !hasJumpOrReactiveSignal) return false;
+    const pattern = effectiveMainWorkPatternForIntent(ex);
+    return new Set(["squat", "hinge", "push", "pull", "rotate", "locomotion"]).has(pattern);
+  }
+  return isIntentMainWorkCandidate(ex, primary);
 }
 
 export function mainWorkPrimaryForIntentEntry(entry: IntentEntry, sessionPrimary: PrimaryGoal): PrimaryGoal {

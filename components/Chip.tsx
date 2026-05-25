@@ -30,7 +30,7 @@ export function Chip({ label, selected = false, disabled = false, onPress, style
             ? theme.chipSelectedBackground
             : "transparent",
           borderWidth: 1,
-          borderColor: selected ? theme.primary : theme.border,
+          borderColor: selected ? theme.chipSelectedBorder : theme.border,
           opacity: disabled ? 0.5 : 1,
         },
         style,

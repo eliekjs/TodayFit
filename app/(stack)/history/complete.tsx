@@ -31,9 +31,11 @@ export default function WorkoutCompleteScreen() {
         <Text style={[styles.summary, { color: theme.textMuted }]}>
           {summary}
         </Text>
-        <View style={{ marginTop: 24 }}>
+        <View style={styles.actions}>
+          <PrimaryButton label="Train again" onPress={() => router.replace("/")} />
           <PrimaryButton
-            label="Back to Library"
+            label="View Library"
+            variant="secondary"
             onPress={() => router.replace("/library")}
           />
         </View>
@@ -61,5 +63,11 @@ const styles = StyleSheet.create({
   summary: {
     fontSize: 14,
     textAlign: "center",
+  },
+  actions: {
+    marginTop: 24,
+    width: "100%",
+    maxWidth: 320,
+    gap: 12,
   },
 });

@@ -20,6 +20,7 @@ import {
   sportSupportDefaultDemand,
   type DemandVector,
 } from "./sportSupportDemand";
+import { composeRunGenerationSeed } from "../../lib/dailyGeneratorAdapter";
 
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
@@ -68,7 +69,7 @@ export type PlanWeekInput = {
   goalSubFocusByGoal?: Record<string, string[]>;
   /** Optional blend % keyed like `goalSubFocusByGoal`. */
   goalSubFocusPctByGoal?: Record<string, Record<string, number>>;
-  /** Weekly body emphasis: more volume on this area; week still trains full body. */
+  /** Weekly body emphasis: biases gym-day templates toward this region (week still rotates upper/lower/full per planner). */
   emphasis?: import("../../lib/types").BodyEmphasisKey | null;
   /** Goal distribution: dedicate entire days to goals vs blend. Default blend. */
   goalDistributionStyle?: import("../../lib/types").GoalDistributionStyle | null;
@@ -209,6 +210,8 @@ export type RegenerateDayInput = {
   dailyPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
   /** Penalize re-picking these exercise ids (same-day regenerate variety). */
   avoidRepeatingExerciseIds?: string[];
+  /** Completed / saved sessions from app state (Phase 11 training_history). */
+  historySources?: import("../../lib/buildAppTrainingHistory").AppHistorySources;
 };
 
 export type RegenerateDayResult = {
@@ -1576,6 +1579,10 @@ export async function regenerateDay(
         ...(regContractGuest ? { session_intent_contract: regContractGuest } : {}),
         regenerationAvoidExerciseIds:
           input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
+        historySources: {
+          ...input.historySources,
+          regenerationAvoidExerciseIds: input.avoidRepeatingExerciseIds,
+        },
       }
     );
     const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1670,7 +1677,7 @@ export async function regenerateDay(
   const workout = await buildWorkoutForSessionIntent(
     sessionIntent,
     input.gymProfile,
-    `${dayRow.date}_${Date.now()}`,
+    composeRunGenerationSeed(dayRow.date as string),
     {
       sportSlug: input.sportSlug ?? input.rankedSportSlugs?.[0] ?? null,
       goalSlugs: input.goalSlugs ?? [],
@@ -1694,6 +1701,10 @@ export async function regenerateDay(
       ...(regContractDb ? { session_intent_contract: regContractDb } : {}),
       regenerationAvoidExerciseIds:
         input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
+      historySources: {
+        ...input.historySources,
+        regenerationAvoidExerciseIds: input.avoidRepeatingExerciseIds,
+      },
     }
   );
   const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
