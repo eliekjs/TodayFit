@@ -20,6 +20,7 @@ import { Chip } from "../../../components/Chip";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
+import { DiscardSessionLink } from "../../navigation/tabFlowChrome";
 import { saveManualWeek, saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
@@ -1201,6 +1202,8 @@ export default function ManualWeekScreen() {
         style={styles.saveWeekBtn}
         disabled={saving}
       />
+
+      <DiscardSessionLink style={{ marginTop: 12, marginBottom: 24 }} />
 
       <AdjustFocusModal
         visible={showAdjustFocusModal}

@@ -42,6 +42,7 @@ import {
   generatorGoalToSwapTagSlugs,
 } from "../../../lib/exerciseProgressions";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
+import { DiscardSessionLink } from "../../navigation/tabFlowChrome";
 import type { BlockType } from "../../../lib/types";
 import {
   computeDeclaredIntentSplitFromPrefs,
@@ -75,6 +76,12 @@ function pickDefaultPlannedDay(plan: PlanWeekResult): PlannedDay | null {
     gw[d.id] != null ||
     (plan.today?.id === d.id && plan.todayWorkout != null);
 
+  const gymDaysPerWeek = plan.scheduleSnapshot?.gymDaysPerWeek ?? 0;
+  if (gymDaysPerWeek === 1) {
+    const trainingDay = plan.days.find(hasWorkoutForDay);
+    if (trainingDay) return trainingDay;
+  }
+
   const todayIso = getTodayLocalDateString();
   const todayRow = plan.days.find((d) => d.date === todayIso);
   if (todayRow && hasWorkoutForDay(todayRow)) return todayRow;
@@ -83,6 +90,13 @@ function pickDefaultPlannedDay(plan: PlanWeekResult): PlannedDay | null {
   if (withWorkout) return withWorkout;
 
   return plan.days[0] ?? null;
+}
+
+function sportSetupHref(plan: PlanWeekResult | null): string {
+  if (plan?.scheduleSnapshot?.gymDaysPerWeek === 1) {
+    return "/sport-mode?scope=day";
+  }
+  return "/sport-mode";
 }
 
 function assignedGoalForExercise(
@@ -1097,7 +1111,9 @@ export default function AdaptiveWeekPlanScreen() {
         <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 16 }}>
           {daySlotsWithSessions.length > 1
             ? "No session for this day — tap another day in the week overview above."
-            : "No session generated for this day (rest / low-load day). Try Regenerate workout or Back to Setup."}
+            : sportPrepWeekPlan?.scheduleSnapshot?.gymDaysPerWeek === 1
+              ? "Couldn't load your session — tap Regenerate workout or Back to Setup."
+              : "No session generated for this day (rest / low-load day). Try Regenerate workout or Back to Setup."}
         </Text>
       )}
       {!isLoadingWorkout && selectedWorkout && (
@@ -1206,10 +1222,11 @@ export default function AdaptiveWeekPlanScreen() {
               label="Back to Setup"
               variant="ghost"
               onPress={() => {
-                router.replace("/sport-mode");
+                router.push(sportSetupHref(sportPrepWeekPlan));
               }}
               style={{ marginTop: 8 }}
             />
+            <DiscardSessionLink style={{ marginTop: 16, marginBottom: 8 }} />
           </View>
         </View>
       )}

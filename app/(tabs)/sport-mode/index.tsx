@@ -54,10 +54,14 @@ import { listSportsForPrep, getQualitiesForSport, resolveActiveSportForSlug } fr
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
-import { planWeek } from "../../../services/sportPrepPlanner";
+import { forceIntentKeyForOneDaySport, planWeek } from "../../../services/sportPrepPlanner";
 import type { DailyWorkoutPreferences, EnergyLevel, TargetBody } from "../../../lib/types";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
+import {
+  isOneDaySportModeCombinationValid,
+  ONE_DAY_SPORT_MODE_COMBINATION_HINT,
+} from "../../../lib/sportModeOneDayValidation";
 
 if (
   Platform.OS === "android" &&
@@ -265,7 +269,7 @@ export default function AdaptiveModeScreen() {
     if (current.includes(slug) || current.length >= 2) return;
     if (isOneDay && current.length === 1 && currentGoalsCount > 0) {
       showLimitPopup(
-        "For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal.",
+        `For one-day Sport Mode, ${ONE_DAY_SPORT_MODE_COMBINATION_HINT}`,
         anchor
       );
       return;
@@ -354,12 +358,13 @@ export default function AdaptiveModeScreen() {
     }
     if (
       isOneDay &&
-      !(
-        (selectedSportCount === 2 && selectedGoalCount === 0) ||
-        (selectedSportCount === 1 && selectedGoalCount === 1)
-      )
+      !isOneDaySportModeCombinationValid({
+        sportCount: selectedSportCount,
+        goalCount: selectedGoalCount,
+        sportSubGoalCount: totalSportSubGoalsSelected,
+      })
     ) {
-      setError("For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal.");
+      setError(`For one-day Sport Mode, ${ONE_DAY_SPORT_MODE_COMBINATION_HINT.toLowerCase()}`);
       return;
     }
     if (isOneDay && !(oneDayDuration > 0)) {
@@ -447,11 +452,12 @@ export default function AdaptiveModeScreen() {
                 ? { injuryAreas: [...injuryTypes] }
                 : {}),
             },
+            forceIntentKey: forceIntentKeyForOneDaySport(primary, rankedSportSlugs),
           });
           if (generationCancelledRef.current) return;
           setSportPrepWeekPlan(plan);
           setAdaptiveSetup(null);
-          router.replace("/sport-mode/recommendation");
+          router.push("/sport-mode/recommendation");
         } catch (e) {
           if (generationCancelledRef.current) return;
           setError(e instanceof Error ? e.message : String(e));
@@ -513,7 +519,7 @@ export default function AdaptiveModeScreen() {
     if (currentCount + currentSportsCount >= totalPriorityCap) {
       showLimitPopup(
         isOneDay
-          ? "For one-day Sport Mode, choose either 2 sports or 1 sport + 1 goal."
+          ? `For one-day Sport Mode, ${ONE_DAY_SPORT_MODE_COMBINATION_HINT}`
           : `You can select up to ${totalPriorityCap} total across sports and goals in week mode.`,
         anchor
       );
@@ -685,10 +691,17 @@ export default function AdaptiveModeScreen() {
 
   const oneDayGoalCount = rankedGoals.filter((g): g is string => g != null).length;
   const oneDaySportCount = selectedSportSlugs.length;
+  const totalSportSubGoalsSelected = Object.values(subFocusBySport).reduce<number>(
+    (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
+    0
+  );
   const oneDayCombinationValid =
     !isOneDay ||
-    (oneDaySportCount === 2 && oneDayGoalCount === 0) ||
-    (oneDaySportCount === 1 && oneDayGoalCount === 1);
+    isOneDaySportModeCombinationValid({
+      sportCount: oneDaySportCount,
+      goalCount: oneDayGoalCount,
+      sportSubGoalCount: totalSportSubGoalsSelected,
+    });
   const canContinueAdaptive =
     isDbConfigured() &&
     activeGymProfile != null &&
@@ -738,10 +751,6 @@ export default function AdaptiveModeScreen() {
     rankedGoals.filter((g): g is string => g != null).length +
     rankedSportSlugs.filter((s): s is string => s != null).length;
   const totalGoalSubGoalsSelected = Object.values(manualPreferences.subFocusByGoal).reduce<number>(
-    (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
-    0
-  );
-  const totalSportSubGoalsSelected = Object.values(subFocusBySport).reduce<number>(
     (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
     0
   );
@@ -932,7 +941,7 @@ export default function AdaptiveModeScreen() {
           </Text>
           <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 12 }}>
             {isOneDay
-              ? "Limits: either 2 sports or 1 sport + 1 goal (daily), and up to 3 total sub-goals."
+              ? "Limits: 2 sports, 1 sport + 1 goal, or 1 sport with sport sub-focus (daily); up to 3 total sub-goals."
               : `Limits: up to ${totalPriorityCap} total sports + goals, and up to ${totalSubGoalCap} total sub-goals.`}
           </Text>
           <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 12 }}>
@@ -1972,7 +1981,7 @@ export default function AdaptiveModeScreen() {
           {!canContinueAdaptive && isDbConfigured() ? (
             <Text style={[styles.footerHint, { color: theme.textMuted }]}>
               {isOneDay
-                ? "Choose either 2 sports or 1 sport + 1 goal, and a session length."
+                ? `${ONE_DAY_SPORT_MODE_COMBINATION_HINT} Also choose a session length.`
                 : "Choose at least one sport to continue."}
             </Text>
           ) : null}

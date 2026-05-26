@@ -1,0 +1,1686 @@
+{
+  "entries": {
+    "ff_bodyweight_freestanding_handstand_push_up": {
+      "description": "Place the hands shoulder width on the floor and kick or press into a stacked handstand. Bend the elbows to lower the head between the hands, then press back to straight arms. Keep ribs tucked and elbows tracking under the hands instead of flaring or arching the low back.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_ring_grip_push_up": {
+      "description": "Hold the rings under the shoulders in a plank with straps vertical. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_superband_side_plank_hanging_hip_adduction": {
+      "description": "Anchor a superband above foot height and loop it around the top leg, then set up in a side plank on the forearm. Keep the body long, lift the banded leg slightly, and draw it down toward the lower leg before returning. Keep the hips stacked and avoid rolling the chest toward the floor.",
+      "sources": [
+        "https://blog.nasm.org/progressive-core-training",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_strap_bulgarian_handstand_push_up": {
+      "description": "Set the rings low enough to control them and kick or press into your handstand with the straps vertical. Bend the elbows to lower the head between the hands, then press back to straight arms. Keep ribs tucked and elbows tracking under the hands instead of flaring or arching the low back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_freestanding_handstand_push_up": {
+      "description": "Set the rings low enough to control them and kick or press into your handstand with the straps vertical. Bend the elbows to lower the head between the hands, then press back to straight arms. Keep ribs tucked and elbows tracking under the hands instead of flaring or arching the low back.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_feet_elevated_frog_pump": {
+      "description": "Lie on your back with soles of the feet together, knees opened out, and feet elevated on the stability ball. Tuck the ribs down, press the edges of the feet into the ball, and lift the hips until the body forms a short bridge. Pause at the top and avoid arching the low back to gain height.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/130/hip-bridge/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_hollow_body_flutter_kicks": {
+      "description": "Lie on your back and hold two kettlebells locked over the chest while the legs extend long. Lift the shoulders slightly, brace into a hollow position, and alternate small up-and-down kicks. Keep the low back heavy on the floor instead of letting the weight pull the ribs open.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/15/seated-medicine-ball-trunk-rotations/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_overhead_cyclist_squat": {
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_front_rack_cyclist_squat": {
+      "description": "Stand with feet in the stance named by the exercise. Hold the load in the front rack with elbows forward. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_dead_clean_to_push_press": {
+      "description": "Start with the kettlebell on the floor between or just inside the feet, then hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_bent_arm_press_handstand": {
+      "description": "Start with hands planted, hips piked, and shoulders leaning forward so the hands can support your weight. Shift weight into the hands and press the hips upward until the legs can stack over the shoulders. Finish in a tight handstand, avoiding a loose arch or a jump that bypasses the press.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_cyclist_thruster": {
+      "description": "Stand narrow with heels elevated and the load in the rack position. Lower into the squat or split squat, then drive out of the squat and continue directly into an overhead press. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_l_sit_to_bent_arm_press_handstand": {
+      "description": "Start in a strong L-sit on the parallettes or rings with shoulders pushed down and legs lifted. Shift weight into the hands and press the hips upward until the legs can stack over the shoulders. Finish in a tight handstand, avoiding a loose arch or a jump that bypasses the press.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_landmine_thruster": {
+      "description": "Stand with the load in the rack position and feet about shoulder width. Lower into the squat or split squat, then drive out of the squat and press the landmine up along its angled path. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://liftvault.com/exercises/landmine-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_cyclist_thruster": {
+      "description": "Stand narrow with heels elevated and the load in the rack position. Lower into the squat or split squat, then drive out of the squat and continue directly into an overhead press. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_landmine_cyclist_thruster": {
+      "description": "Stand narrow with heels elevated and the load in the rack position. Lower into the squat or split squat, then drive out of the squat and press the landmine up along its angled path. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://liftvault.com/exercises/landmine-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_low_bar_cyclist_squat": {
+      "description": "Stand with feet in the stance named by the exercise. Set the bar low across the upper back and pull it tight. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_front_rack_split_squat": {
+      "description": "Set a split stance with the working foot forward and the back heel lifted. Hold the load in the front rack. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the elbows forward and the load close to the ribs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_front_rack_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load in the front rack. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the elbows forward and the load close to the ribs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_overhead_squat": {
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_chest_roll_to_straight_body_press_handstand": {
+      "description": "Start from a prone chest roll position, place the hands by the ribs, and tuck the legs as the hips rise. Shift weight into the hands and press the hips upward until the legs can stack over the shoulders. Finish in a tight handstand, avoiding a loose arch or a jump that bypasses the press.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_overhead_contralateral_knee_over_toe_split_squat": {
+      "description": "Set a split stance with the working foot forward and the back heel lifted, then hold the load overhead. Hold the load on the side opposite the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_bent_arm_bent_body_press_handstand": {
+      "description": "Start with hands planted, hips piked, and shoulders leaning forward so the hands can support your weight. Shift weight into the hands and press the hips upward until the legs can stack over the shoulders. Finish in a tight handstand, avoiding a loose arch or a jump that bypasses the press.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_sumo_deadlift": {
+      "description": "Place one kettlebell between wide-set feet with toes turned slightly out. Hinge and bend the knees to grip the handle with one hand, then stand by driving through the whole foot. Keep the chest lifted and do not jerk the bell off the floor.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBDeadlift",
+        "https://www.muscleandstrength.com/exercises/one-kettlebell-sumo-deadlift"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_front_rack_contralateral_knee_over_toe_split_squat": {
+      "description": "Set a split stance with the working foot forward and the back heel lifted, then hold the load in the front rack. Hold the load on the side opposite the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the elbows forward and the load close to the ribs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_dip_to_handstand": {
+      "description": "Start in a stable ring support with elbows straight, shoulders down, and the rings close to the ribs. Lower into a ring dip, press up strongly, then continue driving the shoulders forward and hips upward toward a handstand. Keep the rings close and stop the rep if swinging replaces the press.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_handstand_to_elbow_lever_to_handstand": {
+      "description": "Start in a ring handstand or high inverted support with the straps steady. Bend the elbows and lower the torso into an elbow lever, then press the rings down to return to the handstand. Keep the body tight from shoulders to toes and avoid letting the rings drift wide.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_dip_straight_body_press_to_handstand": {
+      "description": "Start in a stable ring support with elbows straight, shoulders down, and the rings close to the ribs. Lower into a ring dip, press up strongly, then continue driving the shoulders forward and hips upward toward a handstand. Keep the rings close and stop the rep if swinging replaces the press.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_kettlebell_swing": {
+      "description": "Stand with the kettlebell just in front of the feet and hinge to grip it. Hike the bell back with both hands, then drive the hips forward to swing. Let the bell float from the hip snap rather than lifting it with the arm. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_swing": {
+      "description": "Stand with the kettlebell just in front of the feet and hinge to grip it. Hike the bell back with one hand, then drive the hips forward to swing. Switch hands only when the bell floats near chest height. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_clean": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_snatch": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet. Hinge, drive the hips, and pull the bell close as it rises. Punch the hand through so the bell finishes quietly over the shoulder. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_straight_arm_l_sit_straddle_press_handstand": {
+      "description": "Start in a strong L-sit on the parallettes or rings with shoulders pushed down and legs lifted. Shift weight into the hands and press the hips upward until the legs can stack over the shoulders. Finish in a tight handstand, avoiding a loose arch or a jump that bypasses the press.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_overhead_contralateral_knee_over_toe_split_squat": {
+      "description": "Set a split stance with the working foot forward and the back heel lifted, then hold the load overhead. Hold the load on the side opposite the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_staggered_stance_swing": {
+      "description": "Set a staggered stance with the working-side foot slightly back and the bell just in front of you. Hike the bell back with one hand, then drive the hips forward to swing. Let the bell float from the hip snap rather than lifting it with the arm. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_alternating_staggered_stance_swing": {
+      "description": "Set a staggered stance with the working-side foot slightly back and the bell just in front of you. Hike the bell back with one hand, then drive the hips forward to swing. Switch hands only when the bell floats near chest height. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_half_kneeling_swing": {
+      "description": "Set up half kneeling with the bell in front of the working hip. Hike the bell back with one hand, then drive the hips forward to swing. Let the bell float from the hip snap rather than lifting it with the arm. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_outside_swing": {
+      "description": "Stand tall with the kettlebell to one side and feet wide enough to let the hips hinge. Hike both bells back outside the legs, then drive the hips forward to swing. Let the bell float from the hip snap rather than lifting it with the arm. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_outside_half_snatch": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet. Hinge, drive the hips, and pull the bell close as it rises. Punch the hand through so the bell finishes quietly over the shoulder. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_outside_clean": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_side_swing": {
+      "description": "Stand tall with the kettlebell to one side and feet wide enough to let the hips hinge. Hike the bell back with one hand, then drive the hips forward to swing. Let the bell float from the hip snap rather than lifting it with the arm. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_kettlebell_feet_elevated_russian_twist": {
+      "description": "Sit on the floor with knees bent, feet lifted or lightly elevated, and a kettlebell held by the horns. Lean back until the abs brace, then rotate the bell from one side of the hips to the other. Turn the ribs with the hands and avoid yanking the bell with rounded shoulders.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/15/seated-medicine-ball-trunk-rotations/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_half_kneeling_windmill": {
+      "description": "Set up half kneeling with the load in the hand opposite or above the front leg as listed. Push the hips back and reach the free hand toward the inside of the leg as the loaded shoulder stays stacked. Stand by driving the hips through. Keep the weight over the shoulder and avoid folding forward with a rounded back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_front_rack_skater_squat": {
+      "description": "Stand on one leg with the load in the front rack and reach the free leg forward for a pistol or back for a skater squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_kettlebell_horn_grip_skater_squat": {
+      "description": "Stand on one leg with the load held as listed and reach the free leg forward for a pistol or back for a skater squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_front_rack_pistol_squat": {
+      "description": "Stand on one leg with the load in the front rack and reach the free leg forward for a pistol or back for a pistol squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_straight_arm_pike_press_handstand": {
+      "description": "Start in a pike with hands fixed, hips high, and shoulders leaning forward over the hands. Shift weight into the hands and press the hips upward until the legs can stack over the shoulders. Finish in a tight handstand, avoiding a loose arch or a jump that bypasses the press.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_hollow_body_flutter_kicks": {
+      "description": "Lie on your back and hold one kettlebell locked over the chest while the legs extend long. Lift the shoulders slightly, brace into a hollow position, and alternate small up-and-down kicks. Keep the low back heavy on the floor instead of letting the weight pull the ribs open.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/15/seated-medicine-ball-trunk-rotations/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_back_lever_pullout": {
+      "description": "Hang from the rings with straight arms and shoulders pulled away from the ears. Move through the lever or German-hang position by keeping the body tight and pulling from the shoulders, then return under control. Use a tuck or bent knees before extending the legs, and avoid a fast swing into the end position.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_clean_to_overhead_press": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_kettlebell_alternating_halo_to_horn_grip_bottoms_up_squat": {
+      "description": "Stand with feet about shoulder width and knees soft. Circle the bell, catch it at chest height, then sit into the squat before standing. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_german_hang_pullout": {
+      "description": "Hang from the rings with straight arms and shoulders pulled away from the ears. Move through the lever or German-hang position by keeping the body tight and pulling from the shoulders, then return under control. Use a tuck or bent knees before extending the legs, and avoid a fast swing into the end position.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_dead_hang_to_front_lever_pull_up": {
+      "description": "Hang from the rings with shoulders active and legs held in a tight lever position. Pull the chest toward the hands while keeping the hips lifted, then lower back to a straight-arm hang. Use a tuck if needed, and avoid swinging the legs to start the pull.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_side_to_side_swing": {
+      "description": "Stand tall with the kettlebell to one side and feet wide enough to let the hips hinge. Hike the bell back with one hand, then drive the hips forward to swing. Let the bell float from the hip snap rather than lifting it with the arm. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_turkish_get_up": {
+      "description": "Lie on your back with the working-side knee bent and hold the kettlebell bottoms-up over the shoulder. Roll to the elbow, post to the hand, sweep the leg under, and stand while watching the weight. Reverse each step slowly, keeping the arm vertical instead of letting the load drift behind you.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBTurkishGetup",
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_thruster": {
+      "description": "Stand with the load in the rack position and feet about shoulder width. Lower into the squat or split squat, then drive out of the squat and continue directly into an overhead press. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_double_kettlebell_thruster": {
+      "description": "Stand with the load in the rack position and feet about shoulder width. Lower into the squat or split squat, then drive out of the squat and continue directly into an overhead press. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_dead_clean_to_overhead_press": {
+      "description": "Start with the kettlebell on the floor between or just inside the feet, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell into a bottoms-up rack with the handle vertical. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_tactical_snatch": {
+      "description": "Start with one kettlebell between the feet and prepare to switch hands at the backswing. Hinge, drive the hips, and pull the bell close as it rises. Punch the hand through so the bell finishes quietly over the shoulder. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_snatch_to_overhead_contralateral_reverse_lunge": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet, then hinge, drive the hips, and pull the bell close as it rises. Punch the hand through so the bell finishes quietly over the shoulder. Then step into the listed reverse lunge while keeping the load stacked overhead. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_snatch_to_overhead_alternating_reverse_lunge": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet, then hinge, drive the hips, and pull the bell close as it rises. Punch the hand through so the bell finishes quietly over the shoulder. Then step into the listed reverse lunge while keeping the load stacked overhead. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_clean_to_front_rack_contralateral_reverse_lunge": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell into the front rack with wrist straight and elbow close. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_clean_to_front_rack_alternating_reverse_lunge": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell into the front rack with wrist straight and elbow close. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_full_front_lever_pull_up": {
+      "description": "Hang from the rings with shoulders active and legs held in a tight lever position. Pull the chest toward the hands while keeping the hips lifted, then lower back to a straight-arm hang. Use a tuck if needed, and avoid swinging the legs to start the pull.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_split_jerk": {
+      "description": "Clean the kettlebell to one shoulder with the wrist straight and feet under the hips. Dip straight down, drive the bell upward, and split one foot forward and one foot back as the arm locks out overhead. Recover the feet under you before lowering, keeping the torso tall instead of chasing the bell forward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/SplitJerk",
+        "https://www.g4physio.co.uk/blog/kettlebell-exercises/single-arm-kettlebell-split-jerk/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_stalder_press_to_handstand": {
+      "description": "Start with hands planted, hips piked, and shoulders leaning forward so the hands can support your weight. Shift weight into the hands and press the hips upward until the legs can stack over the shoulders. Finish in a tight handstand, avoiding a loose arch or a jump that bypasses the press.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_clean_to_front_rack_squat": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell into a bottoms-up rack with the handle vertical. From the rack, sit into the squat and stand tall. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_ring_chin_up": {
+      "description": "Hang from the rings with palms facing you, arms long, and shoulders active. Pull the chest toward the rings by driving the elbows down, then lower until the arms are long again. Keep the body quiet and avoid kicking or shrugging through the top.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_overhead_squat": {
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_thruster": {
+      "description": "Stand with the load in the rack position and feet about shoulder width. Lower into the squat or split squat, then drive out of the squat and continue directly into an overhead press. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_iron_cross": {
+      "description": "Begin in a tall ring support with elbows locked, shoulders depressed, and the rings turned slightly out. Slowly let the arms open to the sides only as far as you can hold tension, then pull the rings back under the shoulders. Keep the neck long and do not sink into the shoulders or bounce at the bottom.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_full_planche_push_up": {
+      "description": "Grip the parallettes and lean forward until the shoulders are in front of the hands. Keep the legs together and body stiff. Bend the elbows to lower the body as one piece, then press back to the leaned support. Do not let the hips drop or the elbows flare wide.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_straddle_planche_push_up": {
+      "description": "Grip the parallettes and lean forward until the shoulders are in front of the hands. Keep the legs straddled to manage balance. Bend the elbows to lower the body as one piece, then press back to the leaned support. Do not let the hips drop or the elbows flare wide.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bar_dead_hang_to_front_lever_pull_up": {
+      "description": "Hang from the bar with shoulders active and legs held in a tight lever position. Pull the chest toward the hands while keeping the hips lifted, then lower back to a straight-arm hang. Use a tuck if needed, and avoid swinging the legs to start the pull.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bar_full_front_lever_pull_up": {
+      "description": "Hang from the bar with shoulders active and legs held in a tight lever position. Pull the chest toward the hands while keeping the hips lifted, then lower back to a straight-arm hang. Use a tuck if needed, and avoid swinging the legs to start the pull.",
+      "sources": [
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_overhead_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load overhead. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_bulgarian_split_squat_thruster": {
+      "description": "Place the rear foot on a bench and hold the bar in the front rack. Lower into the Bulgarian split squat, then drive through the front foot and press the bar overhead as you stand. Bring the bar back to the rack before the next rep, keeping the front knee aligned with the toes.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_barbell_overhead_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load overhead. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_full_planche_push_up": {
+      "description": "Place the hands on the floor and lean forward until the shoulders are in front of the hands. Keep the legs together and body stiff. Bend the elbows to lower the body as one piece, then press back to the leaned support. Do not let the hips drop or the elbows flare wide.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_straddle_planche_push_up": {
+      "description": "Place the hands on the floor and lean forward until the shoulders are in front of the hands. Keep the legs straddled to manage balance. Bend the elbows to lower the body as one piece, then press back to the leaned support. Do not let the hips drop or the elbows flare wide.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_grip_full_planche_push_up": {
+      "description": "Set the rings low and lean forward until the shoulders are in front of the hands. Keep the legs together and body stiff. Bend the elbows to lower the body as one piece, then press back to the leaned support. Do not let the hips drop or the elbows flare wide.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_two_finger_full_planche_push_up": {
+      "description": "Place the hands on the floor and lean forward until the shoulders are in front of the hands. Keep the legs together and body stiff. Bend the elbows to lower the body as one piece, then press back to the leaned support. Do not let the hips drop or the elbows flare wide.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_grip_straddle_planche_push_up": {
+      "description": "Set the rings low and lean forward until the shoulders are in front of the hands. Keep the legs straddled to manage balance. Bend the elbows to lower the body as one piece, then press back to the leaned support. Do not let the hips drop or the elbows flare wide.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_push_up_to_alternating_kick_through": {
+      "description": "Start in a strong plank with hands under or slightly wider than the shoulders. Do one push-up, then rotate and thread one leg under the body before returning to plank. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_standing_walkout_push_up": {
+      "description": "Start in a strong plank with hands under or slightly wider than the shoulders. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_pull_up": {
+      "description": "Hang from the rings with a comfortable overhand or neutral grip, arms long, and shoulders active. Pull the chest toward the rings by driving the elbows down, then lower until the arms are long again. Keep the body quiet and avoid kicking or shrugging through the top.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://exrx.net/WeightExercises/LatissimusDorsi/BWPullup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_plate_windmill": {
+      "description": "Stand with feet wide and the loaded arm reaching overhead or ready to reach overhead. Push the hips back and reach the free hand toward the inside of the leg as the loaded shoulder stays stacked. Stand by driving the hips through. Keep the weight over the shoulder and avoid folding forward with a rounded back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_plate_turkish_get_up": {
+      "description": "Lie on your back with the working-side knee bent and hold the plate locked over the shoulder. Roll to the elbow, post to the hand, sweep the leg under, and stand while watching the weight. Reverse each step slowly, keeping the arm vertical instead of letting the load drift behind you.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBTurkishGetup",
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_pike_push_up": {
+      "description": "Start in a strong plank with hands under or slightly wider than the shoulders. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_feet_elevated_pike_push_up": {
+      "description": "Grip the parallettes under the shoulders in a plank. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_sots_press": {
+      "description": "Set the bar or kettlebells in the front rack and descend into a stable squat. While staying in the bottom position, press the load overhead, then lower it back to the rack before standing or repeating. Keep the chest tall and use a lighter load if the press makes the heels lift.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_snatch": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet. Hinge, drive the hips, and pull the bell close as it rises. Punch to a bottoms-up overhead catch only with a load you can balance. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_bottoms_up_snatch": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet. Hinge, drive the hips, and pull the bell close as it rises. Punch to a bottoms-up overhead catch only with a load you can balance. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_around_the_world_high_catch": {
+      "description": "Stand with feet about shoulder width and knees soft. Guide the bell around the body and catch it high near the shoulder before passing or lowering it. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_tall_kneeling_around_the_world_high_catch": {
+      "description": "Kneel tall with both knees on the floor and glutes squeezed. Guide the bell around the body and catch it high near the shoulder before passing or lowering it. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_around_the_world": {
+      "description": "Stand with feet about shoulder width and knees soft. Pass the bell smoothly around the waist or head from hand to hand. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_z_press": {
+      "description": "Sit on the floor with legs extended and the load at shoulder height. Brace tall, press the weight overhead or along the landmine path, then lower to the shoulder under control. Keep the ribs down and avoid leaning back to turn it into an incline press.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_feet_elevated_push_up": {
+      "description": "Grip the parallettes under the shoulders in a plank. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_stability_ball_feet_elevated_diamond_push_up": {
+      "description": "Place the feet on the stability ball and hands on the floor in a plank. Keep the hands close and bend the elbows back along the ribs as you lower. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_tricep_extension": {
+      "description": "Start in a plank with hands on the floor or an elevated edge slightly in front of the shoulders. Bend only the elbows to lower the forehead or forearms toward the hands, then press the arms straight again. Keep the ribs tucked and elbows pointing forward instead of letting the hips sag.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_around_the_world": {
+      "description": "Stand with feet about shoulder width and knees soft. Pass the bell smoothly around the waist or head from hand to hand. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_tall_kneeling_around_the_world": {
+      "description": "Kneel tall with both knees on the floor and glutes squeezed. Pass the bell smoothly around the waist or head from hand to hand. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_tall_kneeling_around_the_world": {
+      "description": "Kneel tall with both knees on the floor and glutes squeezed. Pass the bell smoothly around the waist or head from hand to hand. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_waiter_clean": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell to a palm-up waiter position near the shoulder. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_waiter_clean": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell to a palm-up waiter position near the shoulder. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_waiter_clean": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell to a palm-up waiter position near the shoulder. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_waiter_clean_to_overhead_press": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell to a palm-up waiter position near the shoulder. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_tactical_waiter_clean": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle. Hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell to a palm-up waiter position near the shoulder. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_waiter_clean_to_alternating_overhead_press": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell to a palm-up waiter position near the shoulder. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_waiter_snatch": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet. Hinge, drive the hips, and pull the bell close as it rises. Guide the bell to a palm-up waiter catch overhead. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_waiter_snatch": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet. Hinge, drive the hips, and pull the bell close as it rises. Guide the bell to a palm-up waiter catch overhead. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_overhead_pistol_squat": {
+      "description": "Stand on one leg with the load held overhead and reach the free leg forward for a pistol or back for a pistol squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_seated_wrist_curl": {
+      "description": "Sit with forearms supported on the thighs or a bench and hold the bar with palms up. Let the wrists extend slightly, then curl the knuckles toward the forearms. Keep the forearms planted and avoid turning the rep into an elbow curl.",
+      "sources": [
+        "https://exrx.net/WeightExercises/WristFlexors/BBWristCurl",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_hollow_body_chest_press": {
+      "description": "Lie on your back with one dumbbell at chest height and the opposite arm reaching out for balance. Lift the shoulders and legs into a hollow hold, then press the dumbbell toward the ceiling and lower it back to the chest. Keep the low back pressed into the floor and bend the knees if the ribs flare.",
+      "sources": [
+        "https://www.menshealth.com/fitness/a37330449/men-over-40-hollow-body-chest-press/",
+        "https://library.theprehabguys.com/vimeo-video/hollow-body-floor-press-dumbbell/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_tactical_waiter_snatch": {
+      "description": "Start with one kettlebell between the feet and prepare to switch hands at the backswing. Hinge, drive the hips, and pull the bell close as it rises. Guide the bell to a palm-up waiter catch overhead. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_barbell_overhead_knee_over_toe_split_squat": {
+      "description": "Set a split stance with the working foot forward and the back heel lifted. Hold the load overhead. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_barbell_knee_over_toe_split_squat_thruster": {
+      "description": "Set a split stance and hold one end or one side of the bar in the rack position. Let the front knee travel forward as far as you can control, then drive up and press overhead in one motion. Keep the torso tall and do not let the load pull you toward the working side.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_knee_over_toe_split_squat_thruster": {
+      "description": "Set a split stance with the bar in the front rack and the front foot planted. Lower with the front knee traveling forward under control, then stand and press the bar overhead without pausing. Return the bar to the rack and avoid collapsing the front knee inward.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_waiter_snatch": {
+      "description": "Start with the kettlebell on the floor or in a hike position in front of the feet. Hinge, drive the hips, and pull the bell close as it rises. Guide the bell to a palm-up waiter catch overhead. Keep the wrist straight and avoid casting the bell away from the body.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSnatch",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_waiter_clean_to_thruster": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell to a palm-up waiter position near the shoulder. From the rack, squat and drive straight into the overhead press. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_kettlebell_start_stop_swing": {
+      "description": "Stand with the kettlebell just in front of the feet and hinge to grip it. Hike the bell back with both hands, then drive the hips forward to swing. Let the bell float from the hip snap rather than lifting it with the arm. Keep the back long and park the bell if the swing turns into a squat or shoulder raise.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_dead_clean": {
+      "description": "Start with the kettlebell on the floor between or just inside the feet. Hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_barbell_bulgarian_split_squat_thruster": {
+      "description": "Place the rear foot on a bench and hold the bar on the working side in a stable rack position. Lower into the Bulgarian split squat, then press the bar overhead as the front leg drives you back up. Keep the hips square and avoid leaning away from the bar during the press.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_barbell_windmill": {
+      "description": "Stand with feet wide and the loaded arm reaching overhead or ready to reach overhead. Push the hips back and reach the free hand toward the inside of the leg as the loaded shoulder stays stacked. Stand by driving the hips through. Keep the weight over the shoulder and avoid folding forward with a rounded back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_windmill": {
+      "description": "Stand with feet wide and the loaded arm reaching overhead or ready to reach overhead. Push the hips back and reach the free hand toward the inside of the leg as the loaded shoulder stays stacked. Stand by driving the hips through. Keep the weight over the shoulder and avoid folding forward with a rounded back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_superband_isometric_split_squat_pallof_press": {
+      "description": "Anchor the superband at chest height and step sideways into a split squat stance. Hold the band at the sternum, lower into the split squat, and press the hands straight forward without rotating. Keep the front knee aligned with the toes and resist the band pulling the ribs open.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_barbell_turkish_get_up": {
+      "description": "Lie on your back with the working-side knee bent and hold the load locked over the shoulder. Roll to the elbow, post to the hand, sweep the leg under, and stand while watching the weight. Reverse each step slowly, keeping the arm vertical instead of letting the load drift behind you.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBTurkishGetup",
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_plate_plyometric_push_up": {
+      "description": "Start in a strong plank with hands under or slightly wider than the shoulders. Lower into a push-up, then press explosively so the hands leave the plate or floor briefly. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_single_leg_contralateral_bent_over_row": {
+      "description": "Hinge onto one leg with the free leg reaching back and the weight hanging below the shoulder. Row toward the hip while keeping the hips square to the floor, then lower the weight without standing up. Use a light load if balance makes the torso twist.",
+      "sources": [
+        "https://liftmanual.com/dumbbell-renegade-row/",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_dumbbell_single_leg_bent_over_row": {
+      "description": "Hinge onto one leg with the free leg reaching back and the weight hanging below the shoulder. Row toward the hip while keeping the hips square to the floor, then lower the weight without standing up. Use a light load if balance makes the torso twist.",
+      "sources": [
+        "https://liftmanual.com/dumbbell-renegade-row/",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_thruster": {
+      "description": "Stand with the load in the rack position and feet about shoulder width. Lower into the squat or split squat, then drive out of the squat and continue directly into an overhead press. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_double_kettlebell_bottoms_up_thruster": {
+      "description": "Stand with the load in the rack position and feet about shoulder width. Lower into the squat or split squat, then drive out of the squat and continue directly into an overhead press. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_dead_clean": {
+      "description": "Start with the kettlebell on the floor between or just inside the feet. Hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_dead_clean": {
+      "description": "Start with the kettlebell on the floor between or just inside the feet. Hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_dumbbell_bird_dog_row": {
+      "description": "Set one hand and the opposite knee on a bench, then extend the free leg behind you and hold a dumbbell in the free hand. Row the dumbbell toward the hip while keeping the leg and torso still. Lower slowly and avoid opening the hips as the weight comes up.",
+      "sources": [
+        "https://liftmanual.com/dumbbell-renegade-row/",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_half_kneeling_windmill": {
+      "description": "Set up half kneeling with the load in the hand opposite or above the front leg as listed. Push the hips back and reach the free hand toward the inside of the leg as the loaded shoulder stays stacked. Stand by driving the hips through. Keep the weight over the shoulder and avoid folding forward with a rounded back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_half_kneeling_around_the_world_high_catch": {
+      "description": "Set up in a half-kneeling stance with the front foot flat and back knee down. Guide the bell around the body and catch it high near the shoulder before passing or lowering it. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_dumbbell_renegade_row": {
+      "description": "Set two dumbbells under the shoulders and hold a wide-foot plank. Row one dumbbell toward the hip, lower it quietly, then row the other side. Keep the hips level and avoid twisting the torso to lift the weight.",
+      "sources": [
+        "https://liftmanual.com/dumbbell-renegade-row/",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_barbell_overhead_toe_balance_squat": {
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_overhead_toe_balance_squat": {
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_kneeling_rollout": {
+      "description": "Kneel facing the rings with the handles hanging just in front of the shoulders. Hold both rings with straight arms. Brace the ribs down, slide the rings forward, and stop before the low back sags. Pull the rings back under the shoulders without bending at the hips first.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.caliverse.app/exercises/ring-roll-outs-78"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_ring_kneeling_rollout": {
+      "description": "Kneel facing the rings with the handles hanging just in front of the shoulders. Use one ring and keep the free hand near the chest for balance. Brace the ribs down, slide the rings forward, and stop before the low back sags. Pull the rings back under the shoulders without bending at the hips first.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.caliverse.app/exercises/ring-roll-outs-78"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_standing_rollout": {
+      "description": "Stand facing the rings with the handles set high enough to control the first reps. Hold both rings with straight arms. Brace the ribs down, slide the rings forward, and stop before the low back sags. Pull the rings back under the shoulders without bending at the hips first.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.caliverse.app/exercises/ring-roll-outs-78"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_landmine_shoulder_press": {
+      "description": "Stand facing the landmine with the bar at one shoulder. Brace and press the bar forward and up until the arm is nearly straight, then lower back to the shoulder. Press one side for the planned reps before switching. Keep the torso from rotating or leaning away from the bar.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796",
+        "https://liftvault.com/exercises/landmine-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_landmine_shoulder_press": {
+      "description": "Stand facing the landmine with the bar at one shoulder. Brace and press the bar forward and up until the arm is nearly straight, then lower back to the shoulder. Switch shoulders each rep or after each side as listed. Keep the torso from rotating or leaning away from the bar.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796",
+        "https://liftvault.com/exercises/landmine-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bent_press": {
+      "description": "Clean the kettlebell to the shoulder and set the feet wider than hip width with toes slightly turned. Hinge and rotate under the bell as you press it overhead, then stand tall with the arm stacked. Keep eyes on the bell and avoid pressing from a rounded or collapsed torso.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBWindmill",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_around_the_world_high_catch_to_squat": {
+      "description": "Stand with feet about shoulder width and knees soft. Guide the bell around the body and catch it high near the shoulder before passing or lowering it. Keep the ribs stacked over the pelvis and move the bell around a quiet torso instead of twisting the low back.",
+      "sources": [
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_overhead_alternating_cossack_squat": {
+      "description": "Take a wide stance with toes slightly turned out and Hold the kettlebells locked overhead. Sit into one hip while the other leg lengthens, then press back across to the other side. Stand tall between sides. Keep the loaded position stacked and avoid letting the bent knee cave inward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_front_rack_cossack_squat": {
+      "description": "Take a wide stance with toes slightly turned out and Hold the kettlebells in the front rack. Sit into one hip while the other leg lengthens, then press back across to the other side. Stand tall between sides. Keep the loaded position stacked and avoid letting the bent knee cave inward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_front_rack_low_switch_cossack_squat": {
+      "description": "Take a wide stance with toes slightly turned out and Hold the kettlebells in the front rack. Sit into one hip while the other leg lengthens, then press back across to the other side. Stay low as you shift from side to side if you can keep the heel down. Keep the loaded position stacked and avoid letting the bent knee cave inward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_alternating_single_arm_kettlebell_bottoms_up_clean_to_overhead_press": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell into a bottoms-up rack with the handle vertical. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_clean_to_overhead_press": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell into a bottoms-up rack with the handle vertical. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_overhead_knee_over_toe_split_squat": {
+      "description": "Set a split stance with the working foot forward and the back heel lifted. Hold the load overhead. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_landmine_half_kneeling_contralateral_shoulder_press": {
+      "description": "Set up half kneeling with the working-side hand on the end of the bar. Brace and press the bar forward and up until the arm is nearly straight, then lower back to the shoulder. Press one side for the planned reps before switching. Keep the torso from rotating or leaning away from the bar.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796",
+        "https://liftvault.com/exercises/landmine-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load as listed. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_plate_otis_up": {
+      "description": "Lie on your back with knees bent, feet planted, and a plate held against the chest. Sit up by curling the ribs toward the pelvis, then press the plate overhead once the torso is upright. Bring the plate back to the chest and roll down under control instead of throwing the weight forward.",
+      "sources": [
+        "https://liftmanual.com/otis-up/",
+        "https://fitwill.app/exercise/0641/otis-up/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_overhead_pistol_squat": {
+      "description": "Stand on one leg with the load held overhead and reach the free leg forward for a pistol or back for a pistol squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_front_rack_pistol_squat": {
+      "description": "Stand on one leg with the bells balanced bottoms-up and reach the free leg forward for a pistol or back for a pistol squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_overhead_pistol_squat": {
+      "description": "Stand on one leg with the load held overhead and reach the free leg forward for a pistol or back for a pistol squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_clean_to_sots_press": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_clean_to_sots_press": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Guide the bell into a bottoms-up rack with the handle vertical. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_landmine_tall_kneeling_shoulder_press": {
+      "description": "Kneel tall facing the landmine with glutes squeezed. Brace and press the bar forward and up until the arm is nearly straight, then lower back to the shoulder. Press one side for the planned reps before switching. Keep the torso from rotating or leaning away from the bar.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796",
+        "https://liftvault.com/exercises/landmine-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_landmine_z_press": {
+      "description": "Sit on the floor facing the landmine with legs extended or slightly bent. Brace tall, press the weight overhead or along the landmine path, then lower to the shoulder under control. Keep the ribs down and avoid leaning back to turn it into an incline press.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796",
+        "https://liftvault.com/exercises/landmine-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_z_press": {
+      "description": "Sit on the floor with legs extended and the load at shoulder height. Brace tall, press the weight overhead or along the landmine path, then lower to the shoulder under control. Keep the ribs down and avoid leaning back to turn it into an incline press.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_suspension_bicep_curl": {
+      "description": "Hold one suspension handle and lean back with the body in a straight line. Curl the handle toward the forehead by bending the elbow, then lower until the arm is straight. Keep the elbow high and avoid pulling the body up by shrugging the shoulder.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/equipment/trx/",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_suspension_atomic_push_up": {
+      "description": "Start in a strong plank with hands under or slightly wider than the shoulders. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/equipment/trx/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_feet_elevated_close_grip_push_up": {
+      "description": "Grip the parallettes under the shoulders in a plank. Keep the hands close and bend the elbows back along the ribs as you lower. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_clean_to_thruster": {
+      "description": "Start with the kettlebell slightly in front of you and hinge to grip the handle, then hike or pull the bell close to the body and use the legs and hips to bring it up. Catch the bell softly in the rack. From the rack, squat and drive straight into the overhead press. Avoid letting the bell slap the forearm or pulling it in a wide arc.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_archer_push_up": {
+      "description": "Start in a strong plank with hands under or slightly wider than the shoulders. Lower toward one hand while the other arm reaches straighter to the side, then press back and switch sides. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_archer_push_up": {
+      "description": "Grip the parallettes under the shoulders in a plank. Lower toward one hand while the other arm reaches straighter to the side, then press back and switch sides. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_suspension_push_up": {
+      "description": "Start in a strong plank with hands under or slightly wider than the shoulders. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup",
+        "https://www.acefitness.org/resources/everyone/exercise-library/equipment/trx/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_skin_the_cat": {
+      "description": "Hang from the rings with straight arms and a tight hollow body. Tuck the knees, roll the hips through the arms into a German hang, then reverse the path back to the start. Move slowly and keep the shoulders active instead of dropping into the straps.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_overhead_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load overhead. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_overhead_contralateral_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down, then hold the load overhead. Hold the load on the side opposite the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the arm or bar stacked over the shoulder as you move.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_suitcase_contralateral_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down, then hold the load at the side. Hold the load on the side opposite the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the load at your side without leaning toward it.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_suitcase_ipsilateral_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down, then hold the load at the side. Hold the load on the same side as the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the load at your side without leaning toward it.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_front_rack_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load in the front rack. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the handle vertical and use a light load so the bell does not tip.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_suitcase_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load at the side. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the load at your side without leaning toward it.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bulgarian_split_squat_thruster": {
+      "description": "Place the rear foot on a bench and clean both kettlebells to the front rack. Lower into the Bulgarian split squat, then stand hard and continue into an overhead press. Lower the bells back to the rack before the next rep, keeping the front foot rooted.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_bottoms_up_bulgarian_split_squat_thruster": {
+      "description": "Place the rear foot on a bench and balance both kettlebells bottoms-up in the rack. Lower into the Bulgarian split squat, then stand and press overhead only as far as the bells stay vertical. Use a light load and reset if the handles tip or the front knee caves inward.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_front_rack_contralateral_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down, then hold the load in the front rack. Hold the load on the side opposite the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the handle vertical and use a light load so the bell does not tip.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_front_rack_contralateral_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down, then hold the load in the front rack. Hold the load on the side opposite the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the elbows forward and the load close to the ribs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_feet_elevated_row": {
+      "description": "Place the feet on a box or bench and lean back under the rings. Brace the body in one line from shoulders to heels. Pull both rings toward the lower ribs. Keep the hips from sagging and lower with the same straight body line.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://liftmanual.com/dumbbell-renegade-row/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_front_rack_ipsilateral_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down, then hold the load in the front rack. Hold the load on the same side as the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the handle vertical and use a light load so the bell does not tip.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_feet_elevated_bulgarian_row": {
+      "description": "Place the feet on a box or bench and lean back under the rings. Brace the body in one line from shoulders to heels. Let one arm assist less so the working side performs most of the pull. Keep the hips from sagging and lower with the same straight body line.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://motra.com/exercises/ringPullUps"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_feet_elevated_archer_row": {
+      "description": "Place the feet on a box or bench and lean back under the rings. Brace the body in one line from shoulders to heels. Pull mostly toward one ring while the other arm reaches straighter, then switch sides. Keep the hips from sagging and lower with the same straight body line.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://liftmanual.com/dumbbell-renegade-row/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_push_up": {
+      "description": "Hold the rings under the shoulders in a plank with straps vertical. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_ring_chest_fly": {
+      "description": "Set the rings low and lean forward with arms straight but not locked. Open the arms out to the sides until you feel you can still control the shoulders, then squeeze the rings back together in front of the chest. Keep a plank line and avoid letting the rings drift behind the shoulders.",
+      "sources": [
+        "https://motra.com/exercises/ringPullUps",
+        "https://www.endomondo.com/exercise/ring-dip",
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_double_kettlebell_feet_elevated_push_up": {
+      "description": "Place the feet on a bench or box and set the hands under the shoulders. Lower the chest toward the hands, then press back to straight arms. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_bottoms_up_half_kneeling_contralateral_overhead_press": {
+      "description": "Stand or kneel in the stance named by the exercise with the load at shoulder height. Press from the shoulder or rack position until the arm is stacked overhead. Lower under control and keep the ribs tucked instead of leaning back.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.shape.com/z-press-exercise-7098796"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_alternating_shoulder_tap_push_up": {
+      "description": "Grip the parallettes under the shoulders in a plank. Do one push-up, then tap the opposite shoulder without letting the hips rotate. Keep the body in one line and avoid reaching the head forward to shorten the rep.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_parallette_dive_bomber_push_up": {
+      "description": "Start in a pike with hips high, hands about shoulder width, and heels reaching back. Bend the elbows and sweep the chest forward close to the floor, then press into the front position before reversing to the pike. Keep the motion smooth and avoid snapping the low back as the hips move down.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup",
+        "https://www.caliverse.app/exercises/dive-bomber-push-up-15"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_front_rack_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load in the front rack. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the elbows forward and the load close to the ribs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_back_rack_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load as listed. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_suspension_contralateral_pistol_squat": {
+      "description": "Stand on one leg with the load held as listed and reach the free leg forward for a pistol or back for a pistol squat. Bend the standing knee and sit down under control, then drive through the whole foot to stand. Keep the knee in line with the toes and reduce depth before the heel lifts or the torso collapses.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/equipment/trx/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_front_rack_alternating_curtsy_lunge": {
+      "description": "Hold the bar in the front rack and stand with feet under the hips. Step one leg back and across into a curtsy lunge, lower under control, then push through the front foot to return and alternate. Keep the hips mostly square and avoid letting the front knee dive inside the toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_dragon_flag": {
+      "description": "Lie on a bench or floor and grip a secure anchor behind the head. Roll onto the upper back, extend the body into one straight line, and lower slowly until just above the bench or floor. Keep the glutes tight and bend the knees if the low back starts to arch.",
+      "sources": [
+        "https://www.caliverse.app/exercises/dragon-flag-negatives-1504",
+        "https://www.acefitness.org/resources/everyone/exercise-library/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_single_arm_kettlebell_front_rack_ipsilateral_bulgarian_split_squat": {
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down, then hold the load in the front rack. Hold the load on the same side as the working front leg. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes. Keep the elbows forward and the load close to the ribs.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat",
+        "https://www.catalystathletics.com/exercise/590/Single-Arm-Overhead-Bulgarian-Split-Squat/",
+        "https://www.acefitness.org/resources/everyone/exercise-library/315/front-squat-to-overhead-press/"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_bodyweight_dive_bomber_push_up": {
+      "description": "Start in a pike with hips high, hands about shoulder width, and heels reaching back. Bend the elbows and sweep the chest forward close to the floor, then press into the front position before reversing to the pike. Keep the motion smooth and avoid snapping the low back as the hips move down.",
+      "sources": [
+        "https://www.acefitness.org/resources/pros/expert-articles/7265/perfecting-the-push-up-for-all-levels/",
+        "https://exrx.net/WeightExercises/Triceps/BWCloseGripPushup",
+        "https://www.caliverse.app/exercises/dive-bomber-push-up-15"
+      ],
+      "reviewed_at": "2026-05-25"
+    },
+    "ff_barbell_staggered_stance_push_press": {
+      "description": "Set a staggered stance with the bar in the front rack and most of your weight balanced through both feet. Dip straight down, drive through the legs, and press the bar overhead as the knees and hips extend. Lower to the rack under control, keeping the torso vertical instead of lunging forward.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.crossfit.com/essentials/the-push-press"
+      ],
+      "reviewed_at": "2026-05-25"
+    }
+  }
+}

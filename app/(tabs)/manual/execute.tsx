@@ -15,6 +15,7 @@ import { useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
+import { ExerciseSetupModal } from "../../../components/ExerciseSetupModal";
 import {
   formatPrescription,
   formatSupersetPairLabel,
@@ -145,6 +146,10 @@ export default function ExecuteScreen() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
   const [swapNumPages, setSwapNumPages] = useState(1);
+  const [setupModal, setSetupModal] = useState<{
+    exerciseName: string;
+    setupText: string;
+  } | null>(null);
 
   useEffect(() => {
     if (resumeProgress != null && Object.keys(resumeProgress).length > 0) {
@@ -317,6 +322,7 @@ export default function ExecuteScreen() {
               completed: false,
               setsCompleted: 0,
             };
+            const setupText = formatExerciseDisplayCue(exercise);
             return (
               <View
                 key={exercise.exercise_id}
@@ -355,18 +361,6 @@ export default function ExecuteScreen() {
                   >
                     {exercise.prescription} • {exercise.sectionTitle}
                   </Text>
-                  {(() => {
-                    const cue = formatExerciseDisplayCue(exercise);
-                    if (!cue) return null;
-                    return (
-                      <Text
-                        style={[styles.exerciseCue, { color: theme.textMuted }]}
-                        numberOfLines={4}
-                      >
-                        {cue}
-                      </Text>
-                    );
-                  })()}
                   <TextInput
                     style={[
                       styles.notesInput,
@@ -383,6 +377,21 @@ export default function ExecuteScreen() {
                     multiline
                   />
                 </View>
+                {setupText ? (
+                  <Pressable
+                    onPress={() =>
+                      setSetupModal({
+                        exerciseName: exercise.exercise_name,
+                        setupText,
+                      })
+                    }
+                    style={[styles.setupButton, { borderColor: theme.primary }]}
+                  >
+                    <Text style={[styles.setupButtonText, { color: theme.primary }]}>
+                      setup
+                    </Text>
+                  </Pressable>
+                ) : null}
                 <Pressable
                   onPress={() =>
                     setSwapModal({
@@ -432,6 +441,12 @@ export default function ExecuteScreen() {
         moreSuggestionsAvailable={swapNumPages > 1}
         onMoreSuggestions={() => setSwapSuggestionPage((p) => p + 1)}
         loadingMoreSuggestions={swapLoading && swapSuggestionPage > 0}
+      />
+      <ExerciseSetupModal
+        visible={setupModal != null}
+        exerciseName={setupModal?.exerciseName ?? ""}
+        setupText={setupModal?.setupText ?? null}
+        onClose={() => setSetupModal(null)}
       />
     </AppScreenWrapper>
   );
@@ -487,10 +502,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  exerciseCue: {
+  setupButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  setupButtonText: {
     fontSize: 12,
-    marginTop: 4,
-    lineHeight: 17,
+    fontWeight: "600",
+    textTransform: "lowercase",
   },
   swapButton: {
     borderWidth: 1,

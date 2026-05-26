@@ -11,6 +11,8 @@ import {
   EditWorkoutBackButton,
   FilteredTabBar,
   FlowHeaderRight,
+  FlowHeaderTitle,
+  FocusAwareTabHeader,
   HeaderBackButton,
   HeaderGymProfileButton,
   ManualExecuteBackButton,
@@ -58,6 +60,12 @@ export default function TabsLayout() {
           borderRadius: 16,
         },
         headerTitleAlign: "center",
+        ...(Platform.OS === "web"
+          ? {
+              header: (props) => <FocusAwareTabHeader {...props} />,
+              headerTitleContainerStyle: { maxWidth: "52%" },
+            }
+          : null),
         headerStyle: {
           backgroundColor: "rgba(15,23,42,0.8)",
           borderBottomWidth: 1,
@@ -118,7 +126,7 @@ export default function TabsLayout() {
         name="manual/preferences"
         options={{
           href: null,
-          title: "Build workout",
+          headerTitle: () => <FlowHeaderTitle title="Build workout" />,
           headerLeft: () => <HeaderBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -127,7 +135,7 @@ export default function TabsLayout() {
         name="manual/workout"
         options={{
           href: null,
-          title: "Today's Workout",
+          headerTitle: () => <FlowHeaderTitle title="Today's Workout" />,
           headerLeft: () => <EditWorkoutBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -136,7 +144,7 @@ export default function TabsLayout() {
         name="manual/execute"
         options={{
           href: null,
-          title: "Execute",
+          headerTitle: () => <FlowHeaderTitle title="Execute" />,
           headerLeft: () => <ManualExecuteBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -145,7 +153,7 @@ export default function TabsLayout() {
         name="manual/week"
         options={{
           href: null,
-          title: "This week's workouts",
+          headerTitle: () => <FlowHeaderTitle title="This week's workouts" />,
           headerLeft: () => <ManualWeekBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -154,7 +162,7 @@ export default function TabsLayout() {
         name="sport-mode/index"
         options={{
           href: null,
-          title: "Sport Mode",
+          headerTitle: () => <FlowHeaderTitle title="Sport Mode" />,
           headerLeft: () => <HeaderBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -163,7 +171,7 @@ export default function TabsLayout() {
         name="sport-mode/schedule"
         options={{
           href: null,
-          title: "Set your schedule",
+          headerTitle: () => <FlowHeaderTitle title="Set your schedule" />,
           headerLeft: () => <HeaderBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -172,7 +180,7 @@ export default function TabsLayout() {
         name="sport-mode/recommendation"
         options={{
           href: null,
-          title: "Recommended Session",
+          headerTitle: () => <FlowHeaderTitle title="Recommended Session" />,
           headerLeft: () => <AdaptiveRecommendationBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}

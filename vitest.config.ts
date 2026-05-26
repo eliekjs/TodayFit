@@ -15,6 +15,7 @@ export default defineConfig({
       "lib/subFocusWeights.test.ts",
       "lib/preferencesConstants.conditioningSubFocusPolicy.test.ts",
       "lib/preferenceConflictDetector.test.ts",
+      "lib/sportModeOneDayValidation.test.ts",
       "lib/exerciseProgressions.swapPool.test.ts",
       "lib/dailyGeneratorAdapter.enduranceSecondary.test.ts",
       "lib/dailyGeneratorAdapter.rankedIntent.test.ts",

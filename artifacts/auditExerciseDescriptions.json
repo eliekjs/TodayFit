@@ -1,0 +1,201 @@
+{
+  "generated_at": "2026-05-25T21:54:15.011Z",
+  "catalog_total": 4045,
+  "curated_entries": 4014,
+  "unique_catalog_slugs": 4014,
+  "duplicate_catalog_slugs": 31,
+  "missing_from_curated": 0,
+  "missing_slugs": [],
+  "orphan_curated_slugs": 0,
+  "orphan_slugs": [],
+  "file_validation_ok": true,
+  "file_validation_error_count": 0,
+  "batches": {
+    "1-200": {
+      "total": 200,
+      "missing": 0,
+      "resolved": 200,
+      "passesQuality": 149,
+      "failsQuality": 51,
+      "issueCounts": {
+        "low_slug_specificity": 33,
+        "duplicate_description": 24
+      },
+      "genericTemplate": 0,
+      "fallbackTemplate": 0,
+      "lowSpecificity": 33,
+      "validationFail": 0,
+      "duplicateDescriptions": 24
+    },
+    "201-800": {
+      "total": 600,
+      "missing": 0,
+      "resolved": 600,
+      "passesQuality": 305,
+      "failsQuality": 295,
+      "issueCounts": {
+        "low_slug_specificity": 92,
+        "duplicate_description": 241,
+        "generic_template": 1
+      },
+      "genericTemplate": 1,
+      "fallbackTemplate": 0,
+      "lowSpecificity": 92,
+      "validationFail": 0,
+      "duplicateDescriptions": 241
+    },
+    "801+": {
+      "total": 3245,
+      "missing": 0,
+      "resolved": 3245,
+      "passesQuality": 238,
+      "failsQuality": 3007,
+      "issueCounts": {
+        "duplicate_description": 2695,
+        "generic_template": 823,
+        "low_slug_specificity": 909
+      },
+      "genericTemplate": 823,
+      "fallbackTemplate": 0,
+      "lowSpecificity": 909,
+      "validationFail": 0,
+      "duplicateDescriptions": 2695
+    }
+  },
+  "db": {
+    "available": true,
+    "sampled": 80,
+    "dbHasDescription": 70,
+    "dbMatchesCurated": 0,
+    "dbIsStub": 70
+  },
+  "worst_bulk": [
+    {
+      "slug": "ff_barbell_overhead_cyclist_squat",
+      "position": 808,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction."
+    },
+    {
+      "slug": "ff_double_kettlebell_bottoms_up_overhead_squat",
+      "position": 869,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction."
+    },
+    {
+      "slug": "ff_single_arm_barbell_overhead_toe_balance_squat",
+      "position": 939,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction."
+    },
+    {
+      "slug": "ff_barbell_overhead_toe_balance_squat",
+      "position": 940,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Stand with feet in the stance named by the exercise. Hold the load overhead with arms stacked. Sit the knees forward and hips down, then stand by pushing the floor away. Keep the torso organized and avoid losing the loaded position as you change direction."
+    },
+    {
+      "slug": "ff_bodyweight_bulgarian_split_squat",
+      "position": 955,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Place the rear foot on a bench behind you and set the front foot far enough forward to lower straight down. Hold the load as listed. Bend both knees, stand by pushing through the front foot, and keep the front knee tracking over the toes."
+    },
+    {
+      "slug": "ff_single_arm_clubbell_order_squat",
+      "position": 1247,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Set the feet in the stance named by the exercise and brace before descending. Sit the hips down with the chest tall, then stand by pushing the floor away. Keep the knees tracking with the toes."
+    },
+    {
+      "slug": "ff_single_arm_clubbell_order_cyclist_squat",
+      "position": 1290,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Set the feet in the stance named by the exercise and brace before descending. Sit the hips down with the chest tall, then stand by pushing the floor away. Keep the knees tracking with the toes."
+    },
+    {
+      "slug": "ff_single_arm_dumbbell_overhead_contralateral_cossack_squat",
+      "position": 1341,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Set the feet in the stance named by the exercise and brace before descending. Sit the hips down with the chest tall, then stand by pushing the floor away. Keep the knees tracking with the toes."
+    },
+    {
+      "slug": "ff_single_arm_dumbbell_overhead_ipsilateral_cossack_squat",
+      "position": 1342,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Set the feet in the stance named by the exercise and brace before descending. Sit the hips down with the chest tall, then stand by pushing the floor away. Keep the knees tracking with the toes."
+    },
+    {
+      "slug": "ff_single_arm_clubbell_order_contralateral_cossack_squat",
+      "position": 1354,
+      "issues": [
+        "generic_template",
+        "low_slug_specificity",
+        "duplicate_description"
+      ],
+      "description": "Set the feet in the stance named by the exercise and brace before descending. Sit the hips down with the chest tall, then stand by pushing the floor away. Keep the knees tracking with the toes."
+    }
+  ],
+  "good_bulk": [
+    {
+      "slug": "ff_bodyweight_freestanding_handstand_push_up",
+      "position": 801,
+      "description": "Place the hands shoulder width on the floor and kick or press into a stacked handstand. Bend the elbows to lower the head between the hands, then press back to straight arms. Keep ribs tucked and elbows tracking under the hands instead of flaring or arching the low back."
+    },
+    {
+      "slug": "ff_superband_side_plank_hanging_hip_adduction",
+      "position": 803,
+      "description": "Anchor a superband above foot height and loop it around the top leg, then set up in a side plank on the forearm. Keep the body long, lift the banded leg slightly, and draw it down toward the lower leg before returning. Keep the hips stacked and avoid rolling the chest toward the floor."
+    },
+    {
+      "slug": "ff_double_kettlebell_dead_clean_to_push_press",
+      "position": 810,
+      "description": "Start with the kettlebell on the floor between or just inside the feet. Catch the bell softly in the rack. From there, press overhead and lower back to the rack before the next rep. Avoid letting the bell slap the forearm or pulling it in a wide arc."
+    },
+    {
+      "slug": "ff_alternating_single_arm_landmine_thruster",
+      "position": 814,
+      "description": "Stand with the load in the rack position and feet about shoulder width. Lower into the squat or split squat, then drive out of the squat and press the landmine up along its angled path. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip."
+    },
+    {
+      "slug": "ff_alternating_single_arm_landmine_cyclist_thruster",
+      "position": 816,
+      "description": "Stand narrow with heels elevated and the load in the rack position. Lower into the squat or split squat, then drive out of the squat and press the landmine up along its angled path. Lower the load back to the rack before the next rep, keeping the elbows from dropping during the dip."
+    }
+  ]
+}

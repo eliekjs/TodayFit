@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "updated_at": "2026-05-25",
+  "catalog_order": "data/exercisesMerged.ts EXERCISES = EXERCISES_BUILTIN + EXERCISES_FUNCTIONAL_FITNESS + OTA_MOVEMENTS; positions are 1-indexed.",
+  "completed_quality_ranges": [
+    {
+      "start": 1,
+      "end": 800,
+      "count": 800,
+      "status": "quality-approved before this run"
+    },
+    {
+      "start": 801,
+      "end": 1000,
+      "count": 200,
+      "status": "quality-approved in prior run"
+    },
+    {
+      "start": 1001,
+      "end": 1200,
+      "count": 200,
+      "status": "quality-approved in this run"
+    }
+  ],
+  "draft_or_not_quality_approved_ranges": [
+    {
+      "start": 1201,
+      "end": "catalog end",
+      "status": "technically covered but not quality-approved"
+    }
+  ],
+  "runs": [
+    {
+      "date": "2026-05-25",
+      "range": {
+        "start": 801,
+        "end": 1000
+      },
+      "count": 200,
+      "notes": "Replaced the draft/bulk-style copy for the next 200 merged-catalog exercises with 2-4 sentence instructional descriptions including setup, execution, form cues, and http(s) sources. Obscure combo skills use component-pattern sources where exact pages were not available.",
+      "source_strategy": "Preferred exact exercise-library pages when available; used component-pattern sources for rare functional-fitness combinations such as bottoms-up half-kneeling windmills, toe-balance overhead squats, and suspension-assisted contralateral pistol squats."
+    },
+    {
+      "date": "2026-05-25",
+      "range": {
+        "start": 1001,
+        "end": 1200
+      },
+      "count": 200,
+      "notes": "Replaced draft/bulk-style copy for merged-catalog positions 1001-1200 with 2-4 sentence instructional descriptions including setup, execution, form cues, and http(s) sources. Obscure functional-fitness combinations use exact component-pattern sources where exact pages were not available.",
+      "source_strategy": "Preferred ACE, ExRx, NASM, and Catalyst/major exercise-library sources for standard lifts; used component-pattern sources for rare ring planche/cross, suspension single-leg, macebell, clubbell, Indian-club, and bottoms-up kettlebell combinations."
+    }
+  ],
+  "manual_review": [
+    {
+      "position": 843,
+      "slug": "ff_single_arm_kettlebell_half_kneeling_windmill",
+      "name": "Single Arm Kettlebell Half Kneeling Windmill",
+      "reason": "Pattern-adapted from kettlebell get-up/windmill and half-kneeling core-control sources."
+    },
+    {
+      "position": 936,
+      "slug": "ff_single_arm_kettlebell_bottoms_up_half_kneeling_windmill",
+      "name": "Single Arm Kettlebell Bottoms Up Half Kneeling Windmill",
+      "reason": "Pattern-adapted from kettlebell get-up/windmill and half-kneeling core-control sources."
+    },
+    {
+      "position": 939,
+      "slug": "ff_single_arm_barbell_overhead_toe_balance_squat",
+      "name": "Single Arm Barbell Overhead Toe Balance Squat",
+      "reason": "Pattern-adapted from overhead squat and one-arm overhead support mechanics."
+    },
+    {
+      "position": 995,
+      "slug": "ff_single_arm_suspension_contralateral_pistol_squat",
+      "name": "Single Arm Suspension Contralateral Pistol Squat",
+      "reason": "Pattern-adapted from pistol/single-leg squat and suspension-assist mechanics."
+    },
+    {
+      "position": 1003,
+      "slug": "ff_ring_inverted_iron_cross",
+      "name": "Ring Inverted Iron Cross",
+      "reason": "Pattern-adapted from ring/calisthenics pulling and straight-arm support sources; exact exercise pages are limited."
+    },
+    {
+      "position": 1010,
+      "slug": "ff_ring_grip_full_planche",
+      "name": "Ring Grip Full Planche",
+      "reason": "Pattern-adapted from planche progression and ring support mechanics."
+    },
+    {
+      "position": 1040,
+      "slug": "ff_double_kettlebell_snatch_to_overhead_squat",
+      "name": "Double Kettlebell Snatch to Overhead Squat",
+      "reason": "Pattern-adapted from kettlebell snatch and overhead squat/front-squat mechanics."
+    },
+    {
+      "position": 1071,
+      "slug": "ff_single_arm_plate_teacup",
+      "name": "Single Arm Plate Teacup",
+      "reason": "Obscure coordination drill; adapted from wrist/shoulder control patterns."
+    },
+    {
+      "position": 1096,
+      "slug": "ff_double_kettlebell_front_rack_9090_hip_shift_to_alternating_overhead_press",
+      "name": "Double Kettlebell Front Rack 90/90 Hip Shift to Alternating Overhead Press",
+      "reason": "Pattern-adapted from 90/90 hip shift and kettlebell overhead press sources."
+    },
+    {
+      "position": 1114,
+      "slug": "ff_macebell_360",
+      "name": "Macebell 360",
+      "reason": "Coaching-source based; exact standardized library page was not available."
+    },
+    {
+      "position": 1116,
+      "slug": "ff_single_arm_macebell_360",
+      "name": "Single Arm Macebell 360",
+      "reason": "Coaching-source based and should be reviewed against preferred in-house macebell standards."
+    },
+    {
+      "position": 1150,
+      "slug": "ff_macebell_single_leg_standing_bent_knee_ballistic_curl",
+      "name": "Macebell Single Leg Standing Bent Knee Ballistic Curl",
+      "reason": "Pattern-adapted from macebell grip/control and single-leg balance mechanics."
+    },
+    {
+      "position": 1156,
+      "slug": "ff_double_indian_club_outer_heart_shaped_swing",
+      "name": "Double Indian Club Outer Heart Shaped Swing",
+      "reason": "Pattern-adapted from Indian-club heart-shaped swing sources."
+    },
+    {
+      "position": 1167,
+      "slug": "ff_clubbell_shield_cast",
+      "name": "Clubbell Shield Cast",
+      "reason": "Coaching-source based; exact standardized library page was not available."
+    },
+    {
+      "position": 1174,
+      "slug": "ff_double_clubbell_side_shoulder_cast_to_side_flag_press",
+      "name": "Double Clubbell Side Shoulder Cast to Side Flag Press",
+      "reason": "Pattern-adapted from clubbell cast and flag-press sources."
+    },
+    {
+      "position": 1177,
+      "slug": "ff_double_clubbell_iron_cross",
+      "name": "Double Clubbell Iron Cross",
+      "reason": "Pattern-adapted from clubbell flag/raise mechanics; exact exercise source limited."
+    },
+    {
+      "position": 1186,
+      "slug": "ff_alternating_double_clubbell_side_flag_press",
+      "name": "Alternating Double Clubbell Side Flag Press",
+      "reason": "Pattern-adapted from clubbell side flag press sources."
+    },
+    {
+      "position": 1193,
+      "slug": "ff_clubbell_clean_to_barbarian_squat",
+      "name": "Clubbell Clean to Barbarian Squat",
+      "reason": "Pattern-adapted from clubbell clean/cast handling and squat mechanics."
+    },
+    {
+      "position": 1198,
+      "slug": "ff_clubbell_single_leg_standing_bent_knee_shield_cast",
+      "name": "Clubbell Single Leg Standing Bent Knee Shield Cast",
+      "reason": "Pattern-adapted from clubbell shield cast and single-leg balance mechanics."
+    }
+  ]
+}

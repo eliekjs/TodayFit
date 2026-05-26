@@ -5,6 +5,7 @@ import type { BlockType, GeneratedWorkout, WorkoutBlock, WorkoutItem } from "../
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 import { formatExerciseDisplayCue } from "../lib/exerciseDisplayCue";
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
+import { ExerciseSetupModal } from "./ExerciseSetupModal";
 
 // ─── Intent chip helpers ────────────────────────────────────────────────────
 
@@ -271,6 +272,10 @@ export function WorkoutBlockList({
   exerciseNotes,
 }: WorkoutBlockListProps) {
   const theme = useTheme();
+  const [setupModal, setSetupModal] = React.useState<{
+    exerciseName: string;
+    setupText: string;
+  } | null>(null);
 
   return (
     <>
@@ -300,11 +305,22 @@ export function WorkoutBlockList({
               showSwap,
               onSwap,
               showTags,
-              exerciseNotes
+              exerciseNotes,
+              (item) => {
+                const setupText = formatExerciseDisplayCue(item);
+                if (!setupText) return;
+                setSetupModal({ exerciseName: item.exercise_name, setupText });
+              }
             )}
           </View>
         );
       })}
+      <ExerciseSetupModal
+        visible={setupModal != null}
+        exerciseName={setupModal?.exerciseName ?? ""}
+        setupText={setupModal?.setupText ?? null}
+        onClose={() => setSetupModal(null)}
+      />
     </>
   );
 }
@@ -323,7 +339,8 @@ function renderBlockContent(
       ) => void)
     | undefined,
   showTags: boolean,
-  exerciseNotes?: Record<string, string>
+  exerciseNotes: Record<string, string> | undefined,
+  onSetupPress: (item: WorkoutItem) => void
 ) {
   const pairs = getSupersetPairsForBlock(block);
   const noteFor = (exerciseId: string) =>
@@ -337,13 +354,16 @@ function renderBlockContent(
         </Text>
       </View>
     ) : null;
-  const cueFor = (item: WorkoutItem) => {
+  const setupButtonFor = (item: WorkoutItem) => {
     const cue = formatExerciseDisplayCue(item);
     if (!cue) return null;
     return (
-      <Text style={[styles.exerciseCue, { color: theme.textMuted }]} numberOfLines={4}>
-        {cue}
-      </Text>
+      <Pressable
+        onPress={() => onSetupPress(item)}
+        style={[styles.setupBtn, { borderColor: theme.primary }]}
+      >
+        <Text style={[styles.setupBtnText, { color: theme.primary }]}>setup</Text>
+      </Pressable>
     );
   };
   if (pairs && pairs.length > 0) {
@@ -379,7 +399,6 @@ function renderBlockContent(
                     >
                       {formatPrescription(item, { includeRest: false })}
                     </Text>
-                    {cueFor(item)}
                     {showTags && (item.tags?.length ?? 0) > 0 && (
                       <View style={styles.tagsRow}>
                         {(item.tags ?? []).slice(0, 3).map((tag) => (
@@ -395,6 +414,7 @@ function renderBlockContent(
                     <IntentChips item={item} theme={theme} />
                     {noteFor(item.exercise_id)}
                   </View>
+                  {setupButtonFor(item)}
                   {showSwap && onSwap && (
                     <Pressable
                       onPress={() =>
@@ -434,7 +454,6 @@ function renderBlockContent(
             >
               {formatPrescription(item, { includeRest: true })}
             </Text>
-            {cueFor(item)}
             {showTags && (item.tags?.length ?? 0) > 0 && (
               <View style={styles.tagsRow}>
                 {(item.tags ?? []).slice(0, 3).map((tag) => (
@@ -450,6 +469,7 @@ function renderBlockContent(
             <IntentChips item={item} theme={theme} />
             {noteFor(item.exercise_id)}
           </View>
+          {setupButtonFor(item)}
           {showSwap && onSwap && (
             <Pressable
               onPress={() =>
@@ -518,10 +538,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  exerciseCue: {
+  setupBtn: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  setupBtnText: {
     fontSize: 12,
-    marginTop: 4,
-    lineHeight: 17,
+    fontWeight: "600",
+    textTransform: "lowercase",
   },
   tagsRow: {
     flexDirection: "row",

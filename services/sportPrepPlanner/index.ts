@@ -83,6 +83,8 @@ export type PlanWeekInput = {
   dailyPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
   /** Adaptive setup labels for summaries (fatigue, phase, etc.); not used for generator defaults. */
   adaptiveScheduleLabels?: AdaptiveScheduleLabels | null;
+  /** When set, this intent is used first for gym slots (e.g. one-day sport avoids recovery-only sessions). */
+  forceIntentKey?: IntentKey;
 };
 
 /** Day-level focus for display and regeneration. Supports day-level editing. */
@@ -797,6 +799,26 @@ function chooseIntentOrder(demand: DemandVector): IntentKey[] {
   return nonZero;
 }
 
+/** Prefer a work intent for the single gym slot in one-day sport prep (never recovery-only). */
+export function forceIntentKeyForOneDaySport(
+  primaryGoalSlug: string | null,
+  rankedSportSlugs?: (string | null)[]
+): IntentKey {
+  const hasSport = (rankedSportSlugs ?? []).some((s) => Boolean(s));
+  if (primaryGoalSlug === "endurance" || primaryGoalSlug === "conditioning") {
+    return "aerobic";
+  }
+  if (primaryGoalSlug === "mobility") return "mobility";
+  if (primaryGoalSlug === "recovery" || primaryGoalSlug === "resilience") {
+    return "prehab";
+  }
+  if (primaryGoalSlug === "power" || primaryGoalSlug === "athletic_performance") {
+    return "power";
+  }
+  if (hasSport) return "strength";
+  return "strength";
+}
+
 export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   if (!isDbConfigured()) {
     throw new Error("Supabase is not configured; Sports Prep mode requires a backend.");
@@ -835,7 +857,16 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     userGoalWeights,
     { sportContextPresent }
   );
-  const intentOrder = chooseIntentOrder(demand);
+  let intentOrder = chooseIntentOrder(demand);
+  if (input.forceIntentKey) {
+    const forced = input.forceIntentKey;
+    intentOrder = [forced, ...intentOrder.filter((k) => k !== forced)];
+  } else if (input.gymDaysPerWeek === 1) {
+    intentOrder = intentOrder.filter((k) => k !== "recovery");
+    if (intentOrder.length === 0) {
+      intentOrder = ["strength"];
+    }
+  }
   const goalSlugs = [
     input.primaryGoalSlug ?? null,
     input.secondaryGoalSlug ?? null,
