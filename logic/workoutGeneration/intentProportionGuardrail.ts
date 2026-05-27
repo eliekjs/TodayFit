@@ -53,7 +53,7 @@ function humanLabel(slug: string): string {
     mobility: "Mobility",
     recovery: "Recovery",
     power: "Power",
-    athletic_performance: "Athletic",
+    athletic_performance: "Athletic Performance",
     calisthenics: "Calisthenics",
   };
   return map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

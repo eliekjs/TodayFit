@@ -118,7 +118,7 @@ const GOAL_LABEL_MAP: Record<string, string> = {
   recovery: "Recovery",
   resilience: "Recovery",
   power: "Power",
-  athletic_performance: "Athletic",
+  athletic_performance: "Athletic Performance",
   calisthenics: "Calisthenics",
 };
 
@@ -430,12 +430,24 @@ export function computeDeclaredIntentSplitFromPrefs(
 
 /**
  * Build a human-readable workout title from the top focus areas.
- * e.g. "Climbing · Body Recomp"
+ * e.g. "Climbing · Body Recomp" or "Leg Power (40%) · Aerobic Base (30%)"
+ *
+ * For sub-focus entries (goal_sub_focus / sport_sub_focus), only the
+ * sub-focus part of the label is shown (e.g. "Leg Power" rather than
+ * "Athletic Performance · Leg Power") so the title stays concise and
+ * directly reflects the user's selected goals.
  */
 export function buildWorkoutIntentTitle(split: IntentSplitEntry[]): string {
   if (split.length === 0) return "Your Workout";
   const top = split.slice(0, 2);
-  return top.map((e) => `${e.label} (${e.pct}%)`).join(" · ");
+  return top.map((e) => {
+    let displayLabel = e.label;
+    if (e.kind === "goal_sub_focus" || e.kind === "sport_sub_focus") {
+      const sep = e.label.indexOf(" · ");
+      if (sep > 0) displayLabel = e.label.slice(sep + 3);
+    }
+    return `${displayLabel} (${e.pct}%)`;
+  }).join(" · ");
 }
 
 function normSlugKey(s: string): string {

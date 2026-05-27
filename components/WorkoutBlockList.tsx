@@ -175,6 +175,48 @@ function IntentChips({
   );
 }
 
+/**
+ * Build a user-facing label for a block's goal intent.
+ *
+ * Priority:
+ * 1. Sport sub-focus → sport name (from SPORTS_WITH_SUB_FOCUSES) + sub-focus name
+ * 2. Sport → sport name
+ * 3. Goal sub-focus → sub-focus name only (parent goal is implied by context)
+ * 4. Plain goal → goal label, BUT suppress the bare "athletic_performance" entry
+ *    because it's too generic and always confuses users in sport sessions.
+ */
+function _buildBlockBadgeLabel(intent: NonNullable<WorkoutBlock["goal_intent"]>): string | null {
+  const { intent_kind, goal_slug, sub_focus_slug, parent_slug } = intent;
+
+  if (intent_kind === "sport_sub_focus" || intent_kind === "sport") {
+    // Use the canonical sport slug (parent_slug for sub-focus, goal_slug for bare sport)
+    const sportSlug = intent_kind === "sport_sub_focus" ? (parent_slug ?? goal_slug) : goal_slug;
+    const sport = _sportBySlug.get(sportSlug);
+    const sportName = sport ? sport.name : _humanizeGoalSlug(sportSlug);
+    if (intent_kind === "sport_sub_focus" && sub_focus_slug) {
+      const subFocus = sport?.sub_focuses.find((sf) => sf.slug === sub_focus_slug);
+      const subName = subFocus ? subFocus.name : _humanizeGoalSlug(sub_focus_slug);
+      return `${sportName} · ${subName}`;
+    }
+    return sportName;
+  }
+
+  if (intent_kind === "goal_sub_focus" && sub_focus_slug) {
+    // Show only the sub-focus name; the parent goal is conveyed by block context
+    return _humanizeGoalSlug(sub_focus_slug);
+  }
+
+  // Bare goal: suppress the generic "athletic_performance" label — it adds no user
+  // context beyond what the sport chips and block title already convey.
+  if (goal_slug === "athletic_performance" && !sub_focus_slug) {
+    return null;
+  }
+
+  const goalLabel = _humanizeGoalSlug(goal_slug);
+  if (!sub_focus_slug) return goalLabel;
+  return `${goalLabel} · ${_humanizeGoalSlug(sub_focus_slug)}`;
+}
+
 function BlockGoalBadge({
   block,
   theme,
@@ -185,9 +227,8 @@ function BlockGoalBadge({
   const intent = block.goal_intent;
   if (!intent) return null;
 
-  const goalLabel = _humanizeGoalSlug(intent.goal_slug);
-  const subLabel = intent.sub_focus_slug ? _humanizeGoalSlug(intent.sub_focus_slug) : null;
-  const label = subLabel ? `${goalLabel} · ${subLabel}` : goalLabel;
+  const label = _buildBlockBadgeLabel(intent);
+  if (!label) return null;
 
   return (
     <View style={blockGoalStyles.row}>
