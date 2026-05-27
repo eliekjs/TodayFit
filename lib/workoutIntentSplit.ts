@@ -283,6 +283,10 @@ export function computeDeclaredIntentSplit(
         : 1 / Math.max(1, goalRowSlugs.length);
     const absWeight = normGoalW * goalWeightFraction;
     if (absWeight < 0.001) continue;
+    // Suppress phantom "Athletic Performance" entry when sports are present.
+    // "athletic_performance" is an internal fallback goal for sport-prep sessions where no
+    // explicit fitness goal was selected; it should never appear as a standalone intent label.
+    if (goal === "athletic_performance" && sports.length > 0) continue;
 
     const subBucket = findGoalSubFocusBucket(goal, input.goal_sub_focus);
     if (subBucket) {

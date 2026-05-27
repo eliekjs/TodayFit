@@ -191,6 +191,8 @@ function _buildBlockBadgeLabel(intent: NonNullable<WorkoutBlock["goal_intent"]>)
   if (intent_kind === "sport_sub_focus" || intent_kind === "sport") {
     // Use the canonical sport slug (parent_slug for sub-focus, goal_slug for bare sport)
     const sportSlug = intent_kind === "sport_sub_focus" ? (parent_slug ?? goal_slug) : goal_slug;
+    // Safety: if slug resolved to the internal fallback, suppress rather than show a misleading label.
+    if (sportSlug === "athletic_performance") return null;
     const sport = _sportBySlug.get(sportSlug);
     const sportName = sport ? sport.name : _humanizeGoalSlug(sportSlug);
     if (intent_kind === "sport_sub_focus" && sub_focus_slug) {

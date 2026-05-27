@@ -2975,10 +2975,18 @@ function buildGoalIntentForRankedIntentLeaf(
     };
   }
   if (entry.kind === "sport_sub_focus") {
+    // parent_slug is the sport slug (always set by buildRankedIntentEntries).
+    // Fall back to the first session sport or the sub-focus slug — never to "athletic_performance",
+    // which would create phantom goal labels.
+    const sportSlug =
+      entry.parent_slug ??
+      input.sport_slugs?.[0] ??
+      input.session_intent?.selected_sports?.[0] ??
+      entry.slug;
     return {
       intent_kind: entry.kind,
       parent_slug: entry.parent_slug,
-      goal_slug: entry.parent_slug ?? "athletic_performance",
+      goal_slug: sportSlug,
       sub_focus_slug: entry.slug,
       swap_pool_exercise_ids: swapPoolIds,
     };
@@ -9085,6 +9093,17 @@ function ensureBlockGoalIntentFallbacks(
   const declaredConditioningGoal =
     selectedGoals.find((g) => g === "endurance" || g === "conditioning");
 
+  // For sport-only sessions (sport_weight ≈ 1.0, no explicit fitness goal), prefer the
+  // top-ranked sport sub-focus entry as the fallback block intent. This prevents accessory
+  // blocks from getting a generic "STRENGTH" badge when the user only selected sports.
+  const rankedEntries = input.session_intent?.ranked_intent_entries ?? [];
+  const isSportOnlySession =
+    (input.sport_weight ?? 0) >= 0.99 &&
+    rankedEntries.some((e) => e.kind === "sport_sub_focus" || e.kind === "sport");
+  const topSportSubFocusEntry = isSportOnlySession
+    ? rankedEntries.find((e) => e.kind === "sport_sub_focus" || e.kind === "sport")
+    : undefined;
+
   for (const block of blocks) {
     if (block.goal_intent) continue;
     if (block.block_type === "warmup" || block.block_type === "cooldown") continue;
@@ -9094,6 +9113,36 @@ function ensureBlockGoalIntentFallbacks(
     // conditioning/endurance goal. Inheriting the session's muscle/strength goal slug
     // ("hypertrophy" → "BUILD MUSCLE") onto a conditioning block is misleading.
     if (block.block_type === "conditioning" && !declaredConditioningGoal) continue;
+
+    // Sport-only session: use sport sub-focus as the fallback intent so accessory blocks
+    // show a sport context label rather than a phantom "STRENGTH" or "ATHLETIC PERFORMANCE" badge.
+    if (isSportOnlySession && topSportSubFocusEntry) {
+      const entry = topSportSubFocusEntry;
+      const sportSlug =
+        entry.kind === "sport_sub_focus"
+          ? (entry.parent_slug ?? input.sport_slugs?.[0] ?? entry.slug)
+          : entry.slug;
+      const swapIds = capSwapPoolIds(
+        block.items.map((item) => item.exercise_id).filter((id) => exerciseById.has(id)),
+        GOAL_DEDICATED_SWAP_POOL_CAP
+      );
+      if (entry.kind === "sport_sub_focus") {
+        block.goal_intent = {
+          intent_kind: "sport_sub_focus",
+          parent_slug: entry.parent_slug,
+          goal_slug: sportSlug,
+          sub_focus_slug: entry.slug,
+          swap_pool_exercise_ids: swapIds,
+        };
+      } else {
+        block.goal_intent = {
+          intent_kind: "sport",
+          goal_slug: sportSlug,
+          swap_pool_exercise_ids: swapIds,
+        };
+      }
+      continue;
+    }
 
     const goalSlug = block.block_type === "conditioning" ? declaredConditioningGoal! : fallbackGoal;
     const matchingSwapIds = Array.from(
