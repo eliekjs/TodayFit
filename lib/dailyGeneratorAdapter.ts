@@ -282,7 +282,10 @@ function buildRankedIntentEntries(
 
 /** Map primary focus label to generator PrimaryGoal. */
 function primaryFocusLabelToGoal(label: string): PrimaryGoal {
-  if (label === "Sport preparation") return "athletic_performance";
+  // "Sport preparation" is an implied sport-only label (no explicit fitness goal selected).
+  // Map to "strength" so it acts as a neutral prescription template rather than injecting
+  // "athletic_performance" quality weights and phantom block labels.
+  if (label === "Sport preparation") return "strength";
   // Power & Explosiveness must map to power (its goal slug is "conditioning" for sub-focus tags only).
   if (label.includes("Power")) return "power";
   const lower = label.toLowerCase();
@@ -397,7 +400,9 @@ export function manualPreferencesToGenerateWorkoutInput(
     firstFocusLabel != null && firstFocusLabel !== ""
       ? primaryFocusLabelToGoal(firstFocusLabel)
       : sportGoalContext?.sport_slugs?.length
-        ? "athletic_performance"
+        // No explicit fitness goal selected; use "strength" as a neutral prescription template.
+        // Sport sub-focus quality weights (via sport_weight = 1.0) drive exercise selection.
+        ? "strength"
         : primaryFocusLabelToGoal("Build Strength");
   let secondary_goals = preferences.primaryFocus
     .slice(1, 3)
@@ -406,6 +411,20 @@ export function manualPreferencesToGenerateWorkoutInput(
   if (shouldAppendEnduranceSecondaryFromSportSubFocus(primary_goal, secondary_goals, sportGoalContext)) {
     secondary_goals = [...secondary_goals, "endurance"];
   }
+
+  // Detect sessions where no explicit fitness goal was selected — only sport + sub-focuses.
+  // In this case we elevate sport_weight to 1.0 so the full quality-selection budget comes from
+  // sport demand; "strength" acts as a prescription template only (no phantom goal in header/badges).
+  const isImpliedSportOnlySession =
+    (firstFocusLabel == null ||
+      firstFocusLabel === "" ||
+      firstFocusLabel === "Sport preparation") &&
+    secondary_goals.length === 0 &&
+    (sportGoalContext?.sport_slugs?.length ?? 0) > 0;
+  // When sport-only: override to 1.0 (or preserve explicit override if caller already set 1.0+).
+  const effectiveSportWeight = isImpliedSportOnlySession
+    ? 1.0
+    : sportGoalContext?.sport_weight;
 
   const subFocusByGoal = subFocusByGoalSanitized;
   const weekSubLabels = preferences.weekSubFocusPrimaryLabels;
@@ -498,18 +517,18 @@ export function manualPreferencesToGenerateWorkoutInput(
     user_level: style_prefs.user_level,
     focus_body_parts: normalizedFocusBodyParts,
     sport_vs_goal_pct:
-      sportGoalContext?.sport_weight != null
-        ? Math.round(Math.max(0, Math.min(1, sportGoalContext.sport_weight)) * 100)
+      effectiveSportWeight != null
+        ? Math.round(Math.max(0, Math.min(1, effectiveSportWeight)) * 100)
         : undefined,
     goal_weights: sportGoalContext?.goal_weights ?? goal_weights,
-    sport_weight: sportGoalContext?.sport_weight,
+    sport_weight: effectiveSportWeight,
     ranked_intent_entries: buildRankedIntentEntries(
       selectedGoals,
       goal_sub_focus,
       sportGoalContext?.sport_slugs ?? [],
       sportGoalContext?.sport_sub_focus ?? {},
       sportGoalContext?.goal_weights ?? goal_weights,
-      sportGoalContext?.sport_weight,
+      effectiveSportWeight,
       sportGoalContext?.sport_focus_pct
     ),
   };
@@ -545,7 +564,7 @@ export function manualPreferencesToGenerateWorkoutInput(
     goal_weights: sportGoalContext?.goal_weights ?? goal_weights,
     sport_slugs: sportGoalContext?.sport_slugs,
     sport_sub_focus: sportGoalContext?.sport_sub_focus,
-    sport_weight: sportGoalContext?.sport_weight,
+    sport_weight: effectiveSportWeight,
     include_intent_survival_report: sportGoalContext?.include_intent_survival_report,
     intent_survival_upstream: sportGoalContext?.intent_survival_upstream,
     session_intent_contract: sportGoalContext?.session_intent_contract,

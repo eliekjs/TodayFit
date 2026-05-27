@@ -327,22 +327,18 @@ function bodyRegionBiasFromDailyPreferences(
   return { targetBody, targetModifier };
 }
 
-/** Map IntentKey to DailyWorkoutPreferences.goalBias for merge-on-regenerate. */
-function goalBiasFromIntentKey(key: IntentKey): DailyPrefs["goalBias"] {
-  switch (key) {
-    case "power": return "power";
-    case "aerobic": return "endurance";
-    case "mobility": return "mobility";
-    case "recovery":
-    case "prehab": return "recovery";
-    case "strength":
-    default: return "strength";
-  }
-}
 
 /**
  * Derive partial DailyWorkoutPreferences from a PlannedDay so that when the user
  * regenerates with only one change (e.g. energy), we can merge and keep the rest.
+ *
+ * NOTE: When falling back from label inference (no stored day.preferences), we do NOT
+ * include `goalBias` in the output. `goalBias` is a user-explicit per-day override;
+ * the plan-level goal is carried via `goalSlugs` (passed directly to regenerateDay) and
+ * the DB's `intent_label` (used by regenerateDay when goalBias is absent). Injecting a
+ * derived `goalBias: "strength"` here would silently override non-strength goals (e.g.
+ * "physique" / body recomp) whenever the user makes any other override change such as
+ * switching fitness level.
  */
 export function deriveDailyPreferencesFromDay(
   day: PlannedDay
@@ -350,15 +346,12 @@ export function deriveDailyPreferencesFromDay(
   if (day.preferences) {
     return { ...day.preferences };
   }
-  const key = intentKeyFromLabel(day.intentLabel ?? null);
-  const goalBias = goalBiasFromIntentKey(key);
   const bodyEmphasis = day.dayLevelFocus?.dayBodyEmphasis;
   const bodyRegionBias = bodyEmphasis === "upper" || bodyEmphasis === "lower" || bodyEmphasis === "full"
     ? bodyEmphasis
     : undefined;
   const specificBodyFocus = day.dayLevelFocus?.daySpecificBodyFocuses as import("../../lib/types").SpecificBodyFocusKey[] | undefined;
   return {
-    ...(goalBias && { goalBias }),
     ...(bodyRegionBias && { bodyRegionBias }),
     ...(specificBodyFocus?.length && { specificBodyFocus }),
   };
@@ -1555,7 +1548,10 @@ export async function regenerateDay(
 
   // Guest / unsigned-in: in-memory only (no Supabase). Must run before DB checks.
   if (!input.userId) {
-    const key = input.dailyPreferences
+    // Only use the goalBias-based intent key when the user explicitly set a goalBias override.
+    // Otherwise fall back to the stored intent label so that e.g. mobility/endurance days
+    // are not silently regenerated as strength sessions just because workoutTier was changed.
+    const key = input.dailyPreferences?.goalBias
       ? intentKeyFromDailyPreferences(input.dailyPreferences)
       : intentKeyFromLabel(input.intentLabel ?? null);
     const energy: EnergyLevel =
@@ -1670,7 +1666,10 @@ export async function regenerateDay(
     throw new Error("Plan day not found for given instance and date.");
   }
 
-  const key = input.dailyPreferences
+  // Only use the goalBias-based intent key when the user explicitly set a goalBias override.
+  // Otherwise fall back to the stored intent label so that e.g. mobility/endurance days
+  // are not silently regenerated as strength sessions just because workoutTier was changed.
+  const key = input.dailyPreferences?.goalBias
     ? intentKeyFromDailyPreferences(input.dailyPreferences)
     : intentKeyFromLabel((dayRow.intent_label as string | null) ?? null);
   const energy: EnergyLevel =

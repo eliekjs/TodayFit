@@ -83,6 +83,23 @@ export async function buildWorkoutForSessionIntent(
 ): Promise<GeneratedWorkout> {
   const bodyBias =
     options?.bodyRegionBias ?? intent.bodyRegionBias ?? null;
+  const subFocusByGoalForPrefs =
+    options?.subFocusByGoal && Object.keys(options.subFocusByGoal).length > 0
+      ? { ...options.subFocusByGoal }
+      : {};
+  // When sub-focus goals are provided, surface their label keys so that
+  // `manualPreferencesToGenerateWorkoutInput` uses the right labels when
+  // building `goal_sub_focus` (via `buildMergedGoalSubFocusSlugWeights`).
+  // Without this, the session intent's `focus` labels (e.g. "Improve Endurance",
+  // "Sport Conditioning") are used as merge labels, which don't match the
+  // user-facing goal keys in `subFocusByGoal` (e.g. "Athletic Performance",
+  // "Endurance"), so sub-focus slugs are silently dropped from the generator
+  // input and the declared intentSplit only shows generic goal labels.
+  const weekSubFocusPrimaryLabels =
+    Object.keys(subFocusByGoalForPrefs).length > 0
+      ? Object.keys(subFocusByGoalForPrefs)
+      : undefined;
+
   const basePreferences: ManualPreferences = {
     primaryFocus: intent.focus,
     targetBody: bodyBias?.targetBody ?? null,
@@ -91,10 +108,7 @@ export async function buildWorkoutForSessionIntent(
     energyLevel: intent.energyLevel,
     injuries: options?.injuries ?? [],
     upcoming: options?.recentLoad ? [options.recentLoad] : [],
-    subFocusByGoal:
-      options?.subFocusByGoal && Object.keys(options.subFocusByGoal).length > 0
-        ? { ...options.subFocusByGoal }
-        : {},
+    subFocusByGoal: subFocusByGoalForPrefs,
     subFocusPctByGoal:
       options?.subFocusPctByGoal && Object.keys(options.subFocusPctByGoal).length > 0
         ? { ...options.subFocusPctByGoal }
@@ -102,6 +116,7 @@ export async function buildWorkoutForSessionIntent(
     workoutStyle: [],
     workoutTier: options?.workoutTier ?? "intermediate",
     includeCreativeVariations: options?.includeCreativeVariations === true,
+    ...(weekSubFocusPrimaryLabels ? { weekSubFocusPrimaryLabels } : {}),
   };
 
   let preferredNames: string[] | undefined;
