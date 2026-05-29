@@ -155,7 +155,11 @@ const roadMinimumCoverage: readonly RoadMinimumCoverageRule[] = [
       "When conditioning is present, prefer linear running-relevant modalities (run/tempo/row/bike; not stair-machine-only).",
     applies: (ctx) => ctx.hasConditioningBlock,
     scanBlockTypes: ["conditioning"],
-    mustSatisfy: (ids, byId) => ids.some((id) => isRoadRunningConditioningExercise(byId.get(id)!)),
+    mustSatisfy: (ids, byId) =>
+      ids.some((id) => {
+        const ex = byId.get(id);
+        return ex != null && isRoadRunningConditioningExercise(ex);
+      }),
   },
 ];
 

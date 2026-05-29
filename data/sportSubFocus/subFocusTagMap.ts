@@ -5,6 +5,7 @@
  */
 
 import type { SubFocusTagMap } from "./types";
+import { buildEnduranceJointStabilityTagMapEntries } from "./enduranceJointStabilitySubFocus";
 import {
   SHARED_TAG_WEIGHTS_COURT_CHANGE_OF_DIRECTION,
   SHARED_TAG_WEIGHTS_FIELD_CHANGE_OF_DIRECTION,
@@ -1110,4 +1111,6 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
     { tag_slug: "pulling_strength", weight: 1.2 },
     { tag_slug: "hinge_pattern", weight: 1 },
   ],
+
+  ...buildEnduranceJointStabilityTagMapEntries(),
 };

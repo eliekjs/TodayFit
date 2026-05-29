@@ -265,7 +265,7 @@ export async function getPreferredExerciseNamesForSportAndGoals(
       : undefined;
   // When sport has no sub-focus selected, default so tag-based ranking runs. Use canonical slug for consolidated sports.
   if (canonicalSlug === "cycling" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["aerobic_base", "leg_strength", "core_stability"];
+    subSlugs = ["aerobic_base", "leg_strength", "hip_stability"];
   }
   if (primarySlug === "hiking_backpacking" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["uphill_endurance", "leg_strength", "ankle_stability"];
@@ -310,28 +310,28 @@ export async function getPreferredExerciseNamesForSportAndGoals(
     subSlugs = ["pull_strength", "core_tension", "finger_strength"];
   }
   if (canonicalSlug === "road_running" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["running_economy", "leg_resilience"];
+    subSlugs = ["running_economy", "leg_resilience", "knee_stability"];
   }
   if (primarySlug === "rowing_erg" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["aerobic_base", "posterior_chain"];
   }
   if (primarySlug === "swimming_open_water" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["pull_strength", "shoulder_scapular", "core_stability"];
+    subSlugs = ["pull_strength", "shoulder_scapular", "shoulder_stability"];
   }
   if (primarySlug === "trail_running" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["uphill_endurance", "downhill_control", "ankle_stability"];
   }
   if (primarySlug === "triathlon" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["swim_specific", "bike_run_durability", "core_stability"];
+    subSlugs = ["swim_specific", "bike_run_durability", "shoulder_stability"];
   }
   if (primarySlug === "xc_skiing" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["double_pole_upper", "leg_drive", "core_stability"];
+    subSlugs = ["double_pole_upper", "leg_drive", "knee_stability"];
   }
   if (canonicalSlug === "hyrox" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["work_capacity", "running_endurance", "core_stability"];
   }
   if (primarySlug === "rucking" && (!subSlugs || subSlugs.length === 0)) {
-    subSlugs = ["load_carriage_durability", "leg_strength", "core_stability"];
+    subSlugs = ["load_carriage_durability", "leg_strength", "knee_stability"];
   }
   if (primarySlug === "bodybuilding" && (!subSlugs || subSlugs.length === 0)) {
     subSlugs = ["push_hypertrophy", "pull_hypertrophy", "legs_hypertrophy"];

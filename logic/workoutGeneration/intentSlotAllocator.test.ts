@@ -3,10 +3,14 @@ import type { IntentEntry } from "./sessionIntentContract";
 import type { Exercise, PrimaryGoal } from "./types";
 import {
   allocateSlotsAcrossLeaves,
+  buildUnifiedIntentSlotPlan,
+  classifyLeafArchetype,
   deriveLeafEntries,
   estimateIntentWorkingExerciseSlots,
+  isEnduranceConditioningSportIntentEntry,
   isMainWorkCandidateForIntentEntry,
   isIntentMainWorkCandidate,
+  isNonMainWorkSportIntentEntry,
   isPowerStyleSportIntentEntry,
   isStabilityPrehabSportIntentEntry,
   mainWorkPrimaryForIntentEntry,
@@ -151,6 +155,32 @@ describe("mainWorkPrimaryForIntentEntry", () => {
     expect(isMainWorkCandidateForIntentEntry(squat, entry, "strength")).toBe(false);
   });
 
+  it("routes endurance cycling hip_stability as stability/prehab (not main compound)", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "hip_stability",
+      parent_slug: "cycling",
+      rank: 1,
+      weight: 0.4,
+      tag_slugs: ["hip_stability", "glute_strength"],
+    };
+    const hinge: Exercise = {
+      id: "rdl",
+      name: "Romanian Deadlift",
+      modality: "strength",
+      movement_pattern: "hinge",
+      muscle_groups: ["hamstrings"],
+      tags: {
+        sport_tags: ["cycling"],
+        goal_tags: ["strength"],
+        attribute_tags: ["hip_stability", "glute_strength"],
+      },
+      exercise_role: "main_compound",
+    } as Exercise;
+    expect(isStabilityPrehabSportIntentEntry(entry)).toBe(true);
+    expect(isMainWorkCandidateForIntentEntry(hinge, entry, "strength")).toBe(false);
+  });
+
   it("requires dynamic evidence for explosive jump main-work candidates", () => {
     const entry: IntentEntry = {
       kind: "sport_sub_focus",
@@ -206,8 +236,238 @@ describe("mainWorkPrimaryForIntentEntry", () => {
   });
 });
 
+describe("isEnduranceConditioningSportIntentEntry", () => {
+  it("classifies marathon_pace as endurance_conditioning (not main compound)", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "marathon_pace",
+      parent_slug: "road_running",
+      rank: 1,
+      weight: 0.3,
+      tag_slugs: ["marathon_pace"],
+    };
+    expect(isEnduranceConditioningSportIntentEntry(entry)).toBe(true);
+    expect(isStabilityPrehabSportIntentEntry(entry)).toBe(false);
+    expect(isNonMainWorkSportIntentEntry(entry)).toBe(true);
+  });
+
+  it("classifies threshold as endurance_conditioning", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "threshold",
+      parent_slug: "road_running",
+      rank: 2,
+      weight: 0.2,
+      tag_slugs: ["threshold"],
+    };
+    expect(isEnduranceConditioningSportIntentEntry(entry)).toBe(true);
+  });
+
+  it("classifies aerobic_base as endurance_conditioning", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "aerobic_base",
+      parent_slug: "trail_running",
+      rank: 3,
+      weight: 0.2,
+      tag_slugs: ["aerobic_base"],
+    };
+    expect(isEnduranceConditioningSportIntentEntry(entry)).toBe(true);
+  });
+
+  it("blocks endurance_conditioning entries from main compound slots", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "marathon_pace",
+      parent_slug: "road_running",
+      rank: 1,
+      weight: 0.3,
+      tag_slugs: ["marathon_pace"],
+    };
+    const squat: Exercise = {
+      id: "back_squat",
+      name: "Back Squat",
+      modality: "strength",
+      movement_pattern: "squat",
+      muscle_groups: ["quads"],
+      tags: { sport_tags: ["road_running"], goal_tags: ["strength"] },
+      exercise_role: "main_compound",
+    } as Exercise;
+    expect(isMainWorkCandidateForIntentEntry(squat, entry, "strength")).toBe(false);
+  });
+
+  it("does not classify ankle_stability as endurance_conditioning (it is stability_prehab)", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "ankle_stability",
+      parent_slug: "road_running",
+      rank: 2,
+      weight: 0.2,
+      tag_slugs: ["ankle_stability"],
+    };
+    expect(isEnduranceConditioningSportIntentEntry(entry)).toBe(false);
+    expect(isStabilityPrehabSportIntentEntry(entry)).toBe(true);
+    expect(isNonMainWorkSportIntentEntry(entry)).toBe(true);
+  });
+});
+
 describe("estimateIntentWorkingExerciseSlots", () => {
   it("returns ~10 for 60 minutes", () => {
     expect(estimateIntentWorkingExerciseSlots(60)).toBe(10);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Unified slot plan — the core proof mechanism
+// ---------------------------------------------------------------------------
+
+describe("buildUnifiedIntentSlotPlan (slot budget proof)", () => {
+  /**
+   * Scenario: Bodybuilding Arms & Shoulders (body_recomp) + Running Marathon Pace
+   * + Trail Running Ankle Stability — the exact scenario from the user's screenshot.
+   *
+   * Arms & Shoulders → main_compound
+   * Marathon Pace    → conditioning
+   * Ankle Stability  → prehab
+   *
+   * Total slots for 53 min = 8
+   * Proportional: arms_shoulders ~40% → 3, marathon_pace ~30% → 2, ankle_stability ~30% → 3
+   */
+  const leaves: IntentEntry[] = [
+    {
+      kind: "goal_sub_focus",
+      slug: "arms_and_shoulders",
+      parent_slug: "physique",
+      rank: 1,
+      weight: 0.40,
+      tag_slugs: ["shoulders", "biceps", "triceps"],
+    },
+    {
+      kind: "sport_sub_focus",
+      slug: "marathon_pace",
+      parent_slug: "road_running",
+      rank: 2,
+      weight: 0.30,
+      tag_slugs: ["aerobic_base", "zone3_cardio"],
+    },
+    {
+      kind: "sport_sub_focus",
+      slug: "ankle_stability",
+      parent_slug: "trail_running",
+      rank: 3,
+      weight: 0.30,
+      tag_slugs: ["ankle_stability", "balance"],
+    },
+  ];
+
+  it("slot plan total equals estimateIntentWorkingExerciseSlots(53)", () => {
+    const totalSlots = estimateIntentWorkingExerciseSlots(53);
+    const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
+    const planTotal = plan.reduce((s, e) => s + e.slots, 0);
+    expect(planTotal).toBe(totalSlots);
+  });
+
+  it("classifies arms_and_shoulders as main_compound", () => {
+    const entry = leaves[0]!;
+    expect(classifyLeafArchetype(entry)).toBe("main_compound");
+  });
+
+  it("classifies marathon_pace as conditioning", () => {
+    const entry = leaves[1]!;
+    expect(classifyLeafArchetype(entry)).toBe("conditioning");
+  });
+
+  it("classifies ankle_stability as prehab", () => {
+    const entry = leaves[2]!;
+    expect(classifyLeafArchetype(entry)).toBe("prehab");
+  });
+
+  it("conditioning + prehab slots total the non-main portion of budget", () => {
+    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 8
+    const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
+    const mainSlots = plan.find((p) => p.entry.slug === "arms_and_shoulders")?.slots ?? 0;
+    const condSlots = plan.find((p) => p.entry.slug === "marathon_pace")?.slots ?? 0;
+    const prehabSlots = plan.find((p) => p.entry.slug === "ankle_stability")?.slots ?? 0;
+    // All three must sum to totalSlots
+    expect(mainSlots + condSlots + prehabSlots).toBe(totalSlots);
+    // Each specialty leaf should have at least 1 slot (proportional share > 0)
+    expect(condSlots).toBeGreaterThan(0);
+    expect(prehabSlots).toBeGreaterThan(0);
+    // Main compound should have the largest share (40%)
+    expect(mainSlots).toBeGreaterThanOrEqual(condSlots);
+    expect(mainSlots).toBeGreaterThanOrEqual(prehabSlots);
+  });
+
+  it("proportional allocation never gives zero slots to a leaf with meaningful weight", () => {
+    // Even a leaf with 30% weight on an 8-slot budget should get ≥ 1 slot
+    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 8
+    const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
+    for (const entry of plan) {
+      expect(entry.slots).toBeGreaterThan(0);
+    }
+  });
+
+  it("shorter workouts still allocate proportionally", () => {
+    const totalSlots = estimateIntentWorkingExerciseSlots(25); // 4
+    const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
+    const planTotal = plan.reduce((s, e) => s + e.slots, 0);
+    expect(planTotal).toBe(totalSlots);
+  });
+
+  it("single-leaf session has no plan (guard for the multi-intent gate)", () => {
+    const singleLeaf = [leaves[0]!];
+    // buildUnifiedIntentSlotPlan is only called when leaves.length >= 2; here we
+    // confirm it still returns a valid plan for a single leaf (edge case safety).
+    const plan = buildUnifiedIntentSlotPlan(singleLeaf, 8);
+    expect(plan.reduce((s, e) => s + e.slots, 0)).toBe(8);
+  });
+});
+
+describe("classifyLeafArchetype", () => {
+  it("power-style sport sub-focus → power", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "vertical_jump",
+      parent_slug: "volleyball",
+      rank: 1,
+      weight: 0.3,
+      tag_slugs: ["explosive_power"],
+    };
+    expect(classifyLeafArchetype(entry)).toBe("power");
+  });
+
+  it("speed/COD sport sub-focus → power", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "change_of_direction",
+      parent_slug: "soccer",
+      rank: 1,
+      weight: 0.3,
+      tag_slugs: ["agility"],
+    };
+    expect(classifyLeafArchetype(entry)).toBe("power");
+  });
+
+  it("bare goal entry → main_compound", () => {
+    const entry: IntentEntry = {
+      kind: "goal",
+      slug: "strength",
+      rank: 1,
+      weight: 0.5,
+      tag_slugs: ["strength"],
+    };
+    expect(classifyLeafArchetype(entry)).toBe("main_compound");
+  });
+
+  it("goal sub-focus (physique) → main_compound", () => {
+    const entry: IntentEntry = {
+      kind: "goal_sub_focus",
+      slug: "chest",
+      parent_slug: "physique",
+      rank: 1,
+      weight: 0.5,
+      tag_slugs: ["chest"],
+    };
+    expect(classifyLeafArchetype(entry)).toBe("main_compound");
   });
 });

@@ -9,11 +9,36 @@
 
 export type SportSubFocusIntentArchetype =
   | "explosive_plyometric"
-  | "stability_prehab";
+  | "stability_prehab"
+  | "endurance_conditioning";
 
 function normSubFocusSlug(slug: string): string {
   return slug.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
 }
+
+/**
+ * Sport sub-focus slugs that call for dedicated conditioning blocks (tempo runs, intervals,
+ * aerobic engine work, pace-specific conditioning). These should NOT be allocated to main
+ * compound/strength slots; instead they get their own conditioning or EMOM-style block.
+ */
+export const ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS = new Set([
+  // Running pace / engine
+  "aerobic_base",
+  "marathon_pace",
+  "threshold",
+  "speed_endurance",
+  "running_economy",
+  "durability",
+  "uphill_endurance",
+  "vo2_intervals",
+  "tempo",
+  "interval_training",
+  // Cycling / rowing engine
+  "power_endurance",
+  // General endurance
+  "aerobic_engine",
+  "lactate_threshold",
+]);
 
 export const EXPLOSIVE_PLYOMETRIC_SUB_FOCUS_SLUGS = new Set([
   "acceleration_power",
@@ -32,6 +57,8 @@ export const EXPLOSIVE_PLYOMETRIC_SUB_FOCUS_SLUGS = new Set([
 
 export const STABILITY_PREHAB_SUB_FOCUS_SLUGS = new Set([
   "ankle_stability",
+  "hip_stability",
+  "knee_stability",
   "core_stability",
   "downhill_control",
   "downhill_stability",
@@ -86,6 +113,7 @@ export function sportSubFocusIntentArchetype(
   const slug = normSubFocusSlug(subFocusSlug);
   if (STABILITY_PREHAB_SUB_FOCUS_SLUGS.has(slug)) return "stability_prehab";
   if (EXPLOSIVE_PLYOMETRIC_SUB_FOCUS_SLUGS.has(slug)) return "explosive_plyometric";
+  if (ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS.has(slug)) return "endurance_conditioning";
   return undefined;
 }
 
@@ -95,6 +123,10 @@ export function isExplosivePlyometricSportSubFocusSlug(subFocusSlug: string): bo
 
 export function isStabilityPrehabSportSubFocusSlug(subFocusSlug: string): boolean {
   return sportSubFocusIntentArchetype(subFocusSlug) === "stability_prehab";
+}
+
+export function isEnduranceConditioningSportSubFocusSlug(subFocusSlug: string): boolean {
+  return sportSubFocusIntentArchetype(subFocusSlug) === "endurance_conditioning";
 }
 
 export function tagSetHasDynamicPowerSignal(tags: Set<string>): boolean {

@@ -128,9 +128,14 @@ import {
   subFocusSlugsForGuarantee,
 } from "./subFocusSlugMatch";
 import {
+  buildUnifiedIntentSlotPlan,
+  classifyLeafArchetype,
   deriveLeafEntries,
+  estimateIntentWorkingExerciseSlots,
+  isEnduranceConditioningSportIntentEntry,
   isIntentMainWorkCandidate,
   isMainWorkCandidateForIntentEntry,
+  isNonMainWorkSportIntentEntry,
   isPowerStyleSportIntentEntry,
   isStabilityPrehabSportIntentEntry,
   mainWorkPrimaryForIntentEntry,
@@ -3022,7 +3027,12 @@ function tryBuildIntentSlotAllocatedMainInject(
   sessionFatigueRegions: Map<string, number> | undefined,
   historyContext: TrainingHistoryContext | undefined,
   cardioTargetExerciseShare: number | undefined,
-  wantsSupersets: boolean
+  wantsSupersets: boolean,
+  /**
+   * When provided, this exact count (from the unified slot budget) is used instead of the
+   * duration-based heuristic. Keeps main-compound slots consistent with specialty blocks.
+   */
+  mainCompoundSlotsOverride?: number
 ): { blocks: WorkoutBlock[] } | undefined {
   if (!shouldUseIntentSlotAllocation(input)) return undefined;
 
@@ -3065,10 +3075,10 @@ function tryBuildIntentSlotAllocatedMainInject(
     );
   }
   sizingPool = applyWeekMainLiftExclusion(sizingPool, input);
-  const mainLiftCount = Math.min(
-    Math.max(compoundMin, targetMainByDuration),
-    Math.max(1, sizingPool.length)
-  );
+  // Use unified budget override when provided; otherwise fall back to duration heuristic.
+  const mainLiftCount = mainCompoundSlotsOverride != null && mainCompoundSlotsOverride > 0
+    ? Math.min(mainCompoundSlotsOverride, Math.max(1, sizingPool.length))
+    : Math.min(Math.max(compoundMin, targetMainByDuration), Math.max(1, sizingPool.length));
   if (mainLiftCount < 1) return undefined;
 
   const leafKeys = leaves.map((_, i) => String(i));
@@ -3087,14 +3097,16 @@ function tryBuildIntentSlotAllocatedMainInject(
   };
 
   const blocks: WorkoutBlock[] = [];
-  const intentReason =
-    "Main compounds allocated across your ranked goals, sports, and sub-focuses in the proportions you set.";
+  const totalBudget = estimateIntentWorkingExerciseSlots(input.duration_minutes);
+  const intentReasonForEntry = (entry: IntentEntry, n: number) =>
+    `${n} slot${n !== 1 ? "s" : ""} from your ${humanizeGoalDedicatedSlug(entry.slug)} sub-goal (${Math.round(entry.weight * 100)}% of ${totalBudget}-slot session budget).`;
 
   for (let i = 0; i < leaves.length; i++) {
     const entry = leaves[i]!;
     const nMain = allocMain.get(String(i)) ?? 0;
     if (nMain <= 0) continue;
-    if (isStabilityPrehabSportIntentEntry(entry)) continue;
+    // Stability-prehab and endurance-conditioning sub-focuses get dedicated blocks elsewhere.
+    if (isNonMainWorkSportIntentEntry(entry)) continue;
     const entryPrimary = mainWorkPrimaryForIntentEntry(entry, primary);
     const entryBlockType: BlockType = isPowerStyleSportIntentEntry(entry) ? "power" : mainBlockType;
 
@@ -3109,14 +3121,13 @@ function tryBuildIntentSlotAllocatedMainInject(
         isMainWorkCandidateForIntentEntry(e, entry, entryPrimary)
     );
     pool = applyWeekMainLiftExclusion(pool, input);
-    let fallback = exercises.filter((e) => !used.has(e.id) && isMainWorkCandidateForIntentEntry(e, entry, entryPrimary));
-    fallback = applyWeekMainLiftExclusion(fallback, input);
-    const pickPool = pool.length >= nMain ? pool : fallback;
-    if (pickPool.length < nMain) continue;
+    // Strict matching: only use the sub-focus-matched pool. Do NOT fall back to the
+    // full main-work pool because that would put unrelated exercises in a labeled slot.
+    if (pool.length < nMain) continue;
 
     const slotRng = rngForWorkoutSlot(input.seed ?? 0, "intent_slot_main", `${i}_${entry.kind}_${entry.slug}`);
     const picked = pickFromScoredShortlistRandom(
-      pickPool,
+      pool,
       input,
       recentIds,
       movementCounts,
@@ -3128,7 +3139,7 @@ function tryBuildIntentSlotAllocatedMainInject(
     if (picked.length < nMain) continue;
 
     const swapPoolIds = capSwapPoolIds(
-      (pool.length >= nMain ? pool : exercises)
+      exercises
         .filter((e) => matchesIntentEntry(e, entry) && isMainWorkCandidateForIntentEntry(e, entry, entryPrimary))
         .map((e) => e.id),
       GOAL_DEDICATED_SWAP_POOL_CAP
@@ -3190,7 +3201,7 @@ function tryBuildIntentSlotAllocatedMainInject(
         block_type: entryBlockType,
         format: "superset",
         title: `Main (${label})`,
-        reasoning: intentReason,
+        reasoning: intentReasonForEntry(entry, nMain),
         goal_intent,
         items: [itemA, itemB],
         supersetPairs: [[itemA, itemB]],
@@ -3225,7 +3236,7 @@ function tryBuildIntentSlotAllocatedMainInject(
         block_type: entryBlockType,
         format: "straight_sets",
         title: `Main (${label})`,
-        reasoning: intentReason,
+        reasoning: intentReasonForEntry(entry, nMain),
         goal_intent,
         items,
         estimated_minutes: Math.max(est, 4),
@@ -3234,6 +3245,215 @@ function tryBuildIntentSlotAllocatedMainInject(
   }
 
   return blocks.length > 0 ? { blocks } : undefined;
+}
+
+/**
+ * Build dedicated conditioning blocks for endurance/pace-focused sport sub-focus entries
+ * (e.g. marathon_pace, threshold, vo2_intervals). Each qualifying leaf gets its own
+ * conditioning block clearly labeled with the sub-focus. Called after main blocks are built.
+ */
+/**
+ * Unified intent slot builder for specialty archetypes (conditioning and prehab).
+ *
+ * Uses the SAME proportional slot budget as `tryBuildIntentSlotAllocatedMainInject` so that
+ * total working exercises = `estimateIntentWorkingExerciseSlots(duration)` and each selected
+ * sub-goal owns exactly its proportional share. Main-compound slots are handled by the existing
+ * inject path; this function handles the remaining archetypes from the same budget.
+ *
+ * Returns: specialty blocks (conditioning + prehab) to be pushed after main blocks.
+ * Also returns: `mainCompoundSlotsOverride` — the exact exercise count the inject should use
+ * so the budgets stay consistent.
+ */
+function buildUnifiedIntentSpecialtyBlocks(
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  rng: () => number,
+  fatigueVolumeScale: number | undefined,
+  fatigueState: FatigueState | undefined,
+  sessionFatigueRegions: Map<string, number> | undefined,
+  historyContext: TrainingHistoryContext | undefined,
+  wantsSupersets: boolean,
+  /**
+   * Broader pool (e.g. injury-gated but not sport-profile-filtered) used for specialty blocks
+   * that may not belong to the dominant sport (e.g. trail_running prehab in a road_running session).
+   * Falls back to `exercises` when omitted.
+   */
+  broadPool?: Exercise[]
+): {
+  specialtyBlocks: WorkoutBlock[];
+  /** How many main-compound slots the inject should fill (unified budget). */
+  mainCompoundSlots: number;
+  /** Full plan for proof/debug: which leaf got how many slots, verified match count. */
+  slotPlanSummary: Array<{
+    slug: string;
+    archetype: string;
+    allocatedSlots: number;
+    pickedCount: number;
+    allMatched: boolean;
+  }>;
+} {
+  const leaves = deriveLeafEntries(input.session_intent?.ranked_intent_entries ?? []);
+  if (leaves.length < 2) {
+    return { specialtyBlocks: [], mainCompoundSlots: 0, slotPlanSummary: [] };
+  }
+
+  const totalSlots = estimateIntentWorkingExerciseSlots(input.duration_minutes);
+  const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
+
+  // Tally main-compound slots (will be consumed by the inject function, not here).
+  let mainCompoundSlots = 0;
+  for (const entry of plan) {
+    if (entry.archetype === "main_compound" || entry.archetype === "power") {
+      mainCompoundSlots += entry.slots;
+    }
+  }
+
+  const specialtyBlocks: WorkoutBlock[] = [];
+  const slotPlanSummary: ReturnType<typeof buildUnifiedIntentSpecialtyBlocks>["slotPlanSummary"] = [];
+
+  const baseOpts = (blockType: BlockType) => ({
+    blockType,
+    sessionFatigueRegions,
+    sessionMovementPatternCounts: movementCounts,
+    sessionHasBilateralLowerBody:
+      (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+    historyContext,
+  });
+
+  for (const planEntry of plan) {
+    const { entry, archetype, slots } = planEntry;
+
+    // Main compound and power blocks are built by the existing inject path.
+    if (archetype === "main_compound" || archetype === "power") {
+      slotPlanSummary.push({ slug: entry.slug, archetype, allocatedSlots: slots, pickedCount: 0, allMatched: true });
+      continue;
+    }
+
+    // Conditioning block (marathon_pace, threshold, aerobic_base, etc.)
+    if (archetype === "conditioning") {
+      const searchPool = broadPool ?? exercises;
+      const pool = searchPool.filter((e) => !used.has(e.id) && matchesIntentEntry(e, entry));
+      const n = Math.min(slots, pool.length);
+      const label = humanizeGoalDedicatedSlug(entry.slug);
+
+      if (n === 0) {
+        slotPlanSummary.push({ slug: entry.slug, archetype, allocatedSlots: slots, pickedCount: 0, allMatched: false });
+        continue;
+      }
+
+      const swapPoolIds = capSwapPoolIds(
+        searchPool.filter((e) => matchesIntentEntry(e, entry)).map((e) => e.id),
+        GOAL_DEDICATED_SWAP_POOL_CAP
+      );
+      const goal_intent = buildGoalIntentForRankedIntentLeaf(entry, input, swapPoolIds);
+      const slotRng = rngForWorkoutSlot(input.seed ?? 0, "intent_slot_conditioning", `${entry.kind}_${entry.slug}`);
+
+      const picked = pickFromScoredShortlistRandom(
+        pool, input, recentIds, movementCounts, n, slotRng, fatigueState, baseOpts("conditioning")
+      );
+      for (const ex of picked) used.add(ex.id);
+
+      const isHighIntensity = new Set(["threshold", "vo2_intervals", "speed_endurance", "interval_training"]).has(entry.slug);
+      const format: BlockFormat = isHighIntensity && picked.length >= 2 ? "circuit" : "straight_sets";
+
+      const items: WorkoutItem[] = picked.map((ex) => {
+        const p = getPrescription(ex, "conditioning", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+        return {
+          exercise_id: ex.id,
+          exercise_name: ex.name,
+          sets: p.sets,
+          reps: p.reps,
+          time_seconds: p.time_seconds,
+          rest_seconds: p.rest_seconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["conditioning", "intent_slot", entry.slug],
+          unilateral: ex.unilateral ?? false,
+        };
+      });
+
+      const estMin = items.reduce((s, item) => {
+        const rest = (item.rest_seconds ?? 0) / 60;
+        const work = item.time_seconds != null
+          ? (item.time_seconds * (item.sets ?? 1)) / 60
+          : (item.sets ?? 2) * 0.8;
+        return s + work + rest;
+      }, 0);
+
+      specialtyBlocks.push({
+        block_type: "conditioning",
+        format,
+        title: `Conditioning (${label})`,
+        reasoning: `${slots} slot${slots !== 1 ? "s" : ""} from your ${label} sub-goal (${Math.round(entry.weight * 100)}% of session budget).`,
+        goal_intent,
+        items,
+        estimated_minutes: Math.max(estMin, 3),
+      });
+      slotPlanSummary.push({ slug: entry.slug, archetype, allocatedSlots: slots, pickedCount: picked.length, allMatched: picked.length > 0 });
+    }
+
+    // Prehab / stability block (ankle_stability, hip_stability, etc.)
+    if (archetype === "prehab") {
+      const searchPool = broadPool ?? exercises;
+      const pool = searchPool.filter((e) => !used.has(e.id) && matchesIntentEntry(e, entry));
+      const n = Math.min(slots, pool.length);
+      const label = humanizeGoalDedicatedSlug(entry.slug);
+      if (n === 0) {
+        slotPlanSummary.push({ slug: entry.slug, archetype, allocatedSlots: slots, pickedCount: 0, allMatched: false });
+        continue;
+      }
+
+      const swapPoolIds = capSwapPoolIds(
+        searchPool.filter((e) => matchesIntentEntry(e, entry)).map((e) => e.id),
+        GOAL_DEDICATED_SWAP_POOL_CAP
+      );
+      const goal_intent = buildGoalIntentForRankedIntentLeaf(entry, input, swapPoolIds);
+      const slotRng = rngForWorkoutSlot(input.seed ?? 0, "intent_slot_prehab", `${entry.kind}_${entry.slug}`);
+
+      const picked = pickFromScoredShortlistRandom(
+        pool, input, recentIds, movementCounts, n, slotRng, fatigueState, baseOpts("accessory")
+      );
+      for (const ex of picked) used.add(ex.id);
+
+      const canSuperset = wantsSupersets && picked.length >= 2;
+      const format: BlockFormat = canSuperset ? "superset" : "straight_sets";
+
+      const items: WorkoutItem[] = picked.map((ex) => {
+        const p = getPrescription(ex, "accessory", input.energy_level, input.primary_goal, true, fatigueVolumeScale, input.style_prefs?.user_level);
+        return {
+          exercise_id: ex.id,
+          exercise_name: ex.name,
+          sets: p.sets,
+          reps: p.reps,
+          time_seconds: p.time_seconds,
+          rest_seconds: p.rest_seconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["accessory", "prehab", "intent_slot", entry.slug],
+          unilateral: ex.unilateral ?? false,
+        };
+      });
+
+      const supersetPairs: [WorkoutItem, WorkoutItem][] | undefined =
+        format === "superset" && items.length >= 2 ? [[items[0]!, items[1]!]] : undefined;
+      const estMin = items.reduce((s, item) => s + (item.sets ?? 2) * 0.6 + (item.rest_seconds ?? 30) / 60, 0);
+
+      specialtyBlocks.push({
+        block_type: "accessory",
+        format,
+        title: `${label} (Prehab)`,
+        reasoning: `${slots} slot${slots !== 1 ? "s" : ""} from your ${label} sub-goal (${Math.round(entry.weight * 100)}% of session budget).`,
+        goal_intent,
+        items,
+        ...(supersetPairs ? { supersetPairs } : {}),
+        estimated_minutes: Math.max(estMin, 4),
+      });
+      slotPlanSummary.push({ slug: entry.slug, archetype, allocatedSlots: slots, pickedCount: picked.length, allMatched: picked.length > 0 });
+    }
+  }
+
+  return { specialtyBlocks, mainCompoundSlots, slotPlanSummary };
 }
 
 /**
@@ -6813,6 +7033,28 @@ function normalizeSupersetBlockPresentation(blocks: WorkoutBlock[]): WorkoutBloc
       continue;
     }
 
+    // Goal-intent blocks serve a specific user-selected sub-goal. Do NOT chunk them into
+    // "Block A / Block B" pairs — that would split one sub-goal slot into multiple blocks
+    // (violating the one-block-per-intent contract) and strip the semantic title.
+    // Normalize their format in-place: superset if exactly 2 items, otherwise straight_sets.
+    if (block.goal_intent != null) {
+      const items = block.items;
+      if (items.length === 2) {
+        normalized.push({
+          ...block,
+          format: "superset",
+          supersetPairs: [[items[0], items[1]]],
+        });
+      } else {
+        normalized.push({
+          ...block,
+          format: "straight_sets",
+          supersetPairs: undefined,
+        });
+      }
+      continue;
+    }
+
     const chunkSize = 2;
     const chunkCount = Math.max(1, Math.ceil((block.items?.length ?? 0) / chunkSize));
     const estPerChunk =
@@ -6882,6 +7124,16 @@ function trimBlocksToDurationBudget(
   const hardCap = targetMinutes <= 30 ? targetMinutes + 6 : targetMinutes + 10;
   if (running <= hardCap) return trimmed;
   const droppableTypes = new Set<BlockType>(["accessory", "main_hypertrophy"]);
+  // First pass: drop non-intent-dedicated droppable blocks (generic filler/hypertrophy).
+  // Protects blocks with goal_intent so user-selected sub-goal slots survive budget trims.
+  for (let i = trimmed.length - 1; i >= 0 && running > hardCap; i--) {
+    const b = trimmed[i];
+    if (!b || !droppableTypes.has(b.block_type)) continue;
+    if (b.goal_intent != null) continue; // preserve intent-dedicated blocks for first pass
+    running -= b.estimated_minutes ?? 5;
+    trimmed.splice(i, 1);
+  }
+  // Second pass: if still over budget, drop intent-dedicated droppable blocks too.
   for (let i = trimmed.length - 1; i >= 0 && running > hardCap; i--) {
     const b = trimmed[i];
     if (!b || !droppableTypes.has(b.block_type)) continue;
@@ -8852,6 +9104,26 @@ function tryRepairSoccerSession(
 
 // --- Session title: body focus + goal + optional secondary + duration ---
 function sessionTitle(input: GenerateWorkoutInput): string {
+  const dur = `${input.duration_minutes} min`;
+
+  // Use declared intent leaf entries to build a title that reflects all selected sub-goals.
+  const rankedEntries = input.session_intent?.ranked_intent_entries ?? [];
+  const leaves = deriveLeafEntries(rankedEntries);
+  if (leaves.length > 0) {
+    const labels = leaves.map((entry) => {
+      if (entry.kind === "goal_sub_focus" || entry.kind === "sport_sub_focus") {
+        return humanizeGoalDedicatedSlug(entry.slug);
+      }
+      if (entry.kind === "sport") {
+        return humanizeGoalDedicatedSlug(entry.slug);
+      }
+      return goalToDisplayLabel(entry.slug);
+    });
+    const unique = labels.filter((l, i, a) => a.indexOf(l) === i);
+    return `${unique.join(" · ")} • ${dur}`;
+  }
+
+  // Fallback: primary goal + body part focus + secondary goals.
   const goal = input.primary_goal.replace(/_/g, " ");
   const cap = goal.charAt(0).toUpperCase() + goal.slice(1);
   const focus = input.focus_body_parts ?? [];
@@ -8877,8 +9149,8 @@ function sessionTitle(input: GenerateWorkoutInput): string {
     .map(goalToDisplayLabel)
     .filter((x, i, a) => a.indexOf(x) === i);
   const suffix = secondaryLabels.length > 0 ? " + " + secondaryLabels.join(" + ") : "";
-  if (focusLabel) return `${focusLabel} ${cap}${suffix} • ${input.duration_minutes} min`;
-  return `${cap}${suffix} • ${input.duration_minutes} min`;
+  if (focusLabel) return `${focusLabel} ${cap}${suffix} • ${dur}`;
+  return `${cap}${suffix} • ${dur}`;
 }
 
 const CRITICAL_UNRESOLVED_VALIDATION_TYPES = new Set([
@@ -9349,6 +9621,31 @@ export function generateWorkoutSession(
 
   const mainSelectorTrace: MainSelectorSessionTrace = { entries: [] };
 
+  // Pre-compute unified intent slot plan for multi-intent sessions.
+  // This runs BEFORE the goal branches so mainCompoundSlots is available to the inject calls,
+  // ensuring that main-compound + specialty blocks share a single proportional budget.
+  const unifiedSpecialtyResult =
+    (input.session_intent?.ranked_intent_entries ?? []).length >= 2 &&
+    !hasSportPatternTransferForGoalDedicated(input)
+      ? buildUnifiedIntentSpecialtyBlocks(
+          filtered,
+          input,
+          used,
+          recentIds,
+          movementCounts,
+          rng,
+          fatigueVolumeScale,
+          fatigueState,
+          sessionFatigueRegions,
+          historyContext,
+          wantsSupersets,
+          // guaranteePool: injury-gated but not sport-profile-filtered — lets specialty blocks
+          // (conditioning, prehab) for secondary sports pass even when primary sport restricts `filtered`.
+          guaranteePool
+        )
+      : undefined;
+  const unifiedMainCompoundSlots = unifiedSpecialtyResult?.mainCompoundSlots;
+
   // 4. Build main block (goal-specific); session fatigue regions improve later picks
   if (primary === "power") {
     blocks.push(...buildPowerBlock(filtered, input, used, recentIds, movementCounts, rng, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
@@ -9421,7 +9718,8 @@ export function generateWorkoutSession(
       sessionFatigueRegions,
       historyContext,
       blockIntentProfile.targetCardioExerciseShare,
-      wantsSupersets
+      wantsSupersets,
+      unifiedMainCompoundSlots
     );
     const strengthGoalDedicatedInject =
       intentStrengthInject ??
@@ -9486,7 +9784,8 @@ export function generateWorkoutSession(
         sessionFatigueRegions,
         historyContext,
         blockIntentProfile.targetCardioExerciseShare,
-        wantsSupersets
+        wantsSupersets,
+        unifiedMainCompoundSlots
       );
       hypeDedicated =
         intentHyInject?.blocks.length
@@ -9583,7 +9882,8 @@ export function generateWorkoutSession(
       sessionFatigueRegions,
       historyContext,
       blockIntentProfile.targetCardioExerciseShare,
-      wantsSupersets
+      wantsSupersets,
+      unifiedMainCompoundSlots
     );
     blocks.push(
       ...buildMainStrength(
@@ -10251,6 +10551,13 @@ export function generateWorkoutSession(
         ...(sportProfileCondMinFloor != null ? { min_conditioning_minutes_applied: sportProfileCondMinFloor } : {}),
       },
     };
+  }
+
+  // 6c. Add specialty blocks (conditioning, prehab) from the unified intent slot plan.
+  // These were pre-computed above (before step 4) using the same proportional budget as the
+  // main-compound inject, so every sub-goal gets exactly its share of total session slots.
+  if (unifiedSpecialtyResult?.specialtyBlocks.length) {
+    blocks.push(...unifiedSpecialtyResult.specialtyBlocks);
   }
 
   // 6b. Ensure no two blocks share the same title

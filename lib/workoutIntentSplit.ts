@@ -433,25 +433,37 @@ export function computeDeclaredIntentSplitFromPrefs(
 }
 
 /**
- * Build a human-readable workout title from the top focus areas.
- * e.g. "Climbing · Body Recomp" or "Leg Power (40%) · Aerobic Base (30%)"
+ * Build a human-readable workout title from ALL declared focus areas.
+ * Each selected sub-goal (or main goal when no sub-goal is selected) is shown.
  *
- * For sub-focus entries (goal_sub_focus / sport_sub_focus), only the
- * sub-focus part of the label is shown (e.g. "Leg Power" rather than
- * "Athletic Performance · Leg Power") so the title stays concise and
- * directly reflects the user's selected goals.
+ * For sub-focus entries (goal_sub_focus / sport_sub_focus), only the sub-focus
+ * part of the label is shown (e.g. "Marathon Pace" rather than "Running · Marathon Pace")
+ * so the title is concise and directly reflects the user's selected sub-goals.
+ *
+ * Percentages are NOT shown — this is the title, not the pie chart breakdown.
  */
 export function buildWorkoutIntentTitle(split: IntentSplitEntry[]): string {
   if (split.length === 0) return "Your Workout";
-  const top = split.slice(0, 2);
-  return top.map((e) => {
-    let displayLabel = e.label;
+
+  // Sort: sub-focus entries first (most specific), then bare goals/sports
+  const sorted = [...split].sort((a, b) => {
+    const aIsSub = a.kind === "goal_sub_focus" || a.kind === "sport_sub_focus" ? 0 : 1;
+    const bIsSub = b.kind === "goal_sub_focus" || b.kind === "sport_sub_focus" ? 0 : 1;
+    if (aIsSub !== bIsSub) return aIsSub - bIsSub;
+    return b.weight - a.weight;
+  });
+
+  const labels = sorted.map((e) => {
     if (e.kind === "goal_sub_focus" || e.kind === "sport_sub_focus") {
       const sep = e.label.indexOf(" · ");
-      if (sep > 0) displayLabel = e.label.slice(sep + 3);
+      return sep > 0 ? e.label.slice(sep + 3) : e.label;
     }
-    return `${displayLabel} (${e.pct}%)`;
-  }).join(" · ");
+    return e.label;
+  });
+
+  // Deduplicate consecutive identical labels
+  const unique = labels.filter((l, i) => labels.indexOf(l) === i);
+  return unique.join(" · ");
 }
 
 function normSlugKey(s: string): string {

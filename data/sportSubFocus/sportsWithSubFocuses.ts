@@ -5,9 +5,10 @@
  */
 
 import type { SportWithSubFocuses } from "./types";
+import { applyEnduranceJointStabilitySubFocuses } from "./enduranceJointStabilitySubFocus";
 
 /** Sport slugs align with public.sports (20250301000007) where possible. */
-export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
+const RAW_SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
   // --- Mountain / Snow ---
   {
     slug: "backcountry_skiing",
@@ -403,3 +404,11 @@ export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = [
     ],
   },
 ];
+
+/** Endurance sports: joint stability sub-goals replace generic core stability where configured. */
+export const SPORTS_WITH_SUB_FOCUSES: SportWithSubFocuses[] = RAW_SPORTS_WITH_SUB_FOCUSES.map(
+  (sport) => ({
+    ...sport,
+    sub_focuses: applyEnduranceJointStabilitySubFocuses(sport.slug, sport.sub_focuses),
+  })
+);

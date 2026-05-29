@@ -86,7 +86,11 @@ const soccerMinimumCoverage: readonly SoccerMinimumCoverageRule[] = [
     description: "When conditioning is present, prefer interval / repeat-effort modalities over steady-state-only identity.",
     applies: (ctx) => ctx.hasConditioningBlock,
     scanBlockTypes: ["conditioning"],
-    mustSatisfy: (ids, byId) => ids.some((id) => isSoccerConditioningExercise(byId.get(id)!)),
+    mustSatisfy: (ids, byId) =>
+      ids.some((id) => {
+        const ex = byId.get(id);
+        return ex != null && isSoccerConditioningExercise(ex);
+      }),
   },
 ];
 

@@ -20,6 +20,7 @@ import {
 import {
   isExplosivePlyometricSportSubFocusSlug,
   isStabilityPrehabSportSubFocusSlug,
+  isEnduranceConditioningSportSubFocusSlug,
   tagSetHasDynamicPowerSignal,
 } from "../../data/sportSubFocus/subFocusIntentArchetypes";
 
@@ -156,12 +157,29 @@ export function isStabilityPrehabSportIntentEntry(entry: IntentEntry): boolean {
   return entry.kind === "sport_sub_focus" && isStabilityPrehabSportSubFocusSlug(entry.slug);
 }
 
+/**
+ * True for sport sub-focus entries that should be served by a dedicated conditioning block
+ * (tempo, intervals, aerobic base, marathon pace, etc.) rather than a main compound slot.
+ */
+export function isEnduranceConditioningSportIntentEntry(entry: IntentEntry): boolean {
+  return entry.kind === "sport_sub_focus" && isEnduranceConditioningSportSubFocusSlug(entry.slug);
+}
+
+/**
+ * True for sport sub-focus entries that require their own dedicated block (conditioning or
+ * prehab) and should NOT compete for main compound slots.
+ */
+export function isNonMainWorkSportIntentEntry(entry: IntentEntry): boolean {
+  return isStabilityPrehabSportIntentEntry(entry) || isEnduranceConditioningSportIntentEntry(entry);
+}
+
 export function isMainWorkCandidateForIntentEntry(
   ex: Exercise,
   entry: IntentEntry,
   primary: PrimaryGoal
 ): boolean {
   if (isStabilityPrehabSportIntentEntry(entry)) return false;
+  if (isEnduranceConditioningSportIntentEntry(entry)) return false;
   if (entry.kind === "sport_sub_focus" && isExplosivePlyometricSportSubFocusSlug(entry.slug)) {
     if (ex.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(ex.exercise_role.toLowerCase().replace(/\s/g, "_"))) {
       return false;
@@ -201,4 +219,52 @@ export function allocateSlotsAcrossLeaves(leaves: IntentEntry[], totalSlots: num
     if (slots > 0) out.push({ leafIndex: i, entry: leaves[i]!, slots });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Unified slot plan — covers ALL leaf archetypes proportionally
+// ---------------------------------------------------------------------------
+
+/**
+ * How a particular intent leaf should be served in the workout.
+ * - "main_compound"  → strength/hypertrophy block (straight sets or superset)
+ * - "conditioning"   → conditioning block (circuit for high-intensity, straight sets for base)
+ * - "prehab"         → accessory/stability block
+ * - "power"          → power block (circuit or straight sets with explosive focus)
+ */
+export type IntentLeafArchetype = "main_compound" | "conditioning" | "prehab" | "power";
+
+export function classifyLeafArchetype(entry: IntentEntry): IntentLeafArchetype {
+  if (isStabilityPrehabSportIntentEntry(entry)) return "prehab";
+  if (isEnduranceConditioningSportIntentEntry(entry)) return "conditioning";
+  if (isPowerStyleSportIntentEntry(entry)) return "power";
+  return "main_compound";
+}
+
+export type IntentSlotPlanEntry = {
+  entry: IntentEntry;
+  archetype: IntentLeafArchetype;
+  /** Exercise slots allocated to this leaf (proportional to weight, sums to totalSlots). */
+  slots: number;
+};
+
+/**
+ * Compute a unified slot plan: allocate all working-exercise slots across ALL intent
+ * leaves proportionally, classifying each leaf by its training archetype.
+ *
+ * This is the single source of truth for slot counts in multi-intent sessions — both
+ * main-compound blocks and specialty blocks (conditioning, prehab, power) draw from
+ * this budget so the total is always exactly `totalSlots`.
+ */
+export function buildUnifiedIntentSlotPlan(
+  leaves: IntentEntry[],
+  totalSlots: number
+): IntentSlotPlanEntry[] {
+  if (leaves.length === 0 || totalSlots <= 0) return [];
+  const alloc = allocateSlotsAcrossLeaves(leaves, totalSlots);
+  return alloc.map(({ entry, slots }) => ({
+    entry,
+    archetype: classifyLeafArchetype(entry),
+    slots,
+  }));
 }

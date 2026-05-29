@@ -4,7 +4,29 @@ import { exerciseDefinitionToGeneratorExercise } from "./dailyGeneratorAdapter";
 import { generateWorkoutSession } from "../logic/workoutGeneration/dailyGenerator";
 import type { GenerateWorkoutInput } from "../logic/workoutGeneration/types";
 import { BLOCKED_EXERCISE_IDS } from "./workoutRules";
+import {
+  formatExerciseDisplayCue,
+  isGenericPrescriptionCoachingCue,
+} from "./exerciseDisplayCue";
+import { getCuratedExerciseDescription } from "./exerciseDescriptionsCurated";
 import { buildExerciseDescriptionMap, attachExerciseDescriptionsToSession } from "./workoutUtils";
+import type { WorkoutItem } from "./types";
+
+const P0_SLUGS = ["ankle_dorsiflexion_stretch", "ankle_circles", "banded_ankle_mob"] as const;
+const P1_SLUGS = [
+  "seated_hip_internal_rotation",
+  "lying_hip_rotation",
+  "quadruped_hip_circle",
+  "prone_extension",
+  "sphinx_stretch",
+  "band_ir_er",
+  "wrist_circles",
+  "finger_extensions",
+  "foam_roll_quad",
+  "foam_roll_glute",
+  "foam_roll_t_spine",
+  "breathing_box",
+] as const;
 
 describe("exercise descriptions on workout items", () => {
   const pool = EXERCISES.filter((d) => !BLOCKED_EXERCISE_IDS.has(d.id)).map(
@@ -69,5 +91,61 @@ describe("exercise descriptions on workout items", () => {
 
     expect(descriptionById.get("inchworm")).toMatch(/high plank|hinge/i);
     expect(descriptionById.get("inchworm")).not.toMatch(/Equipment:/);
+  });
+
+  it("P0 and P1 slugs resolve curated setup copy", () => {
+    for (const slug of [...P0_SLUGS, ...P1_SLUGS]) {
+      const curated = getCuratedExerciseDescription(slug);
+      expect(curated, slug).toBeTruthy();
+    }
+
+    const descriptionById = buildExerciseDescriptionMap([
+      {
+        id: "ankle_dorsiflexion_stretch",
+        name: "Ankle Dorsiflexion Stretch",
+        movement_pattern: "rotate",
+        muscle_groups: ["legs"],
+        modality: "mobility",
+        equipment_required: ["bodyweight"],
+        difficulty: 1,
+        time_cost: "low",
+        tags: {},
+      },
+    ]);
+    expect(descriptionById.get("ankle_dorsiflexion_stretch")).toMatch(/wall|heel|knee/i);
+  });
+
+  it("formatExerciseDisplayCue prefers curated description over generic mobility prescription cue", () => {
+    const curated = getCuratedExerciseDescription("ankle_dorsiflexion_stretch");
+    expect(curated).toBeTruthy();
+
+    const item: WorkoutItem = {
+      exercise_id: "ankle_dorsiflexion_stretch",
+      exercise_name: "Ankle Dorsiflexion Stretch",
+      sets: 1,
+      time_seconds: 30,
+      rest_seconds: 0,
+      coaching_cues: "Controlled, full range of motion. Breathe steadily.",
+      exercise_description: curated,
+    };
+
+    const cue = formatExerciseDisplayCue(item);
+    expect(cue).toBe(curated);
+    expect(cue).not.toMatch(/Breathe steadily/i);
+    expect(isGenericPrescriptionCoachingCue(cue)).toBe(false);
+  });
+
+  it("formatExerciseDisplayCue hides generic prescription cue when description is missing", () => {
+    const item: WorkoutItem = {
+      exercise_id: "ankle_dorsiflexion_stretch",
+      exercise_name: "Ankle Dorsiflexion Stretch",
+      sets: 1,
+      time_seconds: 30,
+      rest_seconds: 0,
+      coaching_cues: "Controlled, full range of motion. Breathe steadily.",
+    };
+
+    expect(formatExerciseDisplayCue(item)).toBeNull();
+    expect(isGenericPrescriptionCoachingCue(item.coaching_cues)).toBe(true);
   });
 });

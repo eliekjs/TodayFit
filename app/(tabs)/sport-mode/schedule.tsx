@@ -103,12 +103,6 @@ export default function AdaptiveScheduleScreen() {
     load();
   }, []);
 
-  useEffect(() => {
-    if (!adaptiveSetup) {
-      router.replace("/sport-mode");
-    }
-  }, [adaptiveSetup, router]);
-
   const toggleGymDay = useCallback((dow: number) => {
     setGymTrainingDays((prev) =>
       prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow].sort((a, b) => a - b)
@@ -232,8 +226,8 @@ export default function AdaptiveScheduleScreen() {
       });
       if (generationCancelledRef.current) return;
       setSportPrepWeekPlan(plan);
-      setAdaptiveSetup(null);
       router.replace("/sport-mode/recommendation");
+      setAdaptiveSetup(null);
     } catch (e) {
       if (generationCancelledRef.current) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -296,7 +290,8 @@ export default function AdaptiveScheduleScreen() {
   const durationSummary = `${defaultDuration} min`;
 
   if (!adaptiveSetup) {
-    return <Redirect href="/adaptive" />;
+    // Use declarative redirect to avoid calling router before root navigator mount.
+    return <Redirect href="/sport-mode" />;
   }
 
   return (
