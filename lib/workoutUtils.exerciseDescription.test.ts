@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll } from "vitest";
 import { EXERCISES } from "../data/exercisesMerged";
 import { exerciseDefinitionToGeneratorExercise } from "./dailyGeneratorAdapter";
 import { generateWorkoutSession } from "../logic/workoutGeneration/dailyGenerator";
@@ -8,9 +8,13 @@ import {
   formatExerciseDisplayCue,
   isGenericPrescriptionCoachingCue,
 } from "./exerciseDisplayCue";
-import { getCuratedExerciseDescription } from "./exerciseDescriptionsCurated";
+import {
+  ensureCuratedDescriptionsLoaded,
+  getCuratedExerciseDescription,
+} from "./exerciseDescriptionsCurated";
 import { buildExerciseDescriptionMap, attachExerciseDescriptionsToSession } from "./workoutUtils";
 import type { WorkoutItem } from "./types";
+import type { Exercise } from "../logic/workoutGeneration/types";
 
 const P0_SLUGS = ["ankle_dorsiflexion_stretch", "ankle_circles", "banded_ankle_mob"] as const;
 const P1_SLUGS = [
@@ -29,9 +33,14 @@ const P1_SLUGS = [
 ] as const;
 
 describe("exercise descriptions on workout items", () => {
-  const pool = EXERCISES.filter((d) => !BLOCKED_EXERCISE_IDS.has(d.id)).map(
-    exerciseDefinitionToGeneratorExercise
-  );
+  let pool: Exercise[];
+
+  beforeAll(async () => {
+    await ensureCuratedDescriptionsLoaded();
+    pool = EXERCISES.filter((d) => !BLOCKED_EXERCISE_IDS.has(d.id)).map(
+      exerciseDefinitionToGeneratorExercise
+    );
+  });
 
   it("attachExerciseDescriptionsToSession copies catalog description onto items", () => {
     const withDesc = pool.find((e) => e.id === "goblet_squat" && e.description);

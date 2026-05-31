@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll } from "vitest";
 import { EXERCISES } from "../data/exercisesMerged";
 import {
+  ensureCuratedDescriptionsLoaded,
   getCuratedExerciseDescription,
   listCuratedExerciseDescriptionSlugs,
   resolveExerciseDescription,
@@ -8,6 +9,10 @@ import {
 } from "./exerciseDescriptionsCurated";
 
 describe("exerciseDescriptions.curated.json", () => {
+  beforeAll(async () => {
+    await ensureCuratedDescriptionsLoaded();
+  });
+
   it("validates all entries against catalog slugs and copy rules", () => {
     const known = new Set(EXERCISES.map((e) => e.id));
     const result = validateCuratedDescriptionsFile(known);

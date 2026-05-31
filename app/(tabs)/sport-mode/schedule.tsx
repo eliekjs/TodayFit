@@ -13,7 +13,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
-import { planWeek } from "../../../services/sportPrepPlanner";
+import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
 import type { EnergyLevel, BodyEmphasisKey } from "../../../lib/types";
 import { listSportsForPrep, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
@@ -169,6 +169,7 @@ export default function AdaptiveScheduleScreen() {
         rankedGoalIds,
         manualPreferences.subFocusByGoal
       );
+      const { planWeek } = await loadSportPrepPlannerModule();
       const plan = await planWeek({
         userId: userId ?? undefined,
         primaryGoalSlug: primary,

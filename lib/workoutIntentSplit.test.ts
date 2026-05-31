@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { computeDeclaredIntentSplitFromPrefs } from "./workoutIntentSplit";
+import {
+  computeDeclaredIntentSplitFromPrefs,
+  filterDeclaredSplitToUserSelectedLeaves,
+} from "./workoutIntentSplit";
+import { manualPreferencesToGenerateWorkoutInput } from "./dailyGeneratorAdapter";
 import { workoutSessionToGeneratedWorkout } from "./dailyGeneratorAdapter";
 import type { ManualPreferences } from "./types";
 
@@ -45,6 +49,48 @@ describe("workoutIntentSplit", () => {
     expect(split[0]!.pct).toBeGreaterThanOrEqual(61);
     expect(split[0]!.pct).toBeLessThanOrEqual(63);
     expect(split[1]!.pct).toBe(100 - split[0]!.pct);
+  });
+
+  it("sport-only surfing sub-focuses exclude internal strength/endurance goal slices", () => {
+    const split = computeDeclaredIntentSplitFromPrefs({
+      sportSlugs: ["surfing"],
+      goalSlugs: [],
+      sportVsGoalPct: 100,
+      sportSubFocusBySport: {
+        surfing: ["shoulder_stability", "pop_up_power", "paddle_endurance"],
+      },
+    });
+    expect(split.every((e) => e.kind === "sport_sub_focus")).toBe(true);
+    expect(split.some((e) => e.slug.includes("strength") || e.slug === "endurance")).toBe(false);
+    expect(split.reduce((s, e) => s + e.pct, 0)).toBe(100);
+  });
+
+  it("filterDeclaredSplitToUserSelectedLeaves drops parent goals when sport sub-focus dominates", () => {
+    const filtered = filterDeclaredSplitToUserSelectedLeaves(
+      [
+        {
+          slug: "surfing:shoulder_stability",
+          label: "Shoulder Stability",
+          weight: 0.33,
+          kind: "sport_sub_focus",
+          parent_slug: "surfing",
+        },
+        {
+          slug: "strength",
+          label: "Strength",
+          weight: 0.34,
+          kind: "goal",
+        },
+        {
+          slug: "endurance",
+          label: "Endurance",
+          weight: 0.33,
+          kind: "goal",
+        },
+      ],
+      1
+    );
+    expect(filtered.map((e) => e.kind)).toEqual(["sport_sub_focus"]);
   });
 
   it("keeps generated workout header percentages on declared sub-goal weights", () => {

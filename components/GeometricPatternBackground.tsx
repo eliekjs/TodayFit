@@ -5,8 +5,8 @@ import Svg, { Defs, G, Line, LinearGradient, Rect, Stop } from "react-native-svg
 const PIECE_CELL = 16;
 const PIECE_GAP = 1;
 const GRID_SIZE = 28;
-const GRID_STROKE = "rgba(148,163,184,0.12)";
-const GRID_STRONG_STROKE = "rgba(56,189,248,0.12)";
+const GRID_STROKE = "rgba(148,163,184,0.1)";
+const GRID_STRONG_STROKE = "rgba(100,116,139,0.14)";
 type PieceStyle = {
   fill: string;
   top: string;
@@ -17,13 +17,13 @@ type PieceStyle = {
 
 // Classic tetromino-inspired shades by piece type.
 const PIECE_STYLES: PieceStyle[] = [
-  { fill: "rgba(34,211,238,0.34)", top: "rgba(186,230,253,0.48)", left: "rgba(125,211,252,0.42)", bottom: "rgba(2,132,199,0.5)", right: "rgba(3,105,161,0.52)" }, // I
-  { fill: "rgba(250,204,21,0.32)", top: "rgba(254,240,138,0.44)", left: "rgba(253,224,71,0.4)", bottom: "rgba(202,138,4,0.48)", right: "rgba(161,98,7,0.5)" }, // O
-  { fill: "rgba(168,85,247,0.3)", top: "rgba(221,214,254,0.44)", left: "rgba(196,181,253,0.4)", bottom: "rgba(109,40,217,0.5)", right: "rgba(91,33,182,0.52)" }, // T
-  { fill: "rgba(59,130,246,0.32)", top: "rgba(191,219,254,0.46)", left: "rgba(147,197,253,0.42)", bottom: "rgba(30,64,175,0.5)", right: "rgba(30,58,138,0.52)" }, // J
-  { fill: "rgba(249,115,22,0.3)", top: "rgba(254,215,170,0.44)", left: "rgba(253,186,116,0.4)", bottom: "rgba(154,52,18,0.5)", right: "rgba(124,45,18,0.52)" }, // L
-  { fill: "rgba(74,222,128,0.3)", top: "rgba(187,247,208,0.44)", left: "rgba(134,239,172,0.4)", bottom: "rgba(21,128,61,0.5)", right: "rgba(22,101,52,0.52)" }, // S
-  { fill: "rgba(244,63,94,0.3)", top: "rgba(254,205,211,0.44)", left: "rgba(253,164,175,0.4)", bottom: "rgba(159,18,57,0.5)", right: "rgba(136,19,55,0.52)" }, // Z
+  { fill: "rgba(34,211,238,0.18)", top: "rgba(186,230,253,0.28)", left: "rgba(125,211,252,0.24)", bottom: "rgba(2,132,199,0.3)", right: "rgba(3,105,161,0.32)" }, // I
+  { fill: "rgba(250,204,21,0.22)", top: "rgba(254,240,138,0.3)", left: "rgba(253,224,71,0.28)", bottom: "rgba(202,138,4,0.32)", right: "rgba(161,98,7,0.34)" }, // O
+  { fill: "rgba(168,85,247,0.2)", top: "rgba(221,214,254,0.3)", left: "rgba(196,181,253,0.28)", bottom: "rgba(109,40,217,0.32)", right: "rgba(91,33,182,0.34)" }, // T
+  { fill: "rgba(59,130,246,0.18)", top: "rgba(191,219,254,0.28)", left: "rgba(147,197,253,0.24)", bottom: "rgba(30,64,175,0.3)", right: "rgba(30,58,138,0.32)" }, // J
+  { fill: "rgba(249,115,22,0.2)", top: "rgba(254,215,170,0.3)", left: "rgba(253,186,116,0.28)", bottom: "rgba(154,52,18,0.32)", right: "rgba(124,45,18,0.34)" }, // L
+  { fill: "rgba(74,222,128,0.18)", top: "rgba(187,247,208,0.28)", left: "rgba(134,239,172,0.24)", bottom: "rgba(21,128,61,0.3)", right: "rgba(22,101,52,0.32)" }, // S
+  { fill: "rgba(244,63,94,0.2)", top: "rgba(254,205,211,0.3)", left: "rgba(253,164,175,0.28)", bottom: "rgba(159,18,57,0.32)", right: "rgba(136,19,55,0.34)" }, // Z
 ];
 
 const TETROMINOES: number[][][] = [
@@ -188,7 +188,7 @@ export function GeometricPatternBackground() {
         const pieceStyle = PIECE_STYLES[shapeIndex];
         // Keep density airy for readability: skip some cells in a repeatable pattern.
         if ((idx + r) % 3 === 0) continue;
-        const opacity = y > height * 0.7 ? 0.56 : y < height * 0.25 ? 0.36 : 0.44;
+        const opacity = y > height * 0.7 ? 0.38 : y < height * 0.25 ? 0.24 : 0.3;
         drawPiece(`field-${c}-${r}`, shape, x, y, pieceStyle, opacity);
       }
     }
@@ -206,11 +206,11 @@ export function GeometricPatternBackground() {
             <Stop offset="100%" stopColor="#041631" />
           </LinearGradient>
           <LinearGradient id="glowTop" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="rgba(16,185,129,0.28)" />
+            <Stop offset="0%" stopColor="rgba(16,185,129,0.1)" />
             <Stop offset="100%" stopColor="rgba(16,185,129,0)" />
           </LinearGradient>
           <LinearGradient id="glowBottom" x1="100%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="rgba(59,130,246,0.25)" />
+            <Stop offset="0%" stopColor="rgba(59,130,246,0.09)" />
             <Stop offset="100%" stopColor="rgba(59,130,246,0)" />
           </LinearGradient>
         </Defs>

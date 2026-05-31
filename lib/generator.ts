@@ -25,6 +25,7 @@ import type {
 } from "./types";
 import type { Exercise } from "../logic/workoutGeneration/types";
 import type { GymProfile } from "../data/gymProfiles";
+import { resolveEffectiveEquipment } from "./gymEquipment";
 import { loadStaticExerciseDefinitions } from "./staticExerciseCatalog";
 import { isDbCatalogAuthoritative } from "./exerciseCatalogPolicy";
 import {
@@ -63,6 +64,7 @@ import {
 } from "./dailyGeneratorAdapter";
 import type { AppHistorySources } from "./buildAppTrainingHistory";
 import { buildAppTrainingHistory } from "./buildAppTrainingHistory";
+import { ensureCuratedDescriptionsLoaded } from "./exerciseDescriptionsCurated";
 
 function exerciseConflictsWithInjuries(ex: Exercise, injurySlugs: string[]): boolean {
   if (!injurySlugs.length) return false;
@@ -323,7 +325,7 @@ function filterByGymProfile(
   profile: GymProfile | undefined
 ): ExerciseDefinition[] {
   if (!profile) return exercises;
-  const allowed = new Set(profile.equipment);
+  const allowed = new Set(resolveEffectiveEquipment(profile.equipment));
   return exercises.filter((e) => e.equipment.some((eq) => allowed.has(eq)));
 }
 
@@ -973,6 +975,7 @@ export async function generateWorkoutAsync(
   sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext,
   options?: GenerateWorkoutAsyncOptions
 ): Promise<GeneratedWorkout> {
+  await ensureCuratedDescriptionsLoaded();
   const sessionSeed = seedExtra ?? createWorkoutGenerationEntropy();
   const injurySlugs = injurySlugsFromManualPreferences(preferences);
 

@@ -25,7 +25,7 @@ import {
 } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import { formatExerciseDisplayCue } from "../../../lib/exerciseDisplayCue";
-import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -117,6 +117,10 @@ export default function ExecuteScreen() {
   progressRef.current = progress;
   /** When null, blur must not write session progress back (finish / save / discard). */
   const lastPersistWorkoutIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    void ensureCuratedDescriptionsLoaded();
+  }, []);
 
   useEffect(() => {
     if (generatedWorkout == null) {

@@ -6,6 +6,7 @@
 
 import type { ManualPreferences, GeneratedWorkout, ExerciseDefinition } from "./types";
 import type { GymProfile } from "../data/gymProfiles";
+import { resolveEffectiveEquipment } from "./gymEquipment";
 import {
   deriveBodyPartFocus,
   deriveBodyPartFocusFromSubFocus,
@@ -390,9 +391,9 @@ export function manualPreferencesToGenerateWorkoutInput(
       : preferences.injuries.filter((i) => i !== "No restrictions");
   const injuries_or_constraints = injuryFilter.map(injuryLabelToSlug);
 
-  const available_equipment = (gymProfile?.equipment ?? []).map((eq) =>
-    typeof eq === "string" ? eq : String(eq)
-  );
+  const available_equipment = resolveEffectiveEquipment(
+    gymProfile?.equipment ?? []
+  ).map((eq) => (typeof eq === "string" ? eq : String(eq)));
   const avoid_tags = getAvoidTagSlugsFromUpcoming(preferences.upcoming ?? []);
 
   const firstFocusLabel = preferences.primaryFocus?.[0];
@@ -408,6 +409,7 @@ export function manualPreferencesToGenerateWorkoutInput(
     .slice(1, 3)
     .map(primaryFocusLabelToGoal)
     .filter((g) => g !== primary_goal);
+  const userDeclaredSecondaryGoals = [...secondary_goals];
   if (shouldAppendEnduranceSecondaryFromSportSubFocus(primary_goal, secondary_goals, sportGoalContext)) {
     secondary_goals = [...secondary_goals, "endurance"];
   }
@@ -415,11 +417,12 @@ export function manualPreferencesToGenerateWorkoutInput(
   // Detect sessions where no explicit fitness goal was selected — only sport + sub-focuses.
   // In this case we elevate sport_weight to 1.0 so the full quality-selection budget comes from
   // sport demand; "strength" acts as a prescription template only (no phantom goal in header/badges).
+  // Implied `endurance` from sport sub-focus (e.g. paddle_endurance) must not break sport-only mode.
   const isImpliedSportOnlySession =
     (firstFocusLabel == null ||
       firstFocusLabel === "" ||
       firstFocusLabel === "Sport preparation") &&
-    secondary_goals.length === 0 &&
+    userDeclaredSecondaryGoals.length === 0 &&
     (sportGoalContext?.sport_slugs?.length ?? 0) > 0;
   // When sport-only: override to 1.0 (or preserve explicit override if caller already set 1.0+).
   const effectiveSportWeight = isImpliedSportOnlySession
@@ -590,37 +593,10 @@ export function hashString(s: string): number {
  * `generateWorkoutAsync` uses this when `seedExtra` is omitted; sport-prep `buildWorkoutForSessionIntent`
  * mixes it into composite seeds so planner slots are not locked to calendar day alone.
  */
-export function createWorkoutGenerationEntropy(): string {
-  try {
-    const c = globalThis.crypto;
-    if (c?.randomUUID) return c.randomUUID();
-    if (c?.getRandomValues) {
-      const a = new Uint32Array(2);
-      c.getRandomValues(a);
-      return `${a[0]!.toString(16)}${a[1]!.toString(16)}`;
-    }
-  } catch {
-    /* ignore */
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
-}
-
-/**
- * Seed payload for one generation/regeneration run. Always mixes optional caller `base` with fresh
- * entropy and high-resolution time so repeated taps cannot reuse the same seed (unlike `Date.now()` alone).
- * Pass to `generateWorkoutAsync` / `manualPreferencesToGenerateWorkoutInput` as `seedExtra` (string → hashed).
- */
-export function composeRunGenerationSeed(base?: string | number): string {
-  const entropy = createWorkoutGenerationEntropy();
-  let perfMs = Date.now();
-  try {
-    const p = globalThis.performance;
-    if (p && typeof p.now === "function") perfMs = p.now();
-  } catch {
-    /* ignore */
-  }
-  return JSON.stringify({ base: base ?? null, entropy, perfMs });
-}
+export {
+  composeRunGenerationSeed,
+  createWorkoutGenerationEntropy,
+} from "./generationSeed";
 
 /** Map lib Modality to generator Modality (generator has skill, recovery). */
 function toGeneratorModality(m: string): Modality {

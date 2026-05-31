@@ -26,7 +26,7 @@ import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../
 import { isDbConfigured } from "../../../lib/db";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
-import { composeRunGenerationSeed } from "../../../lib/dailyGeneratorAdapter";
+import { composeRunGenerationSeed } from "../../../lib/generationSeed";
 import { collectWeekMainLiftExerciseIds } from "../../../logic/workoutGeneration/collectWeekMainLiftExerciseIds";
 import {
   accumulateWeeklySubFocusCountsFromGeneratedWorkout,
@@ -34,7 +34,7 @@ import {
 } from "../../../logic/workoutGeneration/weeklySubFocusCoveragePlan";
 import type { Exercise } from "../../../logic/workoutGeneration/types";
 import { replaceExerciseInWorkout, collectWorkoutExerciseIds } from "../../../lib/workoutUtils";
-import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -507,6 +507,10 @@ export default function ManualWeekScreen() {
   );
 
   const todayIso = getTodayLocalDateString();
+
+  useEffect(() => {
+    void ensureCuratedDescriptionsLoaded();
+  }, []);
 
   useEffect(() => {
     if (!manualWeekPlan?.days?.length) return;

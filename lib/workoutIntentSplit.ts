@@ -22,7 +22,7 @@ import {
   goalSubFocusKeysForPrimary,
   goalTagAliases,
 } from "../logic/workoutGeneration/sessionIntentCoverage";
-import { getCanonicalSportSlug } from "../data/sportSubFocus";
+import { getCanonicalSportSlug, SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus";
 
 export type IntentSplitEntry = {
   slug: string;
@@ -143,8 +143,66 @@ function labelForGoalSubFocusBucket(bucketKey: string, subSlug: string): string 
   return `${labelForGoalSlug(bucketKey)} · ${humanizeToken(subSlug)}`;
 }
 
+function sportSubFocusDisplayName(sportSlug: string, subSlug: string): string {
+  const canon = getCanonicalSportSlug(sportSlug);
+  const sport = SPORTS_WITH_SUB_FOCUSES.find((s) => getCanonicalSportSlug(s.slug) === canon);
+  const norm = subSlug.toLowerCase().replace(/\s/g, "_");
+  const sf = sport?.sub_focuses.find((f) => f.slug === norm);
+  return sf?.name ?? humanizeToken(subSlug);
+}
+
 function labelForSportSubFocus(sportSlug: string, subSlug: string): string {
-  return `${labelForSportSlug(sportSlug)} · ${humanizeToken(subSlug)}`;
+  return `${labelForSportSlug(sportSlug)} · ${sportSubFocusDisplayName(sportSlug, subSlug)}`;
+}
+
+/** Exported for UI chips — show the user-facing sub-goal name only. */
+export function displayNameForSportSubFocusSlug(sportSlug: string, subSlug: string): string {
+  return sportSubFocusDisplayName(sportSlug, subSlug);
+}
+
+type RawIntentSplitEntry = Omit<IntentSplitEntry, "color" | "pct">;
+
+/**
+ * When the user selected sport sub-focuses, drop parent sport rows and internal
+ * prescription goals (strength/endurance) from header/chart slices.
+ */
+export function filterDeclaredSplitToUserSelectedLeaves(
+  rawEntries: RawIntentSplitEntry[],
+  sportWeight: number
+): RawIntentSplitEntry[] {
+  const hasSportSub = rawEntries.some((e) => e.kind === "sport_sub_focus");
+  const hasGoalSub = rawEntries.some((e) => e.kind === "goal_sub_focus");
+  if (!hasSportSub && !hasGoalSub) return rawEntries;
+
+  const sportsWithSub = new Set(
+    rawEntries
+      .filter((e) => e.kind === "sport_sub_focus" && e.parent_slug)
+      .map((e) => getCanonicalSportSlug(e.parent_slug!))
+  );
+  const goalsWithSub = new Set(
+    rawEntries
+      .filter((e) => e.kind === "goal_sub_focus" && e.parent_slug)
+      .map((e) => e.parent_slug!)
+  );
+
+  const sportSubWeight = rawEntries
+    .filter((e) => e.kind === "sport_sub_focus")
+    .reduce((s, e) => s + e.weight, 0);
+  const goalParentWeight = rawEntries
+    .filter((e) => e.kind === "goal")
+    .reduce((s, e) => s + e.weight, 0);
+  const suppressInternalGoals =
+    hasSportSub &&
+    (sportWeight >= 0.99 || (sportSubWeight > 0.01 && goalParentWeight < 0.05));
+
+  return rawEntries.filter((e) => {
+    if (suppressInternalGoals && e.kind === "goal") return false;
+    if (hasSportSub && e.kind === "sport" && sportsWithSub.has(getCanonicalSportSlug(e.slug))) {
+      return false;
+    }
+    if (hasGoalSub && e.kind === "goal" && goalsWithSub.has(e.slug)) return false;
+    return true;
+  });
 }
 
 function sportSubFocusList(
@@ -315,7 +373,8 @@ export function computeDeclaredIntentSplit(
     }
   }
 
-  return finalizeSplitEntries(rawEntries);
+  const filtered = filterDeclaredSplitToUserSelectedLeaves(rawEntries, sportWeight);
+  return finalizeSplitEntries(filtered);
 }
 
 export type DeclaredIntentSplitFromPrefsOpts = {
@@ -409,14 +468,15 @@ export function computeDeclaredIntentSplitFromPrefs(
       ? canonicalizeSportSubFocusMap(opts.sportSubFocusBySport)
       : undefined;
 
+  const goalSlugs = opts.goalSlugs.filter(Boolean);
   const fakeInput = {
     sport_slugs: opts.sportSlugs,
     sport_weight: sportWeight,
     sport_sub_focus: sportSubCanon && Object.keys(sportSubCanon).length ? sportSubCanon : undefined,
-    primary_goal: manualGoalSlugToPrimaryGoal(opts.goalSlugs[0] ?? "strength"),
+    primary_goal: manualGoalSlugToPrimaryGoal(goalSlugs[0] ?? "strength"),
     secondary_goals:
-      opts.goalSlugs.length > 1 ? opts.goalSlugs.slice(1, 3).map(manualGoalSlugToPrimaryGoal) : undefined,
-    goal_weights: goalWeightsPct.length ? goalWeightsPct : undefined,
+      goalSlugs.length > 1 ? goalSlugs.slice(1, 3).map(manualGoalSlugToPrimaryGoal) : undefined,
+    goal_weights: goalSlugs.length && goalWeightsPct.length ? goalWeightsPct : undefined,
     goal_sub_focus:
       Object.keys(merged.goal_sub_focus).length > 0 ? merged.goal_sub_focus : undefined,
     goal_sub_focus_weights:

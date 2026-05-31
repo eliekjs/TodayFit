@@ -54,7 +54,7 @@ import { listSportsForPrep, getQualitiesForSport, resolveActiveSportForSlug } fr
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
-import { forceIntentKeyForOneDaySport, planWeek } from "../../../services/sportPrepPlanner";
+import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
 import type { DailyWorkoutPreferences, EnergyLevel, TargetBody } from "../../../lib/types";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
@@ -404,6 +404,7 @@ export default function AdaptiveModeScreen() {
             rankedGoalIds,
             manualPreferences.subFocusByGoal
           );
+          const { planWeek, forceIntentKeyForOneDaySport } = await loadSportPrepPlannerModule();
           const plan = await planWeek({
             userId: userId ?? undefined,
             primaryGoalSlug: primary,

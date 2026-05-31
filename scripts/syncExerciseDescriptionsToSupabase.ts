@@ -15,6 +15,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import {
+  ensureCuratedDescriptionsLoaded,
   listCuratedExerciseDescriptionSlugs,
   getCuratedExerciseDescriptionEntry,
   validateCuratedDescriptionsFile,
@@ -31,6 +32,7 @@ function envFlag(name: string, defaultVal: boolean): boolean {
 }
 
 async function main() {
+  await ensureCuratedDescriptionsLoaded();
   const dryRun = envFlag("DESCRIPTION_SYNC_DRY_RUN", false);
   const onlyRaw = process.env.DESCRIPTION_SYNC_ONLY_SLUGS?.trim();
   const onlySet = onlyRaw

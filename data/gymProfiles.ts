@@ -32,7 +32,6 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "chest_press", label: "Chest Press" },
       { id: "hamstring_curl", label: "Hamstring Curl" },
       { id: "leg_extension", label: "Leg Extension" },
-      { id: "machine", label: "Other Machine (Hack Squat, Pec Deck, etc.)" },
     ],
   },
   {
@@ -82,7 +81,10 @@ const YOUR_GYM_DEFAULTS: EquipmentKey[] = [
   "kettlebells",
   "cable_machine",
   "lat_pulldown",
+  "chest_press",
   "leg_press",
+  "hamstring_curl",
+  "leg_extension",
   "treadmill",
   "pullup_bar",
   "bodyweight",

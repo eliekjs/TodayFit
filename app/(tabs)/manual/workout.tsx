@@ -12,7 +12,7 @@ import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -22,7 +22,7 @@ import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualP
 import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenceSummary";
 import { buildWorkoutIntentTitle } from "../../../lib/workoutIntentSplit";
 import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
-import { composeRunGenerationSeed } from "../../../lib/dailyGeneratorAdapter";
+import { composeRunGenerationSeed } from "../../../lib/generationSeed";
 import { collectWorkoutExerciseIds } from "../../../lib/workoutUtils";
 
 export default function ManualWorkoutScreen() {
@@ -66,6 +66,10 @@ export default function ManualWorkoutScreen() {
       };
     }, [])
   );
+
+  useEffect(() => {
+    void ensureCuratedDescriptionsLoaded();
+  }, []);
 
   useEffect(() => {
     if (!swapModal) {
