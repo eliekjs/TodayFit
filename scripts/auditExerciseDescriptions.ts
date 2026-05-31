@@ -10,6 +10,7 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { EXERCISES } from "../data/exercisesMerged";
 import {
+  ensureCuratedDescriptionsLoaded,
   getCuratedExerciseDescriptionEntry,
   resolveExerciseDescription,
   validateCuratedDescriptionsFile,
@@ -271,6 +272,7 @@ async function checkSupabaseSample(slugs: string[]): Promise<{
 }
 
 async function main() {
+  await ensureCuratedDescriptionsLoaded();
   const jsonOut = process.argv.includes("--json");
   const catalogSlugs = EXERCISES.map((e) => e.id);
   const catalogSet = new Set(catalogSlugs);

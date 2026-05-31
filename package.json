@@ -3,8 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
-    "start:dev": "CI=false expo start",
+    "start": "EXPO_USE_FAST_RESOLVER=1 expo start",
+    "start:dev": "EXPO_USE_FAST_RESOLVER=1 CI=false expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "node scripts/run-ios.js",

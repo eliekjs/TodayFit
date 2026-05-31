@@ -135,6 +135,25 @@ describe("sport-only session (no explicit fitness goal)", () => {
     }
   });
 
+  it("surfing paddle_endurance keeps sport_weight 1.0 (implied endurance must not break sport-only)", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(SPORT_ONLY_BASE, undefined, 1, undefined, {
+      sport_slugs: ["surfing"],
+      sport_sub_focus: {
+        surfing: ["shoulder_stability", "pop_up_power", "paddle_endurance"],
+      },
+      sport_weight: 0.5,
+    });
+    expect(input.sport_weight).toBe(1.0);
+    expect(input.secondary_goals).toContain("endurance");
+    const splitKinds = new Set(
+      (input.session_intent?.ranked_intent_entries ?? [])
+        .filter((e) => e.weight >= 0.01)
+        .map((e) => e.kind)
+    );
+    expect(splitKinds.has("sport_sub_focus")).toBe(true);
+    expect(splitKinds.has("goal")).toBe(false);
+  });
+
   it("session with explicit fitness goal + sport keeps configured sport_weight", () => {
     const withGoal: ManualPreferences = {
       ...SPORT_ONLY_BASE,

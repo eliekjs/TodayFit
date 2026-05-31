@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  ensureCuratedDescriptionsLoaded,
   validateCuratedDescriptionsFile,
   type CuratedExerciseDescriptionEntry,
 } from "../lib/exerciseDescriptionsCurated";
@@ -580,9 +581,12 @@ if (errors.length) {
 fs.writeFileSync(curatedPath, `${JSON.stringify(file, null, 2)}\n`);
 console.log(`Applied ${applied} curated description updates.`);
 
-const validation = validateCuratedDescriptionsFile();
-console.log(`File validation: ${validation.ok ? "OK" : "FAIL"} (${validation.errors.length} errors)`);
-if (!validation.ok) {
-  for (const e of validation.errors.slice(0, 20)) console.error(`  - ${e}`);
-  process.exit(1);
-}
+void (async () => {
+  await ensureCuratedDescriptionsLoaded();
+  const validation = validateCuratedDescriptionsFile();
+  console.log(`File validation: ${validation.ok ? "OK" : "FAIL"} (${validation.errors.length} errors)`);
+  if (!validation.ok) {
+    for (const e of validation.errors.slice(0, 20)) console.error(`  - ${e}`);
+    process.exit(1);
+  }
+})();

@@ -15,14 +15,7 @@ import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
-import {
-  regenerateDay,
-  updateDayStatus,
-  updatePlanDayDate,
-  planWeek,
-  deriveDailyPreferencesFromDay,
-} from "../../../services/sportPrepPlanner";
-import { Chip } from "../../../components/Chip";
+import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
 import {
@@ -35,7 +28,7 @@ import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
 import { collectWorkoutExerciseIds, replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   getSwapSuggestionsPage,
   blockTypeToSwapBlockRole,
@@ -353,6 +346,7 @@ export default function AdaptiveWeekPlanScreen() {
           gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
         setIsReplanning(true);
         try {
+          const sportPrep = await loadSportPrepPlannerModule();
           const snapshotGoalIds = [
             snapshot.primaryGoalSlug,
             snapshot.secondaryGoalSlug,
@@ -362,7 +356,7 @@ export default function AdaptiveWeekPlanScreen() {
             snapshotGoalIds,
             manualPreferences.subFocusByGoal
           );
-          const newPlan = await planWeek({
+          const newPlan = await sportPrep.planWeek({
             userId: userId ?? undefined,
             weekStartDate: snapshot.weekStartDate,
             primaryGoalSlug: snapshot.primaryGoalSlug,
@@ -414,6 +408,7 @@ export default function AdaptiveWeekPlanScreen() {
       } else {
         setIsReplanning(true);
         try {
+          const sportPrep = await loadSportPrepPlannerModule();
           const trainingDays = plan.days.filter(
             (d) => d.generatedWorkoutId || plan.guestWorkouts?.[d.date]
           );
@@ -437,7 +432,7 @@ export default function AdaptiveWeekPlanScreen() {
               subFocusByGoal
             ) ?? snap?.goalSubFocusPctByGoal;
           for (const day of trainingDays) {
-            const result = await regenerateDay({
+            const result = await sportPrep.regenerateDay({
               userId: userId ?? undefined,
               weeklyPlanInstanceId: plan.weeklyPlanInstanceId,
               date: day.date,
@@ -512,6 +507,10 @@ export default function AdaptiveWeekPlanScreen() {
       return getLocalDateString(d);
     });
   }, [sportPrepWeekPlan]);
+
+  useEffect(() => {
+    void ensureCuratedDescriptionsLoaded();
+  }, []);
 
   useEffect(() => {
     if (!swapModal) {
@@ -712,6 +711,7 @@ export default function AdaptiveWeekPlanScreen() {
 
       setIsMovingSession(true);
       try {
+        const { updatePlanDayDate } = await loadSportPrepPlannerModule();
         const persisted = await updatePlanDayDate({
           userId,
           weeklyPlanInstanceId: previousPlan.weeklyPlanInstanceId,
@@ -837,13 +837,14 @@ export default function AdaptiveWeekPlanScreen() {
     setError(null);
     setIsRegenerating(true);
     try {
-      const existingPrefs = deriveDailyPreferencesFromDay(selectedDay);
+      const sportPrep = await loadSportPrepPlannerModule();
+      const existingPrefs = sportPrep.deriveDailyPreferencesFromDay(selectedDay);
       const mergedDaily: DailyWorkoutPreferences = {
         ...existingPrefs,
         ...(dailyPrefsOverride ?? {}),
       };
 
-      const result = await regenerateDay({
+      const result = await sportPrep.regenerateDay({
         userId: userId ?? undefined,
         weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,
         date: selectedDay.date,
@@ -935,6 +936,7 @@ export default function AdaptiveWeekPlanScreen() {
     if (userId) {
       setIsUpdatingStatus(true);
       try {
+        const { updateDayStatus } = await loadSportPrepPlannerModule();
         const persisted = await updateDayStatus({
           userId,
           weeklyPlanInstanceId: sportPrepWeekPlan.weeklyPlanInstanceId,

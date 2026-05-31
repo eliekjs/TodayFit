@@ -5,6 +5,7 @@ import type { BlockType, GeneratedWorkout, WorkoutBlock, WorkoutItem } from "../
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 import { formatExerciseDisplayCue } from "../lib/exerciseDisplayCue";
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
+import { displayNameForSportSubFocusSlug } from "../lib/workoutIntentSplit";
 import { ExerciseSetupModal } from "./ExerciseSetupModal";
 
 // ─── Intent chip helpers ────────────────────────────────────────────────────
@@ -46,8 +47,7 @@ function _formatIntentLabel(intent: {
     const sport = _sportBySlug.get(parentSlug);
     if (!sport) return _humanizeGoalSlug(intent.slug);
     if (intent.kind === "sport") return sport.name;
-    const subFocus = sport.sub_focuses.find((sf) => sf.slug === intent.slug);
-    return `${sport.name} → ${subFocus?.name ?? _humanizeGoalSlug(intent.slug)}`;
+    return displayNameForSportSubFocusSlug(parentSlug, intent.slug);
   }
   if (intent.kind === "goal_sub_focus") {
     const parent = intent.parent_slug ? _humanizeGoalSlug(intent.parent_slug) : null;
@@ -196,9 +196,7 @@ function _buildBlockBadgeLabel(intent: NonNullable<WorkoutBlock["goal_intent"]>)
     const sport = _sportBySlug.get(sportSlug);
     const sportName = sport ? sport.name : _humanizeGoalSlug(sportSlug);
     if (intent_kind === "sport_sub_focus" && sub_focus_slug) {
-      const subFocus = sport?.sub_focuses.find((sf) => sf.slug === sub_focus_slug);
-      const subName = subFocus ? subFocus.name : _humanizeGoalSlug(sub_focus_slug);
-      return `${sportName} · ${subName}`;
+      return displayNameForSportSubFocusSlug(sportSlug, sub_focus_slug);
     }
     return sportName;
   }

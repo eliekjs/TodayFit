@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { EXERCISES } from "../data/exercisesMerged";
-import { validateCuratedDescriptionsFile } from "../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, validateCuratedDescriptionsFile } from "../lib/exerciseDescriptionsCurated";
 import {
   MAX_EXERCISE_DESCRIPTION_SENTENCE_CHARS,
   MAX_EXERCISE_DESCRIPTION_SENTENCES,
@@ -71,7 +71,8 @@ function fixDescription(text: string): string {
   return joinSentences(sentences);
 }
 
-function main() {
+async function main() {
+  await ensureCuratedDescriptionsLoaded();
   const file = JSON.parse(fs.readFileSync(CURATED_PATH, "utf8"));
   const known = new Set(EXERCISES.map((e) => e.id));
   let fixed = 0;
@@ -95,4 +96,7 @@ function main() {
   console.log(JSON.stringify({ fixed, remainingErrors: result.errors.length, errors: result.errors.slice(0, 30) }, null, 2));
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

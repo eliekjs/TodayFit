@@ -1,4 +1,3 @@
-import curated from "../data/exerciseDescriptions.curated.json";
 import {
   isGeneratedExerciseDescriptionStub,
   validateExerciseDescriptionCopy,
@@ -15,15 +14,37 @@ export type CuratedExerciseDescriptionsFile = {
   entries: Record<string, CuratedExerciseDescriptionEntry>;
 };
 
-const FILE = curated as CuratedExerciseDescriptionsFile;
+let bySlug: Map<string, CuratedExerciseDescriptionEntry> | null = null;
+let loadPromise: Promise<Map<string, CuratedExerciseDescriptionEntry>> | null = null;
 
-const bySlug = new Map<string, CuratedExerciseDescriptionEntry>(
-  Object.entries(FILE.entries ?? {})
-);
+function buildSlugMap(file: CuratedExerciseDescriptionsFile): Map<string, CuratedExerciseDescriptionEntry> {
+  return new Map(Object.entries(file.entries ?? {}));
+}
+
+/** Loads the curated JSON chunk on first use (separate Metro async bundle). */
+export function ensureCuratedDescriptionsLoaded(): Promise<void> {
+  if (bySlug) return Promise.resolve();
+  if (!loadPromise) {
+    loadPromise = import("../data/exerciseDescriptions.curated.json").then((mod) => {
+      bySlug = buildSlugMap(mod.default as CuratedExerciseDescriptionsFile);
+      return bySlug;
+    });
+  }
+  return loadPromise.then(() => undefined);
+}
+
+function requireSlugMap(): Map<string, CuratedExerciseDescriptionEntry> {
+  if (!bySlug) {
+    throw new Error(
+      "Curated exercise descriptions not loaded. Call ensureCuratedDescriptionsLoaded() first."
+    );
+  }
+  return bySlug;
+}
 
 /** Human-reviewed catalog copy keyed by exercise slug (repo source of truth for batch sync). */
 export function getCuratedExerciseDescription(slug: string): string | undefined {
-  const entry = bySlug.get(slug);
+  const entry = bySlug?.get(slug);
   const d = entry?.description?.trim();
   return d || undefined;
 }
@@ -31,7 +52,7 @@ export function getCuratedExerciseDescription(slug: string): string | undefined 
 export function getCuratedExerciseDescriptionEntry(
   slug: string
 ): CuratedExerciseDescriptionEntry | undefined {
-  return bySlug.get(slug);
+  return bySlug?.get(slug);
 }
 
 export function resolveExerciseDescription(
@@ -47,14 +68,15 @@ export function resolveExerciseDescription(
 }
 
 export function listCuratedExerciseDescriptionSlugs(): string[] {
-  return [...bySlug.keys()];
+  return [...requireSlugMap().keys()];
 }
 
 export function validateCuratedDescriptionsFile(
   knownSlugs?: Set<string>
 ): { ok: boolean; errors: string[] } {
+  const map = requireSlugMap();
   const errors: string[] = [];
-  for (const [slug, entry] of bySlug) {
+  for (const [slug, entry] of map) {
     if (!entry.description?.trim()) {
       errors.push(`${slug}: missing description`);
       continue;

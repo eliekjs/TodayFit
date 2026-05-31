@@ -29,6 +29,7 @@ import {
   type GymProfileTemplate,
 } from "../../../data/gymProfiles";
 import type { EquipmentKey } from "../../../lib/types";
+import { normalizeStoredGymEquipment } from "../../../lib/gymEquipment";
 
 if (
   Platform.OS === "android" &&
@@ -70,9 +71,11 @@ export default function GymProfilesScreen() {
   const toggleEquipment = (profileId: string, key: EquipmentKey) => {
     const profile = gymProfiles.find((p) => p.id === profileId);
     if (!profile) return;
-    const next = profile.equipment.includes(key)
-      ? profile.equipment.filter((e) => e !== key)
-      : [...profile.equipment, key];
+    const next = normalizeStoredGymEquipment(
+      profile.equipment.includes(key)
+        ? profile.equipment.filter((e) => e !== key)
+        : [...profile.equipment, key]
+    );
     updateGymProfile(profileId, { equipment: next });
   };
 
@@ -84,7 +87,9 @@ export default function GymProfilesScreen() {
   };
 
   const onAddProfile = (template: GymProfileTemplate, name?: string) => {
-    const equipment = getDefaultEquipmentForTemplate(template);
+    const equipment = normalizeStoredGymEquipment(
+      getDefaultEquipmentForTemplate(template)
+    );
     const profileName =
       name?.trim() ||
       (template === "your_gym"
@@ -247,7 +252,7 @@ export default function GymProfilesScreen() {
                 </Pressable>
 
                 {isExpanded && (
-                  <View style={[styles.expandedContent, { borderColor: theme.border }]}>
+                  <View style={[styles.expandedContent, { borderColor: theme.border, backgroundColor: theme.card }]}>
                     <View style={styles.nameRow}>
                       <Text style={[styles.nameLabel, { color: theme.textMuted }]}>
                         Name

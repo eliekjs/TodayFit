@@ -486,13 +486,71 @@ function enforceSubIntentSeparationOnLinks(
   goalIntent: WorkoutBlockGoalIntent | undefined
 ): NonNullable<WorkoutItem["session_intent_links"]> | undefined {
   if (!base || !isSubIntentDedicatedBlock(goalIntent)) return base;
-  return {
-    ...base,
-    goals: [],
-    ...(base.matched_intents?.length
-      ? { matched_intents: base.matched_intents.filter((m) => m.kind !== "goal") }
-      : {}),
-  };
+  return pinBlockDedicatedIntentOnLinks(
+    {
+      ...base,
+      goals: [],
+      ...(base.matched_intents?.length
+        ? { matched_intents: base.matched_intents.filter((m) => m.kind !== "goal") }
+        : {}),
+    },
+    goalIntent
+  );
+}
+
+/** Ensure each exercise in an intent-dedicated block shows that block's sub-goal (not a generic strength chip). */
+function pinBlockDedicatedIntentOnLinks(
+  base: NonNullable<WorkoutItem["session_intent_links"]>,
+  goalIntent: WorkoutBlockGoalIntent | undefined
+): NonNullable<WorkoutItem["session_intent_links"]> {
+  if (!goalIntent || !isSubIntentDedicatedBlock(goalIntent)) return base;
+
+  if (goalIntent.intent_kind === "sport_sub_focus" && goalIntent.sub_focus_slug) {
+    const pinned: MatchedIntentEntry = {
+      kind: "sport_sub_focus",
+      slug: goalIntent.sub_focus_slug,
+      parent_slug: goalIntent.parent_slug ?? goalIntent.goal_slug,
+      match_strength: "direct",
+      rank: 0,
+      weight: 1,
+    };
+    const rest = (base.matched_intents ?? []).filter(
+      (m) =>
+        !(
+          m.kind === "sport_sub_focus" &&
+          m.slug === pinned.slug &&
+          (m.parent_slug ?? "") === (pinned.parent_slug ?? "")
+        )
+    );
+    return { ...base, goals: [], matched_intents: [pinned, ...rest].slice(0, 2) };
+  }
+
+  if (goalIntent.intent_kind === "goal_sub_focus" && goalIntent.sub_focus_slug) {
+    const pinned: MatchedIntentEntry = {
+      kind: "goal_sub_focus",
+      slug: goalIntent.sub_focus_slug,
+      parent_slug: goalIntent.parent_slug ?? goalIntent.goal_slug,
+      match_strength: "direct",
+      rank: 0,
+      weight: 1,
+    };
+    const rest = (base.matched_intents ?? []).filter(
+      (m) =>
+        !(
+          m.kind === "goal_sub_focus" &&
+          m.slug === pinned.slug &&
+          (m.parent_slug ?? "") === (pinned.parent_slug ?? "")
+        )
+    );
+    return { ...base, goals: [], matched_intents: [pinned, ...rest].slice(0, 2) };
+  }
+
+  return base;
+}
+
+function isSportPrimarySubFocusSession(input: GenerateWorkoutInput): boolean {
+  if ((input.sport_weight ?? 0) < 0.99) return false;
+  return (input.session_intent?.ranked_intent_entries ?? []).some((e) => e.kind === "sport_sub_focus");
 }
 
 export function buildWorkoutItemSessionIntentLinks(
@@ -614,7 +672,7 @@ export function annotateSessionIntentLinksOnBlocks(
 
   const fitnessAssignableItems = workingItems.filter((row) => !isSubIntentDedicatedBlock(row.goalIntent));
   const n = fitnessAssignableItems.length;
-  if (n > 0 && selectedFitnessGoals.length > 0) {
+  if (n > 0 && selectedFitnessGoals.length > 0 && !isSportPrimarySubFocusSession(input)) {
     const seq = allocateFitnessGoalsToSlots(selectedFitnessGoals, weights, n, input.seed ?? 0);
     for (let i = 0; i < n; i++) {
       const { item, ex } = fitnessAssignableItems[i]!;
