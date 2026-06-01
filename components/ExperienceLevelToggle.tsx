@@ -35,7 +35,19 @@ export function ExperienceLevelToggle({
   const creativeOn = includeCreativeVariations === true;
 
   return (
-    <View style={[styles.wrap, { marginTop }]}>
+    <View
+      style={[
+        styles.wrap,
+        { marginTop },
+        Platform.OS !== "web" && {
+          backgroundColor: theme.cardOpaque,
+          borderColor: theme.borderStrong,
+          borderWidth: 1,
+          borderRadius: 16,
+          padding: 16,
+        },
+      ]}
+    >
       <Text
         style={[styles.title, { color: theme.text }, Platform.OS === "web" && styles.webLabelPassthrough]}
       >

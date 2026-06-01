@@ -62,6 +62,7 @@ export function CollapsiblePreferenceSection({
   const bodyStyle = nested ? styles.bodyNested : styles.body;
 
   const showSurface = !nested;
+  const surfaceBorderWidth = Platform.OS === "web" ? StyleSheet.hairlineWidth : 1;
 
   return (
     <View
@@ -69,8 +70,9 @@ export function CollapsiblePreferenceSection({
         styles.wrapper,
         showSurface && styles.wrapperSurface,
         showSurface && {
-          backgroundColor: theme.sectionSurface,
-          borderColor: theme.border,
+          backgroundColor: theme.cardOpaque,
+          borderColor: theme.borderStrong,
+          borderWidth: surfaceBorderWidth,
         },
         { marginTop },
         style,
@@ -116,7 +118,7 @@ export function CollapsiblePreferenceSection({
         </View>
       </Pressable>
       {expanded ? (
-        <View style={[bodyStyle, { borderColor: theme.border }]}>
+        <View style={[bodyStyle, { borderColor: theme.borderStrong }]}>
           {children}
         </View>
       ) : null}
@@ -137,7 +139,6 @@ const styles = StyleSheet.create({
   },
   wrapperSurface: {
     borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },
   header: {

@@ -962,7 +962,7 @@ export default function AdaptiveModeScreen() {
                 return (
                   <View
                     key={`${row.kind}-${stackIdx}`}
-                    style={[styles.priorityRow, { borderColor: theme.border }]}
+                    style={[styles.priorityRow, { borderColor: theme.borderStrong, backgroundColor: theme.cardOpaque }]}
                   >
                     <View style={styles.priorityRowInner}>
                       <View
@@ -1129,8 +1129,8 @@ export default function AdaptiveModeScreen() {
                   style={[
                     styles.filterBubble,
                     {
-                      backgroundColor: theme.card,
-                      borderColor: theme.border,
+                      backgroundColor: theme.chipBackground,
+                      borderColor: theme.borderStrong,
                     },
                   ]}
                 >
@@ -1496,10 +1496,11 @@ export default function AdaptiveModeScreen() {
           style={[
             styles.advancedFiltersHeader,
             {
-              borderBottomColor: theme.border,
-              backgroundColor: theme.sectionSurface,
-              borderColor: theme.border,
+              borderBottomColor: theme.borderStrong,
+              backgroundColor: theme.cardOpaque,
+              borderColor: theme.borderStrong,
               marginTop: 20,
+              ...(Platform.OS !== "web" ? { borderWidth: 1 } : {}),
             },
           ]}
           onPress={() => {

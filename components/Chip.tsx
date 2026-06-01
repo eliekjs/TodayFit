@@ -20,6 +20,7 @@ type Props = {
 
 export function Chip({ label, selected = false, disabled = false, onPress, style }: Props) {
   const theme = useTheme();
+  const outline = selected ? theme.chipSelectedBorder : theme.borderStrong;
 
   const content = (
     <View
@@ -30,7 +31,7 @@ export function Chip({ label, selected = false, disabled = false, onPress, style
             ? theme.chipSelectedBackground
             : theme.chipBackground,
           borderWidth: 1,
-          borderColor: selected ? theme.chipSelectedBorder : theme.border,
+          borderColor: outline,
           opacity: disabled ? 0.5 : 1,
         },
         style,

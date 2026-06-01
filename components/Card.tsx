@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, type ViewStyle } from "react-native";
+import { View, Text, StyleSheet, Platform, type ViewStyle } from "react-native";
 import { useTheme } from "../lib/theme";
 import { PrimaryButton } from "./Button";
 
@@ -21,14 +21,15 @@ export function Card({
   onPrimaryAction,
 }: Props) {
   const theme = useTheme();
+  const borderColor = Platform.OS === "web" ? theme.border : theme.borderStrong;
 
   return (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: theme.card,
-          borderColor: theme.border,
+          backgroundColor: theme.cardOpaque,
+          borderColor,
           borderWidth: 1,
         },
         style,

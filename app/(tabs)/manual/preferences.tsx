@@ -935,9 +935,10 @@ export default function ManualPreferencesScreen() {
           style={[
             styles.advancedFiltersHeader,
             {
-              borderBottomColor: theme.border,
-              backgroundColor: theme.sectionSurface,
-              borderColor: theme.border,
+              borderBottomColor: theme.borderStrong,
+              backgroundColor: theme.cardOpaque,
+              borderColor: theme.borderStrong,
+              ...(Platform.OS !== "web" ? { borderWidth: 1 } : {}),
             },
           ]}
           onPress={toggleRefinements}

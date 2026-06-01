@@ -7,11 +7,12 @@ const PIECE_GAP = 1;
 const GRID_SIZE = 28;
 const GRID_STROKE = "rgba(148,163,184,0.1)";
 const GRID_STRONG_STROKE = "rgba(100,116,139,0.14)";
-/** Native displays (esp. iOS P3) read glows/tetrominos hotter than web — keep them softer. */
 const IS_NATIVE = Platform.OS !== "web";
-const GLOW_TOP = IS_NATIVE ? "rgba(16,185,129,0.05)" : "rgba(16,185,129,0.1)";
-const GLOW_BOTTOM = IS_NATIVE ? "rgba(59,130,246,0.045)" : "rgba(59,130,246,0.09)";
-const PIECE_OPACITY_SCALE = IS_NATIVE ? 0.72 : 1;
+/** Web keeps a hint of teal/navy; native uses neutral dark shifts only (P3 reads green/blue as neon). */
+const GLOW_TOP = IS_NATIVE ? "rgba(8, 32, 38, 0.22)" : "rgba(16,185,129,0.1)";
+const GLOW_BOTTOM = IS_NATIVE ? "rgba(6, 18, 40, 0.28)" : "rgba(59,130,246,0.09)";
+const NATIVE_SCRIM = "rgba(4, 14, 32, 0.42)";
+const PIECE_OPACITY_SCALE = IS_NATIVE ? 0 : 0.72;
 type PieceStyle = {
   fill: string;
   top: string;
@@ -20,7 +21,7 @@ type PieceStyle = {
   right: string;
 };
 
-// Classic tetromino-inspired shades by piece type.
+// Classic tetromino-inspired shades by piece type (web only — hidden on native).
 const PIECE_STYLES: PieceStyle[] = [
   { fill: "rgba(34,211,238,0.18)", top: "rgba(186,230,253,0.28)", left: "rgba(125,211,252,0.24)", bottom: "rgba(2,132,199,0.3)", right: "rgba(3,105,161,0.32)" }, // I
   { fill: "rgba(250,204,21,0.22)", top: "rgba(254,240,138,0.3)", left: "rgba(253,224,71,0.28)", bottom: "rgba(202,138,4,0.32)", right: "rgba(161,98,7,0.34)" }, // O
@@ -85,6 +86,8 @@ export function GeometricPatternBackground() {
     const lines: React.ReactElement[] = [];
     const cols = Math.ceil(width / GRID_SIZE);
     const rows = Math.ceil(height / GRID_SIZE);
+    const gridStroke = IS_NATIVE ? "rgba(148,163,184,0.07)" : GRID_STROKE;
+    const gridStrongStroke = IS_NATIVE ? "rgba(100,116,139,0.1)" : GRID_STRONG_STROKE;
 
     for (let c = 0; c <= cols; c++) {
       const x = c * GRID_SIZE;
@@ -96,7 +99,7 @@ export function GeometricPatternBackground() {
           y1={0}
           x2={x}
           y2={height}
-          stroke={isMajor ? GRID_STRONG_STROKE : GRID_STROKE}
+          stroke={isMajor ? gridStrongStroke : gridStroke}
           strokeWidth={isMajor ? 1 : 0.7}
         />,
       );
@@ -111,7 +114,7 @@ export function GeometricPatternBackground() {
           y1={y}
           x2={width}
           y2={y}
-          stroke={isMajor ? GRID_STRONG_STROKE : GRID_STROKE}
+          stroke={isMajor ? gridStrongStroke : gridStroke}
           strokeWidth={isMajor ? 1 : 0.7}
         />,
       );
@@ -121,6 +124,8 @@ export function GeometricPatternBackground() {
   }, [width, height]);
 
   const tetrominoPieces = useMemo(() => {
+    if (PIECE_OPACITY_SCALE <= 0) return [];
+
     const pieces: React.ReactElement[] = [];
     const step = PIECE_CELL + PIECE_GAP;
     const cols = Math.max(6, Math.floor(width / 92));
@@ -147,7 +152,6 @@ export function GeometricPatternBackground() {
                 stroke="rgba(2,6,23,0.42)"
                 strokeWidth={0.8}
               />
-              {/* Bevel shading for classic tetris-block look */}
               <Rect
                 x={px + sx * step}
                 y={py + sy * step}
@@ -191,7 +195,6 @@ export function GeometricPatternBackground() {
         const shapeIndex = idx % TETROMINOES.length;
         const shape = TETROMINOES[shapeIndex];
         const pieceStyle = PIECE_STYLES[shapeIndex];
-        // Keep density airy for readability: skip some cells in a repeatable pattern.
         if ((idx + r) % 3 === 0) continue;
         const opacity =
           (y > height * 0.7 ? 0.38 : y < height * 0.25 ? 0.24 : 0.3) * PIECE_OPACITY_SCALE;
@@ -201,6 +204,12 @@ export function GeometricPatternBackground() {
 
     return pieces;
   }, [width, height]);
+
+  const glowTopHeight = IS_NATIVE ? height * 0.38 : height * 0.45;
+  const glowTopWidth = IS_NATIVE ? width * 0.52 : width * 0.58;
+  const glowBottomY = IS_NATIVE ? height * 0.42 : height * 0.35;
+  const glowBottomWidth = IS_NATIVE ? width * 0.58 : width * 0.64;
+  const glowBottomHeight = IS_NATIVE ? height * 0.58 : height * 0.65;
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.nonInteractive]}>
@@ -213,25 +222,26 @@ export function GeometricPatternBackground() {
           </LinearGradient>
           <LinearGradient id="glowTop" x1="0%" y1="0%" x2="0%" y2="100%">
             <Stop offset="0%" stopColor={GLOW_TOP} />
-            <Stop offset="100%" stopColor="rgba(16,185,129,0)" />
+            <Stop offset="100%" stopColor={IS_NATIVE ? "rgba(8, 32, 38, 0)" : "rgba(16,185,129,0)"} />
           </LinearGradient>
           <LinearGradient id="glowBottom" x1="100%" y1="0%" x2="0%" y2="100%">
             <Stop offset="0%" stopColor={GLOW_BOTTOM} />
-            <Stop offset="100%" stopColor="rgba(59,130,246,0)" />
+            <Stop offset="100%" stopColor={IS_NATIVE ? "rgba(6, 18, 40, 0)" : "rgba(59,130,246,0)"} />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={width} height={height} fill="url(#bgBase)" />
-        <Rect x={0} y={0} width={width * 0.58} height={height * 0.45} fill="url(#glowTop)" />
+        <Rect x={0} y={0} width={glowTopWidth} height={glowTopHeight} fill="url(#glowTop)" />
         <Rect
-          x={width * 0.36}
-          y={height * 0.35}
-          width={width * 0.64}
-          height={height * 0.65}
+          x={width * (IS_NATIVE ? 0.42 : 0.36)}
+          y={glowBottomY}
+          width={glowBottomWidth}
+          height={glowBottomHeight}
           fill="url(#glowBottom)"
         />
-        <G opacity={0.9}>{boardGrid}</G>
+        <G opacity={IS_NATIVE ? 0.55 : 0.9}>{boardGrid}</G>
         <G>{tetrominoPieces}</G>
       </Svg>
+      {IS_NATIVE ? <View style={[StyleSheet.absoluteFill, styles.nativeScrim]} /> : null}
     </View>
   );
 }
@@ -239,5 +249,8 @@ export function GeometricPatternBackground() {
 const styles = StyleSheet.create({
   nonInteractive: {
     pointerEvents: "none",
+  },
+  nativeScrim: {
+    backgroundColor: NATIVE_SCRIM,
   },
 });

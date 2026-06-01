@@ -1,4 +1,6 @@
-import { useColorScheme } from "react-native";
+import { Platform, useColorScheme } from "react-native";
+
+const IS_NATIVE = Platform.OS !== "web";
 
 // TodayFit: dark teal chrome, frosted cards, teal primary / blue secondary — soft fills muted for legibility
 const todayFitPalette = {
@@ -9,6 +11,8 @@ const todayFitPalette = {
   /** Accordion / preference rows — extra opacity so white labels stay readable on native. */
   sectionSurface: "rgba(22,30,46,0.93)",
   border: "rgba(148,163,184,0.34)",
+  /** Stronger outline for rank badges / chips on saturated native displays. */
+  borderStrong: "rgba(148,163,184,0.52)",
   text: "#f8fafc",
   textMuted: "rgba(226,232,240,0.84)",
   primary: "#2dd4bf",
@@ -32,6 +36,7 @@ const todayFitDarkPalette = {
   cardOpaque: "rgba(15,23,42,0.94)",
   sectionSurface: "rgba(15,23,42,0.93)",
   border: "rgba(148,163,184,0.28)",
+  borderStrong: "rgba(148,163,184,0.46)",
   primarySoft: "rgba(13,148,136,0.1)",
   secondarySoft: "rgba(59,130,246,0.08)",
   chipBackground: "rgba(15,23,42,0.82)",
@@ -39,9 +44,37 @@ const todayFitDarkPalette = {
   chipSelectedText: "#bfe9e4",
 };
 
+/** iOS/Android: fully opaque surfaces — rgba still bleeds the pattern through on native. */
+const todayFitNativePalette = {
+  ...todayFitPalette,
+  card: "#161e2e",
+  cardOpaque: "#161e2e",
+  sectionSurface: "#161e2e",
+  chipBackground: "#1e293b",
+  border: "rgba(148,163,184,0.55)",
+  borderStrong: "rgba(148,163,184,0.68)",
+  chipSelectedBorder: "#2dd4bf",
+  chipSelectedBackground: "rgba(45,212,191,0.2)",
+};
+
+const todayFitDarkNativePalette = {
+  ...todayFitDarkPalette,
+  card: "#0f172a",
+  cardOpaque: "#0f172a",
+  sectionSurface: "#0f172a",
+  chipBackground: "#1e293b",
+  border: "rgba(148,163,184,0.5)",
+  borderStrong: "rgba(148,163,184,0.62)",
+  chipSelectedBorder: "#2dd4bf",
+  chipSelectedBackground: "rgba(45,212,191,0.18)",
+};
+
 export type Theme = typeof todayFitPalette;
 
 export function useTheme(): Theme {
   const scheme = useColorScheme();
+  if (IS_NATIVE) {
+    return scheme === "dark" ? todayFitDarkNativePalette : todayFitNativePalette;
+  }
   return scheme === "dark" ? todayFitDarkPalette : todayFitPalette;
 }
