@@ -19,6 +19,8 @@ export type ExerciseMetadataPatch = {
   workout_levels?: WorkoutTierPreference[];
   /** Merged into tags.attribute_tags (deduped). */
   attribute_tags_append?: string[];
+  /** Merged into tags.stimulus (deduped). */
+  stimulus_append?: ("plyometric" | "aerobic_zone2" | "anaerobic")[];
   creative_variation?: boolean;
 };
 

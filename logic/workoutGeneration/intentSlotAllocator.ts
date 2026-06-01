@@ -173,6 +173,42 @@ export function isNonMainWorkSportIntentEntry(entry: IntentEntry): boolean {
   return isStabilityPrehabSportIntentEntry(entry) || isEnduranceConditioningSportIntentEntry(entry);
 }
 
+const DYNAMIC_SPORT_MAIN_PATTERNS = new Set([
+  "squat",
+  "hinge",
+  "push",
+  "pull",
+  "rotate",
+  "locomotion",
+]);
+
+/**
+ * Speed/COD/plyo sport sub-focuses may use conditioning or power drills (not only barbell strength).
+ * Requires dynamic-movement tag evidence (Phase 9) so balance-only accessories do not fill slots.
+ */
+export function isDynamicSportSubFocusMainWorkCandidate(ex: Exercise, entry: IntentEntry): boolean {
+  if (entry.kind !== "sport_sub_focus") return false;
+  if (!isPowerStyleSportIntentEntry(entry) && !isExplosivePlyometricSportSubFocusSlug(entry.slug)) {
+    return false;
+  }
+  if (ex.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(ex.exercise_role.toLowerCase().replace(/\s/g, "_"))) {
+    return false;
+  }
+  if (!(ex.modality === "power" || ex.modality === "strength" || ex.modality === "conditioning")) {
+    return false;
+  }
+  const tags = exerciseTagSet(ex);
+  if (!tagSetHasDynamicPowerSignal(tags)) return false;
+  const role = (ex.exercise_role ?? "").toLowerCase().replace(/\s/g, "_");
+  const hasJumpOrReactiveSignal =
+    tags.has("plyometric") || tags.has("jumping") || tags.has("reactive_power");
+  if (role === "main_compound" && ex.modality !== "power" && !hasJumpOrReactiveSignal) {
+    return false;
+  }
+  const pattern = effectiveMainWorkPatternForIntent(ex);
+  return DYNAMIC_SPORT_MAIN_PATTERNS.has(pattern);
+}
+
 export function isMainWorkCandidateForIntentEntry(
   ex: Exercise,
   entry: IntentEntry,
@@ -180,18 +216,8 @@ export function isMainWorkCandidateForIntentEntry(
 ): boolean {
   if (isStabilityPrehabSportIntentEntry(entry)) return false;
   if (isEnduranceConditioningSportIntentEntry(entry)) return false;
-  if (entry.kind === "sport_sub_focus" && isExplosivePlyometricSportSubFocusSlug(entry.slug)) {
-    if (ex.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(ex.exercise_role.toLowerCase().replace(/\s/g, "_"))) {
-      return false;
-    }
-    if (!(ex.modality === "power" || ex.modality === "strength" || ex.modality === "conditioning")) return false;
-    const tags = exerciseTagSet(ex);
-    if (!tagSetHasDynamicPowerSignal(tags)) return false;
-    const role = (ex.exercise_role ?? "").toLowerCase().replace(/\s/g, "_");
-    const hasJumpOrReactiveSignal = tags.has("plyometric") || tags.has("jumping") || tags.has("reactive_power");
-    if (role === "main_compound" && ex.modality !== "power" && !hasJumpOrReactiveSignal) return false;
-    const pattern = effectiveMainWorkPatternForIntent(ex);
-    return new Set(["squat", "hinge", "push", "pull", "rotate", "locomotion"]).has(pattern);
+  if (entry.kind === "sport_sub_focus" && isPowerStyleSportIntentEntry(entry)) {
+    return isDynamicSportSubFocusMainWorkCandidate(ex, entry);
   }
   return isIntentMainWorkCandidate(ex, primary);
 }

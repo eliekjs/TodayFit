@@ -45,6 +45,7 @@ import {
   computeWeeklySubFocusSessionMinimums,
 } from "../logic/workoutGeneration/weeklySubFocusCoveragePlan";
 import { getGenerationPruningGateFlags } from "./generationPruningGateConfig";
+import { buildStylePrefsWorkoutFields } from "../logic/workoutGeneration/workoutStylePolicy";
 
 const DURATIONS = [20, 30, 45, 60, 75] as const;
 type AllowedDuration = (typeof DURATIONS)[number];
@@ -450,6 +451,7 @@ export function manualPreferencesToGenerateWorkoutInput(
   const sum = p1 + p2 + p3;
   const goal_weights = sum > 0 ? [p1 / sum, p2 / sum, p3 / sum] : undefined;
 
+  const workoutStyleFields = buildStylePrefsWorkoutFields(preferences.workoutStyle);
   const style_prefs = {
     avoid_tags: avoid_tags.length ? avoid_tags : undefined,
     preferred_zone2_cardio: preferences.preferredZone2Cardio?.length
@@ -458,11 +460,14 @@ export function manualPreferencesToGenerateWorkoutInput(
     preferred_exercise_ids: preferredExerciseIds?.length ? preferredExerciseIds : undefined,
     user_level: preferences.workoutTier ?? "intermediate",
     include_creative_variations: preferences.includeCreativeVariations === true,
+    ...workoutStyleFields,
   };
   const hasStylePrefs =
     !!style_prefs.avoid_tags?.length ||
     !!style_prefs.preferred_zone2_cardio?.length ||
     !!style_prefs.preferred_exercise_ids?.length ||
+    !!style_prefs.workout_styles?.length ||
+    style_prefs.wants_supersets !== undefined ||
     style_prefs.user_level != null ||
     style_prefs.include_creative_variations === true;
 
@@ -655,6 +660,7 @@ import { mergePhase5MobilityStretchOntologyIntoExercise } from "./exerciseMetada
 import { mergePhase6RepRangeOntologyIntoExercise } from "./exerciseMetadata/phase6RepRangeInference";
 import { mergePhase7WarmupCooldownRelevanceIntoExercise } from "./exerciseMetadata/phase7WarmupCooldownRelevanceInference";
 import { mergePhase8UnilateralOntologyIntoExercise } from "./exerciseMetadata/phase8UnilateralInference";
+import { mergePhase9DynamicPowerTagsIntoExercise } from "./exerciseMetadata/phase9DynamicPowerTagInference";
 import { applyExerciseMetadataOverrides } from "./exerciseMetadata/applyMetadataOverrides";
 import type { ExerciseMetadataPatch } from "./exerciseMetadata/metadataOverrideTypes";
 import exerciseMetadataOverrides from "../data/exerciseMetadataOverrides.json";
@@ -811,7 +817,16 @@ function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
 
   // Pattern inference from OTA slugs / ids.
   if (idName.includes("lunge")) inferredFromModalitiesAndEquipment.push("lunge_pattern");
-  if (idName.includes("skater") || idName.includes("shuffle") || idName.includes("agility")) inferredFromModalitiesAndEquipment.push("agility");
+  const isSkaterStrength =
+    idName.includes("skater_squat") || idName.includes("skater_lunge");
+  const isSkaterDynamic =
+    idName.includes("skater_jump") ||
+    idName.includes("skater_hop") ||
+    idName.includes("skater_bound") ||
+    (idName.includes("skater") && (idName.includes("jump") || idName.includes("hop")));
+  if (!isSkaterStrength && (idName.includes("shuffle") || idName.includes("agility") || isSkaterDynamic)) {
+    inferredFromModalitiesAndEquipment.push("agility");
+  }
 
   // Climbing/grip inference (finger/lock-off)
   if (idName.includes("finger") || idName.includes("two_finger") || idName.includes("planche")) inferredFromModalitiesAndEquipment.push("finger_strength");
@@ -955,6 +970,9 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
 
   // Phase 8: unilateral flag for variety scoring (docs/research/exercise-metadata-phase8-unilateral.md).
   mergePhase8UnilateralOntologyIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
+
+  // Phase 9: agility / speed / plyometric tags for sport sub-focus and dynamic-movement gates.
+  mergePhase9DynamicPowerTagsIntoExercise(exercise, exerciseInferenceInputFromDefinition(def));
 
   const explicitFromDef = def.workout_levels?.length ? def.workout_levels : undefined;
   if (explicitFromDef?.length) {

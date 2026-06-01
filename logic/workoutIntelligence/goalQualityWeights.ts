@@ -23,6 +23,9 @@ export type GoalSlug =
   | "ski"
   | "running";
 
+/** Session feel from `resolveSessionFeelProfile` (Slice A); adjusts goal quality emphasis (Slice F). */
+export type SessionFeelEmphasis = "strength" | "hybrid" | "sports_training";
+
 /** Weights per quality for each goal. Only non-zero entries; 0–1 scale. */
 export const GOAL_QUALITY_WEIGHTS: Record<
   GoalSlug,
@@ -91,8 +94,11 @@ export const GOAL_QUALITY_WEIGHTS: Record<
   athletic_performance: {
     power: 0.7,
     rate_of_force_development: 0.6,
-    max_strength: 0.5,
-    balance: 0.4,
+    max_strength: 0.45,
+    plyometric_ability: 0.55,
+    work_capacity: 0.4,
+    balance: 0.45,
+    coordination: 0.35,
     unilateral_strength: 0.4,
   },
   calisthenics: {
@@ -117,7 +123,6 @@ export const GOAL_QUALITY_WEIGHTS: Record<
     recovery: 0.5,
     hip_stability: 0.5,
   },
-  // Sport-as-goal aliases (when user picks "Climbing" as secondary goal)
   climbing: {
     pulling_strength: 0.9,
     grip_strength: 0.85,
@@ -140,7 +145,95 @@ export const GOAL_QUALITY_WEIGHTS: Record<
   },
 };
 
+const SPORTS_TRAINING_QUALITY_BOOSTS: Partial<Record<TrainingQualitySlug, number>> = {
+  plyometric_ability: 0.22,
+  power: 0.16,
+  rate_of_force_development: 0.14,
+  work_capacity: 0.12,
+  balance: 0.1,
+  coordination: 0.08,
+  rotational_power: 0.08,
+  unilateral_strength: 0.06,
+};
+
+const HYBRID_QUALITY_BOOSTS: Partial<Record<TrainingQualitySlug, number>> = {
+  plyometric_ability: 0.11,
+  power: 0.08,
+  rate_of_force_development: 0.07,
+  work_capacity: 0.06,
+  balance: 0.05,
+};
+
+/**
+ * Nudge goal quality weights toward sports-training qualities; dampen max_strength when not strength-only feel.
+ */
+export function adjustGoalQualitiesForSessionFeel(
+  weights: Partial<Record<TrainingQualitySlug, number>>,
+  emphasis: SessionFeelEmphasis,
+  goalSlug?: string
+): Partial<Record<TrainingQualitySlug, number>> {
+  if (emphasis === "strength") return { ...weights };
+
+  const boosts = emphasis === "sports_training" ? SPORTS_TRAINING_QUALITY_BOOSTS : HYBRID_QUALITY_BOOSTS;
+  const out: Partial<Record<TrainingQualitySlug, number>> = { ...weights };
+
+  for (const [q, delta] of Object.entries(boosts)) {
+    if (typeof delta !== "number") continue;
+    const key = q as TrainingQualitySlug;
+    out[key] = Math.min(1, (out[key] ?? 0) + delta);
+  }
+
+  if ((out.max_strength ?? 0) > 0) {
+    const dampen = emphasis === "sports_training" ? 0.18 : 0.09;
+    out.max_strength = Math.max(0.12, (out.max_strength ?? 0) - dampen);
+  }
+
+  const normGoal = (goalSlug ?? "").toLowerCase().replace(/\s/g, "_");
+  if (normGoal === "athletic_performance" && emphasis === "sports_training") {
+    out.max_strength = Math.min(out.max_strength ?? 0.45, 0.32);
+    out.plyometric_ability = Math.max(out.plyometric_ability ?? 0, 0.6);
+    out.power = Math.max(out.power ?? 0, 0.72);
+  }
+
+  return out;
+}
+
+/** Post-blend overlay on merged session vector (all goals/sports already combined). */
+export function applySessionFeelToTargetVector(
+  vector: Map<TrainingQualitySlug, number>,
+  emphasis: SessionFeelEmphasis
+): void {
+  if (emphasis === "strength" || vector.size === 0) return;
+
+  const boosts = emphasis === "sports_training" ? SPORTS_TRAINING_QUALITY_BOOSTS : HYBRID_QUALITY_BOOSTS;
+  for (const [q, delta] of Object.entries(boosts)) {
+    if (typeof delta !== "number") continue;
+    const key = q as TrainingQualitySlug;
+    vector.set(key, Math.min(1, (vector.get(key) ?? 0) + delta * 0.35));
+  }
+  const ms = vector.get("max_strength");
+  if (ms != null && ms > 0) {
+    const dampen = (emphasis === "sports_training" ? 0.12 : 0.06) * 0.35;
+    vector.set("max_strength", Math.max(0.08, ms - dampen));
+  }
+
+  let max = 0;
+  vector.forEach((v) => {
+    if (v > max) max = v;
+  });
+  if (max > 0) {
+    vector.forEach((v, k) => vector.set(k, v / max));
+  }
+}
+
 export function getGoalQualityWeights(goalSlug: string): Partial<Record<TrainingQualitySlug, number>> {
   const normalized = goalSlug.toLowerCase().replace(/\s/g, "_") as GoalSlug;
   return GOAL_QUALITY_WEIGHTS[normalized] ?? {};
+}
+
+export function getGoalQualityWeightsForSession(
+  goalSlug: string,
+  emphasis: SessionFeelEmphasis = "strength"
+): Partial<Record<TrainingQualitySlug, number>> {
+  return adjustGoalQualitiesForSessionFeel(getGoalQualityWeights(goalSlug), emphasis, goalSlug);
 }

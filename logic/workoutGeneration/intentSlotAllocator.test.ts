@@ -222,6 +222,41 @@ describe("mainWorkPrimaryForIntentEntry", () => {
     expect(isMainWorkCandidateForIntentEntry(jump, entry, "power")).toBe(true);
   });
 
+  it("allows conditioning agility drills for change_of_direction sport sub-focus", () => {
+    const entry: IntentEntry = {
+      kind: "sport_sub_focus",
+      slug: "change_of_direction",
+      parent_slug: "soccer",
+      rank: 1,
+      weight: 0.4,
+      tag_slugs: ["agility", "reactive_power"],
+    };
+    const lateralShuffle: Exercise = {
+      id: "lateral_shuffle_drill",
+      name: "Lateral Shuffle",
+      modality: "conditioning",
+      movement_pattern: "locomotion",
+      muscle_groups: ["legs"],
+      tags: {
+        sport_tags: ["soccer"],
+        stimulus: ["plyometric"],
+        attribute_tags: ["agility", "reactive_power", "speed"],
+      },
+      exercise_role: "accessory",
+    } as Exercise;
+    const backSquat: Exercise = {
+      id: "back_squat",
+      name: "Back Squat",
+      modality: "strength",
+      movement_pattern: "squat",
+      muscle_groups: ["quads"],
+      tags: { sport_tags: ["soccer"], attribute_tags: ["squat_pattern"] },
+      exercise_role: "main_compound",
+    } as Exercise;
+    expect(isMainWorkCandidateForIntentEntry(lateralShuffle, entry, "strength")).toBe(true);
+    expect(isMainWorkCandidateForIntentEntry(backSquat, entry, "strength")).toBe(false);
+  });
+
   it("keeps compatible non-speed sport leaves on the session primary", () => {
     const entry: IntentEntry = {
       kind: "sport_sub_focus",

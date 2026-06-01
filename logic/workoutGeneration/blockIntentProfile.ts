@@ -1,6 +1,15 @@
 import type { BlockFormat, GenerateWorkoutInput, PrimaryGoal } from "./types";
 import type { CardioFormatHint, ConditioningPolicy } from "./cardioIntentPolicyConfig";
 import {
+  isEnduranceConditioningSubFocusSlug,
+  resolveSessionFeelProfile,
+  type SessionFeelProfile,
+} from "./sessionFeelProfile";
+import {
+  applyWorkoutStyleToPolicy,
+  resolveWorkoutStylePolicy,
+} from "./workoutStylePolicy";
+import {
   CARDIO_COOLDOWN_TARGETS_BY_INTENT,
   CARDIO_COOLDOWN_TARGETS_BY_SPORT_KEYWORD,
   CARDIO_POLICY_BY_PRIMARY_GOAL,
@@ -153,6 +162,40 @@ export function shouldIncludeConditioningBlock(input: GenerateWorkoutInput): boo
   return false;
 }
 
+function preferCircuitSupersetFormats(formats: BlockFormat[]): BlockFormat[] {
+  const rest = formats.filter((format) => format !== "circuit" && format !== "superset");
+  return ["circuit", "superset", ...rest];
+}
+
+function sessionHasEnduranceConditioningSubs(input: GenerateWorkoutInput): boolean {
+  const slugs = getAllCardioIntentSlugs(input);
+  return slugs.some(isEnduranceConditioningSubFocusSlug);
+}
+
+function applySessionFeelToPolicy(
+  policy: ConditioningPolicy,
+  feel: SessionFeelProfile,
+  hasEnduranceConditioningSubs: boolean
+): ConditioningPolicy {
+  if (feel.emphasis === "strength") return policy;
+
+  const cardioBoost = feel.emphasis === "sports_training" ? 0.1 : 0.05;
+  const exerciseShareBoost = feel.emphasis === "sports_training" ? 0.06 : 0.03;
+
+  return {
+    ...policy,
+    sessionCardioShare: clamp01(policy.sessionCardioShare + cardioBoost),
+    targetCardioExerciseShare: clamp01(policy.targetCardioExerciseShare + exerciseShareBoost),
+    preferredMainFormats: preferCircuitSupersetFormats(policy.preferredMainFormats),
+    preferredConditioningFormats: preferCircuitSupersetFormats(policy.preferredConditioningFormats),
+    conditioningRequired:
+      policy.conditioningRequired ||
+      (feel.emphasis === "sports_training" &&
+        hasEnduranceConditioningSubs &&
+        policy.allowConditioningBlock),
+  };
+}
+
 function resolveBasePolicy(input: GenerateWorkoutInput): ConditioningPolicy {
   const secondaryGoals = input.secondary_goals ?? [];
   const hasSecondaryCardioGoal = secondaryGoals.some(hasCardioGoal);
@@ -184,9 +227,19 @@ function resolveBasePolicy(input: GenerateWorkoutInput): ConditioningPolicy {
 }
 
 export function buildBlockIntentProfile(input: GenerateWorkoutInput): BlockIntentProfile {
+  const sessionFeel = resolveSessionFeelProfile(input);
+  const hasEnduranceConditioningSubs = sessionHasEnduranceConditioningSubs(input);
   const secondaryGoals = input.secondary_goals ?? [];
   const hasSecondaryCardioGoal = secondaryGoals.some(hasCardioGoal);
-  const basePolicy = resolveBasePolicy(input);
+  const stylePolicy = resolveWorkoutStylePolicy(input.style_prefs?.workout_styles);
+  const basePolicy = applyWorkoutStyleToPolicy(
+    applySessionFeelToPolicy(
+      resolveBasePolicy(input),
+      sessionFeel,
+      hasEnduranceConditioningSubs
+    ),
+    stylePolicy
+  );
   const weeklyEmphasis = clamp01(input.weekly_cardio_emphasis ?? 0);
   const explicitSessionTarget = clamp01(input.session_cardio_target_share ?? 0);
   const sessionCardioShare = clamp01(

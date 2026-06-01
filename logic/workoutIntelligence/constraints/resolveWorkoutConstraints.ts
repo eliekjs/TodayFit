@@ -12,6 +12,11 @@
  */
 
 import type { WorkoutSelectionInput } from "../scoring/scoreTypes";
+import { CONDITIONING_INTENT_SLUGS } from "../../../data/goalSubFocus/conditioningSubFocus";
+import {
+  ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS,
+  isEnduranceConditioningSportSubFocusSlug,
+} from "../../../data/sportSubFocus/subFocusIntentArchetypes";
 import type { BlockType } from "../types";
 import {
   getInjuryAvoidTags,
@@ -42,6 +47,41 @@ const BODY_FOCUS_TO_FAMILY: Record<string, MovementFamily> = {
   mobility: "mobility",
   conditioning: "conditioning",
 };
+
+const GOAL_ENGINE_CONDITIONING_SUB_FOCUS_SLUGS = new Set([
+  "zone2_aerobic_base",
+  "intervals_hiit",
+  "intervals",
+  "threshold_tempo",
+  "hills",
+  "durability",
+  "aerobic_engine",
+  "lactate_threshold",
+]);
+
+function normSubFocusSlug(slug: string): string {
+  return slug.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+}
+
+/** Goal/sport sub-focus that should require a conditioning block (Slice E). */
+function isEngineConditioningSubFocusSlug(slug: string): boolean {
+  const n = normSubFocusSlug(slug);
+  if (ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS.has(n)) return true;
+  if (GOAL_ENGINE_CONDITIONING_SUB_FOCUS_SLUGS.has(n)) return true;
+  if ((CONDITIONING_INTENT_SLUGS as readonly string[]).includes(n)) return true;
+  return isEnduranceConditioningSportSubFocusSlug(n);
+}
+
+function selectionInputHasEngineConditioningSubs(input: WorkoutSelectionInput): boolean {
+  const slugs: string[] = [];
+  for (const list of Object.values(input.sport_sub_focus ?? {})) {
+    slugs.push(...(list ?? []));
+  }
+  for (const list of Object.values(input.goal_sub_focus ?? {})) {
+    slugs.push(...(list ?? []));
+  }
+  return slugs.some(isEngineConditioningSubFocusSlug);
+}
 
 /** Block types that count as "working" for hard_include (body-part strictness). */
 const WORKING_BLOCK_TYPES: BlockType[] = [
@@ -185,7 +225,8 @@ export function resolveWorkoutConstraints(
       return n.includes("conditioning") || n.includes("endurance") || g.toLowerCase().includes("conditioning") || g.toLowerCase().includes("endurance");
     }
   );
-  if (conditioningSecondary) {
+  const conditioningFromIntentSubs = selectionInputHasEngineConditioningSubs(input);
+  if (conditioningSecondary || conditioningFromIntentSubs) {
     rules.push({
       kind: "required_block_type",
       block_types: ["conditioning"],
@@ -228,7 +269,7 @@ export function resolveWorkoutConstraints(
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
     allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,
-    required_conditioning_block: conditioningSecondary || undefined,
+    required_conditioning_block: conditioningSecondary || conditioningFromIntentSubs || undefined,
     prefer_power_block: powerSecondary || undefined,
     prefer_strength_block: strengthSecondary || undefined,
     prefer_hypertrophy_block: hypertrophySecondary || undefined,

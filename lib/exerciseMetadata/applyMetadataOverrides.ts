@@ -71,6 +71,19 @@ export function applyExerciseMetadataOverrides(
     affectsTiers = true;
   }
 
+  if (patch.stimulus_append?.length) {
+    const cur = new Set((exercise.tags.stimulus ?? []).map((t) => normalizeSlug(String(t))));
+    const stim = [...(exercise.tags.stimulus ?? [])] as NonNullable<typeof exercise.tags.stimulus>;
+    for (const t of patch.stimulus_append) {
+      const slug = normalizeSlug(t);
+      if (cur.has(slug)) continue;
+      cur.add(slug);
+      stim.push(slug as (typeof stim)[number]);
+    }
+    exercise.tags = { ...exercise.tags, stimulus: stim };
+    affectsTiers = true;
+  }
+
   if (patch.creative_variation != null) {
     exercise.creative_variation = patch.creative_variation;
   }

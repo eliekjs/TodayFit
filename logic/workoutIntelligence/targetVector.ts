@@ -5,7 +5,8 @@
 
 import type { TrainingQualitySlug } from "./trainingQualities";
 import type { SessionTargetVector } from "./types";
-import { getGoalQualityWeights } from "./goalQualityWeights";
+import { getGoalQualityWeights, getGoalQualityWeightsForSession, applySessionFeelToTargetVector } from "./goalQualityWeights";
+import type { SessionFeelEmphasis } from "./goalQualityWeights";
 import { getSportQualityWeights } from "./sportQualityWeights";
 import { getExerciseTagsForGoalSubFocuses } from "../../data/goalSubFocus";
 import { getExerciseTagsForSubFocuses as getSportSubFocusTagEntries } from "../../data/sportSubFocus";
@@ -33,6 +34,8 @@ export type MergeTargetInput = {
   session_target_qualities?: Partial<Record<TrainingQualitySlug, number>>;
   /** Weight for `session_target_qualities` (0–1). Default 0.35. */
   session_target_qualities_weight?: number;
+  /** Slice F: session feel emphasis from resolveSessionFeelProfile. Default strength (no change). */
+  session_feel_emphasis?: SessionFeelEmphasis;
 };
 
 const DEFAULT_GOAL_WEIGHTS = [0.6, 0.3, 0.1];
@@ -118,6 +121,7 @@ export function getQualityWeightsFromGoalSubFocus(
  */
 export function mergeTargetVector(input: MergeTargetInput): SessionTargetVector {
   const out = new Map<TrainingQualitySlug, number>();
+  const feelEmphasis = input.session_feel_emphasis ?? "strength";
 
   const goalOrder = [
     input.primary_goal,
@@ -136,7 +140,7 @@ export function mergeTargetVector(input: MergeTargetInput): SessionTargetVector 
 
   for (let i = 0; i < goalOrder.length; i++) {
     const w = (normalizedGoalWeights[i] ?? 0) * goalBlend;
-    const qualities = getGoalQualityWeights(goalOrder[i]);
+    const qualities = getGoalQualityWeightsForSession(goalOrder[i], feelEmphasis);
     for (const [q, v] of Object.entries(qualities)) {
       if (typeof v === "number" && v > 0)
         out.set(q as TrainingQualitySlug, (out.get(q as TrainingQualitySlug) ?? 0) + w * v);
@@ -192,6 +196,8 @@ export function mergeTargetVector(input: MergeTargetInput): SessionTargetVector 
   }
 
   // Normalize so max = 1 (keeps relative emphasis, scales to 0–1)
+  applySessionFeelToTargetVector(out, feelEmphasis);
+
   let max = 0;
   out.forEach((v) => {
     if (v > max) max = v;

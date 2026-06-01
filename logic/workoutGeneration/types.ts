@@ -206,6 +206,8 @@ export type StylePrefs = {
   preferred_zone2_cardio?: string[];
   /** Exercise ids/slugs to prefer when scoring (e.g. from sport or goal ranking); app passes from getPreferredExerciseNamesForSportAndGoals. */
   preferred_exercise_ids?: string[];
+  /** Manual refinement styles (`WORKOUT_STYLE_OPTIONS` labels), e.g. Functional / Athletic. */
+  workout_styles?: string[];
 };
 
 export type RecentSessionSummary = {

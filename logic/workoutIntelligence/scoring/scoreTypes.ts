@@ -30,6 +30,8 @@ export interface WorkoutSelectionInput {
   sports?: string[];
   /** Sport slug -> selected sub-focus slugs. Feeds into target vector for quality-based selection. */
   sport_sub_focus?: Record<string, string[]>;
+  /** Goal slug -> selected sub-focus slugs (e.g. conditioning zone2). */
+  goal_sub_focus?: Record<string, string[]>;
   /** Direct target qualities override; if absent, derived from goals + sports + session. */
   target_training_qualities?: Partial<Record<TrainingQualitySlug, number>>;
   available_equipment: string[];

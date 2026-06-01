@@ -162,6 +162,13 @@ import {
   type ConditioningIntentFormat,
 } from "./conditioningFormatResolver";
 import { blockFormatForCardioHint, buildBlockIntentProfile } from "./blockIntentProfile";
+import { resolveSessionFeelProfile } from "./sessionFeelProfile";
+import {
+  adjustGoalRulesForSessionFeel,
+  attachSessionPrescriptionFeel,
+  getActiveSessionPrescriptionFeel,
+  shouldPrescribePowerIntent,
+} from "./sessionFeelPrescription";
 import {
   getCanonicalSportSlug,
   getExerciseTagsForSubFocuses,
@@ -460,6 +467,8 @@ function inputToSelectionInput(input: GenerateWorkoutInput): Parameters<typeof r
     primary_goal: input.primary_goal,
     secondary_goals: input.secondary_goals?.map((g) => g.toLowerCase().replace(/\s/g, "_")) ?? [],
     sports: input.sport_slugs,
+    sport_sub_focus: input.sport_sub_focus,
+    goal_sub_focus: input.goal_sub_focus,
     available_equipment: input.available_equipment,
     duration_minutes: input.duration_minutes,
     energy_level: input.energy_level,
@@ -819,6 +828,7 @@ function shouldUseSessionTargetVector(input: GenerateWorkoutInput): boolean {
  * per-sport quality curves via `getSportQualityWeights` (not only sub-focus tags).
  */
 export function buildSessionTargetVectorFromInput(input: GenerateWorkoutInput): SessionTargetVector {
+  const sessionFeel = resolveSessionFeelProfile(input);
   return mergeTargetVector({
     primary_goal: input.primary_goal,
     secondary_goals: input.secondary_goals,
@@ -830,6 +840,7 @@ export function buildSessionTargetVectorFromInput(input: GenerateWorkoutInput): 
     sport_weight: input.sport_weight,
     session_target_qualities: input.session_target_qualities,
     session_target_qualities_weight: input.session_target_qualities_weight,
+    session_feel_emphasis: sessionFeel.emphasis,
   });
 }
 
@@ -1745,7 +1756,8 @@ function getPrescription(
   userLevel?: UserLevel
 ): { sets: number; reps?: number; time_seconds?: number; rest_seconds: number; coaching_cues: string } {
   const goal = primaryGoal ?? "hypertrophy";
-  const rules = getGoalRules(goal);
+  const feel = getActiveSessionPrescriptionFeel();
+  const rules = adjustGoalRulesForSessionFeel(getGoalRules(goal), feel);
   const strengthVolumeContext =
     goal === "strength" ||
     blockType === "main_strength" ||
@@ -1775,15 +1787,20 @@ function getPrescription(
     };
   }
 
-  // Power block: rep-based explosive prescription regardless of exercise modality (e.g. KB swing in power block).
-  if (blockType === "power" && goal === "power" && rules.setRange && rules.repRange && rules.restRange) {
+  // Power block / athletic power intent: low reps, full rest (explosive quality).
+  if (
+    shouldPrescribePowerIntent(blockType, goal, exercise, feel) &&
+    rules.powerRepRange &&
+    rules.powerRestRange
+  ) {
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-    const repRange = getEffectiveRepRange(exercise, rules.powerRepRange ?? rules.repRange);
+    const repRange = getEffectiveRepRange(exercise, rules.powerRepRange);
     const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
-    const rest = normalizeRestSeconds(rules.powerRestRange
-      ? Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2)
-      : Math.round((rules.restRange.min + rules.restRange.max) / 2), "intense");
+    const rest = normalizeRestSeconds(
+      Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2),
+      "intense"
+    );
     return {
       sets,
       reps,
@@ -1821,7 +1838,7 @@ function getPrescription(
     };
   }
 
-  // Power goal: use power rep/rest in main_strength block (evidence-based: low reps, high intent, long rest).
+  // Main strength with power primary still uses power rep/rest when not caught above.
   if (blockType === "main_strength" && goal === "power" && rules.powerRepRange && rules.powerRestRange) {
     const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
     const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
@@ -9468,6 +9485,7 @@ export function generateWorkoutSession(
         : undefined;
 
   attachWorkoutLevelScoringContext(input, effectiveExercisePool);
+  attachSessionPrescriptionFeel(input);
 
   // 1. Determine goal rules (from prescriptionRules)
   const primary = input.primary_goal;

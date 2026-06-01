@@ -6,8 +6,13 @@
 export { TRAINING_QUALITIES, TRAINING_QUALITY_SLUGS, getQualityBySlug, isTrainingQualitySlug } from "./trainingQualities";
 export type { TrainingQualitySlug, TrainingQualityDef, TrainingQualityCategory } from "./trainingQualities";
 
-export { getGoalQualityWeights } from "./goalQualityWeights";
-export type { GoalSlug } from "./goalQualityWeights";
+export {
+  getGoalQualityWeights,
+  getGoalQualityWeightsForSession,
+  adjustGoalQualitiesForSessionFeel,
+  applySessionFeelToTargetVector,
+} from "./goalQualityWeights";
+export type { GoalSlug, SessionFeelEmphasis } from "./goalQualityWeights";
 
 export { getSportQualityWeights } from "./sportQualityWeights";
 export type { SportSlug } from "./sportQualityWeights";
