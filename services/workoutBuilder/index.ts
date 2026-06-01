@@ -15,6 +15,7 @@ import {
   type SportGoalContext,
 } from "../../lib/dailyGeneratorAdapter";
 import type { SessionIntentContract } from "../../logic/workoutGeneration/sessionIntentContract";
+import type { Exercise } from "../../logic/workoutGeneration/types";
 
 export type { SessionIntentContract };
 
@@ -67,6 +68,8 @@ export type SportGoalOptions = {
   regenerationAvoidExerciseIds?: string[];
   /** App session history for Phase 11 personalization. */
   historySources?: import("../../lib/buildAppTrainingHistory").AppHistorySources;
+  /** Reuse a preloaded exercise pool (e.g. multi-day planWeek) to skip catalog reload per session. */
+  exercisePool?: Exercise[];
 };
 
 /**
@@ -124,24 +127,21 @@ export async function buildWorkoutForSessionIntent(
   const hasSport =
     (options?.sportSlug != null && options.sportSlug !== "") ||
     (options?.rankedSportSlugs?.length ?? 0) > 0;
-  if (isDbConfigured() && (hasGoals || hasSport)) {
-    try {
-      preferredNames = await getPreferredExerciseNamesForSportAndGoals(
-        options?.sportSlug ?? options?.rankedSportSlugs?.[0] ?? null,
-        options?.goalSlugs ?? [],
-        options?.goalWeightsPct ?? [50, 30, 20],
-        options?.sportSubFocusSlugs,
-        {
-          rankedSportSlugs: options?.rankedSportSlugs,
-          sportFocusPct: options?.sportFocusPct,
-          sportVsGoalPct: options?.sportVsGoalPct,
-          sportSubFocusSlugsBySport: options?.sportSubFocusSlugsBySport,
-        }
-      );
-    } catch {
-      preferredNames = undefined;
-    }
-  }
+  const preferredNamesPromise: Promise<string[] | undefined> =
+    isDbConfigured() && (hasGoals || hasSport)
+      ? getPreferredExerciseNamesForSportAndGoals(
+          options?.sportSlug ?? options?.rankedSportSlugs?.[0] ?? null,
+          options?.goalSlugs ?? [],
+          options?.goalWeightsPct ?? [50, 30, 20],
+          options?.sportSubFocusSlugs,
+          {
+            rankedSportSlugs: options?.rankedSportSlugs,
+            sportFocusPct: options?.sportFocusPct,
+            sportVsGoalPct: options?.sportVsGoalPct,
+            sportSubFocusSlugsBySport: options?.sportSubFocusSlugsBySport,
+          }
+        ).catch(() => undefined)
+      : Promise.resolve(undefined);
 
   const sportGoalContext: SportGoalContext | undefined =
     hasGoals || hasSport || options?.includeIntentSurvivalReport
@@ -220,14 +220,22 @@ export async function buildWorkoutForSessionIntent(
         )
       : hashString(`${String(baseSeed)}:${runEntropy}`);
 
-  const { generateWorkoutAsync } = await loadGeneratorModule();
+  const [{ generateWorkoutAsync }, resolvedPreferredNames] = await Promise.all([
+    loadGeneratorModule(),
+    preferredNamesPromise,
+  ]);
+  preferredNames = resolvedPreferredNames;
+
   const workout = await generateWorkoutAsync(
     basePreferences,
     gymProfile,
     resolvedSeed,
     preferredNames,
     sportGoalContext,
-    { historySources: options?.historySources }
+    {
+      historySources: options?.historySources,
+      exercisePool: options?.exercisePool,
+    }
   );
 
   return {

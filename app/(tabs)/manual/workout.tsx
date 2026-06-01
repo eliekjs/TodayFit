@@ -171,9 +171,10 @@ export default function ManualWorkoutScreen() {
     generationCancelledRef.current = false;
     setIsRegenerating(true);
     try {
-      const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
-      if (generationCancelledRef.current) return;
-      const { generateWorkoutAsync } = await loadGeneratorModule();
+      const [preferredNames, { generateWorkoutAsync }] = await Promise.all([
+        preferredExerciseNamesForManualPreferences(manualPreferences),
+        loadGeneratorModule(),
+      ]);
       if (generationCancelledRef.current) return;
       const workout = await generateWorkoutAsync(
         manualPreferences,

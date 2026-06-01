@@ -64,7 +64,6 @@ import {
 } from "./dailyGeneratorAdapter";
 import type { AppHistorySources } from "./buildAppTrainingHistory";
 import { buildAppTrainingHistory } from "./buildAppTrainingHistory";
-import { ensureCuratedDescriptionsLoaded } from "./exerciseDescriptionsCurated";
 
 function exerciseConflictsWithInjuries(ex: Exercise, injurySlugs: string[]): boolean {
   if (!injurySlugs.length) return false;
@@ -975,7 +974,6 @@ export async function generateWorkoutAsync(
   sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext,
   options?: GenerateWorkoutAsyncOptions
 ): Promise<GeneratedWorkout> {
-  await ensureCuratedDescriptionsLoaded();
   const sessionSeed = seedExtra ?? createWorkoutGenerationEntropy();
   const injurySlugs = injurySlugsFromManualPreferences(preferences);
 

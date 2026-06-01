@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
+import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
 
 type ActionCardProps = {
@@ -112,6 +113,11 @@ export default function HomeScreen() {
   } = useAppState();
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
   const trainTodayCancelledRef = useRef(false);
+
+  useEffect(() => {
+    void prefetchWorkoutGenerationStack();
+  }, []);
+
   const primaryGoal =
     manualPreferences.primaryFocus[0] ?? "Not set";
   const secondaryGoal =
@@ -155,9 +161,12 @@ export default function HomeScreen() {
         ...manualPreferences,
         durationMinutes: manualPreferences.durationMinutes ?? 45,
       };
-      const preferredNames = await preferredExerciseNamesForManualPreferences(prefs);
-      if (trainTodayCancelledRef.current) return;
-      const { generateWorkoutAsync } = await loadGeneratorModule();
+      const preferredNamesPromise = preferredExerciseNamesForManualPreferences(prefs);
+      const generatorPromise = loadGeneratorModule();
+      const [preferredNames, { generateWorkoutAsync }] = await Promise.all([
+        preferredNamesPromise,
+        generatorPromise,
+      ]);
       if (trainTodayCancelledRef.current) return;
       const workout = await generateWorkoutAsync(
         prefs,

@@ -23,6 +23,12 @@ vi.mock("../workoutBuilder", () => ({
   buildWorkoutForSessionIntent: buildWorkoutForSessionIntentMock,
 }));
 
+vi.mock("../../lib/loadGeneratorModule", () => ({
+  loadGeneratorModule: vi.fn().mockResolvedValue({
+    getExercisePoolForManualGeneration: vi.fn().mockResolvedValue([]),
+  }),
+}));
+
 vi.mock("../../lib/db/workoutRepository", () => ({
   saveGeneratedWorkout: saveGeneratedWorkoutMock,
   deleteWorkout: deleteWorkoutMock,

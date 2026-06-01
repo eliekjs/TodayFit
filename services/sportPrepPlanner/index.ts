@@ -4,7 +4,7 @@ import type { AdaptiveScheduleLabels, EnergyLevel, GeneratedWorkout } from "../.
 import { getWorkoutDescriptor } from "../../lib/workoutDescriptor";
 import type { GymProfile } from "../../data/gymProfiles";
 import { buildWorkoutForSessionIntent, type SessionIntent } from "../workoutBuilder";
-import { saveGeneratedWorkout, getWorkout, deleteWorkout } from "../../lib/db/workoutRepository";
+import { saveGeneratedWorkout, deleteWorkout } from "../../lib/db/workoutRepository";
 import {
   getWeeklyStructureTemplate,
   type DayBias,
@@ -21,6 +21,8 @@ import {
   type DemandVector,
 } from "./sportSupportDemand";
 import { composeRunGenerationSeed } from "../../lib/dailyGeneratorAdapter";
+import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
+import type { Exercise } from "../../logic/workoutGeneration/types";
 
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
@@ -966,6 +968,15 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const orderedIntents =
     intentOrder.length > 0 ? intentOrder : (["strength"] as IntentKey[]);
 
+  const injurySlugsForPool = (input.injuries ?? []).map((i) => i.toLowerCase().replace(/\s/g, "_"));
+  let sharedExercisePool: Exercise[] | undefined;
+  try {
+    const generator = await loadGeneratorModule();
+    sharedExercisePool = await generator.getExercisePoolForManualGeneration(injurySlugsForPool);
+  } catch {
+    sharedExercisePool = undefined;
+  }
+
   const buildWorkoutForSlot = async (
     slot: DaySlot,
     date: string
@@ -1008,6 +1019,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
             ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }
             : {}),
           ...(sessionIntentContract ? { session_intent_contract: sessionIntentContract } : {}),
+          exercisePool: sharedExercisePool,
         }
       );
       const title = getWorkoutDescriptor(workout);
@@ -1067,6 +1079,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         Object.keys(input.goalSubFocusPctByGoal).length > 0
           ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }
           : {}),
+        exercisePool: sharedExercisePool,
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1286,6 +1299,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         : rawSlots
       : null;
   let trainingSlotIdx = 0;
+  /** In-memory workouts keyed by workout id and ISO date — avoids re-fetching after save. */
+  const inMemoryWorkouts: Record<string, GeneratedWorkout> = {};
 
   try {
     // Create / persist user_training_plans row
@@ -1392,6 +1407,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       );
       const workoutId = await saveGeneratedWorkout(input.userId, workout);
       createdWorkoutIds.push(workoutId);
+      inMemoryWorkouts[workoutId] = workout;
+      inMemoryWorkouts[date] = workout;
 
       const goalContribution: Record<string, number> = {};
       if (goalsSnapshot.primary) goalContribution.primary = goalsSnapshot.primary.weight;
@@ -1440,13 +1457,19 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const plannedByDate = new Map<string, PlannedDay>();
   for (const row of dayRows) {
     const label = (row.intent_label as string) ?? null;
-    plannedByDate.set(row.date as string, {
-      id: row.id as string,
-      date: row.date as string,
+    const dayId = row.id as string;
+    const date = row.date as string;
+    const generatedWorkoutId = (row.generated_workout_id as string) ?? null;
+    if (generatedWorkoutId && inMemoryWorkouts[generatedWorkoutId]) {
+      inMemoryWorkouts[dayId] = inMemoryWorkouts[generatedWorkoutId];
+    }
+    plannedByDate.set(date, {
+      id: dayId,
+      date,
       title: label,
       intentLabel: label,
       status: (row.status as "planned" | "completed" | "skipped") ?? "planned",
-      generatedWorkoutId: (row.generated_workout_id as string) ?? null,
+      generatedWorkoutId,
     });
   }
 
@@ -1465,8 +1488,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
 
   const todayDay = finalDays.find((d) => d.date === todayIso) ?? null;
   const todayWorkout =
-    todayDay && todayDay.generatedWorkoutId
-      ? await getWorkout(input.userId, todayDay.generatedWorkoutId)
+    todayDay?.generatedWorkoutId != null
+      ? inMemoryWorkouts[todayDay.generatedWorkoutId] ??
+        inMemoryWorkouts[todayDay.date] ??
+        null
       : null;
 
   const scheduleSnapshot: ScheduleSnapshot = {
@@ -1524,6 +1549,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     sportFocusPct: input.sportFocusPct,
     sportVsGoalPct: input.sportVsGoalPct,
     sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+    guestWorkouts: Object.keys(inMemoryWorkouts).length > 0 ? inMemoryWorkouts : undefined,
     emphasis: input.emphasis ?? null,
     scheduleSnapshot,
   };
