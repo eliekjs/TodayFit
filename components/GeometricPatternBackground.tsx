@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { View, StyleSheet, useWindowDimensions } from "react-native";
+import { View, StyleSheet, useWindowDimensions, Platform } from "react-native";
 import Svg, { Defs, G, Line, LinearGradient, Rect, Stop } from "react-native-svg";
 
 const PIECE_CELL = 16;
@@ -7,6 +7,11 @@ const PIECE_GAP = 1;
 const GRID_SIZE = 28;
 const GRID_STROKE = "rgba(148,163,184,0.1)";
 const GRID_STRONG_STROKE = "rgba(100,116,139,0.14)";
+/** Native displays (esp. iOS P3) read glows/tetrominos hotter than web — keep them softer. */
+const IS_NATIVE = Platform.OS !== "web";
+const GLOW_TOP = IS_NATIVE ? "rgba(16,185,129,0.05)" : "rgba(16,185,129,0.1)";
+const GLOW_BOTTOM = IS_NATIVE ? "rgba(59,130,246,0.045)" : "rgba(59,130,246,0.09)";
+const PIECE_OPACITY_SCALE = IS_NATIVE ? 0.72 : 1;
 type PieceStyle = {
   fill: string;
   top: string;
@@ -188,7 +193,8 @@ export function GeometricPatternBackground() {
         const pieceStyle = PIECE_STYLES[shapeIndex];
         // Keep density airy for readability: skip some cells in a repeatable pattern.
         if ((idx + r) % 3 === 0) continue;
-        const opacity = y > height * 0.7 ? 0.38 : y < height * 0.25 ? 0.24 : 0.3;
+        const opacity =
+          (y > height * 0.7 ? 0.38 : y < height * 0.25 ? 0.24 : 0.3) * PIECE_OPACITY_SCALE;
         drawPiece(`field-${c}-${r}`, shape, x, y, pieceStyle, opacity);
       }
     }
@@ -206,11 +212,11 @@ export function GeometricPatternBackground() {
             <Stop offset="100%" stopColor="#041631" />
           </LinearGradient>
           <LinearGradient id="glowTop" x1="0%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="rgba(16,185,129,0.1)" />
+            <Stop offset="0%" stopColor={GLOW_TOP} />
             <Stop offset="100%" stopColor="rgba(16,185,129,0)" />
           </LinearGradient>
           <LinearGradient id="glowBottom" x1="100%" y1="0%" x2="0%" y2="100%">
-            <Stop offset="0%" stopColor="rgba(59,130,246,0.09)" />
+            <Stop offset="0%" stopColor={GLOW_BOTTOM} />
             <Stop offset="100%" stopColor="rgba(59,130,246,0)" />
           </LinearGradient>
         </Defs>

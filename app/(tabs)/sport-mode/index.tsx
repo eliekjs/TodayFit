@@ -1489,7 +1489,12 @@ export default function AdaptiveModeScreen() {
         <Pressable
           style={[
             styles.advancedFiltersHeader,
-            { borderBottomColor: theme.border, marginTop: 20 },
+            {
+              borderBottomColor: theme.border,
+              backgroundColor: theme.sectionSurface,
+              borderColor: theme.border,
+              marginTop: 20,
+            },
           ]}
           onPress={() => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -2287,7 +2292,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 16,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
   },
   advancedFiltersTitle: {
     fontSize: 16,

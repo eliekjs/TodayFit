@@ -61,16 +61,29 @@ export function CollapsiblePreferenceSection({
   const subtitleStyle = nested ? styles.subtitleNested : styles.subtitle;
   const bodyStyle = nested ? styles.bodyNested : styles.body;
 
+  const showSurface = !nested;
+
   return (
-    <View style={[styles.wrapper, { marginTop }, style]}>
+    <View
+      style={[
+        styles.wrapper,
+        showSurface && styles.wrapperSurface,
+        showSurface && {
+          backgroundColor: theme.sectionSurface,
+          borderColor: theme.border,
+        },
+        { marginTop },
+        style,
+      ]}
+    >
       <Pressable
         onPress={handlePress}
         style={({ pressed }) => [
           headerStyle,
           {
-            borderBottomColor: theme.border,
-            backgroundColor: expanded ? theme.card : "transparent",
-            opacity: pressed ? 0.85 : 1,
+            borderBottomColor: expanded ? theme.border : "transparent",
+            backgroundColor: pressed ? theme.cardOpaque : "transparent",
+            opacity: pressed ? 0.92 : 1,
           },
         ]}
         accessibilityRole="button"
@@ -120,14 +133,19 @@ const styles = StyleSheet.create({
     pointerEvents: "box-none",
   },
   wrapper: {
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  wrapperSurface: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 14,
-    paddingHorizontal: 4,
+    paddingHorizontal: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
@@ -136,7 +154,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 10,
-    paddingHorizontal: 2,
+    paddingHorizontal: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 10,
   },
@@ -187,14 +205,14 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingTop: 16,
-    paddingBottom: 8,
-    paddingHorizontal: 4,
+    paddingBottom: 12,
+    paddingHorizontal: 14,
     borderLeftWidth: 0,
   },
   bodyNested: {
     paddingTop: 12,
-    paddingBottom: 6,
-    paddingHorizontal: 2,
+    paddingBottom: 8,
+    paddingHorizontal: 10,
     borderLeftWidth: 0,
   },
 });

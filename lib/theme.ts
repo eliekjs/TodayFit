@@ -6,6 +6,8 @@ const todayFitPalette = {
   /** Frosted slate — high enough opacity for labels over the pattern background (esp. iOS). */
   card: "rgba(22,30,46,0.84)",
   cardOpaque: "rgba(22,30,46,0.94)",
+  /** Accordion / preference rows — extra opacity so white labels stay readable on native. */
+  sectionSurface: "rgba(22,30,46,0.93)",
   border: "rgba(148,163,184,0.34)",
   text: "#f8fafc",
   textMuted: "rgba(226,232,240,0.84)",
@@ -28,6 +30,7 @@ const todayFitDarkPalette = {
   background: "rgba(6,16,38,0.58)",
   card: "rgba(15,23,42,0.86)",
   cardOpaque: "rgba(15,23,42,0.94)",
+  sectionSurface: "rgba(15,23,42,0.93)",
   border: "rgba(148,163,184,0.28)",
   primarySoft: "rgba(13,148,136,0.1)",
   secondarySoft: "rgba(59,130,246,0.08)",

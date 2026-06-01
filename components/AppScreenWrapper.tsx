@@ -1,17 +1,15 @@
 import React from "react";
 import { View, StyleSheet, Platform, type ViewStyle } from "react-native";
-import { GeometricPatternBackground } from "./GeometricPatternBackground";
 
 type Props = {
   children: React.ReactNode;
   style?: ViewStyle;
 };
 
-/** Wraps in-app screen content with TodayFit background + geometric pattern. */
+/** Wraps in-app screen content above the root geometric background (`app/_layout.tsx`). */
 export function AppScreenWrapper({ children, style }: Props) {
   return (
     <View style={[styles.container, style]}>
-      <GeometricPatternBackground />
       <View style={styles.foreground}>{children}</View>
     </View>
   );

@@ -927,7 +927,11 @@ export default function ManualPreferencesScreen() {
         <Pressable
           style={[
             styles.advancedFiltersHeader,
-            { borderBottomColor: theme.border },
+            {
+              borderBottomColor: theme.border,
+              backgroundColor: theme.sectionSurface,
+              borderColor: theme.border,
+            },
           ]}
           onPress={toggleRefinements}
         >
@@ -1674,7 +1678,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 32,
     paddingVertical: 16,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
   },
   advancedFiltersTitle: {
     fontSize: 16,
