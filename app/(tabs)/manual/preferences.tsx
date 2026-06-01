@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useLayoutEffect, type RefObject } from "react";
+import React, { useState, useRef, useCallback, useLayoutEffect, useEffect, type RefObject } from "react";
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
+import { prefetchWorkoutGenerationStack } from "../../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import {
   PRIMARY_FOCUS_OPTIONS,
@@ -117,6 +118,11 @@ export default function ManualPreferencesScreen() {
   const isWeek = scope === "week";
   const [isGenerating, setIsGenerating] = useState(false);
   const generationCancelledRef = useRef(false);
+
+  useEffect(() => {
+    void prefetchWorkoutGenerationStack();
+  }, []);
+
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
 
   useLayoutEffect(() => {
@@ -396,9 +402,10 @@ export default function ManualPreferencesScreen() {
     setIsGenerating(true);
     try {
       const profile = gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-      const preferredNames = await preferredExerciseNamesForManualPreferences(manualPreferences);
-      if (generationCancelledRef.current) return;
-      const { generateWorkoutAsync } = await loadGeneratorModule();
+      const [preferredNames, { generateWorkoutAsync }] = await Promise.all([
+        preferredExerciseNamesForManualPreferences(manualPreferences),
+        loadGeneratorModule(),
+      ]);
       if (generationCancelledRef.current) return;
       const workout = await generateWorkoutAsync(
         manualPreferences,
