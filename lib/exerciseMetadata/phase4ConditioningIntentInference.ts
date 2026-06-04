@@ -76,7 +76,10 @@ export function inferPhase4ConditioningIntents(
   const sprintName = /\bsprint\b|max_velocity|maximal_velocity|flying_sprint|accel_/.test(b);
   const thresholdName = /threshold|tempo_run|lactate|ftp\b|10k_pace|cruise|yasso/.test(b);
   const zone2Name = /zone2|zone_2|steady|easy_run|recovery_run|recovery_jog|long_slow|lsd\b|aerobic_base/.test(b);
-  const hillName = /\bhill|uphill|incline|stair|sled_push|sled_drag|walking_lunge|hill_sprint/.test(b) || b.includes("stair_climber");
+  const hillName =
+    (/\bhill|uphill|incline|stair|sled_push|sled_drag|hill_sprint\b/.test(b) || b.includes("stair_climber")) &&
+    !/\b(incline|hill).*(press|bench|fly|curl|row|raise|pike)\b/.test(b) &&
+    !b.includes("walking_lunge");
   const plyoJumpName =
     /\b(jump|hop|bound|plyo|plyometric|box_jump|depth_jump|squat_jump|tuck_jump|broad_jump|lateral_bound|burpee)\b/.test(b) ||
     b.includes("box_jump") ||
@@ -105,7 +108,13 @@ export function inferPhase4ConditioningIntents(
   if (plyoJumpName) {
     add("lower_body_power_plyos");
     add("intervals_hiit");
-    if (/\bvertical_jump|depth_jump|box_jump\b/.test(b) || b.includes("vertical_jump")) add("vertical_jump");
+    const notBroadDominant = !/\bbroad_jump\b|\bbroad_jumps\b|\bbroad_to\b|\bbroad_with\b/.test(b);
+    const notAccessoryBounds = !/\b(crossover_bounds|straight_leg_bounds|woodchop|jump_cut)\b/.test(b);
+    const verticalCue =
+      /\b(vertical_jump|depth_jump|depth_drop|box_jump|tuck_jump|squat_jump|hurdle_jump|pogo|knee_jump|trap_bar_jump|skater_jump|single_leg_vertical|low_squat_jump|rebound_vertical|approach_.*jump|low_squat_to_vertical)\b/.test(
+        b
+      ) || b.includes("vertical_jump");
+    if (verticalCue && notBroadDominant && notAccessoryBounds) add("vertical_jump");
   }
 
   if (upperPowerName) {
@@ -120,36 +129,53 @@ export function inferPhase4ConditioningIntents(
     if (/incline|hill|grade|uphill/.test(b)) add("hills");
     if (sprintName || hiitName) {
       add("sprint");
-      add("intervals_hiit");
+      if (hiitName) add("intervals_hiit");
+    } else if (thresholdName || /cruise_interval|tempo_run/.test(b)) {
+      add("threshold_tempo");
     } else if (zone2Name || /walk|jog|easy|light/.test(b)) {
       add("zone2_aerobic_base");
-    } else {
+    } else if (!/incline|hill|uphill/.test(b)) {
       add("zone2_aerobic_base");
-      add("threshold_tempo");
     }
   }
 
   if (eq.has("bike") && !eq.has("assault_bike")) {
-    add("zone2_aerobic_base");
-    if (hiitName || sprintName) add("intervals_hiit");
+    if (thresholdName || /sweet_spot|threshold/.test(b)) {
+      add("threshold_tempo");
+    } else {
+      add("zone2_aerobic_base");
+      if (hiitName || sprintName || /interval|sprint/.test(b)) add("intervals_hiit");
+    }
   }
 
   if (eq.has("assault_bike") || b.includes("assault_bike") || b.includes("air_bike")) {
-    add("intervals_hiit");
-    add("threshold_tempo");
-    add("zone2_aerobic_base");
+    if (thresholdName || /sweet_spot|threshold/.test(b)) {
+      add("threshold_tempo");
+    } else {
+      add("intervals_hiit");
+      add("threshold_tempo");
+      add("zone2_aerobic_base");
+    }
   }
 
   if (eq.has("rower") || b.includes("rower") || b.includes("rowing")) {
-    add("zone2_aerobic_base");
-    add("threshold_tempo");
-    add("intervals_hiit");
+    if (thresholdName || b.includes("threshold")) {
+      add("threshold_tempo");
+    } else {
+      add("zone2_aerobic_base");
+      add("threshold_tempo");
+      if (hiitName || sprintName || /interval|sprint/.test(b)) add("intervals_hiit");
+    }
   }
 
   if (eq.has("ski_erg") || b.includes("ski_erg") || b.includes("ski_ergometer")) {
-    add("zone2_aerobic_base");
-    add("threshold_tempo");
-    add("intervals_hiit");
+    if (thresholdName || b.includes("threshold")) {
+      add("threshold_tempo");
+    } else {
+      add("zone2_aerobic_base");
+      add("threshold_tempo");
+      if (hiitName || sprintName || /interval|sprint/.test(b)) add("intervals_hiit");
+    }
   }
 
   if (eq.has("elliptical")) {
@@ -158,7 +184,7 @@ export function inferPhase4ConditioningIntents(
 
   if (eq.has("stair_climber") || b.includes("stair_climber")) {
     add("hills");
-    add("intervals_hiit");
+    if (hiitName || sprintName || /interval|sprint|repeat/.test(b)) add("intervals_hiit");
     if (zone2Name) add("zone2_aerobic_base");
   }
 
@@ -169,16 +195,16 @@ export function inferPhase4ConditioningIntents(
 
   // --- Locomotion (no machine): run/jog/shuffle ---
   if (patterns.has("locomotion") && isConditioningMod) {
-    if (sprintName || hiitName) {
+    if (sprintName) {
       add("sprint");
+      if (hiitName) add("intervals_hiit");
+    } else if (hiitName) {
       add("intervals_hiit");
     } else if (thresholdName) {
       add("threshold_tempo");
-      add("intervals_hiit");
     } else if (hillName) {
       add("hills");
-      add("intervals_hiit");
-    } else if (zone2Name || /jog|run|shuffle|march|tempo_run/.test(b)) {
+    } else if (zone2Name || /jog|run|shuffle|march/.test(b)) {
       add("zone2_aerobic_base");
       if (/tempo/.test(b) && !sprintName) add("threshold_tempo");
     }

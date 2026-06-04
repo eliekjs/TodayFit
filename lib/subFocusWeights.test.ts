@@ -65,4 +65,26 @@ describe("subFocusWeights", () => {
       Y: 50,
     });
   });
+
+  it("buildMerged resolves adaptive display labels to canonical sub-focus keys", () => {
+    const { goal_sub_focus } = buildMergedGoalSubFocusSlugWeights({
+      labelsForSubFocusMerge: ["Build Strength"],
+      subFocusByGoal: {
+        "Build muscle": ["Glutes"],
+      },
+    });
+    expect(goal_sub_focus["muscle"]).toContain("glutes");
+  });
+
+  it("buildMerged includes subFocusByGoal keys not listed in labelsForSubFocusMerge", () => {
+    const { goal_sub_focus } = buildMergedGoalSubFocusSlugWeights({
+      labelsForSubFocusMerge: ["Build Strength"],
+      subFocusByGoal: {
+        "Build Strength": ["Squat"],
+        "Improve Endurance": ["Hills"],
+      },
+    });
+    expect(goal_sub_focus["strength"]).toContain("squat");
+    expect(goal_sub_focus["endurance"]).toContain("hills");
+  });
 });

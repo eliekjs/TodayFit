@@ -281,6 +281,52 @@ describe("sessionIntentCoverage", () => {
     expect(counts.endurance).toBe(2);
   });
 
+  it("annotateSessionIntentLinksOnBlocks keeps verified sub_focus over proportional goal slot", () => {
+    const ex: Exercise = {
+      id: "hip_thrust",
+      name: "Hip Thrust",
+      movement_pattern: "hinge",
+      muscle_groups: ["glutes", "legs"],
+      modality: "strength",
+      equipment_required: ["barbell"],
+      difficulty: 2,
+      time_cost: "medium",
+      tags: { goal_tags: ["hypertrophy", "strength"], attribute_tags: ["glutes"] },
+    };
+    const input: GenerateWorkoutInput = {
+      duration_minutes: 45,
+      primary_goal: "strength",
+      secondary_goals: ["hypertrophy"],
+      energy_level: "medium",
+      available_equipment: ["barbell"],
+      injuries_or_constraints: [],
+      goal_sub_focus: { muscle: ["glutes"] },
+      goal_weights: [0.5, 0.5],
+      seed: 99,
+    };
+    const block: WorkoutBlock = {
+      block_type: "main_strength",
+      format: "straight_sets",
+      title: "Main",
+      items: [
+        {
+          exercise_id: "hip_thrust",
+          exercise_name: "Hip Thrust",
+          sets: 4,
+          reps: 8,
+          rest_seconds: 90,
+          coaching_cues: "",
+          unilateral: false,
+        },
+      ],
+    };
+    annotateSessionIntentLinksOnBlocks([block], input, new Map([["hip_thrust", ex]]));
+    const links = block.items[0]!.session_intent_links!;
+    expect(links.sub_focus?.some((s) => s.sub_slug === "glutes")).toBe(true);
+    expect(links.goals).toContain("muscle");
+    expect(links.intent_inferred).toBeUndefined();
+  });
+
   it("buildFallbackSessionIntentLinks omits declared sport sub-focuses without exercise metadata", () => {
     const input: GenerateWorkoutInput = {
       duration_minutes: 45,

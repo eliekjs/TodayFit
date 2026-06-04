@@ -1,5 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Platform, type ViewStyle } from "react-native";
+import { useIsFocused } from "@react-navigation/native";
 
 type Props = {
   children: React.ReactNode;
@@ -8,6 +9,13 @@ type Props = {
 
 /** Wraps in-app screen content above the root geometric background (`app/_layout.tsx`). */
 export function AppScreenWrapper({ children, style }: Props) {
+  const isFocused = useIsFocused();
+
+  /** RN Web keeps every tab route mounted; hide unfocused scenes to avoid stacked UI (see FocusAwareTabHeader). */
+  if (Platform.OS === "web" && !isFocused) {
+    return null;
+  }
+
   return (
     <View style={[styles.container, style]}>
       <View style={styles.foreground}>{children}</View>

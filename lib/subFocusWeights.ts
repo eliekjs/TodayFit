@@ -10,6 +10,7 @@
  */
 
 import {
+  canonicalGoalSubFocusLabel,
   resolveGoalSubFocusSlugs,
   resolveSubFocusProfile,
 } from "../data/goalSubFocus";
@@ -151,7 +152,8 @@ function perLabelSlugWeights(
   subLabels: string[],
   pctByGoal?: Record<string, Record<string, number>>
 ): { goalSlug: string; pairs: { slug: string; w: number }[] } | null {
-  const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(label, subLabels);
+  const canonicalLabel = canonicalGoalSubFocusLabel(label);
+  const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(canonicalLabel, subLabels);
   if (!goalSlug || subFocusSlugs.length === 0) return null;
 
   if (labelHasExplicitSubFocusPct(label, subLabels, pctByGoal)) {
@@ -198,10 +200,21 @@ export function buildMergedGoalSubFocusSlugWeights(
   const { labelsForSubFocusMerge, subFocusByGoal, subFocusPctByGoal } = opts;
   const goal_sub_focus: Record<string, string[]> = {};
 
+  const labelsToMerge = new Set<string>();
   for (const label of labelsForSubFocusMerge) {
+    if ((subFocusByGoal[label] ?? []).length > 0) labelsToMerge.add(label);
+  }
+  for (const label of Object.keys(subFocusByGoal)) {
+    if ((subFocusByGoal[label] ?? []).length > 0) labelsToMerge.add(label);
+  }
+
+  for (const label of labelsToMerge) {
     const subLabels = subFocusByGoal[label] ?? [];
     if (!subLabels.length) continue;
-    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(label, subLabels);
+    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(
+      canonicalGoalSubFocusLabel(label),
+      subLabels
+    );
     if (!goalSlug || !subFocusSlugs.length) continue;
     const existing = goal_sub_focus[goalSlug] ?? [];
     goal_sub_focus[goalSlug] = [...new Set([...existing, ...subFocusSlugs])];
@@ -215,7 +228,7 @@ export function buildMergedGoalSubFocusSlugWeights(
     acc[goalSlug]![slug] = (acc[goalSlug]![slug] ?? 0) + w;
   };
 
-  for (const label of labelsForSubFocusMerge) {
+  for (const label of labelsToMerge) {
     const subLabels = subFocusByGoal[label] ?? [];
     if (!subLabels.length) continue;
     const pack = perLabelSlugWeights(label, subLabels, subFocusPctByGoal);

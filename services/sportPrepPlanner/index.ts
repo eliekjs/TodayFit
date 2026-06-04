@@ -23,6 +23,12 @@ import {
 import { composeRunGenerationSeed } from "../../lib/dailyGeneratorAdapter";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import type { Exercise } from "../../logic/workoutGeneration/types";
+import {
+  createExplicitWeekSlotPicker,
+  hasExplicitWeekDaySchedule,
+  interleaveGymAndSportSlots,
+  unionTrainingDayIndices,
+} from "./weekDaySlotAssignment";
 
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
@@ -43,6 +49,10 @@ export type PlanWeekInput = {
   gymDaysPerWeek: number;
   /** Per-sport days per week (e.g. { road_running: 2, climbing: 1 }). Same day can have gym + sport. */
   sportDaysAllocation?: SportDaysAllocation;
+  /** Weekday indices for gym sessions (0=Mon .. 6=Sun). When set, slots map to these days, not interleaved order. */
+  gymTrainingDays?: number[];
+  /** Weekday indices per sport slug. When set with gymTrainingDays, drives sport-day slot placement. */
+  sportTrainingDaysBySlug?: Record<string, number[]>;
   /** Ordered sport slugs [primary, secondary] for slot order and sub-focus (sportSlug is primary). */
   rankedSportSlugs?: string[];
   /** When 2 sports: [1st sport %, 2nd sport %], sum = 100. Used to weight sport focus in exercise selection. */
@@ -51,7 +61,8 @@ export type PlanWeekInput = {
   sportVsGoalPct?: number;
   /** Sub-focus slugs per sport (sportSlug -> slugs). Used when 1 or 2 sports for exercise-tag biasing. */
   sportSubFocusSlugsBySport?: Record<string, string[]>;
-  preferredTrainingDays?: number[]; // 0 (Sun) - 6 (Sat) relative to weekStartDate
+  /** Training weekdays 0=Mon .. 6=Sun (union of gym + sport days when schedule screen is used). */
+  preferredTrainingDays?: number[];
   defaultSessionDuration: number;
   energyBaseline: EnergyLevel;
   /** Recent load (e.g. "Long Run", "Heavy Lower") so each workout avoids exercises that add strain. */
@@ -126,6 +137,8 @@ export type ScheduleSnapshot = {
   sportSubFocusSlugs?: string[];
   gymDaysPerWeek: number;
   sportDaysAllocation?: SportDaysAllocation;
+  gymTrainingDays?: number[];
+  sportTrainingDaysBySlug?: Record<string, number[]>;
   rankedSportSlugs?: string[];
   sportFocusPct?: [number, number];
   sportVsGoalPct?: number;
@@ -576,35 +589,7 @@ function spreadTrainingDays(totalDays: number): number[] {
 }
 
 /**
- * Reorder slots so gym and sport alternate in the week (gym, sport, gym, sport, ...).
- * Caller assigns slots in array order to training days in ascending day index.
- * So Mon gets slots[0], Tue gets slots[1], etc. Interleaving gives gym/sport between days.
- */
-function interleaveGymAndSportSlots(slots: DaySlot[]): DaySlot[] {
-  const gym: DaySlot[] = [];
-  const sport: DaySlot[] = [];
-  for (const s of slots) {
-    if (s.type === "gym") gym.push(s);
-    else sport.push(s);
-  }
-  const result: DaySlot[] = [];
-  let gi = 0;
-  let si = 0;
-  for (let i = 0; i < slots.length; i++) {
-    if (i % 2 === 0 && gi < gym.length) {
-      result.push(gym[gi++]);
-    } else if (si < sport.length) {
-      result.push(sport[si++]);
-    } else {
-      result.push(gym[gi++]);
-    }
-  }
-  while (gi < gym.length) result.push(gym[gi++]);
-  while (si < sport.length) result.push(sport[si++]);
-  return result;
-}
 
-/**
  * Assign goal slugs to gym slots when goalDistributionStyle is dedicate_days.
  * Returns array of length gymDaysPerWeek: each element is the goal slug for that day.
  */
@@ -923,13 +908,26 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         ).sort((a, b) => a - b)
       : null;
 
+  const explicitWeekSchedule = hasExplicitWeekDaySchedule(
+    input.gymTrainingDays,
+    input.sportTrainingDaysBySlug
+  );
+
   const trainingIndices: number[] = [];
   let totalTrainingDays: number;
 
-  if (preferredUnique && preferredUnique.length > 0) {
+  if (explicitWeekSchedule && (input.gymTrainingDays?.length ?? 0) > 0) {
+    trainingIndices.push(
+      ...unionTrainingDayIndices(
+        input.gymTrainingDays ?? [],
+        input.sportTrainingDaysBySlug ?? {}
+      )
+    );
+    totalTrainingDays = trainingIndices.length;
+  } else if (preferredUnique && preferredUnique.length > 0) {
     trainingIndices.push(...preferredUnique);
     totalTrainingDays = trainingIndices.length;
-    // Ensure we have at least as many slots as training days (pad with gym slots if needed).
+    // Legacy path: pad with gym slots when day count exceeds built slots (no per-weekday gym/sport map).
     const needSlots = totalTrainingDays - daySlots.length;
     if (needSlots > 0) {
       for (let i = 0; i < needSlots; i++) {
@@ -967,6 +965,39 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   const todayIso = toIsoDate(today);
   const orderedIntents =
     intentOrder.length > 0 ? intentOrder : (["strength"] as IntentKey[]);
+
+  const pickExplicitSlot =
+    explicitWeekSchedule && (input.gymTrainingDays?.length ?? 0) > 0
+      ? createExplicitWeekSlotPicker(
+          input.gymTrainingDays ?? [],
+          input.sportTrainingDaysBySlug ?? {},
+          rankedSportSlugs,
+          daySlots
+        )
+      : null;
+  const rawSlotsForLegacy =
+    daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : [];
+  const legacySlotsToUse =
+    pickExplicitSlot == null && rawSlotsForLegacy.length > 0
+      ? hasSportSlots
+        ? interleaveGymAndSportSlots(rawSlotsForLegacy)
+        : rawSlotsForLegacy
+      : null;
+
+  const resolveSlotForTrainingDay = (
+    dayIdx: number,
+    legacySlotIdx: number
+  ): DaySlot => {
+    const explicit = pickExplicitSlot?.(dayIdx);
+    if (explicit) return explicit;
+    if (legacySlotsToUse && legacySlotsToUse[legacySlotIdx]) {
+      return legacySlotsToUse[legacySlotIdx];
+    }
+    return {
+      type: "gym",
+      key: orderedIntents[legacySlotIdx % orderedIntents.length],
+    };
+  };
 
   const injurySlugsForPool = (input.injuries ?? []).map((i) => i.toLowerCase().replace(/\s/g, "_"));
   let sharedExercisePool: Exercise[] | undefined;
@@ -1112,14 +1143,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   if (!input.userId) {
     const guestWorkouts: Record<string, GeneratedWorkout> = {};
     const plannedDays: PlannedDay[] = [];
-    const rawSlots = daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : [];
-    const slotsToUse =
-      rawSlots.length > 0
-        ? hasSportSlots
-          ? interleaveGymAndSportSlots(rawSlots)
-          : rawSlots
-        : null;
-    let trainingSlotIdx = 0;
+    let legacySlotIdx = 0;
     for (let dayIdx = 0; dayIdx < 7; dayIdx += 1) {
       const date = weekDates[dayIdx];
       const isTrainingDay = trainingIndexSet.has(dayIdx);
@@ -1133,13 +1157,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         });
         continue;
       }
-      const slot: DaySlot = slotsToUse
-        ? slotsToUse[trainingSlotIdx]
-        : {
-            type: "gym",
-            key: orderedIntents[trainingSlotIdx % orderedIntents.length],
-          };
-      trainingSlotIdx += 1;
+      const slot = resolveSlotForTrainingDay(dayIdx, legacySlotIdx);
+      legacySlotIdx += 1;
       const { intent, workout, title, dayLevelFocus } = await buildWorkoutForSlot(slot, date);
       guestWorkouts[date] = workout;
       plannedDays.push({
@@ -1168,6 +1187,13 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       sportVsGoalPct: input.sportVsGoalPct,
       sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
       preferredTrainingDays: trainingIndices.length > 0 ? trainingIndices : input.preferredTrainingDays,
+      gymTrainingDays:
+        input.gymTrainingDays?.length ? [...input.gymTrainingDays].sort((a, b) => a - b) : undefined,
+      sportTrainingDaysBySlug:
+        input.sportTrainingDaysBySlug &&
+        Object.keys(input.sportTrainingDaysBySlug).length > 0
+          ? { ...input.sportTrainingDaysBySlug }
+          : undefined,
       defaultSessionDuration: input.defaultSessionDuration,
       energyBaseline: input.energyBaseline,
       recentLoad: input.recentLoad,
@@ -1291,14 +1317,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   };
 
   const plannedDays: PlannedDay[] = [];
-  const rawSlots = daySlots.length > 0 ? daySlots.slice(0, totalTrainingDays) : [];
-  const slotsToUse =
-    rawSlots.length > 0
-      ? hasSportSlots
-        ? interleaveGymAndSportSlots(rawSlots)
-        : rawSlots
-      : null;
-  let trainingSlotIdx = 0;
+  let legacySlotIdx = 0;
   /** In-memory workouts keyed by workout id and ISO date — avoids re-fetching after save. */
   const inMemoryWorkouts: Record<string, GeneratedWorkout> = {};
 
@@ -1393,13 +1412,8 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         continue;
       }
 
-      const slot: DaySlot = slotsToUse
-        ? slotsToUse[trainingSlotIdx]
-        : {
-            type: "gym",
-            key: orderedIntents[trainingSlotIdx % orderedIntents.length],
-          };
-      trainingSlotIdx += 1;
+      const slot = resolveSlotForTrainingDay(dayIdx, legacySlotIdx);
+      legacySlotIdx += 1;
 
       const { intent: sessionIntent, workout, title, dayLevelFocus } = await buildWorkoutForSlot(
         slot,
@@ -1509,6 +1523,13 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     sportVsGoalPct: input.sportVsGoalPct,
     sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
     preferredTrainingDays: trainingIndices.length > 0 ? trainingIndices : input.preferredTrainingDays,
+    gymTrainingDays:
+      input.gymTrainingDays?.length ? [...input.gymTrainingDays].sort((a, b) => a - b) : undefined,
+    sportTrainingDaysBySlug:
+      input.sportTrainingDaysBySlug &&
+      Object.keys(input.sportTrainingDaysBySlug).length > 0
+        ? { ...input.sportTrainingDaysBySlug }
+        : undefined,
     defaultSessionDuration: input.defaultSessionDuration,
     energyBaseline: input.energyBaseline,
     recentLoad: input.recentLoad,

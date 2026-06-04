@@ -15,35 +15,43 @@ import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
 import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
+import { ActiveSessionCard } from "../../components/ActiveSessionCard";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
+import { navigateToSessionFlow } from "../../lib/sessionFlowNavigation";
+import type { SessionFlow } from "../../lib/sessionDraft";
 
 type ActionCardProps = {
   icon: React.ComponentProps<typeof Ionicons>["name"];
   title: string;
   subtitle: string;
+  oneDayFlow: SessionFlow;
+  weekFlow: SessionFlow;
   oneDayHref: string;
   weekHref: string;
   oneDayLabel?: string;
   weekLabel?: string;
   variant: "build" | "help";
   theme: ReturnType<typeof useTheme>;
+  onNavigateFlow: (flow: SessionFlow, href: string) => void;
 };
 
 function ActionCard({
   icon,
   title,
   subtitle,
+  oneDayFlow,
+  weekFlow,
   oneDayHref,
   weekHref,
   oneDayLabel = "One day",
   weekLabel = "This week",
   variant,
   theme,
+  onNavigateFlow,
 }: ActionCardProps) {
-  const router = useRouter();
   const isBuild = variant === "build";
   const accent = isBuild ? "rgba(45,212,191,0.86)" : "rgba(96,165,250,0.82)";
   const accentSoft = isBuild ? "rgba(45,212,191,0.12)" : "rgba(96,165,250,0.12)";
@@ -68,7 +76,7 @@ function ActionCard({
       <View style={styles.subButtons}>
         <Pressable
           style={({ pressed }) => [styles.subButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
-          onPress={() => router.push(oneDayHref)}
+          onPress={() => onNavigateFlow(oneDayFlow, oneDayHref)}
         >
           <LinearGradient
             colors={["rgba(45,212,191,0.7)", "rgba(59,130,246,0.66)"]}
@@ -81,7 +89,7 @@ function ActionCard({
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.subButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
-          onPress={() => router.push(weekHref)}
+          onPress={() => onNavigateFlow(weekFlow, weekHref)}
         >
           <View style={[styles.subButton, styles.subButtonSecondary]}>
             <Text style={styles.subButtonText}>{weekLabel}</Text>
@@ -98,13 +106,10 @@ export default function HomeScreen() {
   const { hasEntered, isHydrated } = useWelcome();
   const {
     manualPreferences,
-    manualWeekPlan,
-    sportPrepWeekPlan,
-    generatedWorkout,
+    activeSessionDraft,
+    beginSessionFlow,
+    replaceSessionFlow,
     setGeneratedWorkout,
-    setManualWeekPlan,
-    manualExecutionStarted,
-    setManualExecutionStarted,
     activeGymProfileId,
     gymProfiles,
     workoutHistory,
@@ -118,41 +123,25 @@ export default function HomeScreen() {
     void prefetchWorkoutGenerationStack();
   }, []);
 
-  const primaryGoal =
-    manualPreferences.primaryFocus[0] ?? "Not set";
-  const secondaryGoal =
-    manualPreferences.primaryFocus[1] ?? "Not set";
+  const primaryGoal = manualPreferences.primaryFocus[0] ?? "Not set";
+  const secondaryGoal = manualPreferences.primaryFocus[1] ?? "Not set";
   const activeProfile =
     gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
   const canTrainToday =
     manualPreferences.primaryFocus.length >= 1 && activeProfile != null;
 
-  const hasInProgress =
-    manualWeekPlan != null || sportPrepWeekPlan != null || generatedWorkout != null;
-
-  /** Single-day "week" is treated as one workout; no week view. */
-  const isSingleWorkout =
-    generatedWorkout != null ||
-    (manualWeekPlan != null && manualWeekPlan.days.length === 1);
-  const continueEditingManualWorkout = () => {
-    router.push("/manual/workout");
+  const onNavigateFlow = (flow: SessionFlow, href: string) => {
+    navigateToSessionFlow(
+      router,
+      flow,
+      href,
+      beginSessionFlow,
+      replaceSessionFlow,
+      activeSessionDraft
+    );
   };
 
-  const continueOrStartManualExecution = () => {
-    setManualExecutionStarted(true);
-    if (generatedWorkout != null) {
-      router.push("/manual/execute");
-      return;
-    }
-    if (manualWeekPlan != null && manualWeekPlan.days.length === 1) {
-      setGeneratedWorkout(manualWeekPlan.days[0].workout);
-      setManualWeekPlan(null);
-      router.push("/manual/execute");
-    }
-  };
-  const continueWeek = () => router.push("/manual/week");
-
-  const onTrainToday = async () => {
+  const runTrainToday = async () => {
     if (!canTrainToday || !activeProfile) return;
     trainTodayCancelledRef.current = false;
     setIsTrainTodayGenerating(true);
@@ -194,6 +183,38 @@ export default function HomeScreen() {
     }
   };
 
+  const onTrainToday = () => {
+    if (!canTrainToday || !activeProfile) return;
+    if (beginSessionFlow("goal_day")) {
+      void runTrainToday();
+      return;
+    }
+    if (!activeSessionDraft) {
+      replaceSessionFlow("goal_day");
+      void runTrainToday();
+      return;
+    }
+    Alert.alert(
+      "Session in progress",
+      `You're already building a session. Continue that or replace it with a quick Train today workout?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          onPress: () => router.push(activeSessionDraft.resumeRoute as never),
+        },
+        {
+          text: "Train today",
+          style: "destructive",
+          onPress: () => {
+            replaceSessionFlow("goal_day");
+            void runTrainToday();
+          },
+        },
+      ]
+    );
+  };
+
   if (!isHydrated) {
     return null;
   }
@@ -221,108 +242,13 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <ActiveSessionCard />
+
         <Text style={[styles.headline, { color: theme.text }]}>
           Customize your gym session:
         </Text>
 
-        {hasInProgress && (
-          <View
-            style={[
-              styles.continueCard,
-              { backgroundColor: "rgba(15,23,42,0.52)" },
-            ]}
-          >
-            {isSingleWorkout && generatedWorkout != null ? (
-              <>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.continueCardRow,
-                    { opacity: pressed ? 0.88 : 1 },
-                  ]}
-                  onPress={continueEditingManualWorkout}
-                >
-                  <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
-                    Continue editing workout
-                  </Text>
-                  <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
-                    Adjust exercises, regenerate, or change preferences
-                  </Text>
-                </Pressable>
-                {manualExecutionStarted ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.continueCardRow,
-                      styles.continueCardRowSecond,
-                      {
-                        opacity: pressed ? 0.88 : 1,
-                        borderTopWidth: StyleSheet.hairlineWidth,
-                        borderTopColor: theme.border,
-                      },
-                    ]}
-                    onPress={continueOrStartManualExecution}
-                  >
-                    <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
-                      {"Continue today's workout"}
-                    </Text>
-                    <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
-                      Resume sets and checkboxes where you left off
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.continueCardRow,
-                      styles.continueCardRowSecond,
-                      {
-                        opacity: pressed ? 0.88 : 1,
-                        borderTopWidth: StyleSheet.hairlineWidth,
-                        borderTopColor: theme.border,
-                      },
-                    ]}
-                    onPress={continueOrStartManualExecution}
-                  >
-                    <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
-                      Start workout
-                    </Text>
-                    <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
-                      Open the execution screen and log your session
-                    </Text>
-                  </Pressable>
-                )}
-              </>
-            ) : (
-              <Pressable
-                style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}
-                onPress={() => {
-                  if (isSingleWorkout) continueOrStartManualExecution();
-                  else if (manualWeekPlan != null) continueWeek();
-                  else if (sportPrepWeekPlan != null) router.push("/sport-mode/recommendation");
-                }}
-              >
-                <Text style={[styles.continueCardTitle, { color: theme.primary }]}>
-                  {isSingleWorkout
-                    ? "Continue workout"
-                    : manualWeekPlan != null
-                      ? "Continue your week"
-                      : sportPrepWeekPlan != null
-                        ? "Continue your sport plan"
-                        : "Continue workout"}
-                </Text>
-                <Text style={[styles.continueCardSubtitle, { color: theme.textMuted }]}>
-                  {isSingleWorkout
-                    ? "Back to workout in progress"
-                    : manualWeekPlan != null
-                      ? "Back to this week's workouts"
-                      : sportPrepWeekPlan != null
-                        ? "Back to your sport plan"
-                        : "Back to workout in progress"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {canTrainToday && !hasInProgress && (
+        {canTrainToday && !activeSessionDraft && (
           <View
             style={[
               styles.trainTodayCard,
@@ -358,19 +284,25 @@ export default function HomeScreen() {
           icon="barbell-outline"
           title="Goal-Oriented Training"
           subtitle="Build workouts tailored to one or multiple goals (strength, physique, etc.)"
+          oneDayFlow="goal_day"
+          weekFlow="goal_week"
           oneDayHref="/manual/preferences"
           weekHref="/manual/preferences?scope=week"
           variant="build"
           theme={theme}
+          onNavigateFlow={onNavigateFlow}
         />
         <ActionCard
           icon="sparkles-outline"
           title="Sport-Focused Training"
           subtitle="Train for your sport(s) to prevent injuries and improve performance."
+          oneDayFlow="sport_day"
+          weekFlow="sport_week"
           oneDayHref="/sport-mode?scope=day"
           weekHref="/sport-mode"
           variant="help"
           theme={theme}
+          onNavigateFlow={onNavigateFlow}
         />
 
         {!canTrainToday && (
@@ -413,22 +345,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 15,
-    marginBottom: 24,
-  },
-  continueCard: {
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "rgba(45,212,191,0.28)",
-    backgroundColor: "rgba(15,23,42,0.65)",
-  },
-  continueCardRow: {
-    paddingVertical: 10,
-  },
   trainTodayCard: {
     borderRadius: 18,
     padding: 20,
@@ -459,18 +375,6 @@ const styles = StyleSheet.create({
   trainTodayHint: {
     fontSize: 12,
     lineHeight: 17,
-  },
-  continueCardRowSecond: {
-    marginTop: 4,
-    paddingTop: 14,
-  },
-  continueCardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  continueCardSubtitle: {
-    fontSize: 13,
-    marginTop: 4,
   },
   actionCard: {
     borderRadius: 22,

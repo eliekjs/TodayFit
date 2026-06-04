@@ -79,8 +79,8 @@ function testInferRowerMultiIntent() {
   });
   assert(out.intent_slugs.includes("zone2_aerobic_base"), "rower zone2");
   assert(out.intent_slugs.includes("threshold_tempo"), "rower threshold");
-  assert(out.intent_slugs.includes("intervals_hiit"), "rower hiit");
-  console.log("  OK: rower → zone2 + threshold + intervals (versatile erg)");
+  assert(!out.intent_slugs.includes("intervals_hiit"), "steady rower not auto-tagged hiit");
+  console.log("  OK: steady rower → zone2 + threshold (no default hiit)");
 }
 
 function testStrengthBenchNoPhase4() {

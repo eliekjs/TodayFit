@@ -63,6 +63,11 @@ import {
   isOneDaySportModeCombinationValid,
   ONE_DAY_SPORT_MODE_COMBINATION_HINT,
 } from "../../../lib/sportModeOneDayValidation";
+import { sessionFlowFromSportScope } from "../../../lib/sessionDraft";
+import {
+  applySportFormSnapshot,
+  buildSportFormSnapshot,
+} from "../../../lib/sportFormHydration";
 
 if (
   Platform.OS === "android" &&
@@ -130,6 +135,9 @@ export default function AdaptiveModeScreen() {
     setSportPrepWeekPlan,
     activeGymProfileId,
     gymProfiles,
+    beginSessionFlow,
+    consumeSportFormHydration,
+    commitSportFormSnapshot,
   } = useAppState();
   const { userId } = useAuth();
   const isOneDay = scope === "day";
@@ -180,16 +188,6 @@ export default function AdaptiveModeScreen() {
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
   const generationCancelledRef = useRef(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      generationCancelledRef.current = false;
-      setIsGeneratingOneDay(false);
-      return () => {
-        generationCancelledRef.current = true;
-        setIsGeneratingOneDay(false);
-      };
-    }, [])
-  );
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
   const [oneDayDuration, setOneDayDuration] = useState<number>(45);
   const [limitPopup, setLimitPopup] = useState<LimitPopupState | null>(null);
@@ -201,6 +199,63 @@ export default function AdaptiveModeScreen() {
   }, [manualPreferences.targetBody]);
   const [oneDayBodyBias, setOneDayBodyBias] =
     useState<NonNullable<DailyWorkoutPreferences["bodyRegionBias"]>>(defaultOneDayBodyBias);
+
+  const sportFormSnapshotRef = useRef<ReturnType<typeof buildSportFormSnapshot> | null>(null);
+  const oneDayBodyBiasForSnapshot: "upper" | "lower" | "full" =
+    oneDayBodyBias === "upper" || oneDayBodyBias === "lower" ? oneDayBodyBias : "full";
+
+  sportFormSnapshotRef.current = buildSportFormSnapshot({
+    rankedGoals,
+    intensityLevel,
+    injuryStatus,
+    injuryTypes,
+    sportFocusPct,
+    sportVsGoalPct,
+    rankedSportSlugs,
+    subFocusBySport,
+    oneDayDuration,
+    oneDayBodyBias: oneDayBodyBiasForSnapshot,
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      generationCancelledRef.current = false;
+      setIsGeneratingOneDay(false);
+      beginSessionFlow(sessionFlowFromSportScope(isOneDay));
+      const snap = consumeSportFormHydration();
+      if (snap) {
+        applySportFormSnapshot(snap, {
+          setRankedGoals,
+          setIntensityLevel,
+          setInjuryStatus,
+          setInjuryTypes,
+          setSportFocusPct,
+          setSportVsGoalPct,
+          setRankedSportSlugs,
+          setSubFocusBySport,
+          setOneDayDuration,
+          setOneDayBodyBias: (value) => {
+            const next = typeof value === "function" ? value(oneDayBodyBiasForSnapshot) : value;
+            setOneDayBodyBias(next);
+          },
+        });
+      }
+      return () => {
+        generationCancelledRef.current = true;
+        setIsGeneratingOneDay(false);
+        if (sportFormSnapshotRef.current) {
+          commitSportFormSnapshot(sportFormSnapshotRef.current);
+        }
+      };
+    }, [
+      isOneDay,
+      beginSessionFlow,
+      consumeSportFormHydration,
+      commitSportFormSnapshot,
+      oneDayBodyBiasForSnapshot,
+    ])
+  );
+
   const showLimitPopup = useCallback((message: string, anchor?: LimitPopupAnchor) => {
     if (limitPopupTimerRef.current) {
       clearTimeout(limitPopupTimerRef.current);

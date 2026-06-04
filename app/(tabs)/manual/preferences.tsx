@@ -59,6 +59,7 @@ import {
 import type { TargetBody } from "../../../lib/types";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
+import { sessionFlowFromManualScope } from "../../../lib/sessionDraft";
 
 if (
   Platform.OS === "android" &&
@@ -93,6 +94,7 @@ export default function ManualPreferencesScreen() {
     workoutHistory,
     savedWorkouts,
     manualSessionProgress,
+    beginSessionFlow,
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
   const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
@@ -138,6 +140,7 @@ export default function ManualPreferencesScreen() {
       generationCancelledRef.current = false;
       setIsGenerating(false);
       setManualGoalPreferencesScope(isWeek ? "week" : "day");
+      beginSessionFlow(sessionFlowFromManualScope(isWeek ? "week" : "day"));
       setDismissedConflictIds([]);
       const updates: Partial<typeof defaultManualPreferences> = {};
       if (manualPreferences.durationMinutes == null) {
@@ -161,6 +164,7 @@ export default function ManualPreferencesScreen() {
       manualPreferences.targetBody,
       updateManualPreferences,
       setManualGoalPreferencesScope,
+      beginSessionFlow,
     ])
   );
 

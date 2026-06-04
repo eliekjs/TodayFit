@@ -44,6 +44,33 @@ export type { ExerciseForStrengthSubFocus } from "./strengthSubFocus";
 
 import { GOAL_SUB_FOCUS_OPTIONS } from "./goalSubFocusOptions";
 import { GOAL_SUB_FOCUS_TAG_MAP } from "./goalSubFocusTagMap";
+import {
+  GOAL_SLUG_TO_LABEL,
+  GOAL_SLUG_TO_PRIMARY_FOCUS,
+  PRIMARY_FOCUS_TO_GOAL_SLUG,
+} from "../../lib/goalSlugMapping";
+
+/**
+ * Map UI / adaptive display labels to canonical keys in GOAL_SUB_FOCUS_OPTIONS.
+ * Prevents sub-focus from being silently dropped when label strings differ (e.g. adaptive "Build muscle"
+ * vs manual "Build Muscle (Hypertrophy)").
+ */
+export function canonicalGoalSubFocusLabel(label: string): string {
+  const trimmed = label.trim();
+  if (GOAL_SUB_FOCUS_OPTIONS[trimmed]) return trimmed;
+  for (const [canonical, slug] of Object.entries(PRIMARY_FOCUS_TO_GOAL_SLUG)) {
+    if (canonical.toLowerCase() === trimmed.toLowerCase()) return canonical;
+    if (slug.toLowerCase() === trimmed.toLowerCase()) {
+      return GOAL_SLUG_TO_PRIMARY_FOCUS[slug] ?? canonical;
+    }
+  }
+  for (const [slug, display] of Object.entries(GOAL_SLUG_TO_LABEL)) {
+    if (display.toLowerCase() === trimmed.toLowerCase()) {
+      return GOAL_SLUG_TO_PRIMARY_FOCUS[slug] ?? trimmed;
+    }
+  }
+  return trimmed;
+}
 
 /**
  * Resolve primary focus label + sub-focus labels to goal slug and sub-focus slugs.
@@ -53,7 +80,7 @@ export function resolveGoalSubFocusSlugs(
   primaryFocusLabel: string,
   subFocusLabels: string[]
 ): { goalSlug: string; subFocusSlugs: string[] } {
-  const entry = GOAL_SUB_FOCUS_OPTIONS[primaryFocusLabel];
+  const entry = GOAL_SUB_FOCUS_OPTIONS[canonicalGoalSubFocusLabel(primaryFocusLabel)];
   if (!entry) return { goalSlug: "", subFocusSlugs: [] };
   const nameToSlug = new Map(entry.subFocuses.map((f) => [f.name, f.slug]));
   const subFocusSlugs = subFocusLabels

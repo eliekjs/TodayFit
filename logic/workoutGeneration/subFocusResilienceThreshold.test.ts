@@ -101,3 +101,39 @@ describe("conditioning threshold_tempo + upper_body_power", () => {
     expect(exerciseMatchesGoalSubFocusSlugUnified(ex, "conditioning", "upper_body_power")).toBe(true);
   });
 });
+
+describe("mobility regional sub-focus matching", () => {
+  it("generic mobility modality alone does not match regional hips / t-spine / ankles", () => {
+    const ex: Exercise = {
+      id: "dead_bug",
+      name: "Dead Bug",
+      movement_pattern: "rotate",
+      muscle_groups: ["core"],
+      modality: "mobility",
+      equipment_required: ["bodyweight"],
+      difficulty: 1,
+      time_cost: "low",
+      tags: { goal_tags: ["mobility", "strength"], attribute_tags: ["core_stability"] },
+    };
+    expect(exerciseMatchesGoalSubFocusSlugUnified(ex, "mobility", "hips")).toBe(false);
+    expect(exerciseMatchesGoalSubFocusSlugUnified(ex, "mobility", "t_spine")).toBe(false);
+    expect(exerciseMatchesGoalSubFocusSlugUnified(ex, "mobility", "ankles")).toBe(false);
+    expect(exerciseMatchesGoalSubFocusSlugUnified(ex, "resilience", "lower_back")).toBe(false);
+  });
+
+  it("thoracic stretch target matches mobility t_spine", () => {
+    const ex: Exercise = {
+      id: "cat_camel",
+      name: "Cat Camel",
+      movement_pattern: "locomotion",
+      muscle_groups: ["core"],
+      modality: "mobility",
+      equipment_required: [],
+      difficulty: 1,
+      time_cost: "low",
+      tags: { goal_tags: ["mobility"], attribute_tags: ["mobility"] },
+      stretch_targets: ["thoracic_spine"],
+    };
+    expect(exerciseMatchesGoalSubFocusSlugUnified(ex, "mobility", "t_spine")).toBe(true);
+  });
+});

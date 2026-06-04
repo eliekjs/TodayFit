@@ -251,38 +251,12 @@ const flowHeaderTitleStyles = StyleSheet.create({
 
 function useRestartFlow() {
   const router = useRouter();
-  const {
-    setManualWeekPlan,
-    setGeneratedWorkout,
-    setResumeProgress,
-    setManualSessionProgress,
-    setManualExecutionStarted,
-    setSportPrepWeekPlan,
-    setAdaptiveSetup,
-    setManualGoalPreferencesScope,
-  } = useAppState();
+  const { discardActiveSession } = useAppState();
 
   return useCallback(() => {
-    setManualWeekPlan(null);
-    setGeneratedWorkout(null);
-    setResumeProgress(null);
-    setManualSessionProgress(null);
-    setManualExecutionStarted(false);
-    setSportPrepWeekPlan(null);
-    setAdaptiveSetup(null);
-    setManualGoalPreferencesScope("day");
+    discardActiveSession();
     router.replace("/");
-  }, [
-    router,
-    setAdaptiveSetup,
-    setGeneratedWorkout,
-    setManualExecutionStarted,
-    setManualGoalPreferencesScope,
-    setManualSessionProgress,
-    setManualWeekPlan,
-    setResumeProgress,
-    setSportPrepWeekPlan,
-  ]);
+  }, [router, discardActiveSession]);
 }
 
 type RestartConfirmModalProps = {
@@ -405,7 +379,6 @@ export function DiscardSessionLink({ style }: { style?: object }) {
 export function FlowHeaderRight() {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, maxWidth: 220 }}>
-      <RestartFlowButton compact />
       <HeaderGymProfileButton />
     </View>
   );

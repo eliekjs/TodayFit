@@ -132,6 +132,9 @@ export default function ManualWeekScreen() {
     workoutHistory,
     savedWorkouts,
     manualSessionProgress,
+    beginSessionFlow,
+    updateActiveSessionDraft,
+    activeSessionDraft,
   } = useAppState();
   const { userId } = useAuth();
   const weekPrefsHref = manualGoalPreferencesHref("week");
@@ -142,12 +145,13 @@ export default function ManualWeekScreen() {
       setGenerating(false);
       setIsRegenerating(false);
       setManualGoalPreferencesScope("week");
+      beginSessionFlow("goal_week");
       return () => {
         generationCancelledRef.current = true;
         setGenerating(false);
         setIsRegenerating(false);
       };
-    }, [setManualGoalPreferencesScope])
+    }, [setManualGoalPreferencesScope, beginSessionFlow])
   );
 
   const [generating, setGenerating] = useState(false);
@@ -176,6 +180,52 @@ export default function ManualWeekScreen() {
   const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
   /** Parallel to selectedTrainingDays: preset id from buildDayFocusPresetsForDay / resolveDayFocusPreset. */
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
+
+  const sessionHydratedRef = useRef(false);
+  useEffect(() => {
+    sessionHydratedRef.current = false;
+  }, [activeSessionDraft?.id]);
+
+  useEffect(() => {
+    const ws = activeSessionDraft?.weekSetup;
+    if (!ws || sessionHydratedRef.current) return;
+    if (ws.selectedTrainingDays.length > 0) {
+      setSelectedTrainingDays(ws.selectedTrainingDays);
+    }
+    setWeekSetupStep(ws.step);
+    if (ws.dayFocusChoiceIds.length > 0) {
+      setDayFocusChoiceIds(ws.dayFocusChoiceIds);
+    }
+    sessionHydratedRef.current = true;
+  }, [activeSessionDraft?.id, activeSessionDraft?.weekSetup]);
+
+  useEffect(() => {
+    const nextWeekSetup = {
+      enteredWeekScreen: true,
+      step: weekSetupStep,
+      selectedTrainingDays,
+      dayFocusChoiceIds,
+    };
+    const prev = activeSessionDraft?.weekSetup;
+    if (
+      prev &&
+      prev.enteredWeekScreen === nextWeekSetup.enteredWeekScreen &&
+      prev.step === nextWeekSetup.step &&
+      prev.selectedTrainingDays.length === nextWeekSetup.selectedTrainingDays.length &&
+      prev.selectedTrainingDays.every((d, i) => d === nextWeekSetup.selectedTrainingDays[i]) &&
+      prev.dayFocusChoiceIds.length === nextWeekSetup.dayFocusChoiceIds.length &&
+      prev.dayFocusChoiceIds.every((id, i) => id === nextWeekSetup.dayFocusChoiceIds[i])
+    ) {
+      return;
+    }
+    updateActiveSessionDraft({ weekSetup: nextWeekSetup });
+  }, [
+    weekSetupStep,
+    selectedTrainingDays,
+    dayFocusChoiceIds,
+    updateActiveSessionDraft,
+    activeSessionDraft?.weekSetup,
+  ]);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollContentRef = useRef<View>(null);

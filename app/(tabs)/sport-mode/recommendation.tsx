@@ -372,6 +372,8 @@ export default function AdaptiveWeekPlanScreen() {
             sportQualitySlugs: snapshot.sportQualitySlugs,
             sportSubFocusSlugs: snapshot.sportSubFocusSlugs,
             gymDaysPerWeek: snapshot.gymDaysPerWeek,
+            gymTrainingDays: snapshot.gymTrainingDays,
+            sportTrainingDaysBySlug: snapshot.sportTrainingDaysBySlug,
             sportDaysAllocation: snapshot.sportDaysAllocation,
             rankedSportSlugs: snapshot.rankedSportSlugs,
             sportFocusPct: (() => {

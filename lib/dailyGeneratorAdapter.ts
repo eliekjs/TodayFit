@@ -15,6 +15,7 @@ import {
   PRIMARY_FOCUS_TO_GOAL_SLUG,
 } from "./preferencesConstants";
 import { getAvoidTagSlugsFromUpcoming } from "./filterTagRules";
+import { primaryFocusLabelToPrimaryGoal } from "./goalRegistry";
 import { getExerciseTagsForGoalSubFocuses } from "../data/goalSubFocus";
 import { buildMergedGoalSubFocusSlugWeights, sanitizeSubFocusPctMaps } from "./subFocusWeights";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
@@ -284,36 +285,7 @@ function buildRankedIntentEntries(
 
 /** Map primary focus label to generator PrimaryGoal. */
 function primaryFocusLabelToGoal(label: string): PrimaryGoal {
-  // "Sport preparation" is an implied sport-only label (no explicit fitness goal selected).
-  // Map to "strength" so it acts as a neutral prescription template rather than injecting
-  // "athletic_performance" quality weights and phantom block labels.
-  if (label === "Sport preparation") return "strength";
-  // Power & Explosiveness must map to power (its goal slug is "conditioning" for sub-focus tags only).
-  if (label.includes("Power")) return "power";
-  const lower = label.toLowerCase();
-  if (lower === "hypertrophy" || lower.includes("build muscle") || lower.includes("muscle (hypertrophy)")) {
-    return "hypertrophy";
-  }
-  if (lower.includes("endurance") || lower.includes("engine")) return "endurance";
-  if (lower.includes("mobility") || lower.includes("joint health")) return "mobility";
-  if (lower.includes("recovery") || lower.includes("prehab")) return "recovery";
-  const slug = PRIMARY_FOCUS_TO_GOAL_SLUG[label] ?? PRIMARY_FOCUS_TO_GOAL_SLUG[label.trim()] ?? "strength";
-  const slugToGoal: Record<string, PrimaryGoal> = {
-    strength: "strength",
-    muscle: "hypertrophy",
-    physique: "body_recomp",
-    conditioning: "conditioning",
-    endurance: "endurance",
-    mobility: "mobility",
-    resilience: "recovery",
-    calisthenics: "calisthenics",
-    athletic_performance: "athletic_performance",
-    power: "power",
-  };
-  if (slugToGoal[slug]) return slugToGoal[slug];
-  if (label.includes("Athletic")) return "athletic_performance";
-  if (label.includes("Calisthenics")) return "calisthenics";
-  return "strength";
+  return primaryFocusLabelToPrimaryGoal(label);
 }
 
 /** Map BodyPartFocusKey (UI) to FocusBodyPart (generator). */
@@ -663,6 +635,9 @@ import { mergePhase8UnilateralOntologyIntoExercise } from "./exerciseMetadata/ph
 import { mergePhase9DynamicPowerTagsIntoExercise } from "./exerciseMetadata/phase9DynamicPowerTagInference";
 import { applyExerciseMetadataOverrides } from "./exerciseMetadata/applyMetadataOverrides";
 import type { ExerciseMetadataPatch } from "./exerciseMetadata/metadataOverrideTypes";
+import { CONDITIONING_INTENT_ENRICHMENT } from "../data/conditioningIntentEnrichment";
+import { GOAL_INTENT_ENRICHMENT } from "../data/goalIntentEnrichment";
+import { SPORT_SUB_FOCUS_ENRICHMENT } from "../data/sportSubFocusEnrichment";
 import exerciseMetadataOverrides from "../data/exerciseMetadataOverrides.json";
 import { resolveExerciseDescription } from "./exerciseDescriptionsCurated";
 
@@ -1007,6 +982,9 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
   }
 
   applyExerciseMetadataOverrides(exercise, def, EXERCISE_METADATA_OVERRIDES[def.id]);
+  applyExerciseMetadataOverrides(exercise, def, CONDITIONING_INTENT_ENRICHMENT[def.id]);
+  applyExerciseMetadataOverrides(exercise, def, GOAL_INTENT_ENRICHMENT[def.id]);
+  applyExerciseMetadataOverrides(exercise, def, SPORT_SUB_FOCUS_ENRICHMENT[def.id]);
 
   return exercise;
 }

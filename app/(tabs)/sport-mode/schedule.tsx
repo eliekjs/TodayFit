@@ -193,6 +193,9 @@ export default function AdaptiveScheduleScreen() {
             ? (adaptiveSetup.subFocusBySport[adaptiveSetup.rankedSportSlugs[0]] ?? []).slice(0, 3)
             : undefined,
         gymDaysPerWeek: gymTrainingDays.length,
+        gymTrainingDays: [...gymTrainingDays].sort((a, b) => a - b),
+        sportTrainingDaysBySlug:
+          Object.keys(sportDaysBySlug).length > 0 ? { ...sportDaysBySlug } : undefined,
         preferredTrainingDays,
         sportDaysAllocation:
           Object.keys(sportDaysAllocation).length > 0 ? sportDaysAllocation : undefined,

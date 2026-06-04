@@ -24,6 +24,12 @@ function tagToSlug(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
 }
 
+function exerciseHasGoalIntentSlug(exercise: Exercise, slug: string): boolean {
+  const norm = tagToSlug(slug);
+  const attrs = (exercise.tags?.attribute_tags ?? []).map((a) => tagToSlug(a));
+  return attrs.includes(norm);
+}
+
 /** Hypertrophy sub-focus: keep in sync with dailyGenerator scoreExercise. */
 const HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS: Record<string, string[]> = {
   glutes: ["glutes", "hamstrings", "legs", "posterior_chain"],
@@ -38,7 +44,19 @@ const HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS: Record<string, string[]> = {
 
 export function exerciseMatchesHypertrophySubFocusSlug(exercise: Exercise, slug: string): boolean {
   const norm = tagToSlug(slug);
-  if (norm === "balanced") return false;
+  if (norm === "balanced") {
+    if (exerciseHasGoalIntentSlug(exercise, "balanced")) return true;
+    const muscleSet = new Set((exercise.muscle_groups ?? []).map((m) => tagToSlug(m)));
+    const attrSet = new Set((exercise.tags?.attribute_tags ?? []).map((a) => tagToSlug(a)));
+    if (attrSet.has("compound") || attrSet.has("full_body")) return true;
+    const regions = new Set<string>();
+    for (const m of muscleSet) {
+      if (["chest", "back", "lats", "legs", "quads", "glutes", "shoulders", "push", "pull"].includes(m)) {
+        regions.add(m);
+      }
+    }
+    return regions.size >= 2;
+  }
 
   const matchSet = new Set(
     (HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS[norm] ?? [norm]).map((s) => tagToSlug(s))
@@ -73,12 +91,22 @@ function requiresSpeedAgilityDynamicGate(subSlug: string): boolean {
   return isSpeedAgilityPowerStyleSubFocusSlug(subSlug) || isExplosivePlyometricSportSubFocusSlug(subSlug);
 }
 
+function passesSpeedAgilityDynamicGate(exercise: Exercise, subSlug: string): boolean {
+  if (!requiresSpeedAgilityDynamicGate(subSlug)) return true;
+  const exTags = getExerciseTagSlugsForCoverage(exercise);
+  return (
+    exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) || tagSetHasDynamicPowerSignal(exTags)
+  );
+}
+
+const REGIONAL_ANATOMY_SLUGS = new Set(["hips", "shoulders", "t_spine", "lower_back", "ankles"]);
+
 /**
  * Recovery goal uses goal_slug `resilience`. User already declared Recovery — regional anatomy
  * (mobility / stretch / stability signals) should qualify without requiring a duplicate `recovery` tag
  * on every drill (see goalSubFocusTagMap resilience:* entries).
  */
-function exerciseMatchesResilienceRegionalAnatomy(exercise: Exercise, subSlug: string): boolean {
+function exerciseMatchesRegionalAnatomy(exercise: Exercise, subSlug: string): boolean {
   const norm = tagToSlug(subSlug);
   const exTags = getExerciseTagSlugsForCoverage(exercise);
   const muscles = new Set((exercise.muscle_groups ?? []).map((m) => tagToSlug(m)));
@@ -123,6 +151,26 @@ function exerciseMatchesResilienceRegionalAnatomy(exercise: Exercise, subSlug: s
     );
   }
   return false;
+}
+
+function exerciseMatchesResilienceRegionalAnatomy(exercise: Exercise, subSlug: string): boolean {
+  return exerciseMatchesRegionalAnatomy(exercise, subSlug);
+}
+
+/** Mobility regional sub-focus: require anatomy-specific signals, not generic `mobility` modality alone. */
+function exerciseMatchesMobilityRegionalSlug(exercise: Exercise, subSlug: string): boolean {
+  const norm = tagToSlug(subSlug);
+  if (norm === "full_body") {
+    const exTags = getExerciseTagSlugsForCoverage(exercise);
+    if (exTags.has("mobility")) return true;
+    const targets = [
+      ...(exercise.mobility_targets ?? []),
+      ...(exercise.stretch_targets ?? []),
+    ];
+    return targets.length > 0;
+  }
+  if (!REGIONAL_ANATOMY_SLUGS.has(norm)) return false;
+  return exerciseMatchesRegionalAnatomy(exercise, subSlug);
 }
 
 export function subFocusSlugsForGuarantee(goalSlug: string, slugs: string[]): string[] {
@@ -179,9 +227,14 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
   goalSlug: string,
   slug: string
 ): boolean {
-  if (goalSlug === "strength" || goalSlug === "calisthenics") return exerciseHasStrengthSubFocusSlug(exercise, slug);
+  if (goalSlug === "strength" || goalSlug === "calisthenics") {
+    if (!exerciseHasStrengthSubFocusSlug(exercise, slug)) return false;
+    return passesSpeedAgilityDynamicGate(exercise, slug);
+  }
   if (goalSlug === "athletic_performance") {
-    if (exerciseHasStrengthSubFocusSlug(exercise, slug)) return true;
+    if (exerciseHasStrengthSubFocusSlug(exercise, slug)) {
+      return passesSpeedAgilityDynamicGate(exercise, slug);
+    }
     const entries = getExerciseTagsForGoalSubFocuses("athletic_performance", [slug]);
     if (!entries.length) return false;
     const exTags = getExerciseTagSlugsForCoverage(exercise);
@@ -189,7 +242,9 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
       requiresSpeedAgilityDynamicGate(slug) &&
       !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) &&
       !tagSetHasDynamicPowerSignal(exTags)
-    ) return false;
+    ) {
+      return false;
+    }
     return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
   }
   if (goalSlug === "muscle" || goalSlug === "physique") {
@@ -198,13 +253,20 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
   if (goalSlug === "conditioning" || goalSlug === "endurance" || goalSlug === "power") {
     return exerciseHasSubFocusSlug(exercise, slug);
   }
-  if (goalSlug === "mobility" || goalSlug === "resilience") {
+  if (goalSlug === "mobility") {
+    if (exerciseHasGoalIntentSlug(exercise, slug)) return true;
     if (exerciseHasSubFocusSlug(exercise, slug)) return true;
-    if (goalSlug === "resilience" && exerciseMatchesResilienceRegionalAnatomy(exercise, slug)) return true;
-    const entries = getExerciseTagsForGoalSubFocuses(goalSlug, [slug]);
-    if (!entries.length) return false;
-    const exTags = getExerciseTagSlugsForCoverage(exercise);
-    return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
+    return exerciseMatchesMobilityRegionalSlug(exercise, slug);
+  }
+  if (goalSlug === "resilience") {
+    if (exerciseHasGoalIntentSlug(exercise, slug)) return true;
+    if (exerciseHasSubFocusSlug(exercise, slug)) return true;
+    if (exerciseMatchesResilienceRegionalAnatomy(exercise, slug)) return true;
+    if (tagToSlug(slug) === "full_body") {
+      const exTags = getExerciseTagSlugsForCoverage(exercise);
+      return exTags.has("recovery") || exTags.has("mobility");
+    }
+    return false;
   }
   return false;
 }

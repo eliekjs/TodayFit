@@ -162,6 +162,12 @@ import {
   type ConditioningIntentFormat,
 } from "./conditioningFormatResolver";
 import { blockFormatForCardioHint, buildBlockIntentProfile } from "./blockIntentProfile";
+import {
+  buildConditioningIntentPool,
+  conditioningPickAvoidIds,
+  pickConditioningExerciseWithVariety,
+  type ConditioningPickContext,
+} from "./conditioningPoolBuilder";
 import { resolveSessionFeelProfile } from "./sessionFeelProfile";
 import {
   adjustGoalRulesForSessionFeel,
@@ -5056,12 +5062,13 @@ function isButtKickRunConditioning(e: Exercise): boolean {
   return id.includes("butt_kick") || name.includes("butt kick");
 }
 
-/** Pick conditioning exercise: prefer direct sub-focus slug match (intent), then preferred_zone2_cardio modalities, else random. */
+/** Pick conditioning exercise: prefer direct sub-focus slug match (intent), then anti-repeat weighted random. */
 function pickConditioningExercise(
   pool: Exercise[],
   preferredModalities: string[] | undefined,
   rng: () => number,
-  preferredSubFocusSlugs?: string[]
+  preferredSubFocusSlugs?: string[],
+  pickContext?: ConditioningPickContext
 ): Exercise | undefined {
   if (!pool.length) return undefined;
   let candidatePool = pool;
@@ -5092,18 +5099,21 @@ function pickConditioningExercise(
     }
   }
 
-  if (preferredModalities?.length) {
-    const normalized = preferredModalities.map((m) => m.toLowerCase().replace(/\s/g, "_"));
-    const preferred = candidatePool.filter((e) => {
-      const id = e.id.toLowerCase();
-      const name = e.name.toLowerCase();
-      return normalized.some((n) => id.includes(n) || name.includes(n));
-    });
-    if (preferred.length) {
-      return preferred[Math.floor(rng() * preferred.length)];
-    }
-  }
-  return candidatePool[Math.floor(rng() * candidatePool.length)];
+  return pickConditioningExerciseWithVariety(
+    candidatePool,
+    preferredModalities,
+    rng,
+    undefined,
+    pickContext
+  );
+}
+
+function conditioningPickContext(input: GenerateWorkoutInput, sessionUsed: Set<string>): ConditioningPickContext {
+  return {
+    avoidIds: conditioningPickAvoidIds(input),
+    recentIds: new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []),
+    sessionUsedIds: sessionUsed,
+  };
 }
 
 /**
@@ -5981,20 +5991,11 @@ function buildIntervalsHIITMain(
   const intentSlugs = getConditioningIntentSlugs(conditioningProfile);
   const primaryIntent = getPrimaryConditioningIntent(conditioningProfile) ?? "intervals_hiit";
 
-  // Strongly prefer conditioning exercises for HIIT structure.
-  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
-
-  // Overlays constrain filtering only; they do not drive the interval structure.
-  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
-    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
-  }
-
-  // Direct sub-focus matching: keep direct matches if available.
-  const directMatches =
-    intentSlugs.length > 0
-      ? pool.filter((e) => intentSlugs.some((s) => exerciseHasSubFocusSlug(e, s)))
-      : [];
-  if (directMatches.length > 0) pool = directMatches;
+  const pool = buildConditioningIntentPool(exercises, {
+    intentSlugs: intentSlugs.length ? intentSlugs : ["intervals_hiit"],
+    used,
+    overlayFilter: conditioningProfile.overlayFilter,
+  });
   if (!pool.length) return [];
 
   // Use conditioning duration minutes for a coherent time-based structure.
@@ -6005,12 +6006,14 @@ function buildIntervalsHIITMain(
   const drillCount = input.duration_minutes >= 45 ? 2 : 1;
   const chosen: Exercise[] = [];
   const poolCopy = [...pool];
+  const pickCtx = conditioningPickContext(input, used);
   for (let i = 0; i < drillCount && poolCopy.length; i++) {
     const pick = pickConditioningExercise(
       poolCopy,
       input.style_prefs?.preferred_zone2_cardio,
       rng,
-      intentSlugs.length ? intentSlugs : undefined
+      intentSlugs.length ? intentSlugs : undefined,
+      pickCtx
     );
     if (!pick) break;
     chosen.push(pick);
@@ -6144,13 +6147,22 @@ function pickJointHealthSupportCandidates(pool: Exercise[]): Exercise[] {
   });
 }
 
-function pickBestFromPool(pool: Exercise[], rng: () => number): Exercise | undefined {
+function pickBestFromPool(
+  pool: Exercise[],
+  rng: () => number,
+  pickContext?: ConditioningPickContext
+): Exercise | undefined {
   if (!pool.length) return undefined;
   const timeRank = (tc: Exercise["time_cost"]) => (tc === "low" ? 0 : tc === "medium" ? 1 : 2);
-  const sorted = [...pool].sort((a, b) => timeRank(a.time_cost) - timeRank(b.time_cost) || a.difficulty - b.difficulty);
-  const topN = Math.min(sorted.length, 3);
+  const sorted = [...pool].sort(
+    (a, b) => timeRank(a.time_cost) - timeRank(b.time_cost) || a.difficulty - b.difficulty
+  );
+  const topN = Math.min(sorted.length, Math.max(3, Math.min(10, Math.ceil(sorted.length / 3))));
   const top = sorted.slice(0, topN);
-  return top[Math.floor(rng() * top.length)];
+  return (
+    pickConditioningExerciseWithVariety(top, undefined, rng, undefined, pickContext) ??
+    top[Math.floor(rng() * top.length)]
+  );
 }
 
 function buildConditioningIntentFormatMain(
@@ -6185,15 +6197,14 @@ function buildZone2SustainedMain(
   const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
   const mainMins = getConditioningIntentMainMinutes(input);
 
-  // Main work pool: conditioning modality, then intent direct-match dominates.
-  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
-  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
-    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
-  }
-  const directPool = pool.filter((e) => exerciseHasSubFocusSlug(e, "zone2_aerobic_base"));
-  const pickPool = directPool.length ? directPool : pool;
+  const pool = buildConditioningIntentPool(exercises, {
+    intentSlugs: ["zone2_aerobic_base"],
+    used,
+    overlayFilter: conditioningProfile.overlayFilter,
+  });
+  const pickPool = pool.length ? pool : exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
 
-  const c = pickBestFromPool(pickPool, rng);
+  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used));
   if (!c) return [];
   used.add(c.id);
 
@@ -6342,15 +6353,13 @@ function buildThresholdIntervalsMain(
   const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
   const mainMins = getConditioningIntentMainMinutes(input);
 
-  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
-  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
-    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
-  }
-
-  // Direct intent slug dominates.
-  const directPool = pool.filter((e) => exerciseHasSubFocusSlug(e, "threshold_tempo"));
-  const pickPool = directPool.length ? directPool : pool;
-  const c = pickBestFromPool(pickPool, rng);
+  const pool = buildConditioningIntentPool(exercises, {
+    intentSlugs: ["threshold_tempo"],
+    used,
+    overlayFilter: conditioningProfile.overlayFilter,
+  });
+  const pickPool = pool.length ? pool : exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used));
   if (!c) return [];
   used.add(c.id);
 
@@ -6399,19 +6408,18 @@ function buildHillsRepeatsMain(
   const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
   const mainMins = getConditioningIntentMainMinutes(input);
 
-  let pool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
-  if (conditioningProfile.overlayFilter && conditioningProfile.overlayFilter !== "full_body") {
-    pool = filterPoolByOverlay(pool, conditioningProfile.overlayFilter);
-  }
-
-  const directPool = pool.filter((e) => exerciseHasSubFocusSlug(e, "hills"));
-  const pickBase = directPool.length ? directPool : pool;
+  const pool = buildConditioningIntentPool(exercises, {
+    intentSlugs: ["hills"],
+    used,
+    overlayFilter: conditioningProfile.overlayFilter,
+  });
+  const pickBase = pool.length ? pool : exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
 
   // Strong hill bias for incline/stairs/sled patterns.
-  const hillBiasedPool = pickBase.filter((e) => isHillBiasExercise(e));
+  const hillBiasedPool = pickBase.filter((e) => isHillBiasExercise(e) || exerciseHasSubFocusSlug(e, "hills"));
   const pickPool = hillBiasedPool.length ? hillBiasedPool : pickBase;
 
-  const c = pickBestFromPool(pickPool, rng);
+  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used));
   if (!c) return [];
   used.add(c.id);
 
@@ -6463,7 +6471,14 @@ function appendEnduranceTimeBasedCardioBlock(
   conditioningProfile: SubFocusProfile | null | undefined,
   intentSlugs: string[]
 ): void {
-  let cardioPool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+  let cardioPool = buildConditioningIntentPool(exercises, {
+    intentSlugs: intentSlugs.length > 0 ? intentSlugs : [],
+    used,
+    overlayFilter: conditioningProfile?.overlayFilter,
+  });
+  if (!cardioPool.length) {
+    cardioPool = exercises.filter((e) => e.modality === "conditioning" && !used.has(e.id));
+  }
   const pickMult = input.sport_profile_session_composition?.conditioningPickerMinutesMultiplier ?? 1;
   const condMinsRaw =
     getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
@@ -6481,7 +6496,8 @@ function appendEnduranceTimeBasedCardioBlock(
     longAerobicPool,
     input.style_prefs?.preferred_zone2_cardio,
     rng,
-    longAerobicPool === trueCardioPool ? ["zone2_aerobic_base", "zone2_long_steady"] : preferredIntentSlugs
+    longAerobicPool === trueCardioPool ? ["zone2_aerobic_base", "zone2_long_steady"] : preferredIntentSlugs,
+    conditioningPickContext(input, used)
   );
   if (!c) return;
 

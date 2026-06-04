@@ -34,6 +34,24 @@ import type { LoadedRemoteAppState } from "./loadRemoteAppState";
 import type { ManualGoalPreferencesScope } from "../lib/manualGoalPreferencesHref";
 import { normalizeSubFocusByGoalAgainstConditioningPolicy } from "../lib/preferencesConstants";
 import { sanitizeSubFocusPctMaps } from "../lib/subFocusWeights";
+import type {
+  ModeFilterSnapshot,
+  SessionDraft,
+  SessionFlow,
+  SportFormSnapshot,
+  WeekSetupDraft,
+} from "../lib/sessionDraft";
+import {
+  createSessionDraft,
+  inferSessionPhase,
+  patchSessionDraft,
+  sessionFlowFromManualScope,
+} from "../lib/sessionDraft";
+import {
+  loadLastEditedFiltersByMode,
+  persistModeFilterSnapshot,
+  type LastEditedFiltersByMode,
+} from "./sessionDraftStorage";
 
 /** Strip engine/cardio-conditioning sub-focus labels mismatched to primary goals; sync % maps. */
 function sanitizeManualPreferenceSubLayers(prefs: ManualPreferences): ManualPreferences {
@@ -90,6 +108,24 @@ type AppStateContextValue = {
   setSportPrepWeekPlan: (plan: PlanWeekResult | null) => void;
   setManualWeekPlan: (plan: ManualWeekPlan | null) => void;
   setAdaptiveSetup: (setup: AdaptiveSetup | null) => void;
+  /** Active workout/week build session (filter → review → train). One at a time. */
+  activeSessionDraft: SessionDraft | null;
+  /** Begin or continue a flow; returns false if another flow's session is active (show conflict UI). */
+  beginSessionFlow: (flow: SessionFlow) => boolean;
+  /** Discard current session artifacts and start the given flow with last-edited filters for that mode. */
+  replaceSessionFlow: (flow: SessionFlow) => void;
+  /** Clear in-progress session (workout/week/plan artifacts + draft). Keeps per-mode last-edited filters. */
+  discardActiveSession: () => void;
+  updateActiveSessionDraft: (
+    patch: Partial<
+      Pick<SessionDraft, "phase" | "preferences" | "adaptiveSetup" | "weekSetup" | "gymProfileId">
+    >
+  ) => void;
+  /** Sport-mode: persist local form for last-edited + active session. */
+  commitSportFormSnapshot: (form: SportFormSnapshot) => void;
+  /** One-shot hydration for sport-mode setup when resuming / starting with last-edited filters. */
+  pendingSportFormHydration: SportFormSnapshot | null;
+  consumeSportFormHydration: () => SportFormSnapshot | null;
   /** Supabase-backed snapshot load for signed-in users (profiles, prefs, history, saved). */
   remoteSyncStatus: RemoteSyncStatus;
   remoteSyncError: string | null;
@@ -179,6 +215,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [adaptiveSetup, setAdaptiveSetup] = useState<AdaptiveSetup | null>(null);
   const [manualGoalPreferencesScope, setManualGoalPreferencesScope] =
     useState<ManualGoalPreferencesScope>("day");
+  const [activeSessionDraft, setActiveSessionDraft] = useState<SessionDraft | null>(null);
+  const [lastEditedFiltersByMode, setLastEditedFiltersByMode] =
+    useState<LastEditedFiltersByMode>({});
+  const lastEditedFiltersByModeRef = useRef<LastEditedFiltersByMode>({});
+  lastEditedFiltersByModeRef.current = lastEditedFiltersByMode;
+  const [pendingSportFormHydration, setPendingSportFormHydration] =
+    useState<SportFormSnapshot | null>(null);
+  const lastSportFormSnapshotRef = useRef<SportFormSnapshot | null>(null);
+  const activeSessionDraftRef = useRef<SessionDraft | null>(null);
+  const manualPreferencesRef = useRef(manualPreferences);
+  manualPreferencesRef.current = manualPreferences;
+  activeSessionDraftRef.current = activeSessionDraft;
   const manualPreferencesPersistQueueRef = useRef<{
     persistUserId: string;
     enqueue: (preferences: ManualPreferences) => void;
@@ -195,6 +243,296 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setManualExecutionStarted(false);
     }
   }, [generatedWorkout?.id]);
+
+  useEffect(() => {
+    void loadLastEditedFiltersByMode().then((data) => {
+      lastEditedFiltersByModeRef.current = data;
+      setLastEditedFiltersByMode(data);
+    });
+  }, []);
+
+  const activeGymName = useMemo(
+    () => gymProfiles.find((g) => g.id === activeGymProfileId)?.name ?? null,
+    [gymProfiles, activeGymProfileId]
+  );
+
+  const persistLastEditedForFlow = useCallback(
+    (flow: SessionFlow, snapshot: ModeFilterSnapshot) => {
+      void persistModeFilterSnapshot(flow, snapshot, lastEditedFiltersByModeRef.current).then(
+        (next) => {
+          lastEditedFiltersByModeRef.current = next;
+          setLastEditedFiltersByMode(next);
+        }
+      );
+    },
+    []
+  );
+
+  const applyLastEditedFiltersForFlow = useCallback(
+    (flow: SessionFlow) => {
+      const snap = lastEditedFiltersByModeRef.current[flow];
+      if (snap?.manualPreferences) {
+        setManualPreferences(sanitizeManualPreferenceSubLayers(snap.manualPreferences));
+      }
+      if (snap?.adaptiveSetup !== undefined) {
+        setAdaptiveSetup(snap.adaptiveSetup ?? null);
+      }
+      if (snap?.sportForm) {
+        setPendingSportFormHydration(snap.sportForm);
+        lastSportFormSnapshotRef.current = snap.sportForm;
+      }
+      return snap ?? null;
+    },
+    []
+  );
+
+  const clearSessionArtifacts = useCallback(() => {
+    setManualWeekPlan(null);
+    setGeneratedWorkout(null);
+    setResumeProgress(null);
+    setManualSessionProgress(null);
+    setManualExecutionStarted(false);
+    setSportPrepWeekPlan(null);
+    setAdaptiveSetup(null);
+    setManualGoalPreferencesScope("day");
+  }, []);
+
+  const discardActiveSession = useCallback(() => {
+    clearSessionArtifacts();
+    setActiveSessionDraft(null);
+  }, [clearSessionArtifacts]);
+
+  const startSessionForFlow = useCallback(
+    (flow: SessionFlow) => {
+      const snap = applyLastEditedFiltersForFlow(flow);
+      const prefs = snap?.manualPreferences
+        ? sanitizeManualPreferenceSubLayers(snap.manualPreferences)
+        : manualPreferences;
+      if (snap?.manualPreferences) {
+        setManualPreferences(prefs);
+      }
+      setManualGoalPreferencesScope(flow === "goal_week" ? "week" : "day");
+      const draft = createSessionDraft({
+        flow,
+        preferences: prefs,
+        gymProfileId: activeGymProfileId,
+        gymName: activeGymName,
+        adaptiveSetup: snap?.adaptiveSetup ?? null,
+        weekSetup: snap?.weekSetup ?? null,
+        phase: inferSessionPhase({
+          flow,
+          generatedWorkout,
+          manualWeekPlan,
+          sportPrepWeekPlan,
+          manualExecutionStarted,
+          weekSetup: snap?.weekSetup ?? null,
+          adaptiveSetup: snap?.adaptiveSetup ?? null,
+        }),
+      });
+      setActiveSessionDraft(draft);
+    },
+    [
+      applyLastEditedFiltersForFlow,
+      manualPreferences,
+      activeGymProfileId,
+      activeGymName,
+      generatedWorkout,
+      manualWeekPlan,
+      sportPrepWeekPlan,
+      manualExecutionStarted,
+    ]
+  );
+
+  const beginSessionFlow = useCallback(
+    (flow: SessionFlow): boolean => {
+      if (activeSessionDraft != null && activeSessionDraft.flow !== flow) {
+        return false;
+      }
+      if (activeSessionDraft?.flow === flow) {
+        return true;
+      }
+      startSessionForFlow(flow);
+      return true;
+    },
+    [activeSessionDraft, startSessionForFlow]
+  );
+
+  const replaceSessionFlow = useCallback(
+    (flow: SessionFlow) => {
+      discardActiveSession();
+      startSessionForFlow(flow);
+    },
+    [discardActiveSession, startSessionForFlow]
+  );
+
+  const updateActiveSessionDraft = useCallback(
+    (
+      patch: Partial<
+        Pick<SessionDraft, "phase" | "preferences" | "adaptiveSetup" | "weekSetup" | "gymProfileId">
+      >
+    ) => {
+      setActiveSessionDraft((prev) => {
+        if (!prev) return prev;
+        const next = patchSessionDraft(prev, { ...patch, gymName: activeGymName });
+        if (patch.weekSetup != null || patch.adaptiveSetup !== undefined) {
+          const snapshot: ModeFilterSnapshot = {
+            manualPreferences: next.preferences,
+            adaptiveSetup: next.adaptiveSetup,
+            sportForm: lastSportFormSnapshotRef.current,
+            weekSetup: next.weekSetup,
+            updatedAt: Date.now(),
+          };
+          persistLastEditedForFlow(next.flow, snapshot);
+        }
+        return next;
+      });
+    },
+    [activeGymName, persistLastEditedForFlow]
+  );
+
+  const commitSportFormSnapshot = useCallback(
+    (form: SportFormSnapshot) => {
+      lastSportFormSnapshotRef.current = form;
+      const draft = activeSessionDraftRef.current;
+      if (!draft?.flow.startsWith("sport")) return;
+      const snapshot: ModeFilterSnapshot = {
+        manualPreferences: manualPreferencesRef.current,
+        adaptiveSetup: draft.adaptiveSetup,
+        sportForm: form,
+        weekSetup: draft.weekSetup,
+        updatedAt: Date.now(),
+      };
+      persistLastEditedForFlow(draft.flow, snapshot);
+    },
+    [persistLastEditedForFlow]
+  );
+
+  const consumeSportFormHydration = useCallback((): SportFormSnapshot | null => {
+    let next: SportFormSnapshot | null = null;
+    setPendingSportFormHydration((prev) => {
+      next = prev;
+      return null;
+    });
+    return next;
+  }, []);
+
+  useEffect(() => {
+    setActiveSessionDraft((prev) => {
+      if (!prev) return prev;
+      const phase = inferSessionPhase({
+        flow: prev.flow,
+        generatedWorkout,
+        manualWeekPlan,
+        sportPrepWeekPlan,
+        manualExecutionStarted,
+        weekSetup: prev.weekSetup,
+        adaptiveSetup: prev.adaptiveSetup ?? adaptiveSetup,
+      });
+      const preferences = manualPreferences;
+      if (
+        phase === prev.phase &&
+        preferences === prev.preferences &&
+        (prev.adaptiveSetup ?? null) === (adaptiveSetup ?? null)
+      ) {
+        return prev;
+      }
+      return patchSessionDraft(prev, {
+        phase,
+        preferences,
+        adaptiveSetup: adaptiveSetup ?? prev.adaptiveSetup,
+        gymName: activeGymName,
+      });
+    });
+  }, [
+    generatedWorkout,
+    manualWeekPlan,
+    sportPrepWeekPlan,
+    manualExecutionStarted,
+    manualPreferences,
+    adaptiveSetup,
+    activeGymName,
+  ]);
+
+  /** Hydrate session draft when legacy in-progress artifacts exist without a draft. */
+  useEffect(() => {
+    if (activeSessionDraft != null) return;
+    if (sportPrepWeekPlan != null) {
+      const gymDays = sportPrepWeekPlan.scheduleSnapshot?.gymDaysPerWeek ?? 0;
+      const flow: SessionFlow = gymDays === 1 ? "sport_day" : "sport_week";
+      setActiveSessionDraft(
+        createSessionDraft({
+          flow,
+          preferences: manualPreferences,
+          gymProfileId: activeGymProfileId,
+          gymName: activeGymName,
+          adaptiveSetup,
+          phase: inferSessionPhase({
+            flow,
+            generatedWorkout,
+            manualWeekPlan,
+            sportPrepWeekPlan,
+            manualExecutionStarted,
+            weekSetup: null,
+            adaptiveSetup,
+          }),
+        })
+      );
+      return;
+    }
+    if (manualWeekPlan != null && manualWeekPlan.days.length > 0) {
+      const flow: SessionFlow = manualWeekPlan.days.length === 1 ? "goal_day" : "goal_week";
+      setManualGoalPreferencesScope(flow === "goal_week" ? "week" : "day");
+      setActiveSessionDraft(
+        createSessionDraft({
+          flow,
+          preferences: manualPreferences,
+          gymProfileId: activeGymProfileId,
+          gymName: activeGymName,
+          phase: inferSessionPhase({
+            flow,
+            generatedWorkout,
+            manualWeekPlan,
+            sportPrepWeekPlan,
+            manualExecutionStarted,
+            weekSetup: null,
+            adaptiveSetup,
+          }),
+        })
+      );
+      return;
+    }
+    if (generatedWorkout != null) {
+      const flow = sessionFlowFromManualScope(manualGoalPreferencesScope);
+      setActiveSessionDraft(
+        createSessionDraft({
+          flow,
+          preferences: manualPreferences,
+          gymProfileId: activeGymProfileId,
+          gymName: activeGymName,
+          phase: inferSessionPhase({
+            flow,
+            generatedWorkout,
+            manualWeekPlan,
+            sportPrepWeekPlan,
+            manualExecutionStarted,
+            weekSetup: null,
+            adaptiveSetup,
+          }),
+        })
+      );
+    }
+  }, [
+    activeSessionDraft,
+    sportPrepWeekPlan,
+    manualWeekPlan,
+    generatedWorkout,
+    manualPreferences,
+    activeGymProfileId,
+    activeGymName,
+    adaptiveSetup,
+    manualExecutionStarted,
+    manualGoalPreferencesScope,
+  ]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -446,9 +784,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
         manualPreferencesPersistQueueRef.current.enqueue(next);
       }
+      setActiveSessionDraft((draft) => {
+        if (!draft) return draft;
+        const patched = patchSessionDraft(draft, { preferences: next, gymName: activeGymName });
+        const snapshot: ModeFilterSnapshot = {
+          manualPreferences: next,
+          adaptiveSetup: patched.adaptiveSetup,
+          sportForm: lastSportFormSnapshotRef.current,
+          weekSetup: patched.weekSetup,
+          updatedAt: Date.now(),
+        };
+        persistLastEditedForFlow(draft.flow, snapshot);
+        return patched;
+      });
       return next;
     });
-  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+  }, [
+    userId,
+    persist,
+    touchPersistedStateDuringRemoteLoad,
+    notifySaveFailed,
+    activeGymName,
+    persistLastEditedForFlow,
+  ]);
 
   const addCompletedWorkout = useCallback((summary: Omit<WorkoutHistoryItem, "id">) => {
     const item = { ...summary, id: `hist_${Date.now()}` };
@@ -584,6 +942,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setSportPrepWeekPlan,
       setManualWeekPlan,
       setAdaptiveSetup,
+      activeSessionDraft,
+      beginSessionFlow,
+      replaceSessionFlow,
+      discardActiveSession,
+      updateActiveSessionDraft,
+      commitSportFormSnapshot,
+      pendingSportFormHydration,
+      consumeSportFormHydration,
       remoteSyncStatus,
       remoteSyncError,
       remoteSyncSkippedMerge,
@@ -605,6 +971,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       manualWeekPlan,
       adaptiveSetup,
       manualGoalPreferencesScope,
+      activeSessionDraft,
+      beginSessionFlow,
+      replaceSessionFlow,
+      discardActiveSession,
+      updateActiveSessionDraft,
+      commitSportFormSnapshot,
+      pendingSportFormHydration,
+      consumeSportFormHydration,
       remoteSyncStatus,
       remoteSyncError,
       remoteSyncSkippedMerge,

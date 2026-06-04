@@ -40,22 +40,50 @@ function toSlug(s: string): string {
   return s.toLowerCase().replace(/\s/g, "_");
 }
 
+function exerciseBlob(exercise: ExerciseForSubFocus): string {
+  return `${exercise.id ?? ""} ${exercise.name ?? ""}`.toLowerCase();
+}
+
+/** Incline bench/press patterns are not hill conditioning. */
+function isInclineStrengthFalsePositive(blob: string): boolean {
+  return (
+    /\b(incline|hill)\b/.test(blob) &&
+    /\b(press|bench|fly|curl|row|raise|pike|push_up|pushup)\b/.test(blob)
+  );
+}
+
+/** Sprint/COD drills carry OTA `lactate_threshold` tags but are not threshold sessions. */
+export function exerciseLooksLikeSprintDrill(exercise: ExerciseForSubFocus): boolean {
+  const blob = exerciseBlob(exercise);
+  if (
+    /\b(sprint|shuttle|_start|starts|skip|carioca|shuffle|wall_drill|acceleration|bound_to_sprint|build_up_sprint|sprinter_step)\b/.test(
+      blob
+    )
+  ) {
+    return true;
+  }
+  const attrs = (exercise.tags?.attribute_tags ?? []).map(toSlug);
+  return attrs.includes("sprint");
+}
+
 /** Incline / stair / sled patterns when canonical `hills` intent tag is missing (legacy catalog). */
 function exerciseLooksLikeHillConditioning(exercise: ExerciseForSubFocus): boolean {
   const id = (exercise.id ?? "").toLowerCase();
   const name = (exercise.name ?? "").toLowerCase();
+  const blob = exerciseBlob(exercise);
+  if (isInclineStrengthFalsePositive(blob)) return false;
   const eq = (exercise.equipment_required ?? []).map((x) => x.toLowerCase().replace(/\s/g, "_"));
   const uphillTreadmill =
     eq.includes("treadmill") &&
     (id.includes("incline") ||
       id.includes("uphill") ||
+      id.includes("hill") ||
       name.includes("incline") ||
       name.includes("uphill") ||
       name.includes("hill"));
   return (
     id.includes("treadmill_incline") ||
-    id.includes("incline") ||
-    name.includes("incline") ||
+    id.includes("treadmill_hill") ||
     name.includes("stair") ||
     id.includes("stair") ||
     id.includes("stair_climber") ||
@@ -114,6 +142,9 @@ export function exerciseHasSubFocusSlug(exercise: ExerciseForSubFocus, slug: str
   // Threshold / tempo: direct slug + energy-system tags (DB often uses lactate_threshold / zone3_cardio only).
   if (norm === "threshold_tempo") {
     if (attrs.includes("threshold_tempo")) return true;
+    if (exerciseLooksLikeSprintDrill(exercise)) return false;
+    const blob = exerciseBlob(exercise);
+    if (/\b(hill_sprint|sprint_interval|_sprints)\b/.test(blob)) return false;
     if (attrs.includes("lactate_threshold") || attrs.includes("zone3_cardio")) return true;
     return false;
   }

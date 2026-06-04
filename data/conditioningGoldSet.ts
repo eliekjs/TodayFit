@@ -32,6 +32,8 @@ export const CONDITIONING_GOLD_SET_IDS: string[] = [
   "ski_erg",
   // Hills / incline / stairs
   "treadmill_incline_walk",
+  "treadmill_hill_run",
+  "treadmill_hill_sprints",
   "stair_climber_repeats",
   "sled_push",
   "walking_lunge",
@@ -57,7 +59,9 @@ export const CONDITIONING_GOLD_SET_DIRECT_TAGS: Record<
   rower: ["zone2_aerobic_base", "threshold_tempo", "intervals_hiit"],
   ski_erg: ["zone2_aerobic_base", "threshold_tempo", "intervals_hiit"],
   treadmill_incline_walk: ["zone2_aerobic_base", "hills"],
-  stair_climber_repeats: ["hills", "intervals_hiit"],
+  treadmill_hill_run: ["hills"],
+  treadmill_hill_sprints: ["hills"],
+  stair_climber_repeats: ["hills"],
   sled_push: ["hills", "intervals_hiit"],
   walking_lunge: ["hills", "intervals_hiit"],
   kb_swing: ["intervals_hiit"],
@@ -77,6 +81,8 @@ export const CONDITIONING_GOLD_SET_OVERLAY_FAMILY: Record<string, string> = {
   rower: "full_body", // legs + pull + core
   ski_erg: "full_body",
   treadmill_incline_walk: "lower_body",
+  treadmill_hill_run: "lower_body",
+  treadmill_hill_sprints: "lower_body",
   stair_climber_repeats: "lower_body",
   sled_push: "lower_body",
   walking_lunge: "lower_body",

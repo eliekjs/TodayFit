@@ -111,10 +111,19 @@ function getIntentLabels(item: WorkoutItem): string[] {
     if (!labels.includes(lbl)) labels.push(lbl);
   }
 
+  if (labels.length < 2 && (links.sub_focus?.length ?? 0) > 0) {
+    for (const sf of links.sub_focus ?? []) {
+      if (labels.length >= 2) break;
+      const parent = _humanizeGoalSlug(sf.goal_slug);
+      const sub = _humanizeGoalSlug(sf.sub_slug);
+      const lbl = `${parent} → ${sub}`;
+      if (!labels.includes(lbl)) labels.push(lbl);
+    }
+  }
+
   // 2. Fitness goal fallback — preferred over bare sport tag when no specific match was
-  //    shown yet. Ensures exercises in goal-primary blocks (hypertrophy, strength, etc.)
-  //    display their goal context rather than an incidental sport tag.
-  if (labels.length === 0) {
+  //    shown yet. Skip when intent_inferred (proportional slot fill without tag proof).
+  if (labels.length === 0 && !links.intent_inferred) {
     for (const goal of (links.goals ?? []).filter((g) => g !== "athletic_performance")) {
       if (labels.length >= 2) break;
       const humanized = _humanizeGoalSlug(goal);

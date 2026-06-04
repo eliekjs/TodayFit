@@ -434,20 +434,31 @@ function filterMatchedIntentsForPrimary(
 
 function applyPrimaryToSessionIntentLinks(
   base: NonNullable<WorkoutItem["session_intent_links"]>,
-  primary: PrimaryGoal,
+  assignedSlotGoal: PrimaryGoal,
   ex: Exercise | undefined
 ): NonNullable<WorkoutItem["session_intent_links"]> {
   const subFocus = dedupeSubFocus(base.sub_focus ?? []);
 
-  let goalsOut: string[] = [primary as string];
-  if (ex != null && base.goals?.length) {
-    const extra = base.goals.filter(
-      (g) => g !== primary && exerciseMatchesDeclaredGoal(ex, g as PrimaryGoal)
+  let goalsOut: string[];
+  if (subFocus.length > 0) {
+    goalsOut = [...new Set(subFocus.map((sf) => sf.goal_slug))];
+  } else if (base.goals?.length && !base.intent_inferred) {
+    goalsOut = [...new Set(base.goals)];
+  } else if (ex != null && exerciseMatchesDeclaredGoal(ex, assignedSlotGoal)) {
+    const extra = (base.goals ?? []).filter(
+      (g) =>
+        g !== assignedSlotGoal && exerciseMatchesDeclaredGoal(ex, g as PrimaryGoal)
     );
-    goalsOut = [...new Set([primary as string, ...extra])];
+    goalsOut = [...new Set([assignedSlotGoal as string, ...extra])];
+  } else if (base.intent_inferred) {
+    goalsOut = [assignedSlotGoal as string];
+  } else {
+    goalsOut = base.goals?.length ? [...base.goals] : [];
   }
 
-  const matched = filterMatchedIntentsForPrimary(primary, base.matched_intents, ex);
+  const matched = filterMatchedIntentsForPrimary(assignedSlotGoal, base.matched_intents, ex);
+  const intentInferred = base.intent_inferred === true && subFocus.length === 0;
+
   const out: NonNullable<WorkoutItem["session_intent_links"]> = {
     declared_sport_sub_focuses: base.declared_sport_sub_focuses,
     sport_slugs: base.sport_slugs,
@@ -456,7 +467,7 @@ function applyPrimaryToSessionIntentLinks(
     ...(subFocus.length ? { sub_focus: subFocus } : {}),
     ...(matched?.length ? { matched_intents: matched } : {}),
     ...(base.session_prep ? { session_prep: true as const } : {}),
-    ...(base.intent_inferred ? { intent_inferred: true as const } : {}),
+    ...(intentInferred ? { intent_inferred: true as const } : {}),
   };
   return out;
 }
