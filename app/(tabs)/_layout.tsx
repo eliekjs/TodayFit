@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../lib/theme";
 import { useAppState } from "../../context/AppStateContext";
+import { ActiveSessionBanner } from "../../components/ActiveSessionCard";
 import {
   AdaptiveRecommendationBackButton,
   EditWorkoutBackButton,
@@ -28,6 +29,7 @@ export default function TabsLayout() {
   const libraryBadgeCount = savedWorkouts.length;
 
   return (
+    <>
     <Tabs
       tabBar={(props: BottomTabBarProps) => <FilteredTabBar {...props} />}
       screenOptions={{
@@ -186,5 +188,7 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    <ActiveSessionBanner />
+    </>
   );
 }

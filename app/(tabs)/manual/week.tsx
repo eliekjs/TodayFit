@@ -15,6 +15,8 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { PrimaryButton } from "../../../components/Button";
+import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
+import { backLabelForPhase, phaseLabelAfter, weekPreferencesHref } from "../../../lib/sessionFlowNav";
 import { Card } from "../../../components/Card";
 import { Chip } from "../../../components/Chip";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
@@ -180,6 +182,7 @@ export default function ManualWeekScreen() {
   const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
   /** Parallel to selectedTrainingDays: preset id from buildDayFocusPresetsForDay / resolveDayFocusPreset. */
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
+  const [navBarHeight, setNavBarHeight] = useState(72);
 
   const sessionHydratedRef = useRef(false);
   useEffect(() => {
@@ -914,91 +917,107 @@ export default function ManualWeekScreen() {
 
   if (!plan || plan.days.length === 0) {
     if (weekSetupStep === "sessionFocus") {
+      const canGenerate =
+        selectedTrainingDays.length > 0 &&
+        dayFocusChoiceIds.length === selectedTrainingDays.length;
       return (
         <AppScreenWrapper>
           <StatusBar style="light" />
-          <ScrollView
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <WeekDayFocusPlanner
-              theme={theme}
-              dayLabels={sessionFocusMeta.labels}
-              presetOptionsPerDay={sessionFocusMeta.presets}
-              selectedIds={dayFocusChoiceIds}
-              onSelect={(dayIdx, id) => {
-                setDayFocusChoiceIds((prev) => {
-                  const next = [...prev];
-                  next[dayIdx] = id;
-                  return next;
-                });
-              }}
-              onBack={() => setWeekSetupStep("pickDays")}
-            />
-            {error ? (
-              <Text style={[styles.errorText, { color: theme.danger, paddingHorizontal: 20 }]}>{error}</Text>
-            ) : null}
-            <View style={{ paddingHorizontal: 20, marginTop: 8 }}>
-              <PrimaryButton
-                label={
-                  generating
-                    ? "Generating…"
-                    : selectedTrainingDays.length === 1
-                      ? "Generate workout"
-                      : "Generate week"
-                }
-                onPress={generateWeek}
-                disabled={
-                  generating ||
-                  selectedTrainingDays.length === 0 ||
-                  dayFocusChoiceIds.length !== selectedTrainingDays.length
-                }
+          <View style={styles.container}>
+            <ScrollView
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: navBarHeight + 16 }]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <WeekDayFocusPlanner
+                theme={theme}
+                dayLabels={sessionFocusMeta.labels}
+                presetOptionsPerDay={sessionFocusMeta.presets}
+                selectedIds={dayFocusChoiceIds}
+                onSelect={(dayIdx, id) => {
+                  setDayFocusChoiceIds((prev) => {
+                    const next = [...prev];
+                    next[dayIdx] = id;
+                    return next;
+                  });
+                }}
+                onBack={() => setWeekSetupStep("pickDays")}
               />
-            </View>
-          </ScrollView>
+              {error ? (
+                <Text style={[styles.errorText, { color: theme.danger, paddingHorizontal: 20 }]}>
+                  {error}
+                </Text>
+              ) : null}
+            </ScrollView>
+            <FlowPhaseNavBar
+              sticky
+              onLayout={setNavBarHeight}
+              back={{
+                label: "Training days",
+                onPress: () => setWeekSetupStep("pickDays"),
+              }}
+              forward={{
+                label: generating
+                  ? "Generating…"
+                  : selectedTrainingDays.length === 1
+                    ? "Generate workout"
+                    : "Generate week",
+                onPress: generateWeek,
+                disabled: generating || !canGenerate,
+                loading: generating,
+              }}
+            />
+          </View>
         </AppScreenWrapper>
       );
     }
     return (
       <AppScreenWrapper>
         <StatusBar style="light" />
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, styles.centered]}
-          showsVerticalScrollIndicator={false}
-        >
-          <Card
-            title="Which days are you training?"
-            subtitle="We’ll balance upper, lower, and full body across the week. Change days anytime."
+        <View style={styles.container}>
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, styles.centered, { paddingBottom: navBarHeight + 16 }]}
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={{ fontSize: 13, marginBottom: 10, color: theme.textMuted }}>
-              Your training days
-            </Text>
-            <View style={styles.chipGroup}>
-              {WEEKDAY_LABELS.map((label, dow) => (
-                <Chip
-                  key={dow}
-                  label={label}
-                  selected={selectedTrainingDays.includes(dow)}
-                  onPress={() => toggleTrainingDay(dow)}
-                />
-              ))}
-            </View>
-          </Card>
-          {error ? (
-            <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
-          ) : null}
-          <PrimaryButton
-            label={
-              selectedTrainingDays.length === 1
-                ? "Next: choose session focus"
-                : "Next: session focus per day"
-            }
-            onPress={initSessionFocusStep}
-            disabled={selectedTrainingDays.length === 0}
-            style={{ marginTop: 16 }}
+            <Card
+              title="Which days are you training?"
+              subtitle="We’ll balance upper, lower, and full body across the week. Change days anytime."
+            >
+              <Text style={{ fontSize: 13, marginBottom: 10, color: theme.textMuted }}>
+                Your training days
+              </Text>
+              <View style={styles.chipGroup}>
+                {WEEKDAY_LABELS.map((label, dow) => (
+                  <Chip
+                    key={dow}
+                    label={label}
+                    selected={selectedTrainingDays.includes(dow)}
+                    onPress={() => toggleTrainingDay(dow)}
+                  />
+                ))}
+              </View>
+            </Card>
+            {error ? (
+              <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+            ) : null}
+          </ScrollView>
+          <FlowPhaseNavBar
+            sticky
+            onLayout={setNavBarHeight}
+            back={{
+              label: backLabelForPhase("setup"),
+              onPress: () => router.push(weekPrefsHref),
+            }}
+            forward={{
+              label:
+                selectedTrainingDays.length === 1
+                  ? "Next: session focus"
+                  : "Next: focus per day",
+              onPress: initSessionFocusStep,
+              disabled: selectedTrainingDays.length === 0,
+            }}
           />
-        </ScrollView>
+        </View>
       </AppScreenWrapper>
     );
   }
@@ -1219,11 +1238,6 @@ export default function ManualWeekScreen() {
               baseWorkoutTier={manualPreferences.workoutTier ?? "intermediate"}
               baseIncludeCreativeVariations={manualPreferences.includeCreativeVariations === true}
             />
-            <PrimaryButton
-              label="Start"
-              onPress={() => onStartDay(selectedDay.date, selectedDay.workout)}
-              style={{ marginTop: 16 }}
-            />
             {userId && isDbConfigured() ? (
               <PrimaryButton
                 label={savingDay ? "Saving…" : "Save this day"}
@@ -1233,14 +1247,6 @@ export default function ManualWeekScreen() {
                 style={{ marginTop: 8 }}
               />
             ) : null}
-            <PrimaryButton
-              label="Back to Preferences"
-              variant="ghost"
-              onPress={() => {
-                router.push(weekPrefsHref);
-              }}
-              style={{ marginTop: 8 }}
-            />
           </View>
         </View>
       ) : (
@@ -1272,9 +1278,33 @@ export default function ManualWeekScreen() {
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
-      <ScrollView ref={scrollViewRef} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        {scrollContent}
-      </ScrollView>
+      <View style={styles.container}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={{ paddingBottom: navBarHeight + 16 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {scrollContent}
+        </ScrollView>
+        <FlowPhaseNavBar
+          sticky
+          onLayout={setNavBarHeight}
+          back={{
+            label: backLabelForPhase("setup"),
+            onPress: () => router.push(weekPrefsHref),
+          }}
+          forward={{
+            label: phaseLabelAfter("review") ?? "Start session",
+            onPress: () => {
+              if (selectedDay) {
+                onStartDay(selectedDay.date, selectedDay.workout);
+              }
+            },
+            disabled: selectedDay == null,
+          }}
+          hint={selectedDay == null ? "Tap a session above to start training." : null}
+        />
+      </View>
       <SwapExerciseModal
         visible={swapModal != null}
         onClose={() => setSwapModal(null)}

@@ -6,6 +6,7 @@
 
 import type { Exercise } from "./types";
 import type { GenerateWorkoutInput } from "./types";
+import { isConditioningEligible } from "./blockSelectionEligibility";
 import {
   exerciseHasSubFocusSlug,
   filterPoolByOverlay,
@@ -254,12 +255,16 @@ export function pickConditioningExerciseWithVariety(
   preferredModalities: string[] | undefined,
   rng: () => number,
   preferredSubFocusSlugs?: string[],
-  pickContext?: ConditioningPickContext
+  pickContext?: ConditioningPickContext,
+  input?: GenerateWorkoutInput
 ): Exercise | undefined {
   if (!pool.length) return undefined;
 
-  let candidatePool = pool.filter((e) => pickWeightForExercise(e, pickContext) > 0);
-  if (!candidatePool.length) candidatePool = pool;
+  const eligiblePool = pool.filter((e) => isConditioningEligible(e, { input }));
+  if (!eligiblePool.length) return undefined;
+
+  let candidatePool = eligiblePool.filter((e) => pickWeightForExercise(e, pickContext) > 0);
+  if (!candidatePool.length) candidatePool = eligiblePool;
 
   if (preferredSubFocusSlugs?.length) {
     const directMatch = candidatePool.filter((e) =>

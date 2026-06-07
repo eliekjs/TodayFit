@@ -41,6 +41,38 @@ import type {
   SportFormSnapshot,
   WeekSetupDraft,
 } from "../lib/sessionDraft";
+
+function weekSetupDraftEqual(
+  a: WeekSetupDraft | null | undefined,
+  b: WeekSetupDraft | null | undefined
+): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  return (
+    a.enteredWeekScreen === b.enteredWeekScreen &&
+    a.step === b.step &&
+    a.selectedTrainingDays.length === b.selectedTrainingDays.length &&
+    a.selectedTrainingDays.every((d, i) => d === b.selectedTrainingDays[i]) &&
+    a.dayFocusChoiceIds.length === b.dayFocusChoiceIds.length &&
+    a.dayFocusChoiceIds.every((id, i) => id === b.dayFocusChoiceIds[i])
+  );
+}
+
+function isActiveSessionDraftPatchNoOp(
+  prev: SessionDraft,
+  patch: Partial<
+    Pick<SessionDraft, "phase" | "preferences" | "adaptiveSetup" | "weekSetup" | "gymProfileId">
+  >
+): boolean {
+  if (patch.phase !== undefined && patch.phase !== prev.phase) return false;
+  if (patch.preferences !== undefined && patch.preferences !== prev.preferences) return false;
+  if (patch.adaptiveSetup !== undefined && patch.adaptiveSetup !== prev.adaptiveSetup) return false;
+  if (patch.gymProfileId !== undefined && patch.gymProfileId !== prev.gymProfileId) return false;
+  if (patch.weekSetup !== undefined && !weekSetupDraftEqual(patch.weekSetup, prev.weekSetup)) {
+    return false;
+  }
+  return true;
+}
 import {
   createSessionDraft,
   inferSessionPhase,
@@ -216,10 +248,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [manualGoalPreferencesScope, setManualGoalPreferencesScope] =
     useState<ManualGoalPreferencesScope>("day");
   const [activeSessionDraft, setActiveSessionDraft] = useState<SessionDraft | null>(null);
-  const [lastEditedFiltersByMode, setLastEditedFiltersByMode] =
-    useState<LastEditedFiltersByMode>({});
   const lastEditedFiltersByModeRef = useRef<LastEditedFiltersByMode>({});
-  lastEditedFiltersByModeRef.current = lastEditedFiltersByMode;
   const [pendingSportFormHydration, setPendingSportFormHydration] =
     useState<SportFormSnapshot | null>(null);
   const lastSportFormSnapshotRef = useRef<SportFormSnapshot | null>(null);
@@ -247,7 +276,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void loadLastEditedFiltersByMode().then((data) => {
       lastEditedFiltersByModeRef.current = data;
-      setLastEditedFiltersByMode(data);
     });
   }, []);
 
@@ -261,7 +289,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       void persistModeFilterSnapshot(flow, snapshot, lastEditedFiltersByModeRef.current).then(
         (next) => {
           lastEditedFiltersByModeRef.current = next;
-          setLastEditedFiltersByMode(next);
         }
       );
     },
@@ -373,6 +400,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     ) => {
       setActiveSessionDraft((prev) => {
         if (!prev) return prev;
+        if (isActiveSessionDraftPatchNoOp(prev, patch)) return prev;
         const next = patchSessionDraft(prev, { ...patch, gymName: activeGymName });
         if (patch.weekSetup != null || patch.adaptiveSetup !== undefined) {
           const snapshot: ModeFilterSnapshot = {

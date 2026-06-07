@@ -27,6 +27,8 @@ import { GenerationLoadingScreen } from "../../../components/GenerationLoadingSc
 import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
 import { PrimaryButton } from "../../../components/Button";
+import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
+import { backLabelForPhase } from "../../../lib/sessionFlowNav";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { prefetchWorkoutGenerationStack } from "../../../lib/prefetchWorkoutGeneration";
@@ -1333,19 +1335,23 @@ export default function ManualPreferencesScreen() {
           },
         ]}
       >
-        <PrimaryButton
-          compact
-          label={isWeek ? "Next: Choose training days" : "Build workout"}
-          onPress={onGenerate}
-          disabled={!canProceed}
-        />
-        {!canProceed ? (
-          <Text style={[styles.ctaHint, { color: theme.textMuted }]}>
-            {isWeek
-              ? "Choose a session length and training goal to continue."
-              : "Choose session length, training goal, body emphasis, and gym profile to continue."}
-          </Text>
-        ) : null}
+        <FlowPhaseNavBar
+          sticky
+          onLayout={(height) => setBottomBarHeight(height)}
+          forward={{
+            label: isWeek ? "Next: Training days" : "Build workout",
+            onPress: onGenerate,
+            disabled: !canProceed,
+            loading: isGenerating,
+          }}
+          hint={
+            !canProceed
+              ? isWeek
+                ? "Choose a session length and training goal to continue."
+                : "Choose session length, training goal, body emphasis, and gym profile to continue."
+              : null
+          }
+        >
         <Pressable
           onPress={() => openAdvancedAndScroll()}
           style={styles.advancedLinkWrap}
@@ -1368,6 +1374,7 @@ export default function ManualPreferencesScreen() {
             </Text>
           </Pressable>
         </View>
+        </FlowPhaseNavBar>
       </View>
 
       {/* Change gym profile modal */}

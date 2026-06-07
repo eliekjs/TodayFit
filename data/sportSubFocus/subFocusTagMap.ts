@@ -12,6 +12,10 @@ import {
   SHARED_TAG_WEIGHTS_LINEAR_SPEED,
   SHARED_TAG_WEIGHTS_SPEED_POWER,
 } from "./speedAgilitySubFocusShared";
+import {
+  SHARED_TAG_WEIGHTS_VERTICAL_JUMP,
+  SHARED_TAG_WEIGHTS_VERTICAL_JUMP_STRENGTH_FOUNDATION,
+} from "./verticalJumpSubFocusShared";
 
 function key(sport: string, subFocus: string): string {
   return `${sport}:${subFocus}`;
@@ -942,19 +946,10 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- Basketball ---
-  [key("basketball", "vertical_jump")]: [
-    { tag_slug: "explosive_power", weight: 1.3 },
-    { tag_slug: "plyometric", weight: 1.2 },
-  ],
+  [key("basketball", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
 
   // --- Volleyball (indoor + beach combined) ---
-  [key("volleyball", "vertical_jump")]: [
-    { tag_slug: "explosive_power", weight: 1.3 },
-    { tag_slug: "plyometric", weight: 1.2 },
-    { tag_slug: "power", weight: 1 },
-    /** Strength patterns still transfer to jump height, but plyos/jumps should rank ahead of generic squat work. */
-    { tag_slug: "squat_pattern", weight: 0.55 },
-  ],
+  [key("volleyball", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
   [key("volleyball", "landing_mechanics")]: [
     { tag_slug: "eccentric_strength", weight: 1.2 },
     { tag_slug: "knee_stability", weight: 1.2 },
@@ -1004,24 +999,8 @@ export const SUB_FOCUS_TAG_MAP: SubFocusTagMap = {
   ],
 
   // --- Vertical Jump / Dunk (standalone sport) ---
-  [key("vertical_jump", "vertical_jump")]: [
-    { tag_slug: "explosive_power", weight: 1.4 },
-    { tag_slug: "plyometric", weight: 1.3 },
-    { tag_slug: "explosive", weight: 1.2 },
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "reactive_power", weight: 1 },
-    { tag_slug: "squat_pattern", weight: 0.9 },
-    { tag_slug: "hinge_pattern", weight: 0.9 },
-    { tag_slug: "single_leg_strength", weight: 0.8 },
-    { tag_slug: "knee_stability", weight: 0.7 },
-  ],
-  [key("vertical_jump", "strength_foundation")]: [
-    { tag_slug: "squat_pattern", weight: 1.3 },
-    { tag_slug: "hinge_pattern", weight: 1.2 },
-    { tag_slug: "max_strength", weight: 1.1 },
-    { tag_slug: "posterior_chain", weight: 1 },
-    { tag_slug: "single_leg_strength", weight: 0.9 },
-  ],
+  [key("vertical_jump", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
+  [key("vertical_jump", "strength_foundation")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP_STRENGTH_FOUNDATION],
   [key("vertical_jump", "reactive_landing")]: [
     { tag_slug: "reactive_power", weight: 1.3 },
     { tag_slug: "plyometric", weight: 1.2 },

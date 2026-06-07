@@ -5,6 +5,7 @@
  */
 
 import type { GoalSubFocusTagMap } from "./types";
+import { SHARED_TAG_WEIGHTS_VERTICAL_JUMP } from "../sportSubFocus/verticalJumpSubFocusShared";
 
 function key(goalSlug: string, subFocusSlug: string): string {
   return `${goalSlug}:${subFocusSlug}`;
@@ -55,11 +56,7 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "power", weight: 1.2 },
     { tag_slug: "legs", weight: 1 },
   ],
-  [key("athletic_performance", "vertical_jump")]: [
-    { tag_slug: "plyometric", weight: 1.3 },
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "legs", weight: 1 },
-  ],
+  [key("athletic_performance", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
   [key("athletic_performance", "power_explosive")]: [
     { tag_slug: "power", weight: 1.3 },
     { tag_slug: "plyometric", weight: 1.1 },
@@ -107,11 +104,7 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "power", weight: 1.2 },
     { tag_slug: "legs", weight: 1 },
   ],
-  [key("strength", "vertical_jump")]: [
-    { tag_slug: "plyometric", weight: 1.3 },
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "legs", weight: 1 },
-  ],
+  [key("strength", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
   [key("strength", "power_explosive")]: [
     { tag_slug: "power", weight: 1.3 },
     { tag_slug: "plyometric", weight: 1.1 },
@@ -381,11 +374,7 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "push", weight: 1.1 },
     { tag_slug: "plyometric", weight: 1 },
   ],
-  [key("conditioning", "vertical_jump")]: [
-    { tag_slug: "plyometric", weight: 1.3 },
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "legs", weight: 1 },
-  ],
+  [key("conditioning", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
   [key("conditioning", "sprint")]: [
     { tag_slug: "power", weight: 1.2 },
     { tag_slug: "conditioning", weight: 1.1 },
@@ -409,11 +398,7 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "push", weight: 1.1 },
     { tag_slug: "plyometric", weight: 1 },
   ],
-  [key("power", "vertical_jump")]: [
-    { tag_slug: "plyometric", weight: 1.3 },
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "legs", weight: 1 },
-  ],
+  [key("power", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
   [key("power", "sprint")]: [
     { tag_slug: "power", weight: 1.2 },
     { tag_slug: "conditioning", weight: 1.1 },

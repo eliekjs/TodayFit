@@ -19,7 +19,7 @@ import { primaryFocusLabelToPrimaryGoal } from "./goalRegistry";
 import { getExerciseTagsForGoalSubFocuses } from "../data/goalSubFocus";
 import { buildMergedGoalSubFocusSlugWeights, sanitizeSubFocusPctMaps } from "./subFocusWeights";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
-import { getExerciseTagsForSubFocuses } from "../data/sportSubFocus";
+import { getExerciseTagsForSubFocuses, normalizeSubFocusSlug } from "../data/sportSubFocus";
 import type {
   GenerateWorkoutInput,
   PrimaryGoal,
@@ -129,7 +129,7 @@ function goalTagSlugsForEntry(goal: PrimaryGoal): string[] {
  * All weights are normalized to sum = 1 and entries are ranked descending by weight (rank 1 = highest).
  */
 function normIntentSubSlug(s: string): string {
-  return String(s).toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+  return normalizeSubFocusSlug(String(s));
 }
 
 /** Shares of the sport budget across ranked sports (sums to 1). Honors dual-sport % when provided. */

@@ -1,19 +1,89 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
+import { View, Text, StyleSheet, Pressable, Modal, Platform } from "react-native";
 import { useRouter, usePathname } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
 import { useAppState } from "../context/AppStateContext";
 import {
   SESSION_FLOW_LABELS,
   SESSION_PHASES,
-  isSessionResumeCardScreen,
+  SESSION_BANNER_HEIGHT,
+  shouldShowSessionResumeBanner,
   type SessionPhase,
 } from "../lib/sessionDraft";
 import { PrimaryButton } from "./Button";
 
+const HEADER_BG = "rgba(15,23,42,0.8)";
+const HEADER_BORDER = "rgba(148,163,184,0.2)";
+
 function phaseIndex(phase: SessionPhase): number {
   return SESSION_PHASES.findIndex((p) => p.key === phase);
+}
+
+type FlowProgressTrackProps = {
+  currentIdx: number;
+  primaryColor: string;
+};
+
+function FlowProgressTrack({ currentIdx, primaryColor }: FlowProgressTrackProps) {
+  return (
+    <View style={styles.trackRow} accessibilityElementsHidden>
+      {SESSION_PHASES.map((step, idx) => {
+        const isPast = idx < currentIdx;
+        const isCurrent = idx === currentIdx;
+        return (
+          <View
+            key={step.key}
+            style={[
+              styles.trackSegment,
+              {
+                backgroundColor: isCurrent
+                  ? primaryColor
+                  : isPast
+                    ? "rgba(45,212,191,0.42)"
+                    : "rgba(148,163,184,0.16)",
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+type StepLabelsProps = {
+  currentIdx: number;
+  primaryColor: string;
+  mutedColor: string;
+};
+
+function StepLabels({ currentIdx, primaryColor, mutedColor }: StepLabelsProps) {
+  return (
+    <View style={styles.stepLabels}>
+      {SESSION_PHASES.map((step, idx) => {
+        const isPast = idx < currentIdx;
+        const isCurrent = idx === currentIdx;
+        return (
+          <React.Fragment key={step.key}>
+            {idx > 0 ? (
+              <Text style={[styles.stepSep, { color: "rgba(148,163,184,0.35)" }]}>·</Text>
+            ) : null}
+            <Text
+              style={[
+                styles.stepLabel,
+                isCurrent && { color: primaryColor, fontWeight: "600" },
+                isPast && !isCurrent && { color: "rgba(45,212,191,0.55)" },
+                !isPast && !isCurrent && { color: mutedColor },
+              ]}
+            >
+              {step.label}
+            </Text>
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
 }
 
 type RestartConfirmModalProps = {
@@ -34,8 +104,7 @@ function RestartConfirmModal({ visible, onCancel, onConfirm }: RestartConfirmMod
         >
           <Text style={[modalStyles.title, { color: theme.text }]}>Discard session?</Text>
           <Text style={[modalStyles.body, { color: theme.textMuted }]}>
-            This clears your current workout or week plan. Saved library items are not deleted. Your last
-            filter choices for each mode are kept for next time.
+            This clears your current workout or week plan. Saved library items are not deleted.
           </Text>
           <View style={modalStyles.actions}>
             <PrimaryButton label="Keep working" variant="secondary" compact onPress={onCancel} style={{ flex: 1 }} />
@@ -80,106 +149,80 @@ const modalStyles = StyleSheet.create({
   },
 });
 
-/** Resume card with phase stepper — shown on tab roots when a session is in progress. */
-export function ActiveSessionCard() {
+const NAV_BAR_HEIGHT = Platform.select({ ios: 44, android: 56, web: 52, default: 44 }) ?? 44;
+
+/** Header bottom Y when mounted outside a screen (e.g. tabs layout). */
+function useNavHeaderBottomOffset(): number {
+  const insets = useSafeAreaInsets();
+  return insets.top + NAV_BAR_HEIGHT;
+}
+
+type ActiveSessionBannerProps = {
+  /** Override distance from top of screen (below status bar + nav bar). */
+  topOffset?: number;
+};
+
+/**
+ * Full-width strip flush under the nav header when the user leaves an in-progress session.
+ * Hidden while they are on flow screens (preferences, week, sport setup, etc.).
+ */
+export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
   const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const navHeaderBottom = useNavHeaderBottomOffset();
   const { activeSessionDraft, discardActiveSession } = useAppState();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  if (!activeSessionDraft || !isSessionResumeCardScreen(pathname)) {
+  const top = topOffset ?? navHeaderBottom;
+
+  if (!activeSessionDraft || !shouldShowSessionResumeBanner(pathname)) {
     return null;
   }
 
-  const { flow, phase, summary, resumeRoute } = activeSessionDraft;
+  const { phase, summary, resumeRoute } = activeSessionDraft;
   const currentIdx = phaseIndex(phase);
-  const flowLabel = SESSION_FLOW_LABELS[flow];
+  const flowShort =
+    SESSION_FLOW_LABELS[activeSessionDraft.flow].split(" · ")[1] ?? "Session";
 
   return (
     <>
       <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: "rgba(15,23,42,0.72)",
-            borderColor: "rgba(45,212,191,0.32)",
-          },
-        ]}
+        pointerEvents="box-none"
+        style={[styles.strip, { top, height: SESSION_BANNER_HEIGHT }]}
       >
-        <Pressable
-          style={({ pressed }) => [styles.mainRow, { opacity: pressed ? 0.9 : 1 }]}
-          onPress={() => router.push(resumeRoute as never)}
-          accessibilityRole="button"
-          accessibilityLabel={`Continue ${flowLabel}, ${SESSION_PHASES[currentIdx]?.label ?? phase} phase`}
-        >
-          <View style={styles.titleRow}>
-            <Text style={[styles.flowLabel, { color: theme.textMuted }]}>{flowLabel}</Text>
-            <View style={styles.continueHint}>
-              <Text style={[styles.continueText, { color: theme.primary }]}>Continue</Text>
-              <Ionicons name="chevron-forward" size={16} color={theme.primary} />
-            </View>
-          </View>
-          <Text style={[styles.summary, { color: theme.text }]} numberOfLines={2}>
-            {summary}
-          </Text>
-        </Pressable>
+        <FlowProgressTrack currentIdx={currentIdx} primaryColor={theme.primary} />
 
-        <View style={styles.stepperRow}>
-          {SESSION_PHASES.map((step, idx) => {
-            const isPast = idx < currentIdx;
-            const isCurrent = idx === currentIdx;
-            return (
-              <View key={step.key} style={styles.stepWrap}>
-                <View style={styles.stepTrack}>
-                  {idx > 0 ? (
-                    <View
-                      style={[
-                        styles.connector,
-                        {
-                          backgroundColor: isPast || isCurrent ? theme.primary : theme.border,
-                        },
-                      ]}
-                    />
-                  ) : null}
-                  <View
-                    style={[
-                      styles.stepDot,
-                      {
-                        backgroundColor: isCurrent
-                          ? theme.primary
-                          : isPast
-                            ? "rgba(45,212,191,0.45)"
-                            : theme.border,
-                        borderColor: isCurrent ? theme.primary : "transparent",
-                      },
-                    ]}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.stepLabel,
-                    {
-                      color: isCurrent ? theme.primary : theme.textMuted,
-                      fontWeight: isCurrent ? "600" : "500",
-                    },
-                  ]}
-                >
-                  {step.label}
-                </Text>
-              </View>
-            );
-          })}
+        <View style={styles.contentRow}>
+          <Pressable
+            style={({ pressed }) => [styles.mainTap, { opacity: pressed ? 0.88 : 1 }]}
+            onPress={() => router.push(resumeRoute as never)}
+            accessibilityRole="button"
+            accessibilityLabel={`Continue session, ${SESSION_PHASES[currentIdx]?.label ?? phase} phase`}
+          >
+            <StepLabels
+              currentIdx={currentIdx}
+              primaryColor={theme.primary}
+              mutedColor={theme.textMuted}
+            />
+            <Text style={[styles.summary, { color: theme.textMuted }]} numberOfLines={1}>
+              {flowShort}
+              <Text style={{ color: "rgba(148,163,184,0.45)" }}> · </Text>
+              <Text style={{ color: theme.text }}>{summary}</Text>
+            </Text>
+            <Ionicons name="chevron-forward" size={12} color={theme.primary} style={styles.chevron} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => setConfirmOpen(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 12 }}
+            style={({ pressed }) => [styles.dismissTap, { opacity: pressed ? 0.65 : 1 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Start fresh"
+          >
+            <Text style={[styles.dismissText, { color: theme.textMuted }]}>Fresh</Text>
+          </Pressable>
         </View>
-
-        <Pressable
-          onPress={() => setConfirmOpen(true)}
-          style={({ pressed }) => [styles.discardRow, { opacity: pressed ? 0.85 : 1 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Start fresh and discard session"
-        >
-          <Text style={[styles.discardText, { color: theme.textMuted }]}>Start fresh</Text>
-        </Pressable>
       </View>
       <RestartConfirmModal
         visible={confirmOpen}
@@ -193,90 +236,88 @@ export function ActiveSessionCard() {
   );
 }
 
+/** @deprecated Use ActiveSessionBanner — kept as no-op for any stale imports. */
+export function ActiveSessionCard() {
+  return null;
+}
+
+export function useSessionBannerInset(): number {
+  const pathname = usePathname();
+  const { activeSessionDraft } = useAppState();
+  if (!activeSessionDraft || !shouldShowSessionResumeBanner(pathname)) return 0;
+  return SESSION_BANNER_HEIGHT;
+}
+
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 4,
-    overflow: "hidden",
-  },
-  mainRow: {
-    paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 10,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 4,
-  },
-  flowLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  continueHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  continueText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  summary: {
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: "500",
-  },
-  stepperRow: {
-    flexDirection: "row",
-    paddingHorizontal: 14,
-    paddingBottom: 10,
-    gap: 4,
-  },
-  stepWrap: {
-    flex: 1,
-    alignItems: "center",
-    gap: 6,
-  },
-  stepTrack: {
-    width: "100%",
-    height: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  connector: {
+  strip: {
     position: "absolute",
-    left: "-50%",
-    right: "50%",
-    height: 2,
-    top: 6,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    backgroundColor: HEADER_BG,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HEADER_BORDER,
+    overflow: "hidden",
+    ...(Platform.OS === "web" ? ({ pointerEvents: "auto" } as const) : null),
   },
-  stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 2,
+  trackRow: {
+    flexDirection: "row",
+    height: 2,
+    gap: 2,
+    paddingHorizontal: 0,
+  },
+  trackSegment: {
+    flex: 1,
+    height: 2,
+    borderRadius: 0,
+  },
+  contentRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: SESSION_BANNER_HEIGHT - 2,
+  },
+  mainTap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 16,
+    paddingRight: 6,
+    gap: 8,
+    minHeight: 38,
+  },
+  stepLabels: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 0,
   },
   stepLabel: {
     fontSize: 11,
-    textAlign: "center",
+    lineHeight: 14,
   },
-  discardRow: {
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(148,163,184,0.25)",
-    alignItems: "center",
+  stepSep: {
+    fontSize: 11,
+    marginHorizontal: 3,
   },
-  discardText: {
-    fontSize: 13,
+  summary: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  chevron: {
+    flexShrink: 0,
+    opacity: 0.85,
+  },
+  dismissTap: {
+    justifyContent: "center",
+    paddingRight: 14,
+    paddingLeft: 4,
+    minHeight: 38,
+  },
+  dismissText: {
+    fontSize: 11,
     fontWeight: "500",
   },
 });
 
-export default ActiveSessionCard;
+export default ActiveSessionBanner;

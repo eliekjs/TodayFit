@@ -15,7 +15,6 @@ import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
 import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
-import { ActiveSessionCard } from "../../components/ActiveSessionCard";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
@@ -242,8 +241,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ActiveSessionCard />
-
         <Text style={[styles.headline, { color: theme.text }]}>
           Customize your gym session:
         </Text>

@@ -33,9 +33,20 @@ export {
 } from "./speedAgilitySubFocusShared";
 export { SPORT_SUBFOCUS_EXERCISE_TAGS, NEW_TAGS_TO_ADD } from "./exerciseTagTaxonomy";
 export { getCanonicalSportSlug, LEGACY_TO_CANONICAL_SPORT } from "./canonicalSportSlug";
+export {
+  normalizeSubFocusSlug,
+  normalizeSubFocusSlugList,
+  collectActiveSubFocusSlugs,
+  subFocusExerciseSelectionScore,
+  aggregateSubFocusSelectionScore,
+  exercisePassesSubFocusTrainingGate,
+  exerciseIsSprintOrCodDrill,
+  SUB_FOCUS_SLUG_ALIASES,
+} from "./subFocusIntentRegistry";
 
 import { SUB_FOCUS_TAG_MAP } from "./subFocusTagMap";
 import { getCanonicalSportSlug } from "./canonicalSportSlug";
+import { normalizeSubFocusSlug } from "./subFocusIntentRegistry";
 
 /**
  * Returns exercise tag slugs (with optional weights) for the given sport and
@@ -55,7 +66,7 @@ export function getExerciseTagsForSubFocuses(
     ? subFocusWeights
     : subFocusSlugs.map(() => 1);
   for (let i = 0; i < subFocusSlugs.length; i++) {
-    const sub = subFocusSlugs[i];
+    const sub = normalizeSubFocusSlug(subFocusSlugs[i]!);
     const rankWeight = weights[i] ?? 1;
     const entries =
       SUB_FOCUS_TAG_MAP[`${canonicalSlug}:${sub}`] ??

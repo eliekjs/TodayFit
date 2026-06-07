@@ -18,6 +18,15 @@ import {
   tagSetHasDynamicPowerSignal,
   tagSetHasStabilityPrehabSignal,
 } from "../../data/sportSubFocus/subFocusIntentArchetypes";
+import {
+  exercisePassesVerticalJumpDynamicGate,
+  isVerticalJumpSubFocusSlug,
+} from "../../data/sportSubFocus/verticalJumpSubFocusShared";
+import {
+  exercisePassesSubFocusTrainingGate,
+  exerciseIsSprintOrCodDrill,
+  normalizeSubFocusSlug,
+} from "../../data/sportSubFocus/subFocusIntentRegistry";
 import type { Exercise } from "./types";
 
 function tagToSlug(s: string): string {
@@ -92,11 +101,14 @@ function requiresSpeedAgilityDynamicGate(subSlug: string): boolean {
 }
 
 function passesSpeedAgilityDynamicGate(exercise: Exercise, subSlug: string): boolean {
-  if (!requiresSpeedAgilityDynamicGate(subSlug)) return true;
-  const exTags = getExerciseTagSlugsForCoverage(exercise);
-  return (
-    exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) || tagSetHasDynamicPowerSignal(exTags)
-  );
+  const canon = normalizeSubFocusSlug(subSlug);
+  if (isVerticalJumpSubFocusSlug(canon)) {
+    return exercisePassesVerticalJumpDynamicGate(exercise);
+  }
+  if (requiresSpeedAgilityDynamicGate(canon)) {
+    return exercisePassesSubFocusTrainingGate(exercise, canon);
+  }
+  return true;
 }
 
 const REGIONAL_ANATOMY_SLUGS = new Set(["hips", "shoulders", "t_spine", "lower_back", "ankles"]);
@@ -189,17 +201,14 @@ export function exerciseMatchesSportSubFocusSlug(
   sportKey: string,
   subSlug: string
 ): boolean {
-  const entries = getExerciseTagsForSubFocuses(sportKey, [subSlug]);
+  const canonSub = normalizeSubFocusSlug(subSlug);
+  const entries = getExerciseTagsForSubFocuses(sportKey, [canonSub]);
   if (!entries.length) return false;
   const exTags = getExerciseTagSlugsForCoverage(exercise);
-  if (
-    requiresSpeedAgilityDynamicGate(subSlug) &&
-    !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) &&
-    !tagSetHasDynamicPowerSignal(exTags)
-  ) {
-    return false;
+  if (requiresSpeedAgilityDynamicGate(canonSub)) {
+    if (!passesSpeedAgilityDynamicGate(exercise, canonSub)) return false;
   }
-  if (isStabilityPrehabSportSubFocusSlug(subSlug) && !tagSetHasStabilityPrehabSignal(exTags)) {
+  if (isStabilityPrehabSportSubFocusSlug(canonSub) && !tagSetHasStabilityPrehabSignal(exTags)) {
     return false;
   }
   return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
@@ -214,12 +223,23 @@ export function exerciseMatchesSportSubFocusForCoverage(
   sportKey: string,
   subSlug: string
 ): boolean {
+  const canonSub = normalizeSubFocusSlug(subSlug);
   const want = tagToSlug(getCanonicalSportSlug(sportKey));
   const hasSport = (exercise.tags.sport_tags ?? []).some(
     (t) => tagToSlug(getCanonicalSportSlug(String(t))) === want
   );
-  if (!hasSport) return false;
-  return exerciseMatchesSportSubFocusSlug(exercise, sportKey, subSlug);
+  if (hasSport) {
+    return exerciseMatchesSportSubFocusSlug(exercise, sportKey, subSlug);
+  }
+  // Field-sport speed/COD drills are often tagged generically; accept sprint/COD evidence without sport chip.
+  if (
+    (canonSub === "speed" || canonSub === "change_of_direction") &&
+    exerciseIsSprintOrCodDrill(exercise) &&
+    exerciseMatchesSportSubFocusSlug(exercise, sportKey, subSlug)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export function exerciseMatchesGoalSubFocusSlugUnified(
@@ -238,12 +258,15 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
     const entries = getExerciseTagsForGoalSubFocuses("athletic_performance", [slug]);
     if (!entries.length) return false;
     const exTags = getExerciseTagSlugsForCoverage(exercise);
-    if (
-      requiresSpeedAgilityDynamicGate(slug) &&
-      !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) &&
-      !tagSetHasDynamicPowerSignal(exTags)
-    ) {
-      return false;
+    if (requiresSpeedAgilityDynamicGate(slug)) {
+      if (isVerticalJumpSubFocusSlug(slug)) {
+        if (!exercisePassesVerticalJumpDynamicGate(exercise)) return false;
+      } else if (
+        !exerciseTagSetHasSpeedAgilityDynamicMovement(exTags) &&
+        !tagSetHasDynamicPowerSignal(exTags)
+      ) {
+        return false;
+      }
     }
     return entries.some((e) => exTags.has(tagToSlug(e.tag_slug)));
   }

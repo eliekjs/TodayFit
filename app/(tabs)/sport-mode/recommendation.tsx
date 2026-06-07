@@ -7,6 +7,8 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
+import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
+import { backLabelForPhase, phaseLabelAfter } from "../../../lib/sessionFlowNav";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -1205,30 +1207,28 @@ export default function AdaptiveWeekPlanScreen() {
                 style={{ marginTop: 8 }}
               />
             ) : null}
-            {selectedWorkout && selectedDay?.status === "planned" ? (
-              <PrimaryButton
-                label={
-                  selectedDay.date === todayIso
-                    ? "Start today's workout"
-                    : "Start this session"
-                }
-                onPress={() => {
+            <FlowPhaseNavBar
+              back={{
+                label: backLabelForPhase("setup"),
+                onPress: () => router.push(sportSetupHref(sportPrepWeekPlan) as never),
+              }}
+              forward={{
+                label: phaseLabelAfter("review") ?? "Train",
+                onPress: () => {
+                  if (!selectedWorkout) return;
                   setGeneratedWorkout(normalizeGeneratedWorkout(selectedWorkout));
                   setResumeProgress(null);
                   setManualSessionProgress(null);
                   setManualExecutionStarted(true);
                   router.push("/manual/execute");
-                }}
-                style={{ marginTop: 8 }}
-              />
-            ) : null}
-            <PrimaryButton
-              label="Back to Setup"
-              variant="ghost"
-              onPress={() => {
-                router.push(sportSetupHref(sportPrepWeekPlan));
+                },
+                disabled: !selectedWorkout || selectedDay?.status !== "planned",
               }}
-              style={{ marginTop: 8 }}
+              hint={
+                !selectedWorkout || selectedDay?.status !== "planned"
+                  ? "Mark session as planned to start training."
+                  : null
+              }
             />
             <DiscardSessionLink style={{ marginTop: 16, marginBottom: 8 }} />
           </View>

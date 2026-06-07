@@ -15,6 +15,7 @@ import {
   pickConditioningExerciseWithVariety,
   CONDITIONING_INTENT_MIN_DIRECT_POOL,
 } from "./conditioningPoolBuilder";
+import { isConditioningEligible } from "./blockSelectionEligibility";
 
 function fullInput() {
   const gym = {
@@ -124,14 +125,16 @@ describe("conditioningPoolBuilder", () => {
     expect(hillsPool.some((e) => e.id === "sled_push" || e.id === "stepup")).toBe(true);
   });
 
-  it("expands sprint intent pool with acceleration drills", () => {
+  it("sprint intent pool retains catalog entries but pick excludes mechanics-only drills", () => {
     const { filtered } = filteredPool();
     const sprintPool = buildConditioningIntentPool(filtered, {
       intentSlugs: ["sprint"],
       used: new Set(),
     });
     expect(sprintPool.some((e) => e.id === "pro_shuttle" || e.id === "40_start")).toBe(true);
-    expect(sprintPool.length).toBeGreaterThan(10);
+    const eligible = sprintPool.filter((e) => isConditioningEligible(e));
+    expect(eligible.some((e) => e.id === "pro_shuttle" || e.id === "40_start")).toBe(false);
+    expect(eligible.length).toBeGreaterThan(0);
   });
 
   it("anti-repeat strongly de-prioritizes regeneration penalty ids", () => {
@@ -162,7 +165,8 @@ describe("conditioningPoolBuilder", () => {
         }
       }
     }
-    expect(unique.size).toBeGreaterThan(12);
+    expect(unique.size).toBeGreaterThan(5);
+    expect([...unique].some((id) => !/(shuttle|figure_8|40_start|pro_agility)/i.test(id))).toBe(true);
   });
 
   it("catalog includes hill treadmill and threshold tempo conditioning exercises", () => {

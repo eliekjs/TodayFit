@@ -4,7 +4,8 @@ import {
   createSessionDraft,
   getSessionResumeRoute,
   inferSessionPhase,
-  isSessionResumeCardScreen,
+  isSessionFlowScreen,
+  shouldShowSessionResumeBanner,
   sessionFlowFromManualScope,
 } from "./sessionDraft";
 import { defaultManualPreferences } from "../context/appStateModel";
@@ -60,9 +61,10 @@ describe("sessionDraft", () => {
     expect(getSessionResumeRoute(draft)).toBe("/manual/week");
   });
 
-  it("shows resume card only on tab root screens", () => {
-    expect(isSessionResumeCardScreen("/")).toBe(true);
-    expect(isSessionResumeCardScreen("/library")).toBe(true);
-    expect(isSessionResumeCardScreen("/manual/preferences")).toBe(false);
+  it("shows resume banner only outside flow screens", () => {
+    expect(shouldShowSessionResumeBanner("/")).toBe(true);
+    expect(shouldShowSessionResumeBanner("/library")).toBe(true);
+    expect(shouldShowSessionResumeBanner("/manual/preferences")).toBe(false);
+    expect(isSessionFlowScreen("/sport-mode/schedule")).toBe(true);
   });
 });

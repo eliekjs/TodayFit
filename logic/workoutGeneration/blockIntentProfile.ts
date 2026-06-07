@@ -6,6 +6,10 @@ import {
   type SessionFeelProfile,
 } from "./sessionFeelProfile";
 import {
+  resolveBlockStructureProfile,
+  sessionRequiresConditioningBlockFromArchetype,
+} from "../../data/sportSubFocus/subFocusIntentRegistry";
+import {
   applyWorkoutStyleToPolicy,
   resolveWorkoutStylePolicy,
 } from "./workoutStylePolicy";
@@ -24,6 +28,9 @@ import {
 export interface BlockIntentProfile {
   allowConditioningBlock: boolean;
   conditioningRequired: boolean;
+  suppressAccessoryBlocks: boolean;
+  requiresAccessoryBlocks: boolean;
+  fieldDrillConditioningEligible: boolean;
   cardioDominant: boolean;
   sessionCardioShare: number;
   targetCardioExerciseShare: number;
@@ -151,6 +158,13 @@ function buildCooldownTargets(input: GenerateWorkoutInput, cardioDominant: boole
  * when `sportProfileBiasedTowardConditioning` even if base policy disallows optional cardio.
  */
 export function shouldIncludeConditioningBlock(input: GenerateWorkoutInput): boolean {
+  if (sessionRequiresConditioningBlockFromArchetype(input)) return true;
+
+  if (input.primary_goal === "hypertrophy") {
+    const secondaryCardio = (input.secondary_goals ?? []).some(hasCardioGoal);
+    if (!secondaryCardio) return false;
+  }
+
   if (input.primary_goal !== "calisthenics") {
     return CARDIO_POLICY_BY_PRIMARY_GOAL[input.primary_goal].allowConditioningBlock;
   }
@@ -227,6 +241,7 @@ function resolveBasePolicy(input: GenerateWorkoutInput): ConditioningPolicy {
 }
 
 export function buildBlockIntentProfile(input: GenerateWorkoutInput): BlockIntentProfile {
+  const blockStructure = resolveBlockStructureProfile(input);
   const sessionFeel = resolveSessionFeelProfile(input);
   const hasEnduranceConditioningSubs = sessionHasEnduranceConditioningSubs(input);
   const secondaryGoals = input.secondary_goals ?? [];
@@ -255,9 +270,13 @@ export function buildBlockIntentProfile(input: GenerateWorkoutInput): BlockInten
     hasSecondaryCardioGoal ||
     sessionCardioShare >= 0.5 ||
     targetCardioExerciseShare >= 0.35;
-  const allowConditioningBlock = basePolicy.allowConditioningBlock || hasSecondaryCardioGoal;
+  const allowConditioningBlock =
+    basePolicy.allowConditioningBlock ||
+    hasSecondaryCardioGoal ||
+    blockStructure.requiresConditioningBlock;
   const conditioningRequired =
     basePolicy.conditioningRequired ||
+    blockStructure.requiresConditioningBlock ||
     (allowConditioningBlock && (hasSecondaryCardioGoal || sessionCardioShare >= 0.56));
   const intentSlugs = getAllCardioIntentSlugs(input);
   const preferredMainFormats = basePolicy.preferredMainFormats as BlockFormat[];
@@ -266,6 +285,9 @@ export function buildBlockIntentProfile(input: GenerateWorkoutInput): BlockInten
   return {
     allowConditioningBlock,
     conditioningRequired,
+    suppressAccessoryBlocks: blockStructure.suppressAccessoryBlocks,
+    requiresAccessoryBlocks: blockStructure.requiresAccessoryBlocks,
+    fieldDrillConditioningEligible: blockStructure.fieldDrillConditioningEligible,
     cardioDominant,
     sessionCardioShare,
     targetCardioExerciseShare,

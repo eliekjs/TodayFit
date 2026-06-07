@@ -19,7 +19,6 @@ import { useAuth } from "../../../context/AuthContext";
 import { getSupabase } from "../../../lib/db";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
-import { ActiveSessionCard } from "../../../components/ActiveSessionCard";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import {
@@ -141,8 +140,6 @@ export default function GymProfilesScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ActiveSessionCard />
-
         {from === "workout" && (
           <View style={styles.backToWorkout}>
             <PrimaryButton

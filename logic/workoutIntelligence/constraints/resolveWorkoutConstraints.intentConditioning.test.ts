@@ -34,4 +34,15 @@ describe("resolveWorkoutConstraints intent conditioning (Slice E)", () => {
     });
     expect(c.required_conditioning_block).toBeUndefined();
   });
+
+  it("requires conditioning block when sport sub-focus is repeat_sprint (RSA)", () => {
+    const c = resolveWorkoutConstraints({
+      primary_goal: "strength",
+      available_equipment: ["bodyweight"],
+      duration_minutes: 60,
+      energy_level: "medium",
+      sport_sub_focus: { soccer: ["repeat_sprint"] },
+    });
+    expect(c.required_conditioning_block).toBe(true);
+  });
 });

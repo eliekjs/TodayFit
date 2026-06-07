@@ -8,7 +8,6 @@ import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
-import { ActiveSessionCard } from "../../../components/ActiveSessionCard";
 import { listWeeklyPlanInstances, saveManualWeek } from "../../../lib/db/weekPlanRepository";
 import type { SavedWeekSummary } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
@@ -128,8 +127,6 @@ export default function LibraryScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <ActiveSessionCard />
-
         {!hasAny && !hasStaleInProgress && (
           <View style={styles.emptyState}>
             <Text style={[styles.emptyTitle, { color: theme.text }]}>

@@ -139,14 +139,19 @@ export function inferSessionPhase(input: SessionPhaseInput): SessionPhase {
   return "setup";
 }
 
-/** Tab roots where the resume card appears when a session is active. */
-export function isSessionResumeCardScreen(pathname: string): boolean {
-  const p = pathname.replace(/\/$/, "") || "/";
-  if (p === "/" || p === "/index") return true;
-  if (p.endsWith("/library") || p.includes("/library/index")) return true;
-  if (p.endsWith("/profiles") || p.includes("/profiles/index")) return true;
-  return false;
+/** True when the user is inside the workout/week build or execute flow. */
+export function isSessionFlowScreen(pathname: string): boolean {
+  return pathname.includes("/manual/") || pathname.includes("/sport-mode/");
 }
+
+/** Floating resume banner — only when a session exists and user left the flow. */
+export function shouldShowSessionResumeBanner(pathname: string): boolean {
+  return !isSessionFlowScreen(pathname);
+}
+
+/** Height of the floating session banner (for content inset). */
+/** Flush strip under nav header: 2px track + label row. */
+export const SESSION_BANNER_HEIGHT = 40;
 
 export function createSessionDraft(params: {
   flow: SessionFlow;

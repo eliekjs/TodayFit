@@ -23,6 +23,7 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
+import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import {
   computeDeclaredIntentSplitFromPrefs,
@@ -33,6 +34,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import type { AdaptiveSetup } from "../../../context/appStateModel";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
+import { formatRemoteLoadError } from "../../../context/formatRemoteLoadError";
 import {
   CONSTRAINT_OPTIONS,
   DURATIONS,
@@ -186,6 +188,7 @@ export default function AdaptiveModeScreen() {
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
+  const [navBarHeight, setNavBarHeight] = useState(88);
   const generationCancelledRef = useRef(false);
 
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
@@ -277,14 +280,12 @@ export default function AdaptiveModeScreen() {
 
   useEffect(() => {
     const loadSports = async () => {
-      if (!isDbConfigured()) return;
       try {
         setSportsError(null);
         const all = await listSportsForPrep();
         setSports(all);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        setSportsError(msg);
+        setSportsError(formatRemoteLoadError(e));
       }
     };
     loadSports();
@@ -949,11 +950,13 @@ export default function AdaptiveModeScreen() {
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
+      <View style={styles.screenFill}>
       <ScrollView
         style={styles.scrollFill}
         ref={adaptiveScrollRef}
         contentContainerStyle={[
           styles.content,
+          { paddingBottom: navBarHeight + 16 },
           ...(Platform.OS === "web"
             ? [{ paddingTop: Math.max(headerHeight + 16, 128) }]
             : []),
@@ -1286,7 +1289,7 @@ export default function AdaptiveModeScreen() {
               ) : null}
               {!sportsError && sports.length === 0 && (
                 <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 8 }}>
-                  No sports loaded yet. Confirm Supabase is configured and migrations/seeds have run.
+                  No sports available. Check your connection or Supabase configuration.
                 </Text>
               )}
               {sports.length > 0 && filteredSportsFlat.length === 0 && (
@@ -2035,35 +2038,39 @@ export default function AdaptiveModeScreen() {
           />
         )}
 
-        <View style={styles.footer}>
-          <PrimaryButton
-            compact
-            label={
-              isOneDay
-                ? (isGeneratingOneDay ? "Generating…" : "Get today's workout")
-                : "Next: Choose your schedule"
-            }
-            onPress={onNextToSchedule}
-            disabled={!canContinueAdaptive || isGeneratingOneDay}
-          />
-          {!canContinueAdaptive && isDbConfigured() ? (
-            <Text style={[styles.footerHint, { color: theme.textMuted }]}>
-              {isOneDay
-                ? `${ONE_DAY_SPORT_MODE_COMBINATION_HINT} Also choose a session length.`
-                : "Choose at least one sport to continue."}
-            </Text>
-          ) : null}
-          <Pressable
-            onPress={() => openAdaptiveAdvancedAndScroll()}
-            style={styles.advancedLinkWrap}
-          >
-            <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-              Advanced options (sport %, goal weights, fatigue, injuries…)
-            </Text>
-          </Pressable>
-        </View>
         </View>
       </ScrollView>
+      <FlowPhaseNavBar
+        sticky
+        onLayout={setNavBarHeight}
+        forward={{
+          label: isOneDay
+            ? isGeneratingOneDay
+              ? "Generating…"
+              : "Get today's workout"
+            : "Next: Schedule",
+          onPress: onNextToSchedule,
+          disabled: !canContinueAdaptive || isGeneratingOneDay,
+          loading: isGeneratingOneDay,
+        }}
+        hint={
+          !canContinueAdaptive && isDbConfigured()
+            ? isOneDay
+              ? `${ONE_DAY_SPORT_MODE_COMBINATION_HINT} Also choose a session length.`
+              : "Choose at least one sport to continue."
+            : null
+        }
+      >
+        <Pressable
+          onPress={() => openAdaptiveAdvancedAndScroll()}
+          style={styles.advancedLinkWrap}
+        >
+          <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
+            Advanced options (sport %, goal weights, fatigue, injuries…)
+          </Text>
+        </Pressable>
+      </FlowPhaseNavBar>
+      </View>
       <Modal visible={limitPopup != null} transparent animationType="fade" statusBarTranslucent>
         {limitPopup != null ? (
           <View pointerEvents="none" style={styles.limitPopupOverlay}>
@@ -2143,6 +2150,9 @@ export default function AdaptiveModeScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  screenFill: {
     flex: 1,
   },
   scrollFill: {

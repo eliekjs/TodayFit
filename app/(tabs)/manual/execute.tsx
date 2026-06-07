@@ -13,6 +13,8 @@ import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
+import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
+import { backLabelForPhase } from "../../../lib/sessionFlowNav";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { ExerciseSetupModal } from "../../../components/ExerciseSetupModal";
@@ -70,10 +72,16 @@ export default function ExecuteScreen() {
     setManualSessionProgress,
     setManualExecutionStarted,
     manualGoalPreferencesScope,
+    manualWeekPlan,
   } = useAppState();
   const router = useRouter();
   const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
   const theme = useTheme();
+  const reviewHref =
+    manualWeekPlan != null && manualWeekPlan.days.length > 0
+      ? "/manual/week"
+      : "/manual/workout";
+  const [navBarHeight, setNavBarHeight] = useState(72);
 
   const allExercises = useMemo(
     () =>
@@ -316,8 +324,9 @@ export default function ExecuteScreen() {
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
+      <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: navBarHeight + 16 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={{ gap: 12 }}>
@@ -430,9 +439,22 @@ export default function ExecuteScreen() {
             variant="secondary"
             onPress={onSaveForLater}
           />
-          <PrimaryButton label="Finish Workout" onPress={onFinish} style={{ marginTop: 12 }} />
         </View>
       </ScrollView>
+
+      <FlowPhaseNavBar
+        sticky
+        onLayout={setNavBarHeight}
+        back={{
+          label: backLabelForPhase("review"),
+          onPress: () => router.push(reviewHref as never),
+        }}
+        forward={{
+          label: "Finish workout",
+          onPress: onFinish,
+        }}
+      />
+      </View>
 
       <SwapExerciseModal
         visible={swapModal != null}

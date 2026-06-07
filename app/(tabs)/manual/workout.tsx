@@ -7,6 +7,8 @@ import { useTheme } from "../../../lib/theme";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
+import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
+import { backLabelForPhase, phaseLabelAfter } from "../../../lib/sessionFlowNav";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
@@ -54,6 +56,7 @@ export default function ManualWorkoutScreen() {
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
   const [swapNumPages, setSwapNumPages] = useState(1);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [navBarHeight, setNavBarHeight] = useState(72);
   const generationCancelledRef = useRef(false);
 
   useFocusEffect(
@@ -239,8 +242,9 @@ export default function ManualWorkoutScreen() {
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
+      <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: navBarHeight + 16 }]}
         showsVerticalScrollIndicator={false}
       >
         <Card
@@ -269,22 +273,25 @@ export default function ManualWorkoutScreen() {
             onPress={onSaveForLater}
             style={{ marginTop: 8 }}
           />
-          <PrimaryButton
-            label="Edit Preferences"
-            variant="ghost"
-            onPress={() => router.push(manualPrefsHref)}
-            style={{ marginTop: 8 }}
-          />
-          <PrimaryButton
-            label="Start Workout"
-            onPress={() => {
-              setManualExecutionStarted(true);
-              router.push("/manual/execute");
-            }}
-            style={{ marginTop: 16 }}
-          />
         </View>
       </ScrollView>
+
+      <FlowPhaseNavBar
+        sticky
+        onLayout={setNavBarHeight}
+        back={{
+          label: backLabelForPhase("setup"),
+          onPress: () => router.push(manualPrefsHref),
+        }}
+        forward={{
+          label: phaseLabelAfter("review") ?? "Start workout",
+          onPress: () => {
+            setManualExecutionStarted(true);
+            router.push("/manual/execute");
+          },
+        }}
+      />
+      </View>
 
       <SwapExerciseModal
         visible={swapModal != null}

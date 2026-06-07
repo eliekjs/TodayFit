@@ -17,6 +17,7 @@ import {
   ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS,
   isEnduranceConditioningSportSubFocusSlug,
 } from "../../../data/sportSubFocus/subFocusIntentArchetypes";
+import { sessionRequiresConditioningBlockFromArchetype } from "../../../data/sportSubFocus/subFocusIntentRegistry";
 import type { BlockType } from "../types";
 import {
   getInjuryAvoidTags,
@@ -226,7 +227,8 @@ export function resolveWorkoutConstraints(
     }
   );
   const conditioningFromIntentSubs = selectionInputHasEngineConditioningSubs(input);
-  if (conditioningSecondary || conditioningFromIntentSubs) {
+  const archetypeConditioningRequired = sessionRequiresConditioningBlockFromArchetype(input);
+  if (conditioningSecondary || conditioningFromIntentSubs || archetypeConditioningRequired) {
     rules.push({
       kind: "required_block_type",
       block_types: ["conditioning"],
@@ -269,7 +271,8 @@ export function resolveWorkoutConstraints(
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
     allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,
-    required_conditioning_block: conditioningSecondary || conditioningFromIntentSubs || undefined,
+    required_conditioning_block:
+      conditioningSecondary || conditioningFromIntentSubs || archetypeConditioningRequired || undefined,
     prefer_power_block: powerSecondary || undefined,
     prefer_strength_block: strengthSecondary || undefined,
     prefer_hypertrophy_block: hypertrophySecondary || undefined,

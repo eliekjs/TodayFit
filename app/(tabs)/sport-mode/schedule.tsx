@@ -8,7 +8,10 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
-import { PrimaryButton } from "../../../components/Button";
+import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
+import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
+import { backLabelForPhase, setupRouteForFlow } from "../../../lib/sessionFlowNav";
+import { sessionFlowFromSportScope } from "../../../lib/sessionDraft";
 import { useAppState } from "../../../context/AppStateContext";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAuth } from "../../../context/AuthContext";
@@ -45,12 +48,13 @@ export default function AdaptiveScheduleScreen() {
   const router = useRouter();
   const {
     adaptiveSetup,
-    setAdaptiveSetup,
     setSportPrepWeekPlan,
     activeGymProfileId,
     gymProfiles,
     manualPreferences,
     updateManualPreferences,
+    beginSessionFlow,
+    updateActiveSessionDraft,
   } = useAppState();
   const { userId } = useAuth();
 
@@ -59,17 +63,21 @@ export default function AdaptiveScheduleScreen() {
   const [defaultDuration, setDefaultDuration] = useState<number>(45);
   const [weeklyEmphasis, setWeeklyEmphasis] = useState<BodyEmphasisKey | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [navBarHeight, setNavBarHeight] = useState(72);
   const generationCancelledRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       generationCancelledRef.current = false;
-      setIsSubmitting(false);
+      beginSessionFlow(sessionFlowFromSportScope(false));
+      if (adaptiveSetup) {
+        updateActiveSessionDraft({ adaptiveSetup });
+      }
       return () => {
         generationCancelledRef.current = true;
         setIsSubmitting(false);
       };
-    }, [])
+    }, [adaptiveSetup, beginSessionFlow, updateActiveSessionDraft])
   );
   const [error, setError] = useState<string | null>(null);
   const [sports, setSports] = useState<Sport[]>([]);
@@ -92,12 +100,11 @@ export default function AdaptiveScheduleScreen() {
 
   useEffect(() => {
     const load = async () => {
-      if (!isDbConfigured()) return;
       try {
         const all = await listSportsForPrep();
         setSports(all);
       } catch {
-        // ignore
+        // ignore; sport labels fall back to slugs
       }
     };
     load();
@@ -230,8 +237,8 @@ export default function AdaptiveScheduleScreen() {
       });
       if (generationCancelledRef.current) return;
       setSportPrepWeekPlan(plan);
+      setIsSubmitting(false);
       router.replace("/sport-mode/recommendation");
-      setAdaptiveSetup(null);
     } catch (e) {
       if (generationCancelledRef.current) return;
       setError(e instanceof Error ? e.message : String(e));
@@ -245,7 +252,6 @@ export default function AdaptiveScheduleScreen() {
     defaultDuration,
     weeklyEmphasis,
     setSportPrepWeekPlan,
-    setAdaptiveSetup,
     activeGymProfileId,
     gymProfiles,
     manualPreferences,
@@ -293,6 +299,19 @@ export default function AdaptiveScheduleScreen() {
 
   const durationSummary = `${defaultDuration} min`;
 
+  if (isSubmitting) {
+    return (
+      <GenerationLoadingScreen
+        message="Building your week…"
+        subtitle="Generating each training day in order."
+        onGoBack={() => {
+          generationCancelledRef.current = true;
+          setIsSubmitting(false);
+        }}
+      />
+    );
+  }
+
   if (!adaptiveSetup) {
     // Use declarative redirect to avoid calling router before root navigator mount.
     return <Redirect href="/sport-mode" />;
@@ -301,8 +320,9 @@ export default function AdaptiveScheduleScreen() {
   return (
     <AppScreenWrapper>
       <StatusBar style="light" />
+      <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: navBarHeight + 16 }]}
         showsVerticalScrollIndicator={false}
       >
         <Card
@@ -420,20 +440,23 @@ export default function AdaptiveScheduleScreen() {
           />
         </CollapsiblePreferenceSection>
 
-        <View style={styles.footer}>
-          <PrimaryButton
-            label={isSubmitting ? "Planning your week…" : "Generate week plan"}
-            onPress={onGenerate}
-            disabled={isSubmitting || gymTrainingDays.length === 0}
-          />
-          <PrimaryButton
-            label="Back to priorities"
-            variant="ghost"
-            onPress={() => router.back()}
-            style={{ marginTop: 12 }}
-          />
-        </View>
       </ScrollView>
+      <FlowPhaseNavBar
+        sticky
+        onLayout={setNavBarHeight}
+        back={{
+          label: backLabelForPhase("setup"),
+          onPress: () => router.push(setupRouteForFlow("sport_week") as never),
+        }}
+        forward={{
+          label: isSubmitting ? "Planning…" : "Generate week plan",
+          onPress: onGenerate,
+          disabled: isSubmitting || gymTrainingDays.length === 0,
+          loading: isSubmitting,
+        }}
+        hint={gymTrainingDays.length === 0 ? "Choose at least one gym day." : null}
+      />
+      </View>
     </AppScreenWrapper>
   );
 }
@@ -455,8 +478,5 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     marginTop: 8,
-  },
-  footer: {
-    marginTop: 28,
   },
 });

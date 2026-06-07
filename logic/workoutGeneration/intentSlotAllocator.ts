@@ -23,6 +23,17 @@ import {
   isEnduranceConditioningSportSubFocusSlug,
   tagSetHasDynamicPowerSignal,
 } from "../../data/sportSubFocus/subFocusIntentArchetypes";
+import {
+  exerciseHasLowerBodyPlyoJumpSignal,
+  exerciseIsMedBallPowerThrow,
+  isVerticalJumpSubFocusSlug,
+} from "../../data/sportSubFocus/verticalJumpSubFocusShared";
+import {
+  exercisePassesSubFocusTrainingGate,
+  normalizeSubFocusSlug,
+  sessionSuppressesAccessoryBlocks,
+} from "../../data/sportSubFocus/subFocusIntentRegistry";
+import { isAssessmentExercise } from "./blockSelectionEligibility";
 
 function tagToSlug(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -150,7 +161,8 @@ export function isIntentMainWorkCandidate(ex: Exercise, primary: PrimaryGoal): b
 
 export function isPowerStyleSportIntentEntry(entry: IntentEntry): boolean {
   if (entry.kind !== "sport_sub_focus") return false;
-  return isSpeedAgilityPowerStyleSubFocusSlug(entry.slug) || isExplosivePlyometricSportSubFocusSlug(entry.slug);
+  const slug = normalizeSubFocusSlug(entry.slug);
+  return isSpeedAgilityPowerStyleSubFocusSlug(slug) || isExplosivePlyometricSportSubFocusSlug(slug);
 }
 
 export function isStabilityPrehabSportIntentEntry(entry: IntentEntry): boolean {
@@ -188,17 +200,25 @@ const DYNAMIC_SPORT_MAIN_PATTERNS = new Set([
  */
 export function isDynamicSportSubFocusMainWorkCandidate(ex: Exercise, entry: IntentEntry): boolean {
   if (entry.kind !== "sport_sub_focus") return false;
-  if (!isPowerStyleSportIntentEntry(entry) && !isExplosivePlyometricSportSubFocusSlug(entry.slug)) {
+  const slug = normalizeSubFocusSlug(entry.slug);
+  if (!isPowerStyleSportIntentEntry(entry) && !isExplosivePlyometricSportSubFocusSlug(slug)) {
     return false;
   }
+  if (isAssessmentExercise(ex)) return false;
   if (ex.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(ex.exercise_role.toLowerCase().replace(/\s/g, "_"))) {
     return false;
   }
   if (!(ex.modality === "power" || ex.modality === "strength" || ex.modality === "conditioning")) {
     return false;
   }
+  if (!exercisePassesSubFocusTrainingGate(ex, slug)) return false;
   const tags = exerciseTagSet(ex);
-  if (!tagSetHasDynamicPowerSignal(tags)) return false;
+  if (isVerticalJumpSubFocusSlug(slug)) {
+    if (exerciseIsMedBallPowerThrow(ex)) return false;
+    if (!exerciseHasLowerBodyPlyoJumpSignal(ex)) return false;
+  } else if (!tagSetHasDynamicPowerSignal(tags)) {
+    return false;
+  }
   const role = (ex.exercise_role ?? "").toLowerCase().replace(/\s/g, "_");
   const hasJumpOrReactiveSignal =
     tags.has("plyometric") || tags.has("jumping") || tags.has("reactive_power");
@@ -293,4 +313,11 @@ export function buildUnifiedIntentSlotPlan(
     archetype: classifyLeafArchetype(entry),
     slots,
   }));
+}
+
+/** Prehab/accessory intent slots are omitted when session archetype suppresses accessory blocks. */
+export function shouldAllocatePrehabAccessorySlots(
+  input: { session_intent?: { ranked_intent_entries?: IntentEntry[] }; sport_sub_focus?: Record<string, string[] | undefined>; goal_sub_focus?: Record<string, string[] | undefined>; primary_goal?: string; secondary_goals?: string[] }
+): boolean {
+  return !sessionSuppressesAccessoryBlocks(input);
 }

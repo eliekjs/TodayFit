@@ -3,6 +3,7 @@
  * Uses exercise_role, mobility_targets, stretch_targets when present; falls back to modality.
  */
 
+import { isRecoveryCooldownEligible } from "./blockSelectionEligibility";
 import { isMobilityOrStretchExercise } from "../workoutIntelligence/constraints/eligibilityHelpers";
 import type { ExerciseWithQualities } from "../workoutIntelligence/types";
 import type { Exercise } from "./types";
@@ -77,18 +78,11 @@ export interface CooldownSelectionOptions {
 }
 
 /**
- * Returns true if the exercise is eligible for cooldown (ontology-first, then modality fallback).
+ * Returns true if the exercise is eligible for cooldown (stretch/mobility/breathing recovery work).
+ * Delegates to shared recovery gate — excludes strength/isolation/prehab (e.g. tibialis raise).
  */
 export function isCooldownEligible(exercise: Exercise): boolean {
-  const role = exercise.exercise_role?.toLowerCase().replace(/\s/g, "_");
-  if (role && COOLDOWN_ELIGIBLE_ROLES.has(role)) return true;
-  const mod = (exercise.modality ?? "").toLowerCase();
-  if (mod === "mobility" || mod === "recovery") return true;
-  const hasTargets =
-    (exercise.mobility_targets?.length ?? 0) > 0 || (exercise.stretch_targets?.length ?? 0) > 0;
-  if (hasTargets) return true;
-  const primary = exercise.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
-  return primary === "mobility";
+  return isRecoveryCooldownEligible(exercise);
 }
 
 /**
@@ -222,7 +216,7 @@ export function selectCooldownMobilityExercises(
   // Pool must satisfy Phase 8 mobility/stretch counting (includes stretch + mobility/recovery modalities).
   const pool = exercises.filter((e) => {
     if (alreadyUsedIds.has(e.id)) return false;
-    if (!isCooldownEligible(e)) return false;
+    if (!isRecoveryCooldownEligible(e)) return false;
     return exerciseCountsAsCooldownMobilityForValidator(e);
   });
 

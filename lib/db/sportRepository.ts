@@ -1,5 +1,7 @@
 import { getSupabase } from "./client";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
+import { isRemoteFetchError } from "./isRemoteFetchError";
+import { listBundledSportsForPrep } from "./localSportsCatalog";
 import type {
   Sport,
   SportCategory,
@@ -76,12 +78,18 @@ export async function getSportCategories(): Promise<SportCategory[]> {
  * Includes console logging for diagnostics.
  */
 export async function listSportsForPrep(): Promise<Sport[]> {
-  const supabase = requireClient();
+  const supabase = getSupabase();
+  if (!supabase) {
+    const bundled = listBundledSportsForPrep();
+    // eslint-disable-next-line no-console
+    console.log("[SportsPrep] Using bundled catalog (Supabase not configured):", bundled.length);
+    return bundled;
+  }
 
   const extendedQuery = async (): Promise<Sport[]> => {
     const { data, error } = await supabase
       .from("sports")
-      .select("id, slug, name, category, description, is_active, popularity_tier", { count: "exact" })
+      .select("id, slug, name, category, description, is_active, popularity_tier")
       .eq("is_active", true)
       .order("popularity_tier", { ascending: true, nullsFirst: true })
       .order("name", { ascending: true })
@@ -102,6 +110,14 @@ export async function listSportsForPrep(): Promise<Sport[]> {
     return (data ?? []) as Sport[];
   };
 
+  const useBundledOnFailure = (reason: string, err: unknown): Sport[] => {
+    const bundled = listBundledSportsForPrep();
+    const detail = err instanceof Error ? err.message : String(err);
+    // eslint-disable-next-line no-console
+    console.warn(`[SportsPrep] ${reason}; using bundled catalog (${bundled.length}):`, detail);
+    return bundled;
+  };
+
   try {
     const sports = await extendedQuery();
     // eslint-disable-next-line no-console
@@ -117,10 +133,16 @@ export async function listSportsForPrep(): Promise<Sport[]> {
         console.log("[SportsPrep] Fetched sports count (fallback, run migration 06 for full catalog):", sports.length);
         return sports;
       } catch (fallbackErr) {
+        if (isRemoteFetchError(fallbackErr)) {
+          return useBundledOnFailure("Remote fetch failed after schema fallback", fallbackErr);
+        }
         // eslint-disable-next-line no-console
         console.error("[SportsPrep] Fallback sports query failed:", fallbackErr);
         throw fallbackErr;
       }
+    }
+    if (isRemoteFetchError(e)) {
+      return useBundledOnFailure("Remote fetch failed", e);
     }
     // eslint-disable-next-line no-console
     console.error("[SportsPrep] Error fetching sports:", msg);
