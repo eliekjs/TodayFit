@@ -66,3 +66,9 @@ export function getCanonicalSportSlug(slug: string): string {
   const normalized = slug.toLowerCase().trim();
   return LEGACY_TO_CANONICAL_SPORT[normalized] ?? normalized;
 }
+
+/** Legacy slugs superseded by canonical catalog rows — hide from Sports Prep picker. */
+export function isLegacySportCatalogSlug(slug: string): boolean {
+  if (!slug) return false;
+  return slug.toLowerCase().trim() in LEGACY_TO_CANONICAL_SPORT;
+}

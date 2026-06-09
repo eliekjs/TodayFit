@@ -1,5 +1,8 @@
 import { getSupabase } from "./client";
-import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
+import {
+  getCanonicalSportSlug,
+  isLegacySportCatalogSlug,
+} from "../../data/sportSubFocus/canonicalSportSlug";
 import { isRemoteFetchError } from "./isRemoteFetchError";
 import { listBundledSportsForPrep } from "./localSportsCatalog";
 import type {
@@ -9,6 +12,11 @@ import type {
   UserSportProfile,
   SportEvent,
 } from "./types";
+
+/** Drop legacy catalog slugs so the picker shows one row per canonical sport. */
+export function filterSportsForPrepPicker(sports: Sport[]): Sport[] {
+  return sports.filter((s) => !isLegacySportCatalogSlug(s.slug ?? ""));
+}
 
 /**
  * Resolve a row from the active Sports Prep list when the stored slug may be a
@@ -119,7 +127,7 @@ export async function listSportsForPrep(): Promise<Sport[]> {
   };
 
   try {
-    const sports = await extendedQuery();
+    const sports = filterSportsForPrepPicker(await extendedQuery());
     // eslint-disable-next-line no-console
     console.log("[SportsPrep] Fetched sports count (extended):", sports.length);
     return sports;
@@ -128,7 +136,7 @@ export async function listSportsForPrep(): Promise<Sport[]> {
     const missingColumn = /column.*(description|popularity_tier).*does not exist/i.test(msg);
     if (missingColumn) {
       try {
-        const sports = await fallbackQuery();
+        const sports = filterSportsForPrepPicker(await fallbackQuery());
         // eslint-disable-next-line no-console
         console.log("[SportsPrep] Fetched sports count (fallback, run migration 06 for full catalog):", sports.length);
         return sports;
