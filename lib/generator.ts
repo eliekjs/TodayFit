@@ -46,6 +46,7 @@ import {
   ZONE2_HR_GUIDANCE,
   getSimilarExerciseClusterId,
   isBlockedExercise,
+  isExerciseAvailableForSession,
 } from "./workoutRules";
 import {
   HIGH_INTENSITY_CONDITIONING_IDS,
@@ -752,7 +753,7 @@ export function generateWorkout(
     const poolToUse = pool.length ? pool : eligible;
 
     while (items.length < count) {
-      const available = poolToUse.filter((e) => !used.has(e.id));
+      const available = poolToUse.filter((e) => isExerciseAvailableForSession(e.id, used));
       const lastTwoIds = items.length >= 2 ? [items[items.length - 2].exercise_id, items[items.length - 1].exercise_id] : [];
       const withoutThreeInARow = lastTwoIds.length === 2
         ? available.filter((e) => !wouldBeThreeSameClusterInARow(lastTwoIds, e.id))

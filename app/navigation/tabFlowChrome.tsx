@@ -9,6 +9,7 @@ import { Header, getHeaderTitle } from "@react-navigation/elements";
 import type { HeaderOptions } from "@react-navigation/elements";
 import { useTheme } from "../../lib/theme";
 import { manualGoalPreferencesHref } from "../../lib/manualGoalPreferencesHref";
+import { sportReviewBackRoute } from "../../lib/sessionFlowNav";
 import { useAppState } from "../../context/AppStateContext";
 import { PrimaryButton } from "../../components/Button";
 
@@ -73,24 +74,17 @@ export function HeaderBackButton() {
   );
 }
 
-/** Sport prep recommendation: preserve stack when possible; one-day falls back to sport setup with scope=day. */
+/** Sport prep recommendation: explicit previous step (schedule or setup), not history stack. */
 export function AdaptiveRecommendationBackButton() {
   const router = useRouter();
   const theme = useTheme();
-  const { sportPrepWeekPlan } = useAppState();
+  const { sportPrepWeekPlan, adaptiveSetup } = useAppState();
   return (
     <Pressable
       onPress={() => {
-        if (router.canGoBack()) {
-          router.back();
-          return;
-        }
-        const oneDay = sportPrepWeekPlan?.scheduleSnapshot?.gymDaysPerWeek === 1;
-        if (oneDay) {
-          router.push("/sport-mode?scope=day");
-          return;
-        }
-        router.push("/sport-mode");
+        router.replace(
+          sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+        );
       }}
       style={{ paddingLeft: 16 }}
     >

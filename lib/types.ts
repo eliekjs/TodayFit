@@ -56,6 +56,11 @@ export type DailyWorkoutPreferences = {
   /** Override global workout tier for this day’s regeneration. */
   workoutTier?: WorkoutTierPreference;
   includeCreativeVariations?: boolean;
+  /**
+   * Per-day session focus preset (from `weekDaySessionFocus` — e.g. sport_first, goal_emphasis_1).
+   * Used in sport week mode and manual week regeneration to control sport vs goal weighting.
+   */
+  dayFocusPresetId?: string;
 };
 
 /** How to distribute primary/secondary goals across the week. */

@@ -14,11 +14,11 @@ export const PRIMARY_FOCUS_OPTIONS = [
   "Body Recomp (fat loss & muscle gain)",
   "Sport Conditioning",
   "Improve Endurance",
-  "Mobility & Joint Health",
+  "Recovery & Mobility",
   "Athletic Performance",
   "Calisthenics",
   "Power & Explosiveness",
-  "Recovery",
+  "Strength Training for Joint Health",
 ] as const;
 
 /** Core: duration in minutes (single select). */
@@ -202,9 +202,11 @@ export const ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY: Record<string, string> = {
   strength: "Build Strength",
   muscle: "Build Muscle (Hypertrophy)",
   endurance: "Improve Endurance",
-  mobility: "Mobility & Joint Health",
+  mobility: "Recovery & Mobility",
+  recovery_mobility: "Recovery & Mobility",
+  joint_health: "Strength Training for Joint Health",
   physique: "Body Recomp (fat loss & muscle gain)",
-  resilience: "Recovery",
+  resilience: "Recovery & Mobility",
   conditioning: "Sport Conditioning",
   athletic_performance: "Athletic Performance",
   power: "Power & Explosiveness",
@@ -219,8 +221,10 @@ export const GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL: Record<string, string> = {
   strength: "Build Strength",
   hypertrophy: "Build Muscle (Hypertrophy)",
   endurance: "Improve Endurance",
-  mobility: "Mobility & Joint Health",
-  recovery: "Recovery",
+  mobility: "Recovery & Mobility",
+  recovery: "Recovery & Mobility",
+  recovery_mobility: "Recovery & Mobility",
+  joint_health: "Strength Training for Joint Health",
   power: "Power & Explosiveness",
 };
 

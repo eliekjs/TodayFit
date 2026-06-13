@@ -223,6 +223,76 @@ const SCENARIOS: Record<string, ScenarioDef> = {
       workoutTier: "intermediate",
     },
   },
+  athletic_sprint: {
+    label: "Athletic Performance + Speed/Sprint, lower body, 45 min, no sport",
+    manualPreferences: {
+      primaryFocus: ["Athletic Performance"],
+      subFocusByGoal: { "Athletic Performance": ["Speed / Sprint"] },
+      targetBody: "Lower",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    },
+  },
+  rugby_cod: {
+    label: "Rugby change of direction + speed/power, full body, 45 min",
+    manualPreferences: {
+      primaryFocus: [],
+      subFocusByGoal: {},
+      targetBody: "Full",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    },
+    sportGoalContext: {
+      sport_slugs: ["rugby"],
+      sport_sub_focus: { rugby: ["change_of_direction", "speed_power"] },
+      sport_weight: 0.55,
+    },
+  },
+  hypertrophy_lower: {
+    label: "Lower hypertrophy glutes+legs, 45 min, no sport",
+    manualPreferences: {
+      primaryFocus: ["Build Muscle (Hypertrophy)"],
+      subFocusByGoal: { "Build Muscle (Hypertrophy)": ["Glutes", "Legs"] },
+      targetBody: "Lower",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    },
+  },
+  football_blend: {
+    label: "Football sport + Build Strength squat/hinge blend, 45 min",
+    manualPreferences: {
+      primaryFocus: ["Build Strength"],
+      subFocusByGoal: { "Build Strength": ["Squat", "Hinge"] },
+      targetBody: "Lower",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    },
+    sportGoalContext: {
+      sport_slugs: ["american_football"],
+      sport_sub_focus: { american_football: ["change_of_direction", "speed_power"] },
+      sport_weight: 0.55,
+    },
+  },
 };
 
 const DEFAULT_SEEDS: Record<string, number> = {
@@ -236,6 +306,10 @@ const DEFAULT_SEEDS: Record<string, number> = {
   strength_cond: 77001,
   track: 88101,
   recovery: 11111,
+  athletic_sprint: 92006,
+  rugby_cod: 92007,
+  hypertrophy_lower: 92008,
+  football_blend: 88150,
 };
 
 function rejectReasonForConditioning(ex: Exercise, input?: ReturnType<typeof manualPreferencesToGenerateWorkoutInput>): string | null {
@@ -318,6 +392,96 @@ function conditioningReason(resolved: ReturnType<typeof manualPreferencesToGener
   return "optional cardio finisher for primary goal";
 }
 
+const SCENARIO_SIM_NAMES: Record<string, string> = {
+  hypertrophy: "Sim G — Upper hypertrophy chest+arms",
+  lacrosse: "Sim I — Lacrosse COD full body",
+  rugby_cod: "Control — Rugby COD+speed (no accessory)",
+  hypertrophy_lower: "Control — Hypertrophy lower glutes+legs",
+  athletic_sprint: "Control — Manual athletic sprint",
+};
+
+function formatPrescription(item: { sets?: number; reps?: number | string; time_seconds?: number; rest_seconds?: number }): string {
+  const parts: string[] = [];
+  if (item.sets != null) parts.push(`${item.sets}×`);
+  if (item.reps != null) parts.push(String(item.reps));
+  else if (item.time_seconds != null) parts.push(`${item.time_seconds}s`);
+  if (item.rest_seconds != null) parts.push(`rest ${item.rest_seconds}s`);
+  return parts.join(" ") || "—";
+}
+
+function printRootCauseNotes(
+  scenarioKey: string,
+  resolved: ReturnType<typeof manualPreferencesToGenerateWorkoutInput>,
+  workout: Awaited<ReturnType<typeof generateWorkoutAsync>>,
+  poolById: Map<string, Exercise>
+): void {
+  if (scenarioKey !== "hypertrophy" && scenarioKey !== "lacrosse") return;
+
+  console.log("ROOT CAUSE NOTES:");
+  const blockStructure = resolveBlockStructureProfile(resolved);
+
+  if (scenarioKey === "hypertrophy") {
+    const accessoryIds = workout.blocks
+      .filter((b) => b.block_type === "accessory")
+      .flatMap((b) => (b.items ?? []).map((i) => i.exercise_id));
+    for (const id of accessoryIds) {
+      const ex = poolById.get(id);
+      if (!ex) {
+        console.log(`  ${id}: not in pool`);
+        continue;
+      }
+      const sprintDrill = isSprintMechanicsDrill(ex);
+      const condEligible = isConditioningEligible(ex, { input: resolved });
+      const accEligible = isAccessoryEligible(ex);
+      console.log(
+        `  ${ex.name} (${id}): modality=${ex.modality ?? "?"} role=${ex.exercise_role ?? "(none)"} ` +
+          `isSprintMechanicsDrill=${sprintDrill} isConditioningEligible=${condEligible} isAccessoryEligible=${accEligible}`
+      );
+      if (sprintDrill && accEligible) {
+        console.log(
+          "    → Gap: sprint/COD drill passes isAccessoryEligible because isConditioningEligible=false " +
+            "(no fieldDrillConditioningEligible on hypertrophy) and modality/role fall through to accessory."
+        );
+      }
+    }
+    console.log(
+      `  requiresAccessoryBlocks=${blockStructure.requiresAccessoryBlocks} suppressAccessoryBlocks=${blockStructure.suppressAccessoryBlocks}`
+    );
+    console.log(
+      "  Injection site: dailyGenerator.ts post-assembly requiresAccessoryBlocks guard (~L11350) picks from isAccessoryEligible pool."
+    );
+    console.log(
+      "  Likely swap: workoutValidator.ts step 7 superset_pairing repair replaces incompatible accessory partner " +
+        "without isAccessoryEligible / isSprintMechanicsDrill gates (chest_press_machine → wall_drill on this seed)."
+    );
+  }
+
+  if (scenarioKey === "lacrosse") {
+    console.log(
+      `  suppressAccessoryBlocks=${blockStructure.suppressAccessoryBlocks} (change_of_direction alone does NOT set suppress; rugby adds speed_power which does)`
+    );
+    console.log(
+      "  Policy: subFocusIntentRegistry.ts SUB_FOCUS_BLOCK_STRUCTURE.change_of_direction lacks suppressAccessoryBlocks; " +
+        "speed_power/reactive_speed/speed set suppressAccessoryBlocks:true."
+    );
+    const accessoryIds = workout.blocks
+      .filter((b) => b.block_type === "accessory")
+      .flatMap((b) => (b.items ?? []).map((i) => i.exercise_id));
+    for (const id of accessoryIds) {
+      const ex = poolById.get(id);
+      if (!ex) continue;
+      const role = ex.exercise_role ?? "(none)";
+      const pat = ex.movement_pattern ?? ex.primary_movement_family ?? "?";
+      console.log(`  Accessory pick: ${ex.name} — modality=${ex.modality} role=${role} pattern=${pat}`);
+    }
+    console.log(
+      "  Assembly: buildMainStrength() accessory pool (~L4207/L4752) uses isAccessoryEligible without COD isolation gate; " +
+        "subFocusExerciseSelectionScore penalizes isolation (-8) but does not block."
+    );
+  }
+  console.log("");
+}
+
 async function main() {
   loadDotEnvFromRepoRoot();
 
@@ -343,6 +507,14 @@ async function main() {
   const pool = await getExercisePoolForManualGeneration(injurySlugs);
   const poolById = new Map(pool.map((e) => [e.id, e]));
 
+  const resolved = manualPreferencesToGenerateWorkoutInput(
+    manualPreferences,
+    GYM,
+    seed,
+    undefined,
+    sportGoalContext
+  );
+
   const workout = await generateWorkoutAsync(
     manualPreferences,
     GYM,
@@ -352,21 +524,50 @@ async function main() {
     { exercisePool: pool }
   );
 
-  const resolved = manualPreferencesToGenerateWorkoutInput(
-    manualPreferences,
-    GYM,
-    seed,
-    undefined,
-    sportGoalContext
-  );
+  const simName = SCENARIO_SIM_NAMES[scenarioKey] ?? label;
+  const blockStructure = resolveBlockStructureProfile(resolved);
 
-  console.log("=== BLOCK CATEGORY REPORT ===");
-  console.log(`Scenario: ${label}`);
-  console.log(`Seed: ${seed}`);
-  console.log(`Primary goal: ${resolved.primary_goal}`);
-  console.log(`Secondary goals: ${(resolved.secondary_goals ?? []).join(", ") || "(none)"}`);
-  console.log(`Sport: ${(resolved.sport_slugs ?? []).join(", ") || "(none)"}`);
+  console.log(`========== SIM: ${simName} ==========`);
+  console.log("INPUTS:");
+  console.log(`  seed: ${seed}`);
+  console.log(`  gym: ${GYM.name} (${GYM.equipment.length} equipment items)`);
+  console.log(`  ManualPreferences: ${JSON.stringify(manualPreferences, null, 2).split("\n").join("\n  ")}`);
+  if (sportGoalContext) {
+    console.log(`  SportGoalContext: ${JSON.stringify(sportGoalContext, null, 2).split("\n").join("\n  ")}`);
+  } else {
+    console.log("  SportGoalContext: (none)");
+  }
   console.log("");
+  console.log("RESOLVED GENERATOR INPUT:");
+  console.log(`  primary_goal: ${resolved.primary_goal}`);
+  console.log(`  secondary_goals: ${(resolved.secondary_goals ?? []).join(", ") || "(none)"}`);
+  console.log(`  focus_body_parts: ${(resolved.focus_body_parts ?? []).join(", ")}`);
+  console.log(`  sport_slugs: ${(resolved.sport_slugs ?? []).join(", ") || "(none)"}`);
+  console.log(`  sport_sub_focus: ${JSON.stringify(resolved.sport_sub_focus ?? {})}`);
+  console.log(`  goal_sub_focus: ${JSON.stringify(resolved.goal_sub_focus ?? {})}`);
+  console.log(`  sport_weight: ${resolved.sport_weight ?? "(default)"}`);
+  console.log(`  duration_minutes: ${resolved.duration_minutes}`);
+  console.log(`  energy_level: ${resolved.energy_level}`);
+  console.log(
+    `  blockStructure: requiresAccessory=${blockStructure.requiresAccessoryBlocks} ` +
+      `suppressAccessory=${blockStructure.suppressAccessoryBlocks} ` +
+      `requiresConditioning=${blockStructure.requiresConditioningBlock} ` +
+      `fieldDrillConditioningEligible=${blockStructure.fieldDrillConditioningEligible}`
+  );
+  console.log(`  exercise_pool_size: ${pool.length}`);
+  console.log(`  generation_path: generateWorkoutAsync → manualPreferencesToGenerateWorkoutInput → generateWorkoutSession`);
+  console.log("");
+  console.log("GENERATED WORKOUT:");
+  for (const block of workout.blocks) {
+    console.log(`  [${block.block_type}] ${block.title ?? block.block_type} (${block.format ?? "—"})`);
+    for (const item of block.items ?? []) {
+      const ex = poolById.get(item.exercise_id);
+      const mod = ex?.modality ?? "?";
+      console.log(`    - ${item.exercise_name} | ${formatPrescription(item)} | modality=${mod}`);
+    }
+  }
+  console.log("");
+  console.log("BLOCK CATEGORIES:");
 
   const conditioningBlocks = workout.blocks.filter((b) => b.block_type === "conditioning");
   if (conditioningBlocks.length > 0) {
@@ -434,6 +635,8 @@ async function main() {
   console.log("");
 
   console.log("All block types:", workout.blocks.map((b) => b.block_type).join(" → "));
+  console.log("");
+  printRootCauseNotes(scenarioKey, resolved, workout, poolById);
 }
 
 main().catch((e) => {

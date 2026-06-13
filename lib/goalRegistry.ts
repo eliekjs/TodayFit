@@ -21,8 +21,10 @@ export function goalSlugToPrimaryGoal(slug: string): PrimaryGoal {
     physique: "body_recomp",
     conditioning: "conditioning",
     endurance: "endurance",
-    mobility: "mobility",
-    resilience: "recovery",
+    mobility: "recovery_mobility",
+    resilience: "recovery_mobility",
+    recovery_mobility: "recovery_mobility",
+    joint_health: "joint_health",
     calisthenics: "calisthenics",
     athletic_performance: "athletic_performance",
     power: "power",
@@ -39,8 +41,11 @@ export function primaryFocusLabelToPrimaryGoal(label: string): PrimaryGoal {
     return "hypertrophy";
   }
   if (lower.includes("endurance") || lower.includes("engine")) return "endurance";
-  if (lower.includes("mobility") || lower.includes("joint health")) return "mobility";
-  if (lower.includes("recovery") || lower.includes("prehab")) return "recovery";
+  if (lower.includes("strength training for joint health") || (lower.includes("joint health") && !lower.includes("mobility"))) {
+    return "joint_health";
+  }
+  if (lower.includes("recovery") && lower.includes("mobility")) return "recovery_mobility";
+  if (lower.includes("mobility") || lower.includes("recovery") || lower.includes("prehab")) return "recovery_mobility";
   if (label.includes("Athletic")) return "athletic_performance";
   if (label.includes("Calisthenics")) return "calisthenics";
   return goalSlugToPrimaryGoal(primaryFocusLabelToGoalSlug(label));
@@ -52,7 +57,7 @@ export function primaryFocusLabelToGoalSlug(label: string): string {
   return (
     PRIMARY_FOCUS_TO_GOAL_SLUG[canonical] ??
     PRIMARY_FOCUS_TO_GOAL_SLUG[label] ??
-    label.toLowerCase().replace(/\s/g, "_")
+    canonical.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")
   );
 }
 

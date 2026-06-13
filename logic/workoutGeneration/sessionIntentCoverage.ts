@@ -12,6 +12,7 @@ import {
   exerciseMatchesGoalSubFocusSlugUnified,
   exerciseMatchesSportSubFocusForCoverage,
 } from "./subFocusSlugMatch";
+import { isJointHealthAppropriateExercise } from "../../data/goalSubFocus/jointHealthSubFocus";
 
 /** Maps generator PrimaryGoal to keys used in `goal_sub_focus` / manual adapter (muscle, physique, …). */
 export function goalSubFocusKeysForPrimary(primary: PrimaryGoal): string[] {
@@ -27,9 +28,13 @@ export function goalSubFocusKeysForPrimary(primary: PrimaryGoal): string[] {
     case "endurance":
       return ["endurance"];
     case "mobility":
-      return ["mobility"];
+      return ["mobility", "recovery_mobility"];
     case "recovery":
-      return ["resilience"];
+      return ["resilience", "recovery_mobility"];
+    case "recovery_mobility":
+      return ["recovery_mobility", "resilience", "mobility"];
+    case "joint_health":
+      return ["joint_health"];
     case "power":
       return ["power", "conditioning"];
     case "athletic_performance":
@@ -100,6 +105,10 @@ export function collectActiveGoalSubFocusKeys(input: GenerateWorkoutInput): Set<
 export function goalTagAliases(goal: PrimaryGoal): string[] {
   if (goal === "athletic_performance") return ["athleticism", "power"];
   if (goal === "body_recomp") return ["hypertrophy", "strength"];
+  if (goal === "recovery_mobility" || goal === "mobility" || goal === "recovery") {
+    return ["recovery_mobility", "recovery", "mobility"];
+  }
+  if (goal === "joint_health") return ["joint_health", "prehab", "rehab"];
   return [goal];
 }
 
@@ -115,7 +124,13 @@ export function exerciseMatchesDeclaredGoal(ex: Exercise, goal: PrimaryGoal): bo
   if (goal === "power" && (modality === "power" || stimulus.has("plyometric") || attrs.has("explosive_power"))) return true;
   if (goal === "endurance" && (modality === "conditioning" || stimulus.has("aerobic_zone2") || attrs.has("zone2_aerobic_base")))
     return true;
-  if (goal === "recovery" && (modality === "recovery" || exerciseCountsAsCooldownMobilityForValidator(ex))) return true;
+  if (
+    (goal === "recovery" || goal === "recovery_mobility" || goal === "mobility") &&
+    (modality === "recovery" || modality === "mobility" || exerciseCountsAsCooldownMobilityForValidator(ex))
+  ) {
+    return true;
+  }
+  if (goal === "joint_health") return isJointHealthAppropriateExercise(ex);
   return false;
 }
 

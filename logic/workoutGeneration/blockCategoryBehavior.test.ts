@@ -18,7 +18,10 @@ import {
 } from "./blockSelectionEligibility";
 import { shouldIncludeConditioningBlock } from "./blockIntentProfile";
 import { shouldOmitOptionalHypertrophyUpperOnlyConditioning } from "./upperHypertrophySessionGate";
-import { resolveBlockStructureProfile } from "../../data/sportSubFocus/subFocusIntentRegistry";
+import {
+  resolveBlockStructureProfile,
+  resolveCooldownPolicy,
+} from "../../data/sportSubFocus/subFocusIntentRegistry";
 import type { GenerateWorkoutInput } from "./types";
 
 const lowerBodyConstraints: ResolvedWorkoutConstraints = {
@@ -194,14 +197,31 @@ describe("When conditioning blocks appear", () => {
     expect(shouldIncludeConditioningBlock(input)).toBe(true);
   });
 
-  it("omits optional conditioning for pure upper hypertrophy without cardio secondary", () => {
-    const input = {
+  it("never includes conditioning for hypertrophy primary (upper or lower)", () => {
+    const upperOnly = {
       primary_goal: "hypertrophy",
       focus_body_parts: ["upper_push"],
       secondary_goals: [],
     } as GenerateWorkoutInput;
+    const lowerOnly = {
+      primary_goal: "hypertrophy",
+      focus_body_parts: ["lower"],
+      secondary_goals: [],
+    } as GenerateWorkoutInput;
+    expect(shouldIncludeConditioningBlock(upperOnly)).toBe(false);
+    expect(shouldIncludeConditioningBlock(lowerOnly)).toBe(false);
+    expect(shouldOmitOptionalHypertrophyUpperOnlyConditioning(upperOnly)).toBe(true);
+    expect(shouldOmitOptionalHypertrophyUpperOnlyConditioning(lowerOnly)).toBe(true);
+  });
+
+  it("never includes conditioning for hypertrophy even with cardio secondary goal", () => {
+    const input = {
+      primary_goal: "hypertrophy",
+      focus_body_parts: ["lower"],
+      secondary_goals: ["conditioning"],
+    } as GenerateWorkoutInput;
     expect(shouldIncludeConditioningBlock(input)).toBe(false);
-    expect(shouldOmitOptionalHypertrophyUpperOnlyConditioning(input)).toBe(true);
+    expect(resolveBlockStructureProfile(input).requiresConditioningBlock).toBe(false);
   });
 
   it("still allows conditioning for endurance primary goal", () => {
@@ -327,6 +347,50 @@ describe("What exercises qualify for accessory", () => {
     expect(isStrengthIsolationPrehabWork(FIXTURES.tibialisRaise)).toBe(true);
     expect(isAccessoryEligible(FIXTURES.tibialisRaise)).toBe(false);
     expect(isRecoveryCooldownEligible(FIXTURES.tibialisRaise)).toBe(false);
+  });
+});
+
+describe("Cooldown required policy", () => {
+  it("requires cooldown for sport-mode vertical jump sessions", () => {
+    const policy = resolveCooldownPolicy({
+      sport_slugs: ["volleyball"],
+      sport_sub_focus: { volleyball: ["vertical_jump"] },
+      duration_minutes: 45,
+      focus_body_parts: ["lower"],
+    });
+    expect(policy.requiresCooldownBlock).toBe(true);
+    expect(policy.minCooldownItems).toBeGreaterThanOrEqual(2);
+  });
+
+  it("requires cooldown for hypertrophy and strength primary goals", () => {
+    expect(resolveCooldownPolicy({ primary_goal: "hypertrophy", duration_minutes: 45 }).requiresCooldownBlock).toBe(
+      true
+    );
+    expect(resolveCooldownPolicy({ primary_goal: "strength", duration_minutes: 45 }).requiresCooldownBlock).toBe(
+      true
+    );
+  });
+
+  it("omits standalone cooldown for recovery-primary and sub-20-minute sessions", () => {
+    expect(resolveCooldownPolicy({ primary_goal: "recovery", duration_minutes: 30 }).requiresCooldownBlock).toBe(
+      false
+    );
+    expect(resolveCooldownPolicy({ primary_goal: "strength", duration_minutes: 15 }).requiresCooldownBlock).toBe(
+      false
+    );
+  });
+
+  it("sets min 2 stretches for 30-44 min and 3 for 45+ min", () => {
+    expect(resolveCooldownPolicy({ primary_goal: "power", duration_minutes: 35 }).minCooldownItems).toBe(2);
+    expect(resolveCooldownPolicy({ primary_goal: "power", duration_minutes: 50 }).minCooldownItems).toBe(3);
+  });
+
+  it("requires cooldown for RSA/COD sport sub-focus archetypes", () => {
+    const profile = resolveBlockStructureProfile({
+      sport_sub_focus: { soccer: ["speed", "change_of_direction"] },
+    });
+    expect(profile.requiresCooldownBlock).toBe(true);
+    expect(profile.minCooldownItems).toBeGreaterThanOrEqual(2);
   });
 });
 

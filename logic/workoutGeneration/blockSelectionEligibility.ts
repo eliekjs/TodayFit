@@ -372,6 +372,7 @@ export function isRecoveryCooldownEligible(exercise: Exercise): boolean {
  */
 export function isAccessoryEligible(exercise: Exercise): boolean {
   if (isAssessmentExercise(exercise)) return false;
+  if (isSprintMechanicsDrill(exercise)) return false;
 
   const role = normToken(exercise.exercise_role ?? "");
   const modality = normToken(exercise.modality ?? "");
@@ -477,6 +478,7 @@ export function exerciseEligibleForWorkingBlock(
     if (modality === "mobility" || modality === "recovery") return false;
     if (role === "mobility" || role === "stretch" || role === "breathing") return false;
     if (isRecoveryCooldownEligible(exercise) && !role) return false;
+    if (blockNorm === "main_hypertrophy" && isSprintMechanicsDrill(exercise)) return false;
   }
 
   return true;

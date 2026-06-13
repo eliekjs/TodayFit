@@ -70,6 +70,10 @@ export type SportGoalOptions = {
   historySources?: import("../../lib/buildAppTrainingHistory").AppHistorySources;
   /** Reuse a preloaded exercise pool (e.g. multi-day planWeek) to skip catalog reload per session. */
   exercisePool?: Exercise[];
+  /** Per-day override from session-focus preset (0–1). Takes precedence over sportVsGoalPct. */
+  sportWeightOverride?: number;
+  /** Per-day override from session-focus preset (0–1 each). Takes precedence over goalWeightsPct. */
+  goalWeightsOverride?: number[];
 };
 
 /**
@@ -166,11 +170,17 @@ export async function buildWorkoutForSessionIntent(
                   })()
                 : undefined,
           goal_weights:
-            (options?.goalWeightsPct?.length ?? 0) > 0
-              ? options.goalWeightsPct!.map((p) => p / 100)
-              : undefined,
+            options?.goalWeightsOverride?.length
+              ? options.goalWeightsOverride
+              : (options?.goalWeightsPct?.length ?? 0) > 0
+                ? options.goalWeightsPct!.map((p) => p / 100)
+                : undefined,
           sport_weight:
-            options?.sportVsGoalPct != null ? options.sportVsGoalPct / 100 : undefined,
+            options?.sportWeightOverride != null
+              ? options.sportWeightOverride
+              : options?.sportVsGoalPct != null
+                ? options.sportVsGoalPct / 100
+                : undefined,
           sport_focus_pct:
             options?.rankedSportSlugs?.length === 2 && options?.sportFocusPct
               ? options.sportFocusPct

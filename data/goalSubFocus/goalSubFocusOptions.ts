@@ -68,7 +68,24 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "hills", name: "Hills" },
     { slug: "durability", name: "Durability / Long sessions" },
   ]),
-  "Mobility & Joint Health": entry("mobility", [
+  "Recovery & Mobility": entry("recovery_mobility", [
+    { slug: "hips", name: "Hips" },
+    { slug: "shoulders", name: "Shoulders" },
+    { slug: "t_spine", name: "T-spine" },
+    { slug: "lower_back", name: "Lower back" },
+    { slug: "ankles", name: "Ankles" },
+    { slug: "full_body", name: "Full-body" },
+  ]),
+  /** @deprecated persisted presets */
+  "Mobility & Joint Health": entry("recovery_mobility", [
+    { slug: "hips", name: "Hips" },
+    { slug: "shoulders", name: "Shoulders" },
+    { slug: "t_spine", name: "T-spine" },
+    { slug: "lower_back", name: "Lower back" },
+    { slug: "ankles", name: "Ankles" },
+    { slug: "full_body", name: "Full-body" },
+  ]),
+  Recovery: entry("recovery_mobility", [
     { slug: "hips", name: "Hips" },
     { slug: "shoulders", name: "Shoulders" },
     { slug: "t_spine", name: "T-spine" },
@@ -104,12 +121,12 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "sprint", name: "Sprint" },
     { slug: "full_body", name: "Full-body" },
   ]),
-  Recovery: entry("resilience", [
-    { slug: "hips", name: "Hips" },
-    { slug: "shoulders", name: "Shoulders" },
-    { slug: "t_spine", name: "T-spine" },
-    { slug: "lower_back", name: "Lower back" },
-    { slug: "ankles", name: "Ankles" },
-    { slug: "full_body", name: "Full-body" },
+  "Strength Training for Joint Health": entry("joint_health", [
+    { slug: "knee_health", name: "Knee Health" },
+    { slug: "shoulder_health", name: "Shoulder Health" },
+    { slug: "hip_health", name: "Hip Health" },
+    { slug: "ankle_foot_health", name: "Ankle & Foot Health" },
+    { slug: "back_spine_health", name: "Back & Spine Health" },
+    { slug: "elbow_wrist_health", name: "Elbow/Wrist Health" },
   ]),
 };

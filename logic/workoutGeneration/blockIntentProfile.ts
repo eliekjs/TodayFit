@@ -7,6 +7,7 @@ import {
 } from "./sessionFeelProfile";
 import {
   resolveBlockStructureProfile,
+  resolveCooldownPolicy,
   sessionRequiresConditioningBlockFromArchetype,
 } from "../../data/sportSubFocus/subFocusIntentRegistry";
 import {
@@ -31,6 +32,8 @@ export interface BlockIntentProfile {
   suppressAccessoryBlocks: boolean;
   requiresAccessoryBlocks: boolean;
   fieldDrillConditioningEligible: boolean;
+  requiresCooldownBlock: boolean;
+  minCooldownItems: number;
   cardioDominant: boolean;
   sessionCardioShare: number;
   targetCardioExerciseShare: number;
@@ -149,6 +152,31 @@ function buildCooldownTargets(input: GenerateWorkoutInput, cardioDominant: boole
   return unique(targets);
 }
 
+type HypertrophyConditioningGateInput = {
+  primary_goal?: string;
+  secondary_goals?: string[];
+  goal_sub_focus?: Record<string, string[] | undefined>;
+};
+
+/**
+ * Hypertrophy-primary sessions omit standalone conditioning unless the user explicitly
+ * picked cardio (Sport Conditioning / endurance secondary or conditioning sub-focuses).
+ */
+export function hypertrophyPrimaryExcludesConditioning(input: HypertrophyConditioningGateInput): boolean {
+  if (input.primary_goal !== "hypertrophy") return false;
+  const secondary = input.secondary_goals ?? [];
+  if (secondary.some(hasCardioGoal)) return false;
+  const conditioningSubs = input.goal_sub_focus?.conditioning ?? [];
+  if (conditioningSubs.length > 0) return false;
+  return true;
+}
+
+function sessionHasExplicitConditioningIntent(input: GenerateWorkoutInput): boolean {
+  if ((input.secondary_goals ?? []).some(hasCardioGoal)) return true;
+  const conditioningSubs = getGoalSubFocusSlugs(input, "conditioning");
+  return conditioningSubs.length > 0;
+}
+
 /**
  * Whether this session input should **allow** the generator's standalone conditioning finisher for the
  * primary goal (before secondary-goal merges). Calisthenics defaults false unless explicit engine intent;
@@ -158,12 +186,9 @@ function buildCooldownTargets(input: GenerateWorkoutInput, cardioDominant: boole
  * when `sportProfileBiasedTowardConditioning` even if base policy disallows optional cardio.
  */
 export function shouldIncludeConditioningBlock(input: GenerateWorkoutInput): boolean {
-  if (sessionRequiresConditioningBlockFromArchetype(input)) return true;
+  if (hypertrophyPrimaryExcludesConditioning(input)) return false;
 
-  if (input.primary_goal === "hypertrophy") {
-    const secondaryCardio = (input.secondary_goals ?? []).some(hasCardioGoal);
-    if (!secondaryCardio) return false;
-  }
+  if (sessionRequiresConditioningBlockFromArchetype(input)) return true;
 
   if (input.primary_goal !== "calisthenics") {
     return CARDIO_POLICY_BY_PRIMARY_GOAL[input.primary_goal].allowConditioningBlock;
@@ -211,6 +236,14 @@ function applySessionFeelToPolicy(
 }
 
 function resolveBasePolicy(input: GenerateWorkoutInput): ConditioningPolicy {
+  if (hypertrophyPrimaryExcludesConditioning(input)) {
+    return {
+      ...CARDIO_POLICY_BY_PRIMARY_GOAL.hypertrophy,
+      allowConditioningBlock: false,
+      conditioningRequired: false,
+    };
+  }
+
   const secondaryGoals = input.secondary_goals ?? [];
   const hasSecondaryCardioGoal = secondaryGoals.some(hasCardioGoal);
   const base = CARDIO_POLICY_BY_PRIMARY_GOAL[input.primary_goal];
@@ -242,6 +275,7 @@ function resolveBasePolicy(input: GenerateWorkoutInput): ConditioningPolicy {
 
 export function buildBlockIntentProfile(input: GenerateWorkoutInput): BlockIntentProfile {
   const blockStructure = resolveBlockStructureProfile(input);
+  const cooldownPolicy = resolveCooldownPolicy(input);
   const sessionFeel = resolveSessionFeelProfile(input);
   const hasEnduranceConditioningSubs = sessionHasEnduranceConditioningSubs(input);
   const secondaryGoals = input.secondary_goals ?? [];
@@ -270,14 +304,18 @@ export function buildBlockIntentProfile(input: GenerateWorkoutInput): BlockInten
     hasSecondaryCardioGoal ||
     sessionCardioShare >= 0.5 ||
     targetCardioExerciseShare >= 0.35;
-  const allowConditioningBlock =
-    basePolicy.allowConditioningBlock ||
-    hasSecondaryCardioGoal ||
-    blockStructure.requiresConditioningBlock;
-  const conditioningRequired =
-    basePolicy.conditioningRequired ||
-    blockStructure.requiresConditioningBlock ||
-    (allowConditioningBlock && (hasSecondaryCardioGoal || sessionCardioShare >= 0.56));
+  const hypertrophyNoConditioning = hypertrophyPrimaryExcludesConditioning(input);
+  const allowConditioningBlock = hypertrophyNoConditioning
+    ? false
+    : basePolicy.allowConditioningBlock ||
+      hasSecondaryCardioGoal ||
+      blockStructure.requiresConditioningBlock;
+  const conditioningRequired = hypertrophyNoConditioning
+    ? false
+    : basePolicy.conditioningRequired ||
+      blockStructure.requiresConditioningBlock ||
+      sessionHasExplicitConditioningIntent(input) ||
+      (allowConditioningBlock && (hasSecondaryCardioGoal || sessionCardioShare >= 0.56));
   const intentSlugs = getAllCardioIntentSlugs(input);
   const preferredMainFormats = basePolicy.preferredMainFormats as BlockFormat[];
   const preferredConditioningFormats = basePolicy.preferredConditioningFormats as BlockFormat[];
@@ -288,6 +326,8 @@ export function buildBlockIntentProfile(input: GenerateWorkoutInput): BlockInten
     suppressAccessoryBlocks: blockStructure.suppressAccessoryBlocks,
     requiresAccessoryBlocks: blockStructure.requiresAccessoryBlocks,
     fieldDrillConditioningEligible: blockStructure.fieldDrillConditioningEligible,
+    requiresCooldownBlock: cooldownPolicy.requiresCooldownBlock,
+    minCooldownItems: cooldownPolicy.minCooldownItems,
     cardioDominant,
     sessionCardioShare,
     targetCardioExerciseShare,

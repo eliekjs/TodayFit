@@ -45,4 +45,26 @@ describe("resolveWorkoutConstraints intent conditioning (Slice E)", () => {
     });
     expect(c.required_conditioning_block).toBe(true);
   });
+
+  it("requires conditioning for hypertrophy primary with Sport Conditioning secondary", () => {
+    const c = resolveWorkoutConstraints({
+      primary_goal: "hypertrophy",
+      available_equipment: ["bodyweight"],
+      duration_minutes: 60,
+      energy_level: "medium",
+      secondary_goals: ["conditioning"],
+    });
+    expect(c.required_conditioning_block).toBe(true);
+  });
+
+  it("does not require conditioning for hypertrophy primary with RSA sport sub-focus only", () => {
+    const c = resolveWorkoutConstraints({
+      primary_goal: "hypertrophy",
+      available_equipment: ["bodyweight"],
+      duration_minutes: 60,
+      energy_level: "medium",
+      sport_sub_focus: { soccer: ["repeat_sprint"] },
+    });
+    expect(c.required_conditioning_block).toBeUndefined();
+  });
 });

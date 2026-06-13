@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveGoalSubFocusSlugs } from "../data/goalSubFocus";
 import { manualPreferencesToGenerateWorkoutInput } from "./dailyGeneratorAdapter";
 import { PRIMARY_FOCUS_OPTIONS, PRIMARY_FOCUS_TO_GOAL_SLUG } from "./preferencesConstants";
 import type { ManualPreferences } from "./types";
@@ -11,11 +12,11 @@ const EXPECTED_PRIMARY_GOAL: Record<(typeof PRIMARY_FOCUS_OPTIONS)[number], Prim
   "Body Recomp (fat loss & muscle gain)": "body_recomp",
   "Sport Conditioning": "conditioning",
   "Improve Endurance": "endurance",
-  "Mobility & Joint Health": "mobility",
+  "Recovery & Mobility": "recovery_mobility",
   "Athletic Performance": "athletic_performance",
   Calisthenics: "calisthenics",
   "Power & Explosiveness": "power",
-  Recovery: "recovery",
+  "Strength Training for Joint Health": "joint_health",
 };
 
 function basePrefs(primaryFocus: string[]): ManualPreferences {
@@ -64,4 +65,17 @@ describe("goal slug parity (manual primary ↔ generator)", () => {
       expect(input.session_intent?.selected_goals?.[0]).toBe(expected);
     }
   );
+});
+
+describe("resolveGoalSubFocusSlugs partial label aliases", () => {
+  it("maps Hinge partial label to deadlift_hinge", () => {
+    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs("Build Strength", ["Hinge"]);
+    expect(goalSlug).toBe("strength");
+    expect(subFocusSlugs).toEqual(["deadlift_hinge"]);
+  });
+
+  it("maps Squat partial label to squat slug", () => {
+    const { subFocusSlugs } = resolveGoalSubFocusSlugs("Build Strength", ["Squat"]);
+    expect(subFocusSlugs).toEqual(["squat"]);
+  });
 });

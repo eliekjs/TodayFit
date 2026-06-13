@@ -464,12 +464,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       ) {
         return prev;
       }
-      return patchSessionDraft(prev, {
-        phase,
-        preferences,
-        adaptiveSetup: adaptiveSetup ?? prev.adaptiveSetup,
-        gymName: activeGymName,
-      });
+      return patchSessionDraft(
+        prev,
+        {
+          phase,
+          preferences,
+          adaptiveSetup: adaptiveSetup ?? prev.adaptiveSetup,
+          gymName: activeGymName,
+        },
+        { sportPrepWeekPlan }
+      );
     });
   }, [
     generatedWorkout,

@@ -14,10 +14,12 @@ import {
 } from "./verticalJumpSubFocusShared";
 import {
   isExplosivePlyometricSportSubFocusSlug,
-  isSpeedAgilityPowerStyleSubFocusSlug,
   tagSetHasDynamicPowerSignal,
 } from "./subFocusIntentArchetypes";
-import { exerciseTagSetHasSpeedAgilityDynamicMovement } from "./speedAgilitySubFocusShared";
+import {
+  exerciseTagSetHasSpeedAgilityDynamicMovement,
+  isSpeedAgilityPowerStyleSubFocusSlug,
+} from "./speedAgilitySubFocusShared";
 
 export type SubFocusIntentInput = {
   goal_sub_focus?: Record<string, string[] | undefined>;
@@ -37,6 +39,11 @@ export const SUB_FOCUS_SLUG_ALIASES: Record<string, string> = {
   repeat_sprints: "speed",
   rsa: "speed",
   repeat_sprint_ability: "speed",
+  speed_sprint: "speed",
+  sprint: "speed",
+  acceleration: "acceleration_power",
+  agility_cod: "change_of_direction",
+  power_explosive: "speed_power",
   deceleration: "change_of_direction",
   deceleration_control: "change_of_direction",
   decel: "change_of_direction",
@@ -99,6 +106,24 @@ const COD_DECEL_TOKENS = [
 ] as const;
 
 const PENALIZED_BROAD_JUMP_TOKENS = ["burpee_broad", "broad_jump"] as const;
+
+/** Sim-7-style golden exercises — lateral/sprint/decel power, not generic main_strength. */
+const SPEED_POWER_GOLDEN_EXERCISE_TOKENS = [
+  "lateral_bound",
+  "lateral_shuffle",
+  "lateral_power_shuffle",
+  "build_up_sprint",
+  "jump_lunge",
+  "decel_step",
+  "crossover_step",
+] as const;
+
+const WARMUP_COD_PREP_TOKENS = [
+  "decel_step",
+  "crossover_step",
+  "eccentric_brake",
+  "landing",
+] as const;
 
 /** Metabolic / HIIT fillers — not intent-dedicated speed, COD, or sprint power work. */
 const GENERIC_CONDITIONING_METCON_TOKENS = [
@@ -187,17 +212,38 @@ export function subFocusExerciseSelectionScore(exercise: Exercise, subSlug: stri
 
   if (canon === "speed" || canon === "reactive_speed" || canon === "speed_power") {
     if (blobHasToken(blob, SPRINT_RSA_TOKENS)) score += 12;
+    if (blobHasToken(blob, SPEED_POWER_GOLDEN_EXERCISE_TOKENS)) score += 14;
     if (tags.has("sprinting") || tags.has("speed") || tags.has("acceleration")) score += 8;
+    if (tags.has("lateral_power")) score += 6;
     if (exercise.modality === "conditioning" && blobHasToken(blob, SPRINT_RSA_TOKENS)) score += 4;
     if (exercise.exercise_role === "isolation" && !tagSetHasDynamicPowerSignal(tags)) score -= 8;
     if (exercise.modality === "hypertrophy") score -= 6;
+    if (
+      exercise.exercise_role === "main_compound" &&
+      exercise.modality === "strength" &&
+      !blobHasToken(blob, SPEED_POWER_GOLDEN_EXERCISE_TOKENS) &&
+      !tagSetHasDynamicPowerSignal(tags)
+    ) {
+      score -= 6;
+    }
     if (exerciseIsGenericConditioningMetcon(exercise) && !exerciseIsSprintOrCodDrill(exercise)) score -= 20;
   }
 
   if (canon === "change_of_direction") {
     if (blobHasToken(blob, COD_DECEL_TOKENS)) score += 12;
+    if (blobHasToken(blob, SPEED_POWER_GOLDEN_EXERCISE_TOKENS)) score += 14;
     if (tags.has("agility") || tags.has("reactive_power") || tags.has("deceleration")) score += 8;
+    if (tags.has("lateral_power")) score += 6;
     if (exercise.exercise_role === "isolation" && !tagSetHasDynamicPowerSignal(tags)) score -= 8;
+    if (
+      exercise.exercise_role === "main_compound" &&
+      exercise.modality === "strength" &&
+      !blobHasToken(blob, COD_DECEL_TOKENS) &&
+      !blobHasToken(blob, SPEED_POWER_GOLDEN_EXERCISE_TOKENS) &&
+      !tagSetHasDynamicPowerSignal(tags)
+    ) {
+      score -= 6;
+    }
     if (exerciseIsGenericConditioningMetcon(exercise) && !exerciseIsSprintOrCodDrill(exercise)) score -= 20;
   }
 
@@ -279,6 +325,70 @@ export function inputHasIntentDedicatedPowerArchetypeSubFocus(input: SubFocusInt
   return collectActiveSubFocusSlugs(input).some(isIntentDedicatedSpeedCodExplosiveArchetype);
 }
 
+/** Whether a sub-focus slug (sport or goal) routes to dedicated power blocks. */
+export function isPowerStyleSubFocusSlug(slug: string): boolean {
+  const canon = normalizeSubFocusSlug(slug);
+  return (
+    isSpeedAgilityPowerStyleSubFocusSlug(canon) ||
+    isExplosivePlyometricSportSubFocusSlug(canon) ||
+    isSprintAccelerationSubFocusSlug(canon)
+  );
+}
+
+export type SpeedPowerSessionTemplate = {
+  requiresPowerBlock: boolean;
+  preferMultipleIntentPowerBlocks: boolean;
+  warmupDecelPrep: boolean;
+  powerExerciseFamilies: readonly string[];
+};
+
+const SPEED_POWER_EXERCISE_FAMILIES = [
+  "lateral_power",
+  "sprint_acceleration",
+  "plyometric",
+  "decel",
+] as const;
+
+function countPowerStyleSubFocuses(input: SubFocusIntentInput): number {
+  return collectActiveSubFocusSlugs(input).filter(isPowerStyleSubFocusSlug).length;
+}
+
+function sessionHasCodSubFocus(input: SubFocusIntentInput): boolean {
+  return collectActiveSubFocusSlugs(input).some(isChangeOfDirectionSubFocusSlug);
+}
+
+/**
+ * Session composition hints for speed/COD/sprint archetypes (sport + manual goal sub-focuses).
+ * Drives single-leaf power routing, warmup decel prep, and conditioning field-drill bias.
+ */
+export function resolveSpeedPowerSessionTemplate(
+  input: SubFocusIntentInput
+): SpeedPowerSessionTemplate {
+  const powerCount = countPowerStyleSubFocuses(input);
+  const hasPowerArchetype = inputHasIntentDedicatedPowerArchetypeSubFocus(input);
+  return {
+    requiresPowerBlock: hasPowerArchetype,
+    preferMultipleIntentPowerBlocks: powerCount >= 2,
+    warmupDecelPrep: sessionHasCodSubFocus(input),
+    powerExerciseFamilies: SPEED_POWER_EXERCISE_FAMILIES,
+  };
+}
+
+/** Warmup scoring boost for COD/decel prep moves (crossover step up, decel step ups, etc.). */
+export function warmupCodPrepSelectionScore(exercise: Exercise): number {
+  const blob = exerciseBlob(exercise);
+  if (!blobHasToken(blob, WARMUP_COD_PREP_TOKENS)) return 0;
+  let score = 10;
+  if (blob.includes("decel")) score += 4;
+  if (blob.includes("crossover")) score += 3;
+  return score;
+}
+
+export function exerciseIsSpeedPowerGoldenDrill(exercise: Exercise): boolean {
+  const blob = exerciseBlob(exercise);
+  return blobHasToken(blob, SPEED_POWER_GOLDEN_EXERCISE_TOKENS);
+}
+
 export { inputHasVerticalJumpSubFocus };
 
 // ---------------------------------------------------------------------------
@@ -292,6 +402,12 @@ export type SubFocusBlockStructureFlags = {
   requiresAccessoryBlocks: boolean;
   /** Agility/shuttle/COD/lunge field drills qualify as conditioning (RSA/COD/sprint). */
   fieldDrillConditioningEligible: boolean;
+  /** Standalone cooldown block with stretch/mobility finishers (not recovery-primary unified session). */
+  requiresCooldownBlock: boolean;
+  /** Minimum stretch items when cooldown block is required (duration may raise further). */
+  minCooldownItems: number;
+  /** Dedicated power block with explosive / sprint-appropriate work (speed/RSA/acceleration intents). */
+  requiresPowerBlock: boolean;
 };
 
 export type BlockStructureProfile = SubFocusBlockStructureFlags;
@@ -303,6 +419,9 @@ const EMPTY_BLOCK_STRUCTURE: BlockStructureProfile = {
   suppressAccessoryBlocks: false,
   requiresAccessoryBlocks: false,
   fieldDrillConditioningEligible: false,
+  requiresCooldownBlock: false,
+  minCooldownItems: 0,
+  requiresPowerBlock: false,
 };
 
 const SPEED_RSA_SUB_FOCUS_SLUGS = new Set(["speed", "reactive_speed", "speed_power"]);
@@ -315,25 +434,44 @@ export const SUB_FOCUS_BLOCK_STRUCTURE: Record<string, BlockStructurePartial> = 
     requiresConditioningBlock: true,
     suppressAccessoryBlocks: true,
     fieldDrillConditioningEligible: true,
+    requiresCooldownBlock: true,
+    minCooldownItems: 2,
+    requiresPowerBlock: true,
   },
   reactive_speed: {
     requiresConditioningBlock: true,
     suppressAccessoryBlocks: true,
     fieldDrillConditioningEligible: true,
+    requiresCooldownBlock: true,
+    minCooldownItems: 2,
+    requiresPowerBlock: true,
   },
   speed_power: {
     requiresConditioningBlock: true,
     suppressAccessoryBlocks: true,
     fieldDrillConditioningEligible: true,
+    requiresCooldownBlock: true,
+    minCooldownItems: 2,
+    requiresPowerBlock: true,
   },
   change_of_direction: {
     requiresConditioningBlock: true,
+    suppressAccessoryBlocks: true,
     fieldDrillConditioningEligible: true,
+    requiresCooldownBlock: true,
+    minCooldownItems: 2,
   },
   acceleration_power: {
     requiresConditioningBlock: true,
     suppressAccessoryBlocks: true,
     fieldDrillConditioningEligible: true,
+    requiresCooldownBlock: true,
+    minCooldownItems: 2,
+    requiresPowerBlock: true,
+  },
+  vertical_jump: {
+    requiresCooldownBlock: true,
+    minCooldownItems: 2,
   },
 };
 
@@ -353,6 +491,19 @@ export function isChangeOfDirectionSubFocusSlug(canon: string): boolean {
   return COD_SUB_FOCUS_SLUGS.has(canon);
 }
 
+/** Speed / RSA / sprint-acceleration sub-focus slugs (sport + manual goal) that require a power block. */
+export function isSpeedSprintPowerBlockSubFocusSlug(slug: string): boolean {
+  const canon = normalizeSubFocusSlug(slug);
+  return isSpeedRsaSubFocusSlug(canon) || isSprintAccelerationSubFocusSlug(canon);
+}
+
+export function sessionRequiresPowerBlock(
+  input: SubFocusIntentInput & { primary_goal?: string; secondary_goals?: string[] }
+): boolean {
+  if (resolveBlockStructureProfile(input).requiresPowerBlock) return true;
+  return collectActiveSubFocusSlugs(input).some(isSpeedSprintPowerBlockSubFocusSlug);
+}
+
 function mergeBlockStructure(
   base: BlockStructureProfile,
   partial: BlockStructurePartial
@@ -366,6 +517,10 @@ function mergeBlockStructure(
       base.requiresAccessoryBlocks || partial.requiresAccessoryBlocks === true,
     fieldDrillConditioningEligible:
       base.fieldDrillConditioningEligible || partial.fieldDrillConditioningEligible === true,
+    requiresCooldownBlock:
+      base.requiresCooldownBlock || partial.requiresCooldownBlock === true,
+    minCooldownItems: Math.max(base.minCooldownItems, partial.minCooldownItems ?? 0),
+    requiresPowerBlock: base.requiresPowerBlock || partial.requiresPowerBlock === true,
   };
 }
 
@@ -384,7 +539,11 @@ function hasStrengthHypertrophySecondary(secondary: string[] | undefined): boole
 function sessionHasRsaOrSprintAccelerationSubFocus(input: SubFocusIntentInput): boolean {
   return collectActiveSubFocusSlugs(input).some((s) => {
     const c = normalizeSubFocusSlug(s);
-    return isSpeedRsaSubFocusSlug(c) || isSprintAccelerationSubFocusSlug(c);
+    return (
+      isSpeedRsaSubFocusSlug(c) ||
+      isSprintAccelerationSubFocusSlug(c) ||
+      isChangeOfDirectionSubFocusSlug(c)
+    );
   });
 }
 
@@ -420,6 +579,18 @@ export function resolveBlockStructureProfile(
 
   if (primary === "hypertrophy" || primary === "body_recomp") {
     profile.requiresAccessoryBlocks = true;
+    profile.requiresCooldownBlock = true;
+    profile.minCooldownItems = Math.max(profile.minCooldownItems, 2);
+  }
+
+  if (
+    primary === "strength" ||
+    primary === "power" ||
+    primary === "athletic_performance" ||
+    primary === "calisthenics"
+  ) {
+    profile.requiresCooldownBlock = true;
+    profile.minCooldownItems = Math.max(profile.minCooldownItems, 2);
   }
 
   if (
@@ -450,6 +621,10 @@ export function resolveBlockStructureProfile(
     profile.suppressAccessoryBlocks = false;
   }
 
+  if (primary === "hypertrophy") {
+    profile.requiresConditioningBlock = false;
+  }
+
   return profile;
 }
 
@@ -470,4 +645,126 @@ export function sessionRequiresAccessoryBlocks(
   input: SubFocusIntentInput & { primary_goal?: string; secondary_goals?: string[] }
 ): boolean {
   return resolveBlockStructureProfile(input).requiresAccessoryBlocks;
+}
+
+// ---------------------------------------------------------------------------
+// Cooldown policy — when standalone cooldown blocks are required
+// ---------------------------------------------------------------------------
+
+export type CooldownPolicyInput = SubFocusIntentInput & {
+  primary_goal?: string;
+  secondary_goals?: string[];
+  duration_minutes?: number;
+  sport_slugs?: string[];
+  focus_body_parts?: string[];
+  body_region_focus?: string[];
+};
+
+export type CooldownPolicy = {
+  requiresCooldownBlock: boolean;
+  minCooldownItems: number;
+};
+
+const SHORT_SESSION_NO_COOLDOWN_MINUTES = 20;
+
+const COOLDOWN_REQUIRED_PRIMARY_GOALS = new Set([
+  "strength",
+  "hypertrophy",
+  "power",
+  "athletic_performance",
+  "body_recomp",
+  "calisthenics",
+  "endurance",
+  "conditioning",
+]);
+
+function normGoalToken(value: string): string {
+  return value.toLowerCase().replace(/\s/g, "_");
+}
+
+function inputHasSportContext(input: CooldownPolicyInput): boolean {
+  if ((input.sport_slugs?.length ?? 0) > 0) return true;
+  if (Object.values(input.sport_sub_focus ?? {}).some((slugs) => (slugs?.length ?? 0) > 0)) return true;
+  if (
+    Object.values(input.session_intent?.sport_sub_focus_by_sport ?? {}).some(
+      (slugs) => (slugs?.length ?? 0) > 0
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function inputHasBodyRegionFocus(input: CooldownPolicyInput): boolean {
+  const focus = input.focus_body_parts ?? input.body_region_focus ?? [];
+  return focus.length > 0;
+}
+
+function minCooldownItemsForDuration(durationMinutes: number): number {
+  if (durationMinutes < SHORT_SESSION_NO_COOLDOWN_MINUTES) return 0;
+  if (durationMinutes >= 30) return durationMinutes >= 45 ? 3 : 2;
+  return 2;
+}
+
+/**
+ * Global cooldown policy: which sessions need a standalone cooldown block and how many stretches.
+ *
+ * Optional: recovery/mobility-primary (unified stretch session) and sessions under 20 min.
+ * Required: sport mode, strength/hypertrophy/power/athletic goals, body-focus sessions, ≥20 min work.
+ */
+export function resolveCooldownPolicy(input: CooldownPolicyInput): CooldownPolicy {
+  const duration = input.duration_minutes ?? 45;
+  const primary = normGoalToken(input.primary_goal ?? "");
+  const secondary = input.secondary_goals ?? [];
+  const blockStructure = resolveBlockStructureProfile(input);
+
+  if (
+    primary === "recovery" ||
+    primary === "mobility" ||
+    primary === "recovery_mobility" ||
+    primary === "joint_health"
+  ) {
+    return { requiresCooldownBlock: false, minCooldownItems: 0 };
+  }
+  if (duration < SHORT_SESSION_NO_COOLDOWN_MINUTES) {
+    return { requiresCooldownBlock: false, minCooldownItems: 0 };
+  }
+
+  const mobilitySecondary = secondary.some(
+    (g) => normGoalToken(g).includes("mobility") || g.toLowerCase().includes("mobility")
+  );
+  const recoverySecondary = secondary.some(
+    (g) => normGoalToken(g).includes("recovery") || g.toLowerCase().includes("recovery")
+  );
+  const jointHealthSecondary = secondary.some(
+    (g) => normGoalToken(g) === "joint_health" || g.toLowerCase().includes("joint_health")
+  );
+
+  let requires =
+    blockStructure.requiresCooldownBlock ||
+    inputHasSportContext(input) ||
+    COOLDOWN_REQUIRED_PRIMARY_GOALS.has(primary) ||
+    inputHasBodyRegionFocus(input) ||
+    mobilitySecondary ||
+    recoverySecondary;
+
+  let minItems = requires
+    ? Math.max(blockStructure.minCooldownItems, minCooldownItemsForDuration(duration))
+    : 0;
+
+  if (mobilitySecondary || recoverySecondary || jointHealthSecondary) {
+    requires = true;
+    minItems = Math.max(minItems, recoverySecondary ? 3 : jointHealthSecondary ? 2 : 2);
+  }
+
+  return {
+    requiresCooldownBlock: requires,
+    minCooldownItems: requires ? minItems : 0,
+  };
+}
+
+export function sessionRequiresCooldownBlock(
+  input: CooldownPolicyInput
+): boolean {
+  return resolveCooldownPolicy(input).requiresCooldownBlock;
 }

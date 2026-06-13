@@ -107,6 +107,22 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     ankles: "intent",
     full_body: "overlay",
   },
+  recovery_mobility: {
+    hips: "intent",
+    shoulders: "intent",
+    t_spine: "intent",
+    lower_back: "intent",
+    ankles: "intent",
+    full_body: "overlay",
+  },
+  joint_health: {
+    knee_health: "intent",
+    shoulder_health: "intent",
+    hip_health: "intent",
+    ankle_foot_health: "intent",
+    back_spine_health: "intent",
+    elbow_wrist_health: "intent",
+  },
 };
 
 /** Optional conflict groups per goal. Slugs in the same group are resolved by user rank (first = highest weight). */

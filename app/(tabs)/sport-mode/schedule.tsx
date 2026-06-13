@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, LayoutAnimation } from "react-native";
+import { WeekDayFocusPlanner } from "../../../components/WeekDayFocusPlanner";
+import {
+  buildDayFocusPresetsForDay,
+  buildGymDayFocusCardLabel,
+  defaultPresetIdForDay,
+  type DayFocusPreset,
+} from "../../../lib/weekDaySessionFocus";
+import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { Redirect, useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
@@ -85,18 +93,8 @@ export default function AdaptiveScheduleScreen() {
   const [sectionSportOpen, setSectionSportOpen] = useState(false);
   const [sectionEmphasisOpen, setSectionEmphasisOpen] = useState(false);
   const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
-
-  useEffect(() => {
-    if (!adaptiveSetup) return;
-    const slugs = adaptiveSetup.rankedSportSlugs.filter((s): s is string => s != null);
-    setSportDaysBySlug((prev) => {
-      const next = { ...prev };
-      slugs.forEach((slug) => {
-        if (next[slug] == null) next[slug] = [0, 2];
-      });
-      return next;
-    });
-  }, [adaptiveSetup]);
+  const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
+  const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -125,6 +123,42 @@ export default function AdaptiveScheduleScreen() {
       return { ...prev, [slug]: next };
     });
   }, []);
+
+  const sessionFocusMeta = useMemo(() => {
+    if (gymTrainingDays.length === 0) return { labels: [] as string[], presets: [] as DayFocusPreset[][] };
+    const n = gymTrainingDays.length;
+    const bd = getBodyEmphasisDistribution(n);
+    const labels = gymTrainingDays.map((dow, i) => {
+      const b = bd[i]!;
+      return buildGymDayFocusCardLabel(dow, i, b.targetBody, b.targetModifier, WEEKDAY_LABELS);
+    });
+    const presets = gymTrainingDays.map((_, i) =>
+      buildDayFocusPresetsForDay({
+        manualPreferences,
+        adaptiveSetup,
+        targetBody: bd[i]!.targetBody,
+        targetModifier: bd[i]!.targetModifier,
+      })
+    );
+    return { labels, presets };
+  }, [gymTrainingDays, manualPreferences, adaptiveSetup]);
+
+  const initSessionFocusStep = useCallback(() => {
+    if (gymTrainingDays.length === 0) return;
+    const n = gymTrainingDays.length;
+    const bd = getBodyEmphasisDistribution(n);
+    const ids = gymTrainingDays.map((_, i) => {
+      const presets = buildDayFocusPresetsForDay({
+        manualPreferences,
+        adaptiveSetup,
+        targetBody: bd[i]!.targetBody,
+        targetModifier: bd[i]!.targetModifier,
+      });
+      return defaultPresetIdForDay(presets);
+    });
+    setDayFocusChoiceIds(ids);
+    setWeekSetupStep("sessionFocus");
+  }, [gymTrainingDays, manualPreferences, adaptiveSetup]);
 
   const onGenerate = useCallback(async () => {
     if (!adaptiveSetup) return;
@@ -155,16 +189,23 @@ export default function AdaptiveScheduleScreen() {
     const selectedSportSlugs = adaptiveSetup.rankedSportSlugs.filter((s): s is string => s != null);
 
     const sportDaysAllocation: Record<string, number> = {};
+    const sportTrainingDaysSelected: Record<string, number[]> = {};
     selectedSportSlugs.forEach((slug) => {
       const days = sportDaysBySlug[slug] ?? [];
-      sportDaysAllocation[slug] = days.length;
+      if (days.length > 0) {
+        sportDaysAllocation[slug] = days.length;
+        sportTrainingDaysSelected[slug] = [...days].sort((a, b) => a - b);
+      }
     });
+    const hasSelectedSportDays = Object.keys(sportDaysAllocation).length > 0;
 
     // Union of gym days and all sport-designated days (our dow: 0=Mon..6=Sun)
     const allTrainingDows = new Set<number>(gymTrainingDays);
-    selectedSportSlugs.forEach((slug) => {
-      (sportDaysBySlug[slug] ?? []).forEach((d) => allTrainingDows.add(d));
-    });
+    if (hasSelectedSportDays) {
+      Object.values(sportTrainingDaysSelected).forEach((days) => {
+        days.forEach((d) => allTrainingDows.add(d));
+      });
+    }
     const preferredTrainingDays = toPreferredTrainingDays(
       Array.from(allTrainingDows).sort((a, b) => a - b)
     );
@@ -201,11 +242,11 @@ export default function AdaptiveScheduleScreen() {
             : undefined,
         gymDaysPerWeek: gymTrainingDays.length,
         gymTrainingDays: [...gymTrainingDays].sort((a, b) => a - b),
-        sportTrainingDaysBySlug:
-          Object.keys(sportDaysBySlug).length > 0 ? { ...sportDaysBySlug } : undefined,
+        sportTrainingDaysBySlug: hasSelectedSportDays
+          ? sportTrainingDaysSelected
+          : undefined,
         preferredTrainingDays,
-        sportDaysAllocation:
-          Object.keys(sportDaysAllocation).length > 0 ? sportDaysAllocation : undefined,
+        sportDaysAllocation: hasSelectedSportDays ? sportDaysAllocation : undefined,
         rankedSportSlugs: selectedSportSlugs.length > 0 ? selectedSportSlugs : undefined,
         sportFocusPct: selectedSportSlugs.length === 2 ? adaptiveSetup.sportFocusPct : undefined,
         sportVsGoalPct: adaptiveSetup.sportVsGoalPct ?? 50,
@@ -234,6 +275,11 @@ export default function AdaptiveScheduleScreen() {
             ? { injuryAreas: [...adaptiveSetup.injuryTypes] }
             : {}),
         },
+        gymDayFocusPresetIds:
+          dayFocusChoiceIds.length === gymTrainingDays.length
+            ? dayFocusChoiceIds
+            : undefined,
+        manualPreferences,
       });
       if (generationCancelledRef.current) return;
       setSportPrepWeekPlan(plan);
@@ -257,6 +303,7 @@ export default function AdaptiveScheduleScreen() {
     manualPreferences,
     userId,
     router,
+    dayFocusChoiceIds,
   ]);
 
   const selectedSportSlugs = useMemo(
@@ -280,16 +327,16 @@ export default function AdaptiveScheduleScreen() {
     const parts = selectedSportSlugs.map((slug) => {
       const sport = resolveActiveSportForSlug(sports, slug);
       const days = sportDaysBySlug[slug] ?? [];
-      const dayStr =
-        days.length === 0
-          ? "none"
-          : [...days]
-              .sort((a, b) => a - b)
-              .map((d) => WEEKDAY_LABELS[d])
-              .join(", ");
+      if (days.length === 0) return null;
+      const dayStr = [...days]
+        .sort((a, b) => a - b)
+        .map((d) => WEEKDAY_LABELS[d])
+        .join(", ");
       return `${sport?.name ?? slug}: ${dayStr}`;
     });
-    return parts.join(" · ");
+    const selected = parts.filter((p): p is string => p != null);
+    if (selected.length === 0) return "Optional — none selected";
+    return selected.join(" · ");
   }, [selectedSportSlugs, sportDaysBySlug, sports]);
 
   const emphasisSummary = useMemo(() => {
@@ -315,6 +362,57 @@ export default function AdaptiveScheduleScreen() {
   if (!adaptiveSetup) {
     // Use declarative redirect to avoid calling router before root navigator mount.
     return <Redirect href="/sport-mode" />;
+  }
+
+  if (weekSetupStep === "sessionFocus") {
+    const canGenerate =
+      gymTrainingDays.length > 0 && dayFocusChoiceIds.length === gymTrainingDays.length;
+    return (
+      <AppScreenWrapper>
+        <StatusBar style="light" />
+        <View style={styles.container}>
+          <ScrollView
+            contentContainerStyle={[styles.content, { paddingBottom: navBarHeight + 16 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <WeekDayFocusPlanner
+              theme={theme}
+              dayLabels={sessionFocusMeta.labels}
+              presetOptionsPerDay={sessionFocusMeta.presets}
+              selectedIds={dayFocusChoiceIds}
+              onSelect={(dayIdx, id) => {
+                setDayFocusChoiceIds((prev) => {
+                  const next = [...prev];
+                  next[dayIdx] = id;
+                  return next;
+                });
+              }}
+              onBack={() => setWeekSetupStep("pickDays")}
+            />
+            {error ? (
+              <Text style={[styles.errorText, { color: theme.danger, paddingHorizontal: 20 }]}>
+                {error}
+              </Text>
+            ) : null}
+          </ScrollView>
+          <FlowPhaseNavBar
+            sticky
+            onLayout={setNavBarHeight}
+            back={{
+              label: "Your schedule",
+              onPress: () => setWeekSetupStep("pickDays"),
+            }}
+            forward={{
+              label: isSubmitting ? "Planning…" : "Generate week plan",
+              onPress: onGenerate,
+              disabled: isSubmitting || !canGenerate,
+              loading: isSubmitting,
+            }}
+          />
+        </View>
+      </AppScreenWrapper>
+    );
   }
 
   return (
@@ -366,8 +464,8 @@ export default function AdaptiveScheduleScreen() {
 
         {selectedSportSlugs.length > 0 ? (
           <CollapsiblePreferenceSection
-            title="Sport days"
-            subtitle="Which days for each sport? You can overlap with gym days."
+            title="Sport days (optional)"
+            subtitle="Optional: add sport days to help plan your week, or leave this blank. Overlap with gym days is fine."
             summary={sportDaysSummary}
             expanded={sectionSportOpen}
             onToggle={() => {
@@ -449,10 +547,9 @@ export default function AdaptiveScheduleScreen() {
           onPress: () => router.push(setupRouteForFlow("sport_week") as never),
         }}
         forward={{
-          label: isSubmitting ? "Planning…" : "Generate week plan",
-          onPress: onGenerate,
-          disabled: isSubmitting || gymTrainingDays.length === 0,
-          loading: isSubmitting,
+          label: "Choose each day's focus",
+          onPress: initSessionFocusStep,
+          disabled: gymTrainingDays.length === 0,
         }}
         hint={gymTrainingDays.length === 0 ? "Choose at least one gym day." : null}
       />

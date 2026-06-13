@@ -47,7 +47,11 @@ export function primaryGoalToSubFocusKey(goal: PrimaryGoal): string {
     case "body_recomp":
       return "physique";
     case "recovery":
-      return "resilience";
+    case "recovery_mobility":
+    case "mobility":
+      return "recovery_mobility";
+    case "joint_health":
+      return "joint_health";
     default:
       return goal as string;
   }
@@ -160,7 +164,7 @@ export function isIntentMainWorkCandidate(ex: Exercise, primary: PrimaryGoal): b
 }
 
 export function isPowerStyleSportIntentEntry(entry: IntentEntry): boolean {
-  if (entry.kind !== "sport_sub_focus") return false;
+  if (entry.kind !== "sport_sub_focus" && entry.kind !== "goal_sub_focus") return false;
   const slug = normalizeSubFocusSlug(entry.slug);
   return isSpeedAgilityPowerStyleSubFocusSlug(slug) || isExplosivePlyometricSportSubFocusSlug(slug);
 }
@@ -199,7 +203,7 @@ const DYNAMIC_SPORT_MAIN_PATTERNS = new Set([
  * Requires dynamic-movement tag evidence (Phase 9) so balance-only accessories do not fill slots.
  */
 export function isDynamicSportSubFocusMainWorkCandidate(ex: Exercise, entry: IntentEntry): boolean {
-  if (entry.kind !== "sport_sub_focus") return false;
+  if (entry.kind !== "sport_sub_focus" && entry.kind !== "goal_sub_focus") return false;
   const slug = normalizeSubFocusSlug(entry.slug);
   if (!isPowerStyleSportIntentEntry(entry) && !isExplosivePlyometricSportSubFocusSlug(slug)) {
     return false;
@@ -236,7 +240,10 @@ export function isMainWorkCandidateForIntentEntry(
 ): boolean {
   if (isStabilityPrehabSportIntentEntry(entry)) return false;
   if (isEnduranceConditioningSportIntentEntry(entry)) return false;
-  if (entry.kind === "sport_sub_focus" && isPowerStyleSportIntentEntry(entry)) {
+  if (
+    (entry.kind === "sport_sub_focus" || entry.kind === "goal_sub_focus") &&
+    isPowerStyleSportIntentEntry(entry)
+  ) {
     return isDynamicSportSubFocusMainWorkCandidate(ex, entry);
   }
   return isIntentMainWorkCandidate(ex, primary);
@@ -267,6 +274,45 @@ export function allocateSlotsAcrossLeaves(leaves: IntentEntry[], totalSlots: num
   return out;
 }
 
+/**
+ * When multiple sport power/COD sub-focuses are selected, guarantee each at least one slot
+ * so both appear as separate intent blocks (e.g. repeat sprint + deceleration).
+ */
+export function rebalanceAllocMinOneSlotPerPowerLeaf(
+  leaves: IntentEntry[],
+  alloc: Map<string, number>
+): Map<string, number> {
+  const powerLeafIndices = leaves
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ entry }) => entry.kind === "sport_sub_focus" && isPowerStyleSportIntentEntry(entry));
+  if (powerLeafIndices.length < 2) return alloc;
+
+  const out = new Map(alloc);
+  for (const { index } of powerLeafIndices) {
+    const key = String(index);
+    if ((out.get(key) ?? 0) >= 1) continue;
+
+    let donorKey: string | null = null;
+    let donorSlots = 0;
+    for (let j = 0; j < leaves.length; j++) {
+      const donorEntry = leaves[j]!;
+      if (donorEntry.kind === "sport_sub_focus" && isPowerStyleSportIntentEntry(donorEntry)) {
+        continue;
+      }
+      const dk = String(j);
+      const slots = out.get(dk) ?? 0;
+      if (slots > 1 && slots > donorSlots) {
+        donorSlots = slots;
+        donorKey = dk;
+      }
+    }
+    if (donorKey == null) continue;
+    out.set(donorKey, (out.get(donorKey) ?? 0) - 1);
+    out.set(key, 1);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Unified slot plan — covers ALL leaf archetypes proportionally
 // ---------------------------------------------------------------------------
@@ -282,8 +328,8 @@ export type IntentLeafArchetype = "main_compound" | "conditioning" | "prehab" | 
 
 export function classifyLeafArchetype(entry: IntentEntry): IntentLeafArchetype {
   if (isStabilityPrehabSportIntentEntry(entry)) return "prehab";
-  if (isEnduranceConditioningSportIntentEntry(entry)) return "conditioning";
   if (isPowerStyleSportIntentEntry(entry)) return "power";
+  if (isEnduranceConditioningSportIntentEntry(entry)) return "conditioning";
   return "main_compound";
 }
 

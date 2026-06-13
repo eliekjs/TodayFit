@@ -18,7 +18,8 @@ describe("conditioning sub-focus allowlist", () => {
     expect(primaryFocusAllowsConditioningSubFocus("Build Strength")).toBe(false);
     expect(primaryFocusAllowsConditioningSubFocus("Build Muscle (Hypertrophy)")).toBe(false);
     expect(primaryFocusAllowsConditioningSubFocus("Body Recomp (fat loss & muscle gain)")).toBe(false);
-    expect(primaryFocusAllowsConditioningSubFocus("Mobility & Joint Health")).toBe(false);
+    expect(primaryFocusAllowsConditioningSubFocus("Recovery & Mobility")).toBe(false);
+    expect(primaryFocusAllowsConditioningSubFocus("Strength Training for Joint Health")).toBe(false);
     expect(primaryFocusAllowsConditioningSubFocus("Calisthenics")).toBe(false);
     expect(primaryFocusAllowsConditioningSubFocus("Recovery")).toBe(false);
   });

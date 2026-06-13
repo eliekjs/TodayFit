@@ -115,7 +115,8 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     setRange: { min: 3, max: 4 },
     restRange: { min: 60, max: 90 },
     preferredFormats: ["superset", "straight_sets"],
-    conditioningStrategy: "optional_short",
+    // Hypertrophy sessions are strength-volume focused; no standalone conditioning finisher.
+    conditioningStrategy: "none",
     conditioningDuration: { min: 5, max: 8 },
     cueStyle: {
       strength: "Controlled tempo. Focus on full range of motion.",
@@ -196,6 +197,38 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
       mobility: "Mobility, breathing, stability. Light band work.",
     },
     blockOrder: ["warmup", "light_movement", "optional_zone1_cardio", "cooldown"],
+  },
+
+  recovery_mobility: {
+    repRange: { min: 8, max: 12 },
+    setRange: { min: 1, max: 2 },
+    restRange: { min: 0, max: 30 },
+    preferredFormats: ["circuit"],
+    conditioningStrategy: "optional_short",
+    conditioningOnlyIfHighEnergy: true,
+    lightConditioningMaxMinutes: 5,
+    mobilityTimePerMovement: 30,
+    mobilitySets: 1,
+    cueStyle: {
+      mobility: "Slow, controlled breathing. Stretch and mobilize.",
+    },
+    blockOrder: ["warmup", "mobility_circuit", "optional_light_conditioning", "cooldown"],
+  },
+
+  joint_health: {
+    repRange: { min: 6, max: 12 },
+    setRange: { min: 2, max: 4 },
+    restRange: { min: 30, max: 60 },
+    preferredFormats: ["straight_sets"],
+    conditioningStrategy: "none",
+    accessoryRepRange: { min: 10, max: 20 },
+    accessorySetRange: { min: 2, max: 3 },
+    accessoryRestRange: { min: 30, max: 45 },
+    cueStyle: {
+      strength: "Controlled tempo. Light-to-moderate load. Stay pain-free.",
+      mobility: "Slow reps. Focus on joint control and tissue tolerance.",
+    },
+    blockOrder: ["warmup", "controlled_strength", "stability", "cooldown"],
   },
 
   athletic_performance: {

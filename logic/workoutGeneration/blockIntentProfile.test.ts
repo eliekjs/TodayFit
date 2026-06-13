@@ -83,6 +83,18 @@ describe("buildBlockIntentProfile", () => {
     expect(profile.targetCardioExerciseShare).toBeGreaterThanOrEqual(0.3);
   });
 
+  it("hypertrophy with Sport Conditioning secondary allows conditioning block", () => {
+    const profile = buildBlockIntentProfile(
+      baseInput({
+        primary_goal: "hypertrophy",
+        secondary_goals: ["conditioning"],
+        goal_sub_focus: { conditioning: ["intervals_hiit"] },
+      })
+    );
+    expect(profile.allowConditioningBlock).toBe(true);
+    expect(profile.conditioningRequired).toBe(true);
+  });
+
   it("weekly and session cardio overrides blend into share", () => {
     const profile = buildBlockIntentProfile(
       baseInput({

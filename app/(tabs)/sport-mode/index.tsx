@@ -83,9 +83,12 @@ const ADAPTIVE_GOALS = [
   { id: "strength", label: "Max strength foundation", category: "Performance" },
   { id: "muscle", label: "Build visible muscle", category: "Physique" },
   { id: "endurance", label: "Endurance engine", category: "Energy System" },
-  { id: "mobility", label: "Mobility & joint health", category: "Resilience" },
+  { id: "recovery_mobility", label: "Recovery & mobility", category: "Resilience" },
+  { id: "joint_health", label: "Joint health strength", category: "Resilience" },
   { id: "physique", label: "Physique / body comp", category: "Physique" },
-  { id: "resilience", label: "Resilience / recovery", category: "Resilience" },
+  /** @deprecated adaptive id — maps to Recovery & Mobility */
+  { id: "mobility", label: "Recovery & mobility", category: "Resilience" },
+  { id: "resilience", label: "Recovery & mobility", category: "Resilience" },
 ];
 
 const INJURY_STATUS_OPTIONS = [

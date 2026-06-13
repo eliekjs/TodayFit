@@ -17,7 +17,12 @@ import {
   ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS,
   isEnduranceConditioningSportSubFocusSlug,
 } from "../../../data/sportSubFocus/subFocusIntentArchetypes";
-import { sessionRequiresConditioningBlockFromArchetype } from "../../../data/sportSubFocus/subFocusIntentRegistry";
+import {
+  resolveCooldownPolicy,
+  sessionRequiresConditioningBlockFromArchetype,
+  sessionRequiresPowerBlock,
+} from "../../../data/sportSubFocus/subFocusIntentRegistry";
+import { hypertrophyPrimaryExcludesConditioning } from "../../workoutGeneration/blockIntentProfile";
 import type { BlockType } from "../types";
 import {
   getInjuryAvoidTags,
@@ -205,8 +210,25 @@ export function resolveWorkoutConstraints(
   const recoverySecondary = secondary.some(
     (g) => g.toLowerCase().replace(/\s/g, "_").includes("recovery") || g.toLowerCase().includes("recovery")
   );
+  const jointHealthSecondary = secondary.some(
+    (g) => g === "joint_health" || g.toLowerCase().includes("joint_health")
+  );
   if (mobilitySecondary || recoverySecondary) {
     minCooldownMobility = recoverySecondary ? 3 : 2;
+  }
+  if (jointHealthSecondary) {
+    minCooldownMobility = Math.max(minCooldownMobility, 2);
+  }
+
+  const cooldownPolicy = resolveCooldownPolicy({
+    ...input,
+    focus_body_parts: input.body_region_focus,
+  });
+  if (cooldownPolicy.requiresCooldownBlock) {
+    minCooldownMobility = Math.max(minCooldownMobility, cooldownPolicy.minCooldownItems);
+  }
+
+  if (minCooldownMobility > 0) {
     rules.push({
       kind: "required_block_type",
       block_types: ["cooldown", "mobility", "recovery"],
@@ -228,7 +250,15 @@ export function resolveWorkoutConstraints(
   );
   const conditioningFromIntentSubs = selectionInputHasEngineConditioningSubs(input);
   const archetypeConditioningRequired = sessionRequiresConditioningBlockFromArchetype(input);
-  if (conditioningSecondary || conditioningFromIntentSubs || archetypeConditioningRequired) {
+  const excludesHypertrophyConditioning = hypertrophyPrimaryExcludesConditioning({
+    primary_goal: input.primary_goal,
+    secondary_goals: input.secondary_goals,
+    goal_sub_focus: input.goal_sub_focus,
+  });
+  if (
+    !excludesHypertrophyConditioning &&
+    (conditioningSecondary || conditioningFromIntentSubs || archetypeConditioningRequired)
+  ) {
     rules.push({
       kind: "required_block_type",
       block_types: ["conditioning"],
@@ -242,6 +272,7 @@ export function resolveWorkoutConstraints(
       g.toLowerCase().replace(/\s/g, "_").includes("power") ||
       g.toLowerCase().includes("power")
   );
+  const speedSprintPowerRequired = sessionRequiresPowerBlock(input);
 
   // 5d) Secondary goal — strength → prefer strength block
   const strengthSecondary = secondary.some(
@@ -271,9 +302,10 @@ export function resolveWorkoutConstraints(
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
     allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,
-    required_conditioning_block:
-      conditioningSecondary || conditioningFromIntentSubs || archetypeConditioningRequired || undefined,
-    prefer_power_block: powerSecondary || undefined,
+    required_conditioning_block: excludesHypertrophyConditioning
+      ? undefined
+      : conditioningSecondary || conditioningFromIntentSubs || archetypeConditioningRequired || undefined,
+    prefer_power_block: powerSecondary || speedSprintPowerRequired || undefined,
     prefer_strength_block: strengthSecondary || undefined,
     prefer_hypertrophy_block: hypertrophySecondary || undefined,
   };

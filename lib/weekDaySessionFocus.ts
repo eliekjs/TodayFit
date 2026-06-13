@@ -7,6 +7,10 @@ import type { AdaptiveSetup } from "../context/appStateModel";
 import type { ManualPreferences } from "./types";
 import type { SportGoalContext } from "./dailyGeneratorAdapter";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
+import {
+  GOAL_SLUG_TO_PRIMARY_FOCUS,
+  PRIMARY_FOCUS_TO_GOAL_SLUG,
+} from "./preferencesConstants";
 
 export type DayFocusPreset = {
   id: string;
@@ -17,6 +21,11 @@ export type DayFocusPreset = {
 
 const EMPHASIS_GOAL_WEIGHTS: [number, number, number] = [0.62, 0.26, 0.12];
 const BALANCED_FALLBACK: [number, number, number] = [0.5, 0.3, 0.2];
+
+type ResolvedDayFocusPreset = {
+  primaryFocus: string[];
+  sportGoalContext: SportGoalContext | undefined;
+};
 
 function norm3(a: number, b: number, c: number): [number, number, number] {
   const s = a + b + c;
@@ -58,6 +67,35 @@ function sportDisplayName(slug: string): string {
   return map[n] ?? n.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function sportPerformanceLabel(slug: string): string {
+  return `${sportDisplayName(slug)} performance`;
+}
+
+function subFocusForSports(
+  sportSlugs: string[],
+  originalSportSlugs: string[],
+  subFocusBySport: Record<string, string[]>
+): Record<string, string[]> {
+  const sub: Record<string, string[]> = {};
+  for (const s of sportSlugs) {
+    const rawMatch = originalSportSlugs.find((x) => getCanonicalSportSlug(x) === s) ?? "";
+    const raw = subFocusBySport[s] ?? subFocusBySport[rawMatch] ?? [];
+    if (raw.length) sub[s] = raw;
+  }
+  return sub;
+}
+
+function parseIndexedPresetId(
+  presetId: string,
+  prefix: string,
+  legacyId?: string
+): number | null {
+  if (legacyId && presetId === legacyId) return 0;
+  if (!presetId.startsWith(prefix)) return null;
+  const idx = parseInt(presetId.replace(prefix, ""), 10);
+  return Number.isNaN(idx) ? null : idx;
+}
+
 function bodyLine(targetBody: string, targetModifier: string[]): string {
   const mod =
     targetModifier.length > 0
@@ -74,34 +112,53 @@ export function buildDayFocusPresetsForDay(opts: {
   targetModifier: string[];
 }): DayFocusPreset[] {
   const { manualPreferences, adaptiveSetup, targetBody, targetModifier } = opts;
-  const rankedGoals = manualPreferences.primaryFocus.filter(Boolean);
+  const rankedGoals = manualPreferencesForSportWeekFocus(
+    manualPreferences,
+    adaptiveSetup
+  ).primaryFocus.filter(Boolean);
   const sports =
     adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
   const sportSlugs = sports.map((s) => getCanonicalSportSlug(s));
-  const primarySport = sportSlugs[0];
-  const sportName = primarySport ? sportDisplayName(primarySport) : null;
   const bodyStr = bodyLine(targetBody, targetModifier);
 
   const out: DayFocusPreset[] = [];
 
-  if (sportSlugs.length > 0 && rankedGoals.length > 0) {
-    out.push({
-      id: "sport_first",
-      label: `${sportName ?? "Sport"} performance first`,
-      subtitle: `${bodyStr} — most of this session supports your sport; goals fill the rest.`,
+  if (sportSlugs.length > 0) {
+    sportSlugs.forEach((slug, idx) => {
+      const name = sportDisplayName(slug);
+      out.push({
+        id: `sport_emphasis_${idx}`,
+        label: `${name} first`,
+        subtitle: rankedGoals.length > 0
+          ? `${bodyStr} — this day mainly supports ${name}; goals fill the rest.`
+          : `${bodyStr} — this day mainly supports ${name}.`,
+      });
     });
-    const g0 = rankedGoals[0] ?? "Primary goal";
-    out.push({
-      id: "goal_first",
-      label: `${g0} first`,
-      subtitle: `${bodyStr} — training goals lead; sport work supports transfer.`,
-    });
-    const pct = adaptiveSetup?.sportVsGoalPct ?? 50;
-    out.push({
-      id: "balanced_split",
-      label: "Balanced sport + goals",
-      subtitle: `${bodyStr} — about ${pct}% sport focus and ${100 - pct}% goals (your Sport vs goals setting).`,
-    });
+
+    if (rankedGoals.length > 0) {
+      rankedGoals.slice(0, 3).forEach((label, idx) => {
+        out.push({
+          id: `goal_emphasis_${idx}`,
+          label: `${label} first`,
+          subtitle: `${bodyStr} — this goal leads the session; sport work supports transfer.`,
+        });
+      });
+      const pct = adaptiveSetup?.sportVsGoalPct ?? 50;
+      out.push({
+        id: "balanced_split",
+        label: "Balanced sport + goals",
+        subtitle: `${bodyStr} — about ${pct}% sport focus and ${100 - pct}% goals (your Sport vs goals setting).`,
+      });
+      return out;
+    }
+
+    if (sportSlugs.length > 1) {
+      out.push({
+        id: "balanced_sports",
+        label: "Blend selected sports",
+        subtitle: `${bodyStr} — split support across your selected sports.`,
+      });
+    }
     return out;
   }
 
@@ -145,7 +202,7 @@ export function resolveDayFocusPreset(
   presetId: string,
   manualPreferences: ManualPreferences,
   adaptiveSetup: AdaptiveSetup | null
-): { primaryFocus: string[]; sportGoalContext: SportGoalContext | undefined } {
+): ResolvedDayFocusPreset {
   const ranked = manualPreferences.primaryFocus.filter(Boolean);
   const sports =
     adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
@@ -154,28 +211,29 @@ export function resolveDayFocusPreset(
 
   const baseGlobal = globalGoalWeights(manualPreferences);
 
-  if (sportSlugs.length > 0 && ranked.length > 0) {
-    const sub: Record<string, string[]> = {};
-    for (const s of sportSlugs) {
-      const raw = subFocusBySport[s] ?? subFocusBySport[sports.find((x) => getCanonicalSportSlug(x) === s) ?? ""] ?? [];
-      if (raw.length) sub[s] = raw;
-    }
+  if (sportSlugs.length > 0) {
+    const sub = subFocusForSports(sportSlugs, sports, subFocusBySport);
     const sportVs = (adaptiveSetup?.sportVsGoalPct ?? 50) / 100;
+    const sportIdx = parseIndexedPresetId(presetId, "sport_emphasis_", "sport_first");
 
-    if (presetId === "sport_first") {
+    if (sportIdx != null && sportIdx >= 0 && sportIdx < sportSlugs.length) {
+      const selectedSport = sportSlugs[sportIdx]!;
+      const selectedSub = subFocusForSports([selectedSport], sports, subFocusBySport);
       return {
-        primaryFocus: ranked,
+        primaryFocus: [sportPerformanceLabel(selectedSport)],
         sportGoalContext: {
-          sport_slugs: sportSlugs,
-          ...(Object.keys(sub).length ? { sport_sub_focus: sub } : {}),
-          sport_weight: 0.72,
-          goal_weights: [...baseGlobal],
+          sport_slugs: [selectedSport],
+          ...(Object.keys(selectedSub).length ? { sport_sub_focus: selectedSub } : {}),
+          sport_weight: ranked.length > 0 ? 0.72 : 1,
+          ...(ranked.length > 0 ? { goal_weights: [...baseGlobal] } : {}),
         },
       };
     }
-    if (presetId === "goal_first") {
+
+    const goalIdx = parseIndexedPresetId(presetId, "goal_emphasis_", "goal_first");
+    if (ranked.length > 0 && goalIdx != null && goalIdx >= 0 && goalIdx < ranked.length) {
       return {
-        primaryFocus: ranked,
+        primaryFocus: [ranked[goalIdx]!],
         sportGoalContext: {
           sport_slugs: sportSlugs,
           ...(Object.keys(sub).length ? { sport_sub_focus: sub } : {}),
@@ -184,6 +242,7 @@ export function resolveDayFocusPreset(
         },
       };
     }
+
     if (presetId === "balanced_split") {
       return {
         primaryFocus: ranked,
@@ -192,6 +251,17 @@ export function resolveDayFocusPreset(
           ...(Object.keys(sub).length ? { sport_sub_focus: sub } : {}),
           sport_weight: Math.max(0.08, Math.min(0.92, sportVs)),
           goal_weights: [...baseGlobal],
+        },
+      };
+    }
+
+    if (presetId === "balanced_sports") {
+      return {
+        primaryFocus: ["Sport preparation"],
+        sportGoalContext: {
+          sport_slugs: sportSlugs,
+          ...(Object.keys(sub).length ? { sport_sub_focus: sub } : {}),
+          sport_weight: 1,
         },
       };
     }
@@ -253,4 +323,143 @@ export function defaultPresetIdForWeekDay(
     if (presets.some((p) => p.id === id)) return id;
   }
   return defaultPresetIdForDay(presets);
+}
+
+/** Map adaptive ranked goal slugs to Manual primary-focus labels (for preset resolution). */
+export function primaryFocusLabelsFromGoalSlugs(goalSlugs: string[]): string[] {
+  return goalSlugs
+    .map((slug) => GOAL_SLUG_TO_PRIMARY_FOCUS[slug] ?? slug)
+    .filter(Boolean);
+}
+
+/** Build ManualPreferences with primaryFocus from adaptive goals when labels are absent. */
+export function manualPreferencesForSportWeekFocus(
+  manualPreferences: ManualPreferences,
+  adaptiveSetup: AdaptiveSetup | null
+): ManualPreferences {
+  const rankedSlugs =
+    adaptiveSetup?.rankedGoals?.filter((g): g is string => g != null && g !== "") ?? [];
+  const fromAdaptive = primaryFocusLabelsFromGoalSlugs(rankedSlugs);
+  const primaryFocus =
+    manualPreferences.primaryFocus.length > 0
+      ? manualPreferences.primaryFocus
+      : fromAdaptive;
+  return { ...manualPreferences, primaryFocus };
+}
+
+export type ResolvedDayFocusWorkoutParams = {
+  focusLabels: string[];
+  orderedGoalSlugs: string[];
+  goalWeightsPct: [number, number, number];
+  sportWeightOverride?: number;
+  goalWeightsOverride?: number[];
+  sportSlugsOverride?: string[];
+  sportSubFocusBySportOverride?: Record<string, string[]>;
+};
+
+/**
+ * Turn a resolved day-focus preset into planner / workout-builder inputs.
+ */
+/** Legacy adaptive slugs that alias to a canonical goal slug in ranked plans. */
+const RANKED_GOAL_SLUG_ALIASES: Record<string, string[]> = {
+  recovery_mobility: ["recovery_mobility", "mobility", "resilience"],
+  joint_health: ["joint_health"],
+};
+
+function rankedGoalSlugMatches(canonicalSlug: string, rankedSlugs: string[]): string | undefined {
+  const variants = RANKED_GOAL_SLUG_ALIASES[canonicalSlug] ?? [canonicalSlug];
+  return rankedSlugs.find((s) => variants.includes(s));
+}
+
+export function resolvedDayFocusToWorkoutParams(
+  resolved: { primaryFocus: string[]; sportGoalContext: SportGoalContext | undefined },
+  rankedGoalSlugs: string[],
+  fallbackGoalWeightsPct: [number, number, number]
+): ResolvedDayFocusWorkoutParams {
+  const focusLabels =
+    resolved.primaryFocus.length > 0 ? resolved.primaryFocus : [];
+  const slugOrder: string[] = [];
+  for (const label of focusLabels) {
+    const slug = PRIMARY_FOCUS_TO_GOAL_SLUG[label];
+    const rankedMatch = slug ? rankedGoalSlugMatches(slug, rankedGoalSlugs) : undefined;
+    if (rankedMatch && !slugOrder.includes(rankedMatch)) {
+      slugOrder.push(rankedMatch);
+    }
+  }
+  for (const slug of rankedGoalSlugs) {
+    if (!slugOrder.includes(slug)) slugOrder.push(slug);
+  }
+  const orderedGoalSlugs = slugOrder.length > 0 ? slugOrder : rankedGoalSlugs;
+
+  let goalWeightsPct: [number, number, number] = [...fallbackGoalWeightsPct];
+  const gw = resolved.sportGoalContext?.goal_weights;
+  if (gw && gw.length > 0) {
+    const pcts = gw.map((w) => Math.round(w * 100));
+    goalWeightsPct = [
+      pcts[0] ?? fallbackGoalWeightsPct[0],
+      pcts[1] ?? fallbackGoalWeightsPct[1],
+      pcts[2] ?? fallbackGoalWeightsPct[2],
+    ];
+  }
+
+  return {
+    focusLabels,
+    orderedGoalSlugs,
+    goalWeightsPct,
+    sportWeightOverride: resolved.sportGoalContext?.sport_weight,
+    goalWeightsOverride: gw,
+    sportSlugsOverride: resolved.sportGoalContext?.sport_slugs?.length
+      ? [...resolved.sportGoalContext.sport_slugs]
+      : undefined,
+    sportSubFocusBySportOverride: resolved.sportGoalContext?.sport_sub_focus &&
+      Object.keys(resolved.sportGoalContext.sport_sub_focus).length > 0
+        ? { ...resolved.sportGoalContext.sport_sub_focus }
+        : undefined,
+  };
+}
+
+const DEFAULT_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** Card title for per-day focus picker — weekday + body emphasis, no calendar date. */
+export function buildGymDayFocusCardLabel(
+  dow: number,
+  slotIndex: number,
+  targetBody: string,
+  targetModifier: string[] = [],
+  weekdayLabels: readonly string[] = DEFAULT_WEEKDAY_LABELS
+): string {
+  const dayLabel = weekdayLabels[dow] ?? `Gym day ${slotIndex + 1}`;
+  const mod =
+    targetModifier.length > 0 ? ` (${targetModifier.join(" · ")})` : "";
+  return `${dayLabel} · ${targetBody}${mod}`;
+}
+
+/** Minimal AdaptiveSetup from sport week plan / regenerate inputs. */
+export function adaptiveSetupFromPlanContext(opts: {
+  goalSlugs?: string[];
+  rankedSportSlugs?: string[];
+  sportVsGoalPct?: number;
+  sportFocusPct?: [number, number];
+  sportSubFocusSlugsBySport?: Record<string, string[]>;
+}): AdaptiveSetup | null {
+  const goals = opts.goalSlugs ?? [];
+  const sports = opts.rankedSportSlugs ?? [];
+  if (goals.length === 0 && sports.length === 0) return null;
+  return {
+    rankedGoals: [
+      goals[0] ?? null,
+      goals[1] ?? null,
+      goals[2] ?? null,
+    ],
+    rankedSportSlugs: [
+      sports[0] ?? null,
+      sports[1] ?? null,
+    ],
+    subFocusBySport: opts.sportSubFocusSlugsBySport ?? {},
+    sportFocusPct: opts.sportFocusPct ?? [60, 40],
+    sportVsGoalPct: opts.sportVsGoalPct ?? 50,
+    intensityLevel: "medium",
+    injuryStatus: "ok",
+    injuryTypes: [],
+  };
 }

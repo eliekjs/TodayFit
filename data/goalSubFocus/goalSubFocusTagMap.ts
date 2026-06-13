@@ -440,7 +440,84 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "core_stability", weight: 1 },
   ],
 
-  // --- Mobility & Joint Health (goal_slug: mobility) ---
+  // --- Recovery & Mobility (goal_slug: recovery_mobility) — mirrors legacy mobility/resilience ---
+  [key("recovery_mobility", "hips")]: [
+    { tag_slug: "hip_mobility", weight: 1.3 },
+    { tag_slug: "mobility", weight: 1.1 },
+    { tag_slug: "recovery", weight: 1 },
+  ],
+  [key("recovery_mobility", "shoulders")]: [
+    { tag_slug: "shoulder stability", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("recovery_mobility", "t_spine")]: [
+    { tag_slug: "thoracic_mobility", weight: 1.3 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("recovery_mobility", "lower_back")]: [
+    { tag_slug: "core_stability", weight: 1.2 },
+    { tag_slug: "anti_rotation", weight: 1.1 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("recovery_mobility", "ankles")]: [
+    { tag_slug: "balance", weight: 1.1 },
+    { tag_slug: "ankle_stability", weight: 1.1 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("recovery_mobility", "full_body")]: [
+    { tag_slug: "recovery", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1.2 },
+    { tag_slug: "thoracic_mobility", weight: 1 },
+    { tag_slug: "hip_mobility", weight: 1 },
+  ],
+
+  // --- Joint Health (goal_slug: joint_health) ---
+  [key("joint_health", "knee_health")]: [
+    { tag_slug: "knee", weight: 1.3 },
+    { tag_slug: "quad_strength", weight: 1.2 },
+    { tag_slug: "vmo", weight: 1.1 },
+    { tag_slug: "single_leg", weight: 1 },
+    { tag_slug: "isometric", weight: 1 },
+    { tag_slug: "prehab", weight: 1.1 },
+  ],
+  [key("joint_health", "shoulder_health")]: [
+    { tag_slug: "rotator_cuff", weight: 1.3 },
+    { tag_slug: "scapular_control", weight: 1.2 },
+    { tag_slug: "shoulder stability", weight: 1.2 },
+    { tag_slug: "serratus", weight: 1 },
+    { tag_slug: "prehab", weight: 1 },
+  ],
+  [key("joint_health", "hip_health")]: [
+    { tag_slug: "hip_stability", weight: 1.3 },
+    { tag_slug: "hip_mobility", weight: 1.1 },
+    { tag_slug: "glute_med", weight: 1.1 },
+    { tag_slug: "single_leg", weight: 1 },
+    { tag_slug: "adductor", weight: 1 },
+  ],
+  [key("joint_health", "ankle_foot_health")]: [
+    { tag_slug: "ankle_stability", weight: 1.3 },
+    { tag_slug: "tibialis", weight: 1.2 },
+    { tag_slug: "balance", weight: 1.1 },
+    { tag_slug: "calf", weight: 1 },
+    { tag_slug: "low_impact", weight: 1 },
+  ],
+  [key("joint_health", "back_spine_health")]: [
+    { tag_slug: "core_stability", weight: 1.3 },
+    { tag_slug: "anti_rotation", weight: 1.2 },
+    { tag_slug: "trunk_anti_rotation", weight: 1.1 },
+    { tag_slug: "thoracic_mobility", weight: 1 },
+    { tag_slug: "hip_hinge", weight: 1 },
+  ],
+  [key("joint_health", "elbow_wrist_health")]: [
+    { tag_slug: "forearm", weight: 1.2 },
+    { tag_slug: "grip", weight: 1.1 },
+    { tag_slug: "wrist", weight: 1.2 },
+    { tag_slug: "scapular_control", weight: 1 },
+    { tag_slug: "tendon_resilience", weight: 1 },
+  ],
+
+  // --- Legacy Mobility (goal_slug: mobility) ---
   [key("mobility", "hips")]: [
     { tag_slug: "hip_mobility", weight: 1.3 },
     { tag_slug: "mobility", weight: 1.1 },

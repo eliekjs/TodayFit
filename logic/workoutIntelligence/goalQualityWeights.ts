@@ -15,6 +15,8 @@ export type GoalSlug =
   | "conditioning"
   | "mobility"
   | "recovery"
+  | "recovery_mobility"
+  | "joint_health"
   | "athletic_performance"
   | "calisthenics"
   | "physique"
@@ -90,6 +92,24 @@ export const GOAL_QUALITY_WEIGHTS: Record<
     recovery: 0.95,
     mobility: 0.6,
     thoracic_mobility: 0.4,
+  },
+  recovery_mobility: {
+    recovery: 0.85,
+    mobility: 0.9,
+    thoracic_mobility: 0.6,
+    hip_stability: 0.5,
+  },
+  joint_health: {
+    joint_stability: 0.9,
+    tendon_resilience: 0.85,
+    scapular_stability: 0.7,
+    hip_stability: 0.75,
+    balance: 0.65,
+    mobility: 0.5,
+    eccentric_strength: 0.55,
+    unilateral_strength: 0.6,
+    core_tension: 0.6,
+    trunk_anti_rotation: 0.55,
   },
   athletic_performance: {
     power: 0.7,

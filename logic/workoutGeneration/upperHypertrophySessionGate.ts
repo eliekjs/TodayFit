@@ -5,6 +5,7 @@
  */
 
 import { getLegacyMovementPattern } from "../../lib/ontology/legacyMapping";
+import { hypertrophyPrimaryExcludesConditioning } from "./blockIntentProfile";
 import type { Exercise, FocusBodyPart, GenerateWorkoutInput } from "./types";
 
 function norm(s: string): string {
@@ -95,19 +96,7 @@ export function exerciseIsPrimaryLowerBodyHypertrophyMovement(ex: Exercise): boo
   return false;
 }
 
-/**
- * Omit optional hypertrophy finisher conditioning when the user asked for a pure upper hypertrophy
- * session (upper-only body focus) and did not select cardio emphasis, duration prefs, or secondary goals.
- */
+/** Hypertrophy-primary sessions never receive optional or required conditioning finishers. */
 export function shouldOmitOptionalHypertrophyUpperOnlyConditioning(input: GenerateWorkoutInput): boolean {
-  if (input.primary_goal !== "hypertrophy") return false;
-  if ((input.secondary_goals ?? []).some((g) => g === "conditioning" || g === "endurance")) return false;
-  if ((input.style_prefs?.conditioning_minutes ?? 0) > 0) return false;
-  if ((input.session_cardio_target_share ?? 0) > 0) return false;
-  if ((input.weekly_cardio_emphasis ?? 0) > 0) return false;
-
-  const gsf = input.goal_sub_focus ?? {};
-  if ((gsf.conditioning?.length ?? 0) > 0 || (gsf.endurance?.length ?? 0) > 0) return false;
-
-  return isUpperOnlyFocusBodyParts(input.focus_body_parts);
+  return hypertrophyPrimaryExcludesConditioning(input);
 }

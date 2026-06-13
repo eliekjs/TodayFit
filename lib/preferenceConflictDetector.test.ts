@@ -190,9 +190,9 @@ describe("sport vs body region mismatch", () => {
 // ---------------------------------------------------------------------------
 
 describe("recovery/mobility + high energy", () => {
-  it("detects conflict: Mobility & Joint Health + high energy → medium conflict", () => {
+  it("detects conflict: Recovery & Mobility + high energy → medium conflict", () => {
     const prefs = basePrefs({
-      primaryFocus: ["Mobility & Joint Health"],
+      primaryFocus: ["Recovery & Mobility"],
       energyLevel: "high",
     });
     const conflicts = detectPreferenceConflicts(prefs);

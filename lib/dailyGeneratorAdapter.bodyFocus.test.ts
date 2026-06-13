@@ -25,6 +25,23 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
     expect(input.focus_body_parts?.includes("full_body")).toBe(false);
   });
 
+  it("filters merged power sub-focus to upper_body_power on Upper target days", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      {
+        ...BASE,
+        primaryFocus: ["Power & Explosiveness", "Calisthenics"],
+        targetBody: "Upper",
+        subFocusByGoal: {
+          "Power & Explosiveness": ["Upper body power", "Lower body power / Plyos"],
+        },
+        weekSubFocusPrimaryLabels: ["Power & Explosiveness", "Calisthenics"],
+      },
+      undefined,
+      2
+    );
+    expect(input.goal_sub_focus?.power).toEqual(["upper_body_power"]);
+  });
+
   it("maps Lower to lower focus", () => {
     const input = manualPreferencesToGenerateWorkoutInput(
       { ...BASE, targetBody: "Lower" },

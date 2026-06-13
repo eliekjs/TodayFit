@@ -2,6 +2,7 @@ import { getSupabase } from "./client";
 import { saveGeneratedWorkout, getWorkoutsByIds } from "./workoutRepository";
 import type { GeneratedWorkout } from "../types";
 import type { PlannedDay } from "../../services/sportPrepPlanner";
+import { plannedDayFromDbRow } from "../../services/sportPrepPlanner/sportDesignatedDay";
 import { parseLocalDate } from "../dateUtils";
 
 function requireClient() {
@@ -261,13 +262,13 @@ export function buildWeeklyPlanWithWorkoutsFromRows(
   for (const row of dayRows) {
     const date = row.date;
     const workoutId = row.generated_workout_id;
-    const planned: PlannedDay = {
+    const planned: PlannedDay = plannedDayFromDbRow({
       id: row.id,
       date,
-      intentLabel: row.intent_label ?? null,
+      intent_label: row.intent_label ?? null,
       status: row.status ?? "planned",
-      generatedWorkoutId: workoutId,
-    };
+      generated_workout_id: workoutId,
+    });
     days.push(planned);
     if (workoutId) {
       const workout = workoutsById[workoutId];

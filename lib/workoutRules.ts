@@ -3,6 +3,16 @@
  * No React or DB dependencies.
  */
 
+import { getSessionRedundancyFamilyId } from "./sessionExerciseRedundancy";
+
+export {
+  GLUTE_BRIDGE_HIP_THRUST_FAMILY,
+  getSessionRedundancyFamilyId,
+  isExerciseAvailableForSession,
+  isGluteBridgeOrHipThrustSlug,
+  sessionRedundancyFamilyAlreadyUsed,
+} from "./sessionExerciseRedundancy";
+
 /** Equipment allowed in warm-ups / activation: easy bodyweight prep and bands only. No weights, cables, machines, rings, or pull-up bar. */
 export const WARMUP_ALLOWED_EQUIPMENT = new Set<string>([
   "bodyweight",
@@ -130,6 +140,8 @@ export function getSimilarExerciseClusterId(exercise: { id: string }): string {
   const id = exercise.id.toLowerCase().replace(/\s/g, "_");
   if (DEADLIFT_FAMILY_IDS.has(id)) return "deadlift_family";
   if (BATTLE_ROPE_FAMILY_IDS.has(id)) return "battle_rope_family";
+  const redundancyFamily = getSessionRedundancyFamilyId(id);
+  if (redundancyFamily) return redundancyFamily;
   return exercise.id;
 }
 
@@ -192,6 +204,29 @@ export const INJURY_AVOID_TAGS: Record<string, string[]> = {
 /** Exercise IDs/slugs to always exclude from generation (e.g. user-disliked). */
 export const BLOCKED_EXERCISE_IDS = new Set<string>(["prone_y_raise"]);
 
+/**
+ * OTA catalog rows that are training-quality / movement-category labels, not real exercises.
+ * Matched with id + humanized name (e.g. unilateral_strength / "Unilateral Strength").
+ */
+export const OTA_CATEGORY_LABEL_EXERCISE_IDS = new Set<string>([
+  "unilateral_strength",
+  "posterior_chain",
+  "upper",
+  "lower",
+  "push",
+  "pull",
+  "squat",
+  "deadlift",
+  "lower_limb",
+  "trunk",
+  "rotation",
+  "flexion",
+  "extension",
+  "static",
+  "linear",
+  "shoulders",
+]);
+
 function normalizeExerciseIdentity(value: string | undefined): string {
   return (value ?? "").toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_");
 }
@@ -213,6 +248,12 @@ export function isBlockedExercise(exercise: { id?: string; name?: string }): boo
     /^(push|pull|bend|squat|hinge|lunge|press|row|carry|core|upper|lower)$/.test(rawName)
   ) {
     return true;
+  }
+  if (id && OTA_CATEGORY_LABEL_EXERCISE_IDS.has(id)) {
+    const humanizedId = id.replace(/_/g, " ");
+    if (rawName === humanizedId || normalizeExerciseIdentity(exercise.name) === id) {
+      return true;
+    }
   }
   return false;
 }

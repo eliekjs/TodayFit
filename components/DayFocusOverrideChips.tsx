@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
 import type { DailyWorkoutPreferences, WorkoutTierPreference } from "../lib/types";
+import type { DayFocusPreset } from "../lib/weekDaySessionFocus";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./Button";
 import { ExperienceLevelToggle } from "./ExperienceLevelToggle";
@@ -28,6 +29,8 @@ export type DayFocusOverrideChipsProps = {
   /** Plan / global defaults when the day override does not set tier or creative. */
   baseWorkoutTier?: WorkoutTierPreference;
   baseIncludeCreativeVariations?: boolean;
+  /** When set, show session-focus presets (sport vs goal emphasis) instead of generic goal chips. */
+  dayFocusPresets?: DayFocusPreset[];
 };
 
 export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps>(function DayFocusOverrideChips({
@@ -42,6 +45,7 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   regenerateLabel = "Regenerate this day",
   baseWorkoutTier = "intermediate",
   baseIncludeCreativeVariations = false,
+  dayFocusPresets,
 }, ref) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
@@ -117,21 +121,54 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
               <Text style={[styles.sectionReasoning, { color: theme.textMuted, marginBottom: 8 }]}>
                 {helperText}
               </Text>
-              <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-                <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
-                {GOAL_OPTIONS.map((g) => (
-                  <Chip
-                    key={g}
-                    label={g.charAt(0).toUpperCase() + g.slice(1)}
-                    selected={dailyPrefsOverride?.goalBias === g}
-                    onPress={() =>
-                      onOverrideChange({
-                        goalBias: dailyPrefsOverride?.goalBias === g ? undefined : g,
-                      })
-                    }
-                  />
-                ))}
-              </View>
+              {dayFocusPresets && dayFocusPresets.length > 0 ? (
+                <View style={{ marginBottom: 12, gap: 8 }}>
+                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Session focus: </Text>
+                  {dayFocusPresets.map((p) => {
+                    const selected = dailyPrefsOverride?.dayFocusPresetId === p.id;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() =>
+                          onOverrideChange({
+                            dayFocusPresetId: selected ? undefined : p.id,
+                            goalBias: undefined,
+                          })
+                        }
+                        style={({ pressed }) => ({
+                          paddingVertical: 8,
+                          paddingHorizontal: 10,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: selected ? theme.primary : theme.border,
+                          backgroundColor: selected ? theme.primarySoft : "transparent",
+                          opacity: pressed ? 0.85 : 1,
+                        })}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: "600", color: theme.text }}>{p.label}</Text>
+                        <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>{p.subtitle}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Goal: </Text>
+                  {GOAL_OPTIONS.map((g) => (
+                    <Chip
+                      key={g}
+                      label={g.charAt(0).toUpperCase() + g.slice(1)}
+                      selected={dailyPrefsOverride?.goalBias === g}
+                      onPress={() =>
+                        onOverrideChange({
+                          goalBias: dailyPrefsOverride?.goalBias === g ? undefined : g,
+                          dayFocusPresetId: undefined,
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+              )}
               <View style={[styles.chipGroup, { marginBottom: 8 }]}>
                 <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
                 {BODY_OPTIONS.map((b) => (

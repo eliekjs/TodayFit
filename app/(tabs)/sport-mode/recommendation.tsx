@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { Redirect, useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../lib/theme";
@@ -8,7 +8,12 @@ import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
-import { backLabelForPhase, phaseLabelAfter } from "../../../lib/sessionFlowNav";
+import {
+  phaseLabelAfter,
+  sportReviewBackLabel,
+  sportReviewBackRoute,
+  sportSetupRouteWhenNoPlan,
+} from "../../../lib/sessionFlowNav";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -19,6 +24,10 @@ import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/typ
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
+import {
+  isSportDesignatedPlannedDay,
+  sportDesignatedDayDisplayTitle,
+} from "../../../services/sportPrepPlanner";
 import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustFocusModal";
 import {
   GOAL_SLUG_TO_LABEL,
@@ -44,6 +53,10 @@ import {
   buildWorkoutIntentTitle,
   type IntentSplitEntry,
 } from "../../../lib/workoutIntentSplit";
+import {
+  adaptiveSetupFromPlanContext,
+  buildDayFocusPresetsForDay,
+} from "../../../lib/weekDaySessionFocus";
 
 function humanizeSportSlug(slug: string): string {
   return slug
@@ -84,14 +97,10 @@ function pickDefaultPlannedDay(plan: PlanWeekResult): PlannedDay | null {
   const withWorkout = plan.days.find(hasWorkoutForDay);
   if (withWorkout) return withWorkout;
 
-  return plan.days[0] ?? null;
-}
+  const sportDay = plan.days.find((d) => isSportDesignatedPlannedDay(d));
+  if (sportDay) return sportDay;
 
-function sportSetupHref(plan: PlanWeekResult | null): string {
-  if (plan?.scheduleSnapshot?.gymDaysPerWeek === 1) {
-    return "/sport-mode?scope=day";
-  }
-  return "/sport-mode";
+  return plan.days[0] ?? null;
 }
 
 function assignedGoalForExercise(
@@ -128,6 +137,8 @@ export default function AdaptiveWeekPlanScreen() {
   const {
     sportPrepWeekPlan,
     setSportPrepWeekPlan,
+    adaptiveSetup,
+    activeSessionDraft,
     manualPreferences,
     updateManualPreferences,
     activeGymProfileId,
@@ -400,6 +411,8 @@ export default function AdaptiveWeekPlanScreen() {
             includeCreativeVariations:
               (snapshot.includeCreativeVariations ?? manualPreferences.includeCreativeVariations) === true,
             adaptiveScheduleLabels: snapshot.adaptiveScheduleLabels,
+            gymDayFocusPresetIds: snapshot.gymDayFocusPresetIds,
+            manualPreferences,
           });
           if (generationCancelledRef.current) return;
           setSportPrepWeekPlan(newPlan);
@@ -453,6 +466,7 @@ export default function AdaptiveWeekPlanScreen() {
               injuries: snap?.injuries,
               subFocusByGoal,
               subFocusPctByGoal: subFocusPctByGoalLoop ?? undefined,
+              manualPreferences,
               workoutTier: snap?.workoutTier ?? manualPreferences.workoutTier ?? "intermediate",
               includeCreativeVariations:
                 (snap?.includeCreativeVariations ??
@@ -658,6 +672,42 @@ export default function AdaptiveWeekPlanScreen() {
     loadWorkout();
   }, [sportPrepWeekPlan, selectedSession, userId, guestWorkoutsById]);
 
+  const dayFocusPresetsForSelectedDay = useMemo(() => {
+    const plan = sportPrepWeekPlan;
+    const session = selectedSession ?? plan?.days[0];
+    if (!plan || !session) return [];
+    const bodyKey = session.dayLevelFocus?.dayBodyEmphasis ?? "full";
+    const targetBody =
+      bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
+    const adaptive = adaptiveSetupFromPlanContext({
+      goalSlugs: plan.goalSlugs,
+      rankedSportSlugs: plan.rankedSportSlugs,
+      sportVsGoalPct: plan.sportVsGoalPct,
+      sportFocusPct: plan.sportFocusPct,
+      sportSubFocusSlugsBySport: plan.sportSubFocusSlugsBySport,
+    });
+    return buildDayFocusPresetsForDay({
+      manualPreferences,
+      adaptiveSetup: adaptive,
+      targetBody,
+      targetModifier: [],
+    });
+  }, [sportPrepWeekPlan, selectedSession, manualPreferences]);
+
+  useEffect(() => {
+    const session = selectedSession ?? sportPrepWeekPlan?.days[0];
+    if (!session) {
+      setDailyPrefsOverride(null);
+      return;
+    }
+    const loadPrefs = async () => {
+      const sportPrep = await loadSportPrepPlannerModule();
+      const derived = sportPrep.deriveDailyPreferencesFromDay(session);
+      setDailyPrefsOverride(Object.keys(derived).length > 0 ? derived : null);
+    };
+    loadPrefs();
+  }, [selectedSession?.id, sportPrepWeekPlan?.weeklyPlanInstanceId]);
+
   /** Days to list in Week overview: any planned training session (gym or sport), not empty rest rows.
    * Include (1) workouts keyed by date or id in guest mode, (2) persisted workout ids, (3) sport/gym days
    * with intent/title when a workout is not loaded yet — so sport days still appear.
@@ -671,6 +721,7 @@ export default function AdaptiveWeekPlanScreen() {
       guestWorkouts[s.id] != null ||
       (sportPrepWeekPlan.today?.id === s.id && sportPrepWeekPlan.todayWorkout != null);
     const hasPlannedSessionLabel = (s: PlannedDay) =>
+      isSportDesignatedPlannedDay(s) ||
       (s.intentLabel != null && s.intentLabel.trim() !== "") ||
       (s.title != null && s.title.trim() !== "") ||
       (s.dayLevelFocus?.displayTitle != null && s.dayLevelFocus.displayTitle.trim() !== "");
@@ -759,25 +810,14 @@ export default function AdaptiveWeekPlanScreen() {
 
   if (!sportPrepWeekPlan) {
     return (
-      <AppScreenWrapper>
-        <StatusBar style="light" />
-        <View style={styles.centered}>
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>
-            No week plan yet
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
-            Set your training priorities first, then we’ll build a 7-day plan.
-          </Text>
-          <View style={{ marginTop: 16 }}>
-            <PrimaryButton
-              label="Set Training Priorities"
-              onPress={() => {
-              router.replace("/sport-mode");
-            }}
-            />
-          </View>
-        </View>
-      </AppScreenWrapper>
+      <Redirect
+        href={
+          sportSetupRouteWhenNoPlan({
+            flow: activeSessionDraft?.flow,
+            adaptiveSetup: adaptiveSetup ?? activeSessionDraft?.adaptiveSetup,
+          }) as never
+        }
+      />
     );
   }
 
@@ -785,10 +825,13 @@ export default function AdaptiveWeekPlanScreen() {
     return (
       <GenerationLoadingScreen
         message="Regenerating your week…"
-        subtitle="Rebuilding the plan around your priorities."
+        subtitle="Rebuilding your week from your sport and goals."
         focusSplit={planFocusSplit.length > 0 ? planFocusSplit : undefined}
         workoutTitle={planWorkoutTitle}
-        onGoBack={() => router.replace("/sport-mode")}
+        onGoBack={() =>
+          router.replace(
+            sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+          )}
       />
     );
   }
@@ -800,7 +843,10 @@ export default function AdaptiveWeekPlanScreen() {
         subtitle="Refreshing this day’s session."
         focusSplit={planFocusSplit.length > 0 ? planFocusSplit : undefined}
         workoutTitle={planWorkoutTitle}
-        onGoBack={() => router.replace("/sport-mode")}
+        onGoBack={() =>
+          router.replace(
+            sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+          )}
       />
     );
   }
@@ -837,6 +883,10 @@ export default function AdaptiveWeekPlanScreen() {
 
   const onRegenerate = async () => {
     if (!sportPrepWeekPlan || !selectedDay) return;
+    if (isSportDesignatedPlannedDay(selectedDay)) {
+      setError("Sport days are not regenerated here — perform your sport session on your own schedule.");
+      return;
+    }
     generationCancelledRef.current = false;
     setError(null);
     setIsRegenerating(true);
@@ -876,6 +926,7 @@ export default function AdaptiveWeekPlanScreen() {
         injuries: regenerateGeneratorContext.injuries,
         subFocusByGoal: regenerateGeneratorContext.subFocusByGoal,
         subFocusPctByGoal: regenerateGeneratorContext.subFocusPctByGoal ?? undefined,
+        manualPreferences,
         workoutTier:
           sportPrepWeekPlan.scheduleSnapshot?.workoutTier ??
           manualPreferences.workoutTier ??
@@ -1004,7 +1055,9 @@ export default function AdaptiveWeekPlanScreen() {
             {slot.sessions.map((session) => {
               const day = session;
               const isSelected = selectedDay?.id === day.id;
-              const rawLabel = day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
+              const rawLabel = isSportDesignatedPlannedDay(day)
+                ? sportDesignatedDayDisplayTitle(day)
+                : day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
               const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
               const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
               return (
@@ -1113,7 +1166,60 @@ export default function AdaptiveWeekPlanScreen() {
           Loading session…
         </Text>
       )}
-      {!isLoadingWorkout && !selectedWorkout && (
+      {!isLoadingWorkout && !selectedWorkout && selectedDay && isSportDesignatedPlannedDay(selectedDay) && (
+        <Card title="Sport day" style={{ marginTop: 16 }}>
+          <Text style={{ fontSize: 16, fontWeight: "700", color: theme.text }}>
+            {sportDesignatedDayDisplayTitle(selectedDay)}
+          </Text>
+          <Text style={{ fontSize: 14, color: theme.textMuted, marginTop: 8 }}>
+            You designated this day for your sport. No gym workout is planned — train for{" "}
+            {sportDesignatedDayDisplayTitle(selectedDay).replace(/\s*—\s*Sport day\s*$/i, "")} on your own
+            schedule.
+          </Text>
+          <View style={styles.footer}>
+            {selectedDay.status === "planned" ? (
+              <>
+                <PrimaryButton
+                  label={isUpdatingStatus ? "Updating…" : "Mark completed"}
+                  variant="secondary"
+                  onPress={() => onUpdateDayStatus("completed")}
+                  disabled={isUpdatingStatus}
+                />
+                <PrimaryButton
+                  label="Skip"
+                  variant="ghost"
+                  onPress={() => onUpdateDayStatus("skipped")}
+                  disabled={isUpdatingStatus}
+                  style={{ marginTop: 8 }}
+                />
+              </>
+            ) : (
+              <PrimaryButton
+                label={isUpdatingStatus ? "Updating…" : "Mark as planned"}
+                variant="ghost"
+                onPress={() => onUpdateDayStatus("planned")}
+                disabled={isUpdatingStatus}
+              />
+            )}
+            <FlowPhaseNavBar
+              back={{
+                label: sportReviewBackLabel({ sportPrepWeekPlan, adaptiveSetup }),
+                onPress: () =>
+                  router.replace(
+                    sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+                  ),
+              }}
+              forward={{
+                label: phaseLabelAfter("review") ?? "Train",
+                onPress: () => {},
+                disabled: true,
+              }}
+              hint="Sport sessions happen outside the app — no in-app workout to start."
+            />
+          </View>
+        </Card>
+      )}
+      {!isLoadingWorkout && !selectedWorkout && !(selectedDay && isSportDesignatedPlannedDay(selectedDay)) && (
         <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 16 }}>
           {daySlotsWithSessions.length > 1
             ? "No session for this day — tap another day in the week overview above."
@@ -1179,6 +1285,11 @@ export default function AdaptiveWeekPlanScreen() {
               }
               onRegenerate={onRegenerate}
               isRegenerating={isRegenerating}
+              dayFocusPresets={
+                dayFocusPresetsForSelectedDay.length > 1
+                  ? dayFocusPresetsForSelectedDay
+                  : undefined
+              }
               showAdjustFocusLink={focusSectionsForModal.length > 0}
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
               helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}
@@ -1209,8 +1320,11 @@ export default function AdaptiveWeekPlanScreen() {
             ) : null}
             <FlowPhaseNavBar
               back={{
-                label: backLabelForPhase("setup"),
-                onPress: () => router.push(sportSetupHref(sportPrepWeekPlan) as never),
+                label: sportReviewBackLabel({ sportPrepWeekPlan, adaptiveSetup }),
+                onPress: () =>
+                  router.replace(
+                    sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+                  ),
               }}
               forward={{
                 label: phaseLabelAfter("review") ?? "Train",

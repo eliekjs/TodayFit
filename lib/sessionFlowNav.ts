@@ -1,3 +1,4 @@
+import type { AdaptiveSetup } from "../context/appStateModel";
 import type { SessionFlow, SessionPhase } from "./sessionDraft";
 import { SESSION_PHASES } from "./sessionDraft";
 import { manualGoalPreferencesHref } from "./manualGoalPreferencesHref";
@@ -40,6 +41,40 @@ export function reviewRouteForFlow(flow: SessionFlow): string {
   if (flow.startsWith("sport")) return "/sport-mode/recommendation";
   if (flow === "goal_week") return "/manual/week";
   return "/manual/workout";
+}
+
+/** Where to send users who hit sport review without a generated week plan. */
+export function sportSetupRouteWhenNoPlan(input: {
+  flow?: SessionFlow | null;
+  adaptiveSetup?: AdaptiveSetup | null;
+}): string {
+  if (input.flow === "sport_day") return "/sport-mode?scope=day";
+  if (input.adaptiveSetup != null) return "/sport-mode/schedule";
+  return "/sport-mode";
+}
+
+type SportReviewNavContext = {
+  sportPrepWeekPlan?: { scheduleSnapshot?: { gymDaysPerWeek?: number } } | null;
+  adaptiveSetup?: AdaptiveSetup | null;
+};
+
+/** Header / phase back from sport review — never rely on router.back() (library Open, replace). */
+export function sportReviewBackRoute(input: SportReviewNavContext): string {
+  const gymDays = input.sportPrepWeekPlan?.scheduleSnapshot?.gymDaysPerWeek;
+  if (gymDays === 1) return "/sport-mode?scope=day";
+  if (gymDays != null && gymDays > 1) return "/sport-mode/schedule";
+  if (input.adaptiveSetup != null) return "/sport-mode/schedule";
+  return "/sport-mode";
+}
+
+/** In-screen back label paired with {@link sportReviewBackRoute}. */
+export function sportReviewBackLabel(input: SportReviewNavContext): string {
+  const gymDays = input.sportPrepWeekPlan?.scheduleSnapshot?.gymDaysPerWeek;
+  if (gymDays === 1) return backLabelForPhase("setup");
+  if ((gymDays != null && gymDays > 1) || input.adaptiveSetup != null) {
+    return "Your schedule";
+  }
+  return backLabelForPhase("setup");
 }
 
 export function weekPreferencesHref(): string {

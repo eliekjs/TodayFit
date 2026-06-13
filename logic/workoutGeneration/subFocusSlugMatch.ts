@@ -7,6 +7,7 @@ import { getExerciseTagsForSubFocuses, getCanonicalSportSlug } from "../../data/
 import {
   exerciseHasStrengthSubFocusSlug,
 } from "../../data/goalSubFocus/strengthSubFocus";
+import { exerciseMatchesJointHealthSubFocus } from "../../data/goalSubFocus/jointHealthSubFocus";
 import { exerciseHasSubFocusSlug } from "../../data/goalSubFocus/conditioningSubFocus";
 import {
   exerciseTagSetHasSpeedAgilityDynamicMovement,
@@ -276,7 +277,10 @@ export function exerciseMatchesGoalSubFocusSlugUnified(
   if (goalSlug === "conditioning" || goalSlug === "endurance" || goalSlug === "power") {
     return exerciseHasSubFocusSlug(exercise, slug);
   }
-  if (goalSlug === "mobility") {
+  if (goalSlug === "joint_health") {
+    return exerciseMatchesJointHealthSubFocus(exercise, slug);
+  }
+  if (goalSlug === "recovery_mobility" || goalSlug === "mobility") {
     if (exerciseHasGoalIntentSlug(exercise, slug)) return true;
     if (exerciseHasSubFocusSlug(exercise, slug)) return true;
     return exerciseMatchesMobilityRegionalSlug(exercise, slug);

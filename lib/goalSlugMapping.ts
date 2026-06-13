@@ -9,14 +9,16 @@ export const GOAL_SLUG_TO_LABEL: Record<string, string> = {
   muscle: "Build muscle",
   endurance: "Endurance",
   conditioning: "Sport conditioning",
-  mobility: "Mobility & joint health",
+  mobility: "Recovery & mobility",
+  recovery_mobility: "Recovery & mobility",
+  joint_health: "Joint health strength",
   athletic_performance: "Athletic performance",
   power: "Power",
   climbing: "Climbing",
   trail_running: "Trail running",
   ski: "Ski / snow",
   physique: "Physique / body comp",
-  resilience: "Resilience / recovery",
+  resilience: "Recovery & mobility",
 };
 
 /** Map Manual primary focus labels to DB goal slugs (for weighted exercise ranking). */
@@ -30,11 +32,14 @@ export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   "Body Recomposition": "physique",
   "Sport Conditioning": "conditioning",
   "Improve Endurance": "endurance",
-  "Mobility & Joint Health": "mobility",
+  "Recovery & Mobility": "recovery_mobility",
+  /** @deprecated persisted presets */
+  "Mobility & Joint Health": "recovery_mobility",
+  Recovery: "recovery_mobility",
   "Athletic Performance": "athletic_performance",
   Calisthenics: "calisthenics",
   "Power & Explosiveness": "power",
-  Recovery: "resilience",
+  "Strength Training for Joint Health": "joint_health",
 };
 
 /** Map goal slug to a canonical primary focus label (for session intent when dedicating days to goals). */
@@ -44,11 +49,13 @@ export const GOAL_SLUG_TO_PRIMARY_FOCUS: Record<string, string> = {
   physique: "Body Recomp (fat loss & muscle gain)",
   conditioning: "Sport Conditioning",
   endurance: "Improve Endurance",
-  mobility: "Mobility & Joint Health",
+  mobility: "Recovery & Mobility",
+  recovery_mobility: "Recovery & Mobility",
+  joint_health: "Strength Training for Joint Health",
   athletic_performance: "Athletic Performance",
   power: "Power & Explosiveness",
   calisthenics: "Calisthenics",
-  resilience: "Recovery",
+  resilience: "Recovery & Mobility",
   climbing: "Sport Conditioning",
   trail_running: "Improve Endurance",
   ski: "Sport Conditioning",

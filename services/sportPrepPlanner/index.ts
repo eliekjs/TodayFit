@@ -29,6 +29,29 @@ import {
   interleaveGymAndSportSlots,
   unionTrainingDayIndices,
 } from "./weekDaySlotAssignment";
+import {
+  adaptiveSetupFromPlanContext,
+  manualPreferencesForSportWeekFocus,
+  resolveDayFocusPreset,
+  resolvedDayFocusToWorkoutParams,
+} from "../../lib/weekDaySessionFocus";
+import type { ManualPreferences } from "../../lib/types";
+import {
+  buildSportDesignatedPlannedDay,
+  getSportsOnCalendarDay,
+  isSportDesignatedPlannedDay,
+  plannedDayFromDbRow,
+  sportDesignatedDayDisplayTitle,
+} from "./sportDesignatedDay";
+export {
+  buildSportDesignatedPlannedDay,
+  getSportsOnCalendarDay,
+  isSportDesignatedPlannedDay,
+  plannedDayFromDbRow,
+  sportDesignatedDayDisplayTitle,
+  sportSlugFromPlannedDay,
+} from "./sportDesignatedDay";
+export type { PlannedDaySessionKind } from "./sportDesignatedDay";
 
 /** Per-sport days per week (sportSlug -> number of days). Enables e.g. sport A 2 days, sport B 1 day, gym 3 days. */
 export type SportDaysAllocation = Record<string, number>;
@@ -98,6 +121,13 @@ export type PlanWeekInput = {
   adaptiveScheduleLabels?: AdaptiveScheduleLabels | null;
   /** When set, this intent is used first for gym slots (e.g. one-day sport avoids recovery-only sessions). */
   forceIntentKey?: IntentKey;
+  /**
+   * Per gym slot (same order as gym days in the planner): session-focus preset id
+   * from `weekDaySessionFocus` (e.g. sport_first, goal_emphasis_1).
+   */
+  gymDayFocusPresetIds?: string[];
+  /** Manual preferences for sub-focus / goal match % when resolving day-focus presets. */
+  manualPreferences?: ManualPreferences | null;
 };
 
 /** Day-level focus for display and regeneration. Supports day-level editing. */
@@ -120,6 +150,10 @@ export type PlannedDay = {
   intentLabel: string | null;
   status: "planned" | "completed" | "skipped";
   generatedWorkoutId: string | null;
+  /** Gym workout vs user-designated sport day (no generated workout). */
+  sessionKind?: import("./sportDesignatedDay").PlannedDaySessionKind;
+  /** When sessionKind is sport: which sport the user will perform that day. */
+  sportSlug?: string | null;
   /** Per-day preferences (for edit & regenerate). */
   preferences?: import("../../lib/types").DailyWorkoutPreferences | null;
   /** Structured day-level focus for editing and naming. */
@@ -160,6 +194,7 @@ export type ScheduleSnapshot = {
   specificBodyPartBehavior?: import("../../lib/types").SpecificBodyPartBehavior | null;
   specificBodyPartEmphasis?: import("../../lib/types").SpecificBodyFocusKey[] | null;
   adaptiveScheduleLabels?: AdaptiveScheduleLabels | null;
+  gymDayFocusPresetIds?: string[];
 };
 
 export type PlanWeekResult = {
@@ -225,6 +260,8 @@ export type RegenerateDayInput = {
   includeCreativeVariations?: boolean;
   /** Override preferences for this single workout (goal, body region, energy, style). */
   dailyPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
+  /** Manual preferences for sub-focus when resolving dayFocusPresetId. */
+  manualPreferences?: ManualPreferences | null;
   /** Penalize re-picking these exercise ids (same-day regenerate variety). */
   avoidRepeatingExerciseIds?: string[];
   /** Completed / saved sessions from app state (Phase 11 training_history). */
@@ -398,23 +435,25 @@ function sessionIntentForKey(
         notes: "Builds your aerobic engine with sustainable conditioning.",
       };
     case "mobility":
-      return {
-        id: `session_${date}_mobility`,
-        label: "Mobility & Joint Health",
-        focus: ["Mobility & Joint Health"],
-        durationMinutes,
-        energyLevel: energy,
-        notes: "Focuses on range of motion and joint-friendly patterns.",
-      };
     case "prehab":
     case "recovery":
+    case "recovery_mobility":
       return {
-        id: `session_${date}_recovery`,
-        label: "Recovery / Prehab",
-        focus: ["Recovery"],
+        id: `session_${date}_recovery_mobility`,
+        label: "Recovery & Mobility",
+        focus: ["Recovery & Mobility"],
         durationMinutes,
         energyLevel: energy,
-        notes: "Low-fatigue work to support tissue health and recovery.",
+        notes: "Stretching, mobility, and low-fatigue recovery work.",
+      };
+    case "joint_health":
+      return {
+        id: `session_${date}_joint_health`,
+        label: "Joint Health Strength",
+        focus: ["Strength Training for Joint Health"],
+        durationMinutes,
+        energyLevel: energy,
+        notes: "PT-inspired controlled strength for joint resilience and stability.",
       };
     case "strength":
     default:
@@ -576,6 +615,27 @@ type DaySlot =
       specificBodyFocus?: string[] | null;
     }
   | { type: "sport"; sportSlug: string; discipline?: TriathlonDiscipline };
+
+function compactSportDaysAllocation(
+  allocation: SportDaysAllocation | undefined
+): SportDaysAllocation | undefined {
+  if (!allocation) return undefined;
+  const entries = Object.entries(allocation).filter(([, count]) => (count ?? 0) > 0);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function compactSportTrainingDaysBySlug(
+  daysBySlug: Record<string, number[]> | undefined
+): Record<string, number[]> | undefined {
+  if (!daysBySlug) return undefined;
+  const entries = Object.entries(daysBySlug)
+    .map(([slug, days]) => [
+      slug,
+      Array.from(new Set(days.filter((day) => day >= 0 && day < 7))).sort((a, b) => a - b),
+    ] as const)
+    .filter(([, days]) => days.length > 0);
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
 
 /**
  * Spread N training days across the week, alternating on/off where possible.
@@ -858,10 +918,13 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     input.goalMatchTertiaryPct ?? 20,
   ];
   const rankedSportSlugs = input.rankedSportSlugs ?? (input.sportSlug ? [input.sportSlug] : []);
-  const hasSportDays = input.sportDaysAllocation && Object.keys(input.sportDaysAllocation).length > 0;
+  const compactedSportDaysAllocation = compactSportDaysAllocation(input.sportDaysAllocation);
+  const compactedSportTrainingDaysBySlug = compactSportTrainingDaysBySlug(
+    input.sportTrainingDaysBySlug
+  );
   const daySlots = buildDaySlots(
     input.gymDaysPerWeek || 0,
-    hasSportDays ? input.sportDaysAllocation : undefined,
+    compactedSportDaysAllocation,
     rankedSportSlugs,
     intentOrder,
     input.emphasis,
@@ -910,7 +973,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
 
   const explicitWeekSchedule = hasExplicitWeekDaySchedule(
     input.gymTrainingDays,
-    input.sportTrainingDaysBySlug
+    compactedSportTrainingDaysBySlug
   );
 
   const trainingIndices: number[] = [];
@@ -920,7 +983,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     trainingIndices.push(
       ...unionTrainingDayIndices(
         input.gymTrainingDays ?? [],
-        input.sportTrainingDaysBySlug ?? {}
+        compactedSportTrainingDaysBySlug ?? {}
       )
     );
     totalTrainingDays = trainingIndices.length;
@@ -970,7 +1033,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     explicitWeekSchedule && (input.gymTrainingDays?.length ?? 0) > 0
       ? createExplicitWeekSlotPicker(
           input.gymTrainingDays ?? [],
-          input.sportTrainingDaysBySlug ?? {},
+          compactedSportTrainingDaysBySlug ?? {},
           rankedSportSlugs,
           daySlots
         )
@@ -1008,54 +1071,65 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     sharedExercisePool = undefined;
   }
 
+  let gymSlotIdx = 0;
+  const weekManualPrefs = manualPreferencesForSportWeekFocus(
+    input.manualPreferences ?? {
+      primaryFocus: [],
+      targetBody: null,
+      targetModifier: [],
+      durationMinutes: input.defaultSessionDuration,
+      energyLevel: input.energyBaseline,
+      injuries: input.injuries ?? [],
+      upcoming: [],
+      subFocusByGoal: input.goalSubFocusByGoal ?? {},
+      subFocusPctByGoal: input.goalSubFocusPctByGoal ?? {},
+      workoutStyle: [],
+      goalMatchPrimaryPct: input.goalMatchPrimaryPct ?? 50,
+      goalMatchSecondaryPct: input.goalMatchSecondaryPct ?? 30,
+      goalMatchTertiaryPct: input.goalMatchTertiaryPct ?? 20,
+      workoutTier: input.workoutTier ?? "intermediate",
+      includeCreativeVariations: input.includeCreativeVariations === true,
+    },
+    adaptiveSetupFromPlanContext({
+      goalSlugs,
+      rankedSportSlugs,
+      sportVsGoalPct: input.sportVsGoalPct,
+      sportFocusPct: input.sportFocusPct,
+      sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+    })
+  );
+
   const buildWorkoutForSlot = async (
-    slot: DaySlot,
+    slot: Extract<DaySlot, { type: "gym" }>,
     date: string
   ): Promise<{
     intent: SessionIntent;
     workout: GeneratedWorkout;
     title: string;
     dayLevelFocus?: DayLevelFocus | null;
+    dayPreferences?: import("../../lib/types").DailyWorkoutPreferences | null;
   }> => {
-    if (slot.type === "sport") {
-      const intent = sessionIntentForSport(
-        slot.sportSlug,
-        sportSlotLabel(slot),
-        date,
-        input.defaultSessionDuration,
-        input.energyBaseline
-      );
-      const sessionIntentContract = sessionIntentContractForSportSlug(getCanonicalSportSlug(slot.sportSlug));
-      const workout = await buildWorkoutForSessionIntent(
-        intent,
-        input.gymProfile,
-        date,
-        {
-          sportSlug: slot.sportSlug,
+    const slotIdx = gymSlotIdx;
+    gymSlotIdx += 1;
+    const presetId = input.gymDayFocusPresetIds?.[slotIdx];
+    const adaptiveForFocus = adaptiveSetupFromPlanContext({
+      goalSlugs,
+      rankedSportSlugs,
+      sportVsGoalPct: input.sportVsGoalPct,
+      sportFocusPct: input.sportFocusPct,
+      sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+    });
+    const dayFocusResolved = presetId
+      ? resolveDayFocusPreset(presetId, weekManualPrefs, adaptiveForFocus)
+      : null;
+    const dayFocusParams = dayFocusResolved
+      ? resolvedDayFocusToWorkoutParams(
+          dayFocusResolved,
           goalSlugs,
-          goalWeightsPct,
-          sportSubFocusSlugs:
-            input.sportSubFocusSlugsBySport?.[slot.sportSlug] ?? (slot.sportSlug === (input.sportSlug ?? undefined) ? input.sportSubFocusSlugs : undefined),
-          rankedSportSlugs: input.rankedSportSlugs,
-          sportFocusPct: input.rankedSportSlugs?.length === 2 ? input.sportFocusPct : undefined,
-          sportVsGoalPct: input.sportVsGoalPct,
-          sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
-          recentLoad: input.recentLoad,
-          injuries: input.injuries,
-          workoutTier: input.workoutTier ?? "intermediate",
-          includeCreativeVariations: input.includeCreativeVariations === true,
-          subFocusByGoal: input.goalSubFocusByGoal,
-          ...(input.goalSubFocusPctByGoal &&
-          Object.keys(input.goalSubFocusPctByGoal).length > 0
-            ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }
-            : {}),
-          ...(sessionIntentContract ? { session_intent_contract: sessionIntentContract } : {}),
-          exercisePool: sharedExercisePool,
-        }
-      );
-      const title = getWorkoutDescriptor(workout);
-      return { intent: { ...intent, label: title }, workout, title };
-    }
+          [goalWeightsPct[0], goalWeightsPct[1], goalWeightsPct[2] ?? 20]
+        )
+      : null;
+
     const dayGoalSlug = slot.dayGoalSlug ?? goalSlugs[0] ?? null;
     const focusLabel = dayGoalSlug
       ? (GOAL_SLUG_TO_PRIMARY_FOCUS[dayGoalSlug] ?? GOAL_SLUG_TO_LABEL[dayGoalSlug] ?? dayGoalSlug)
@@ -1071,7 +1145,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       input.energyBaseline
     );
     const primarySportSlug = input.sportSlug ?? rankedSportSlugs[0] ?? null;
-    if (focusLabel) {
+    if (dayFocusParams?.focusLabels.length) {
+      intent.focus = dayFocusParams.focusLabels;
+    } else if (focusLabel) {
       intent.focus = [focusLabel];
     } else if (goalSlugs.length > 0) {
       intent.focus = goalSlugs.map(
@@ -1087,19 +1163,39 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       slot.dayBias
         ? { targetBody: slot.dayBias.targetBody, targetModifier: slot.dayBias.targetModifier }
         : undefined;
+    const effectiveGoalSlugs = dayFocusParams?.orderedGoalSlugs.length
+      ? dayFocusParams.orderedGoalSlugs
+      : dayGoalSlug
+        ? [dayGoalSlug]
+        : goalSlugs;
+    const effectiveGoalWeights = dayFocusParams?.goalWeightsPct ?? (
+      dayGoalSlug ? singleGoalWeights : goalWeightsPct
+    );
+    const focusedSportSlugs = dayFocusParams?.sportSlugsOverride?.length
+      ? dayFocusParams.sportSlugsOverride
+      : undefined;
+    const effectiveRankedSportSlugs = focusedSportSlugs ?? input.rankedSportSlugs;
+    const effectiveSportSlug = focusedSportSlugs?.[0] ?? input.sportSlug ?? null;
+    const effectiveSportSubFocusBySport = focusedSportSlugs
+      ? dayFocusParams?.sportSubFocusBySportOverride
+      : input.sportSubFocusSlugsBySport;
+    const effectiveSportSubFocusSlugs =
+      focusedSportSlugs?.length === 1
+        ? effectiveSportSubFocusBySport?.[focusedSportSlugs[0]]
+        : input.sportSubFocusSlugs;
     const workout = await buildWorkoutForSessionIntent(
       intent,
       input.gymProfile,
       date,
       {
-        sportSlug: input.sportSlug ?? null,
-        goalSlugs: dayGoalSlug ? [dayGoalSlug] : goalSlugs,
-        goalWeightsPct: dayGoalSlug ? singleGoalWeights : goalWeightsPct,
-        sportSubFocusSlugs: input.sportSubFocusSlugs,
-        rankedSportSlugs: input.rankedSportSlugs,
-        sportFocusPct: input.rankedSportSlugs?.length === 2 ? input.sportFocusPct : undefined,
+        sportSlug: effectiveSportSlug,
+        goalSlugs: effectiveGoalSlugs,
+        goalWeightsPct: effectiveGoalWeights,
+        sportSubFocusSlugs: effectiveSportSubFocusSlugs,
+        rankedSportSlugs: effectiveRankedSportSlugs,
+        sportFocusPct: effectiveRankedSportSlugs?.length === 2 ? input.sportFocusPct : undefined,
         sportVsGoalPct: input.sportVsGoalPct,
-        sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+        sportSubFocusSlugsBySport: effectiveSportSubFocusBySport,
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
@@ -1111,32 +1207,137 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }
           : {}),
         exercisePool: sharedExercisePool,
+        ...(dayFocusParams?.sportWeightOverride != null
+          ? { sportWeightOverride: dayFocusParams.sportWeightOverride }
+          : {}),
+        ...(dayFocusParams?.goalWeightsOverride?.length
+          ? { goalWeightsOverride: dayFocusParams.goalWeightsOverride }
+          : {}),
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
     const goalLabels =
-      dayGoalSlug
-        ? [GOAL_SLUG_TO_LABEL[dayGoalSlug] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[dayGoalSlug] ?? dayGoalSlug]
-        : goalSlugs.length > 0
-          ? goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
-          : (intent.focus?.length ? intent.focus : ["Workout"]);
+      dayFocusParams?.focusLabels.length
+        ? dayFocusParams.focusLabels
+        : dayGoalSlug
+          ? [GOAL_SLUG_TO_LABEL[dayGoalSlug] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[dayGoalSlug] ?? dayGoalSlug]
+          : goalSlugs.length > 0
+            ? goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
+            : (intent.focus?.length ? intent.focus : ["Workout"]);
     const displayTitle = formatDayTitle(
       goalLabels,
       bodyKey,
       slot.specificBodyFocus ?? null
     );
     const dayLevelFocus: DayLevelFocus = {
-      dayGoalFocus: dayGoalSlug ?? intent.focus?.[0] ?? null,
+      dayGoalFocus: dayFocusParams?.focusLabels[0] ?? dayGoalSlug ?? intent.focus?.[0] ?? null,
       dayBodyEmphasis: bodyKey,
       daySpecificBodyFocuses: slot.specificBodyFocus ?? null,
       displayTitle,
     };
+    const dayPreferences: import("../../lib/types").DailyWorkoutPreferences | null = presetId
+      ? { dayFocusPresetId: presetId }
+      : null;
     return {
       intent: { ...intent, label: displayTitle },
       workout,
       title: displayTitle,
       dayLevelFocus,
+      dayPreferences,
     };
+  };
+
+  type DbSessionRowDraft = {
+    intent_label: string | null;
+    generated_workout_id: string | null;
+    fatigue_score: number;
+    goal_contribution: Record<string, number>;
+    workout?: GeneratedWorkout;
+  };
+
+  const planSessionsForTrainingDay = async (
+    dayIdx: number,
+    date: string,
+    legacySlotIdx: number,
+    idPrefix: string
+  ): Promise<{
+    plannedDays: PlannedDay[];
+    workoutsByKey: Record<string, GeneratedWorkout>;
+    dbSessionRows: DbSessionRowDraft[];
+    nextLegacySlotIdx: number;
+  }> => {
+    const slot = resolveSlotForTrainingDay(dayIdx, legacySlotIdx);
+    const nextLegacySlotIdx = legacySlotIdx + 1;
+    const plannedDays: PlannedDay[] = [];
+    const workoutsByKey: Record<string, GeneratedWorkout> = {};
+    const dbSessionRows: DbSessionRowDraft[] = [];
+    const goalContribution: Record<string, number> = {};
+    if (goalsSnapshot.primary) goalContribution.primary = goalsSnapshot.primary.weight;
+    if (goalsSnapshot.secondary) goalContribution.secondary = goalsSnapshot.secondary.weight;
+    if (goalsSnapshot.tertiary) goalContribution.tertiary = goalsSnapshot.tertiary.weight;
+
+    const pushSportDesignation = (
+      sportSlug: string,
+      discipline?: TriathlonDiscipline
+    ) => {
+      const sportDay = buildSportDesignatedPlannedDay({
+        id: `${idPrefix}-${date}-sport-${sportSlug}${discipline ? `-${discipline}` : ""}`,
+        date,
+        sportSlug,
+        discipline,
+      });
+      plannedDays.push(sportDay);
+      dbSessionRows.push({
+        intent_label: sportDay.intentLabel,
+        generated_workout_id: null,
+        fatigue_score: 1,
+        goal_contribution: {},
+      });
+    };
+
+    if (slot.type === "sport") {
+      pushSportDesignation(slot.sportSlug, slot.discipline);
+      return { plannedDays, workoutsByKey, dbSessionRows, nextLegacySlotIdx };
+    }
+
+    const { intent, workout, title, dayLevelFocus, dayPreferences } = await buildWorkoutForSlot(slot, date);
+    const gymId = `${idPrefix}-${date}-gym`;
+    plannedDays.push({
+      id: gymId,
+      date,
+      sessionKind: "gym",
+      title,
+      intentLabel: intent.label,
+      status: "planned",
+      generatedWorkoutId: null,
+      dayLevelFocus: dayLevelFocus ?? null,
+      ...(dayPreferences ? { preferences: dayPreferences } : {}),
+    });
+    workoutsByKey[gymId] = workout;
+    workoutsByKey[date] = workout;
+
+    const key = slot.key;
+    const fatigueScore =
+      key === "mobility" || key === "recovery" || key === "prehab" ? 1 : 3;
+    dbSessionRows.push({
+      intent_label: intent.label,
+      generated_workout_id: null,
+      fatigue_score: fatigueScore,
+      goal_contribution: goalContribution,
+      workout,
+    });
+
+    if (explicitWeekSchedule) {
+      for (const slug of getSportsOnCalendarDay(
+        dayIdx,
+        rankedSportSlugs,
+        compactedSportTrainingDaysBySlug
+      )) {
+        pushSportDesignation(slug);
+      }
+    }
+
+    return { plannedDays, workoutsByKey, dbSessionRows, nextLegacySlotIdx };
   };
 
   // Guest mode: no DB writes; workouts kept in memory
@@ -1157,21 +1358,22 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         });
         continue;
       }
-      const slot = resolveSlotForTrainingDay(dayIdx, legacySlotIdx);
-      legacySlotIdx += 1;
-      const { intent, workout, title, dayLevelFocus } = await buildWorkoutForSlot(slot, date);
-      guestWorkouts[date] = workout;
-      plannedDays.push({
-        id: `guest-${date}`,
+      const sessionPlan = await planSessionsForTrainingDay(
+        dayIdx,
         date,
-        title,
-        intentLabel: intent.label,
-        status: "planned",
-        generatedWorkoutId: null,
-        dayLevelFocus: dayLevelFocus ?? null,
-      });
+        legacySlotIdx,
+        "guest"
+      );
+      legacySlotIdx = sessionPlan.nextLegacySlotIdx;
+      Object.assign(guestWorkouts, sessionPlan.workoutsByKey);
+      plannedDays.push(...sessionPlan.plannedDays);
     }
-    const todayDay = plannedDays.find((d) => d.date === todayIso) ?? null;
+    const todayDay =
+      plannedDays.find(
+        (d) => d.date === todayIso && !isSportDesignatedPlannedDay(d)
+      ) ??
+      plannedDays.find((d) => d.date === todayIso) ??
+      null;
     const scheduleSnapshot: ScheduleSnapshot = {
       weekStartDate: weekStartIso,
       primaryGoalSlug: input.primaryGoalSlug,
@@ -1181,7 +1383,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       sportQualitySlugs: input.sportQualitySlugs,
       sportSubFocusSlugs: input.sportSubFocusSlugs,
       gymDaysPerWeek: input.gymDaysPerWeek || 0,
-      sportDaysAllocation: input.sportDaysAllocation,
+      sportDaysAllocation: compactedSportDaysAllocation,
       rankedSportSlugs: input.rankedSportSlugs,
       sportFocusPct: input.sportFocusPct,
       sportVsGoalPct: input.sportVsGoalPct,
@@ -1189,11 +1391,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       preferredTrainingDays: trainingIndices.length > 0 ? trainingIndices : input.preferredTrainingDays,
       gymTrainingDays:
         input.gymTrainingDays?.length ? [...input.gymTrainingDays].sort((a, b) => a - b) : undefined,
-      sportTrainingDaysBySlug:
-        input.sportTrainingDaysBySlug &&
-        Object.keys(input.sportTrainingDaysBySlug).length > 0
-          ? { ...input.sportTrainingDaysBySlug }
-          : undefined,
+      sportTrainingDaysBySlug: compactedSportTrainingDaysBySlug
+        ? { ...compactedSportTrainingDaysBySlug }
+        : undefined,
       defaultSessionDuration: input.defaultSessionDuration,
       energyBaseline: input.energyBaseline,
       recentLoad: input.recentLoad,
@@ -1215,13 +1415,18 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           ? { ...input.goalSubFocusPctByGoal }
           : undefined,
       adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
+      gymDayFocusPresetIds: input.gymDayFocusPresetIds?.length
+        ? [...input.gymDayFocusPresetIds]
+        : undefined,
     };
     return {
       weeklyPlanInstanceId: `guest-${weekStartIso}-${Date.now()}`,
       weekStartDate: weekStartIso,
       days: plannedDays,
       today: todayDay,
-      todayWorkout: todayDay ? guestWorkouts[todayIso] ?? null : null,
+      todayWorkout: todayDay
+        ? guestWorkouts[todayDay.id] ?? guestWorkouts[todayIso] ?? null
+        : null,
       sportSlug: input.sportSlug ?? null,
       goalSlugs,
       sportSubFocusSlugs: input.sportSubFocusSlugs,
@@ -1280,7 +1485,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
 
     for (const workoutId of createdWorkoutIds) {
       try {
-        await deleteWorkout(input.userId, workoutId);
+        await deleteWorkout(input.userId!, workoutId);
       } catch (error) {
         logCleanupFailure(`delete workout ${workoutId}`, error);
       }
@@ -1412,49 +1617,36 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         continue;
       }
 
-      const slot = resolveSlotForTrainingDay(dayIdx, legacySlotIdx);
-      legacySlotIdx += 1;
-
-      const { intent: sessionIntent, workout, title, dayLevelFocus } = await buildWorkoutForSlot(
-        slot,
-        date
+      const sessionPlan = await planSessionsForTrainingDay(
+        dayIdx,
+        date,
+        legacySlotIdx,
+        "plan"
       );
-      const workoutId = await saveGeneratedWorkout(input.userId, workout);
-      createdWorkoutIds.push(workoutId);
-      inMemoryWorkouts[workoutId] = workout;
-      inMemoryWorkouts[date] = workout;
+      legacySlotIdx = sessionPlan.nextLegacySlotIdx;
 
-      const goalContribution: Record<string, number> = {};
-      if (goalsSnapshot.primary) goalContribution.primary = goalsSnapshot.primary.weight;
-      if (goalsSnapshot.secondary)
-        goalContribution.secondary = goalsSnapshot.secondary.weight;
-      if (goalsSnapshot.tertiary)
-        goalContribution.tertiary = goalsSnapshot.tertiary.weight;
+      for (const dbRow of sessionPlan.dbSessionRows) {
+        let workoutId: string | null = null;
+        if (dbRow.workout) {
+          workoutId = await saveGeneratedWorkout(input.userId, dbRow.workout);
+          createdWorkoutIds.push(workoutId);
+          inMemoryWorkouts[workoutId] = dbRow.workout;
+          inMemoryWorkouts[date] = dbRow.workout;
+        }
 
-      const key = slot.type === "gym" ? slot.key : "aerobic";
-      const fatigueScore =
-        key === "mobility" || key === "recovery" || key === "prehab" ? 1 : 3;
+        rowsForDays.push({
+          weekly_plan_instance_id: instanceId,
+          date,
+          intent_id: null,
+          intent_label: dbRow.intent_label,
+          goal_contribution: dbRow.goal_contribution,
+          fatigue_score: dbRow.fatigue_score,
+          status: "planned",
+          generated_workout_id: workoutId,
+        });
+      }
 
-      rowsForDays.push({
-        weekly_plan_instance_id: instanceId,
-        date,
-        intent_id: null,
-        intent_label: sessionIntent.label,
-        goal_contribution: goalContribution,
-        fatigue_score: fatigueScore,
-        status: "planned",
-        generated_workout_id: workoutId,
-      });
-
-      plannedDays.push({
-        id: "", // back-filled after insert if needed
-        date,
-        title: title ?? sessionIntent.label,
-        intentLabel: sessionIntent.label,
-        status: "planned",
-        generatedWorkoutId: workoutId,
-        dayLevelFocus: dayLevelFocus ?? null,
-      });
+      plannedDays.push(...sessionPlan.plannedDays);
     }
 
     const { data: insertedDayRows, error: daysError } = await supabase
@@ -1468,39 +1660,37 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     throw error;
   }
 
-  const plannedByDate = new Map<string, PlannedDay>();
-  for (const row of dayRows) {
-    const label = (row.intent_label as string) ?? null;
-    const dayId = row.id as string;
-    const date = row.date as string;
-    const generatedWorkoutId = (row.generated_workout_id as string) ?? null;
-    if (generatedWorkoutId && inMemoryWorkouts[generatedWorkoutId]) {
-      inMemoryWorkouts[dayId] = inMemoryWorkouts[generatedWorkoutId];
-    }
-    plannedByDate.set(date, {
-      id: dayId,
-      date,
-      title: label,
-      intentLabel: label,
-      status: (row.status as "planned" | "completed" | "skipped") ?? "planned",
-      generatedWorkoutId,
-    });
-  }
-
-  const finalDays: PlannedDay[] = weekDates.map((date) => {
-    return (
-      plannedByDate.get(date) ?? {
+  const finalDays: PlannedDay[] = [];
+  for (const date of weekDates) {
+    const rowsForDate = dayRows.filter((row) => row.date === date);
+    if (rowsForDate.length === 0) {
+      finalDays.push({
         id: "",
         date,
         title: null,
         intentLabel: null,
         status: "planned",
         generatedWorkoutId: null,
+      });
+      continue;
+    }
+    for (const row of rowsForDate) {
+      const day = plannedDayFromDbRow(row);
+      const generatedWorkoutId = row.generated_workout_id;
+      if (generatedWorkoutId && inMemoryWorkouts[generatedWorkoutId]) {
+        inMemoryWorkouts[day.id] = inMemoryWorkouts[generatedWorkoutId];
+        inMemoryWorkouts[date] = inMemoryWorkouts[generatedWorkoutId];
       }
-    );
-  });
+      finalDays.push(day);
+    }
+  }
 
-  const todayDay = finalDays.find((d) => d.date === todayIso) ?? null;
+  const todayDay =
+    finalDays.find(
+      (d) => d.date === todayIso && !isSportDesignatedPlannedDay(d)
+    ) ??
+    finalDays.find((d) => d.date === todayIso) ??
+    null;
   const todayWorkout =
     todayDay?.generatedWorkoutId != null
       ? inMemoryWorkouts[todayDay.generatedWorkoutId] ??
@@ -1517,7 +1707,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     sportQualitySlugs: input.sportQualitySlugs,
     sportSubFocusSlugs: input.sportSubFocusSlugs,
     gymDaysPerWeek: input.gymDaysPerWeek || 0,
-    sportDaysAllocation: input.sportDaysAllocation,
+    sportDaysAllocation: compactedSportDaysAllocation,
     rankedSportSlugs: input.rankedSportSlugs,
     sportFocusPct: input.sportFocusPct,
     sportVsGoalPct: input.sportVsGoalPct,
@@ -1525,11 +1715,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     preferredTrainingDays: trainingIndices.length > 0 ? trainingIndices : input.preferredTrainingDays,
     gymTrainingDays:
       input.gymTrainingDays?.length ? [...input.gymTrainingDays].sort((a, b) => a - b) : undefined,
-    sportTrainingDaysBySlug:
-      input.sportTrainingDaysBySlug &&
-      Object.keys(input.sportTrainingDaysBySlug).length > 0
-        ? { ...input.sportTrainingDaysBySlug }
-        : undefined,
+    sportTrainingDaysBySlug: compactedSportTrainingDaysBySlug
+      ? { ...compactedSportTrainingDaysBySlug }
+      : undefined,
     defaultSessionDuration: input.defaultSessionDuration,
     energyBaseline: input.energyBaseline,
     recentLoad: input.recentLoad,
@@ -1551,6 +1739,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         ? { ...input.goalSubFocusPctByGoal }
         : undefined,
     adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
+    gymDayFocusPresetIds: input.gymDayFocusPresetIds?.length
+      ? [...input.gymDayFocusPresetIds]
+      : undefined,
   };
 
   if (!instanceId) {
@@ -1581,9 +1772,75 @@ const GOAL_BIAS_TO_LABEL: Record<string, string> = {
   hypertrophy: "Hypertrophy",
   endurance: "Endurance",
   mobility: "Mobility",
-  recovery: "Recovery",
+  recovery: "Recovery & Mobility",
+  recovery_mobility: "Recovery & Mobility",
+  joint_health: "Joint Health Strength",
   power: "Power",
 };
+
+function dayFocusOverridesForRegenerate(input: RegenerateDayInput): {
+  goalSlugs: string[];
+  goalWeightsPct: [number, number, number];
+  sportWeightOverride?: number;
+  goalWeightsOverride?: number[];
+  focusLabels?: string[];
+  sportSlugsOverride?: string[];
+  sportSubFocusBySportOverride?: Record<string, string[]>;
+} {
+  const presetId = input.dailyPreferences?.dayFocusPresetId;
+  const rankedGoalSlugs = (input.goalSlugs ?? []).filter(Boolean);
+  const fallbackWeights: [number, number, number] = [
+    input.goalWeightsPct?.[0] ?? 50,
+    input.goalWeightsPct?.[1] ?? 30,
+    input.goalWeightsPct?.[2] ?? 20,
+  ];
+  if (!presetId) {
+    return { goalSlugs: rankedGoalSlugs, goalWeightsPct: fallbackWeights };
+  }
+  const weekManualPrefs = manualPreferencesForSportWeekFocus(
+    input.manualPreferences ?? {
+      primaryFocus: [],
+      targetBody: null,
+      targetModifier: [],
+      durationMinutes: null,
+      energyLevel: null,
+      injuries: input.injuries ?? [],
+      upcoming: [],
+      subFocusByGoal: input.subFocusByGoal ?? {},
+      subFocusPctByGoal: input.subFocusPctByGoal ?? {},
+      workoutStyle: [],
+      goalMatchPrimaryPct: fallbackWeights[0],
+      goalMatchSecondaryPct: fallbackWeights[1],
+      goalMatchTertiaryPct: fallbackWeights[2],
+      workoutTier: input.workoutTier ?? "intermediate",
+      includeCreativeVariations: input.includeCreativeVariations === true,
+    },
+    adaptiveSetupFromPlanContext({
+      goalSlugs: rankedGoalSlugs,
+      rankedSportSlugs: input.rankedSportSlugs,
+      sportVsGoalPct: input.sportVsGoalPct,
+      sportFocusPct: input.sportFocusPct,
+      sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+    })
+  );
+  const resolved = resolveDayFocusPreset(presetId, weekManualPrefs, adaptiveSetupFromPlanContext({
+    goalSlugs: rankedGoalSlugs,
+    rankedSportSlugs: input.rankedSportSlugs,
+    sportVsGoalPct: input.sportVsGoalPct,
+    sportFocusPct: input.sportFocusPct,
+    sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+  }));
+  const params = resolvedDayFocusToWorkoutParams(resolved, rankedGoalSlugs, fallbackWeights);
+  return {
+    goalSlugs: params.orderedGoalSlugs.length ? params.orderedGoalSlugs : rankedGoalSlugs,
+    goalWeightsPct: params.goalWeightsPct,
+    sportWeightOverride: params.sportWeightOverride,
+    goalWeightsOverride: params.goalWeightsOverride,
+    focusLabels: params.focusLabels.length ? params.focusLabels : undefined,
+    sportSlugsOverride: params.sportSlugsOverride,
+    sportSubFocusBySportOverride: params.sportSubFocusBySportOverride,
+  };
+}
 
 export async function regenerateDay(
   input: RegenerateDayInput
@@ -1592,6 +1849,25 @@ export async function regenerateDay(
     input.dailyPreferences?.workoutTier ?? input.workoutTier ?? "intermediate";
   const resolvedIncludeCreative =
     (input.dailyPreferences?.includeCreativeVariations ?? input.includeCreativeVariations) === true;
+  const dayFocusOverrides = dayFocusOverridesForRegenerate(input);
+  const focusedSportSlugs = dayFocusOverrides.sportSlugsOverride?.length
+    ? dayFocusOverrides.sportSlugsOverride
+    : undefined;
+  const regenerateRankedSportSlugs = focusedSportSlugs ?? input.rankedSportSlugs;
+  const regenerateSportSlug = focusedSportSlugs?.[0] ?? input.sportSlug ?? input.rankedSportSlugs?.[0] ?? null;
+  const regenerateSportSubFocusBySport = focusedSportSlugs
+    ? dayFocusOverrides.sportSubFocusBySportOverride
+    : input.sportSubFocusSlugsBySport;
+  const regenerateSportSubFocusSlugs =
+    focusedSportSlugs?.length === 1
+      ? regenerateSportSubFocusBySport?.[focusedSportSlugs[0]]
+      : input.sportSubFocusSlugs;
+  const regenerateSportFocusPct =
+    regenerateRankedSportSlugs?.length === 2 ? input.sportFocusPct : undefined;
+
+  if (isSportDesignatedPlannedDay({ intentLabel: input.intentLabel ?? null })) {
+    throw new Error("Sport days cannot be regenerated as gym workouts.");
+  }
 
   // Guest / unsigned-in: in-memory only (no Supabase). Must run before DB checks.
   if (!input.userId) {
@@ -1605,7 +1881,9 @@ export async function regenerateDay(
       input.dailyPreferences?.energyLevel ?? input.energyOverride ?? "medium";
     const sessionIntent = sessionIntentForKey(key, input.date, 60, energy);
     const bodyRegionBias = bodyRegionBiasFromDailyPreferences(input.dailyPreferences);
-    if (input.dailyPreferences?.goalBias) {
+    if (dayFocusOverrides.focusLabels?.length) {
+      sessionIntent.focus = dayFocusOverrides.focusLabels;
+    } else if (input.dailyPreferences?.goalBias) {
       const bias = input.dailyPreferences.goalBias;
       sessionIntent.focus = [
         GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL[bias] ??
@@ -1616,29 +1894,29 @@ export async function regenerateDay(
       ];
     }
     maybeApplySportOnlyGymSupportIntent(sessionIntent, {
-      goalSlugs: input.goalSlugs,
-      sportSlug: input.sportSlug ?? null,
-      rankedSportSlugs: input.rankedSportSlugs,
+      goalSlugs: dayFocusOverrides.goalSlugs,
+      sportSlug: regenerateSportSlug,
+      rankedSportSlugs: regenerateRankedSportSlugs,
       dailyPreferences: input.dailyPreferences,
       priorIntentLabel: input.intentLabel ?? null,
     });
     const regContractGuest = planContextSessionIntentContract({
-      sportSlug: input.sportSlug,
-      rankedSportSlugs: input.rankedSportSlugs,
+      sportSlug: regenerateSportSlug,
+      rankedSportSlugs: regenerateRankedSportSlugs,
     });
     const workout = await buildWorkoutForSessionIntent(
       sessionIntent,
       input.gymProfile,
       `${input.date}_${Date.now()}`,
       {
-        sportSlug: input.sportSlug ?? input.rankedSportSlugs?.[0] ?? null,
-        goalSlugs: input.goalSlugs ?? [],
-        goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
-        sportSubFocusSlugs: input.sportSubFocusSlugs,
-        rankedSportSlugs: input.rankedSportSlugs,
-        sportFocusPct: input.sportFocusPct,
+        sportSlug: regenerateSportSlug,
+        goalSlugs: dayFocusOverrides.goalSlugs,
+        goalWeightsPct: dayFocusOverrides.goalWeightsPct,
+        sportSubFocusSlugs: regenerateSportSubFocusSlugs,
+        rankedSportSlugs: regenerateRankedSportSlugs,
+        sportFocusPct: regenerateSportFocusPct,
         sportVsGoalPct: input.sportVsGoalPct,
-        sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+        sportSubFocusSlugsBySport: regenerateSportSubFocusBySport,
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
@@ -1651,6 +1929,12 @@ export async function regenerateDay(
           ? { subFocusPctByGoal: input.subFocusPctByGoal }
           : {}),
         ...(regContractGuest ? { session_intent_contract: regContractGuest } : {}),
+        ...(dayFocusOverrides.sportWeightOverride != null
+          ? { sportWeightOverride: dayFocusOverrides.sportWeightOverride }
+          : {}),
+        ...(dayFocusOverrides.goalWeightsOverride?.length
+          ? { goalWeightsOverride: dayFocusOverrides.goalWeightsOverride }
+          : {}),
         regenerationAvoidExerciseIds:
           input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
         historySources: {
@@ -1661,10 +1945,12 @@ export async function regenerateDay(
     );
     const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
     const goalLabelsForTitle =
-      input.dailyPreferences?.goalBias
+      dayFocusOverrides.focusLabels?.length
+        ? dayFocusOverrides.focusLabels
+        : input.dailyPreferences?.goalBias
         ? [GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ?? sessionIntent.focus?.[0] ?? "Workout"]
-        : (input.goalSlugs?.length
-            ? input.goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
+        : (dayFocusOverrides.goalSlugs.length
+            ? dayFocusOverrides.goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
             : (sessionIntent.focus?.length ? sessionIntent.focus : ["Workout"]));
     const displayTitle = formatDayTitle(
       goalLabelsForTitle,
@@ -1728,7 +2014,9 @@ export async function regenerateDay(
     60,
     energy
   );
-  if (input.dailyPreferences?.goalBias) {
+  if (dayFocusOverrides.focusLabels?.length) {
+    sessionIntent.focus = dayFocusOverrides.focusLabels;
+  } else if (input.dailyPreferences?.goalBias) {
     const bias = input.dailyPreferences.goalBias;
     sessionIntent.focus = [
       GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL[bias] ??
@@ -1739,31 +2027,31 @@ export async function regenerateDay(
     ];
   }
   maybeApplySportOnlyGymSupportIntent(sessionIntent, {
-    goalSlugs: input.goalSlugs,
-    sportSlug: input.sportSlug ?? null,
-    rankedSportSlugs: input.rankedSportSlugs,
+    goalSlugs: dayFocusOverrides.goalSlugs,
+    sportSlug: regenerateSportSlug,
+    rankedSportSlugs: regenerateRankedSportSlugs,
     dailyPreferences: input.dailyPreferences,
     priorIntentLabel: (dayRow.intent_label as string | null) ?? null,
   });
   const bodyRegionBias = bodyRegionBiasFromDailyPreferences(input.dailyPreferences);
 
   const regContractDb = planContextSessionIntentContract({
-    sportSlug: input.sportSlug,
-    rankedSportSlugs: input.rankedSportSlugs,
+    sportSlug: regenerateSportSlug,
+    rankedSportSlugs: regenerateRankedSportSlugs,
   });
   const workout = await buildWorkoutForSessionIntent(
     sessionIntent,
     input.gymProfile,
     composeRunGenerationSeed(dayRow.date as string),
     {
-      sportSlug: input.sportSlug ?? input.rankedSportSlugs?.[0] ?? null,
-      goalSlugs: input.goalSlugs ?? [],
-      goalWeightsPct: input.goalWeightsPct ?? [50, 30, 20],
-      sportSubFocusSlugs: input.sportSubFocusSlugs,
-      rankedSportSlugs: input.rankedSportSlugs,
-      sportFocusPct: input.sportFocusPct,
+      sportSlug: regenerateSportSlug,
+      goalSlugs: dayFocusOverrides.goalSlugs,
+      goalWeightsPct: dayFocusOverrides.goalWeightsPct,
+      sportSubFocusSlugs: regenerateSportSubFocusSlugs,
+      rankedSportSlugs: regenerateRankedSportSlugs,
+      sportFocusPct: regenerateSportFocusPct,
       sportVsGoalPct: input.sportVsGoalPct,
-      sportSubFocusSlugsBySport: input.sportSubFocusSlugsBySport,
+      sportSubFocusSlugsBySport: regenerateSportSubFocusBySport,
       recentLoad: input.recentLoad,
       injuries: input.injuries,
       bodyRegionBias,
@@ -1776,6 +2064,12 @@ export async function regenerateDay(
         ? { subFocusPctByGoal: input.subFocusPctByGoal }
         : {}),
       ...(regContractDb ? { session_intent_contract: regContractDb } : {}),
+      ...(dayFocusOverrides.sportWeightOverride != null
+        ? { sportWeightOverride: dayFocusOverrides.sportWeightOverride }
+        : {}),
+      ...(dayFocusOverrides.goalWeightsOverride?.length
+        ? { goalWeightsOverride: dayFocusOverrides.goalWeightsOverride }
+        : {}),
       regenerationAvoidExerciseIds:
         input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
       historySources: {
@@ -1786,10 +2080,12 @@ export async function regenerateDay(
   );
   const bodyKey = (bodyRegionBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
   const goalLabelsForTitle =
-    input.dailyPreferences?.goalBias
+    dayFocusOverrides.focusLabels?.length
+      ? dayFocusOverrides.focusLabels
+      : input.dailyPreferences?.goalBias
       ? [GOAL_BIAS_TO_LABEL[input.dailyPreferences.goalBias] ?? sessionIntent.focus?.[0] ?? "Workout"]
-      : (input.goalSlugs?.length
-          ? input.goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
+      : (dayFocusOverrides.goalSlugs.length
+          ? dayFocusOverrides.goalSlugs.map((g) => GOAL_SLUG_TO_LABEL[g] ?? GOAL_SLUG_TO_PRIMARY_FOCUS[g] ?? g)
           : (sessionIntent.focus?.length ? sessionIntent.focus : [(dayRow.intent_label as string) ?? "Workout"]));
   const title = formatDayTitle(
     goalLabelsForTitle,

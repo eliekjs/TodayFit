@@ -131,11 +131,146 @@ const SCENARIO_VOLLEYBALL_VJ = {
   } satisfies GymProfile,
 };
 
+const SCENARIO_HOCKEY_RSA = {
+  label: "Sport mode: hockey repeat sprint, lower body, 45 min",
+  manualPreferences: {
+    primaryFocus: [] as string[],
+    subFocusByGoal: {},
+    targetBody: "Lower",
+    targetModifier: [],
+    durationMinutes: 45,
+    energyLevel: "medium",
+    injuries: ["No restrictions"],
+    upcoming: [],
+    workoutStyle: [],
+    workoutTier: "intermediate",
+  } satisfies ManualPreferences,
+  sportGoalContext: {
+    sport_slugs: ["hockey"],
+    sport_sub_focus: { hockey: ["repeat_sprint"] },
+    sport_weight: 0.55,
+    include_intent_survival_report: true,
+  } satisfies SportGoalContext,
+  gym: {
+    id: "user_sim_hockey_rsa",
+    name: "Full gym (template)",
+    equipment: getDefaultEquipmentForTemplate("your_gym"),
+  } satisfies GymProfile,
+};
+
+const SCENARIO_ATHLETIC_SPRINT = {
+  label: "Manual: Athletic Performance + Speed/Sprint, lower body, 45 min, no sport",
+  manualPreferences: {
+    primaryFocus: ["Athletic Performance"],
+    subFocusByGoal: { "Athletic Performance": ["Speed / Sprint"] },
+    targetBody: "Lower",
+    targetModifier: [],
+    durationMinutes: 45,
+    energyLevel: "medium",
+    injuries: ["No restrictions"],
+    upcoming: [],
+    workoutStyle: [],
+    workoutTier: "intermediate",
+  } satisfies ManualPreferences,
+  sportGoalContext: undefined,
+  gym: {
+    id: "user_sim_athletic_sprint",
+    name: "Full gym (template)",
+    equipment: getDefaultEquipmentForTemplate("your_gym"),
+  } satisfies GymProfile,
+};
+
+const SCENARIO_RUGBY_COD = {
+  label: "Sport mode: rugby change of direction + speed/power, full body, 45 min",
+  manualPreferences: {
+    primaryFocus: [] as string[],
+    subFocusByGoal: {},
+    targetBody: "Full",
+    targetModifier: [],
+    durationMinutes: 45,
+    energyLevel: "medium",
+    injuries: ["No restrictions"],
+    upcoming: [],
+    workoutStyle: [],
+    workoutTier: "intermediate",
+  } satisfies ManualPreferences,
+  sportGoalContext: {
+    sport_slugs: ["rugby"],
+    sport_sub_focus: { rugby: ["change_of_direction", "speed_power"] },
+    sport_weight: 0.55,
+    include_intent_survival_report: true,
+  } satisfies SportGoalContext,
+  gym: {
+    id: "user_sim_rugby_cod",
+    name: "Full gym (template)",
+    equipment: getDefaultEquipmentForTemplate("your_gym"),
+  } satisfies GymProfile,
+};
+
+const SCENARIO_HYPERTROPHY_LOWER = {
+  label: "Manual: Build Muscle hypertrophy lower body (glutes + legs), 45 min, no sport",
+  manualPreferences: {
+    primaryFocus: ["Build Muscle (Hypertrophy)"],
+    subFocusByGoal: { "Build Muscle (Hypertrophy)": ["Glutes", "Legs"] },
+    targetBody: "Lower",
+    targetModifier: [],
+    durationMinutes: 45,
+    energyLevel: "medium",
+    injuries: ["No restrictions"],
+    upcoming: [],
+    workoutStyle: [],
+    workoutTier: "intermediate",
+  } satisfies ManualPreferences,
+  sportGoalContext: undefined,
+  gym: {
+    id: "user_sim_hypertrophy_lower",
+    name: "Full gym (template)",
+    equipment: getDefaultEquipmentForTemplate("your_gym"),
+  } satisfies GymProfile,
+};
+
+/** Max one-day Sport Mode: 2 sports + 3 sub-focuses (UI day cap). */
+const SCENARIO_SPORT_MAX = {
+  label: "Sport mode MAX: basketball + soccer, 3 sub-focuses, lower body, 45 min",
+  manualPreferences: {
+    primaryFocus: [] as string[],
+    subFocusByGoal: {},
+    targetBody: "Lower",
+    targetModifier: [],
+    durationMinutes: 45,
+    energyLevel: "medium",
+    injuries: ["No restrictions"],
+    upcoming: [],
+    workoutStyle: [],
+    workoutTier: "intermediate",
+  } satisfies ManualPreferences,
+  sportGoalContext: {
+    sport_slugs: ["basketball", "soccer"],
+    sport_sub_focus: {
+      basketball: ["vertical_jump", "change_of_direction"],
+      soccer: ["speed"],
+    },
+    sport_weight: 0.55,
+    sport_focus_pct: [60, 40] as [number, number],
+    include_intent_survival_report: true,
+  } satisfies SportGoalContext,
+  gym: {
+    id: "user_sim_sport_max",
+    name: "Full gym (template)",
+    equipment: getDefaultEquipmentForTemplate("your_gym"),
+  } satisfies GymProfile,
+};
+
 const SCENARIOS: Record<string, typeof SCENARIO> = {
   basketball: SCENARIO,
   soccer: SCENARIO_SOCCER,
   lacrosse: SCENARIO_LACROSSE_COD,
   volleyball: SCENARIO_VOLLEYBALL_VJ,
+  hockey: SCENARIO_HOCKEY_RSA,
+  athletic_sprint: SCENARIO_ATHLETIC_SPRINT,
+  rugby_cod: SCENARIO_RUGBY_COD,
+  hypertrophy_lower: SCENARIO_HYPERTROPHY_LOWER,
+  sport_max: SCENARIO_SPORT_MAX,
 };
 
 const INTENT_LABEL_PATTERNS =
@@ -175,6 +310,11 @@ async function main() {
     soccer: 99123,
     lacrosse: 77201,
     volleyball: 66440,
+    hockey: 77005,
+    athletic_sprint: 92006,
+    rugby_cod: 92007,
+    hypertrophy_lower: 92008,
+    sport_max: 99002,
   };
   const seed =
     seedArg != null && seedArg !== ""
@@ -182,7 +322,7 @@ async function main() {
       : (defaultSeeds[scenarioKey] ?? 88042);
   if (Number.isNaN(seed)) {
     console.error(
-      "Usage: npx tsx .cursor/skills/workout-user-simulation-agent/scripts/runUserSimulation.ts [seed] [basketball|soccer|lacrosse|volleyball]"
+      "Usage: npx tsx .cursor/skills/workout-user-simulation-agent/scripts/runUserSimulation.ts [seed] [basketball|soccer|lacrosse|volleyball|hockey]"
     );
     process.exit(1);
   }

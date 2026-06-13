@@ -126,7 +126,11 @@ const SPORT_DOMINANT_REGION: Record<string, TargetBody> = {
 // Recovery / mobility goals
 // ---------------------------------------------------------------------------
 
-const RECOVERY_MOBILITY_GOALS = new Set(["Recovery", "Mobility & Joint Health"]);
+const RECOVERY_MOBILITY_GOALS = new Set([
+  "Recovery & Mobility",
+  "Recovery",
+  "Mobility & Joint Health",
+]);
 
 // ---------------------------------------------------------------------------
 // Opposing goal pairs
@@ -134,6 +138,9 @@ const RECOVERY_MOBILITY_GOALS = new Set(["Recovery", "Mobility & Joint Health"])
 
 /** Goal labels that are strongly opposing when both appear in the top-2. */
 const OPPOSING_GOAL_PAIRS: [string, string][] = [
+  ["Build Muscle (Hypertrophy)", "Recovery & Mobility"],
+  ["Build Strength", "Recovery & Mobility"],
+  ["Power & Explosiveness", "Recovery & Mobility"],
   ["Build Muscle (Hypertrophy)", "Recovery"],
   ["Build Strength", "Recovery"],
   ["Power & Explosiveness", "Recovery"],

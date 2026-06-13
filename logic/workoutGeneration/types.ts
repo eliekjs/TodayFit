@@ -183,6 +183,8 @@ export type PrimaryGoal =
   | "conditioning"
   | "mobility"
   | "recovery"
+  | "recovery_mobility"
+  | "joint_health"
   | "athletic_performance"
   | "calisthenics";
 

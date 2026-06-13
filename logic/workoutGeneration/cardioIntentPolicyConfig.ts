@@ -44,6 +44,22 @@ export const CARDIO_POLICY_BY_PRIMARY_GOAL: Record<PrimaryGoal, ConditioningPoli
     preferredMainFormats: ["circuit", "straight_sets"],
     preferredConditioningFormats: ["straight_sets"],
   },
+  recovery_mobility: {
+    allowConditioningBlock: false,
+    conditioningRequired: false,
+    sessionCardioShare: 0.1,
+    targetCardioExerciseShare: 0.05,
+    preferredMainFormats: ["circuit", "straight_sets"],
+    preferredConditioningFormats: ["straight_sets"],
+  },
+  joint_health: {
+    allowConditioningBlock: false,
+    conditioningRequired: false,
+    sessionCardioShare: 0.05,
+    targetCardioExerciseShare: 0,
+    preferredMainFormats: ["straight_sets"],
+    preferredConditioningFormats: ["straight_sets"],
+  },
   strength: {
     allowConditioningBlock: true,
     conditioningRequired: false,
@@ -61,7 +77,7 @@ export const CARDIO_POLICY_BY_PRIMARY_GOAL: Record<PrimaryGoal, ConditioningPoli
     preferredConditioningFormats: ["circuit", "straight_sets"],
   },
   hypertrophy: {
-    allowConditioningBlock: true,
+    allowConditioningBlock: false,
     conditioningRequired: false,
     sessionCardioShare: 0.2,
     targetCardioExerciseShare: 0.12,

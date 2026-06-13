@@ -174,6 +174,7 @@ type ScenarioSpec = {
   expectConditioning: boolean | "maybe";
   expectAccessory: boolean | "maybe";
   expectCooldown: boolean | "maybe";
+  expectPower?: boolean;
 };
 
 function generateForScenario(spec: ScenarioSpec) {
@@ -293,6 +294,7 @@ const SCENARIOS: ScenarioSpec[] = [
     expectConditioning: true,
     expectAccessory: false,
     expectCooldown: true,
+    expectPower: true,
   },
   {
     label: "Pure strength lower 30min no sport",
@@ -328,6 +330,25 @@ const SCENARIOS: ScenarioSpec[] = [
       workoutTier: "intermediate",
     },
     seed: 55001,
+    expectConditioning: false,
+    expectAccessory: true,
+    expectCooldown: true,
+  },
+  {
+    label: "Lower hypertrophy glutes+legs 45min no sport (sim 8)",
+    prefs: {
+      primaryFocus: ["Build Muscle (Hypertrophy)"],
+      subFocusByGoal: { "Build Muscle (Hypertrophy)": ["Glutes", "Legs"] },
+      targetBody: "Lower",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    },
+    seed: 92008,
     expectConditioning: false,
     expectAccessory: true,
     expectCooldown: true,
@@ -372,7 +393,7 @@ const SCENARIOS: ScenarioSpec[] = [
     },
     seed: 77201,
     expectConditioning: true,
-    expectAccessory: true,
+    expectAccessory: false,
     expectCooldown: true,
   },
   {
@@ -435,7 +456,28 @@ const SCENARIOS: ScenarioSpec[] = [
     seed: 88101,
     expectConditioning: true,
     expectAccessory: false,
-    expectCooldown: "maybe",
+    expectCooldown: true,
+    expectPower: true,
+  },
+  {
+    label: "Athletic performance speed/sprint lower 45min manual",
+    prefs: {
+      primaryFocus: ["Athletic Performance"],
+      subFocusByGoal: { "Athletic Performance": ["Speed / Sprint"] },
+      targetBody: "Lower",
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      workoutTier: "intermediate",
+    },
+    seed: 92006,
+    expectConditioning: true,
+    expectAccessory: false,
+    expectCooldown: true,
+    expectPower: true,
   },
 ];
 
@@ -448,6 +490,7 @@ describe("Block category generation scenarios", () => {
         const hasConditioning = types.includes("conditioning");
         const hasAccessory = types.includes("accessory");
         const hasCooldown = types.includes("cooldown");
+        const hasPower = types.includes("power");
 
         if (spec.expectConditioning === true) {
           expect(hasConditioning, "expected conditioning block").toBe(true);
@@ -468,6 +511,10 @@ describe("Block category generation scenarios", () => {
           expect(hasCooldown, "did not expect cooldown block").toBe(false);
         }
         // "maybe" — no hard assert; documented in table
+
+        if (spec.expectPower === true) {
+          expect(hasPower, "expected power block").toBe(true);
+        }
       });
 
       it("keeps COD/agility drills out of conditioning unless field-drill archetype", () => {

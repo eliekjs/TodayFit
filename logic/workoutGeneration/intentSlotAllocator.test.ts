@@ -16,6 +16,7 @@ import {
   mainWorkPrimaryForIntentEntry,
   matchesIntentEntry,
   primaryGoalToSubFocusKey,
+  rebalanceAllocMinOneSlotPerPowerLeaf,
 } from "./intentSlotAllocator";
 
 describe("deriveLeafEntries", () => {
@@ -56,6 +57,32 @@ describe("allocateSlotsAcrossLeaves", () => {
     const b = alloc.find((x) => x.entry.slug === "b")?.slots ?? 0;
     expect(a).toBe(6);
     expect(b).toBe(4);
+  });
+
+  it("rebalanceAllocMinOneSlotPerPowerLeaf gives each power sport leaf at least one slot", () => {
+    const leaves: IntentEntry[] = [
+      {
+        kind: "sport_sub_focus",
+        slug: "repeat_sprint",
+        parent_slug: "soccer",
+        rank: 1,
+        weight: 0.5,
+        tag_slugs: ["speed"],
+      },
+      {
+        kind: "sport_sub_focus",
+        slug: "deceleration",
+        parent_slug: "soccer",
+        rank: 2,
+        weight: 0.5,
+        tag_slugs: ["agility"],
+      },
+    ];
+    const base = allocateSlotsAcrossLeaves(leaves, 3);
+    const allocMap = new Map(base.map(({ leafIndex, slots }) => [String(leafIndex), slots]));
+    const rebalanced = rebalanceAllocMinOneSlotPerPowerLeaf(leaves, allocMap);
+    expect(rebalanced.get("0")).toBeGreaterThanOrEqual(1);
+    expect(rebalanced.get("1")).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -492,6 +519,19 @@ describe("classifyLeafArchetype", () => {
       tag_slugs: ["strength"],
     };
     expect(classifyLeafArchetype(entry)).toBe("main_compound");
+  });
+
+  it("goal sub-focus speed_sprint → power", () => {
+    const entry: IntentEntry = {
+      kind: "goal_sub_focus",
+      slug: "speed_sprint",
+      parent_slug: "athletic_performance",
+      rank: 1,
+      weight: 0.5,
+      tag_slugs: ["speed", "plyometric"],
+    };
+    expect(isPowerStyleSportIntentEntry(entry)).toBe(true);
+    expect(classifyLeafArchetype(entry)).toBe("power");
   });
 
   it("goal sub-focus (physique) → main_compound", () => {

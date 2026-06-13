@@ -13,6 +13,11 @@ import {
 } from "../constraints/eligibilityHelpers";
 import { getSupersetPairingScore } from "../supersetPairing";
 import type { ExerciseWithQualities } from "../types";
+import {
+  isAccessoryEligible,
+  isSprintMechanicsDrill,
+} from "../../workoutGeneration/blockSelectionEligibility";
+import type { Exercise } from "../../workoutGeneration/types";
 
 /** Roles that must not appear in main work blocks (align with cooldownSelection.MAIN_WORK_EXCLUDED_ROLES). */
 const MAIN_WORK_EXCLUDED_ROLES = new Set(["cooldown", "stretch", "mobility", "breathing"]);
@@ -80,6 +85,44 @@ function asQualities(ex: { id: string; name?: string; [k: string]: unknown }): E
   return ex as unknown as ExerciseWithQualities;
 }
 
+function asExercise(ex: ExerciseWithQualities): Exercise {
+  return ex as unknown as Exercise;
+}
+
+function normBlockType(blockType: string): string {
+  return blockType.toLowerCase().replace(/\s/g, "_");
+}
+
+/** Accessory repair/swap pool: supplemental strength/hypertrophy only — no sprint/COD drills or conditioning. */
+function isEligibleAccessoryRepairCandidate(ex: ExerciseWithQualities): boolean {
+  const exercise = asExercise(ex);
+  if (!isAccessoryEligible(exercise)) return false;
+  if (isSprintMechanicsDrill(exercise)) return false;
+  const modality = (exercise.modality ?? "").toLowerCase().replace(/\s/g, "_");
+  if (modality === "conditioning") return false;
+  return true;
+}
+
+function isEligibleMainHypertrophyRepairCandidate(ex: ExerciseWithQualities): boolean {
+  const exercise = asExercise(ex);
+  if (isSprintMechanicsDrill(exercise)) return false;
+  const modality = (exercise.modality ?? "").toLowerCase().replace(/\s/g, "_");
+  if (modality === "conditioning") return false;
+  if (modality === "mobility" || modality === "recovery") return false;
+  return true;
+}
+
+function isEligibleBlockRepairCandidate(ex: ExerciseWithQualities, blockType: string): boolean {
+  const norm = normBlockType(blockType);
+  if (norm === "accessory") {
+    return isEligibleAccessoryRepairCandidate(ex);
+  }
+  if (norm === "main_hypertrophy") {
+    return isEligibleMainHypertrophyRepairCandidate(ex);
+  }
+  return true;
+}
+
 /** Deep clone workout for repair mutations. */
 function cloneWorkout<T extends ValidatableWorkout>(workout: T): T {
   return JSON.parse(JSON.stringify(workout)) as T;
@@ -118,6 +161,7 @@ function findReplacement(
       const mod = (ex.modality ?? "").toLowerCase();
       if (mod !== "mobility" && mod !== "recovery") continue;
     }
+    if (!isEligibleBlockRepairCandidate(ex, blockType)) continue;
     return ex;
   }
   return null;
@@ -404,12 +448,17 @@ export function validateWorkoutAgainstConstraints(
         continue;
       }
       const isMain = WORKING_BLOCK_TYPES.has(block.block_type);
+      const blockNorm = normBlockType(block.block_type);
+      const looseReplacement =
+        blockNorm === "accessory" || blockNorm === "main_hypertrophy"
+          ? null
+          : findLooseDuplicateReplacement(id, constraints, exercisesById, usedIds);
       const replacement =
         findReplacement(id, block.block_type, constraints, exercisesById, usedIds, {
           forMainWork: isMain,
           forCooldown: block.block_type === "cooldown",
           forWarmup: block.block_type === "warmup",
-        }) ?? findLooseDuplicateReplacement(id, constraints, exercisesById, usedIds);
+        }) ?? looseReplacement;
       if (replacement) {
         replaceItem(block, ii, replacement);
         seenInOrder.add(replacement.id);
@@ -443,7 +492,12 @@ export function validateWorkoutAgainstConstraints(
       if (!canPairInSuperset(exA, exB, constraints)) {
         const score = getSupersetPairingScore(exA, exB);
         const candidates = [...exercisesById.values()].filter(
-          (c) => c.id !== exA.id && c.id !== exB.id && !usedIds.has(c.id) && canPairInSuperset(exA, c, constraints)
+          (c) =>
+            c.id !== exA.id &&
+            c.id !== exB.id &&
+            !usedIds.has(c.id) &&
+            canPairInSuperset(exA, c, constraints) &&
+            isEligibleBlockRepairCandidate(c, block.block_type)
         );
         let best: ExerciseWithQualities | null = null;
         let bestScore = -Infinity;

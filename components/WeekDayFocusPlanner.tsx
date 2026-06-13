@@ -24,10 +24,10 @@ export function WeekDayFocusPlanner({
 }: Props) {
   return (
     <View style={styles.scroll}>
-      <Text style={[styles.screenTitle, { color: theme.text }]}>Session focus by day</Text>
+      <Text style={[styles.screenTitle, { color: theme.text }]}>Focus for each day</Text>
       <Text style={[styles.screenSub, { color: theme.textMuted }]}>
         Pick what should lead each workout. We keep your scheduled upper / lower / full split; these choices
-        control how much of the session goes to sport transfer vs each training goal.
+        decide which sport or goal gets priority that day.
       </Text>
 
       {dayLabels.map((label, dayIdx) => {
@@ -68,7 +68,7 @@ export function WeekDayFocusPlanner({
       })}
 
       <Pressable onPress={onBack} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, marginTop: 8 })}>
-        <Text style={{ color: theme.textMuted, fontSize: 14, textAlign: "center" }}>← Back to training days</Text>
+        <Text style={{ color: theme.textMuted, fontSize: 14, textAlign: "center" }}>← Back to schedule</Text>
       </Pressable>
     </View>
   );

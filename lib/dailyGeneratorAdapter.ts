@@ -18,8 +18,11 @@ import { getAvoidTagSlugsFromUpcoming } from "./filterTagRules";
 import { primaryFocusLabelToPrimaryGoal } from "./goalRegistry";
 import { getExerciseTagsForGoalSubFocuses } from "../data/goalSubFocus";
 import { buildMergedGoalSubFocusSlugWeights, sanitizeSubFocusPctMaps } from "./subFocusWeights";
+import { filterSubFocusSlugsForBodyFocus } from "../logic/workoutGeneration/bodyFocusSubFocusFilter";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
 import { getExerciseTagsForSubFocuses, normalizeSubFocusSlug } from "../data/sportSubFocus";
+import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
+import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
 import type {
   GenerateWorkoutInput,
   PrimaryGoal,
@@ -37,9 +40,6 @@ import type {
   SessionIntentSelection,
   IntentEntry,
 } from "../logic/workoutGeneration/sessionIntentContract";
-
-import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
-import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
 import { sportSubFocusSelectionsImplyEnduranceSecondary } from "../data/sportSubFocus/enduranceSportPrepSecondaryGoal";
 import {
   buildWeeklySubFocusKeysFromPreferences,
@@ -107,7 +107,13 @@ function primaryGoalToSubFocusKey(goal: PrimaryGoal): string {
   switch (goal) {
     case "hypertrophy": return "muscle";
     case "body_recomp": return "physique";
-    case "recovery": return "resilience";
+    case "recovery":
+    case "recovery_mobility":
+      return "recovery_mobility";
+    case "mobility":
+      return "recovery_mobility";
+    case "joint_health":
+      return "joint_health";
     default: return goal as string;
   }
 }
@@ -147,6 +153,40 @@ function sportSharesAmongRankedSports(
     return [a / sum, b / sum];
   }
   return sportSlugs.map(() => 1 / n);
+}
+
+/** Align merged power / athletic sub-focus lists with explicit upper/lower session focus. */
+function applyBodyEmphasisToMergedGoalSubFocus(
+  goalSubFocus: Record<string, string[]>,
+  goalSubFocusWeights: Record<string, number[]>,
+  focusBodyParts: FocusBodyPart[]
+): {
+  goal_sub_focus: Record<string, string[]>;
+  goal_sub_focus_weights: Record<string, number[]>;
+} {
+  const outFocus = { ...goalSubFocus };
+  const outWeights = { ...goalSubFocusWeights };
+  for (const goalKey of ["power", "athletic_performance"] as const) {
+    const slugs = outFocus[goalKey];
+    if (!slugs?.length) continue;
+    const filtered = filterSubFocusSlugsForBodyFocus(slugs, focusBodyParts);
+    if (filtered.length === slugs.length) continue;
+    if (filtered.length === 0) {
+      delete outFocus[goalKey];
+      delete outWeights[goalKey];
+      continue;
+    }
+    outFocus[goalKey] = filtered;
+    const prevWeights = outWeights[goalKey] ?? slugs.map(() => 1 / slugs.length);
+    const nextWeights = filtered.map((slug) => {
+      const idx = slugs.indexOf(slug);
+      return idx >= 0 ? (prevWeights[idx] ?? 0) : 0;
+    });
+    const sum = nextWeights.reduce((a, b) => a + b, 0);
+    outWeights[goalKey] =
+      sum > 0 ? nextWeights.map((w) => w / sum) : filtered.map(() => 1 / filtered.length);
+  }
+  return { goal_sub_focus: outFocus, goal_sub_focus_weights: outWeights };
 }
 
 function buildRankedIntentEntries(
@@ -410,11 +450,16 @@ export function manualPreferencesToGenerateWorkoutInput(
     subFocusByGoal,
     preferences.subFocusPctByGoal
   );
-  const { goal_sub_focus, goal_sub_focus_weights } = buildMergedGoalSubFocusSlugWeights({
+  let { goal_sub_focus, goal_sub_focus_weights } = buildMergedGoalSubFocusSlugWeights({
     labelsForSubFocusMerge,
     subFocusByGoal,
     subFocusPctByGoal: subFocusPctByGoalAligned,
   });
+  ({ goal_sub_focus, goal_sub_focus_weights } = applyBodyEmphasisToMergedGoalSubFocus(
+    goal_sub_focus,
+    goal_sub_focus_weights,
+    normalizedFocusBodyParts
+  ));
 
   // Goal weights from match percentages (normalize to sum 1)
   const p1 = (preferences.goalMatchPrimaryPct ?? 50) / 100;
@@ -989,6 +1034,31 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
   return exercise;
 }
 
+/** Sport labels for blended sessions (sport_weight < 1) so workout.focus reflects sport + goal picks. */
+function sportFocusLabelsForBlendedSession(
+  input?: GenerateWorkoutInput
+): string[] {
+  if (!input?.sport_slugs?.length) return [];
+  const sw = input.sport_weight ?? input.session_intent?.sport_weight ?? 0;
+  if (sw >= 0.99) return [];
+
+  const labels: string[] = [];
+  if (!labels.some((l) => l.toLowerCase() === "sport preparation")) {
+    labels.push("Sport preparation");
+  }
+  for (const raw of input.sport_slugs) {
+    const slug = getCanonicalSportSlug(raw);
+    const sport = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === slug);
+    const name =
+      sport?.name ??
+      slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    if (!labels.some((l) => l.toLowerCase() === name.toLowerCase())) {
+      labels.push(name);
+    }
+  }
+  return labels;
+}
+
 /**
  * Convert WorkoutSession (dailyGenerator output) to GeneratedWorkout (app type).
  * Preserves blocks; adds id, focus, durationMinutes, energyLevel, intentSplit, and
@@ -1021,7 +1091,14 @@ export function workoutSessionToGeneratedWorkout(
       : session.blocks;
 
   const workoutId = id ?? `w_${Date.now()}`;
-  const focus = preferences.primaryFocus?.length ? preferences.primaryFocus : [session.title];
+  let focus = preferences.primaryFocus?.length ? [...preferences.primaryFocus] : [session.title];
+  if (generatorInput) {
+    for (const label of sportFocusLabelsForBlendedSession(generatorInput)) {
+      if (!focus.some((f) => f.toLowerCase() === label.toLowerCase())) {
+        focus.push(label);
+      }
+    }
+  }
   const generationPreferences = cloneManualPreferencesSnapshot(preferences);
   const declaredIntentSplit = generatorInput
     ? computeDeclaredIntentSplit(generatorInput)

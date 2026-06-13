@@ -41,6 +41,14 @@ export {
   exerciseMatchesAnyStrengthOverlay,
 } from "./strengthSubFocus";
 export type { ExerciseForStrengthSubFocus } from "./strengthSubFocus";
+export {
+  JOINT_HEALTH_SUB_FOCUS_SLUGS,
+  exerciseMatchesJointHealthSubFocus,
+  isJointHealthAppropriateExercise,
+  isJointHealthExcludedExercise,
+  classifyJointHealthSlotRole,
+} from "./jointHealthSubFocus";
+export type { JointHealthSubFocusSlug, JointHealthSlotRole } from "./jointHealthSubFocus";
 
 import { GOAL_SUB_FOCUS_OPTIONS } from "./goalSubFocusOptions";
 import { GOAL_SUB_FOCUS_TAG_MAP } from "./goalSubFocusTagMap";
@@ -55,8 +63,15 @@ import {
  * Prevents sub-focus from being silently dropped when label strings differ (e.g. adaptive "Build muscle"
  * vs manual "Build Muscle (Hypertrophy)").
  */
+const LEGACY_GOAL_LABEL_ALIASES: Record<string, string> = {
+  "mobility & joint health": "Recovery & Mobility",
+  recovery: "Recovery & Mobility",
+};
+
 export function canonicalGoalSubFocusLabel(label: string): string {
   const trimmed = label.trim();
+  const legacy = LEGACY_GOAL_LABEL_ALIASES[trimmed.toLowerCase()];
+  if (legacy) return legacy;
   if (GOAL_SUB_FOCUS_OPTIONS[trimmed]) return trimmed;
   for (const [canonical, slug] of Object.entries(PRIMARY_FOCUS_TO_GOAL_SLUG)) {
     if (canonical.toLowerCase() === trimmed.toLowerCase()) return canonical;
@@ -76,15 +91,38 @@ export function canonicalGoalSubFocusLabel(label: string): string {
  * Resolve primary focus label + sub-focus labels to goal slug and sub-focus slugs.
  * Used when converting Manual preferences (subFocusByGoal keyed by goal label) to tag lookup.
  */
+/** Partial UI labels → canonical sub-focus slug when full option name was not picked. */
+const GOAL_SUB_FOCUS_PARTIAL_LABEL_ALIASES: Record<string, string> = {
+  hinge: "deadlift_hinge",
+  deadlift: "deadlift_hinge",
+  "deadlift / hinge": "deadlift_hinge",
+  squat: "squat",
+};
+
+function resolveSubFocusLabelToSlug(
+  entry: (typeof GOAL_SUB_FOCUS_OPTIONS)[string],
+  label: string
+): string | undefined {
+  const trimmed = label.trim();
+  const nameToSlug = new Map(entry.subFocuses.map((f) => [f.name, f.slug]));
+  const direct = nameToSlug.get(trimmed);
+  if (direct) return direct;
+  const byLower = new Map(entry.subFocuses.map((f) => [f.name.toLowerCase(), f.slug]));
+  const lowerMatch = byLower.get(trimmed.toLowerCase());
+  if (lowerMatch) return lowerMatch;
+  const aliasSlug = GOAL_SUB_FOCUS_PARTIAL_LABEL_ALIASES[trimmed.toLowerCase()];
+  if (aliasSlug && entry.subFocuses.some((f) => f.slug === aliasSlug)) return aliasSlug;
+  return undefined;
+}
+
 export function resolveGoalSubFocusSlugs(
   primaryFocusLabel: string,
   subFocusLabels: string[]
 ): { goalSlug: string; subFocusSlugs: string[] } {
   const entry = GOAL_SUB_FOCUS_OPTIONS[canonicalGoalSubFocusLabel(primaryFocusLabel)];
   if (!entry) return { goalSlug: "", subFocusSlugs: [] };
-  const nameToSlug = new Map(entry.subFocuses.map((f) => [f.name, f.slug]));
   const subFocusSlugs = subFocusLabels
-    .map((name) => nameToSlug.get(name))
+    .map((name) => resolveSubFocusLabelToSlug(entry, name))
     .filter((s): s is string => s != null);
   return { goalSlug: entry.goalSlug, subFocusSlugs };
 }

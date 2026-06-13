@@ -1,5 +1,6 @@
 import type { AdaptiveSetup } from "../context/appStateModel";
 import type { ManualPreferences } from "./types";
+import { sportSetupRouteWhenNoPlan } from "./sessionFlowNav";
 
 /** Goal day/week or sport day/week — one active session at a time. */
 export type SessionFlow = "goal_day" | "goal_week" | "sport_day" | "sport_week";
@@ -94,12 +95,23 @@ export function buildSessionSummary(
   return parts.join(" · ");
 }
 
-export function getSessionResumeRoute(draft: Pick<SessionDraft, "flow" | "phase" | "weekSetup" | "adaptiveSetup">): string {
+export function getSessionResumeRoute(
+  draft: Pick<SessionDraft, "flow" | "phase" | "weekSetup" | "adaptiveSetup">,
+  sportPrepWeekPlan?: unknown | null
+): string {
   if (draft.phase === "train") {
     return "/manual/execute";
   }
   if (draft.phase === "review") {
-    if (draft.flow.startsWith("sport")) return "/sport-mode/recommendation";
+    if (draft.flow.startsWith("sport")) {
+      if (sportPrepWeekPlan == null) {
+        return sportSetupRouteWhenNoPlan({
+          flow: draft.flow,
+          adaptiveSetup: draft.adaptiveSetup,
+        });
+      }
+      return "/sport-mode/recommendation";
+    }
     if (draft.flow === "goal_week") return "/manual/week";
     return "/manual/workout";
   }
@@ -189,7 +201,8 @@ export function patchSessionDraft(
       SessionDraft,
       "phase" | "preferences" | "adaptiveSetup" | "weekSetup" | "gymProfileId" | "summary"
     >
-  > & { gymName?: string | null }
+  > & { gymName?: string | null },
+  options?: { sportPrepWeekPlan?: unknown | null }
 ): SessionDraft {
   const preferences = patch.preferences ?? draft.preferences;
   const adaptiveSetup = patch.adaptiveSetup !== undefined ? patch.adaptiveSetup : draft.adaptiveSetup;
@@ -207,7 +220,10 @@ export function patchSessionDraft(
     phase,
     summary,
     updatedAt: Date.now(),
-    resumeRoute: getSessionResumeRoute({ flow: draft.flow, phase, weekSetup, adaptiveSetup }),
+    resumeRoute: getSessionResumeRoute(
+      { flow: draft.flow, phase, weekSetup, adaptiveSetup },
+      options?.sportPrepWeekPlan
+    ),
   };
   return next;
 }

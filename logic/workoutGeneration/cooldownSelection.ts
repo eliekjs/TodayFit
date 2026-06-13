@@ -3,6 +3,7 @@
  * Uses exercise_role, mobility_targets, stretch_targets when present; falls back to modality.
  */
 
+import { isExerciseAvailableForSession } from "../../lib/workoutRules";
 import { isRecoveryCooldownEligible } from "./blockSelectionEligibility";
 import { isMobilityOrStretchExercise } from "../workoutIntelligence/constraints/eligibilityHelpers";
 import type { ExerciseWithQualities } from "../workoutIntelligence/types";
@@ -215,7 +216,7 @@ export function selectCooldownMobilityExercises(
 
   // Pool must satisfy Phase 8 mobility/stretch counting (includes stretch + mobility/recovery modalities).
   const pool = exercises.filter((e) => {
-    if (alreadyUsedIds.has(e.id)) return false;
+    if (!isExerciseAvailableForSession(e.id, alreadyUsedIds)) return false;
     if (!isRecoveryCooldownEligible(e)) return false;
     return exerciseCountsAsCooldownMobilityForValidator(e);
   });
@@ -262,4 +263,107 @@ export function getPreferredCooldownTargetsFromFamilies(mainWorkFamilies: string
     }
   }
   return out;
+}
+
+/** Body-focus slugs → general stretch targets when targeted pool is empty. */
+export const BODY_FOCUS_TO_COOLDOWN_TARGETS: Record<string, string[]> = {
+  lower: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
+  lower_body: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
+  upper: ["shoulders", "thoracic_spine", "pecs", "lats"],
+  upper_body: ["shoulders", "thoracic_spine", "pecs", "lats"],
+  upper_push: ["shoulders", "thoracic_spine", "pecs"],
+  upper_pull: ["lats", "shoulders", "thoracic_spine"],
+  push: ["shoulders", "thoracic_spine", "pecs"],
+  pull: ["lats", "shoulders", "thoracic_spine"],
+  full: ["hamstrings", "hip_flexors", "thoracic_spine", "shoulders", "glutes"],
+  full_body: ["hamstrings", "hip_flexors", "thoracic_spine", "shoulders", "glutes"],
+  core: ["thoracic_spine", "low_back", "hip_flexors"],
+};
+
+export function getGeneralCooldownFallbackTargets(focusBodyParts: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of focusBodyParts) {
+    const key = part.toLowerCase().replace(/\s/g, "_");
+    const targets = BODY_FOCUS_TO_COOLDOWN_TARGETS[key];
+    if (!targets) continue;
+    for (const t of targets) {
+      if (!seen.has(t)) {
+        seen.add(t);
+        out.push(t);
+      }
+    }
+  }
+  if (out.length > 0) return out;
+  return ["hamstrings", "hip_flexors", "thoracic_spine", "shoulders"];
+}
+
+export interface CooldownPoolOptions {
+  alreadyUsedIds: Set<string>;
+  recoveryEmphasis?: boolean;
+}
+
+/** Build strict cooldown stretch pool from a candidate exercise list. */
+export function buildCooldownStretchPool(
+  exercises: Exercise[],
+  options: CooldownPoolOptions
+): Exercise[] {
+  const { alreadyUsedIds, recoveryEmphasis = false } = options;
+  return exercises.filter(
+    (e) =>
+      isExerciseAvailableForSession(e.id, alreadyUsedIds) &&
+      isRecoveryCooldownEligible(e) &&
+      exerciseCountsAsCooldownMobilityForValidator(e) &&
+      (!recoveryEmphasis || isGentleRecoveryExercise(e)) &&
+      !isWarmupPrimaryCooldownExcluded(e)
+  );
+}
+
+/**
+ * Select cooldown stretches with tiered fallback: targeted pool first, then general guarantee pool.
+ * Still rejects strength/isolation/prehab via {@link isRecoveryCooldownEligible}.
+ */
+export function selectCooldownExercisesWithFallback(
+  primaryPool: Exercise[],
+  fallbackPool: Exercise[],
+  options: CooldownSelectionOptions
+): Exercise[] {
+  const { minMobilityCount, maxItems = Math.max(minMobilityCount + 1, 4) } = options;
+  const need = Math.max(minMobilityCount, 1);
+
+  let chosen = selectCooldownMobilityExercises(primaryPool, options);
+  if (chosen.length >= need) return chosen.slice(0, maxItems);
+
+  const usedInSelection = new Set([...options.alreadyUsedIds, ...chosen.map((e) => e.id)]);
+  const relaxedTargets = getGeneralCooldownFallbackTargets([]);
+  const fallbackCandidates = buildCooldownStretchPool(fallbackPool, {
+    alreadyUsedIds: usedInSelection,
+    recoveryEmphasis: false,
+  }).filter((e) => !primaryPool.some((p) => p.id === e.id));
+
+  if (fallbackCandidates.length > 0) {
+    const fallbackChosen = selectCooldownMobilityExercises(fallbackCandidates, {
+      ...options,
+      alreadyUsedIds: usedInSelection,
+      preferredTargets:
+        options.preferredTargets.length > 0 ? options.preferredTargets : relaxedTargets,
+      minMobilityCount: Math.max(0, need - chosen.length),
+      maxItems: Math.max(0, maxItems - chosen.length),
+    });
+    chosen = [...chosen, ...fallbackChosen];
+  }
+
+  if (chosen.length >= need) return chosen.slice(0, maxItems);
+
+  const stillNeed = need - chosen.length;
+  const usedAll = new Set([...usedInSelection, ...chosen.map((e) => e.id)]);
+  const remainder = [...primaryPool, ...fallbackCandidates].filter((e) => !usedAll.has(e.id));
+  const extra = selectCooldownMobilityExercises(remainder, {
+    ...options,
+    alreadyUsedIds: usedAll,
+    preferredTargets: relaxedTargets,
+    minMobilityCount: stillNeed,
+    maxItems: stillNeed,
+  });
+  return [...chosen, ...extra].slice(0, maxItems);
 }
