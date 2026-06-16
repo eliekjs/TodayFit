@@ -2,9 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View, Text, StyleSheet, ScrollView, LayoutAnimation } from "react-native";
 import { WeekDayFocusPlanner } from "../../../components/WeekDayFocusPlanner";
 import {
+  buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
   buildGymDayFocusCardLabel,
+  dayBodyFocusChoiceToBias,
+  defaultBodyFocusChoiceIdForDay,
   defaultPresetIdForDay,
+  type DayBodyFocusChoice,
+  type DayBodyFocusChoiceId,
   type DayFocusPreset,
 } from "../../../lib/weekDaySessionFocus";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
@@ -95,6 +100,7 @@ export default function AdaptiveScheduleScreen() {
   const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
   const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
+  const [dayBodyFocusChoiceIds, setDayBodyFocusChoiceIds] = useState<DayBodyFocusChoiceId[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -125,37 +131,72 @@ export default function AdaptiveScheduleScreen() {
   }, []);
 
   const sessionFocusMeta = useMemo(() => {
-    if (gymTrainingDays.length === 0) return { labels: [] as string[], presets: [] as DayFocusPreset[][] };
+    if (gymTrainingDays.length === 0) {
+      return {
+        labels: [] as string[],
+        bodyOptions: [] as DayBodyFocusChoice[][],
+        presets: [] as DayFocusPreset[][],
+      };
+    }
     const n = gymTrainingDays.length;
     const bd = getBodyEmphasisDistribution(n);
     const labels = gymTrainingDays.map((dow, i) => {
       const b = bd[i]!;
-      return buildGymDayFocusCardLabel(dow, i, b.targetBody, b.targetModifier, WEEKDAY_LABELS);
+      const bodyChoice = dayBodyFocusChoiceIds[i]
+        ? dayBodyFocusChoiceToBias(dayBodyFocusChoiceIds[i]!)
+        : b;
+      return buildGymDayFocusCardLabel(dow, i, bodyChoice.targetBody, bodyChoice.targetModifier, WEEKDAY_LABELS);
     });
-    const presets = gymTrainingDays.map((_, i) =>
-      buildDayFocusPresetsForDay({
+    const bodyOptions = gymTrainingDays.map((_, i) =>
+      buildDayBodyFocusChoicesForDay({
         manualPreferences,
         adaptiveSetup,
-        targetBody: bd[i]!.targetBody,
-        targetModifier: bd[i]!.targetModifier,
+        slotIndex: i,
+        fallbackTargetBody: bd[i]!.targetBody,
+        fallbackTargetModifier: bd[i]!.targetModifier,
       })
     );
-    return { labels, presets };
-  }, [gymTrainingDays, manualPreferences, adaptiveSetup]);
+    const presets = gymTrainingDays.map((_, i) => {
+      const bodyChoice = dayBodyFocusChoiceIds[i]
+        ? dayBodyFocusChoiceToBias(dayBodyFocusChoiceIds[i]!)
+        : bd[i]!;
+      return buildDayFocusPresetsForDay({
+        manualPreferences,
+        adaptiveSetup,
+        targetBody: bodyChoice.targetBody,
+        targetModifier: bodyChoice.targetModifier,
+      });
+    });
+    return { labels, bodyOptions, presets };
+  }, [gymTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusChoiceIds]);
 
   const initSessionFocusStep = useCallback(() => {
     if (gymTrainingDays.length === 0) return;
     const n = gymTrainingDays.length;
     const bd = getBodyEmphasisDistribution(n);
+    const bodyOptions = gymTrainingDays.map((_, i) =>
+      buildDayBodyFocusChoicesForDay({
+        manualPreferences,
+        adaptiveSetup,
+        slotIndex: i,
+        fallbackTargetBody: bd[i]!.targetBody,
+        fallbackTargetModifier: bd[i]!.targetModifier,
+      })
+    );
+    const bodyIds = bodyOptions.map((choices, i) =>
+      defaultBodyFocusChoiceIdForDay(choices, { slotIndex: i })
+    );
     const ids = gymTrainingDays.map((_, i) => {
+      const bodyChoice = dayBodyFocusChoiceToBias(bodyIds[i]!);
       const presets = buildDayFocusPresetsForDay({
         manualPreferences,
         adaptiveSetup,
-        targetBody: bd[i]!.targetBody,
-        targetModifier: bd[i]!.targetModifier,
+        targetBody: bodyChoice.targetBody,
+        targetModifier: bodyChoice.targetModifier,
       });
       return defaultPresetIdForDay(presets);
     });
+    setDayBodyFocusChoiceIds(bodyIds);
     setDayFocusChoiceIds(ids);
     setWeekSetupStep("sessionFocus");
   }, [gymTrainingDays, manualPreferences, adaptiveSetup]);
@@ -279,6 +320,10 @@ export default function AdaptiveScheduleScreen() {
           dayFocusChoiceIds.length === gymTrainingDays.length
             ? dayFocusChoiceIds
             : undefined,
+        gymDayBodyFocuses:
+          dayBodyFocusChoiceIds.length === gymTrainingDays.length
+            ? dayBodyFocusChoiceIds.map((id) => dayBodyFocusChoiceToBias(id))
+            : undefined,
         manualPreferences,
       });
       if (generationCancelledRef.current) return;
@@ -304,6 +349,7 @@ export default function AdaptiveScheduleScreen() {
     userId,
     router,
     dayFocusChoiceIds,
+    dayBodyFocusChoiceIds,
   ]);
 
   const selectedSportSlugs = useMemo(
@@ -379,8 +425,17 @@ export default function AdaptiveScheduleScreen() {
             <WeekDayFocusPlanner
               theme={theme}
               dayLabels={sessionFocusMeta.labels}
+              bodyOptionsPerDay={sessionFocusMeta.bodyOptions}
               presetOptionsPerDay={sessionFocusMeta.presets}
+              selectedBodyIds={dayBodyFocusChoiceIds}
               selectedIds={dayFocusChoiceIds}
+              onSelectBody={(dayIdx, id) => {
+                setDayBodyFocusChoiceIds((prev) => {
+                  const next = [...prev];
+                  next[dayIdx] = id;
+                  return next;
+                });
+              }}
               onSelect={(dayIdx, id) => {
                 setDayFocusChoiceIds((prev) => {
                   const next = [...prev];

@@ -1,15 +1,18 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { Theme } from "../lib/theme";
-import type { DayFocusPreset } from "../lib/weekDaySessionFocus";
+import type { DayBodyFocusChoice, DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
 
 type Props = {
   theme: Theme;
   /** One entry per selected training day (same order as generation). */
   dayLabels: string[];
+  bodyOptionsPerDay?: DayBodyFocusChoice[][];
   presetOptionsPerDay: DayFocusPreset[][];
+  selectedBodyIds?: DayBodyFocusChoiceId[];
   /** Selected preset id per day (parallel arrays). */
   selectedIds: string[];
+  onSelectBody?: (dayIndex: number, bodyId: DayBodyFocusChoiceId) => void;
   onSelect: (dayIndex: number, presetId: string) => void;
   onBack: () => void;
 };
@@ -17,8 +20,11 @@ type Props = {
 export function WeekDayFocusPlanner({
   theme,
   dayLabels,
+  bodyOptionsPerDay,
   presetOptionsPerDay,
+  selectedBodyIds,
   selectedIds,
+  onSelectBody,
   onSelect,
   onBack,
 }: Props) {
@@ -26,16 +32,63 @@ export function WeekDayFocusPlanner({
     <View style={styles.scroll}>
       <Text style={[styles.screenTitle, { color: theme.text }]}>Focus for each day</Text>
       <Text style={[styles.screenSub, { color: theme.textMuted }]}>
-        Pick what should lead each workout. We keep your scheduled upper / lower / full split; these choices
-        decide which sport or goal gets priority that day.
+        We preselect body areas that fit your sport and goals. Adjust them if you want a different
+        lower, core, upper, or full-body mix for the week.
       </Text>
 
       {dayLabels.map((label, dayIdx) => {
+        const bodyOptions = bodyOptionsPerDay?.[dayIdx] ?? [];
+        const selectedBody = selectedBodyIds?.[dayIdx];
         const presets = presetOptionsPerDay[dayIdx] ?? [];
         const selected = selectedIds[dayIdx];
         return (
           <View key={label} style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
             <Text style={[styles.dayTitle, { color: theme.text }]}>{label}</Text>
+            {bodyOptions.length > 0 && onSelectBody ? (
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+                  Body focus this day
+                </Text>
+                <View style={styles.options}>
+                  {bodyOptions.map((p) => {
+                    const isSel = selectedBody === p.id;
+                    return (
+                      <Pressable
+                        key={p.id}
+                        onPress={() => onSelectBody(dayIdx, p.id)}
+                        style={({ pressed }) => [
+                          styles.option,
+                          {
+                            borderColor: isSel ? theme.primary : theme.border,
+                            backgroundColor: isSel ? theme.primarySoft : "transparent",
+                            opacity: pressed ? 0.85 : 1,
+                          },
+                        ]}
+                      >
+                        <View style={[styles.radioOuter, { borderColor: isSel ? theme.primarySolid : theme.textMuted }]}>
+                          {isSel ? <View style={[styles.radioInner, { backgroundColor: theme.primarySolid }]} /> : null}
+                        </View>
+                        <View style={styles.optionText}>
+                          <View style={styles.optionTitleRow}>
+                            <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>
+                            {p.recommended ? (
+                              <Text style={[styles.recommendedBadge, { color: theme.primary, borderColor: theme.primary }]}>
+                                Recommended
+                              </Text>
+                            ) : null}
+                          </View>
+                          <Text style={[styles.optionSub, { color: theme.textMuted }]}>{p.subtitle}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
+                Sport / goal priority
+              </Text>
             <View style={styles.options}>
               {presets.map((p) => {
                 const isSel = selected === p.id;
@@ -62,6 +115,7 @@ export function WeekDayFocusPlanner({
                   </Pressable>
                 );
               })}
+            </View>
             </View>
           </View>
         );
@@ -103,6 +157,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 12,
   },
+  section: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   options: {
     gap: 10,
   },
@@ -133,9 +197,24 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  optionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
   optionLabel: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  recommendedBadge: {
+    fontSize: 10,
+    fontWeight: "700",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    overflow: "hidden",
   },
   optionSub: {
     fontSize: 12,

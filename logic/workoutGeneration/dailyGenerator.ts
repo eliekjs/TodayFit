@@ -7581,6 +7581,10 @@ function toBlockLetter(index: number): string {
  * - never label a block as superset unless it has exactly 2 items
  * - title as Block A / Block B / ... for true supersets
  */
+function isJointHealthStructuredBlock(block: WorkoutBlock): boolean {
+  return block.items.some((it) => (it.reasoning_tags ?? []).includes("joint_health"));
+}
+
 function normalizeSupersetBlockPresentation(blocks: WorkoutBlock[]): WorkoutBlock[] {
   const normalized: WorkoutBlock[] = [];
   let supersetBlockIndex = 0;
@@ -7588,6 +7592,17 @@ function normalizeSupersetBlockPresentation(blocks: WorkoutBlock[]): WorkoutBloc
   for (const block of blocks) {
     if (!SUPERSET_STRUCTURE_BLOCK_TYPES.has(block.block_type)) {
       normalized.push({ ...block });
+      continue;
+    }
+
+    // Joint-health sessions use semantic PT block titles (activation, controlled strength, stability).
+    if (isJointHealthStructuredBlock(block)) {
+      normalized.push({
+        ...block,
+        format: block.items.length === 2 ? "superset" : "straight_sets",
+        supersetPairs:
+          block.items.length === 2 ? [[block.items[0], block.items[1]]] : undefined,
+      });
       continue;
     }
 
@@ -7673,6 +7688,7 @@ function trimBlocksToDurationBudget(
   options?: {
     preserveConditioning?: boolean;
     preserveCooldown?: boolean;
+    preserveJointHealth?: boolean;
   }
 ): WorkoutBlock[] {
   if (!targetMinutes || targetMinutes <= 0) return blocks;
@@ -7682,12 +7698,17 @@ function trimBlocksToDurationBudget(
   const hardCap = targetMinutes <= 30 ? targetMinutes + 6 : targetMinutes + 10;
   if (running <= hardCap) return trimmed;
   const droppableTypes = new Set<BlockType>(["accessory", "main_hypertrophy"]);
+  const isJointHealthWorkBlock = (b: WorkoutBlock) =>
+    options?.preserveJointHealth === true &&
+    (b.block_type === "main_strength" || b.block_type === "warmup" || b.block_type === "cooldown") &&
+    b.items.some((it) => (it.reasoning_tags ?? []).includes("joint_health"));
   // First pass: drop non-intent-dedicated droppable blocks (generic filler/hypertrophy).
   // Protects blocks with goal_intent so user-selected sub-goal slots survive budget trims.
   for (let i = trimmed.length - 1; i >= 0 && running > hardCap; i--) {
     const b = trimmed[i];
     if (!b || !droppableTypes.has(b.block_type)) continue;
     if (b.goal_intent != null) continue; // preserve intent-dedicated blocks for first pass
+    if (isJointHealthWorkBlock(b)) continue;
     running -= b.estimated_minutes ?? 5;
     trimmed.splice(i, 1);
   }
@@ -7695,6 +7716,7 @@ function trimBlocksToDurationBudget(
   for (let i = trimmed.length - 1; i >= 0 && running > hardCap; i--) {
     const b = trimmed[i];
     if (!b || !droppableTypes.has(b.block_type)) continue;
+    if (isJointHealthWorkBlock(b)) continue;
     running -= b.estimated_minutes ?? 5;
     trimmed.splice(i, 1);
   }
@@ -10185,7 +10207,7 @@ export function generateWorkoutSession(
 
   // 3. Build warmup (recovery-primary uses a single unified block instead — no separate activation)
   const blocks: WorkoutBlock[] =
-    primary === "recovery"
+    isRecoveryMobilityPrimaryGoal(primary) || primary === "joint_health"
       ? []
       : [
           buildWarmup(
@@ -10509,7 +10531,13 @@ export function generateWorkoutSession(
       ...buildMobilityRecoveryMain(guaranteePool, input, used, rng, blockIntentProfile.cooldownPreferredTargets)
     );
   } else if (primary === "joint_health") {
-    blocks.push(...buildJointHealthMain(guaranteePool, input, used, rng));
+    const jointHealthSubs = input.goal_sub_focus?.joint_health ?? [];
+    const jointHealthRng = rngForWorkoutSlot(
+      input.seed ?? 0,
+      "joint_health_main",
+      jointHealthSubs.join("|") || "general"
+    );
+    blocks.push(...buildJointHealthMain(guaranteePool, input, used, jointHealthRng));
   } else {
     const intentAthleticInject = tryBuildIntentSlotAllocatedMainInject(
       filtered,
@@ -11209,7 +11237,7 @@ export function generateWorkoutSession(
 
   // 7. Build cooldown (recovery/mobility-primary already ends with unified stretch session — skip duplicate)
   const mainWorkFamilies = getMainWorkFamiliesFromBlocks(blocks, filtered);
-  if (primary !== "recovery" && primary !== "mobility") {
+  if (!isRecoveryMobilityPrimaryGoal(primary) && primary !== "joint_health") {
     const cooldown = buildCooldown(filtered, input, used, rng, {
       constraints,
       mainWorkFamilies,
@@ -11226,19 +11254,23 @@ export function generateWorkoutSession(
   // Merge consecutive blocks with the same title so we never show two blocks with the same name
   let mergedBlocks = mergeConsecutiveBlocksWithSameTitle(blocks);
 
-  ensureSelectedGoalSubFocusCoverage(
-    mergedBlocks,
-    input,
-    guaranteePool,
-    used,
-    recentIds,
-    movementCounts,
-    rng,
-    fatigueState,
-    fatigueVolumeScale,
-    historyContext,
-    sessionFatigueRegions
-  );
+  // Joint-health primary builds the whole session from regional sub-focus; warmup/cooldown slots
+  // would otherwise fail training-block coverage and inject unrelated "Goal focus" accessories.
+  if (primary !== "joint_health") {
+    ensureSelectedGoalSubFocusCoverage(
+      mergedBlocks,
+      input,
+      guaranteePool,
+      used,
+      recentIds,
+      movementCounts,
+      rng,
+      fatigueState,
+      fatigueVolumeScale,
+      historyContext,
+      sessionFatigueRegions
+    );
+  }
 
   ensureWeeklySubFocusSessionMinimums(
     mergedBlocks,
@@ -11328,7 +11360,9 @@ export function generateWorkoutSession(
   attachRecommendationsToSession(mergedBlocks, filtered, historyContext, recentIds);
 
   // Enforce main vs accessory set ratio: never more accessory than main; when doing accessory, 75% main / 25% accessory
-  enforceMainAccessoryRatioOnBlocks(mergedBlocks);
+  if (primary !== "joint_health") {
+    enforceMainAccessoryRatioOnBlocks(mergedBlocks);
+  }
 
   if (sportProfileSessionSnapshot?.profile) {
     mergedBlocks = applyConditioningDurationScaleToBlocks(mergedBlocks, sportProfileSessionSnapshot.profile);
@@ -11339,6 +11373,7 @@ export function generateWorkoutSession(
     preserveConditioning: constraints.required_conditioning_block,
     preserveCooldown:
       blockIntentProfile.requiresCooldownBlock || constraints.min_cooldown_mobility_exercises > 0,
+    preserveJointHealth: primary === "joint_health",
   });
   if (
     constraints.required_conditioning_block &&
@@ -11416,7 +11451,7 @@ export function generateWorkoutSession(
     constraints.min_cooldown_mobility_exercises ?? 0
   );
 
-  if (cooldownRequired && primary !== "recovery" && primary !== "mobility") {
+  if (cooldownRequired && !isRecoveryMobilityPrimaryGoal(primary) && primary !== "joint_health") {
     const existingCooldown = mergedBlocks.find((b) => b.block_type === "cooldown");
     const existingCount = existingCooldown?.items.length ?? 0;
     if (!existingCooldown || existingCount < minCooldownTarget) {

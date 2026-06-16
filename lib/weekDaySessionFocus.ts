@@ -4,9 +4,10 @@
  */
 
 import type { AdaptiveSetup } from "../context/appStateModel";
-import type { ManualPreferences } from "./types";
+import type { ManualPreferences, SpecificBodyFocusKey } from "./types";
 import type { SportGoalContext } from "./dailyGeneratorAdapter";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
+import { getSportDefinition } from "../data/sportSubFocus";
 import {
   GOAL_SLUG_TO_PRIMARY_FOCUS,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
@@ -17,6 +18,18 @@ export type DayFocusPreset = {
   label: string;
   /** Short line shown under the title */
   subtitle: string;
+};
+
+export type DayBodyFocusChoiceId = "upper" | "lower" | "full" | "core";
+
+export type DayBodyFocusChoice = {
+  id: DayBodyFocusChoiceId;
+  label: string;
+  subtitle: string;
+  targetBody: "Upper" | "Lower" | "Full";
+  targetModifier: string[];
+  specificBodyFocus?: SpecificBodyFocusKey[];
+  recommended?: boolean;
 };
 
 const EMPHASIS_GOAL_WEIGHTS: [number, number, number] = [0.62, 0.26, 0.12];
@@ -102,6 +115,174 @@ function bodyLine(targetBody: string, targetModifier: string[]): string {
       ? ` (${targetModifier.map((m) => m.toLowerCase()).join(", ")})`
       : "";
   return `${targetBody} body${mod}`;
+}
+
+export function dayBodyFocusChoiceToBias(
+  choiceId: DayBodyFocusChoiceId
+): {
+  targetBody: "Upper" | "Lower" | "Full";
+  targetModifier: string[];
+  specificBodyFocus?: SpecificBodyFocusKey[];
+} {
+  switch (choiceId) {
+    case "upper":
+      return { targetBody: "Upper", targetModifier: [] };
+    case "lower":
+      return { targetBody: "Lower", targetModifier: [] };
+    case "core":
+      return { targetBody: "Full", targetModifier: [], specificBodyFocus: ["core"] };
+    case "full":
+    default:
+      return { targetBody: "Full", targetModifier: [] };
+  }
+}
+
+function bodyChoiceIdForBias(
+  targetBody: "Upper" | "Lower" | "Full",
+  specificBodyFocus?: readonly string[]
+): DayBodyFocusChoiceId {
+  if (specificBodyFocus?.includes("core")) return "core";
+  if (targetBody === "Upper") return "upper";
+  if (targetBody === "Lower") return "lower";
+  return "full";
+}
+
+function goalLabelSuggestsLowerOrCore(goalLabel: string): boolean {
+  const s = goalLabel.toLowerCase();
+  return (
+    s.includes("endurance") ||
+    s.includes("conditioning") ||
+    s.includes("athletic") ||
+    s.includes("power") ||
+    s.includes("joint health") ||
+    s.includes("recovery") ||
+    s.includes("mobility")
+  );
+}
+
+function goalLabelSuggestsUpper(goalLabel: string): boolean {
+  const s = goalLabel.toLowerCase();
+  return s.includes("calisthenics") || s.includes("muscle") || s.includes("strength");
+}
+
+function recommendedBodyChoiceIds(opts: {
+  manualPreferences: ManualPreferences;
+  adaptiveSetup: AdaptiveSetup | null;
+  slotIndex: number;
+  fallbackTargetBody: "Upper" | "Lower" | "Full";
+}): DayBodyFocusChoiceId[] {
+  const ids = new Set<DayBodyFocusChoiceId>();
+  const sports =
+    opts.adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
+  for (const rawSlug of sports) {
+    const def = getSportDefinition(rawSlug);
+    const bias = def?.engine?.structureBias;
+    const labels = [
+      ...(def?.movementPatternsRanked ?? []).map((p) => p.label),
+      ...(def?.mustInclude ?? []),
+      ...(def?.engine?.topPatterns ?? []),
+      ...(def?.engine?.secondaryPatterns ?? []),
+    ].join(" ").toLowerCase();
+    const inferredUpper =
+      labels.includes("pull") ||
+      labels.includes("grip") ||
+      labels.includes("scapular") ||
+      labels.includes("shoulder") ||
+      labels.includes("upper");
+    const inferredLower =
+      labels.includes("run") ||
+      labels.includes("stride") ||
+      labels.includes("squat") ||
+      labels.includes("single-leg") ||
+      labels.includes("ankle") ||
+      labels.includes("knee") ||
+      labels.includes("lower");
+    const upper = bias?.upperBodyBias ?? (inferredUpper ? 0.62 : 0);
+    const lower = bias?.lowerBodyBias ?? (inferredLower ? 0.62 : 0);
+    const full = bias?.fullBodyBias ?? 0;
+    if (lower >= 0.45 || lower >= upper + 0.2) ids.add("lower");
+    if (upper >= 0.45 || upper >= lower + 0.2) ids.add("upper");
+    if (full >= 0.45 || (upper > 0.25 && lower > 0.25)) ids.add("full");
+    if (lower >= 0.45 || full >= 0.45 || upper >= 0.45) ids.add("core");
+  }
+
+  if (ids.size === 0) {
+    const focusPrefs = manualPreferencesForSportWeekFocus(
+      opts.manualPreferences,
+      opts.adaptiveSetup
+    ).primaryFocus;
+    if (focusPrefs.some(goalLabelSuggestsLowerOrCore)) {
+      ids.add("lower");
+      ids.add("core");
+      ids.add("full");
+    }
+    if (focusPrefs.some(goalLabelSuggestsUpper)) {
+      ids.add("upper");
+      ids.add("full");
+    }
+  }
+
+  if (ids.size === 0) {
+    ids.add(bodyChoiceIdForBias(opts.fallbackTargetBody));
+  }
+
+  if (ids.has("upper") && ids.has("lower")) ids.add("full");
+  return Array.from(ids);
+}
+
+export function buildDayBodyFocusChoicesForDay(opts: {
+  manualPreferences: ManualPreferences;
+  adaptiveSetup: AdaptiveSetup | null;
+  slotIndex: number;
+  fallbackTargetBody: "Upper" | "Lower" | "Full";
+  fallbackTargetModifier?: string[];
+}): DayBodyFocusChoice[] {
+  const recommendedIds = recommendedBodyChoiceIds(opts);
+  const recommended = new Set(recommendedIds);
+  const fallbackId = bodyChoiceIdForBias(opts.fallbackTargetBody);
+  const all: DayBodyFocusChoiceId[] = ["full", "lower", "core", "upper"];
+  const orderedIds = [
+    ...recommendedIds,
+    fallbackId,
+    ...all,
+  ].filter((id, idx, arr): id is DayBodyFocusChoiceId => arr.indexOf(id) === idx);
+  const copy: Record<DayBodyFocusChoiceId, { label: string; subtitle: string }> = {
+    lower: {
+      label: "Lower body",
+      subtitle: "Leg strength, hips, ankles, and lower-body durability.",
+    },
+    core: {
+      label: "Core",
+      subtitle: "Trunk control, bracing, rotation control, and sport transfer.",
+    },
+    full: {
+      label: "Full body",
+      subtitle: "Balanced support without overcommitting to one region.",
+    },
+    upper: {
+      label: "Upper body",
+      subtitle: "Push, pull, shoulders, back, and upper-body strength.",
+    },
+  };
+  return orderedIds.map((id) => ({
+    id,
+    ...copy[id],
+    ...dayBodyFocusChoiceToBias(id),
+    recommended: recommended.has(id),
+  }));
+}
+
+export function defaultBodyFocusChoiceIdForDay(
+  choices: DayBodyFocusChoice[],
+  opts?: {
+    slotIndex?: number;
+  }
+): DayBodyFocusChoiceId {
+  const recommended = choices.filter((c) => c.recommended);
+  if (recommended.length > 0) {
+    return recommended[(opts?.slotIndex ?? 0) % recommended.length]!.id;
+  }
+  return choices[0]?.id ?? "full";
 }
 
 export function buildDayFocusPresetsForDay(opts: {

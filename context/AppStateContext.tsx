@@ -54,7 +54,9 @@ function weekSetupDraftEqual(
     a.selectedTrainingDays.length === b.selectedTrainingDays.length &&
     a.selectedTrainingDays.every((d, i) => d === b.selectedTrainingDays[i]) &&
     a.dayFocusChoiceIds.length === b.dayFocusChoiceIds.length &&
-    a.dayFocusChoiceIds.every((id, i) => id === b.dayFocusChoiceIds[i])
+    a.dayFocusChoiceIds.every((id, i) => id === b.dayFocusChoiceIds[i]) &&
+    (a.dayBodyFocusChoiceIds ?? []).length === (b.dayBodyFocusChoiceIds ?? []).length &&
+    (a.dayBodyFocusChoiceIds ?? []).every((id, i) => id === (b.dayBodyFocusChoiceIds ?? [])[i])
   );
 }
 

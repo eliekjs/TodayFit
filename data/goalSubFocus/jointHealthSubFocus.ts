@@ -4,6 +4,14 @@
  */
 
 import type { Exercise } from "../../logic/workoutGeneration/types";
+import {
+  ANKLE_FOOT_HEALTH_TAGGED_EXERCISE_IDS,
+  BACK_SPINE_HEALTH_TAGGED_EXERCISE_IDS,
+  ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS,
+  HIP_HEALTH_TAGGED_EXERCISE_IDS,
+  KNEE_HEALTH_TAGGED_EXERCISE_IDS,
+  SHOULDER_HEALTH_TAGGED_EXERCISE_IDS,
+} from "../jointHealthExerciseEnrichment";
 
 export const JOINT_HEALTH_SUB_FOCUS_SLUGS = [
   "knee_health",
@@ -161,48 +169,452 @@ type RegionalMatchConfig = {
   nameHints: RegExp[];
 };
 
+const KNEE_HEALTH_STRONG_ATTRIBUTE_TAGS = new Set([
+  "knee_health",
+  "knee_activation",
+  "knee_strength",
+  "knee_stability",
+  "knee_mobility",
+  "terminal_knee_extension",
+  "quad_strength",
+  "patellar_tolerance",
+  "vmo",
+  "step_down",
+  "wall_sit",
+]);
+
+/** Exercises that must never satisfy knee_health even with shared muscle groups. */
+const KNEE_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS = [
+  /^cat_camel|^cat_cow|^cat_camel/,
+  /t_spine|tspine|thoracic/,
+  /^push_up|^pushup|^dip/,
+  /^bench|^db_bench|overhead_press|pullup|pull_up/,
+  /worlds?_greatest/,
+  /pigeon|thread_needle|open_book/,
+];
+
+function isKneeHealthRegionallyExcluded(exercise: Exercise): boolean {
+  const id = toSlug(exercise.id);
+  if (KNEE_HEALTH_TAGGED_EXERCISE_IDS.has(id)) return false;
+  const name = exercise.name.toLowerCase();
+  if (KNEE_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS.some((rx) => rx.test(id) || rx.test(name))) {
+    return true;
+  }
+  const targets = [
+    ...(exercise.mobility_targets ?? []),
+    ...(exercise.stretch_targets ?? []),
+  ].map(toSlug);
+  if (
+    targets.some((t) => t.includes("thoracic") || t.includes("t_spine")) &&
+    !targets.some((t) => t.includes("quad") || t.includes("hamstring") || t.includes("knee"))
+  ) {
+    return true;
+  }
+  if (exercise.movement_pattern === "push" && !exercise.unilateral) return true;
+  return false;
+}
+
+function exerciseMatchesKneeHealthSubFocus(exercise: Exercise): boolean {
+  if (!isJointHealthAppropriateExercise(exercise)) return false;
+  if (isKneeHealthRegionallyExcluded(exercise)) return false;
+
+  const tags = exerciseTagSet(exercise);
+  if (KNEE_HEALTH_TAGGED_EXERCISE_IDS.has(toSlug(exercise.id))) return true;
+  for (const t of KNEE_HEALTH_STRONG_ATTRIBUTE_TAGS) {
+    if (tags.has(t)) return true;
+  }
+  const cfg = JOINT_HEALTH_REGIONAL.knee_health;
+  if (cfg.nameHints.some((rx) => rx.test(exercise.name))) return true;
+
+  return false;
+}
+
+const SHOULDER_HEALTH_STRONG_ATTRIBUTE_TAGS = new Set([
+  "shoulder_health",
+  "shoulder_activation",
+  "shoulder_strength",
+  "shoulder_stability",
+  "shoulder_mobility",
+  "rotator_cuff",
+  "scapular_control",
+  "shoulder_stability",
+  "serratus",
+  "lower_trap",
+]);
+
+const SHOULDER_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS = [
+  /^bench|^db_bench|barbell_bench|incline_db_press|incline_press/,
+  /^dip|^push_up|^pushup/,
+  /overhead_press|oh_press|military_press|jerk|snatch|clean/,
+  /^pullup|^pull_up|chin_up|muscle_up/,
+  /^squat|^lunge|^deadlift|^hip_thrust|^rdl/,
+  /^cat_camel|^cat_cow|t_spine|tspine|thoracic/,
+  /worlds?_greatest|burpee|box_jump|kb_swing|kettlebell_swing/,
+  /dowel|lat_stretch_rocker/,
+];
+
+function isShoulderHealthRegionallyExcluded(exercise: Exercise): boolean {
+  const id = toSlug(exercise.id);
+  if (SHOULDER_HEALTH_TAGGED_EXERCISE_IDS.has(id)) return false;
+  if (id === "push_up_plus" || id === "scapular_push_up") return false;
+  const name = exercise.name.toLowerCase();
+  if (SHOULDER_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS.some((rx) => rx.test(id) || rx.test(name))) {
+    return true;
+  }
+  const muscle = (exercise.muscle_groups ?? []).map(toSlug);
+  if (
+    muscle.some((m) => m.includes("quad") || m.includes("hamstring") || m === "legs") &&
+    !muscle.some((m) => m.includes("shoulder") || m.includes("upper_back") || m === "push" || m === "pull")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function exerciseMatchesShoulderHealthSubFocus(exercise: Exercise): boolean {
+  if (!isJointHealthAppropriateExercise(exercise)) return false;
+  if (isShoulderHealthRegionallyExcluded(exercise)) return false;
+
+  const tags = exerciseTagSet(exercise);
+  if (SHOULDER_HEALTH_TAGGED_EXERCISE_IDS.has(toSlug(exercise.id))) return true;
+  for (const t of SHOULDER_HEALTH_STRONG_ATTRIBUTE_TAGS) {
+    if (tags.has(t)) return true;
+  }
+  const cfg = JOINT_HEALTH_REGIONAL.shoulder_health;
+  if (cfg.nameHints.some((rx) => rx.test(exercise.name))) return true;
+
+  return false;
+}
+
+const HIP_HEALTH_STRONG_ATTRIBUTE_TAGS = new Set([
+  "hip_health",
+  "hip_activation",
+  "hip_strength",
+  "hip_mobility",
+  "glute_med",
+  "adductor",
+  "hip_rotation",
+]);
+
+const HIP_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS = [
+  /^bench|^db_bench|barbell_bench|incline_db_press|incline_press/,
+  /^dip|^push_up|^pushup/,
+  /overhead_press|oh_press|military_press|jerk|snatch|clean/,
+  /^pullup|^pull_up|chin_up|muscle_up/,
+  /^cat_camel|^cat_cow|t_spine|tspine|thoracic/,
+  /worlds?_greatest.*battle|battle_rope.*cossack|landmine.*cossack|sandbag.*cossack|clubbell.*cossack|bulgarian_bag.*cossack|macebell.*cossack|plate_overhead.*cossack/,
+  /^back_squat|^barbell_squat|^deadlift|^barbell_deadlift|^rdl|barbell_rdl/,
+  /burpee|box_jump|kb_swing|kettlebell_swing|plyo/,
+  /^bench_press|^leg_extension|^leg_curl/,
+  /wall_slide|wall_angel|face_pull|external_rotation|rotator/,
+];
+
+function isHipHealthRegionallyExcluded(exercise: Exercise): boolean {
+  const id = toSlug(exercise.id);
+  if (HIP_HEALTH_TAGGED_EXERCISE_IDS.has(id)) return false;
+  const name = exercise.name.toLowerCase();
+  if (HIP_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS.some((rx) => rx.test(id) || rx.test(name))) {
+    return true;
+  }
+  const targets = [
+    ...(exercise.mobility_targets ?? []),
+    ...(exercise.stretch_targets ?? []),
+  ].map(toSlug);
+  if (
+    targets.some((t) => t.includes("thoracic") || t.includes("shoulder")) &&
+    !targets.some((t) => t.includes("hip") || t.includes("glute") || t.includes("adductor"))
+  ) {
+    return true;
+  }
+  if (exercise.movement_pattern === "push" && !exercise.unilateral) return true;
+  return false;
+}
+
+function exerciseMatchesHipHealthSubFocus(exercise: Exercise): boolean {
+  if (!isJointHealthAppropriateExercise(exercise)) return false;
+  if (isHipHealthRegionallyExcluded(exercise)) return false;
+
+  const tags = exerciseTagSet(exercise);
+  if (HIP_HEALTH_TAGGED_EXERCISE_IDS.has(toSlug(exercise.id))) return true;
+  for (const t of HIP_HEALTH_STRONG_ATTRIBUTE_TAGS) {
+    if (tags.has(t)) return true;
+  }
+  if (tags.has("hip_stability") && tags.has("hip_health")) return true;
+  const cfg = JOINT_HEALTH_REGIONAL.hip_health;
+  if (cfg.nameHints.some((rx) => rx.test(exercise.name))) return true;
+
+  return false;
+}
+
+const ANKLE_FOOT_HEALTH_STRONG_ATTRIBUTE_TAGS = new Set([
+  "ankle_foot_health",
+  "ankle_foot_activation",
+  "ankle_foot_strength",
+  "ankle_foot_mobility",
+  "tibialis",
+  "foot_intrinsic",
+  "calf",
+]);
+
+const ANKLE_FOOT_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS = [
+  /^bench|^db_bench|barbell_bench|incline_db_press|incline_press/,
+  /^dip|^push_up|^pushup/,
+  /overhead_press|oh_press|military_press|jerk|snatch|clean/,
+  /^pullup|^pull_up|chin_up|muscle_up/,
+  /^cat_camel|^cat_cow|t_spine|tspine|thoracic/,
+  /burpee|box_jump|kb_swing|kettlebell_swing|plyo|squat_jump|jump/,
+  /cossack|hip_90|90_90|clamshell|fire_hydrant|glute_bridge|hip_airplane|copenhagen/,
+  /wall_slide|face_pull|external_rotation|rotator|bench_press/,
+  /clubbell|landmine|battle_rope|sandbag|macebell|bulgarian_bag/,
+  /split_squat.*calf|isometric_split_squat/,
+  /miniband_ankle_lateral_walk|miniband_ankle_monster_walk|miniband_ankle_side_lying/,
+];
+
+function isAnkleFootHealthRegionallyExcluded(exercise: Exercise): boolean {
+  const id = toSlug(exercise.id);
+  if (ANKLE_FOOT_HEALTH_TAGGED_EXERCISE_IDS.has(id)) return false;
+  const name = exercise.name.toLowerCase();
+  if (ANKLE_FOOT_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS.some((rx) => rx.test(id) || rx.test(name))) {
+    return true;
+  }
+  const targets = [
+    ...(exercise.mobility_targets ?? []),
+    ...(exercise.stretch_targets ?? []),
+  ].map(toSlug);
+  if (
+    targets.some((t) => t.includes("thoracic") || t.includes("shoulder") || t.includes("hip")) &&
+    !targets.some((t) => t.includes("ankle") || t.includes("calf") || t.includes("foot") || t.includes("achilles"))
+  ) {
+    return true;
+  }
+  if (exercise.movement_pattern === "push" && !exercise.unilateral) return true;
+  return false;
+}
+
+function exerciseMatchesAnkleFootHealthSubFocus(exercise: Exercise): boolean {
+  if (!isJointHealthAppropriateExercise(exercise)) return false;
+  if (isAnkleFootHealthRegionallyExcluded(exercise)) return false;
+
+  const tags = exerciseTagSet(exercise);
+  if (ANKLE_FOOT_HEALTH_TAGGED_EXERCISE_IDS.has(toSlug(exercise.id))) return true;
+  for (const t of ANKLE_FOOT_HEALTH_STRONG_ATTRIBUTE_TAGS) {
+    if (tags.has(t)) return true;
+  }
+  if (tags.has("ankle_foot_stability") && tags.has("ankle_foot_health")) return true;
+
+  return false;
+}
+
+const BACK_SPINE_HEALTH_STRONG_ATTRIBUTE_TAGS = new Set([
+  "back_spine_health",
+  "back_spine_activation",
+  "back_spine_strength",
+  "back_spine_mobility",
+]);
+
+const BACK_SPINE_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS = [
+  /^bench|^db_bench|barbell_bench|incline_db_press|incline_press/,
+  /^dip|^push_up|^pushup/,
+  /overhead_press|oh_press|military_press|jerk|snatch|clean/,
+  /^pullup|^pull_up|chin_up|muscle_up/,
+  /^back_squat|^barbell_squat|^deadlift|^barbell_deadlift|^rdl|barbell_rdl/,
+  /burpee|box_jump|kb_swing|kettlebell_swing|plyo|sit_up|crunch|ghd/,
+  /good_morning|ff_.*good_morning/,
+  /cossack|clamshell|fire_hydrant|hip_90|90_90|wall_slide|face_pull|leg_extension/,
+  /external_rotation|internal_rotation|rotator|prone_ity|shoulder_dislocat/,
+  /monster_walk|lateral_walk|band_walk/,
+  /pigeon|frog_stretch|figure.?4/,
+  /dorsiflexion|iso_step|step_down|calf_raise|tibialis/,
+  /split_squat.*pallof|isometric_split_squat/,
+  /superman|supermans/,
+];
+
+function isBackSpineHealthRegionallyExcluded(exercise: Exercise): boolean {
+  const id = toSlug(exercise.id);
+  if (BACK_SPINE_HEALTH_TAGGED_EXERCISE_IDS.has(id)) return false;
+  const name = exercise.name.toLowerCase();
+  if (BACK_SPINE_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS.some((rx) => rx.test(id) || rx.test(name))) {
+    return true;
+  }
+  if (exercise.movement_pattern === "push" && !exercise.unilateral) return true;
+  return false;
+}
+
+function exerciseMatchesBackSpineHealthSubFocus(exercise: Exercise): boolean {
+  if (!isJointHealthAppropriateExercise(exercise)) return false;
+  if (isBackSpineHealthRegionallyExcluded(exercise)) return false;
+
+  const tags = exerciseTagSet(exercise);
+  if (BACK_SPINE_HEALTH_TAGGED_EXERCISE_IDS.has(toSlug(exercise.id))) return true;
+
+  const otherRegionalHealth = ["knee_health", "shoulder_health", "hip_health", "ankle_foot_health"];
+  if (otherRegionalHealth.some((t) => tags.has(t)) && !tags.has("back_spine_health")) return false;
+
+  for (const t of BACK_SPINE_HEALTH_STRONG_ATTRIBUTE_TAGS) {
+    if (tags.has(t)) return true;
+  }
+  if (tags.has("back_spine_stability") && tags.has("back_spine_health")) return true;
+
+  return false;
+}
+
+const ELBOW_WRIST_HEALTH_STRONG_ATTRIBUTE_TAGS = new Set([
+  "elbow_wrist_health",
+  "elbow_wrist_activation",
+  "elbow_wrist_strength",
+  "elbow_wrist_stability",
+  "elbow_wrist_mobility",
+]);
+
+const ELBOW_WRIST_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS = [
+  /^bench|^db_bench|barbell_bench|incline_db_press|incline_press/,
+  /^dip|^push_up|^pushup/,
+  /close_grip|skull_crush|tricep_extension|preacher_curl|jm_press/,
+  /overhead_press|oh_press|military_press|jerk|snatch|clean/,
+  /^pullup|^pull_up|chin_up|muscle_up|planche|finger.*push/,
+  /^back_squat|^barbell_squat|^deadlift|^barbell_deadlift|^rdl|barbell_rdl/,
+  /burpee|box_jump|kb_swing|kettlebell_swing|plyo/,
+  /^cat_camel|^cat_cow|t_spine|tspine|thoracic/,
+  /cossack|clamshell|fire_hydrant|hip_90|90_90|wall_slide|face_pull/,
+  /monster_walk|pigeon|dorsiflexion|split_squat.*calf/,
+];
+
+function isElbowWristHealthRegionallyExcluded(exercise: Exercise): boolean {
+  const id = toSlug(exercise.id);
+  if (ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS.has(id)) return false;
+  if (id === "push_up_plus" || id === "scapular_push_up") return false;
+  const name = exercise.name.toLowerCase();
+  if (ELBOW_WRIST_HEALTH_REGIONAL_EXCLUDE_ID_PATTERNS.some((rx) => rx.test(id) || rx.test(name))) {
+    return true;
+  }
+  if (exercise.movement_pattern === "push" && !exercise.unilateral && id !== "push_up_plus") return true;
+  return false;
+}
+
+function exerciseMatchesElbowWristHealthSubFocus(exercise: Exercise): boolean {
+  if (!isJointHealthAppropriateExercise(exercise)) return false;
+  if (isElbowWristHealthRegionallyExcluded(exercise)) return false;
+
+  const tags = exerciseTagSet(exercise);
+  if (ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS.has(toSlug(exercise.id))) return true;
+
+  const otherRegionalHealth = [
+    "knee_health",
+    "shoulder_health",
+    "hip_health",
+    "ankle_foot_health",
+    "back_spine_health",
+  ];
+  if (otherRegionalHealth.some((t) => tags.has(t)) && !tags.has("elbow_wrist_health")) return false;
+
+  for (const t of ELBOW_WRIST_HEALTH_STRONG_ATTRIBUTE_TAGS) {
+    if (tags.has(t)) return true;
+  }
+
+  return false;
+}
+
 const JOINT_HEALTH_REGIONAL: Record<JointHealthSubFocusSlug, RegionalMatchConfig> = {
   knee_health: {
-    attributeTags: ["knee", "quad_strength", "patellar", "vmo", "terminal_knee_extension"],
+    attributeTags: ["knee_health", "knee_activation", "knee_strength", "knee_stability", "terminal_knee_extension", "vmo"],
     stimulus: ["isometric", "single_leg", "eccentric"],
-    muscles: ["quads", "hamstrings", "glutes", "calves"],
-    mobilityTargets: ["quads", "hamstrings", "knee", "patellar"],
-    nameHints: [/wall sit|spanish squat|step.?down|split squat|copenhagen|terminal knee|tke/i],
+    muscles: [],
+    mobilityTargets: ["quads", "hamstrings", "knee", "patellar", "calves"],
+    nameHints: [/wall sit|spanish squat|step.?down|split squat|copenhagen|terminal knee|tke|tibialis|calf raise|clamshell|90.?90|hip switch|cossack|bodyweight squat|quad stretch|leg raise/i],
   },
   shoulder_health: {
-    attributeTags: ["rotator_cuff", "scapular_control", "shoulder_stability", "serratus", "lower_trap"],
+    attributeTags: [
+      "shoulder_health",
+      "shoulder_activation",
+      "shoulder_strength",
+      "shoulder_stability",
+      "rotator_cuff",
+      "scapular_control",
+      "shoulder_stability",
+      "serratus",
+      "lower_trap",
+    ],
     stimulus: ["scapular_control", "isometric"],
-    muscles: ["shoulders", "upper_back"],
-    mobilityTargets: ["shoulders", "thoracic"],
-    nameHints: [/external rotation|face pull|wall slide|serratus|scap|y.?t.?w|landmine/i],
+    muscles: [],
+    mobilityTargets: ["shoulders", "pecs", "lats"],
+    nameHints: [
+      /external rotation|internal rotation|face pull|wall slide|wall angel|serratus|scap|pull.?apart|dislocat|cuban|push.?up plus|rotator|prone ity/i,
+    ],
   },
   hip_health: {
-    attributeTags: ["hip_stability", "hip_mobility", "glute_med", "adductor", "hip_rotation"],
+    attributeTags: [
+      "hip_health",
+      "hip_activation",
+      "hip_strength",
+      "hip_stability",
+      "hip_mobility",
+      "hip_stability",
+      "glute_med",
+      "adductor",
+      "hip_rotation",
+    ],
     stimulus: ["single_leg", "isometric"],
-    muscles: ["glutes", "hips", "adductors", "hip_flexors"],
-    mobilityTargets: ["hip", "glutes", "hip_flexors"],
-    nameHints: [/glute bridge|hip airplane|copenhagen|clam|cossack|90.?90|hip car|lateral walk/i],
+    muscles: [],
+    mobilityTargets: ["hip", "glutes", "hip_flexors", "adductors"],
+    nameHints: [
+      /glute bridge|hip airplane|copenhagen|clam|fire hydrant|cossack|90.?90|hip car|hip circle|hip rotation|monster walk|lateral walk|worlds.?greatest|pigeon|frog|figure.?4|hip flexor/i,
+    ],
   },
   ankle_foot_health: {
-    attributeTags: ["ankle_stability", "tibialis", "calf", "foot_intrinsic", "balance"],
+    attributeTags: [
+      "ankle_foot_health",
+      "ankle_foot_activation",
+      "ankle_foot_strength",
+      "ankle_foot_stability",
+      "ankle_foot_mobility",
+      "ankle_stability",
+      "tibialis",
+      "foot_intrinsic",
+      "calf",
+      "balance",
+    ],
     stimulus: ["isometric", "eccentric", "single_leg"],
-    muscles: ["calves", "tibialis", "feet"],
-    mobilityTargets: ["calves", "ankle", "feet"],
-    nameHints: [/calf raise|tibialis|short.?foot|toe yoga|balance|step.?down|inversion|eversion/i],
+    muscles: [],
+    mobilityTargets: ["calves", "ankle", "feet", "achilles"],
+    nameHints: [
+      /ankle car|ankle circle|achilles|heel walk|toe walk|tibialis|calf raise|calf stretch|dorsiflexion|step.?down|toe balance|banded ankle/i,
+    ],
   },
   back_spine_health: {
-    attributeTags: ["core_stability", "anti_rotation", "hip_hinge", "posterior_chain", "thoracic_mobility"],
+    attributeTags: [
+      "back_spine_health",
+      "back_spine_activation",
+      "back_spine_strength",
+      "back_spine_stability",
+      "back_spine_mobility",
+      "core_stability",
+      "thoracic_mobility",
+    ],
     stimulus: ["trunk_anti_rotation", "anti_flexion", "isometric", "scapular_control"],
-    muscles: ["core", "lower_back", "glutes", "hamstrings"],
-    mobilityTargets: ["thoracic", "low_back", "lumbar", "hip"],
-    nameHints: [/dead bug|bird dog|pallof|side plank|suitcase|mcgill|open book|hip hinge/i],
+    muscles: [],
+    mobilityTargets: ["thoracic", "low_back", "lumbar"],
+    nameHints: [
+      /dead bug|bird dog|pallof|side plank|cat.?cow|cat.?camel|open book|thread.?needle|quadruped|rockback|breathing|diaphragm|child/i,
+    ],
   },
   elbow_wrist_health: {
-    attributeTags: ["forearm", "grip", "wrist", "tendon_loading", "pronator", "supinator"],
+    attributeTags: [
+      "elbow_wrist_health",
+      "elbow_wrist_activation",
+      "elbow_wrist_strength",
+      "elbow_wrist_stability",
+      "elbow_wrist_mobility",
+      "forearm",
+      "grip",
+      "wrist",
+      "tendon_loading",
+      "pronator",
+      "supinator",
+    ],
     stimulus: ["grip", "isometric", "eccentric", "scapular_control"],
     muscles: ["forearms", "wrists", "biceps", "triceps"],
     mobilityTargets: ["forearm", "wrist"],
-    nameHints: [/wrist curl|farmer|dead hang|pronat|supinat|rice bucket|scapular row/i],
+    nameHints: [/wrist curl|reverse wrist|farmer|dead hang|pronat|supinat|finger extension|scapular push|pull.?apart/i],
   },
 };
 
@@ -212,6 +624,26 @@ export function exerciseMatchesJointHealthSubFocus(
 ): boolean {
   const norm = toSlug(subSlug) as JointHealthSubFocusSlug;
   if (!JOINT_HEALTH_SUB_FOCUS_SLUGS.includes(norm)) return false;
+
+  if (norm === "knee_health") {
+    return exerciseMatchesKneeHealthSubFocus(exercise);
+  }
+  if (norm === "shoulder_health") {
+    return exerciseMatchesShoulderHealthSubFocus(exercise);
+  }
+  if (norm === "hip_health") {
+    return exerciseMatchesHipHealthSubFocus(exercise);
+  }
+  if (norm === "ankle_foot_health") {
+    return exerciseMatchesAnkleFootHealthSubFocus(exercise);
+  }
+  if (norm === "back_spine_health") {
+    return exerciseMatchesBackSpineHealthSubFocus(exercise);
+  }
+  if (norm === "elbow_wrist_health") {
+    return exerciseMatchesElbowWristHealthSubFocus(exercise);
+  }
+
   if (!isJointHealthAppropriateExercise(exercise)) return false;
 
   const cfg = JOINT_HEALTH_REGIONAL[norm];
@@ -242,7 +674,42 @@ export function classifyJointHealthSlotRole(exercise: Exercise): JointHealthSlot
   const stim = (exercise.tags?.stimulus ?? []).map(toSlug);
   const modality = exercise.modality;
 
+  if (tags.has("knee_activation")) return "activation";
+  if (tags.has("shoulder_activation")) return "activation";
+  if (tags.has("hip_activation")) return "activation";
+  if (tags.has("ankle_foot_activation")) return "activation";
+  if (tags.has("back_spine_activation")) return "activation";
+  if (tags.has("elbow_wrist_activation")) return "activation";
+  if (tags.has("knee_strength")) return "controlled_strength";
+  if (tags.has("shoulder_strength")) return "controlled_strength";
+  if (tags.has("hip_strength")) return "controlled_strength";
+  if (tags.has("ankle_foot_strength")) return "controlled_strength";
+  if (tags.has("back_spine_strength")) return "controlled_strength";
+  if (tags.has("elbow_wrist_strength")) return "controlled_strength";
+  if (tags.has("knee_stability")) return "stability";
+  if (tags.has("shoulder_stability")) return "stability";
+  if (tags.has("hip_stability")) return "stability";
+  if (tags.has("ankle_foot_stability")) return "stability";
+  if (tags.has("back_spine_stability")) return "stability";
+  if (tags.has("elbow_wrist_stability")) return "stability";
+  if (tags.has("knee_mobility")) return "mobility_finisher";
+  if (tags.has("shoulder_mobility")) return "mobility_finisher";
+  if (tags.has("hip_mobility")) return "mobility_finisher";
+  if (tags.has("ankle_foot_mobility")) return "mobility_finisher";
+  if (tags.has("back_spine_mobility")) return "mobility_finisher";
+  if (tags.has("elbow_wrist_mobility")) return "mobility_finisher";
+
   if (modality === "mobility" || modality === "recovery" || role === "activation") {
+    if (
+      tags.has("knee_health") ||
+      tags.has("shoulder_health") ||
+      tags.has("hip_health") ||
+      tags.has("ankle_foot_health") ||
+      tags.has("back_spine_health") ||
+      tags.has("elbow_wrist_health")
+    ) {
+      return "mobility_finisher";
+    }
     return "activation";
   }
   if (stim.includes("isometric") || tags.has("isometric")) {

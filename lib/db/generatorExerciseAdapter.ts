@@ -36,6 +36,8 @@ import { SPORTS_WITH_SUB_FOCUSES } from "../../data/sportSubFocus/sportsWithSubF
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
 import { applyCuratedExerciseColumnsFromDbRow, attachCurationSnapshotFromDbRow } from "../curationDbFields";
 import type { ExerciseCurationDbColumns } from "./exerciseCurationColumns";
+import { applyExerciseMetadataOverrides } from "../exerciseMetadata/applyMetadataOverrides";
+import { JOINT_HEALTH_EXERCISE_ENRICHMENT } from "../../data/jointHealthExerciseEnrichment";
 
 const CANONICAL_SPORT_SLUGS = new Set(SPORTS_WITH_SUB_FOCUSES.map((s) => normalizeSlug(s.slug)));
 
@@ -373,6 +375,12 @@ export function mapDbExerciseToGeneratorExercise(
 
   attachCurationSnapshotFromDbRow(exercise, row);
   applyCuratedExerciseColumnsFromDbRow(exercise, row);
+
+  applyExerciseMetadataOverrides(
+    exercise,
+    { id: row.slug, name: row.name, tags: tagSlugs },
+    JOINT_HEALTH_EXERCISE_ENRICHMENT[row.slug]
+  );
 
   return exercise;
 }

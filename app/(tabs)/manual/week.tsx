@@ -53,9 +53,14 @@ import {
   buildWorkoutIntentTitle,
 } from "../../../lib/workoutIntentSplit";
 import {
+  buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
+  dayBodyFocusChoiceToBias,
+  defaultBodyFocusChoiceIdForDay,
   resolveDayFocusPreset,
   defaultPresetIdForWeekDay,
+  type DayBodyFocusChoice,
+  type DayBodyFocusChoiceId,
   type DayFocusPreset,
 } from "../../../lib/weekDaySessionFocus";
 import { WeekDayFocusPlanner } from "../../../components/WeekDayFocusPlanner";
@@ -182,6 +187,7 @@ export default function ManualWeekScreen() {
   const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
   /** Parallel to selectedTrainingDays: preset id from buildDayFocusPresetsForDay / resolveDayFocusPreset. */
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
+  const [dayBodyFocusChoiceIds, setDayBodyFocusChoiceIds] = useState<DayBodyFocusChoiceId[]>([]);
   const [navBarHeight, setNavBarHeight] = useState(72);
 
   const sessionHydratedRef = useRef(false);
@@ -199,6 +205,9 @@ export default function ManualWeekScreen() {
     if (ws.dayFocusChoiceIds.length > 0) {
       setDayFocusChoiceIds(ws.dayFocusChoiceIds);
     }
+    if (ws.dayBodyFocusChoiceIds?.length) {
+      setDayBodyFocusChoiceIds(ws.dayBodyFocusChoiceIds as DayBodyFocusChoiceId[]);
+    }
     sessionHydratedRef.current = true;
   }, [activeSessionDraft?.id, activeSessionDraft?.weekSetup]);
 
@@ -208,6 +217,7 @@ export default function ManualWeekScreen() {
       step: weekSetupStep,
       selectedTrainingDays,
       dayFocusChoiceIds,
+      dayBodyFocusChoiceIds,
     };
     const prev = activeSessionDraft?.weekSetup;
     if (
@@ -217,7 +227,9 @@ export default function ManualWeekScreen() {
       prev.selectedTrainingDays.length === nextWeekSetup.selectedTrainingDays.length &&
       prev.selectedTrainingDays.every((d, i) => d === nextWeekSetup.selectedTrainingDays[i]) &&
       prev.dayFocusChoiceIds.length === nextWeekSetup.dayFocusChoiceIds.length &&
-      prev.dayFocusChoiceIds.every((id, i) => id === nextWeekSetup.dayFocusChoiceIds[i])
+      prev.dayFocusChoiceIds.every((id, i) => id === nextWeekSetup.dayFocusChoiceIds[i]) &&
+      (prev.dayBodyFocusChoiceIds ?? []).length === nextWeekSetup.dayBodyFocusChoiceIds.length &&
+      (prev.dayBodyFocusChoiceIds ?? []).every((id, i) => id === nextWeekSetup.dayBodyFocusChoiceIds[i])
     ) {
       return;
     }
@@ -226,6 +238,7 @@ export default function ManualWeekScreen() {
     weekSetupStep,
     selectedTrainingDays,
     dayFocusChoiceIds,
+    dayBodyFocusChoiceIds,
     updateActiveSessionDraft,
     activeSessionDraft?.weekSetup,
   ]);
@@ -301,34 +314,66 @@ export default function ManualWeekScreen() {
   );
 
   const sessionFocusMeta = useMemo(() => {
-    if (selectedTrainingDays.length === 0) return { labels: [] as string[], presets: [] as DayFocusPreset[][] };
+    if (selectedTrainingDays.length === 0) {
+      return {
+        labels: [] as string[],
+        bodyOptions: [] as DayBodyFocusChoice[][],
+        presets: [] as DayFocusPreset[][],
+      };
+    }
     const n = selectedTrainingDays.length;
     const bd = getBodyEmphasisDistribution(n);
     const weekStart = startOfWeekMonday(new Date());
     const labels = selectedTrainingDays.map((dow, i) => {
       const date = addDays(weekStart, dow);
-      const b = bd[i]!;
+      const b = dayBodyFocusChoiceIds[i]
+        ? dayBodyFocusChoiceToBias(dayBodyFocusChoiceIds[i]!)
+        : bd[i]!;
       const mod =
         b.targetModifier.length > 0
           ? ` (${b.targetModifier.join(" · ")})`
           : "";
       return `${formatDayOfWeek(dateToISO(date))} · ${b.targetBody}${mod}`;
     });
-    const presets = selectedTrainingDays.map((_, i) =>
-      buildDayFocusPresetsForDay({
+    const bodyOptions = selectedTrainingDays.map((_, i) =>
+      buildDayBodyFocusChoicesForDay({
         manualPreferences,
         adaptiveSetup,
-        targetBody: bd[i]!.targetBody,
-        targetModifier: bd[i]!.targetModifier,
+        slotIndex: i,
+        fallbackTargetBody: bd[i]!.targetBody,
+        fallbackTargetModifier: bd[i]!.targetModifier,
       })
     );
-    return { labels, presets };
-  }, [selectedTrainingDays, manualPreferences, adaptiveSetup]);
+    const presets = selectedTrainingDays.map((_, i) => {
+      const b = dayBodyFocusChoiceIds[i]
+        ? dayBodyFocusChoiceToBias(dayBodyFocusChoiceIds[i]!)
+        : bd[i]!;
+      return buildDayFocusPresetsForDay({
+        manualPreferences,
+        adaptiveSetup,
+        targetBody: b.targetBody,
+        targetModifier: b.targetModifier,
+      });
+    });
+    return { labels, bodyOptions, presets };
+  }, [selectedTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusChoiceIds]);
 
   const initSessionFocusStep = useCallback(() => {
     if (selectedTrainingDays.length === 0) return;
     const n = selectedTrainingDays.length;
     const bd = getBodyEmphasisDistribution(n);
+    const bodyOptions = selectedTrainingDays.map((_, i) =>
+      buildDayBodyFocusChoicesForDay({
+        manualPreferences,
+        adaptiveSetup,
+        slotIndex: i,
+        fallbackTargetBody: bd[i]!.targetBody,
+        fallbackTargetModifier: bd[i]!.targetModifier,
+      })
+    );
+    const bodyIds = bodyOptions.map((choices, i) =>
+      defaultBodyFocusChoiceIdForDay(choices, { slotIndex: i })
+    );
     const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
     const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
     const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
@@ -342,17 +387,19 @@ export default function ManualWeekScreen() {
     const dedicateDays =
       manualPreferences.goalDistributionStyle === "dedicate_days" && manualPreferences.primaryFocus.length > 0;
     const ids = selectedTrainingDays.map((_, i) => {
+      const bodyChoice = dayBodyFocusChoiceToBias(bodyIds[i]!);
       const presets = buildDayFocusPresetsForDay({
         manualPreferences,
         adaptiveSetup,
-        targetBody: bd[i]!.targetBody,
-        targetModifier: bd[i]!.targetModifier,
+        targetBody: bodyChoice.targetBody,
+        targetModifier: bodyChoice.targetModifier,
       });
       return defaultPresetIdForWeekDay(presets, {
         dedicateDays,
         weekGoalSlotIndex: goalIndices[i] ?? 0,
       });
     });
+    setDayBodyFocusChoiceIds(bodyIds);
     setDayFocusChoiceIds(ids);
     setWeekSetupStep("sessionFocus");
   }, [selectedTrainingDays, manualPreferences, adaptiveSetup]);
@@ -388,6 +435,13 @@ export default function ManualWeekScreen() {
       }
       const n = selectedTrainingDays.length;
       const bodyDistribution = getBodyEmphasisDistribution(n);
+      const selectedBodyDistribution: ReturnType<typeof dayBodyFocusChoiceToBias>[] =
+        dayBodyFocusChoiceIds.length === selectedTrainingDays.length
+          ? dayBodyFocusChoiceIds.map((id) => dayBodyFocusChoiceToBias(id))
+          : bodyDistribution.map((b) => ({
+              targetBody: b.targetBody,
+              targetModifier: [...b.targetModifier],
+            }));
       const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
       const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
       const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
@@ -407,8 +461,8 @@ export default function ManualWeekScreen() {
           const presets = buildDayFocusPresetsForDay({
             manualPreferences,
             adaptiveSetup,
-            targetBody: bodyDistribution[i]!.targetBody,
-            targetModifier: bodyDistribution[i]!.targetModifier,
+            targetBody: selectedBodyDistribution[i]!.targetBody,
+            targetModifier: selectedBodyDistribution[i]!.targetModifier,
           });
           return defaultPresetIdForWeekDay(presets, {
             dedicateDays,
@@ -441,9 +495,12 @@ export default function ManualWeekScreen() {
       for (let i = 0; i < selectedTrainingDays.length; i++) {
         const dow = selectedTrainingDays[i];
         const date = addDays(weekStart, dow);
-        const bodyBias = bodyDistribution[i];
+        const bodyBias = selectedBodyDistribution[i]!;
         const bodyKey = bodyBias.targetBody.toLowerCase() as "upper" | "lower" | "full";
-        const specificForDay = specificEmphasis.filter((k) => isSpecificFocusRelevantForBody(k, bodyKey));
+        const specificForDay = [
+          ...(bodyBias.specificBodyFocus ?? []),
+          ...specificEmphasis.filter((k) => isSpecificFocusRelevantForBody(k, bodyKey)),
+        ].filter((v, idx, arr) => arr.indexOf(v) === idx);
         const presetsForDay = buildDayFocusPresetsForDay({
           manualPreferences,
           adaptiveSetup,
@@ -537,6 +594,7 @@ export default function ManualWeekScreen() {
     selectedTrainingDays,
     router,
     dayFocusChoiceIds,
+    dayBodyFocusChoiceIds,
     adaptiveSetup,
     setDayFocusChoiceIds,
   ]);
@@ -932,8 +990,17 @@ export default function ManualWeekScreen() {
               <WeekDayFocusPlanner
                 theme={theme}
                 dayLabels={sessionFocusMeta.labels}
+                bodyOptionsPerDay={sessionFocusMeta.bodyOptions}
                 presetOptionsPerDay={sessionFocusMeta.presets}
+                selectedBodyIds={dayBodyFocusChoiceIds}
                 selectedIds={dayFocusChoiceIds}
+                onSelectBody={(dayIdx, id) => {
+                  setDayBodyFocusChoiceIds((prev) => {
+                    const next = [...prev];
+                    next[dayIdx] = id;
+                    return next;
+                  });
+                }}
                 onSelect={(dayIdx, id) => {
                   setDayFocusChoiceIds((prev) => {
                     const next = [...prev];

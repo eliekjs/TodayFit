@@ -13,6 +13,7 @@ export type WeekSetupDraft = {
   step: "pickDays" | "sessionFocus";
   selectedTrainingDays: number[];
   dayFocusChoiceIds: string[];
+  dayBodyFocusChoiceIds?: string[];
 };
 
 /** Serialized sport-mode setup form (local UI state lifted for resume / last-edited). */

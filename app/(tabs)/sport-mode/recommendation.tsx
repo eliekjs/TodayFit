@@ -412,6 +412,7 @@ export default function AdaptiveWeekPlanScreen() {
               (snapshot.includeCreativeVariations ?? manualPreferences.includeCreativeVariations) === true,
             adaptiveScheduleLabels: snapshot.adaptiveScheduleLabels,
             gymDayFocusPresetIds: snapshot.gymDayFocusPresetIds,
+            gymDayBodyFocuses: snapshot.gymDayBodyFocuses,
             manualPreferences,
           });
           if (generationCancelledRef.current) return;

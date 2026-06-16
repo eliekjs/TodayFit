@@ -126,6 +126,12 @@ export type PlanWeekInput = {
    * from `weekDaySessionFocus` (e.g. sport_first, goal_emphasis_1).
    */
   gymDayFocusPresetIds?: string[];
+  /** Per gym slot body focus selected in setup. */
+  gymDayBodyFocuses?: {
+    targetBody: import("../../lib/types").TargetBody;
+    targetModifier: string[];
+    specificBodyFocus?: import("../../lib/types").SpecificBodyFocusKey[];
+  }[];
   /** Manual preferences for sub-focus / goal match % when resolving day-focus presets. */
   manualPreferences?: ManualPreferences | null;
 };
@@ -195,6 +201,11 @@ export type ScheduleSnapshot = {
   specificBodyPartEmphasis?: import("../../lib/types").SpecificBodyFocusKey[] | null;
   adaptiveScheduleLabels?: AdaptiveScheduleLabels | null;
   gymDayFocusPresetIds?: string[];
+  gymDayBodyFocuses?: {
+    targetBody: import("../../lib/types").TargetBody;
+    targetModifier: string[];
+    specificBodyFocus?: import("../../lib/types").SpecificBodyFocusKey[];
+  }[];
 };
 
 export type PlanWeekResult = {
@@ -951,6 +962,27 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       };
     }
   }
+  if (input.gymDayBodyFocuses?.length) {
+    let gymIdx = 0;
+    for (let i = 0; i < daySlots.length; i += 1) {
+      const slot = daySlots[i];
+      if (slot.type !== "gym") continue;
+      const body = input.gymDayBodyFocuses[gymIdx];
+      gymIdx += 1;
+      if (!body) continue;
+      daySlots[i] = {
+        ...slot,
+        dayBias: {
+          intentKey: slot.dayBias?.intentKey ?? slot.key,
+          targetBody: body.targetBody,
+          targetModifier: [...body.targetModifier],
+        },
+        specificBodyFocus: body.specificBodyFocus?.length
+          ? [...body.specificBodyFocus]
+          : null,
+      };
+    }
+  }
 
   const weekDates: string[] = [];
   for (let i = 0; i < 7; i += 1) {
@@ -1418,6 +1450,15 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       gymDayFocusPresetIds: input.gymDayFocusPresetIds?.length
         ? [...input.gymDayFocusPresetIds]
         : undefined,
+      gymDayBodyFocuses: input.gymDayBodyFocuses?.length
+        ? input.gymDayBodyFocuses.map((b) => ({
+            targetBody: b.targetBody,
+            targetModifier: [...b.targetModifier],
+            ...(b.specificBodyFocus?.length
+              ? { specificBodyFocus: [...b.specificBodyFocus] }
+              : {}),
+          }))
+        : undefined,
     };
     return {
       weeklyPlanInstanceId: `guest-${weekStartIso}-${Date.now()}`,
@@ -1741,6 +1782,15 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     adaptiveScheduleLabels: input.adaptiveScheduleLabels ?? undefined,
     gymDayFocusPresetIds: input.gymDayFocusPresetIds?.length
       ? [...input.gymDayFocusPresetIds]
+      : undefined,
+    gymDayBodyFocuses: input.gymDayBodyFocuses?.length
+      ? input.gymDayBodyFocuses.map((b) => ({
+          targetBody: b.targetBody,
+          targetModifier: [...b.targetModifier],
+          ...(b.specificBodyFocus?.length
+            ? { specificBodyFocus: [...b.specificBodyFocus] }
+            : {}),
+        }))
       : undefined,
   };
 

@@ -682,6 +682,7 @@ import { applyExerciseMetadataOverrides } from "./exerciseMetadata/applyMetadata
 import type { ExerciseMetadataPatch } from "./exerciseMetadata/metadataOverrideTypes";
 import { CONDITIONING_INTENT_ENRICHMENT } from "../data/conditioningIntentEnrichment";
 import { GOAL_INTENT_ENRICHMENT } from "../data/goalIntentEnrichment";
+import { JOINT_HEALTH_EXERCISE_ENRICHMENT } from "../data/jointHealthExerciseEnrichment";
 import { SPORT_SUB_FOCUS_ENRICHMENT } from "../data/sportSubFocusEnrichment";
 import exerciseMetadataOverrides from "../data/exerciseMetadataOverrides.json";
 import { resolveExerciseDescription } from "./exerciseDescriptionsCurated";
@@ -1030,6 +1031,7 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
   applyExerciseMetadataOverrides(exercise, def, CONDITIONING_INTENT_ENRICHMENT[def.id]);
   applyExerciseMetadataOverrides(exercise, def, GOAL_INTENT_ENRICHMENT[def.id]);
   applyExerciseMetadataOverrides(exercise, def, SPORT_SUB_FOCUS_ENRICHMENT[def.id]);
+  applyExerciseMetadataOverrides(exercise, def, JOINT_HEALTH_EXERCISE_ENRICHMENT[def.id]);
 
   return exercise;
 }
