@@ -33,7 +33,7 @@ export default function ViewCompletedWorkoutScreen() {
   if (!id || !item) {
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.centered}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
             Workout not found.
@@ -50,7 +50,7 @@ export default function ViewCompletedWorkoutScreen() {
   if (!workout) {
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.centered}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
             This completed workout has no plan saved (finished before this feature).
@@ -77,7 +77,7 @@ export default function ViewCompletedWorkoutScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

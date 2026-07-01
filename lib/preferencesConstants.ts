@@ -1,6 +1,11 @@
 import type { BodyPartFocusKey, TargetBody, WorkoutStyleKey } from "./types";
 import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus/goalSubFocusOptions";
 import { normalizeSubFocusPctRecord } from "./subFocusWeights";
+import {
+  ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  LEGACY_ATHLETIC_PRIMARY_FOCUS_LABELS,
+  migrateLegacyAthleticPreferences,
+} from "../data/goalSubFocus/athleticSubFocusArchetypes";
 export {
   GOAL_SLUG_TO_LABEL,
   GOAL_SLUG_TO_PRIMARY_FOCUS,
@@ -12,13 +17,17 @@ export const PRIMARY_FOCUS_OPTIONS = [
   "Build Strength",
   "Build Muscle (Hypertrophy)",
   "Body Recomp (fat loss & muscle gain)",
-  "Sport Conditioning",
   "Improve Endurance",
   "Recovery & Mobility",
   "Athletic Performance",
   "Calisthenics",
-  "Power & Explosiveness",
   "Strength Training for Joint Health",
+] as const;
+
+/** @deprecated User-facing choices — kept for persisted presets / slug resolution only. */
+export const LEGACY_PRIMARY_FOCUS_OPTIONS = [
+  "Sport Conditioning",
+  "Power & Explosiveness",
 ] as const;
 
 /** Core: duration in minutes (single select). */
@@ -119,10 +128,9 @@ const ENGINE_CARDIO_SUB_FOCUS_SLUG_SET = new Set(ENGINE_CARDIO_SUB_FOCUS_SLUGS);
 
 /** Primary goals that may show engine / sport-conditioning style sub-focus chips (matches `PRIMARY_FOCUS_OPTIONS` strings). */
 const PRIMARY_FOCUS_ALLOWLIST_CONDITIONING_SUB_FOCUS = new Set<string>([
-  "Sport Conditioning",
+  ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
   "Improve Endurance",
-  "Athletic Performance",
-  "Power & Explosiveness",
+  ...LEGACY_ATHLETIC_PRIMARY_FOCUS_LABELS,
 ]);
 
 const ENGINE_CARDIO_SUB_FOCUS_DISPLAY_NAME_SET: ReadonlySet<string> = (() => {
@@ -207,9 +215,9 @@ export const ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY: Record<string, string> = {
   joint_health: "Strength Training for Joint Health",
   physique: "Body Recomp (fat loss & muscle gain)",
   resilience: "Recovery & Mobility",
-  conditioning: "Sport Conditioning",
-  athletic_performance: "Athletic Performance",
-  power: "Power & Explosiveness",
+  conditioning: ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  athletic_performance: ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  power: ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
   calisthenics: "Calisthenics",
 };
 
@@ -225,7 +233,9 @@ export const GOAL_BIAS_TO_PRIMARY_FOCUS_LABEL: Record<string, string> = {
   recovery: "Recovery & Mobility",
   recovery_mobility: "Recovery & Mobility",
   joint_health: "Strength Training for Joint Health",
-  power: "Power & Explosiveness",
+  power: ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  conditioning: ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  athletic_performance: ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
 };
 
 /** Build goal sub-focus map for `planWeek` / workout builder from Sport Mode goals + saved preferences. */
@@ -296,6 +306,25 @@ export function normalizeGoalMatchPct(
   const np2 = Math.round((p2 / sum) * 100);
   const np3 = 100 - np1 - np2;
   return { goalMatchPrimaryPct: np1, goalMatchSecondaryPct: np2, goalMatchTertiaryPct: np3 };
+}
+
+/**
+ * Normalize manual preferences after athletic goal consolidation:
+ * legacy Power / Sport Conditioning primaries and sub-focus keys → Athletic Performance.
+ */
+export function normalizeAthleticGoalPreferences<T extends {
+  primaryFocus: string[];
+  subFocusByGoal: Record<string, string[]>;
+}>(prefs: T): T {
+  const migrated = migrateLegacyAthleticPreferences({
+    primaryFocus: prefs.primaryFocus,
+    subFocusByGoal: prefs.subFocusByGoal,
+  });
+  return {
+    ...prefs,
+    primaryFocus: migrated.primaryFocus,
+    subFocusByGoal: migrated.subFocusByGoal,
+  };
 }
 
 /**

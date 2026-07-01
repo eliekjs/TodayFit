@@ -10,12 +10,10 @@ const EXPECTED_PRIMARY_GOAL: Record<(typeof PRIMARY_FOCUS_OPTIONS)[number], Prim
   "Build Strength": "strength",
   "Build Muscle (Hypertrophy)": "hypertrophy",
   "Body Recomp (fat loss & muscle gain)": "body_recomp",
-  "Sport Conditioning": "conditioning",
   "Improve Endurance": "endurance",
   "Recovery & Mobility": "recovery_mobility",
   "Athletic Performance": "athletic_performance",
   Calisthenics: "calisthenics",
-  "Power & Explosiveness": "power",
   "Strength Training for Joint Health": "joint_health",
 };
 
@@ -65,6 +63,13 @@ describe("goal slug parity (manual primary ↔ generator)", () => {
       expect(input.session_intent?.selected_goals?.[0]).toBe(expected);
     }
   );
+
+  it("legacy athletic primary labels map to athletic_performance after normalization", () => {
+    for (const label of ["Power & Explosiveness", "Sport Conditioning"] as const) {
+      const input = manualPreferencesToGenerateWorkoutInput(basePrefs([label]), undefined, `legacy-${label}`);
+      expect(input.primary_goal).toBe("athletic_performance");
+    }
+  });
 });
 
 describe("resolveGoalSubFocusSlugs partial label aliases", () => {

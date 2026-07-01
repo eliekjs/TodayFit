@@ -23,7 +23,7 @@ export default function WorkoutCompleteScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>
           Workout Saved

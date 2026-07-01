@@ -8,6 +8,7 @@ import {
   ANKLE_FOOT_HEALTH_TAGGED_EXERCISE_IDS,
   BACK_SPINE_HEALTH_TAGGED_EXERCISE_IDS,
   ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS,
+  ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS,
   HIP_HEALTH_TAGGED_EXERCISE_IDS,
   KNEE_HEALTH_TAGGED_EXERCISE_IDS,
   SHOULDER_HEALTH_TAGGED_EXERCISE_IDS,
@@ -89,19 +90,43 @@ function exerciseTagSet(exercise: Exercise): Set<string> {
   return out;
 }
 
+const JOINT_HEALTH_TAGGED_CATALOG_IDS: ReadonlySet<string> = new Set([
+  ...KNEE_HEALTH_TAGGED_EXERCISE_IDS,
+  ...SHOULDER_HEALTH_TAGGED_EXERCISE_IDS,
+  ...HIP_HEALTH_TAGGED_EXERCISE_IDS,
+  ...ANKLE_FOOT_HEALTH_TAGGED_EXERCISE_IDS,
+  ...BACK_SPINE_HEALTH_TAGGED_EXERCISE_IDS,
+  ...ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS,
+]);
+
+/** Curated joint-health enrichment — catalog metadata (e.g. max_strength) must not veto these. */
+export function isJointHealthEnrichedCatalogExercise(exercise: Exercise): boolean {
+  const id = toSlug(exercise.id);
+  if (JOINT_HEALTH_TAGGED_CATALOG_IDS.has(id)) return true;
+  const tags = exerciseTagSet(exercise);
+  return JOINT_HEALTH_SUB_FOCUS_SLUGS.some((slug) => tags.has(slug));
+}
+
 /** Hard exclude: max strength, plyos, HIIT, heavy compounds. */
 export function isJointHealthExcludedExercise(exercise: Exercise): boolean {
+  const enriched = isJointHealthEnrichedCatalogExercise(exercise);
+
   if (exercise.modality === "power" || exercise.modality === "conditioning") return true;
-  if (exercise.difficulty >= 4 && exercise.modality === "strength") return true;
+  if (!enriched && exercise.difficulty >= 4 && exercise.modality === "strength") return true;
   if (HIGH_STRESS_COMPOUND_IDS.has(toSlug(exercise.id))) return true;
 
   const tags = exerciseTagSet(exercise);
   if (tags.has("plyometric") || tags.has("olympic") || tags.has("explosive")) return true;
   for (const a of JOINT_HEALTH_AVOID_ATTRIBUTE) {
+    if (enriched && (a === "max_strength" || a === "power" || a === "hiit" || a === "explosive")) {
+      continue;
+    }
     if (tags.has(a)) return true;
   }
-  for (const g of JOINT_HEALTH_AVOID_GOAL_TAGS) {
-    if (tags.has(g)) return true;
+  if (!enriched) {
+    for (const g of JOINT_HEALTH_AVOID_GOAL_TAGS) {
+      if (tags.has(g)) return true;
+    }
   }
   const stim = (exercise.tags?.stimulus ?? []).map(toSlug);
   if (stim.includes("plyometric")) return true;

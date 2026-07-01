@@ -11,6 +11,7 @@ import {
   deriveBodyPartFocus,
   deriveBodyPartFocusFromSubFocus,
   deriveSubFocus,
+  normalizeAthleticGoalPreferences,
   normalizeSubFocusByGoalAgainstConditioningPolicy,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
 } from "./preferencesConstants";
@@ -47,6 +48,10 @@ import {
 } from "../logic/workoutGeneration/weeklySubFocusCoveragePlan";
 import { getGenerationPruningGateFlags } from "./generationPruningGateConfig";
 import { buildStylePrefsWorkoutFields } from "../logic/workoutGeneration/workoutStylePolicy";
+import {
+  goalSlugForAthleticSubFocus,
+} from "../data/goalSubFocus/athleticSubFocusArchetypes";
+import { goalSubFocusKeysForPrimary } from "../logic/workoutGeneration/sessionIntentCoverage";
 
 const DURATIONS = [20, 30, 45, 60, 75] as const;
 type AllowedDuration = (typeof DURATIONS)[number];
@@ -166,7 +171,7 @@ function applyBodyEmphasisToMergedGoalSubFocus(
 } {
   const outFocus = { ...goalSubFocus };
   const outWeights = { ...goalSubFocusWeights };
-  for (const goalKey of ["power", "athletic_performance"] as const) {
+  for (const goalKey of ["power", "athletic_performance", "conditioning"] as const) {
     const slugs = outFocus[goalKey];
     if (!slugs?.length) continue;
     const filtered = filterSubFocusSlugsForBodyFocus(slugs, focusBodyParts);
@@ -187,6 +192,33 @@ function applyBodyEmphasisToMergedGoalSubFocus(
       sum > 0 ? nextWeights.map((w) => w / sum) : filtered.map(() => 1 / filtered.length);
   }
   return { goal_sub_focus: outFocus, goal_sub_focus_weights: outWeights };
+}
+
+/** Collect merged sub-focus slugs for a session goal from routed goal_sub_focus buckets. */
+function collectGoalSubFocusSlugsForPrimary(
+  goal: PrimaryGoal,
+  goalSubFocusByGoal: Record<string, string[]>
+): string[] {
+  const keys = goalSubFocusKeysForPrimary(goal);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const key of keys) {
+    for (const slug of goalSubFocusByGoal[key] ?? []) {
+      const norm = normIntentSubSlug(slug);
+      if (seen.has(norm)) continue;
+      seen.add(norm);
+      out.push(slug);
+    }
+  }
+  return out;
+}
+
+/** Tag-map goal slug for a sub-focus under a session primary goal. */
+function tagMapGoalSlugForSubFocus(goal: PrimaryGoal, subSlug: string): string {
+  if (goal === "athletic_performance") {
+    return goalSlugForAthleticSubFocus(subSlug);
+  }
+  return primaryGoalToSubFocusKey(goal);
 }
 
 function buildRankedIntentEntries(
@@ -226,20 +258,18 @@ function buildRankedIntentEntries(
     const goal = selectedGoals[i]!;
     const goalAbsWeight = normGoalWeights[i] ?? goalWeightFraction / Math.max(selectedGoals.length, 1);
 
-    const subFocusKey = primaryGoalToSubFocusKey(goal);
-    if (claimedSubFocusKeys.has(subFocusKey)) continue;
-
-    const subSlugsRaw = goalSubFocusByGoal[subFocusKey] ?? [];
+    const subFocusKeys = goalSubFocusKeysForPrimary(goal);
+    const subSlugsRaw = collectGoalSubFocusSlugsForPrimary(goal, goalSubFocusByGoal);
     const subSlugs = subSlugsRaw.filter(
       (s) => !sportSubSlugCoverage.has(normIntentSubSlug(s))
     );
 
     if (subSlugsRaw.length > 0 && subSlugs.length === 0) {
-      claimedSubFocusKeys.add(subFocusKey);
+      for (const k of subFocusKeys) claimedSubFocusKeys.add(k);
       continue;
     }
 
-    claimedSubFocusKeys.add(subFocusKey);
+    for (const k of subFocusKeys) claimedSubFocusKeys.add(k);
 
     if (subSlugs.length === 0) {
       entries.push({
@@ -260,7 +290,10 @@ function buildRankedIntentEntries(
       const subSlug = subSlugs[j]!;
       const subRankWeight = (goalSubRankWeights[j] ?? 1 / subSlugs.length) / goalSubRankSum;
       const subWeight = goalAbsWeight * subRankWeight;
-      const tagEntries = getExerciseTagsForGoalSubFocuses(subFocusKey, [subSlug]);
+      const tagEntries = getExerciseTagsForGoalSubFocuses(
+        tagMapGoalSlugForSubFocus(goal, subSlug),
+        [subSlug]
+      );
       entries.push({
         kind: "goal_sub_focus",
         slug: subSlug,
@@ -386,6 +419,7 @@ export function manualPreferencesToGenerateWorkoutInput(
   sportGoalContext?: SportGoalContext,
   trainingHistory?: TrainingHistoryContext
 ): GenerateWorkoutInput {
+  preferences = normalizeAthleticGoalPreferences(preferences);
   const durationMinutes = clampDuration(preferences.durationMinutes);
   const bodyPartFromTarget = deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier);
   const subFocusByGoalSanitized = normalizeSubFocusByGoalAgainstConditioningPolicy(

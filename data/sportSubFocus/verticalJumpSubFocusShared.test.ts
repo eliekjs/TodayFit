@@ -4,7 +4,9 @@ import {
   exerciseEligibleForVerticalJumpSession,
   exerciseHasLowerBodyPlyoJumpSignal,
   exerciseIsMedBallPowerThrow,
+  exerciseHasVerticalJumpStrengthFoundationSignal,
   exercisePassesVerticalJumpDynamicGate,
+  exercisePassesVerticalJumpTrainingGate,
   inputHasVerticalJumpSubFocus,
   verticalJumpExerciseSelectionScore,
 } from "./verticalJumpSubFocusShared";
@@ -58,6 +60,24 @@ describe("verticalJumpSubFocusShared", () => {
     const medBall = synth({ id: "med_ball_slam", name: "Med Ball Slam" });
     expect(exerciseEligibleForVerticalJumpSession(medBall, true)).toBe(false);
     expect(exerciseEligibleForVerticalJumpSession(medBall, false)).toBe(true);
+  });
+
+  it("accepts squat/hinge strength foundation for vertical jump training gate", () => {
+    const backSquat = synth({
+      id: "barbell_back_squat",
+      name: "Barbell Back Squat",
+      movement_pattern: "squat",
+      modality: "strength",
+      muscle_groups: ["quads", "glutes"],
+      tags: {
+        goal_tags: ["strength"],
+        attribute_tags: ["squat"],
+      },
+      exercise_role: "main_compound",
+    });
+    expect(exerciseHasVerticalJumpStrengthFoundationSignal(backSquat)).toBe(true);
+    expect(exercisePassesVerticalJumpTrainingGate(backSquat)).toBe(true);
+    expect(exercisePassesVerticalJumpDynamicGate(backSquat)).toBe(false);
   });
 
   it("detects vertical_jump intent across sport and goal maps", () => {

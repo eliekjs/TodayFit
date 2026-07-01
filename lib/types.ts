@@ -179,6 +179,7 @@ export type EquipmentKey =
   | "rings"
   | "plyo_box"
   | "sled"
+  | "foam_roller"
   | "bodyweight";
 
 export type ContraindicationKey =

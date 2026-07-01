@@ -136,6 +136,41 @@ export function exercisePassesVerticalJumpDynamicGate(exercise: Exercise): boole
   return tagSetHasDynamicPowerSignal(tags) && exerciseHasLowerBodyMuscleSignal(exercise);
 }
 
+/** Squat/hinge strength staples that support vertical-jump programming (secondary to plyos). */
+export function exerciseHasVerticalJumpStrengthFoundationSignal(exercise: Exercise): boolean {
+  if (exerciseIsMedBallPowerThrow(exercise)) return false;
+  if (exercise.modality !== "strength" && exercise.modality !== "power") return false;
+
+  const pattern = normVerticalJumpToken(exercise.movement_pattern ?? "");
+  const blob = exerciseBlobForVerticalJump(exercise);
+  const attrs = new Set((exercise.tags?.attribute_tags ?? []).map((a) => normVerticalJumpToken(a)));
+  const hasStrengthAttr =
+    attrs.has("squat_pattern") ||
+    attrs.has("hinge_pattern") ||
+    attrs.has("single_leg_strength") ||
+    attrs.has("posterior_chain") ||
+    attrs.has("compound") ||
+    attrs.has("squat") ||
+    attrs.has("hinge");
+
+  if (pattern === "squat" || pattern === "hinge") {
+    if (hasStrengthAttr) return true;
+    const role = normVerticalJumpToken(exercise.exercise_role ?? "");
+    if (role === "main_compound" || role === "accessory") return true;
+  }
+
+  return /\b(back_squat|front_squat|bulgarian|split_squat|trap_bar|rdl|deadlift)\b/.test(blob);
+}
+
+/** Full vertical-jump training gate: plyometrics plus strength foundation, never med-ball throws. */
+export function exercisePassesVerticalJumpTrainingGate(exercise: Exercise): boolean {
+  if (exerciseIsMedBallPowerThrow(exercise)) return false;
+  return (
+    exercisePassesVerticalJumpDynamicGate(exercise) ||
+    exerciseHasVerticalJumpStrengthFoundationSignal(exercise)
+  );
+}
+
 type VerticalJumpIntentInput = {
   goal_sub_focus?: Record<string, string[] | undefined>;
   sport_sub_focus?: Record<string, string[] | undefined>;

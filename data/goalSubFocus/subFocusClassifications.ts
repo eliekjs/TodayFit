@@ -27,9 +27,17 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
   },
   athletic_performance: {
     speed_sprint: "intent",
+    sprint: "intent",
     vertical_jump: "intent",
     power_explosive: "intent",
     agility_cod: "intent",
+    lower_body_power_plyos: "intent",
+    olympic_triple_extension: "intent",
+    upper_body_power: "intent",
+    zone2_aerobic_base: "intent",
+    intervals_hiit: "intent",
+    threshold_tempo: "intent",
+    hills: "intent",
     core: "overlay",
     upper: "overlay",
     lower: "overlay",
@@ -128,7 +136,22 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
 /** Optional conflict groups per goal. Slugs in the same group are resolved by user rank (first = highest weight). */
 const SUB_FOCUS_CONFLICT_BY_GOAL: Record<string, SubFocusConflictConfig> = {
   athletic_performance: {
-    intent: [["speed_sprint", "vertical_jump", "power_explosive", "agility_cod"]],
+    intent: [
+      [
+        "speed_sprint",
+        "sprint",
+        "vertical_jump",
+        "power_explosive",
+        "agility_cod",
+        "lower_body_power_plyos",
+        "olympic_triple_extension",
+        "upper_body_power",
+        "zone2_aerobic_base",
+        "intervals_hiit",
+        "threshold_tempo",
+        "hills",
+      ],
+    ],
     overlay: [["core", "upper", "lower", "full_body"]],
   },
   power: {

@@ -368,6 +368,19 @@ function estimateJointHealthSessionMinutes(blocks: WorkoutBlock[]): number {
   return blocks.reduce((sum, block) => sum + estimateJointHealthBlockMinutes(block.items), 0);
 }
 
+function jointHealthRoleItemCount(blocks: WorkoutBlock[], role: JointHealthSlotRole): number {
+  const block = blocks.find((b) => b.title === SLOT_BLOCK_TITLE[role]);
+  return block?.items.length ?? 0;
+}
+
+function jointHealthRoleBudget(
+  role: JointHealthSlotRole,
+  durationMinutes: number,
+  regionalSubs: string[]
+): number {
+  return slotBudgetForDuration(durationMinutes, regionalSubs).find((b) => b.role === role)?.count ?? 0;
+}
+
 function fillJointHealthSessionToDuration(
   blocks: WorkoutBlock[],
   pool: Exercise[],
@@ -405,6 +418,9 @@ function fillJointHealthSessionToDuration(
 
     for (const role of roleOrder) {
       if (estimateJointHealthSessionMinutes(blocks) >= minTarget) break;
+      if (jointHealthRoleItemCount(blocks, role) >= jointHealthRoleBudget(role, targetMinutes, regionalSubs)) {
+        continue;
+      }
       const ex = pickForSlot(pool, role, used, rng, regionalSubs, stressBudget, targetMinutes);
       if (!ex) continue;
       used.add(ex.id);

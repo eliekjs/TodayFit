@@ -51,6 +51,7 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "core", name: "Core" },
     { slug: "balanced", name: "Balanced" },
   ]),
+  /** @deprecated persisted presets — subs migrated to Athletic Performance */
   "Sport Conditioning": entry("conditioning", [
     { slug: "zone2_aerobic_base", name: "Zone 2 / Aerobic base" },
     { slug: "intervals_hiit", name: "Intervals / HIIT" },
@@ -98,6 +99,13 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "vertical_jump", name: "Vertical jump" },
     { slug: "power_explosive", name: "Power / Explosive" },
     { slug: "agility_cod", name: "Agility / Change of direction" },
+    { slug: "lower_body_power_plyos", name: "Lower body power / Plyos" },
+    { slug: "olympic_triple_extension", name: "Olympic / Triple extension" },
+    { slug: "upper_body_power", name: "Upper body power" },
+    { slug: "zone2_aerobic_base", name: "Zone 2 / Aerobic base" },
+    { slug: "intervals_hiit", name: "Intervals / HIIT" },
+    { slug: "threshold_tempo", name: "Threshold / Tempo" },
+    { slug: "hills", name: "Hills" },
     { slug: "core", name: "Core" },
     { slug: "upper", name: "Upper" },
     { slug: "lower", name: "Lower" },
@@ -113,6 +121,7 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "core", name: "Core" },
     { slug: "front_lever_advanced", name: "Front lever / Advanced" },
   ]),
+  /** @deprecated persisted presets — subs migrated to Athletic Performance */
   "Power & Explosiveness": entry("power", [
     { slug: "lower_body_power_plyos", name: "Lower body power / Plyos" },
     { slug: "olympic_triple_extension", name: "Olympic / Triple extension" },

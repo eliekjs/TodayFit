@@ -118,7 +118,7 @@ export function GenerationLoadingScreen({
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.centered}>
         <View
           style={[

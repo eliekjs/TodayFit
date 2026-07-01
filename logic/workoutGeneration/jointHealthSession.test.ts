@@ -437,6 +437,8 @@ describe("buildJointHealthMain — back & spine health", () => {
     const session = generateWorkoutSession(input, enrichedPool);
     const ids = session.blocks.flatMap((b) => b.items.map((i) => i.exercise_id));
     expect(ids.length).toBeGreaterThanOrEqual(4);
+    const sessionTitles = session.blocks.map((b) => b.title ?? "");
+    expect(sessionTitles.some((t) => t.toLowerCase().includes("stability"))).toBe(true);
     const banned = new Set(["barbell_deadlift", "clamshell", "hip_90_90", "bench_press_barbell", "push_up"]);
     for (const id of ids) {
       expect(banned.has(id)).toBe(false);
@@ -447,7 +449,6 @@ describe("buildJointHealthMain — back & spine health", () => {
     for (const id of ids) {
       expect(spineTagged.has(id)).toBe(true);
     }
-    const sessionTitles = session.blocks.map((b) => b.title ?? "");
     expect(sessionTitles.some((t) => t.toLowerCase().includes("goal focus"))).toBe(false);
   });
 
@@ -528,7 +529,9 @@ describe("buildJointHealthMain — elbow & wrist health", () => {
 
     const session = generateWorkoutSession(input, enrichedPool);
     const ids = session.blocks.flatMap((b) => b.items.map((i) => i.exercise_id));
-    expect(ids.length).toBeGreaterThanOrEqual(4);
+    expect(ids.length).toBeGreaterThanOrEqual(7);
+    const sessionTitles = session.blocks.map((b) => b.title ?? "");
+    expect(sessionTitles.some((t) => t.toLowerCase().includes("stability"))).toBe(true);
     const banned = new Set(["dips", "bench_press_barbell", "pullup", "cat_camel", "clamshell", "skull_crusher"]);
     for (const id of ids) {
       expect(banned.has(id)).toBe(false);
@@ -539,7 +542,6 @@ describe("buildJointHealthMain — elbow & wrist health", () => {
     for (const id of ids) {
       expect(elbowTagged.has(id)).toBe(true);
     }
-    const sessionTitles = session.blocks.map((b) => b.title ?? "");
     expect(sessionTitles.some((t) => t.toLowerCase().includes("goal focus"))).toBe(false);
   });
 });

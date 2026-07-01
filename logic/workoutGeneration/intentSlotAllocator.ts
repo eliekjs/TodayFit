@@ -25,6 +25,7 @@ import {
 } from "../../data/sportSubFocus/subFocusIntentArchetypes";
 import {
   exerciseHasLowerBodyPlyoJumpSignal,
+  exerciseHasVerticalJumpStrengthFoundationSignal,
   exerciseIsMedBallPowerThrow,
   isVerticalJumpSubFocusSlug,
 } from "../../data/sportSubFocus/verticalJumpSubFocusShared";
@@ -219,7 +220,9 @@ export function isDynamicSportSubFocusMainWorkCandidate(ex: Exercise, entry: Int
   const tags = exerciseTagSet(ex);
   if (isVerticalJumpSubFocusSlug(slug)) {
     if (exerciseIsMedBallPowerThrow(ex)) return false;
-    if (!exerciseHasLowerBodyPlyoJumpSignal(ex)) return false;
+    if (exerciseHasLowerBodyPlyoJumpSignal(ex)) return true;
+    if (exerciseHasVerticalJumpStrengthFoundationSignal(ex)) return true;
+    return false;
   } else if (!tagSetHasDynamicPowerSignal(tags)) {
     return false;
   }

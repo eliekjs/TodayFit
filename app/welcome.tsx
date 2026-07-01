@@ -16,14 +16,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useWelcome } from "../context/WelcomeContext";
 
-// Landing: geometric neon background with frosted card.
-const LOGO_BG = "#2dd4bf"; // vibrant teal (rounded square behind icon)
-const TAGLINE_GREEN = "#86efac"; // light green slogan
-const FROSTED_CARD = "rgba(255,255,255,0.08)";
-const INPUT_BG = "rgba(0,0,0,0.25)";
-const BTN_GRADIENT_LEFT = "#22c55e";
-const BTN_GRADIENT_RIGHT = "#3b82f6";
-const SOCIAL_BG = "rgba(0,0,0,0.2)";
+const CLEAN_BG = "#f7f3ec";
+const CLEAN_CARD = "#fffdf8";
+const CLEAN_TEXT = "#231f1a";
+const CLEAN_MUTED = "rgba(35,31,26,0.66)";
+const CLEAN_BORDER = "rgba(44,38,32,0.12)";
+const CLEAN_ACCENT = "#b7791f";
+const CLEAN_ACCENT_DARK = "#9c6417";
+const INPUT_BG = "rgba(255,253,248,0.92)";
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
           style={styles.keyboard}
@@ -51,7 +51,7 @@ export default function WelcomeScreen() {
           >
             <View style={styles.hero}>
               <View style={styles.logoBox}>
-                <Ionicons name="barbell" size={36} color="#fff" />
+                <Ionicons name="barbell" size={36} color="#fffdf8" />
               </View>
               <Text style={styles.brandName}>TodayFit</Text>
               <Text style={styles.tagline}>Your intelligent training partner</Text>
@@ -80,7 +80,7 @@ export default function WelcomeScreen() {
               <TextInput
                 style={[styles.input, styles.inputNonInteractive]}
                 placeholder="Email"
-                placeholderTextColor="rgba(255,255,255,0.5)"
+                placeholderTextColor={CLEAN_MUTED}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={false}
@@ -88,7 +88,7 @@ export default function WelcomeScreen() {
               <TextInput
                 style={[styles.input, styles.inputLast, styles.inputNonInteractive]}
                 placeholder="Password"
-                placeholderTextColor="rgba(255,255,255,0.5)"
+                placeholderTextColor={CLEAN_MUTED}
                 secureTextEntry
                 editable={false}
               />
@@ -108,7 +108,7 @@ export default function WelcomeScreen() {
                 onPress={enterApp}
               >
                 <LinearGradient
-                  colors={[BTN_GRADIENT_LEFT, BTN_GRADIENT_RIGHT]}
+                  colors={[CLEAN_ACCENT, CLEAN_ACCENT_DARK]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryBtn}
@@ -152,6 +152,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: CLEAN_BG,
   },
   safe: {
     flex: 1,
@@ -172,31 +173,31 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 18,
-    backgroundColor: LOGO_BG,
+    backgroundColor: CLEAN_ACCENT,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
-    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+    boxShadow: "0 8px 20px rgba(44,38,32,0.12)",
     elevation: 4,
   },
   brandName: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#fff",
+    color: CLEAN_TEXT,
     letterSpacing: -0.5,
     marginBottom: 6,
   },
   tagline: {
     fontSize: 16,
-    color: TAGLINE_GREEN,
+    color: CLEAN_MUTED,
     textAlign: "center",
   },
   authCard: {
-    backgroundColor: FROSTED_CARD,
+    backgroundColor: CLEAN_CARD,
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    borderColor: CLEAN_BORDER,
     overflow: "hidden",
   },
   toggleRow: {
@@ -212,25 +213,27 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   toggleBtnActive: {
-    backgroundColor: "#ffffff",
+    backgroundColor: CLEAN_BG,
     boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
     elevation: 2,
   },
   toggleText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "rgba(255,255,255,0.8)",
+    color: CLEAN_MUTED,
   },
   toggleTextActive: {
-    color: "#0f172a",
+    color: CLEAN_TEXT,
   },
   input: {
     backgroundColor: INPUT_BG,
+    borderWidth: 1,
+    borderColor: CLEAN_BORDER,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#fff",
+    color: CLEAN_TEXT,
     marginBottom: 12,
   },
   inputNonInteractive: {
@@ -241,7 +244,7 @@ const styles = StyleSheet.create({
   },
   previewHint: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.62)",
+    color: CLEAN_MUTED,
     textAlign: "center",
     marginBottom: 14,
     lineHeight: 18,
@@ -251,7 +254,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     textAlign: "center",
     marginBottom: 16,
-    color: "rgba(255,255,255,0.45)",
+    color: CLEAN_MUTED,
     fontWeight: "400",
   },
   primaryBtnWrap: {
@@ -266,7 +269,7 @@ const styles = StyleSheet.create({
   primaryBtnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#fff",
+    color: "#fffdf8",
   },
   dividerRow: {
     flexDirection: "row",
@@ -277,23 +280,25 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: CLEAN_BORDER,
   },
   dividerText: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
+    color: CLEAN_MUTED,
   },
   socialBtn: {
-    backgroundColor: SOCIAL_BG,
+    backgroundColor: CLEAN_CARD,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: CLEAN_BORDER,
   },
   socialBtnText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#fff",
+    color: CLEAN_TEXT,
   },
   helpBtn: {
     position: "absolute",
@@ -302,15 +307,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: SOCIAL_BG,
+    backgroundColor: CLEAN_CARD,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: CLEAN_BORDER,
   },
   helpText: {
     fontSize: 20,
     fontWeight: "600",
-    color: "rgba(255,255,255,0.9)",
+    color: CLEAN_TEXT,
   },
 });

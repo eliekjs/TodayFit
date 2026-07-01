@@ -14,6 +14,10 @@ import {
   resolveGoalSubFocusSlugs,
   resolveSubFocusProfile,
 } from "../data/goalSubFocus";
+import {
+  ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  goalSlugForAthleticSubFocus,
+} from "../data/goalSubFocus/athleticSubFocusArchetypes";
 
 /** Integer percentages for ordered labels; sums to exactly 100 when n ≥ 1. */
 export function equalIntegerPctsForLabels(labels: string[]): Record<string, number> {
@@ -146,39 +150,49 @@ function legacyWeightsForLabelSlugs(goalSlug: string, subFocusSlugs: string[]): 
   return m;
 }
 
+/** Internal goal slug for merge/tag lookup (athletic subs route to power / conditioning / athletic_performance). */
+function mergeGoalSlugForLabelAndSub(label: string, subFocusSlug: string, defaultGoalSlug: string): string {
+  if (canonicalGoalSubFocusLabel(label) === ATHLETIC_PERFORMANCE_PRIMARY_LABEL) {
+    return goalSlugForAthleticSubFocus(subFocusSlug);
+  }
+  return defaultGoalSlug;
+}
+
 /** Internal: map each display label → slug with per-label weight fraction (sums to 1 within label). */
 function perLabelSlugWeights(
   label: string,
   subLabels: string[],
   pctByGoal?: Record<string, Record<string, number>>
-): { goalSlug: string; pairs: { slug: string; w: number }[] } | null {
+): { pairs: { slug: string; goalSlug: string; w: number }[] } | null {
   const canonicalLabel = canonicalGoalSubFocusLabel(label);
-  const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(canonicalLabel, subLabels);
-  if (!goalSlug || subFocusSlugs.length === 0) return null;
+  const { goalSlug: entryGoalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(canonicalLabel, subLabels);
+  if (!entryGoalSlug || subFocusSlugs.length === 0) return null;
 
   if (labelHasExplicitSubFocusPct(label, subLabels, pctByGoal)) {
     const ints = normalizeSubFocusPctRecord(subLabels, pctByGoal?.[label]);
-    const pairs: { slug: string; w: number }[] = [];
+    const pairs: { slug: string; goalSlug: string; w: number }[] = [];
     const n = Math.min(subLabels.length, subFocusSlugs.length);
     for (let i = 0; i < n; i++) {
       const subLab = subLabels[i]!;
       const slug = subFocusSlugs[i]!;
-      pairs.push({ slug, w: (ints[subLab] ?? 0) / 100 });
+      const routedGoal = mergeGoalSlugForLabelAndSub(label, slug, entryGoalSlug);
+      pairs.push({ slug, goalSlug: routedGoal, w: (ints[subLab] ?? 0) / 100 });
     }
     let s = pairs.reduce((a, p) => a + p.w, 0);
     if (s > 0 && Math.abs(s - 1) > 1e-6) {
       for (const p of pairs) p.w /= s;
     }
-    return { goalSlug, pairs };
+    return { pairs };
   }
 
-  const legacy = legacyWeightsForLabelSlugs(goalSlug, subFocusSlugs);
-  const pairs: { slug: string; w: number }[] = [];
+  const legacy = legacyWeightsForLabelSlugs(entryGoalSlug, subFocusSlugs);
+  const pairs: { slug: string; goalSlug: string; w: number }[] = [];
   for (let i = 0; i < subFocusSlugs.length; i++) {
     const slug = subFocusSlugs[i]!;
-    pairs.push({ slug, w: legacy[slug] ?? 1 / subFocusSlugs.length });
+    const routedGoal = mergeGoalSlugForLabelAndSub(label, slug, entryGoalSlug);
+    pairs.push({ slug, goalSlug: routedGoal, w: legacy[slug] ?? 1 / subFocusSlugs.length });
   }
-  return { goalSlug, pairs };
+  return { pairs };
 }
 
 export type BuildMergedGoalSubFocusOpts = {
@@ -211,13 +225,16 @@ export function buildMergedGoalSubFocusSlugWeights(
   for (const label of labelsToMerge) {
     const subLabels = subFocusByGoal[label] ?? [];
     if (!subLabels.length) continue;
-    const { goalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(
+    const { goalSlug: entryGoalSlug, subFocusSlugs } = resolveGoalSubFocusSlugs(
       canonicalGoalSubFocusLabel(label),
       subLabels
     );
-    if (!goalSlug || !subFocusSlugs.length) continue;
-    const existing = goal_sub_focus[goalSlug] ?? [];
-    goal_sub_focus[goalSlug] = [...new Set([...existing, ...subFocusSlugs])];
+    if (!entryGoalSlug || !subFocusSlugs.length) continue;
+    for (const slug of subFocusSlugs) {
+      const routed = mergeGoalSlugForLabelAndSub(label, slug, entryGoalSlug);
+      const existing = goal_sub_focus[routed] ?? [];
+      goal_sub_focus[routed] = [...new Set([...existing, slug])];
+    }
   }
 
   const acc: Record<string, Record<string, number>> = {};
@@ -233,7 +250,7 @@ export function buildMergedGoalSubFocusSlugWeights(
     if (!subLabels.length) continue;
     const pack = perLabelSlugWeights(label, subLabels, subFocusPctByGoal);
     if (!pack) continue;
-    for (const { slug, w } of pack.pairs) add(pack.goalSlug, slug, w);
+    for (const { slug, goalSlug, w } of pack.pairs) add(goalSlug, slug, w);
   }
 
   const goal_sub_focus_weights: Record<string, number[]> = {};

@@ -305,7 +305,7 @@ export default function ExecuteScreen() {
   if (generatedWorkout == null) {
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.centered}>
           <Text style={[styles.emptyText, { color: theme.text }]}>
             No workout loaded. Generate one first.
@@ -323,7 +323,7 @@ export default function ExecuteScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.container}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: navBarHeight + 16 }]}

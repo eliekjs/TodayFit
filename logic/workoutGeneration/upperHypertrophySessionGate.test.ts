@@ -40,7 +40,7 @@ describe("upperHypertrophySessionGate", () => {
     expect(shouldGateLowerBodyHypertrophyRemainder(input, ["chest", "legs"])).toBe(false);
   });
 
-  it("omits conditioning for all hypertrophy-primary sessions", () => {
+  it("omits conditioning for hypertrophy-primary sessions without explicit cardio intent", () => {
     expect(
       shouldOmitOptionalHypertrophyUpperOnlyConditioning({
         primary_goal: "hypertrophy",
@@ -56,14 +56,16 @@ describe("upperHypertrophySessionGate", () => {
         secondary_goals: [],
       } as GenerateWorkoutInput)
     ).toBe(true);
+  });
 
+  it("allows conditioning when the user explicitly picks a cardio secondary goal (filter fidelity)", () => {
     expect(
       shouldOmitOptionalHypertrophyUpperOnlyConditioning({
         primary_goal: "hypertrophy",
         focus_body_parts: ["upper_push"],
         secondary_goals: ["conditioning"],
       } as GenerateWorkoutInput)
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 
@@ -131,7 +133,7 @@ describe("generateWorkoutSession upper-only hypertrophy", () => {
     expect(idSet.has("barbell_back_squat")).toBe(false);
   });
 
-  it("does not add conditioning even when user requests conditioning secondary goal", () => {
+  it("adds conditioning when user explicitly requests conditioning secondary goal (filter fidelity)", () => {
     const session = generateWorkoutSession(
       {
         ...base,
@@ -140,6 +142,6 @@ describe("generateWorkoutSession upper-only hypertrophy", () => {
       },
       STUB_EXERCISES
     );
-    expect(session.blocks.some((b) => b.block_type === "conditioning")).toBe(false);
+    expect(session.blocks.some((b) => b.block_type === "conditioning")).toBe(true);
   });
 });

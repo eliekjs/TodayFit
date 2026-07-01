@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { View, StyleSheet, useWindowDimensions, Platform } from "react-native";
 import Svg, { Defs, G, Line, LinearGradient, Rect, Stop } from "react-native-svg";
+import { cleanFlowPalette, useTheme } from "../lib/theme";
 
 const PIECE_CELL = 16;
 const PIECE_GAP = 1;
@@ -78,6 +79,7 @@ const TETROMINOES: number[][][] = [
 ];
 
 export function GeometricPatternBackground() {
+  const theme = useTheme();
   const { width: winW, height: winH } = useWindowDimensions();
   const width = Math.max(1, winW);
   const height = Math.max(1, winH);
@@ -210,6 +212,18 @@ export function GeometricPatternBackground() {
   const glowBottomY = IS_NATIVE ? height * 0.42 : height * 0.35;
   const glowBottomWidth = IS_NATIVE ? width * 0.58 : width * 0.64;
   const glowBottomHeight = IS_NATIVE ? height * 0.58 : height * 0.65;
+
+  if (theme.background === cleanFlowPalette.background) {
+    return (
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.nonInteractive,
+          { backgroundColor: theme.background },
+        ]}
+      />
+    );
+  }
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.nonInteractive]}>

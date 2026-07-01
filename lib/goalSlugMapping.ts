@@ -30,7 +30,6 @@ export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   "Body Recomp (fat loss & muscle gain)": "physique",
   // Backward-compat for persisted presets created before rename.
   "Body Recomposition": "physique",
-  "Sport Conditioning": "conditioning",
   "Improve Endurance": "endurance",
   "Recovery & Mobility": "recovery_mobility",
   /** @deprecated persisted presets */
@@ -38,7 +37,10 @@ export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
   Recovery: "recovery_mobility",
   "Athletic Performance": "athletic_performance",
   Calisthenics: "calisthenics",
+  /** @deprecated persisted presets — slug retained for internal archetype routing */
   "Power & Explosiveness": "power",
+  /** @deprecated persisted presets — slug retained for internal archetype routing */
+  "Sport Conditioning": "conditioning",
   "Strength Training for Joint Health": "joint_health",
 };
 
@@ -47,16 +49,16 @@ export const GOAL_SLUG_TO_PRIMARY_FOCUS: Record<string, string> = {
   strength: "Build Strength",
   muscle: "Build Muscle (Hypertrophy)",
   physique: "Body Recomp (fat loss & muscle gain)",
-  conditioning: "Sport Conditioning",
   endurance: "Improve Endurance",
   mobility: "Recovery & Mobility",
   recovery_mobility: "Recovery & Mobility",
   joint_health: "Strength Training for Joint Health",
   athletic_performance: "Athletic Performance",
-  power: "Power & Explosiveness",
   calisthenics: "Calisthenics",
+  power: "Athletic Performance",
+  conditioning: "Athletic Performance",
   resilience: "Recovery & Mobility",
-  climbing: "Sport Conditioning",
+  climbing: "Athletic Performance",
   trail_running: "Improve Endurance",
-  ski: "Sport Conditioning",
+  ski: "Athletic Performance",
 };

@@ -14,9 +14,6 @@ import {
 } from "../lib/sessionDraft";
 import { PrimaryButton } from "./Button";
 
-const HEADER_BG = "rgba(15,23,42,0.8)";
-const HEADER_BORDER = "rgba(148,163,184,0.2)";
-
 function phaseIndex(phase: SessionPhase): number {
   return SESSION_PHASES.findIndex((p) => p.key === phase);
 }
@@ -189,7 +186,15 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
     <>
       <View
         pointerEvents="box-none"
-        style={[styles.strip, { top, height: SESSION_BANNER_HEIGHT }]}
+        style={[
+          styles.strip,
+          {
+            top,
+            height: SESSION_BANNER_HEIGHT,
+            backgroundColor: theme.cardOpaque,
+            borderBottomColor: theme.border,
+          },
+        ]}
       >
         <FlowProgressTrack currentIdx={currentIdx} primaryColor={theme.primary} />
 
@@ -254,9 +259,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
-    backgroundColor: HEADER_BG,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HEADER_BORDER,
     overflow: "hidden",
     ...(Platform.OS === "web" ? ({ pointerEvents: "auto" } as const) : null),
   },

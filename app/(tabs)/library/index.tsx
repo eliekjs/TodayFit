@@ -122,7 +122,7 @@ export default function LibraryScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

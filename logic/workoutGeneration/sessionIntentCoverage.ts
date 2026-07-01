@@ -38,7 +38,7 @@ export function goalSubFocusKeysForPrimary(primary: PrimaryGoal): string[] {
     case "power":
       return ["power", "conditioning"];
     case "athletic_performance":
-      return ["athletic_performance", "strength"];
+      return ["athletic_performance", "power", "conditioning", "strength"];
     case "calisthenics":
       // Prefer `calisthenics` bucket; include `strength` for legacy merged prefs that stored calisthenics subs there.
       return ["calisthenics", "strength"];

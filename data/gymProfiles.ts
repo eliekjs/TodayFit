@@ -67,6 +67,7 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "rings", label: "Gymnastic Rings" },
       { id: "plyo_box", label: "Plyo Box" },
       { id: "sled", label: "Sled" },
+      { id: "foam_roller", label: "Foam Roller" },
       { id: "bodyweight", label: "Bodyweight" },
     ],
   },
@@ -79,6 +80,7 @@ const YOUR_GYM_DEFAULTS: EquipmentKey[] = [
   "bench",
   "dumbbells",
   "kettlebells",
+  "bands",
   "cable_machine",
   "lat_pulldown",
   "chest_press",
@@ -87,6 +89,7 @@ const YOUR_GYM_DEFAULTS: EquipmentKey[] = [
   "leg_extension",
   "treadmill",
   "pullup_bar",
+  "foam_roller",
   "bodyweight",
 ];
 

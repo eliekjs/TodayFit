@@ -27,7 +27,7 @@ export function ExperienceLevelToggle({
   includeCreativeVariations,
   onChange,
   title = "Experience level",
-  subtitle = "Filters exercise difficulty. Creative adds complex or unusual variations (built on advanced).",
+  subtitle,
   marginTop = 0,
 }: Props) {
   const theme = useTheme();
@@ -53,15 +53,17 @@ export function ExperienceLevelToggle({
       >
         {title}
       </Text>
-      <Text
-        style={[
-          styles.subtitle,
-          { color: theme.textMuted },
-          Platform.OS === "web" && styles.webLabelPassthrough,
-        ]}
-      >
-        {subtitle}
-      </Text>
+      {subtitle ? (
+        <Text
+          style={[
+            styles.subtitle,
+            { color: theme.textMuted },
+            Platform.OS === "web" && styles.webLabelPassthrough,
+          ]}
+        >
+          {subtitle}
+        </Text>
+      ) : null}
       <View style={styles.chipRow}>
         <Chip
           label="Beginner"

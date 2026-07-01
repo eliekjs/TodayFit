@@ -16,6 +16,19 @@ export type {
   SubFocusConflictConfig,
   SubFocusConflictGroup,
 } from "./types";
+export {
+  ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  ATHLETIC_SUB_FOCUS_ARCHETYPE,
+  LEGACY_ATHLETIC_PRIMARY_FOCUS_LABELS,
+  archetypeForAthleticSubFocusSlug,
+  canonicalAthleticPrimaryFocusLabel,
+  goalSlugForAthleticSubFocus,
+  isAthleticUmbrellaPrimaryLabel,
+  migrateLegacyAthleticPreferences,
+  sessionAssemblesPowerBlock,
+  sessionHasPowerBlockSubFocus,
+  sessionHasRoutedConditioningSubFocus,
+} from "./athleticSubFocusArchetypes";
 export { GOAL_SUB_FOCUS_OPTIONS } from "./goalSubFocusOptions";
 export { GOAL_SUB_FOCUS_TAG_MAP } from "./goalSubFocusTagMap";
 export { resolveSubFocusProfile, getTagWeightsFromProfile } from "./subFocusResolver";
@@ -66,6 +79,8 @@ import {
 const LEGACY_GOAL_LABEL_ALIASES: Record<string, string> = {
   "mobility & joint health": "Recovery & Mobility",
   recovery: "Recovery & Mobility",
+  "power & explosiveness": "Athletic Performance",
+  "sport conditioning": "Athletic Performance",
 };
 
 export function canonicalGoalSubFocusLabel(label: string): string {
@@ -97,6 +112,7 @@ const GOAL_SUB_FOCUS_PARTIAL_LABEL_ALIASES: Record<string, string> = {
   deadlift: "deadlift_hinge",
   "deadlift / hinge": "deadlift_hinge",
   squat: "squat",
+  sprint: "speed_sprint",
 };
 
 function resolveSubFocusLabelToSlug(

@@ -1,3 +1,4 @@
+import React, { createContext, useContext } from "react";
 import { Platform, useColorScheme } from "react-native";
 
 const IS_NATIVE = Platform.OS !== "web";
@@ -71,7 +72,51 @@ const todayFitDarkNativePalette = {
 
 export type Theme = typeof todayFitPalette;
 
+const themeOverrideContext = createContext<Theme | null>(null);
+
+type ThemeOverrideProviderProps = {
+  theme?: Theme | null;
+  children: React.ReactNode;
+};
+
+export const cleanFlowPalette: Theme = {
+  background: "#f7f3ec",
+  card: "#fffdf8",
+  cardOpaque: "#fffdf8",
+  sectionSurface: "#fffdf8",
+  border: "rgba(44,38,32,0.12)",
+  borderStrong: "rgba(44,38,32,0.18)",
+  text: "#231f1a",
+  textMuted: "rgba(35,31,26,0.66)",
+  primary: "#b7791f",
+  primarySolid: "#9c6417",
+  primarySoft: "rgba(183,121,31,0.12)",
+  secondary: "#e8ddcd",
+  secondarySoft: "rgba(183,121,31,0.09)",
+  chipBackground: "#fffdf8",
+  chipSelectedBackground: "rgba(183,121,31,0.14)",
+  chipSelectedText: "#5f3d0e",
+  chipSelectedBorder: "#b7791f",
+  danger: "#b91c1c",
+};
+
+export function ThemeOverrideProvider({ theme, children }: ThemeOverrideProviderProps) {
+  return React.createElement(
+    themeOverrideContext.Provider,
+    { value: theme ?? null },
+    children
+  );
+}
+
 export function useTheme(): Theme {
+  const override = useContext(themeOverrideContext);
+  if (override != null) {
+    return override;
+  }
+  return cleanFlowPalette;
+}
+
+export function useLegacyTheme(): Theme {
   const scheme = useColorScheme();
   if (IS_NATIVE) {
     return scheme === "dark" ? todayFitDarkNativePalette : todayFitNativePalette;

@@ -962,7 +962,7 @@ export default function ManualWeekScreen() {
   if (error && !manualWeekPlan) {
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={[styles.container, styles.centered]}>
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
         <PrimaryButton label="Retry" onPress={generateWeek} />
@@ -980,7 +980,7 @@ export default function ManualWeekScreen() {
         dayFocusChoiceIds.length === selectedTrainingDays.length;
       return (
         <AppScreenWrapper>
-          <StatusBar style="light" />
+          <StatusBar style="dark" />
           <View style={styles.container}>
             <ScrollView
               contentContainerStyle={[styles.scrollContent, { paddingBottom: navBarHeight + 16 }]}
@@ -1040,7 +1040,7 @@ export default function ManualWeekScreen() {
     }
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.container}>
           <ScrollView
             contentContainerStyle={[styles.scrollContent, styles.centered, { paddingBottom: navBarHeight + 16 }]}
@@ -1344,7 +1344,7 @@ export default function ManualWeekScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.container}>
         <ScrollView
           ref={scrollViewRef}

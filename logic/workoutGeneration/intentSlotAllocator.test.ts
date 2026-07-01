@@ -208,7 +208,7 @@ describe("mainWorkPrimaryForIntentEntry", () => {
     expect(isMainWorkCandidateForIntentEntry(hinge, entry, "strength")).toBe(false);
   });
 
-  it("requires dynamic evidence for explosive jump main-work candidates", () => {
+  it("allows strength foundation and plyometrics for vertical_jump main-work candidates", () => {
     const entry: IntentEntry = {
       kind: "sport_sub_focus",
       slug: "vertical_jump",
@@ -245,7 +245,7 @@ describe("mainWorkPrimaryForIntentEntry", () => {
       exercise_role: "accessory",
       impact_level: "medium",
     } as Exercise;
-    expect(isMainWorkCandidateForIntentEntry(heavySquat, entry, "power")).toBe(false);
+    expect(isMainWorkCandidateForIntentEntry(heavySquat, entry, "power")).toBe(true);
     expect(isMainWorkCandidateForIntentEntry(jump, entry, "power")).toBe(true);
   });
 

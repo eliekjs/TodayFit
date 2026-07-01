@@ -6,6 +6,24 @@
 
 import type { GoalSubFocusTagMap } from "./types";
 import { SHARED_TAG_WEIGHTS_VERTICAL_JUMP } from "../sportSubFocus/verticalJumpSubFocusShared";
+import {
+  TAGS_AGILITY_COD,
+  TAGS_ATHLETIC_OVERLAY_CORE,
+  TAGS_ATHLETIC_OVERLAY_FULL_BODY,
+  TAGS_ATHLETIC_OVERLAY_LOWER,
+  TAGS_ATHLETIC_OVERLAY_UPPER,
+  TAGS_HILLS,
+  TAGS_INTERVALS_HIIT,
+  TAGS_LOWER_BODY_POWER_PLYOS,
+  TAGS_OLYMPIC_TRIPLE_EXTENSION,
+  TAGS_POWER_EXPLOSIVE,
+  TAGS_SPEED_SPRINT,
+  TAGS_SPRINT,
+  TAGS_THRESHOLD_TEMPO,
+  TAGS_UPPER_BODY_POWER,
+  TAGS_VERTICAL_JUMP,
+  TAGS_ZONE2_AEROBIC_BASE,
+} from "./athleticSubFocusTagConstants";
 
 function key(goalSlug: string, subFocusSlug: string): string {
   return `${goalSlug}:${subFocusSlug}`;
@@ -51,52 +69,21 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
   ],
 
   // --- Athletic Performance (goal_slug: athletic_performance) ---
-  [key("athletic_performance", "speed_sprint")]: [
-    { tag_slug: "plyometric", weight: 1.2 },
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "legs", weight: 1 },
-  ],
-  [key("athletic_performance", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
-  [key("athletic_performance", "power_explosive")]: [
-    { tag_slug: "power", weight: 1.3 },
-    { tag_slug: "plyometric", weight: 1.1 },
-    { tag_slug: "compound", weight: 1 },
-  ],
-  [key("athletic_performance", "agility_cod")]: [
-    { tag_slug: "agility", weight: 1.3 },
-    { tag_slug: "plyometric", weight: 1.2 },
-    { tag_slug: "lateral_power", weight: 1.2 },
-    { tag_slug: "single_leg_strength", weight: 1.1 },
-    { tag_slug: "balance", weight: 1 },
-    { tag_slug: "single_leg", weight: 1 },
-    { tag_slug: "legs", weight: 1 },
-  ],
-  [key("athletic_performance", "core")]: [
-    { tag_slug: "core_stability", weight: 1.3 },
-    { tag_slug: "core", weight: 1.1 },
-  ],
-  [key("athletic_performance", "upper")]: [
-    { tag_slug: "push", weight: 1.1 },
-    { tag_slug: "pull", weight: 1.1 },
-    { tag_slug: "chest", weight: 1 },
-    { tag_slug: "back", weight: 1 },
-    { tag_slug: "shoulders", weight: 1 },
-  ],
-  [key("athletic_performance", "lower")]: [
-    { tag_slug: "squat", weight: 1.1 },
-    { tag_slug: "hinge", weight: 1.1 },
-    { tag_slug: "legs", weight: 1.1 },
-    { tag_slug: "glutes", weight: 1 },
-    { tag_slug: "quads", weight: 1 },
-  ],
-  [key("athletic_performance", "full_body")]: [
-    { tag_slug: "compound", weight: 1.3 },
-    { tag_slug: "squat", weight: 1 },
-    { tag_slug: "hinge", weight: 1 },
-    { tag_slug: "push", weight: 1 },
-    { tag_slug: "pull", weight: 1 },
-    { tag_slug: "power", weight: 0.9 },
-  ],
+  [key("athletic_performance", "speed_sprint")]: [...TAGS_SPEED_SPRINT],
+  [key("athletic_performance", "vertical_jump")]: [...TAGS_VERTICAL_JUMP],
+  [key("athletic_performance", "power_explosive")]: [...TAGS_POWER_EXPLOSIVE],
+  [key("athletic_performance", "agility_cod")]: [...TAGS_AGILITY_COD],
+  [key("athletic_performance", "lower_body_power_plyos")]: [...TAGS_LOWER_BODY_POWER_PLYOS],
+  [key("athletic_performance", "olympic_triple_extension")]: [...TAGS_OLYMPIC_TRIPLE_EXTENSION],
+  [key("athletic_performance", "upper_body_power")]: [...TAGS_UPPER_BODY_POWER],
+  [key("athletic_performance", "zone2_aerobic_base")]: [...TAGS_ZONE2_AEROBIC_BASE],
+  [key("athletic_performance", "intervals_hiit")]: [...TAGS_INTERVALS_HIIT],
+  [key("athletic_performance", "threshold_tempo")]: [...TAGS_THRESHOLD_TEMPO],
+  [key("athletic_performance", "hills")]: [...TAGS_HILLS],
+  [key("athletic_performance", "core")]: [...TAGS_ATHLETIC_OVERLAY_CORE],
+  [key("athletic_performance", "upper")]: [...TAGS_ATHLETIC_OVERLAY_UPPER],
+  [key("athletic_performance", "lower")]: [...TAGS_ATHLETIC_OVERLAY_LOWER],
+  [key("athletic_performance", "full_body")]: [...TAGS_ATHLETIC_OVERLAY_FULL_BODY],
 
   // --- Legacy: athletic presets may still store these under goal_slug strength ---
   [key("strength", "speed_sprint")]: [
@@ -318,26 +305,10 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
   [key("physique", "balanced")]: [],
 
   // --- Sport Conditioning (goal_slug: conditioning) ---
-  [key("conditioning", "zone2_aerobic_base")]: [
-    { tag_slug: "conditioning", weight: 1.2 },
-    { tag_slug: "endurance", weight: 1.2 },
-    { tag_slug: "low_impact", weight: 1 },
-  ],
-  [key("conditioning", "intervals_hiit")]: [
-    { tag_slug: "conditioning", weight: 1.3 },
-    { tag_slug: "energy_high", weight: 1.1 },
-    { tag_slug: "compound", weight: 1 },
-  ],
-  [key("conditioning", "threshold_tempo")]: [
-    { tag_slug: "conditioning", weight: 1.2 },
-    { tag_slug: "endurance", weight: 1.1 },
-  ],
-  [key("conditioning", "hills")]: [
-    { tag_slug: "uphill_conditioning", weight: 1.35 },
-    { tag_slug: "legs", weight: 1.2 },
-    { tag_slug: "glutes", weight: 1.1 },
-    { tag_slug: "conditioning", weight: 1 },
-  ],
+  [key("conditioning", "zone2_aerobic_base")]: [...TAGS_ZONE2_AEROBIC_BASE],
+  [key("conditioning", "intervals_hiit")]: [...TAGS_INTERVALS_HIIT],
+  [key("conditioning", "threshold_tempo")]: [...TAGS_THRESHOLD_TEMPO],
+  [key("conditioning", "hills")]: [...TAGS_HILLS],
   [key("conditioning", "full_body")]: [
     { tag_slug: "compound", weight: 1.2 },
     { tag_slug: "conditioning", weight: 1.1 },
@@ -357,61 +328,20 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "core", weight: 1 },
   ],
 
-  // --- Power & Explosiveness (goal_slug: conditioning) ---
-  [key("conditioning", "lower_body_power_plyos")]: [
-    { tag_slug: "power", weight: 1.3 },
-    { tag_slug: "plyometric", weight: 1.2 },
-    { tag_slug: "squat", weight: 1 },
-    { tag_slug: "legs", weight: 1 },
-  ],
-  [key("conditioning", "olympic_triple_extension")]: [
-    { tag_slug: "power", weight: 1.3 },
-    { tag_slug: "hinge", weight: 1.1 },
-    { tag_slug: "compound", weight: 1 },
-  ],
-  [key("conditioning", "upper_body_power")]: [
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "push", weight: 1.1 },
-    { tag_slug: "plyometric", weight: 1 },
-  ],
-  [key("conditioning", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
-  [key("conditioning", "sprint")]: [
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "conditioning", weight: 1.1 },
-    { tag_slug: "legs", weight: 1 },
-  ],
+  // --- Power & Explosiveness (goal_slug: conditioning) — legacy misplaced keys ---
+  [key("conditioning", "lower_body_power_plyos")]: [...TAGS_LOWER_BODY_POWER_PLYOS],
+  [key("conditioning", "olympic_triple_extension")]: [...TAGS_OLYMPIC_TRIPLE_EXTENSION],
+  [key("conditioning", "upper_body_power")]: [...TAGS_UPPER_BODY_POWER],
+  [key("conditioning", "vertical_jump")]: [...TAGS_VERTICAL_JUMP],
+  [key("conditioning", "sprint")]: [...TAGS_SPRINT],
 
   // --- Power & Explosiveness (goal_slug: power) ---
-  [key("power", "lower_body_power_plyos")]: [
-    { tag_slug: "power", weight: 1.3 },
-    { tag_slug: "plyometric", weight: 1.2 },
-    { tag_slug: "squat", weight: 1 },
-    { tag_slug: "legs", weight: 1 },
-  ],
-  [key("power", "olympic_triple_extension")]: [
-    { tag_slug: "power", weight: 1.3 },
-    { tag_slug: "hinge", weight: 1.1 },
-    { tag_slug: "compound", weight: 1 },
-  ],
-  [key("power", "upper_body_power")]: [
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "push", weight: 1.1 },
-    { tag_slug: "plyometric", weight: 1 },
-  ],
-  [key("power", "vertical_jump")]: [...SHARED_TAG_WEIGHTS_VERTICAL_JUMP],
-  [key("power", "sprint")]: [
-    { tag_slug: "power", weight: 1.2 },
-    { tag_slug: "conditioning", weight: 1.1 },
-    { tag_slug: "legs", weight: 1 },
-  ],
-  [key("power", "full_body")]: [
-    { tag_slug: "compound", weight: 1.3 },
-    { tag_slug: "squat", weight: 1 },
-    { tag_slug: "hinge", weight: 1 },
-    { tag_slug: "push", weight: 1 },
-    { tag_slug: "pull", weight: 1 },
-    { tag_slug: "power", weight: 0.9 },
-  ],
+  [key("power", "lower_body_power_plyos")]: [...TAGS_LOWER_BODY_POWER_PLYOS],
+  [key("power", "olympic_triple_extension")]: [...TAGS_OLYMPIC_TRIPLE_EXTENSION],
+  [key("power", "upper_body_power")]: [...TAGS_UPPER_BODY_POWER],
+  [key("power", "vertical_jump")]: [...TAGS_VERTICAL_JUMP],
+  [key("power", "sprint")]: [...TAGS_SPRINT],
+  [key("power", "full_body")]: [...TAGS_ATHLETIC_OVERLAY_FULL_BODY],
 
   // --- Improve Endurance (goal_slug: endurance) ---
   [key("endurance", "zone2_long_steady")]: [

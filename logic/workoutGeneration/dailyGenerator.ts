@@ -135,6 +135,7 @@ import {
 import { buildJointHealthMain } from "./jointHealthSession";
 import {
   isJointHealthAppropriateExercise,
+  isJointHealthEnrichedCatalogExercise,
   isJointHealthExcludedExercise,
 } from "../../data/goalSubFocus/jointHealthSubFocus";
 import {
@@ -223,11 +224,19 @@ import {
   warmupCodPrepSelectionScore,
 } from "../../data/sportSubFocus/subFocusIntentRegistry";
 import {
+  athleticSessionIsConditioningDominant,
+  sessionAssemblesPowerBlock,
+  sessionHasPowerBlockSubFocus,
+} from "../../data/goalSubFocus/athleticSubFocusArchetypes";
+import {
   exerciseEligibleForVerticalJumpSession,
   exerciseHasLowerBodyPlyoJumpSignal,
+  exerciseHasVerticalJumpStrengthFoundationSignal,
   exerciseIsMedBallPowerThrow,
+  exerciseBlobForVerticalJump,
   inputHasVerticalJumpSubFocus,
   isVerticalJumpSubFocusSlug,
+  verticalJumpExerciseSelectionScore,
 } from "../../data/sportSubFocus/verticalJumpSubFocusShared";
 import {
   attachBlockFillContext,
@@ -473,6 +482,23 @@ function applyWeekMainLiftExclusion(pool: Exercise[], input: GenerateWorkoutInpu
     return !excludedClusters.has(cluster);
   });
   return filteredByCluster.length > 0 ? filteredByCluster : filteredById;
+}
+
+/**
+ * Order the validator's repair pool so main lifts already used this week come last.
+ * Validation repairs pick the first eligible candidate; without this, a repair can
+ * reintroduce a prior day's main lift and break weekly main-lift diversity.
+ */
+function deprioritizeWeekMainLiftsForRepair(pool: Exercise[], input: GenerateWorkoutInput): Exercise[] {
+  const used = input.week_main_strength_lift_ids_used;
+  if (!used?.length) return pool;
+  const usedIds = new Set(used.map(normalizeWeekMainLiftId));
+  const fresh: Exercise[] = [];
+  const repeats: Exercise[] = [];
+  for (const e of pool) {
+    (usedIds.has(normalizeWeekMainLiftId(e.id)) ? repeats : fresh).push(e);
+  }
+  return repeats.length > 0 ? [...fresh, ...repeats] : pool;
 }
 
 /** IDs from primary compound blocks: main_strength, main_hypertrophy, and power (rolling weekly diversity). */
@@ -724,7 +750,10 @@ export function filterByHardConstraints(
       return false;
     }
     if (userWorkoutTier === "beginner" && isSandbagLoadVariant(e)) return false;
-    if (nonAdvancedTier && isComplexCatalogVariantForNonAdvanced(e)) return false;
+    const jointHealthCatalogBypass =
+      input.primary_goal === "joint_health" && isJointHealthEnrichedCatalogExercise(e);
+    if (nonAdvancedTier && isComplexCatalogVariantForNonAdvanced(e) && !jointHealthCatalogBypass)
+      return false;
     if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations) && !ringStraddleAllowed)
       return false;
     if (isRingSpecificExercise(e) && !hasRings) return false;
@@ -789,7 +818,9 @@ export function getHardConstraintRejectReason(
   if (userWorkoutTier === "beginner" && isSandbagLoadVariant(e)) {
     return "beginner_sandbag_load_excluded";
   }
-  if (nonAdvancedTier && isComplexCatalogVariantForNonAdvanced(e)) {
+  const jointHealthCatalogBypass =
+    input.primary_goal === "joint_health" && isJointHealthEnrichedCatalogExercise(e);
+  if (nonAdvancedTier && isComplexCatalogVariantForNonAdvanced(e) && !jointHealthCatalogBypass) {
     return "complex_catalog_variant_non_advanced";
   }
   if (exerciseBlockedByCreativePreference(e.creative_variation, includeCreativeVariations) && !ringStraddleAllowed)
@@ -3406,7 +3437,8 @@ function tryBuildIntentSlotAllocatedMainInject(
     pool = applyWeekMainLiftExclusion(pool, input);
     // Strict matching: only use the sub-focus-matched pool. Do NOT fall back to the
     // full main-work pool because that would put unrelated exercises in a labeled slot.
-    if (pool.length < nMainCapped) continue;
+    const effectivePickCount = Math.min(nMainCapped, pool.length);
+    if (effectivePickCount < 1) continue;
 
     const slotRng = rngForWorkoutSlot(input.seed ?? 0, "intent_slot_main", `${i}_${entry.kind}_${entry.slug}`);
     const picked = pickFromScoredShortlistRandom(
@@ -3414,12 +3446,13 @@ function tryBuildIntentSlotAllocatedMainInject(
       input,
       recentIds,
       movementCounts,
-      nMainCapped,
+      effectivePickCount,
       slotRng,
       fatigueState,
       { ...baseOpts, blockType: entryBlockType }
     );
-    if (picked.length < nMainCapped) {
+    if (picked.length < 1) continue;
+    if (picked.length < effectivePickCount) {
       if (
         !(
           entryBlockType === "power" &&
@@ -3430,6 +3463,7 @@ function tryBuildIntentSlotAllocatedMainInject(
         continue;
       }
     }
+    const filledCount = picked.length;
 
     const swapPoolIds = capSwapPoolIds(
       searchExercises
@@ -3494,7 +3528,7 @@ function tryBuildIntentSlotAllocatedMainInject(
         block_type: entryBlockType,
         format: "superset",
         title: `Main (${label})`,
-        reasoning: intentReasonForEntry(entry, nMainCapped),
+        reasoning: intentReasonForEntry(entry, filledCount),
         goal_intent,
         items: [itemA, itemB],
         supersetPairs: [[itemA, itemB]],
@@ -3529,7 +3563,7 @@ function tryBuildIntentSlotAllocatedMainInject(
         block_type: entryBlockType,
         format: "straight_sets",
         title: `Main (${label})`,
-        reasoning: intentReasonForEntry(entry, nMainCapped),
+        reasoning: intentReasonForEntry(entry, filledCount),
         goal_intent,
         items,
         estimated_minutes: Math.min(Math.max(est, 4), Math.ceil((input.duration_minutes ?? 45) * 0.45)),
@@ -5334,6 +5368,89 @@ function buildMainStrength(
   return blocks;
 }
 
+const VERTICAL_JUMP_STRENGTH_FOUNDATION_PREFERRED_RE = /back_squat|bulgarian|trap_bar/i;
+
+function verticalJumpStrengthFoundationPreferenceScore(exercise: Exercise): number {
+  const blob = exerciseBlobForVerticalJump(exercise);
+  if (/\b(back_squat|trap_bar|bulgarian)\b/.test(blob)) return 12;
+  if (/\b(front_squat|split_squat|rdl|deadlift)\b/.test(blob)) return 10;
+  if ((exercise.exercise_role ?? "").toLowerCase().replace(/\s/g, "_") === "main_compound") return 6;
+  return verticalJumpExerciseSelectionScore(exercise);
+}
+
+/** When vertical-jump intent is active, guarantee at least one squat/hinge strength staple if absent. */
+function ensureVerticalJumpStrengthFoundationBlock(
+  blocks: WorkoutBlock[],
+  exercises: Exercise[],
+  input: GenerateWorkoutInput,
+  used: Set<string>,
+  recentIds: Set<string>,
+  movementCounts: Map<string, number>,
+  rng: () => number,
+  fatigueVolumeScale?: number,
+  fatigueState?: FatigueState,
+  sessionFatigueRegions?: Map<string, number>,
+  historyContext?: TrainingHistoryContext
+): void {
+  if (!inputHasVerticalJumpSubFocus(input)) return;
+  const sessionIds = blocks.flatMap((b) => b.items.map((i) => i.exercise_id)).join(" ");
+  if (VERTICAL_JUMP_STRENGTH_FOUNDATION_PREFERRED_RE.test(sessionIds)) return;
+
+  const fillConstraints = getActiveBlockFillConstraints();
+  let pool = exercises.filter(
+    (e) =>
+      isExerciseAvailableForSession(e.id, used) &&
+      exerciseHasVerticalJumpStrengthFoundationSignal(e) &&
+      (!fillConstraints ||
+        isExerciseEligibleForBlock(e, {
+          blockType: "main_strength",
+          constraints: fillConstraints,
+          input,
+        }))
+  );
+  pool = applyWeekMainLiftExclusion(pool, input);
+  if (!pool.length) return;
+
+  pool.sort(
+    (a, b) => verticalJumpStrengthFoundationPreferenceScore(b) - verticalJumpStrengthFoundationPreferenceScore(a)
+  );
+
+  const preferredPool = pool.filter((e) =>
+    VERTICAL_JUMP_STRENGTH_FOUNDATION_PREFERRED_RE.test(exerciseBlobForVerticalJump(e))
+  );
+  const ex = (preferredPool.length > 0 ? preferredPool : pool)[0]!;
+  used.add(ex.id);
+  movementCounts.set(ex.movement_pattern ?? "other", (movementCounts.get(ex.movement_pattern ?? "other") ?? 0) + 1);
+  const p = getPrescription(
+    ex,
+    "main_strength",
+    input.energy_level,
+    input.primary_goal,
+    false,
+    fatigueVolumeScale,
+    input.style_prefs?.user_level
+  );
+  blocks.push({
+    block_type: "main_strength",
+    format: "straight_sets",
+    title: "Strength foundation",
+    reasoning: "Lower-body strength base to support vertical jump and plyometric work.",
+    items: [
+      {
+        exercise_id: ex.id,
+        exercise_name: ex.name,
+        sets: p.sets,
+        reps: p.reps,
+        rest_seconds: p.rest_seconds,
+        coaching_cues: p.coaching_cues,
+        reasoning_tags: ["main_lift", "vertical_jump", "strength_foundation", ...(ex.tags?.goal_tags ?? [])],
+        unilateral: ex.unilateral ?? false,
+      },
+    ],
+    estimated_minutes: Math.max(4, (p.sets ?? 3) * (1.1 + Math.min(p.rest_seconds ?? 90, 120) / 60)),
+  });
+}
+
 /** Power goal: build a dedicated Power block with 2–4 explosive/power exercises (lower body when focus is lower). */
 function buildPowerBlock(
   exercises: Exercise[],
@@ -5351,12 +5468,18 @@ function buildPowerBlock(
     getRankedGoalSubFocusSlugsForGoal(input, "power"),
     input.focus_body_parts
   );
+  const rankedAthleticIntents = filterSubFocusSlugsForBodyFocus(
+    getRankedGoalSubFocusSlugsForGoal(input, "athletic_performance"),
+    input.focus_body_parts
+  );
   const verticalJumpIntent =
     rankedPowerIntents.some((s) => isVerticalJumpSubFocusSlug(s)) ||
-    (input.primary_goal !== "power" && inputHasVerticalJumpSubFocus(input));
+    rankedAthleticIntents.some((s) => isVerticalJumpSubFocusSlug(s)) ||
+    (inputHasVerticalJumpSubFocus(input) &&
+      !(sessionHasPowerBlockSubFocus(input) && rankedPowerIntents.length > 0));
   const fillConstraints = getActiveBlockFillConstraints();
   const activeExplosiveSubSlugs =
-    rankedPowerIntents.length > 0 && input.primary_goal === "power"
+    rankedPowerIntents.length > 0 && sessionAssemblesPowerBlock(input)
       ? rankedPowerIntents.filter(
           (s) =>
             isExplosivePlyometricSportSubFocusSlug(s) || s === "speed" || s === "change_of_direction"
@@ -5392,7 +5515,7 @@ function buildPowerBlock(
       const passesAny = subSlugs.some(
         (sub) =>
           exercisePassesSubFocusTrainingGate(e, sub) ||
-          (input.primary_goal === "power" && exerciseHasSubFocusSlug(e, sub))
+          (sessionAssemblesPowerBlock(input) && exerciseHasSubFocusSlug(e, sub))
       );
       if (!passesAny) return false;
     } else if (rankedPowerIntents.length > 0) {
@@ -10306,7 +10429,7 @@ export function generateWorkoutSession(
   const unifiedMainCompoundSlots = unifiedSpecialtyResult?.mainCompoundSlots;
 
   // 4. Build main block (goal-specific); session fatigue regions improve later picks
-  if (primary === "power") {
+  if (sessionAssemblesPowerBlock(input)) {
     blocks.push(...buildPowerBlock(filtered, input, used, recentIds, movementCounts, rng, fatigueVolumeScale, fatigueState, sessionFatigueRegions, historyContext));
     if (input.duration_minutes >= 45 && !blockIntentProfile.suppressAccessoryBlocks) {
       const accessoryPool = filtered.filter(
@@ -10501,12 +10624,20 @@ export function generateWorkoutSession(
         )
       );
     }
-  } else if (primary === "endurance" || primary === "conditioning") {
+  } else if (
+    primary === "endurance" ||
+    primary === "conditioning" ||
+    athleticSessionIsConditioningDominant(input)
+  ) {
+    // Athletic Performance with conditioning-only routed subs assembles like the legacy
+    // Sport Conditioning primary (dedicated intent blocks, not strength + cardio finisher).
+    const conditioningGoalSlug = primary === "endurance" ? "endurance" : "conditioning";
+    const conditioningSubSlugs = input.goal_sub_focus?.[conditioningGoalSlug] ?? [];
     const conditioningProfile: SubFocusProfile | null =
-      (input.goal_sub_focus?.[primary]?.length ?? 0) > 0
+      conditioningSubSlugs.length > 0
         ? resolveSubFocusProfile({
-            goalSlug: primary,
-            rankedSubFocusSlugs: input.goal_sub_focus[primary] ?? [],
+            goalSlug: conditioningGoalSlug,
+            rankedSubFocusSlugs: conditioningSubSlugs,
           })
         : null;
     blocks.push(
@@ -10537,7 +10668,9 @@ export function generateWorkoutSession(
       "joint_health_main",
       jointHealthSubs.join("|") || "general"
     );
-    blocks.push(...buildJointHealthMain(guaranteePool, input, used, jointHealthRng));
+    // Use the non-pruning-gated injury-safe pool so regional joint-health tags (e.g. pallof,
+    // side plank) survive catalog pruning — same rationale as sportIntentRescuePool.
+    blocks.push(...buildJointHealthMain(sportIntentRescuePool, input, used, jointHealthRng));
   } else {
     const intentAthleticInject = tryBuildIntentSlotAllocatedMainInject(
       filtered,
@@ -10589,6 +10722,20 @@ export function generateWorkoutSession(
       )
     );
   }
+
+  ensureVerticalJumpStrengthFoundationBlock(
+    blocks,
+    sportIntentRescuePool,
+    input,
+    used,
+    recentIds,
+    movementCounts,
+    rng,
+    fatigueVolumeScale,
+    fatigueState,
+    sessionFatigueRegions,
+    historyContext
+  );
 
   // 5. Build accessory (handled inside buildMainStrength / buildMainHypertrophy per goal rules)
 
@@ -12164,7 +12311,8 @@ export function generateWorkoutSession(
   const withExerciseDescriptions = (s: WorkoutSession): WorkoutSession =>
     attachExerciseDescriptionsToSession(s, exercisePool);
 
-  const validation = validateWorkoutAgainstConstraints(session, constraints, filtered);
+  const repairPool = deprioritizeWeekMainLiftsForRepair(filtered, input);
+  const validation = validateWorkoutAgainstConstraints(session, constraints, repairPool);
   if (validation.valid) return withExerciseDescriptions(session);
   if (validation.repairedWorkout) {
     return withExerciseDescriptions(validation.repairedWorkout as WorkoutSession);

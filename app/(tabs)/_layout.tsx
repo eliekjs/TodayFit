@@ -43,12 +43,12 @@ export default function TabsLayout() {
         tabBarStyle: {
           borderTopColor: theme.border,
           borderTopWidth: 1,
-          backgroundColor: "rgba(15,23,42,0.76)",
+          backgroundColor: theme.cardOpaque,
           height: 88 + insets.bottom,
           paddingBottom: insets.bottom,
           paddingTop: 12,
           ...(Platform.OS === "android" && { elevation: 8 }),
-          boxShadow: "0 -6px 18px rgba(2,6,23,0.35)",
+          boxShadow: "0 -8px 24px rgba(44,38,32,0.08)",
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -69,9 +69,9 @@ export default function TabsLayout() {
             }
           : null),
         headerStyle: {
-          backgroundColor: "rgba(15,23,42,0.8)",
+          backgroundColor: theme.cardOpaque,
           borderBottomWidth: 1,
-          borderBottomColor: "rgba(148,163,184,0.2)",
+          borderBottomColor: theme.border,
         },
         headerTintColor: theme.text,
         headerTitleStyle: { color: theme.text, fontWeight: "600" },

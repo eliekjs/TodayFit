@@ -952,7 +952,7 @@ export default function AdaptiveModeScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.screenFill}>
       <ScrollView
         style={styles.scrollFill}

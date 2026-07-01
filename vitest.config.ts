@@ -38,6 +38,7 @@ export default defineConfig({
       "logic/workoutGeneration/generationValidationGuardrail.test.ts",
       "logic/workoutGeneration/regenerationVariety.test.ts",
       "data/goalSubFocus/conditioningSubFocus.test.ts",
+      "data/goalSubFocus/athleticGoalConsolidation.test.ts",
       "data/goalSubFocus/jointHealthSubFocus.test.ts",
       "data/jointHealthExerciseEnrichment.test.ts",
       "logic/workoutGeneration/jointHealthSession.test.ts",

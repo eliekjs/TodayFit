@@ -20,7 +20,7 @@ import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppState } from "../../../context/AppStateContext";
 import { defaultManualPreferences } from "../../../context/appStateModel";
-import { useTheme } from "../../../lib/theme";
+import { cleanFlowPalette, useTheme } from "../../../lib/theme";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
@@ -48,6 +48,7 @@ import {
   collectInvalidConditioningSubFocusSelections,
   subFocusChoicesForManualPrimaryGoal,
 } from "../../../lib/preferencesConstants";
+import { isAthleticUmbrellaPrimaryLabel } from "../../../data/goalSubFocus/athleticSubFocusArchetypes";
 import {
   equalIntegerPctsForLabels,
   normalizeSubFocusPctRecord,
@@ -120,6 +121,7 @@ export default function ManualPreferencesScreen() {
   const { scope } = useLocalSearchParams<{ scope?: string }>();
   const theme = useTheme();
   const isWeek = scope === "week";
+  const cleanUi = true;
   const [isGenerating, setIsGenerating] = useState(false);
   const generationCancelledRef = useRef(false);
 
@@ -598,13 +600,14 @@ export default function ManualPreferencesScreen() {
   }
 
   return (
-    <AppScreenWrapper>
-      <StatusBar style="light" />
+    <AppScreenWrapper style={cleanUi ? styles.cleanScreen : undefined}>
+      <StatusBar style={cleanUi ? "dark" : "light"} />
       <ScrollView
         style={styles.scrollFill}
         ref={scrollViewRef}
         contentContainerStyle={[
           styles.content,
+          cleanUi && styles.cleanContent,
           {
             paddingBottom: bottomBarHeight + 24,
             ...(Platform.OS === "web"
@@ -617,19 +620,44 @@ export default function ManualPreferencesScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View ref={scrollContentRef} collapsable={false}>
+        <View
+          ref={scrollContentRef}
+          collapsable={false}
+          style={cleanUi ? styles.cleanContentColumn : undefined}
+        >
+        {cleanUi ? (
+          <View style={styles.cleanMetaRow}>
+            <View style={styles.cleanCategoryWrap}>
+              <View style={[styles.cleanCategoryDot, { backgroundColor: theme.primary }]} />
+              <Text style={[styles.cleanCategoryLabel, { color: theme.textMuted }]}>
+                Manual setup
+              </Text>
+            </View>
+            <Text style={[styles.cleanStepCount, { color: theme.textMuted }]}>
+              {isWeek ? "Week plan" : "Daily workout"}
+            </Text>
+          </View>
+        ) : null}
         <Text
           style={[
             styles.screenTitle,
+            cleanUi && styles.cleanScreenTitle,
             { color: theme.text },
             Platform.OS === "web" && styles.webHeroTextPassthrough,
           ]}
         >
-          {isWeek ? "Plan your week" : "Build today’s workout"}
+          {cleanUi
+            ? isWeek
+              ? "What should this week be built around?"
+              : "What should today’s workout be built around?"
+            : isWeek
+              ? "Plan your week"
+              : "Build today’s workout"}
         </Text>
         <Text
           style={[
             styles.screenSubtitle,
+            cleanUi && styles.cleanScreenSubtitle,
             { color: theme.textMuted },
             Platform.OS === "web" && styles.webHeroTextPassthrough,
           ]}
@@ -638,7 +666,6 @@ export default function ManualPreferencesScreen() {
             ? "Two quick choices, then pick your training days. Fine-tune anytime in Advanced options."
             : "Three quick choices. You can fine-tune later."}
         </Text>
-
         <ExperienceLevelToggle
           marginTop={16}
           workoutTier={manualPreferences.workoutTier ?? "intermediate"}
@@ -1143,9 +1170,7 @@ export default function ManualPreferencesScreen() {
 
             {/* Sport mode hint when user has athletic/sport goals */}
             {hasPrimaryFocus &&
-            rankedGoals.some(
-              (g) => g === "Athletic Performance" || g === "Sport Conditioning"
-            ) ? (
+            rankedGoals.some(isAthleticUmbrellaPrimaryLabel) ? (
               <Pressable
                 onPress={() => router.push("/sport-mode")}
                 style={({ pressed }) => [
@@ -1316,19 +1341,24 @@ export default function ManualPreferencesScreen() {
         onLayout={onBottomBarLayout}
         style={[
           styles.bottomBar,
+          cleanUi && styles.cleanBottomBar,
           {
             backgroundColor: theme.cardOpaque,
             borderTopColor: theme.border,
             paddingBottom: 10 + Math.max(insets.bottom, 8),
             ...Platform.select({
-              web: {
-                boxShadow: "0 -6px 20px rgba(0, 0, 0, 0.28)",
-              },
+              web: cleanUi
+                ? {
+                    boxShadow: "0 -10px 28px rgba(44, 38, 32, 0.08)",
+                  }
+                : {
+                    boxShadow: "0 -6px 20px rgba(0, 0, 0, 0.28)",
+                  },
               default: {
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: -3 },
-                shadowOpacity: 0.22,
-                shadowRadius: 10,
+                shadowOpacity: cleanUi ? 0.08 : 0.22,
+                shadowRadius: cleanUi ? 16 : 10,
                 elevation: 14,
               },
             }),
@@ -1344,22 +1374,7 @@ export default function ManualPreferencesScreen() {
             disabled: !canProceed,
             loading: isGenerating,
           }}
-          hint={
-            !canProceed
-              ? isWeek
-                ? "Choose a session length and training goal to continue."
-                : "Choose session length, training goal, body emphasis, and gym profile to continue."
-              : null
-          }
         >
-        <Pressable
-          onPress={() => openAdvancedAndScroll()}
-          style={styles.advancedLinkWrap}
-        >
-          <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-            Advanced options (energy, injuries, extra goals…)
-          </Text>
-        </Pressable>
         <View style={styles.bottomBarRow}>
           <PrimaryButton
             compact
@@ -1519,11 +1534,49 @@ const styles = StyleSheet.create({
     flex: 1,
     ...(Platform.OS === "web" ? ({ minHeight: 0 } as const) : null),
   },
+  cleanScreen: {
+    backgroundColor: cleanFlowPalette.background,
+  },
   content: {
     paddingHorizontal: 20,
     /** Top/bottom vertical padding applied in ScrollView so web can reserve header chrome. */
     paddingTop: 24,
     paddingBottom: 24,
+  },
+  cleanContent: {
+    paddingHorizontal: 24,
+  },
+  cleanContentColumn: {
+    width: "100%",
+    maxWidth: 680,
+    alignSelf: "center",
+  },
+  cleanMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    marginBottom: 24,
+  },
+  cleanCategoryWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cleanCategoryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+  },
+  cleanCategoryLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  cleanStepCount: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   /** RN Web: large hero Text can sit above accordion rows in the hit tree and block Pressable taps. */
   webHeroTextPassthrough: {
@@ -1534,10 +1587,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 6,
   },
+  cleanScreenTitle: {
+    fontSize: Platform.OS === "web" ? 34 : 28,
+    lineHeight: Platform.OS === "web" ? 42 : 35,
+    fontWeight: "600",
+    letterSpacing: -0.4,
+    marginBottom: 14,
+    maxWidth: 620,
+  },
   screenSubtitle: {
     fontSize: 15,
     lineHeight: 21,
     marginBottom: 8,
+  },
+  cleanScreenSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    maxWidth: 560,
+    marginBottom: 10,
+  },
+  cleanReassurance: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 18,
   },
   helperHint: {
     fontSize: 13,
@@ -1551,14 +1623,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     paddingHorizontal: 8,
     lineHeight: 17,
-  },
-  advancedLinkWrap: {
-    paddingVertical: 6,
-    alignItems: "center",
-  },
-  advancedLinkText: {
-    fontSize: 13,
-    fontWeight: "500",
   },
   subGoalBlendLinkWrap: {
     marginTop: 12,
@@ -1745,6 +1809,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     borderTopWidth: 1,
+  },
+  cleanBottomBar: {
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   bottomBarRow: {
     flexDirection: "row",

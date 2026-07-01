@@ -52,8 +52,8 @@ function ActionCard({
   onNavigateFlow,
 }: ActionCardProps) {
   const isBuild = variant === "build";
-  const accent = isBuild ? "rgba(45,212,191,0.86)" : "rgba(96,165,250,0.82)";
-  const accentSoft = isBuild ? "rgba(45,212,191,0.12)" : "rgba(96,165,250,0.12)";
+  const accent = theme.primary;
+  const accentSoft = theme.primarySoft;
 
   return (
     <View
@@ -78,7 +78,7 @@ function ActionCard({
           onPress={() => onNavigateFlow(oneDayFlow, oneDayHref)}
         >
           <LinearGradient
-            colors={["rgba(45,212,191,0.7)", "rgba(59,130,246,0.66)"]}
+            colors={[theme.primary, theme.primarySolid]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.subButton}
@@ -91,7 +91,7 @@ function ActionCard({
           onPress={() => onNavigateFlow(weekFlow, weekHref)}
         >
           <View style={[styles.subButton, styles.subButtonSecondary]}>
-            <Text style={styles.subButtonText}>{weekLabel}</Text>
+            <Text style={[styles.subButtonText, { color: theme.text }]}>{weekLabel}</Text>
           </View>
         </Pressable>
       </View>
@@ -236,7 +236,7 @@ export default function HomeScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -249,7 +249,7 @@ export default function HomeScreen() {
           <View
             style={[
               styles.trainTodayCard,
-              { backgroundColor: theme.card, borderColor: "rgba(45,212,191,0.35)" },
+              { backgroundColor: theme.card, borderColor: theme.border },
             ]}
           >
             <Text style={[styles.trainTodayTitle, { color: theme.text }]}>Train today</Text>
@@ -263,7 +263,7 @@ export default function HomeScreen() {
               onPress={onTrainToday}
             >
               <LinearGradient
-                colors={["rgba(45,212,191,0.85)", "rgba(59,130,246,0.8)"]}
+                colors={[theme.primary, theme.primarySolid]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.trainTodayButton}
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   trainTodayButtonText: {
-    color: "#0f172a",
+    color: "#fffdf8",
     fontSize: 16,
     fontWeight: "700",
   },
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 12,
     borderWidth: 1,
-    backgroundColor: "rgba(15,23,42,0.4)",
+    backgroundColor: "#fffdf8",
   },
   actionCardIcon: {
     alignSelf: "center",
@@ -417,14 +417,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   subButtonSecondary: {
-    backgroundColor: "rgba(15,23,42,0.4)",
+    backgroundColor: "#fffdf8",
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.28)",
+    borderColor: "rgba(44,38,32,0.12)",
   },
   subButtonText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#f8fafc",
+    color: "#fffdf8",
   },
   goalSummary: {
     borderRadius: 16,
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 10,
     borderWidth: 1,
-    backgroundColor: "rgba(15,23,42,0.38)",
+    backgroundColor: "#fffdf8",
   },
   goalRow: {
     flexDirection: "row",

@@ -7,7 +7,7 @@ import type { Exercise } from "../../logic/workoutGeneration/types";
 import {
   exerciseHasLowerBodyPlyoJumpSignal,
   exerciseIsMedBallPowerThrow,
-  exercisePassesVerticalJumpDynamicGate,
+  exercisePassesVerticalJumpTrainingGate,
   inputHasVerticalJumpSubFocus,
   isVerticalJumpSubFocusSlug,
   verticalJumpExerciseSelectionScore,
@@ -271,7 +271,7 @@ export function aggregateSubFocusSelectionScore(
 /** Whether exercise satisfies dynamic-movement gate for a sub-focus (coverage / power slots). */
 export function exercisePassesSubFocusTrainingGate(exercise: Exercise, subSlug: string): boolean {
   const canon = normalizeSubFocusSlug(subSlug);
-  if (isVerticalJumpSubFocusSlug(canon)) return exercisePassesVerticalJumpDynamicGate(exercise);
+  if (isVerticalJumpSubFocusSlug(canon)) return exercisePassesVerticalJumpTrainingGate(exercise);
   if (canon === "speed" || canon === "reactive_speed" || canon === "speed_power") {
     if (exerciseIsGenericConditioningMetcon(exercise) && !exerciseIsSprintOrCodDrill(exercise)) return false;
     return exerciseIsSprintOrCodDrill(exercise) || tagSetHasDynamicPowerSignal(exerciseTagSet(exercise));

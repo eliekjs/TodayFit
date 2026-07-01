@@ -6,6 +6,13 @@
 
 import type { ExerciseWithQualities } from "./types";
 import { getCanonicalFatigueRegions } from "../workoutGeneration/ontologyNormalization";
+import { getSessionRedundancyFamilyId, isExerciseAvailableForSession } from "../../lib/sessionExerciseRedundancy";
+
+/** Programming-equivalent movements (e.g. glute bridge vs hip thrust) must not share a pair. */
+function pairViolatesSessionRedundancy(a: PairingInput, b: PairingInput): boolean {
+  const familyA = getSessionRedundancyFamilyId(a.id);
+  return familyA != null && familyA === getSessionRedundancyFamilyId(b.id);
+}
 
 /** Minimal shape for pairing logic (satisfied by Exercise and ExerciseWithQualities). */
 export interface PairingInput {
@@ -268,6 +275,8 @@ export function pickSupersetPartner(
 
   for (const c of candidates) {
     if (usedIds.has(c.id) || c.id === anchor.id) continue;
+    if (pairViolatesSessionRedundancy(anchor, c)) continue;
+    if (!isExerciseAvailableForSession(c.id, usedIds)) continue;
     const compat = supersetCompatibility(anchor, c);
     if (compat === "bad") continue;
     const score = getSupersetPairingScore(anchor, c);
@@ -299,12 +308,12 @@ export function pickBestSupersetPairs(
   rng?: () => number,
   exercisePreferenceScores?: Map<string, number>
 ): [PairingInput, PairingInput][] {
-  const available = pool.filter((e) => !usedIds.has(e.id));
+  const available = pool.filter((e) => isExerciseAvailableForSession(e.id, usedIds));
   const pairs: [PairingInput, PairingInput][] = [];
   const used = new Set(usedIds);
 
   for (let i = 0; i < pairCount && available.length >= 2; i++) {
-    const remaining = available.filter((e) => !used.has(e.id));
+    const remaining = available.filter((e) => isExerciseAvailableForSession(e.id, used));
     if (remaining.length < 2) break;
 
     type Scored = { a: PairingInput; b: PairingInput; score: number };
@@ -315,6 +324,7 @@ export function pickBestSupersetPairs(
         const a = remaining[i1];
         const b = remaining[i2];
         if (!a || !b) continue;
+        if (pairViolatesSessionRedundancy(a, b)) continue;
         let score = getSupersetPairingScore(a, b);
         if (exercisePreferenceScores?.size) {
           const prefA = exercisePreferenceScores.get(a.id) ?? 0;

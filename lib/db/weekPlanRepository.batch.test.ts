@@ -44,6 +44,7 @@ describe("buildWeeklyPlanWithWorkoutsFromRows", () => {
       {
         id: "day-1",
         date: "2026-04-20",
+        title: "Strength",
         intentLabel: "Strength",
         status: "planned",
         generatedWorkoutId: "w-1",
@@ -51,6 +52,7 @@ describe("buildWeeklyPlanWithWorkoutsFromRows", () => {
       {
         id: "day-2",
         date: "2026-04-21",
+        title: "Recovery",
         intentLabel: "Recovery",
         status: "completed",
         generatedWorkoutId: "w-2",

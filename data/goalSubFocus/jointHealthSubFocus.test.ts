@@ -316,4 +316,32 @@ describe("jointHealthSubFocus", () => {
     });
     expect(exerciseMatchesJointHealthSubFocus(dip, "elbow_wrist_health")).toBe(false);
   });
+
+  it("enriched catalog exercises match despite legacy max_strength catalog tags", () => {
+    const deadBug = mkEx({
+      id: "dead_bug",
+      name: "Dead Bug",
+      muscle_groups: ["core"],
+      tags: {
+        goal_tags: ["strength"],
+        energy_fit: ["low"],
+        stimulus: ["anti_flexion"],
+        attribute_tags: ["max_strength", "back_spine_health", "back_spine_strength", "core_stability"],
+      },
+    });
+    expect(isJointHealthExcludedExercise(deadBug)).toBe(false);
+    expect(exerciseMatchesJointHealthSubFocus(deadBug, "back_spine_health")).toBe(true);
+
+    const wallSit = mkEx({
+      id: "wall_sit",
+      name: "Wall Sit",
+      tags: {
+        goal_tags: ["strength"],
+        energy_fit: ["low"],
+        stimulus: ["isometric"],
+        attribute_tags: ["max_strength", "knee_health", "knee_strength"],
+      },
+    });
+    expect(exerciseMatchesJointHealthSubFocus(wallSit, "knee_health")).toBe(true);
+  });
 });

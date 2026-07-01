@@ -415,7 +415,7 @@ export default function AdaptiveScheduleScreen() {
       gymTrainingDays.length > 0 && dayFocusChoiceIds.length === gymTrainingDays.length;
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={styles.container}>
           <ScrollView
             contentContainerStyle={[styles.content, { paddingBottom: navBarHeight + 16 }]}
@@ -472,7 +472,7 @@ export default function AdaptiveScheduleScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <View style={styles.container}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: navBarHeight + 16 }]}

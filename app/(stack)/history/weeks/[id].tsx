@@ -65,7 +65,7 @@ export default function SavedWeekDetailScreen() {
   if (loading) {
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.textMuted }]}>
@@ -79,7 +79,7 @@ export default function SavedWeekDetailScreen() {
   if (error) {
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <View style={[styles.container, styles.centered]}>
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
         <PrimaryButton label="Back" onPress={() => router.back()} />

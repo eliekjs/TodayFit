@@ -10,6 +10,10 @@ import {
   PRIMARY_FOCUS_TO_GOAL_SLUG,
 } from "./goalSlugMapping";
 import { canonicalGoalSubFocusLabel } from "../data/goalSubFocus";
+import {
+  ATHLETIC_PERFORMANCE_PRIMARY_LABEL,
+  canonicalAthleticPrimaryFocusLabel,
+} from "../data/goalSubFocus/athleticSubFocusArchetypes";
 
 export { canonicalGoalSubFocusLabel };
 
@@ -35,7 +39,8 @@ export function goalSlugToPrimaryGoal(slug: string): PrimaryGoal {
 /** Primary focus UI label → generator PrimaryGoal (via goal slug). */
 export function primaryFocusLabelToPrimaryGoal(label: string): PrimaryGoal {
   if (label === "Sport preparation") return "strength";
-  if (label.includes("Power")) return "power";
+  const athleticCanon = canonicalAthleticPrimaryFocusLabel(label);
+  if (athleticCanon === ATHLETIC_PERFORMANCE_PRIMARY_LABEL) return "athletic_performance";
   const lower = label.toLowerCase();
   if (lower === "hypertrophy" || lower.includes("build muscle") || lower.includes("muscle (hypertrophy)")) {
     return "hypertrophy";
@@ -46,7 +51,6 @@ export function primaryFocusLabelToPrimaryGoal(label: string): PrimaryGoal {
   }
   if (lower.includes("recovery") && lower.includes("mobility")) return "recovery_mobility";
   if (lower.includes("mobility") || lower.includes("recovery") || lower.includes("prehab")) return "recovery_mobility";
-  if (label.includes("Athletic")) return "athletic_performance";
   if (label.includes("Calisthenics")) return "calisthenics";
   return goalSlugToPrimaryGoal(primaryFocusLabelToGoalSlug(label));
 }

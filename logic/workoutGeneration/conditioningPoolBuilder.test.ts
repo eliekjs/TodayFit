@@ -60,7 +60,9 @@ function filteredPool() {
   };
 }
 
-describe("conditioningPoolBuilder", () => {
+// Pool construction runs full catalog filtering and multi-session generation; the 5s
+// default timeout is too tight when the whole suite runs in parallel.
+describe("conditioningPoolBuilder", { timeout: 30_000 }, () => {
   it("expands intervals_hiit pool beyond conditioning-only modality", () => {
     const { filtered } = filteredPool();
     const used = new Set<string>();

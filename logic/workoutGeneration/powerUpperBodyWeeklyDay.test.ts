@@ -24,7 +24,7 @@ const TEST_GYM: GymProfile = {
 
 function basePrefs(overrides: Partial<ManualPreferences> = {}): ManualPreferences {
   return {
-    primaryFocus: ["Power & Explosiveness", "Calisthenics", "Athletic Performance"],
+    primaryFocus: ["Athletic Performance", "Calisthenics"],
     targetBody: "Upper",
     targetModifier: [],
     durationMinutes: 45,
@@ -32,17 +32,20 @@ function basePrefs(overrides: Partial<ManualPreferences> = {}): ManualPreference
     injuries: ["No restrictions"],
     upcoming: [],
     subFocusByGoal: {
-      "Power & Explosiveness": ["Upper body power", "Lower body power / Plyos"],
+      "Athletic Performance": [
+        "Upper body power",
+        "Lower body power / Plyos",
+        "Vertical jump",
+      ],
       Calisthenics: ["Pull Ups"],
-      "Athletic Performance": ["Vertical Jump"],
     },
     goalMatchPrimaryPct: 62,
-    goalMatchSecondaryPct: 26,
-    goalMatchTertiaryPct: 12,
+    goalMatchSecondaryPct: 38,
+    goalMatchTertiaryPct: 0,
     goalDistributionStyle: "dedicate_days",
     workoutStyle: [],
     workoutTier: "intermediate",
-    weekSubFocusPrimaryLabels: ["Power & Explosiveness", "Calisthenics", "Athletic Performance"],
+    weekSubFocusPrimaryLabels: ["Athletic Performance", "Calisthenics"],
     ...overrides,
   };
 }
@@ -106,11 +109,11 @@ describe("power upper body weekly day 1", () => {
 
   it("adapter keeps only upper_body_power when target is Upper", () => {
     const input = manualPreferencesToGenerateWorkoutInput(
-      basePrefs({ primaryFocus: ["Power & Explosiveness", "Calisthenics", "Athletic Performance"] }),
+      basePrefs({ primaryFocus: ["Athletic Performance", "Calisthenics"] }),
       TEST_GYM,
       "power-upper-adapter"
     );
-    expect(input.primary_goal).toBe("power");
+    expect(input.primary_goal).toBe("athletic_performance");
     expect(input.focus_body_parts).toEqual(["upper_push", "upper_pull"]);
     expect(input.goal_sub_focus?.power).toEqual(["upper_body_power"]);
   });
@@ -121,7 +124,6 @@ describe("power upper body weekly day 1", () => {
     expect(session.title.toLowerCase()).toContain("upper body power");
     expect(session.title.toLowerCase()).toContain("upper body");
     expect(session.title).not.toMatch(/calisthenics/i);
-    expect(session.title).not.toMatch(/athletic performance/i);
     expect(session.title).not.toMatch(/lower body power/i);
   });
 

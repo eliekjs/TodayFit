@@ -190,7 +190,10 @@ function enduranceQualityInput(overrides: Partial<GenerateWorkoutInput> = {}): G
 }
 
 describe("endurance conditioning quality", () => {
-  it("caps agility drill intervals and sends longer endurance volume to true cardio", () => {
+  // Policy since 1db4c9e: agility/COD pattern drills are ineligible for conditioning blocks
+  // (isConditioningEligible rejects sprint-mechanics patterns); endurance interval volume
+  // goes to true cardio modalities instead of being "included but capped".
+  it("excludes agility drills from endurance conditioning and uses true cardio instead", () => {
     const session = generateWorkoutSession(enduranceQualityInput(), [
       lateralLowHurdleRun,
       zone2Treadmill,
@@ -199,18 +202,19 @@ describe("endurance conditioning quality", () => {
       catCow,
     ]);
 
-    const items = session.blocks.flatMap((block) => block.items);
-    const hurdle = items.find((item) => item.exercise_id === "lateral_low_hurdle_run");
-    expect(hurdle).toBeTruthy();
-    expect(hurdle?.sets ?? 0).toBeLessThanOrEqual(6);
-    expect(hurdle?.time_seconds ?? 0).toBeLessThanOrEqual(60);
+    const conditioningItems = session.blocks
+      .filter((block) => block.block_type === "conditioning")
+      .flatMap((block) => block.items);
+    expect(conditioningItems.length).toBeGreaterThan(0);
+    expect(
+      conditioningItems.some((item) => item.exercise_id === "lateral_low_hurdle_run")
+    ).toBe(false);
 
-    const cardio = items.find(
-      (item) =>
-        (item.exercise_id === "zone2_treadmill" || item.exercise_id === "zone2_bike") &&
-        (item.time_seconds ?? 0) >= 10 * 60
+    const cardio = conditioningItems.find(
+      (item) => item.exercise_id === "zone2_treadmill" || item.exercise_id === "zone2_bike"
     );
     expect(cardio).toBeTruthy();
+    expect(cardio?.sets ?? 0).toBeGreaterThan(0);
   });
 
   it("does not emit placeholder muscle categories as exercise items", () => {

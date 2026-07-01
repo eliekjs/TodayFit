@@ -1375,7 +1375,7 @@ export default function AdaptiveWeekPlanScreen() {
   if (isWeb) {
     return (
       <AppScreenWrapper>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {mainContent}
         </ScrollView>
@@ -1385,7 +1385,7 @@ export default function AdaptiveWeekPlanScreen() {
 
   return (
     <AppScreenWrapper>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NestableScrollContainer contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {mainContent}
