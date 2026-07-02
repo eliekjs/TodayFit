@@ -10,7 +10,7 @@
 import { getGoalRules } from "../../lib/generation/prescriptionRules";
 import { getPrescriptionStyle } from "../workoutIntelligence/prescriptionStyles";
 
-function assert(condition: boolean, message: string) {
+function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
 }
 
@@ -32,8 +32,10 @@ function testHypertrophyRestInEvidenceRange() {
 
 function testPrescriptionStylesAlignWithGoalRules() {
   const heavy = getPrescriptionStyle("heavy_strength");
+  assert(heavy.rest_seconds_min != null && heavy.rest_seconds_max != null, "heavy_strength defines rest bounds");
   assert(heavy.rest_seconds_min >= 150 && heavy.rest_seconds_max >= 240, "heavy_strength rest in 2.5–5 min range");
   const mod = getPrescriptionStyle("moderate_hypertrophy");
+  assert(mod.rest_seconds_min != null && mod.rest_seconds_max != null, "moderate_hypertrophy defines rest bounds");
   assert(mod.rest_seconds_min >= 60 && mod.rest_seconds_max <= 120, "moderate_hypertrophy rest in 1–2 min range");
   console.log("  OK: prescription styles (workoutIntelligence path) align with evidence");
 }

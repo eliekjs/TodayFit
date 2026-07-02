@@ -68,12 +68,13 @@ function testSessionEmitsSoccerTransferDebug() {
 
 function testCoverageReadableAcrossScenarios() {
   const p = pool();
+  // Off-menu durations / "posterior" focus intentionally exercise generator tolerance (cast keeps runtime unchanged).
   const scenarios: Partial<GenerateWorkoutInput>[] = [
     { seed: 902, duration_minutes: 30, primary_goal: "strength", focus_body_parts: ["lower"] },
     { seed: 903, duration_minutes: 55, primary_goal: "strength", focus_body_parts: ["posterior"] },
     { seed: 904, duration_minutes: 50, primary_goal: "hypertrophy", focus_body_parts: ["lower"] },
     { seed: 905, duration_minutes: 40, primary_goal: "strength", focus_body_parts: ["core"], style_prefs: { user_level: "advanced" } },
-  ];
+  ] as unknown as Partial<GenerateWorkoutInput>[];
   let okCount = 0;
   for (const o of scenarios) {
     const session = generateWorkoutSession(baseInput(o.seed as number, o), p);

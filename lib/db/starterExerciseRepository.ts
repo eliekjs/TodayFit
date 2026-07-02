@@ -161,7 +161,7 @@ async function buildSportScoreMap(
     }
   }
 
-  const { data: allSport, error: sportError } = requireClient()
+  const { data: allSport, error: sportError } = await requireClient()
     .from("starter_exercises")
     .select("name, tags")
     .eq("is_active", true);
@@ -353,7 +353,7 @@ export async function getPreferredExerciseNamesForSportAndGoals(
     const tagWeights = getExerciseTagsForSubFocuses(primarySlug, subSlugs, subFocusWeights);
     if (tagWeights.length > 0) {
       const tagWeightMap = new Map(tagWeights.map((t) => [t.tag_slug, t.weight]));
-      const { data: all, error } = requireClient()
+      const { data: all, error } = await requireClient()
         .from("starter_exercises")
         .select("name, tags")
         .eq("is_active", true);
@@ -388,7 +388,7 @@ export async function getPreferredExerciseNamesForSportAndGoals(
   if (!sportTags.length) return ordered;
 
   const sportTagSet = new Set(sportTags);
-  const { data: all, error } = requireClient()
+  const { data: all, error } = await requireClient()
     .from("starter_exercises")
     .select("name, tags")
     .eq("is_active", true);

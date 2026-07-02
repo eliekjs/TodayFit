@@ -16,8 +16,9 @@ import {
   exerciseMatchesSportSubFocusSlug,
   exerciseMatchesSportSubFocusForCoverage,
 } from "./subFocusSlugMatch";
+import type { GymProfile } from "../../data/gymProfiles";
 
-const GYM = {
+const GYM: GymProfile = {
   id: "test",
   name: "Test Gym",
   equipment: [
@@ -176,7 +177,7 @@ describe("sport sub-focus session coverage", () => {
   it("adds coverage so both golf and rugby sport_sub_focus appear in matched_intents on training work", () => {
     const prefs: ManualPreferences = {
       primaryFocus: ["Athletic Performance"],
-      targetBody: "Full body",
+      targetBody: "Full",
       targetModifier: [],
       durationMinutes: 45,
       energyLevel: "medium",
@@ -236,7 +237,7 @@ describe("sport sub-focus session coverage", () => {
   ])("repairs selected exercises so climbing share is represented for sportWeight=$sportWeight", ({ sportWeight }) => {
     const prefs: ManualPreferences = {
       primaryFocus: ["Build Muscle (Hypertrophy)"],
-      targetBody: "Full body",
+      targetBody: "Full",
       targetModifier: [],
       durationMinutes: 45,
       energyLevel: "medium",
@@ -270,7 +271,7 @@ describe("sport sub-focus session coverage", () => {
   it("handles multi-sport proportional coverage (rock_climbing + rugby) at 70% sport share", () => {
     const prefs: ManualPreferences = {
       primaryFocus: ["Build Muscle (Hypertrophy)"],
-      targetBody: "Full body",
+      targetBody: "Full",
       targetModifier: [],
       durationMinutes: 45,
       energyLevel: "medium",

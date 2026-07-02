@@ -169,9 +169,9 @@ export function isExcludedFromHikingMainWorkSlot(ex: Exercise): boolean {
 
 export function exerciseMatchesAnyHikingCategory(
   ex: Exercise,
-  cats: readonly HikingPatternCategory[]
+  cats: readonly (HikingPatternCategory | string)[]
 ): boolean {
-  const h = getHikingPatternCategoriesForExercise(ex);
+  const h: ReadonlySet<string> = getHikingPatternCategoriesForExercise(ex);
   return cats.some((c) => h.has(c));
 }
 

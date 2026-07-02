@@ -502,6 +502,11 @@ export type WorkoutSession = {
           excluded_from_alpine_main_work?: boolean;
           item_used_full_pool_fallback_session: boolean;
         };
+        /** Within gated pool ranking trace (bonus/penalty fields vary by sport; see sportPatternTransfer types). */
+        within_pool_quality?: {
+          within_pool_priority_total: number;
+          emphasis_bucket: number;
+        } & Record<string, number | boolean>;
       }>;
     };
     /** Sport / session intent survival trace (when `include_intent_survival_report`). */

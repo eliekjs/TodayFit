@@ -36,8 +36,9 @@ const ids = ["ex-a", "ex-b"] as const;
 {
   const m = parseBatchedLlmClassificationRaw("not json", ids);
   for (const id of ids) {
-    assert.strictEqual(m.get(id)?.ok, false);
-    assert(m.get(id)?.ok === false && m.get(id)!.errors.some((e) => e.code === "parse_json_failed"));
+    const r = m.get(id);
+    assert.strictEqual(r?.ok, false);
+    assert(r?.ok === false && r.errors.some((e) => e.code === "parse_json_failed"));
   }
 }
 
@@ -46,8 +47,9 @@ const ids = ["ex-a", "ex-b"] as const;
   const raw = JSON.stringify({ foo: [] });
   const m = parseBatchedLlmClassificationRaw(raw, ids);
   for (const id of ids) {
-    assert.strictEqual(m.get(id)?.ok, false);
-    assert(m.get(id)?.ok === false && m.get(id)!.errors.some((e) => e.code === "batch_results_not_array"));
+    const r = m.get(id);
+    assert.strictEqual(r?.ok, false);
+    assert(r?.ok === false && r.errors.some((e) => e.code === "batch_results_not_array"));
   }
 }
 
@@ -56,10 +58,9 @@ const ids = ["ex-a", "ex-b"] as const;
   const raw = JSON.stringify({ results: [validRow("ex-a")] });
   const m = parseBatchedLlmClassificationRaw(raw, ids);
   assert.strictEqual(m.get("ex-a")?.ok, true);
-  assert.strictEqual(m.get("ex-b")?.ok, false);
-  assert(
-    m.get("ex-b")?.ok === false && m.get("ex-b")!.errors.some((e) => e.code === "missing_batch_result")
-  );
+  const rB = m.get("ex-b");
+  assert.strictEqual(rB?.ok, false);
+  assert(rB?.ok === false && rB.errors.some((e) => e.code === "missing_batch_result"));
 }
 
 // Per-record invalid enum
@@ -83,8 +84,9 @@ const ids = ["ex-a", "ex-b"] as const;
   const bad = { ...validRow("ex-a"), llm_confidence: 0 };
   const raw = JSON.stringify({ results: [bad] });
   const m = parseBatchedLlmClassificationRaw(raw, ["ex-a"]);
-  assert.strictEqual(m.get("ex-a")?.ok, false);
-  assert(m.get("ex-a")?.ok === false && m.get("ex-a")!.errors.some((e) => e.code === "llm_confidence_invalid"));
+  const rA = m.get("ex-a");
+  assert.strictEqual(rA?.ok, false);
+  assert(rA?.ok === false && rA.errors.some((e) => e.code === "llm_confidence_invalid"));
 }
 
 console.log("validateClassificationOutput.test.ts: ok");

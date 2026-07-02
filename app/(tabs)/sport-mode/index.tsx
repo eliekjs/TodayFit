@@ -232,8 +232,17 @@ export default function AdaptiveModeScreen() {
       if (snap) {
         applySportFormSnapshot(snap, {
           setRankedGoals,
-          setIntensityLevel,
-          setInjuryStatus,
+          // Snapshot values are plain strings; only apply when they're valid options.
+          setIntensityLevel: (value) => {
+            if (typeof value === "string" && (INTENSITY_LEVEL_OPTIONS as readonly string[]).includes(value)) {
+              setIntensityLevel(value as (typeof INTENSITY_LEVEL_OPTIONS)[number]);
+            }
+          },
+          setInjuryStatus: (value) => {
+            if (typeof value === "string" && (INJURY_STATUS_OPTIONS as readonly string[]).includes(value)) {
+              setInjuryStatus(value as (typeof INJURY_STATUS_OPTIONS)[number]);
+            }
+          },
           setInjuryTypes,
           setSportFocusPct,
           setSportVsGoalPct,

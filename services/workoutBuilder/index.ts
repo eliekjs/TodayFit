@@ -74,6 +74,8 @@ export type SportGoalOptions = {
   sportWeightOverride?: number;
   /** Per-day override from session-focus preset (0–1 each). Takes precedence over goalWeightsPct. */
   goalWeightsOverride?: number[];
+  /** Sport session intent contract for this day (passed through to generator input and survival report). */
+  session_intent_contract?: SessionIntentContract;
 };
 
 /**
@@ -166,14 +168,15 @@ export async function buildWorkoutForSessionIntent(
                       options?.sportSlug && options.sportSlug !== ""
                         ? options.sportSlug
                         : options?.rankedSportSlugs?.[0];
-                    return key ? { [key]: options.sportSubFocusSlugs! } : undefined;
+                    const slugs = options?.sportSubFocusSlugs;
+                    return key && slugs ? { [key]: slugs } : undefined;
                   })()
                 : undefined,
           goal_weights:
             options?.goalWeightsOverride?.length
               ? options.goalWeightsOverride
-              : (options?.goalWeightsPct?.length ?? 0) > 0
-                ? options.goalWeightsPct!.map((p) => p / 100)
+              : options?.goalWeightsPct?.length
+                ? options.goalWeightsPct.map((p) => p / 100)
                 : undefined,
           sport_weight:
             options?.sportWeightOverride != null

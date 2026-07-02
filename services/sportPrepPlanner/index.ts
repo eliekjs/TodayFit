@@ -420,8 +420,11 @@ export function deriveDailyPreferencesFromDay(
   };
 }
 
+/** Superset of weekly IntentKey: day regeneration can carry richer intent labels. */
+type SessionIntentKey = IntentKey | "recovery_mobility" | "joint_health";
+
 function sessionIntentForKey(
-  key: IntentKey,
+  key: SessionIntentKey,
   date: string,
   durationMinutes: number,
   energy: EnergyLevel

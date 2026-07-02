@@ -17,13 +17,17 @@ function clampDifficulty(n: number): number {
   return Math.max(1, Math.min(5, Math.round(n)));
 }
 
+/** Fields of the source definition actually used when applying patches (DB rows can pass a partial shape). */
+export type MetadataOverrideDefSource = Pick<ExerciseDefinition, "id" | "name"> &
+  Partial<Pick<ExerciseDefinition, "tags" | "workout_levels">>;
+
 /**
  * Mutates `exercise` when `patch` is non-empty. Recomputes workout_level_tags and creative_variation
  * when patch fields affect tiering / creative detection.
  */
 export function applyExerciseMetadataOverrides(
   exercise: Exercise,
-  def: ExerciseDefinition,
+  def: MetadataOverrideDefSource,
   patch: ExerciseMetadataPatch | undefined
 ): void {
   if (!patch) return;

@@ -17,7 +17,9 @@ import {
 } from "./subFocusSlugMatch";
 import { isMainWorkCandidateForIntentEntry } from "./intentSlotAllocator";
 import type { IntentEntry } from "./sessionIntentContract";
+import type { GymProfile } from "../../data/gymProfiles";
 
+// Cast: includes test-only "medicine_ball" (not a canonical EquipmentKey) so med-ball fixtures stay equipment-eligible.
 const GYM = {
   id: "test",
   name: "Test Gym",
@@ -34,7 +36,7 @@ const GYM = {
     "medicine_ball",
     "trap_bar",
   ],
-};
+} as GymProfile;
 
 function synthVerticalJumpPool(sportTag: string): Exercise[] {
   const baseTags = {
@@ -223,7 +225,7 @@ describe("vertical jump generation", () => {
     const boxJump = pool.find((e) => e.id.includes("box_jump"))!;
     const prefs: ManualPreferences = {
       primaryFocus: ["Athletic Performance"],
-      targetBody: "Lower body",
+      targetBody: "Lower",
       targetModifier: [],
       durationMinutes: 45,
       energyLevel: "medium",
@@ -252,7 +254,7 @@ describe("vertical jump generation", () => {
   it("generates basketball vertical_jump sessions with plyometrics not med-ball throws", () => {
     const prefs: ManualPreferences = {
       primaryFocus: ["Athletic Performance"],
-      targetBody: "Lower body",
+      targetBody: "Lower",
       targetModifier: [],
       durationMinutes: 45,
       energyLevel: "medium",
@@ -280,7 +282,7 @@ describe("vertical jump generation", () => {
   it("generates cycling + athletic vertical_jump goal with same plyo/strength bias", () => {
     const prefs: ManualPreferences = {
       primaryFocus: ["Athletic Performance"],
-      targetBody: "Lower body",
+      targetBody: "Lower",
       targetModifier: [],
       durationMinutes: 45,
       energyLevel: "medium",

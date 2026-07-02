@@ -21,6 +21,10 @@ export type IntentSurvivalGateTierCounts = {
   raw_gate_match_count: number;
   refined_gated_count: number;
   pool_for_selection_count: number;
+  /** Progressive-ladder telemetry (when the sport gate ran with prefer/quality tiers). */
+  prefer_match_count?: number;
+  quality_aligned_count?: number;
+  selection_tier?: import("./sportPattern/framework/types").SportPatternSelectionTier;
 };
 
 /** One selection pass (one call to selectExercises / iterative sport-pattern selection). */

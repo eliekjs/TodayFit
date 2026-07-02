@@ -171,7 +171,7 @@ export function exercisePassesVerticalJumpTrainingGate(exercise: Exercise): bool
   );
 }
 
-type VerticalJumpIntentInput = {
+export type VerticalJumpIntentInput = {
   goal_sub_focus?: Record<string, string[] | undefined>;
   sport_sub_focus?: Record<string, string[] | undefined>;
   session_intent?: {

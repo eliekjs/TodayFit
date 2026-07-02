@@ -196,7 +196,9 @@ function exerciseMatchesCalisthenicsStyleStrengthSlug(
     if (id.includes("pull_up") || id.includes("pullup") || id.includes("chin")) return true;
     return (
       pattern === "pull" &&
-      (fine.includes("vertical_pull") || fine.includes("horizontal_pull") || exercise.muscle_groups?.some((m) => toSlug(m) === "lats"))
+      (fine.includes("vertical_pull") ||
+        fine.includes("horizontal_pull") ||
+        (exercise.muscle_groups?.some((m) => toSlug(m) === "lats") ?? false))
     );
   }
 

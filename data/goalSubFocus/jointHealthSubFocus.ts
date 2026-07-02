@@ -8,7 +8,6 @@ import {
   ANKLE_FOOT_HEALTH_TAGGED_EXERCISE_IDS,
   BACK_SPINE_HEALTH_TAGGED_EXERCISE_IDS,
   ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS,
-  ELBOW_WRIST_HEALTH_TAGGED_EXERCISE_IDS,
   HIP_HEALTH_TAGGED_EXERCISE_IDS,
   KNEE_HEALTH_TAGGED_EXERCISE_IDS,
   SHOULDER_HEALTH_TAGGED_EXERCISE_IDS,
@@ -669,27 +668,7 @@ export function exerciseMatchesJointHealthSubFocus(
     return exerciseMatchesElbowWristHealthSubFocus(exercise);
   }
 
-  if (!isJointHealthAppropriateExercise(exercise)) return false;
-
-  const cfg = JOINT_HEALTH_REGIONAL[norm];
-  const tags = exerciseTagSet(exercise);
-  const name = exercise.name;
-
-  for (const a of cfg.attributeTags) {
-    if (tags.has(toSlug(a))) return true;
-  }
-  for (const s of cfg.stimulus) {
-    if ((exercise.tags?.stimulus ?? []).map(toSlug).includes(toSlug(s))) return true;
-  }
-  for (const m of cfg.muscles) {
-    if ((exercise.muscle_groups ?? []).map(toSlug).includes(toSlug(m))) return true;
-  }
-  for (const t of cfg.mobilityTargets) {
-    const targets = [...(exercise.mobility_targets ?? []), ...(exercise.stretch_targets ?? [])].map(toSlug);
-    if (targets.some((x) => x.includes(toSlug(t)))) return true;
-  }
-  if (cfg.nameHints.some((rx) => rx.test(name))) return true;
-
+  // All slugs in JOINT_HEALTH_SUB_FOCUS_SLUGS are handled above.
   return false;
 }
 

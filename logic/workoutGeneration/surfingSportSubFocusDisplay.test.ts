@@ -12,7 +12,9 @@ import {
 import { displayNameForSportSubFocusSlug } from "../../lib/workoutIntentSplit";
 import { generateWorkoutSession } from "./dailyGenerator";
 import type { ManualPreferences } from "../../lib/types";
+import type { GymProfile } from "../../data/gymProfiles";
 
+// Cast: includes test-only "rowing_machine" (not a canonical EquipmentKey).
 const GYM = {
   id: "test_gym",
   name: "Test Gym",
@@ -27,7 +29,7 @@ const GYM = {
     "pullup_bar",
     "rowing_machine",
   ],
-};
+} as GymProfile;
 
 const SPORT_ONLY_PREFS: ManualPreferences = {
   primaryFocus: ["Sport preparation"],

@@ -25,14 +25,21 @@ import {
 import type { GenerateWorkoutInput } from "./types";
 
 const lowerBodyConstraints: ResolvedWorkoutConstraints = {
+  rules: [],
+  excluded_exercise_ids: new Set(),
+  excluded_joint_stress_tags: new Set(),
+  excluded_contraindication_keys: new Set(),
   allowed_movement_families: ["lower_body"],
   allowed_lower_body_emphasis: undefined,
-  injury_excluded_joint_stress: [],
-  injury_excluded_contraindications: [],
   required_conditioning_block: false,
   min_cooldown_mobility_exercises: 0,
-  superset_pairing: undefined,
+  superset_pairing: null,
 };
+
+/** Partial test input; casts through unknown because tests only set the fields under test. */
+function asInput(partial: Partial<GenerateWorkoutInput> & Record<string, unknown>): GenerateWorkoutInput {
+  return partial as unknown as GenerateWorkoutInput;
+}
 
 function makeEx(partial: Partial<Exercise> & Pick<Exercise, "id" | "name">): Exercise {
   return {
@@ -128,7 +135,12 @@ const FIXTURES = {
     modality: "mobility",
     muscle_groups: ["legs"],
     exercise_role: "mobility",
-    tags: { goal_tags: ["mobility", "prehab"], sport_tags: ["sport_volleyball"], energy_fit: ["low"] },
+    tags: {
+      goal_tags: ["mobility"],
+      sport_tags: ["sport_volleyball"],
+      energy_fit: ["low"],
+      attribute_tags: ["prehab"],
+    },
   }),
   childsPose: makeEx({
     id: "childs_pose",
@@ -198,16 +210,16 @@ describe("When conditioning blocks appear", () => {
   });
 
   it("never includes conditioning for hypertrophy primary (upper or lower)", () => {
-    const upperOnly = {
+    const upperOnly = asInput({
       primary_goal: "hypertrophy",
       focus_body_parts: ["upper_push"],
       secondary_goals: [],
-    } as GenerateWorkoutInput;
-    const lowerOnly = {
+    });
+    const lowerOnly = asInput({
       primary_goal: "hypertrophy",
       focus_body_parts: ["lower"],
       secondary_goals: [],
-    } as GenerateWorkoutInput;
+    });
     expect(shouldIncludeConditioningBlock(upperOnly)).toBe(false);
     expect(shouldIncludeConditioningBlock(lowerOnly)).toBe(false);
     expect(shouldOmitOptionalHypertrophyUpperOnlyConditioning(upperOnly)).toBe(true);
@@ -230,19 +242,19 @@ describe("When conditioning blocks appear", () => {
   });
 
   it("requires conditioning for RSA repeat_sprint sport sub-focus", () => {
-    const input = {
+    const input = asInput({
       primary_goal: "athletic_performance",
       sport_sub_focus: { soccer: ["repeat_sprint"] },
-    } as GenerateWorkoutInput;
+    });
     expect(resolveBlockStructureProfile(input).requiresConditioningBlock).toBe(true);
     expect(shouldIncludeConditioningBlock(input)).toBe(true);
   });
 
   it("suppresses accessory blocks for vertical jump only sessions", () => {
-    const input = {
+    const input = asInput({
       primary_goal: "athletic_performance",
       sport_sub_focus: { volleyball: ["vertical_jump"] },
-    } as GenerateWorkoutInput;
+    });
     expect(resolveBlockStructureProfile(input).suppressAccessoryBlocks).toBe(true);
   });
 
@@ -252,7 +264,7 @@ describe("When conditioning blocks appear", () => {
   });
 
   it("suppresses accessory blocks for endurance-only primary", () => {
-    const input = { primary_goal: "endurance", secondary_goals: [] } as GenerateWorkoutInput;
+    const input = asInput({ primary_goal: "endurance", secondary_goals: [] });
     const profile = resolveBlockStructureProfile(input);
     expect(profile.requiresConditioningBlock).toBe(true);
     expect(profile.suppressAccessoryBlocks).toBe(true);
@@ -260,10 +272,10 @@ describe("When conditioning blocks appear", () => {
 });
 
 describe("What exercises qualify for conditioning", () => {
-  const rsaInput = {
+  const rsaInput = asInput({
     primary_goal: "athletic_performance",
     sport_sub_focus: { soccer: ["repeat_sprint"] },
-  } as GenerateWorkoutInput;
+  });
 
   it("includes burpee for explosive sub-focus conditioning", () => {
     expect(isConditioningEligible(FIXTURES.burpee)).toBe(true);
@@ -418,7 +430,7 @@ describe("What exercises qualify for cooldown", () => {
     expect(
       exerciseEligibleForWorkingBlock(FIXTURES.childsPose, "cooldown", {
         ...lowerBodyConstraints,
-        allowed_movement_families: ["core", "full_body"],
+        allowed_movement_families: ["core", "mobility"],
       })
     ).toBe(true);
   });

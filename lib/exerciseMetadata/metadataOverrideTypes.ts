@@ -3,10 +3,13 @@
  * Data file: data/exerciseMetadataOverrides.json (see scripts/exerciseMetadataQualityAgent.ts).
  */
 
-import type { Modality, MovementPattern } from "../../logic/workoutGeneration/types";
+import type { ExerciseTags, Modality, MovementPattern } from "../../logic/workoutGeneration/types";
 import type { WorkoutTierPreference } from "../types";
 
 export type DemandOverride = "none" | "low" | "medium" | "high";
+
+/** Canonical stimulus tag (single source of truth: ExerciseTags in generator types). */
+export type StimulusTag = NonNullable<ExerciseTags["stimulus"]>[number];
 
 export type ExerciseMetadataPatch = {
   difficulty?: number;
@@ -20,7 +23,7 @@ export type ExerciseMetadataPatch = {
   /** Merged into tags.attribute_tags (deduped). */
   attribute_tags_append?: string[];
   /** Merged into tags.stimulus (deduped). */
-  stimulus_append?: ("plyometric" | "aerobic_zone2" | "anaerobic")[];
+  stimulus_append?: StimulusTag[];
   creative_variation?: boolean;
 };
 

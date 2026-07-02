@@ -106,14 +106,16 @@ function getUpperEmphasis(n: number): DayBias[] {
       { targetBody: "Upper", targetModifier: ["Pull"], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
     ];
-  if (n >= 5)
-    return [
+  if (n >= 5) {
+    const days: DayBias[] = [
       { targetBody: "Upper", targetModifier: ["Push"], intentKey: "strength" },
       { targetBody: "Lower", targetModifier: [], intentKey: "strength" },
       { targetBody: "Upper", targetModifier: ["Pull"], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
       { targetBody: "Upper", targetModifier: [], intentKey: "strength" },
-    ].slice(0, n);
+    ];
+    return days.slice(0, n);
+  }
   return getBalancedWeek(n);
 }
 
@@ -131,14 +133,16 @@ function getLowerEmphasis(n: number): DayBias[] {
       { targetBody: "Lower", targetModifier: [], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
     ];
-  if (n >= 5)
-    return [
+  if (n >= 5) {
+    const days: DayBias[] = [
       { targetBody: "Lower", targetModifier: ["Quad"], intentKey: "strength" },
       { targetBody: "Upper", targetModifier: [], intentKey: "strength" },
       { targetBody: "Lower", targetModifier: ["Posterior"], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
       { targetBody: "Lower", targetModifier: [], intentKey: "strength" },
-    ].slice(0, n);
+    ];
+    return days.slice(0, n);
+  }
   return getBalancedWeek(n);
 }
 
@@ -149,13 +153,15 @@ function getPullEmphasis(n: number): DayBias[] {
       { targetBody: "Lower", targetModifier: [], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
     ];
-  if (n >= 4)
-    return [
+  if (n >= 4) {
+    const days: DayBias[] = [
       { targetBody: "Upper", targetModifier: ["Pull"], intentKey: "strength" },
       { targetBody: "Lower", targetModifier: [], intentKey: "strength" },
       { targetBody: "Upper", targetModifier: ["Pull"], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
-    ].slice(0, n);
+    ];
+    return days.slice(0, n);
+  }
   return getBalancedWeek(n);
 }
 
@@ -166,13 +172,15 @@ function getPushEmphasis(n: number): DayBias[] {
       { targetBody: "Lower", targetModifier: [], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
     ];
-  if (n >= 4)
-    return [
+  if (n >= 4) {
+    const days: DayBias[] = [
       { targetBody: "Upper", targetModifier: ["Push"], intentKey: "strength" },
       { targetBody: "Lower", targetModifier: [], intentKey: "strength" },
       { targetBody: "Upper", targetModifier: ["Push"], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
-    ].slice(0, n);
+    ];
+    return days.slice(0, n);
+  }
   return getBalancedWeek(n);
 }
 
@@ -183,13 +191,15 @@ function getGlutesEmphasis(n: number): DayBias[] {
       { targetBody: "Upper", targetModifier: [], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
     ];
-  if (n >= 4)
-    return [
+  if (n >= 4) {
+    const days: DayBias[] = [
       { targetBody: "Lower", targetModifier: ["Posterior"], intentKey: "strength" },
       { targetBody: "Upper", targetModifier: [], intentKey: "strength" },
       { targetBody: "Lower", targetModifier: ["Posterior"], intentKey: "strength" },
       { targetBody: "Full", targetModifier: [], intentKey: "strength" },
-    ].slice(0, n);
+    ];
+    return days.slice(0, n);
+  }
   return getBalancedWeek(n);
 }
 
@@ -200,9 +210,10 @@ function getCoreEmphasis(n: number): DayBias[] {
     { targetBody: "Full", targetModifier: [], intentKey: "strength" },
   ];
   if (n <= 3) return base.slice(0, n);
-  return [
+  const days: DayBias[] = [
     ...base,
     { targetBody: "Full", targetModifier: [], intentKey: "strength" },
     { targetBody: "Full", targetModifier: [], intentKey: "mobility" },
-  ].slice(0, n);
+  ];
+  return days.slice(0, n);
 }

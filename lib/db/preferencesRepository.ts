@@ -89,7 +89,8 @@ function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
   const weeklySubFocusCoverageMatchCounts = isRecord(weeklySubFocusCoverage?.matchCountsSoFar)
     ? Object.fromEntries(
         Object.entries(weeklySubFocusCoverage.matchCountsSoFar).filter(
-          ([key, value]) => typeof key === "string" && typeof value === "number" && Number.isFinite(value)
+          (entry): entry is [string, number] =>
+            typeof entry[0] === "string" && typeof entry[1] === "number" && Number.isFinite(entry[1])
         )
       )
     : {};

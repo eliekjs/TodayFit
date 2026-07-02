@@ -83,7 +83,7 @@ function getAllCardioIntentSlugs(input: GenerateWorkoutInput): string[] {
   return unique([...fromGoals, ...fromSportSubFocus]);
 }
 
-function hasCardioGoal(goal: PrimaryGoal | undefined): boolean {
+function hasCardioGoal(goal: string | undefined): boolean {
   return goal === "conditioning" || goal === "endurance";
 }
 
@@ -201,7 +201,9 @@ export function shouldIncludeConditioningBlock(input: GenerateWorkoutInput): boo
   return false;
 }
 
-function preferCircuitSupersetFormats(formats: BlockFormat[]): BlockFormat[] {
+type ConditioningBlockFormat = ConditioningPolicy["preferredMainFormats"][number];
+
+function preferCircuitSupersetFormats(formats: ConditioningBlockFormat[]): ConditioningBlockFormat[] {
   const rest = formats.filter((format) => format !== "circuit" && format !== "superset");
   return ["circuit", "superset", ...rest];
 }

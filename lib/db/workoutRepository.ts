@@ -168,7 +168,7 @@ function asStringArray(value: unknown): string[] | undefined {
 function asExerciseNotes(value: unknown): Record<string, string> | undefined {
   if (!isRecord(value)) return undefined;
   const entries = Object.entries(value).filter(
-    ([key, note]) => typeof key === "string" && typeof note === "string"
+    (entry): entry is [string, string] => typeof entry[0] === "string" && typeof entry[1] === "string"
   );
   return Object.fromEntries(entries);
 }

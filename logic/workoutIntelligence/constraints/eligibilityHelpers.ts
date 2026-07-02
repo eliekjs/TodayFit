@@ -16,12 +16,15 @@ const VALID_MOVEMENT_FAMILIES: MovementFamily[] = [
   "upper_push", "upper_pull", "lower_body", "core", "mobility", "conditioning",
 ];
 
+/** ExerciseWithQualities minus quality weights: lets generator Exercise shapes use eligibility helpers. */
+export type ExerciseEligibilityShape = Omit<ExerciseWithQualities, "training_quality_weights">;
+
 function normSlug(s: string): string {
   return s.toLowerCase().replace(/\s/g, "_");
 }
 
 /** Derive primary movement family from existing exercise fields (or use DB primary_movement_family when set). */
-export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily {
+export function deriveMovementFamily(ex: ExerciseEligibilityShape): MovementFamily {
   const fromDb = ex.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
   if (fromDb && VALID_MOVEMENT_FAMILIES.includes(fromDb as MovementFamily))
     return fromDb as MovementFamily;
@@ -76,20 +79,20 @@ export function deriveMovementFamily(ex: ExerciseWithQualities): MovementFamily 
   return "core";
 }
 
-function finePatternSet(ex: ExerciseWithQualities): Set<string> {
+function finePatternSet(ex: ExerciseEligibilityShape): Set<string> {
   return new Set((ex.movement_patterns ?? []).map(normSlug));
 }
 
-function fatigueNormSet(ex: ExerciseWithQualities): Set<string> {
+function fatigueNormSet(ex: ExerciseEligibilityShape): Set<string> {
   return new Set((ex.fatigue_regions ?? []).map(normSlug));
 }
 
-function attributeNormSet(ex: ExerciseWithQualities): Set<string> {
+function attributeNormSet(ex: ExerciseEligibilityShape): Set<string> {
   return new Set((ex.attribute_tags ?? []).map(normSlug));
 }
 
 /** Knee-dominant lower match (quad emphasis), aligned with legacy quad-focused tagging. */
-export function matchesQuadLowerEmphasis(ex: ExerciseWithQualities): boolean {
+export function matchesQuadLowerEmphasis(ex: ExerciseEligibilityShape): boolean {
   const fine = finePatternSet(ex);
   const legacy = normSlug(ex.movement_pattern ?? "");
   const muscles = normalizedMuscleSlugSet(ex.muscle_groups);
@@ -109,7 +112,7 @@ export function matchesQuadLowerEmphasis(ex: ExerciseWithQualities): boolean {
 }
 
 /** Hip-dominant / posterior chain match, aligned with legacy posterior-chain tagging. */
-export function matchesPosteriorLowerEmphasis(ex: ExerciseWithQualities): boolean {
+export function matchesPosteriorLowerEmphasis(ex: ExerciseEligibilityShape): boolean {
   const fine = finePatternSet(ex);
   const legacy = normSlug(ex.movement_pattern ?? "");
   const muscles = normalizedMuscleSlugSet(ex.muscle_groups);
@@ -126,21 +129,27 @@ export function matchesPosteriorLowerEmphasis(ex: ExerciseWithQualities): boolea
 }
 
 export function matchesLowerBodyEmphasis(
-  exercise: ExerciseWithQualities,
+  exercise: ExerciseEligibilityShape,
   emphasis: "quad" | "posterior"
 ): boolean {
   return emphasis === "quad" ? matchesQuadLowerEmphasis(exercise) : matchesPosteriorLowerEmphasis(exercise);
 }
 
+/** Minimal shape for injury/restriction eligibility (works for Exercise and ExerciseWithQualities). */
+export type InjuryEligibilityShape = Pick<
+  ExerciseWithQualities,
+  "id" | "joint_stress" | "contraindications" | "joint_stress_tags" | "contraindication_tags"
+>;
+
 /** Ontology-first: joint stress tags to check (prefer structured, fallback to legacy). */
-function getJointStressForEligibility(ex: ExerciseWithQualities): string[] {
+function getJointStressForEligibility(ex: InjuryEligibilityShape): string[] {
   const fromOntology = ex.joint_stress_tags ?? [];
   if (fromOntology.length > 0) return fromOntology;
   return ex.joint_stress ?? [];
 }
 
 /** Ontology-first: contraindication tags to check (prefer structured, fallback to legacy). */
-function getContraindicationsForEligibility(ex: ExerciseWithQualities): string[] {
+function getContraindicationsForEligibility(ex: InjuryEligibilityShape): string[] {
   const fromOntology = ex.contraindication_tags ?? [];
   if (fromOntology.length > 0) return fromOntology;
   return ex.contraindications ?? [];
@@ -148,7 +157,7 @@ function getContraindicationsForEligibility(ex: ExerciseWithQualities): string[]
 
 /** Check if exercise is allowed given injury/restriction rules (hard exclude). Uses ontology fields first when present. */
 export function isExerciseAllowedByInjuries(
-  exercise: ExerciseWithQualities,
+  exercise: InjuryEligibilityShape,
   constraints: ResolvedWorkoutConstraints
 ): boolean {
   if (constraints.excluded_exercise_ids.has(exercise.id)) return false;
@@ -208,7 +217,7 @@ export function isExerciseEligibleByConstraints(
  * Effective movement families for an exercise (ontology-first; used for strict body-part filtering).
  * For hybrids (e.g. thruster): primary + secondary so exercise is allowed when focus matches either.
  */
-export function getEffectiveMovementFamilies(exercise: ExerciseWithQualities): MovementFamily[] {
+export function getEffectiveMovementFamilies(exercise: ExerciseEligibilityShape): MovementFamily[] {
   const primary = exercise.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
   if (primary && VALID_MOVEMENT_FAMILIES.includes(primary as MovementFamily)) {
     const secondaries = (exercise.secondary_movement_families ?? [])
@@ -221,7 +230,7 @@ export function getEffectiveMovementFamilies(exercise: ExerciseWithQualities): M
 
 /** Check if exercise matches body-part focus (hard_include). Uses ontology primary + secondary when present; fallback to derivation. */
 export function matchesBodyPartFocus(
-  exercise: ExerciseWithQualities,
+  exercise: ExerciseEligibilityShape,
   constraints: ResolvedWorkoutConstraints,
   _blockType?: string
 ): boolean {

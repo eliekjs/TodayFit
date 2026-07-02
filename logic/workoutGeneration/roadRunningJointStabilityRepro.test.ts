@@ -12,7 +12,10 @@ import {
 import { generateWorkoutSession } from "./dailyGenerator";
 import { evaluateRoadMinimumCoverage } from "./sportPatternTransfer/runningFamily/roadRunningRules";
 import type { SportCoverageContext } from "./sportPatternTransfer/types";
+import type { GymProfile } from "../../data/gymProfiles";
+import type { GenerateWorkoutInput } from "./types";
 
+// Cast: includes test-only "rowing_machine" (not a canonical EquipmentKey).
 const GYM = {
   id: "test_gym",
   name: "Test Gym",
@@ -29,7 +32,7 @@ const GYM = {
     "treadmill",
     "rowing_machine",
   ],
-};
+} as GymProfile;
 
 const pool = EXERCISES.filter((d) => !BLOCKED_EXERCISE_IDS.has(d.id)).map(
   exerciseDefinitionToGeneratorExercise
@@ -70,6 +73,7 @@ describe("road running joint stability sub-goals", () => {
 
   it("evaluateRoadMinimumCoverage ignores exercise ids missing from lookup map", () => {
     const ctx: SportCoverageContext = {
+      input: { sport_slugs: ["road_running"] } as unknown as GenerateWorkoutInput,
       hasMainStrengthBlock: false,
       hasConditioningBlock: true,
       trainingBlockCount: 2,

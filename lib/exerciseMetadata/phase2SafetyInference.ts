@@ -29,6 +29,7 @@ export type Phase2MovementContext = {
 
 export type Phase2SafetyResult = {
   joint_stress_tags: JointStressTag[];
+  contraindication_tags: ContraindicationTag[];
   impact_level?: DemandLevel;
 };
 
@@ -137,6 +138,7 @@ export function inferPhase2Safety(input: ExerciseInferenceInput, ctx: Phase2Move
   if (mobilityOnly || family === "mobility") {
     return {
       joint_stress_tags: [],
+      contraindication_tags: [],
       impact_level: "none",
     };
   }

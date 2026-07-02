@@ -14,7 +14,7 @@ import { exerciseMatchesGoalSubFocusSlugUnified } from "./subFocusSlugMatch";
 
 function makeRecoveryExercise(
   id: string,
-  movementFamily: "upper_push" | "core",
+  movementFamily: "upper_push" | "core" | "lower_body",
   targets: string[]
 ): Exercise {
   return {

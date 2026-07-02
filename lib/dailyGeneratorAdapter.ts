@@ -785,7 +785,7 @@ function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
     ["strength", "hypertrophy", "endurance", "power", "mobility", "calisthenics", "recovery", "athleticism"].includes(toSlug(t))
   ) as ExerciseTags["goal_tags"];
   const goalTagsFromModalities = modalitiesToGoalTags(def.modalities as unknown as string[] | undefined);
-  const goalTags = [...new Set([...(goalTagsFromTags ?? []), ...(goalTagsFromModalities ?? [])])] as ExerciseTags["goal_tags"];
+  const goalTags = [...new Set([...(goalTagsFromTags ?? []), ...(goalTagsFromModalities ?? [])])] as NonNullable<ExerciseTags["goal_tags"]>;
   const energySlugs = tags.filter((t) => /^energy_(low|medium|high)$/.test(toSlug(t)));
   const energyFit = energySlugs.length
     ? (energySlugs.map((t) => t.replace("energy_", "") as "low" | "medium" | "high"))
@@ -795,7 +795,7 @@ function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
     return JOINT_STRESS_PREFIXES.some((p) => u.includes(p) || u === p);
   });
   const contraindications = (def.contraindications ?? []).map(contraindicationToSlug);
-  const stimulus = tags.filter((t) => STIMULUS_SLUGS.has(toSlug(t))) as ExerciseTags["stimulus"];
+  const stimulus = tags.filter((t) => STIMULUS_SLUGS.has(toSlug(t))) as NonNullable<ExerciseTags["stimulus"]>;
   // Canonical sport tags: must match SPORTS_WITH_SUB_FOCUSES slugs (no `sport_` prefix).
   const sportTags = [
     ...new Set(
@@ -922,7 +922,7 @@ function buildExerciseTags(def: ExerciseDefinition): ExerciseTags {
   const sportTagsFinal = [...new Set([...sportTags, ...inferredSportTags])];
 
   return {
-    ...(goalTags?.length ? { goal_tags: goalTags } : {}),
+    ...(goalTags.length ? { goal_tags: goalTags } : {}),
     ...(sportTagsFinal.length ? { sport_tags: sportTagsFinal } : {}),
     ...(energyFit?.length ? { energy_fit: energyFit } : {}),
     ...(jointStress.length ? { joint_stress: jointStress } : {}),

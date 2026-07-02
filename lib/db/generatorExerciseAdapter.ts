@@ -139,15 +139,15 @@ function buildTags(
     ["strength", "hypertrophy", "endurance", "power", "mobility", "calisthenics", "recovery", "athleticism"].includes(t)
   );
   const goalTagsFromModalities = modalitiesToGoalTags(row.modalities);
-  let goalTags = [...new Set([...(goalTagsFromTags ?? []), ...(goalTagsFromModalities ?? [])])] as ExerciseTags["goal_tags"];
+  let goalTags = [...new Set([...(goalTagsFromTags ?? []), ...(goalTagsFromModalities ?? [])])] as NonNullable<ExerciseTags["goal_tags"]>;
   if (goalTags.length === 0) {
     const fromSingleModality = modalitiesToGoalTags(row.modalities?.[0] ? [row.modalities[0]] : undefined);
     goalTags =
       (fromSingleModality?.length ? fromSingleModality : modalitiesToGoalTags(["strength"])) ??
-      (["strength"] as ExerciseTags["goal_tags"]);
+      (["strength"] as NonNullable<ExerciseTags["goal_tags"]>);
   }
   if (goalTags.length === 0) {
-    goalTags = ["strength"] as ExerciseTags["goal_tags"];
+    goalTags = ["strength"] as NonNullable<ExerciseTags["goal_tags"]>;
   }
   const energySlugs = tagSlugs.filter((t) => t === "energy_low" || t === "energy_medium" || t === "energy_high");
   const energyFit =

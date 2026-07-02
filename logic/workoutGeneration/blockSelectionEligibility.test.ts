@@ -20,14 +20,21 @@ import {
 import type { GenerateWorkoutInput } from "./types";
 
 const lowerBodyConstraints: ResolvedWorkoutConstraints = {
+  rules: [],
+  excluded_exercise_ids: new Set(),
+  excluded_joint_stress_tags: new Set(),
+  excluded_contraindication_keys: new Set(),
   allowed_movement_families: ["lower_body"],
   allowed_lower_body_emphasis: undefined,
-  injury_excluded_joint_stress: [],
-  injury_excluded_contraindications: [],
   required_conditioning_block: false,
   min_cooldown_mobility_exercises: 0,
-  superset_pairing: undefined,
+  superset_pairing: null,
 };
+
+/** Partial test input; casts through unknown because tests only set the fields under test. */
+function asInput(partial: Partial<GenerateWorkoutInput> & Record<string, unknown>): GenerateWorkoutInput {
+  return partial as unknown as GenerateWorkoutInput;
+}
 
 function makeEx(partial: Partial<Exercise> & Pick<Exercise, "id" | "name">): Exercise {
   return {
@@ -120,9 +127,9 @@ describe("isConditioningEligible", () => {
         attribute_tags: ["speed", "change_of_direction"],
       },
     });
-    const rsaInput = {
+    const rsaInput = asInput({
       sport_sub_focus: { soccer: ["repeat_sprint"] },
-    } as GenerateWorkoutInput;
+    });
     expect(isConditioningEligible(figure8, { input: rsaInput })).toBe(true);
   });
 
@@ -155,9 +162,10 @@ describe("isRecoveryCooldownEligible", () => {
       muscle_groups: ["legs"],
       exercise_role: "mobility",
       tags: {
-        goal_tags: ["mobility", "prehab"],
+        goal_tags: ["mobility"],
         sport_tags: ["sport_volleyball"],
         energy_fit: ["low"],
+        attribute_tags: ["prehab"],
       },
     });
     expect(isRecoveryCooldownEligible(tibialis)).toBe(false);
@@ -289,9 +297,9 @@ describe("exerciseEligibleForWorkingBlock", () => {
         attribute_tags: ["intervals_hiit"],
       },
     });
-    const codInput = {
+    const codInput = asInput({
       sport_sub_focus: { lacrosse: ["change_of_direction"] },
-    } as GenerateWorkoutInput;
+    });
     expect(
       isExerciseEligibleForBlock(burpee, {
         blockType: "power",

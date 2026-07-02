@@ -366,7 +366,16 @@ export function buildUnifiedIntentSlotPlan(
 
 /** Prehab/accessory intent slots are omitted when session archetype suppresses accessory blocks. */
 export function shouldAllocatePrehabAccessorySlots(
-  input: { session_intent?: { ranked_intent_entries?: IntentEntry[] }; sport_sub_focus?: Record<string, string[] | undefined>; goal_sub_focus?: Record<string, string[] | undefined>; primary_goal?: string; secondary_goals?: string[] }
+  input: {
+    session_intent?: {
+      ranked_intent_entries?: IntentEntry[];
+      sport_sub_focus_by_sport?: Record<string, string[] | undefined>;
+    };
+    sport_sub_focus?: Record<string, string[] | undefined>;
+    goal_sub_focus?: Record<string, string[] | undefined>;
+    primary_goal?: string;
+    secondary_goals?: string[];
+  }
 ): boolean {
   return !sessionSuppressesAccessoryBlocks(input);
 }

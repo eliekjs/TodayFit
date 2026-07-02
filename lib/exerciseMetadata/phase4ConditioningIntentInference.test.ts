@@ -8,7 +8,7 @@ import { exerciseHasSubFocusSlug } from "../../data/goalSubFocus/conditioningSub
 import { inferPhase4ConditioningIntents, shouldRunPhase4ConditioningInference } from "./phase4ConditioningIntentInference";
 import { exerciseInferenceInputFromDefinition, inferPhase1MovementFromInput } from "./phase1MovementInference";
 
-function assert(cond: boolean, msg: string) {
+function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(`Assertion failed: ${msg}`);
 }
 
@@ -26,7 +26,8 @@ function testZone2Bike() {
   const def = partialDef({
     id: "ph4_zone2_bike",
     name: "Steady Bike",
-    equipment: ["bike"],
+    // "bike" is a synthetic key for name/equipment inference (not a canonical EquipmentKey).
+    equipment: ["bike"] as unknown as ExerciseDefinition["equipment"],
     modalities: ["conditioning"],
   });
   const ex = exerciseDefinitionToGeneratorExercise(def);

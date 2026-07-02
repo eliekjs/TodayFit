@@ -148,12 +148,14 @@ function clamp01(value: number): number {
   return value;
 }
 
-function preferCircuitSupersetFormats(formats: BlockFormat[]): BlockFormat[] {
+type ConditioningBlockFormat = ConditioningPolicy["preferredMainFormats"][number];
+
+function preferCircuitSupersetFormats(formats: ConditioningBlockFormat[]): ConditioningBlockFormat[] {
   const rest = formats.filter((format) => format !== "circuit" && format !== "superset");
   return ["circuit", "superset", ...rest];
 }
 
-function preferStraightSetsFormats(formats: BlockFormat[]): BlockFormat[] {
+function preferStraightSetsFormats(formats: ConditioningBlockFormat[]): ConditioningBlockFormat[] {
   const rest = formats.filter((format) => format !== "straight_sets");
   return ["straight_sets", ...rest];
 }

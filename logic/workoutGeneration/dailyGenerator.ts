@@ -885,10 +885,13 @@ function accessoryDiversityBucket(exercise: Exercise): string {
 function pickStratifiedAccessoryCandidate(
   candidates: Array<{ exercise: Exercise }>,
   chosen: Exercise[],
-  rng: () => number
+  rng: () => number,
+  sessionUsedIds?: Set<string>
 ): { exercise: Exercise } | undefined {
   const chosenIds = new Set(chosen.map((c) => c.id));
-  const available = candidates.filter((c) => !chosenIds.has(c.exercise.id));
+  const available = candidates.filter(
+    (c) => !chosenIds.has(c.exercise.id) && !sessionUsedIds?.has(c.exercise.id)
+  );
   if (available.length === 0) return undefined;
   const bucketCounts = new Map<string, number>();
   for (const ex of chosen) {
@@ -1289,7 +1292,7 @@ export function scoreExercise(
       ? (goalSubFocus[primary] ?? []).filter((s) => !CONDITIONING_SUB_FOCUS_OVERLAYS.has(s))
       : [];
   if (conditioningIntentSlugs.length > 0) {
-    const ranked = goalSubFocus[primary] ?? [];
+    const ranked = goalSubFocus?.[primary] ?? [];
     const weightsArr =
       input.goal_sub_focus_weights?.[primary] ?? ranked.map(() => 1 / (ranked.length || 1));
     let bestMatchW = 0;
@@ -10312,7 +10315,7 @@ export function generateWorkoutSession(
   if (primary === "strength" && (input.goal_sub_focus?.[primary]?.length ?? 0) > 0) {
     strengthProfileForWarmup = resolveSubFocusProfile({
       goalSlug: primary,
-      rankedSubFocusSlugs: input.goal_sub_focus[primary] ?? [],
+      rankedSubFocusSlugs: input.goal_sub_focus?.[primary] ?? [],
       rankWeights: input.goal_sub_focus_weights?.[primary],
     });
   } else if (primary === "calisthenics") {

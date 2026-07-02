@@ -193,12 +193,15 @@ export type ContraindicationKey =
 
 export type MuscleGroup = "legs" | "push" | "pull" | "core";
 
+/** Aligned with the generator Modality union (logic/workoutGeneration/types.ts). */
 export type Modality =
   | "strength"
   | "hypertrophy"
   | "conditioning"
   | "mobility"
-  | "power";
+  | "power"
+  | "skill"
+  | "recovery";
 
 export type ExerciseDefinition = {
   id: string;
@@ -249,6 +252,7 @@ export type BlockType =
   | "power"
   | "conditioning"
   | "skill"
+  | "mobility"
   | "cooldown";
 
 export type BlockFormat =

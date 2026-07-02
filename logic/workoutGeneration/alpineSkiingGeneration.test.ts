@@ -231,8 +231,9 @@ function main() {
           exercise_id: strictBackSquat.id,
           exercise_name: strictBackSquat.name,
           sets: 3,
-          reps: "6-8",
+          reps: 8,
           rest_seconds: 120,
+          coaching_cues: "",
           reasoning_tags: ["test"],
           unilateral: false,
         },
@@ -241,7 +242,7 @@ function main() {
     },
     {
       block_type: "conditioning",
-      format: "intervals",
+      format: "circuit",
       title: "Conditioning",
       reasoning: "test",
       items: [
@@ -251,6 +252,7 @@ function main() {
           sets: 4,
           time_seconds: 120,
           rest_seconds: 60,
+          coaching_cues: "",
           reasoning_tags: ["test"],
           unilateral: false,
         },

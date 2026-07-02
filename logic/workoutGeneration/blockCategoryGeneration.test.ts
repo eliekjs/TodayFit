@@ -19,6 +19,7 @@ import {
   isSprintMechanicsDrill,
 } from "./blockSelectionEligibility";
 import { resolveBlockStructureProfile } from "../../data/sportSubFocus/subFocusIntentRegistry";
+import type { GymProfile } from "../../data/gymProfiles";
 
 const GYM = {
   id: "block_category_test",
@@ -37,7 +38,8 @@ const GYM = {
     "trap_bar",
     "assault_bike",
   ],
-};
+  // Cast: includes test-only "medicine_ball" (not a canonical EquipmentKey).
+} as GymProfile;
 
 /** Exercises injected to verify rejection/selection behavior in full generation. */
 const TRAP_EXERCISES: Exercise[] = [
@@ -72,9 +74,10 @@ const TRAP_EXERCISES: Exercise[] = [
     primary_movement_family: "lower_body",
     exercise_role: "mobility",
     tags: {
-      goal_tags: ["mobility", "prehab"],
+      goal_tags: ["mobility"],
       sport_tags: ["sport_volleyball"],
       energy_fit: ["low"],
+      attribute_tags: ["prehab"],
     },
   },
   {
@@ -301,7 +304,7 @@ const SCENARIOS: ScenarioSpec[] = [
     prefs: {
       primaryFocus: ["Build Strength"],
       subFocusByGoal: {},
-      targetBody: "Lower body",
+      targetBody: "Lower",
       targetModifier: [],
       durationMinutes: 30,
       energyLevel: "medium",
@@ -360,7 +363,7 @@ const SCENARIOS: ScenarioSpec[] = [
     prefs: {
       primaryFocus: ["Build Strength", "Sport Conditioning"],
       subFocusByGoal: {},
-      targetBody: "Lower body",
+      targetBody: "Lower",
       targetModifier: [],
       durationMinutes: 45,
       energyLevel: "medium",
