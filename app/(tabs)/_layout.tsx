@@ -125,6 +125,14 @@ export default function TabsLayout() {
       />
       {/* ── Flow screens – no tab button, back arrow in header ── */}
       <Tabs.Screen
+        name="presets/index"
+        options={{
+          href: null,
+          title: "Saved Presets",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
         name="manual/preferences"
         options={{
           href: null,

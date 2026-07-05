@@ -23,6 +23,7 @@ import { formatRemoteLoadError } from "./formatRemoteLoadError";
 import { isDbConfigured } from "../lib/db";
 import * as GymProfileRepo from "../lib/db/gymProfileRepository";
 import * as PreferencesRepo from "../lib/db/preferencesRepository";
+import * as SportPresetsRepo from "../lib/db/sportPresetsRepository";
 import * as WorkoutRepo from "../lib/db/workoutRepository";
 import type { PlanWeekResult } from "../services/sportPrepPlanner";
 import { persistWithHandling } from "./persistWithHandling";
@@ -39,6 +40,7 @@ import type {
   SessionDraft,
   SessionFlow,
   SportFormSnapshot,
+  SportPreset,
   WeekSetupDraft,
 } from "../lib/sessionDraft";
 
@@ -100,6 +102,7 @@ type AppStateContextValue = {
   activeGymProfileId: string | null;
   gymProfiles: GymProfile[];
   preferencePresets: PreferencePreset[];
+  sportPresets: SportPreset[];
   manualPreferences: ManualPreferences;
   generatedWorkout: GeneratedWorkout | null;
   workoutHistory: WorkoutHistoryItem[];
@@ -129,6 +132,11 @@ type AppStateContextValue = {
   updatePreferencePreset: (id: string, update: Partial<Pick<PreferencePreset, "name" | "preferences">>) => void;
   removePreferencePreset: (id: string) => void;
   applyPreferencePreset: (id: string) => void;
+  addSportPreset: (preset: Omit<SportPreset, "id">) => void;
+  updateSportPreset: (id: string, update: Partial<Pick<SportPreset, "name" | "sportForm">>) => void;
+  removeSportPreset: (id: string) => void;
+  /** Queues the preset's sport form for one-shot hydration next time the sport-mode screen focuses. */
+  applySportPreset: (id: string) => void;
   updateManualPreferences: (update: Partial<ManualPreferences>) => void;
   setGeneratedWorkout: (workout: GeneratedWorkout | null) => void;
   setResumeProgress: (progress: ExecutionProgress | null) => void;
@@ -193,7 +201,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [userId]);
 
   const applyRemoteData = useCallback((data: LoadedRemoteAppState) => {
-    const { profiles, prefs, presets, history, saved } = data;
+    const { profiles, prefs, presets, sportPresets, history, saved } = data;
     if (profiles.length) {
       setGymProfiles(profiles);
       const active = profiles.find((p) => p.isActive) ?? profiles[0];
@@ -201,6 +209,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
     if (prefs) setManualPreferences(sanitizeManualPreferenceSubLayers(prefs));
     setPreferencePresets(presets);
+    setSportPresets(sportPresets);
     setWorkoutHistory(history);
     setSavedWorkouts(saved);
   }, []);
@@ -244,6 +253,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     useState<ExecutionProgress | null>(null);
   const [manualExecutionStarted, setManualExecutionStarted] = useState(false);
   const [preferencePresets, setPreferencePresets] = useState<PreferencePreset[]>([]);
+  const [sportPresets, setSportPresets] = useState<SportPreset[]>([]);
   const [sportPrepWeekPlan, setSportPrepWeekPlan] = useState<PlanWeekResult | null>(null);
   const [manualWeekPlan, setManualWeekPlan] = useState<ManualWeekPlan | null>(null);
   const [adaptiveSetup, setAdaptiveSetup] = useState<AdaptiveSetup | null>(null);
@@ -795,6 +805,66 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId, persist, preferencePresets, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
+  const addSportPreset = useCallback((preset: Omit<SportPreset, "id">) => {
+    if (persist && userId) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "addSportPreset",
+        action: async () => {
+          const p = await SportPresetsRepo.addSportPreset(userId, preset);
+          setSportPresets((prev) => [...prev, p]);
+        },
+        onFailure: notifySaveFailed,
+      });
+    } else {
+      setSportPresets((prev) => [
+        ...prev,
+        { ...preset, id: `sport_preset_${Date.now()}` },
+      ]);
+    }
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+
+  const updateSportPreset = useCallback((id: string, update: Partial<Pick<SportPreset, "name" | "sportForm">>) => {
+    const previousSnapshot = sportPresets.find((p) => p.id === id);
+    setSportPresets((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...update } : p))
+    );
+    if (persist && userId && previousSnapshot != null) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "updateSportPreset",
+        action: () => SportPresetsRepo.updateSportPreset(userId, id, update),
+        rollback: () =>
+          setSportPresets((prev) =>
+            prev.map((p) => (p.id === id ? previousSnapshot : p))
+          ),
+        onFailure: notifySaveFailed,
+      });
+    }
+  }, [userId, persist, sportPresets, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+
+  const removeSportPreset = useCallback((id: string) => {
+    const removed = sportPresets.find((p) => p.id === id);
+    const removedIndex = sportPresets.findIndex((p) => p.id === id);
+    setSportPresets((prev) => prev.filter((p) => p.id !== id));
+    if (persist && userId && removed != null) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "removeSportPreset",
+        action: () => SportPresetsRepo.removeSportPreset(userId, id),
+        rollback: () =>
+          setSportPresets((prev) => {
+            if (prev.some((p) => p.id === id)) return prev;
+            const next = [...prev];
+            const i = Math.min(Math.max(removedIndex, 0), next.length);
+            next.splice(i, 0, removed);
+            return next;
+          }),
+        onFailure: notifySaveFailed,
+      });
+    }
+  }, [userId, persist, sportPresets, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+
   const updateManualPreferences = useCallback((update: Partial<ManualPreferences>) => {
     setManualPreferences((prev) => {
       const next = sanitizeManualPreferenceSubLayers({ ...prev, ...update });
@@ -938,6 +1008,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       activeGymProfileId,
       gymProfiles,
       preferencePresets,
+      sportPresets,
       manualPreferences,
       generatedWorkout,
       workoutHistory,
@@ -962,6 +1033,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (!preset) return;
         if (persist && userId) touchPersistedStateDuringRemoteLoad();
         setManualPreferences(sanitizeManualPreferenceSubLayers(preset.preferences));
+      },
+      addSportPreset,
+      updateSportPreset,
+      removeSportPreset,
+      applySportPreset: (id) => {
+        const preset = sportPresets.find((p) => p.id === id);
+        if (!preset) return;
+        if (persist && userId) touchPersistedStateDuringRemoteLoad();
+        lastSportFormSnapshotRef.current = preset.sportForm;
+        setPendingSportFormHydration(preset.sportForm);
       },
       updateManualPreferences,
       setGeneratedWorkout,
@@ -994,6 +1075,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       activeGymProfileId,
       gymProfiles,
       preferencePresets,
+      sportPresets,
       manualPreferences,
       generatedWorkout,
       workoutHistory,
@@ -1023,6 +1105,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addPreferencePreset,
       updatePreferencePreset,
       removePreferencePreset,
+      addSportPreset,
+      updateSportPreset,
+      removeSportPreset,
       updateManualPreferences,
       addCompletedWorkout,
       updateWorkoutHistoryItem,

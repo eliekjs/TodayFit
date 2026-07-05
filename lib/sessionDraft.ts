@@ -38,6 +38,17 @@ export type ModeFilterSnapshot = {
   updatedAt: number;
 };
 
+/** Saved Sport-Focused Training preset (named snapshot of the sport-mode setup form). */
+export type SportPreset = {
+  id: string;
+  name: string;
+  savedAt: string;
+  sportForm: SportFormSnapshot;
+};
+
+/** Kind of saved workout preset — mirrors the Home screen's goal vs sport split. */
+export type WorkoutPresetKind = "goal" | "sport";
+
 export type SessionDraft = {
   id: string;
   flow: SessionFlow;

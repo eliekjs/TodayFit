@@ -12,14 +12,21 @@ export function navigateToSessionFlow(
   targetHref: string,
   beginSessionFlow: (flow: SessionFlow) => boolean,
   replaceSessionFlow: (flow: SessionFlow) => void,
-  activeSessionDraft: SessionDraft | null
+  activeSessionDraft: SessionDraft | null,
+  /**
+   * Optional hook run right after the flow is begun/replaced but before navigating —
+   * e.g. to apply a saved preset's filters on top of whatever the flow start hydrated.
+   */
+  onFlowStarted?: () => void
 ): void {
   if (beginSessionFlow(flow)) {
+    onFlowStarted?.();
     router.push(targetHref as never);
     return;
   }
   if (!activeSessionDraft) {
     replaceSessionFlow(flow);
+    onFlowStarted?.();
     router.push(targetHref as never);
     return;
   }
@@ -37,6 +44,7 @@ export function navigateToSessionFlow(
         style: "destructive",
         onPress: () => {
           replaceSessionFlow(flow);
+          onFlowStarted?.();
           router.push(targetHref as never);
         },
       },

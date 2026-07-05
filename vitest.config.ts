@@ -61,6 +61,7 @@ export default defineConfig({
       "logic/workoutGeneration/supersetPairPreferenceBoost.test.ts",
       "logic/workoutGeneration/supersetIntentPreferenceScores.test.ts",
       "logic/workoutGeneration/bodyRecompConditioningPolicy.test.ts",
+      "logic/workoutGeneration/secondaryGoalBlockLabeling.test.ts",
       "logic/workoutGeneration/blockIntentProfile.test.ts",
       "logic/workoutGeneration/sessionFeelProfile.test.ts",
       "logic/workoutIntelligence/goalQualityWeights.test.ts",

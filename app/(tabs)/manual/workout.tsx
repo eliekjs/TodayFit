@@ -8,7 +8,7 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
-import { backLabelForPhase, phaseLabelAfter } from "../../../lib/sessionFlowNav";
+import { phaseLabelAfter } from "../../../lib/sessionFlowNav";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
@@ -279,10 +279,6 @@ export default function ManualWorkoutScreen() {
       <FlowPhaseNavBar
         sticky
         onLayout={setNavBarHeight}
-        back={{
-          label: backLabelForPhase("setup"),
-          onPress: () => router.push(manualPrefsHref),
-        }}
         forward={{
           label: phaseLabelAfter("review") ?? "Start workout",
           onPress: () => {

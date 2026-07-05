@@ -8,7 +8,10 @@ import { useIsFocused } from "@react-navigation/native";
 import { Header, getHeaderTitle } from "@react-navigation/elements";
 import type { HeaderOptions } from "@react-navigation/elements";
 import { useTheme } from "../../lib/theme";
-import { manualGoalPreferencesHref } from "../../lib/manualGoalPreferencesHref";
+import {
+  manualGoalPreferencesHref,
+  navigateToManualGoalPreferences,
+} from "../../lib/manualGoalPreferencesHref";
 import { sportReviewBackRoute } from "../../lib/sessionFlowNav";
 import { useAppState } from "../../context/AppStateContext";
 import { PrimaryButton } from "../../components/Button";
@@ -130,17 +133,14 @@ export function ManualExecuteBackButton() {
   );
 }
 
-/** Back from editing today's workout: previous screen (usually preferences), not Today home. */
+/** Back from workout review to filters (setup). Never use dismissTo — tab routes are not a dismiss stack. */
 export function EditWorkoutBackButton() {
   const router = useRouter();
   const theme = useTheme();
   const { manualGoalPreferencesScope } = useAppState();
   return (
     <Pressable
-      onPress={() => {
-        const href = manualGoalPreferencesHref(manualGoalPreferencesScope);
-        router.dismissTo(href);
-      }}
+      onPress={() => navigateToManualGoalPreferences(router, manualGoalPreferencesScope)}
       style={{ paddingLeft: 16 }}
     >
       <Ionicons name="chevron-back" size={24} color={theme.text} />

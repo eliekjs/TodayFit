@@ -325,6 +325,24 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.savedPresetsCard,
+            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 },
+          ]}
+          onPress={() => router.push("/presets")}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.savedPresetsTitle, { color: theme.text }]}>
+              Want to utilize a saved preset?
+            </Text>
+            <Text style={[styles.savedPresetsSubtitle, { color: theme.textMuted }]}>
+              Reuse a saved goal or sport setup for a day or a week.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+        </Pressable>
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -446,5 +464,22 @@ const styles = StyleSheet.create({
   goalValue: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  savedPresetsCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    gap: 10,
+  },
+  savedPresetsTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  savedPresetsSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
 });

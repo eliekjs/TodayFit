@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isOneDaySportModeCombinationValid } from "./sportModeOneDayValidation";
+import {
+  isOneDaySportModeCombinationValid,
+  validateSportFormForScope,
+} from "./sportModeOneDayValidation";
 
 describe("isOneDaySportModeCombinationValid", () => {
   it("allows two sports with no fitness goals", () => {
@@ -71,5 +74,59 @@ describe("isOneDaySportModeCombinationValid", () => {
         sportSubGoalCount: 2,
       })
     ).toBe(false);
+  });
+});
+
+describe("validateSportFormForScope", () => {
+  it("never flags week scope, regardless of selections", () => {
+    expect(
+      validateSportFormForScope(
+        {
+          rankedSportSlugs: ["basketball", "soccer"],
+          rankedGoals: ["strength", "muscle", "endurance"],
+          subFocusBySport: { basketball: ["a", "b", "c"], soccer: ["d", "e"] },
+        },
+        "week"
+      )
+    ).toEqual([]);
+  });
+
+  it("passes a form saved for one-day mode (1 sport + 1 goal) unchanged", () => {
+    expect(
+      validateSportFormForScope(
+        {
+          rankedSportSlugs: ["basketball", null],
+          rankedGoals: ["strength", null, null],
+          subFocusBySport: {},
+        },
+        "day"
+      )
+    ).toEqual([]);
+  });
+
+  it("flags a week-scale preset (2 sports + goals) when applied to one day", () => {
+    const issues = validateSportFormForScope(
+      {
+        rankedSportSlugs: ["basketball", "soccer"],
+        rankedGoals: ["strength", "muscle", null],
+        subFocusBySport: {},
+      },
+      "day"
+    );
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.some((i) => i.id === "combination")).toBe(true);
+  });
+
+  it("flags too many total sub-focus picks for one day even with a valid combination", () => {
+    const issues = validateSportFormForScope(
+      {
+        rankedSportSlugs: ["basketball", "soccer"],
+        rankedGoals: [null, null, null],
+        subFocusBySport: { basketball: ["a", "b", "c"], soccer: ["d", "e"] },
+      },
+      "day"
+    );
+    expect(issues.some((i) => i.id === "combination")).toBe(false);
+    expect(issues.some((i) => i.id === "sub_goal_cap")).toBe(true);
   });
 });

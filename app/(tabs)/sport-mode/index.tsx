@@ -64,6 +64,10 @@ import { PreferenceConflictBanner } from "../../../components/PreferenceConflict
 import {
   isOneDaySportModeCombinationValid,
   ONE_DAY_SPORT_MODE_COMBINATION_HINT,
+  MAX_TOTAL_PRIORITY_PICKS_DAY,
+  MAX_TOTAL_PRIORITY_PICKS_WEEK,
+  MAX_TOTAL_SUB_GOALS_DAY,
+  MAX_TOTAL_SUB_GOALS_WEEK,
 } from "../../../lib/sportModeOneDayValidation";
 import { sessionFlowFromSportScope } from "../../../lib/sessionDraft";
 import {
@@ -103,10 +107,6 @@ const INJURY_TYPE_OPTIONS = CONSTRAINT_OPTIONS.filter((o) => o !== "No restricti
 const INTENSITY_LEVEL_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 
 const MAX_SUB_GOALS_PER_GOAL = 3;
-const MAX_TOTAL_SUB_GOALS_DAY = 3;
-const MAX_TOTAL_SUB_GOALS_WEEK = 5;
-const MAX_TOTAL_PRIORITY_PICKS_DAY = 2;
-const MAX_TOTAL_PRIORITY_PICKS_WEEK = 3;
 
 /** Screen-space point for anchoring the selection-limit tooltip (e.g. from press `nativeEvent`). */
 type LimitPopupAnchor = { pageX: number; pageY: number };
@@ -143,6 +143,7 @@ export default function AdaptiveModeScreen() {
     beginSessionFlow,
     consumeSportFormHydration,
     commitSportFormSnapshot,
+    addSportPreset,
   } = useAppState();
   const { userId } = useAuth();
   const isOneDay = scope === "day";
@@ -195,6 +196,8 @@ export default function AdaptiveModeScreen() {
   const generationCancelledRef = useRef(false);
 
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
+  const [showSaveSportPresetModal, setShowSaveSportPresetModal] = useState(false);
+  const [saveSportPresetName, setSaveSportPresetName] = useState("");
   const [oneDayDuration, setOneDayDuration] = useState<number>(45);
   const [limitPopup, setLimitPopup] = useState<LimitPopupState | null>(null);
   const limitPopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -416,6 +419,34 @@ export default function AdaptiveModeScreen() {
         [sportSlug]: [...current, qualitySlug],
       }));
     }
+  };
+
+  const onSaveSportPreset = () => {
+    setSaveSportPresetName("");
+    setShowSaveSportPresetModal(true);
+  };
+
+  const onConfirmSaveSportPreset = () => {
+    const name = saveSportPresetName.trim() || "My sport preset";
+    addSportPreset({
+      name,
+      savedAt: new Date().toISOString(),
+      sportForm: sportFormSnapshotRef.current ?? buildSportFormSnapshot({
+        rankedGoals,
+        intensityLevel,
+        injuryStatus,
+        injuryTypes,
+        sportFocusPct,
+        sportVsGoalPct,
+        rankedSportSlugs,
+        subFocusBySport,
+        oneDayDuration,
+        oneDayBodyBias: oneDayBodyBiasForSnapshot,
+      }),
+    });
+    setShowSaveSportPresetModal(false);
+    setSaveSportPresetName("");
+    router.push("/presets?kind=sport");
   };
 
   const onNextToSchedule = () => {
@@ -2081,6 +2112,11 @@ export default function AdaptiveModeScreen() {
             Advanced options (sport %, goal weights, fatigue, injuries…)
           </Text>
         </Pressable>
+        <Pressable onPress={onSaveSportPreset} style={styles.savePresetWrap}>
+          <Text style={[styles.savePresetText, { color: theme.textMuted }]}>
+            Save preset
+          </Text>
+        </Pressable>
       </FlowPhaseNavBar>
       </View>
       <Modal visible={limitPopup != null} transparent animationType="fade" statusBarTranslucent>
@@ -2155,6 +2191,55 @@ export default function AdaptiveModeScreen() {
             })()}
           </View>
         ) : null}
+      </Modal>
+
+      {/* Save sport preset modal */}
+      <Modal
+        transparent
+        visible={showSaveSportPresetModal}
+        animationType="fade"
+        onRequestClose={() => setShowSaveSportPresetModal(false)}
+      >
+        <View style={styles.presetModalBackdrop}>
+          <Pressable
+            style={styles.presetModalDismiss}
+            onPress={() => setShowSaveSportPresetModal(false)}
+          />
+          <View
+            style={[styles.presetModalSheet, { backgroundColor: theme.card }]}
+          >
+            <Text style={[styles.presetModalTitle, { color: theme.text }]}>
+              Save sport preset
+            </Text>
+            <Text style={[styles.presetModalSubtitle, { color: theme.textMuted }]}>
+              Name this preset to reuse your current sports, goals, and settings later — for
+              either a one-day session or a full week.
+            </Text>
+            <TextInput
+              placeholder="e.g. Basketball in-season"
+              placeholderTextColor={theme.textMuted}
+              value={saveSportPresetName}
+              onChangeText={setSaveSportPresetName}
+              style={[
+                styles.presetModalInput,
+                { borderColor: theme.border, color: theme.text },
+              ]}
+            />
+            <View style={styles.presetModalFooter}>
+              <PrimaryButton
+                label="Cancel"
+                variant="ghost"
+                onPress={() => setShowSaveSportPresetModal(false)}
+                style={styles.presetModalFooterBtn}
+              />
+              <PrimaryButton
+                label="Save"
+                onPress={onConfirmSaveSportPreset}
+                style={styles.presetModalFooterBtn}
+              />
+            </View>
+          </View>
+        </View>
       </Modal>
     </AppScreenWrapper>
   );
@@ -2430,6 +2515,52 @@ const styles = StyleSheet.create({
   advancedLinkText: {
     fontSize: 13,
     fontWeight: "500",
+  },
+  savePresetWrap: {
+    alignItems: "center",
+    paddingBottom: 2,
+  },
+  savePresetText: {
+    fontSize: 13,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  presetModalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  presetModalDismiss: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  presetModalSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    gap: 12,
+  },
+  presetModalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  presetModalSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  presetModalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  presetModalFooter: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  presetModalFooterBtn: {
+    flex: 1,
   },
   subGoalBlendLinkWrap: {
     marginTop: 12,

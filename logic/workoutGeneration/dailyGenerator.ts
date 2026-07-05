@@ -5465,7 +5465,8 @@ function buildPowerBlock(
   fatigueVolumeScale?: number,
   fatigueState?: FatigueState,
   sessionFatigueRegions?: Map<string, number>,
-  historyContext?: TrainingHistoryContext
+  historyContext?: TrainingHistoryContext,
+  isSecondaryGoalBlock: boolean = false
 ): WorkoutBlock[] {
   const rankedPowerIntents = filterSubFocusSlugsForBodyFocus(
     getRankedGoalSubFocusSlugsForGoal(input, "power"),
@@ -5582,10 +5583,25 @@ function buildPowerBlock(
     {
       block_type: "power",
       format: "straight_sets",
-      title: "Power block",
+      title: isSecondaryGoalBlock ? "Power block (secondary goal)" : "Power block",
       reasoning: "Explosive intent; rate of force development. Full recovery between sets.",
       items,
       estimated_minutes: Math.min(Math.ceil(estMinutes), 35),
+      // When power is a secondary goal, tag explicitly instead of relying on
+      // ensureBlockGoalIntentFallbacks, which would badge the block with the session's
+      // primary goal (e.g. a recovery-primary session would mislabel this "RECOVERY").
+      ...(isSecondaryGoalBlock
+        ? {
+            goal_intent: {
+              intent_kind: "goal" as const,
+              goal_slug: "power",
+              swap_pool_exercise_ids: capSwapPoolIds(
+                poolForSelection.map((e) => e.id),
+                GOAL_DEDICATED_SWAP_POOL_CAP
+              ),
+            },
+          }
+        : {}),
     },
   ];
 }
@@ -10989,6 +11005,17 @@ export function generateWorkoutSession(
             reasoning: "Strength work for secondary goal: compound lifts, lower reps.",
             items: strengthItems,
             estimated_minutes: Math.min(estMin, 15),
+            // Tag explicitly with "strength" rather than letting the block fall through to
+            // ensureBlockGoalIntentFallbacks, which would badge it with the session's primary
+            // goal (e.g. a recovery-primary session would mislabel this strength block "RECOVERY").
+            goal_intent: {
+              intent_kind: "goal",
+              goal_slug: "strength",
+              swap_pool_exercise_ids: capSwapPoolIds(
+                strengthPool.map((e) => e.id),
+                GOAL_DEDICATED_SWAP_POOL_CAP
+              ),
+            },
           });
         }
       }
@@ -11044,6 +11071,7 @@ export function generateWorkoutSession(
             };
           });
           const estMin = hypertrophyItems.length * 4;
+          const hypertrophySecondaryGoalSlug = secondaryGoalDrivingHypertrophyBlock(input) ?? "hypertrophy";
           blocks.push({
             block_type: "main_hypertrophy",
             format: "straight_sets",
@@ -11051,11 +11079,22 @@ export function generateWorkoutSession(
               "main_hypertrophy",
               primary,
               true,
-              secondaryGoalDrivingHypertrophyBlock(input)
+              hypertrophySecondaryGoalSlug
             ),
             reasoning: "Hypertrophy work for secondary goal: moderate load, higher reps.",
             items: hypertrophyItems,
             estimated_minutes: Math.min(estMin, 15),
+            // Tag explicitly with the driving secondary goal rather than letting the block fall
+            // through to ensureBlockGoalIntentFallbacks, which would badge it with the session's
+            // primary goal (e.g. a recovery-primary session would mislabel this "RECOVERY").
+            goal_intent: {
+              intent_kind: "goal",
+              goal_slug: hypertrophySecondaryGoalSlug,
+              swap_pool_exercise_ids: capSwapPoolIds(
+                hypertrophyPool.map((e) => e.id),
+                GOAL_DEDICATED_SWAP_POOL_CAP
+              ),
+            },
           });
         }
       }
@@ -11077,7 +11116,8 @@ export function generateWorkoutSession(
           fatigueVolumeScale,
           fatigueState,
           sessionFatigueRegions,
-          historyContext
+          historyContext,
+          true
         )
       );
     }
@@ -11838,12 +11878,35 @@ export function generateWorkoutSession(
           reasoning: "Secondary goal coverage preservation.",
           items: [newItem],
           estimated_minutes: 8,
+          // Tag with the driving secondary goal so the badge doesn't fall back to the
+          // session's primary goal (e.g. "RECOVERY" on a hypertrophy coverage block).
+          goal_intent: {
+            intent_kind: "goal",
+            goal_slug: sg,
+            swap_pool_exercise_ids: capSwapPoolIds(
+              filtered.filter((ex) => exerciseMatchesDeclaredGoal(ex, sg)).map((ex) => ex.id),
+              GOAL_DEDICATED_SWAP_POOL_CAP
+            ),
+          },
         });
       }
     } else {
       const acc = ensureAccessoryBoosterBlock();
       acc.items.push(newItem);
       acc.estimated_minutes = (acc.estimated_minutes ?? 0) + 6;
+      // First secondary goal to land in the coverage booster sets its badge; later goals
+      // sharing the same booster block keep their own per-exercise FOR tags via
+      // session_intent_links, but the block-level badge must not default to the primary goal.
+      if (!acc.goal_intent) {
+        acc.goal_intent = {
+          intent_kind: "goal",
+          goal_slug: sg,
+          swap_pool_exercise_ids: capSwapPoolIds(
+            filtered.filter((ex) => exerciseMatchesDeclaredGoal(ex, sg)).map((ex) => ex.id),
+            GOAL_DEDICATED_SWAP_POOL_CAP
+          ),
+        };
+      }
     }
   }
 
