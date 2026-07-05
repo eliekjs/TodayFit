@@ -7,6 +7,7 @@ import type { Exercise } from "../../logic/workoutGeneration/types";
 import { exerciseDefinitionToGeneratorExercise } from "../dailyGeneratorAdapter";
 import { filterInjury } from "../../logic/workoutIntelligence/selection/candidateFilters";
 import type { WorkoutSelectionInput } from "../../logic/workoutIntelligence/scoring/scoreTypes";
+import type { ExerciseWithQualities } from "../../logic/workoutIntelligence/types";
 import { exerciseInferenceInputFromDefinition } from "./phase1MovementInference";
 import {
   canonicalizeJointStressSlugs,
@@ -106,7 +107,7 @@ function testFilterInjuryKneeExcludesSquat() {
     energy_level: "medium",
     injuries_or_limitations: ["knee"],
   };
-  const r = filterInjury(ex, input);
+  const r = filterInjury(ex as unknown as ExerciseWithQualities, input);
   assert(!r.pass, "knee injury excludes inferred squat");
   console.log("  OK: filterInjury excludes knee-tagged squat");
 }
@@ -127,7 +128,7 @@ function testFilterInjuryShoulderExcludesBench() {
     energy_level: "medium",
     injuries_or_limitations: ["shoulder"],
   };
-  const r = filterInjury(ex, input);
+  const r = filterInjury(ex as unknown as ExerciseWithQualities, input);
   assert(!r.pass, "shoulder injury excludes horizontal push");
   console.log("  OK: filterInjury excludes shoulder-tagged bench");
 }

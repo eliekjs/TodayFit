@@ -97,7 +97,7 @@ const SYNTH_UPPER_POWER: Exercise[] = [
     tags: {
       goal_tags: ["power"],
       attribute_tags: ["upper_body_power", "power"],
-      stimulus: ["explosive"],
+      stimulus: ["plyometric"],
     },
     primary_movement_family: "upper_push",
     movement_patterns: ["vertical_push"],

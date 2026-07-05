@@ -12,8 +12,8 @@ function assert(condition: boolean, message: string) {
 }
 
 function minimalExercise(partial: Partial<Exercise> & Pick<Exercise, "id">): Exercise {
+  const { id, ...rest } = partial;
   return {
-    id: partial.id,
     name: partial.name ?? partial.id,
     movement_pattern: partial.movement_pattern ?? "squat",
     muscle_groups: partial.muscle_groups ?? ["legs"],
@@ -22,7 +22,8 @@ function minimalExercise(partial: Partial<Exercise> & Pick<Exercise, "id">): Exe
     difficulty: partial.difficulty ?? 2,
     time_cost: partial.time_cost ?? "medium",
     tags: partial.tags ?? {},
-    ...partial,
+    ...rest,
+    id,
   };
 }
 

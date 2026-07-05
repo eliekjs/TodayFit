@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { manualPreferencesToGenerateWorkoutInput } from "./dailyGeneratorAdapter";
 import type { ManualPreferences } from "./types";
+import type { GymProfile } from "../data/gymProfiles";
 
 const STRENGTH_PRIMARY_PREFS: ManualPreferences = {
   primaryFocus: ["Build Strength"],
@@ -20,7 +21,7 @@ const STRENGTH_PRIMARY_PREFS: ManualPreferences = {
   workoutTier: "intermediate",
 };
 
-const minimalGym = { id: "g1", name: "Test Gym", equipment: ["bodyweight"] as string[] };
+const minimalGym = { id: "g1", name: "Test Gym", equipment: ["bodyweight"] as string[] } as GymProfile;
 
 describe("manualPreferencesToGenerateWorkoutInput endurance secondary from sport prep", () => {
   it("appends endurance for engine sport + aerobic signal (cycling)", () => {

@@ -35,9 +35,10 @@ function deriveSessionCardioTargetShare(
   if (sessionType.includes("conditioning") || sessionType.includes("aerobic")) return 0.82;
   if (sessionType.includes("recovery") || sessionType.includes("mobility")) return 0.2;
   if (sessionType.includes("mixed_sport_support")) return 0.5;
-  const qualityConditioning = planned.target_qualities.conditioning ?? 0;
-  const qualityEndurance = planned.target_qualities.endurance ?? 0;
-  const qualityShare = clamp01((qualityConditioning + qualityEndurance) / 2);
+  const qualityAerobicBase = planned.target_qualities.aerobic_base ?? 0;
+  const qualityWorkCapacity = planned.target_qualities.work_capacity ?? 0;
+  const qualityAerobicPower = planned.target_qualities.aerobic_power ?? 0;
+  const qualityShare = clamp01((qualityAerobicBase + qualityWorkCapacity + qualityAerobicPower) / 3);
   const weeklyCardioBias = primaryCardioWeek ? 0.2 : 0;
   const weeklyFloor = primaryCardioWeek ? 0.45 : 0.18;
   return clamp01(Math.max(weeklyFloor, qualityShare + weeklyCardioBias));

@@ -55,7 +55,7 @@ export function getRecommendation(
     if (options.lastCompletionSuccess === false) {
       return { recommendation: "regress", reason: "anchor_last_poor_completion" };
     }
-    if (options.wasRecentlyUsed && exposureCount <= 2 && options.lastCompletionSuccess !== false) {
+    if (options.wasRecentlyUsed && exposureCount <= 2 && options.lastCompletionSuccess === true) {
       return { recommendation: "progress", reason: "anchor_repeat_progression" };
     }
     if (options.wasRecentlyUsed && exposureCount >= 2) {

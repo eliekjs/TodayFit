@@ -85,7 +85,7 @@ function main() {
     exerciseInferenceInputFromDefinition(def({ id: "x", name: "Tempo Run", muscles: ["legs"], modalities: ["conditioning"] }))
   );
   assert(ex.primary_movement_family === "conditioning", "merge sets family");
-  assert(ex.movement_patterns?.includes("locomotion"), "tempo run locomotion");
+  assert(ex.movement_patterns?.includes("locomotion") === true, "tempo run locomotion");
 
   console.log("OK: phase1MovementInference tests passed.");
 }

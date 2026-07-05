@@ -7,14 +7,9 @@ import assert from "assert";
 import { generateWorkoutSession } from "./dailyGenerator";
 import type { Exercise, GenerateWorkoutInput } from "./types";
 
-function mkEx(
-  partial: Pick<Exercise, "id" | "name"> &
-    Partial<Omit<Exercise, "id" | "name" | "movement_pattern" | "muscle_groups" | "modality" | "equipment_required" | "difficulty" | "time_cost" | "tags">> & {
-      tags?: Exercise["tags"];
-    }
-): Exercise {
+function mkEx(partial: Pick<Exercise, "id" | "name"> & Partial<Exercise>): Exercise {
   return {
-    movement_pattern: "squat",
+    movement_patterns: ["squat"],
     muscle_groups: ["legs"],
     modality: "strength",
     equipment_required: ["barbell"],
@@ -36,7 +31,7 @@ const lateralLunge = mkEx({
   id: "lateral_lunge_intent_survival",
   name: "Lateral Lunge",
   exercise_role: "accessory",
-  movement_pattern: "squat",
+  movement_patterns: ["squat"],
 });
 
 const strictSquat = mkEx({
@@ -48,7 +43,7 @@ const strictSquat = mkEx({
 const hiitBike = mkEx({
   id: "hiit_bike_intent_survival",
   name: "Assault Bike",
-  movement_pattern: "locomotion",
+  movement_patterns: ["locomotion"],
   modality: "conditioning",
   equipment_required: ["assault_bike"],
   tags: { goal_tags: ["conditioning"], energy_fit: ["high"] },

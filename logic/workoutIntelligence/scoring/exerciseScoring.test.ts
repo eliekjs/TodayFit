@@ -19,7 +19,7 @@ function makeExercise(overrides: Partial<ExerciseWithQualities>): ExerciseWithQu
 
 describe("exercise scoring sport transfer", () => {
   it("prefers climbing transfer exercises over squat-dominant lower lifts", () => {
-    const state = createSessionSelectionState("moderate", { max_same_pattern_per_session: 4 });
+    const state = createSessionSelectionState({ kind: "level", level: "moderate" }, { max_same_pattern_per_session: 4 });
     const baseInput = {
       blockQualities: { weights: { pulling_strength: 1, grip_strength: 0.8, core_tension: 0.7 } },
       blockType: "main_strength",
@@ -51,7 +51,7 @@ describe("exercise scoring sport transfer", () => {
   });
 
   it("uses selected sport sub-focus tags to favor movement-specific matches", () => {
-    const state = createSessionSelectionState("moderate", { max_same_pattern_per_session: 3 });
+    const state = createSessionSelectionState({ kind: "level", level: "moderate" }, { max_same_pattern_per_session: 3 });
     const baseInput = {
       blockQualities: { weights: { aerobic_base: 0.9, unilateral_strength: 0.8, trunk_endurance: 0.5 } },
       blockType: "main_strength",
@@ -86,7 +86,7 @@ describe("exercise scoring sport transfer", () => {
   });
 
   it("applies sport demand fallback when no sub-focus is selected", () => {
-    const state = createSessionSelectionState("moderate", { max_same_pattern_per_session: 3 });
+    const state = createSessionSelectionState({ kind: "level", level: "moderate" }, { max_same_pattern_per_session: 3 });
     const baseInput = {
       blockQualities: { weights: { power: 0.7, max_strength: 0.5, unilateral_strength: 0.4 } },
       blockType: "main_strength",

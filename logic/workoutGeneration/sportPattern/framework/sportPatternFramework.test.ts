@@ -76,7 +76,7 @@ function main() {
   const tierPrefer = gatePoolForSportSlot([b, c], "main_strength", rule, {}, {
     exerciseMatchesGate: matchesGate,
     progressiveLadder: {
-      exerciseMatchesPrefer: (ex, cats) => matchesGate(ex, cats),
+      exerciseMatchesPrefer: (ex: Exercise, cats: readonly string[]) => matchesGate(ex, cats),
       filterQualityAlignedPool: () => [],
     },
   });
@@ -92,7 +92,7 @@ function main() {
     exerciseMatchesGate: matchesGate,
     progressiveLadder: {
       exerciseMatchesPrefer: matchesGate,
-      filterQualityAlignedPool: ({ fullPool }) => fullPool,
+      filterQualityAlignedPool: ({ fullPool }: { fullPool: Exercise[] }) => fullPool,
     },
   });
   assert(tierQuality.selectionTier === "sport_quality_aligned" && tierQuality.poolForSelection[0].id === "b", "tier 3 quality pool");

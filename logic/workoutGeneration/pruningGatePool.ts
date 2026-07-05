@@ -30,7 +30,7 @@ let bundledMapCache: Map<string, ExerciseEligibilityEntry> | undefined;
 
 export function getBundledEligibilityById(): Map<string, ExerciseEligibilityEntry> {
   if (!bundledMapCache) {
-    const raw = eligibilityBundle as { by_id?: Record<string, ExerciseEligibilityEntry> };
+    const raw = eligibilityBundle as unknown as { by_id?: Record<string, ExerciseEligibilityEntry> };
     bundledMapCache = new Map(Object.entries(raw.by_id ?? {}));
   }
   return bundledMapCache;

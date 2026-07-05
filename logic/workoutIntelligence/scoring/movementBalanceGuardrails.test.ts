@@ -29,7 +29,7 @@ function baseExercise(overrides: Partial<ExerciseWithQualities>): ExerciseWithQu
 
 function testHingePatternCap() {
   const config = DEFAULT_SELECTION_CONFIG;
-  const state = createSessionSelectionState("moderate", {
+  const state = createSessionSelectionState({ kind: "level", level: "moderate" }, {
     max_same_pattern_per_session: config.max_same_pattern_per_session,
   });
   state.movement_pattern_counts.set("hinge", config.max_same_pattern_per_session);
@@ -42,7 +42,7 @@ function testHingePatternCap() {
 
 function testHeavyCompoundCap() {
   const config = DEFAULT_SELECTION_CONFIG;
-  const state = createSessionSelectionState("moderate", {
+  const state = createSessionSelectionState({ kind: "level", level: "moderate" }, {
     max_same_pattern_per_session: config.max_same_pattern_per_session,
   });
   const heavyHinge = baseExercise({
@@ -59,7 +59,7 @@ function testHeavyCompoundCap() {
 
 function testMediumFatigueHingeDoesNotCountAsHeavyCompound() {
   const config = DEFAULT_SELECTION_CONFIG;
-  const state = createSessionSelectionState("moderate", {
+  const state = createSessionSelectionState({ kind: "level", level: "moderate" }, {
     max_same_pattern_per_session: config.max_same_pattern_per_session,
   });
   state.heavy_compound_count = config.max_heavy_compounds_per_session;

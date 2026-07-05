@@ -30,7 +30,7 @@ function testWarmupSelectionVariesAcrossSeeds() {
 
   const warmupCombos = new Set<string>();
   for (let i = 0; i < 16; i++) {
-    const session = generateWorkoutSession({ ...baseInput, seed: baseInput.seed + i }, STUB_EXERCISES);
+    const session = generateWorkoutSession({ ...baseInput, seed: (baseInput.seed ?? 0) + i }, STUB_EXERCISES);
     const warmup = session.blocks.find((b) => b.block_type === "warmup");
     assert.ok(warmup, "session should include a warmup block");
     warmupCombos.add(warmup.items.map((it) => it.exercise_id).sort().join("|"));

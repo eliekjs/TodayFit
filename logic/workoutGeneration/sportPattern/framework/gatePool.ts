@@ -1,5 +1,10 @@
 import type { Exercise } from "../../types";
-import type { SportPatternGateOptions, SportPatternGateResult, SportPatternSlotRule } from "./types";
+import type {
+  SportPatternGateOptions,
+  SportPatternGateResult,
+  SportPatternProgressiveLadderHooks,
+  SportPatternSlotRule,
+} from "./types";
 
 const DEFAULT_MAIN_WORK_SLOTS = new Set(["main_strength", "main_hypertrophy"]);
 

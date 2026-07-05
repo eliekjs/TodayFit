@@ -27,7 +27,7 @@ describe("conditioningSubFocus threshold and hills matching", () => {
     const inclinePress = exerciseDefinitionToGeneratorExercise({
       id: "incline_bench_test",
       name: "Barbell Incline Press",
-      muscles: ["chest"],
+      muscles: ["push"],
       modalities: ["strength"],
       equipment: ["barbell", "bench"],
       tags: [],

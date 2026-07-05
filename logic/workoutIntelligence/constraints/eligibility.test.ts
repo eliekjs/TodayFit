@@ -15,6 +15,7 @@ import {
   isMobilityOrStretchExercise,
   satisfiesBlockRequirement,
 } from "./eligibilityHelpers";
+import type { ResolvedWorkoutConstraints } from "./constraintTypes";
 import type { ExerciseWithQualities } from "../types";
 
 function assert(condition: boolean, message: string) {

@@ -5,7 +5,8 @@
 
 import type { Exercise } from "./types";
 import { validateWorkoutAgainstConstraints } from "../workoutIntelligence/validation/workoutValidator";
-import type { ResolvedWorkoutConstraints } from "../workoutIntelligence/constraints/constraintTypes";
+import type { ResolvedWorkoutConstraints, SupersetPairingRule } from "../workoutIntelligence/constraints/constraintTypes";
+import type { MovementFamily } from "../../lib/ontology/vocabularies";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
@@ -79,11 +80,12 @@ const MOBILITY_EX_2: Exercise = {
 };
 
 function makeConstraints(overrides: Partial<{
-  allowed_movement_families: string[] | null;
+  allowed_movement_families: MovementFamily[] | null;
   excluded_exercise_ids: Set<string>;
   excluded_joint_stress_tags: Set<string>;
   excluded_contraindication_keys: Set<string>;
   min_cooldown_mobility_exercises: number;
+  superset_pairing: SupersetPairingRule | null;
 }>): ResolvedWorkoutConstraints {
   return {
     rules: [],
@@ -93,7 +95,7 @@ function makeConstraints(overrides: Partial<{
     allowed_movement_families: overrides.allowed_movement_families ?? null,
     allowed_lower_body_emphasis: undefined,
     min_cooldown_mobility_exercises: overrides.min_cooldown_mobility_exercises ?? 0,
-    superset_pairing: null,
+    superset_pairing: overrides.superset_pairing ?? null,
   };
 }
 

@@ -60,9 +60,9 @@ function run() {
     `parseWorkoutLevelsFromDb orders tiers, got ${JSON.stringify(explicit)}`
   );
 
-  assert(isHardBlockedForBeginnerTier({ workout_level_tags: ["intermediate", "advanced"], difficulty: 3 }));
-  assert(!isHardBlockedForBeginnerTier({ workout_level_tags: ["beginner", "intermediate"], difficulty: 3 }));
-  assert(isHardBlockedForBeginnerTier({ workout_level_tags: ["beginner", "intermediate"], difficulty: 5 }));
+  assert(isHardBlockedForBeginnerTier({ workout_level_tags: ["intermediate", "advanced"], difficulty: 3 }), "intermediate+ tags block beginner");
+  assert(!isHardBlockedForBeginnerTier({ workout_level_tags: ["beginner", "intermediate"], difficulty: 3 }), "beginner tag allows");
+  assert(isHardBlockedForBeginnerTier({ workout_level_tags: ["beginner", "intermediate"], difficulty: 5 }), "high difficulty blocks");
 
   console.log("workoutLevel.inference.test.ts passed.");
 }

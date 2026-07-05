@@ -30,7 +30,7 @@ describe("resilience regional anatomy (Recovery goal → resilience slug)", () =
     const ex: Exercise = {
       id: "pallof",
       name: "Pallof",
-      movement_pattern: "anti_rotation",
+      movement_pattern: "rotate",
       muscle_groups: ["core"],
       modality: "strength",
       equipment_required: ["cable_machine"],

@@ -1,4 +1,4 @@
-import type { WorkoutBlock } from "../../../lib/types";
+import type { WorkoutBlock } from "../../../../lib/types";
 import type { GenerateWorkoutInput } from "../../types";
 import type { SportCoverageContext } from "../../sportPatternTransfer/types";
 

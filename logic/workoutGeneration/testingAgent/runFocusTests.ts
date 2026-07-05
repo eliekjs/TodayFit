@@ -69,7 +69,9 @@ function runAssertions(
       const expectedSet = new Set(expected.allowed_movement_families);
       const actualSet = new Set(actual);
       assert(
-        expected.allowed_movement_families.length === actual.length && expected.allowed_movement_families.every((f) => actualSet.has(f)),
+        actual != null &&
+          expected.allowed_movement_families.length === actual.length &&
+          expected.allowed_movement_families.every((f) => actualSet.has(f)),
         `${scenarioName}: allowed_movement_families expected ${[...expectedSet].sort().join(",")}, got ${[...actualSet].sort().join(",")}`
       );
     }
@@ -102,8 +104,10 @@ function runAssertions(
 
   if (expected.mainRestSecondsMin != null) {
     const main = report.sessionSummary.mainWorkPrescription;
-    assert(main?.restSeconds != null, `${scenarioName}: expected main work rest in report`);
-    assert(main!.restSeconds >= expected.mainRestSecondsMin, `${scenarioName}: main rest expected >= ${expected.mainRestSecondsMin}s, got ${main!.restSeconds}`);
+    if (main?.restSeconds == null) {
+      throw new Error(`${scenarioName}: expected main work rest in report`);
+    }
+    assert(main.restSeconds >= expected.mainRestSecondsMin, `${scenarioName}: main rest expected >= ${expected.mainRestSecondsMin}s, got ${main.restSeconds}`);
   }
 }
 

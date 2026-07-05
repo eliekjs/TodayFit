@@ -111,7 +111,7 @@ test("B: changing canonical conditioningMinutesScale changes conditioning block 
       block_type: "conditioning",
       format: "straight_sets",
       title: "Conditioning",
-      items: [{ exercise_id: "x", exercise_name: "Run", sets: 1, time_seconds: 600, rest_seconds: 60 }],
+      items: [{ exercise_id: "x", exercise_name: "Run", sets: 1, time_seconds: 600, rest_seconds: 60, coaching_cues: "" }],
       estimated_minutes: 20,
     },
   ];

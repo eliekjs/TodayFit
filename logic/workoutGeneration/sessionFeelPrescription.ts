@@ -70,7 +70,7 @@ export function shouldPrescribePowerIntent(
   }
 
   if (blockType === "power") return true;
-  if (primaryGoal === "power") return blockType === "main_strength" || blockType === "power";
+  if (primaryGoal === "power") return blockType === "main_strength";
 
   if (blockType !== "main_strength" && blockType !== "accessory") return false;
 

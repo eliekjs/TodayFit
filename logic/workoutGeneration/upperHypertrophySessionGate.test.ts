@@ -35,7 +35,7 @@ describe("upperHypertrophySessionGate", () => {
   it("gates remainder only when focus is upper-only and muscle sub-focus is not legs/glutes", () => {
     const input = {
       focus_body_parts: ["upper_push"],
-    } as GenerateWorkoutInput;
+    } as unknown as GenerateWorkoutInput;
     expect(shouldGateLowerBodyHypertrophyRemainder(input, ["chest", "arms"])).toBe(true);
     expect(shouldGateLowerBodyHypertrophyRemainder(input, ["chest", "legs"])).toBe(false);
   });
@@ -46,7 +46,7 @@ describe("upperHypertrophySessionGate", () => {
         primary_goal: "hypertrophy",
         focus_body_parts: ["upper_push"],
         secondary_goals: [],
-      } as GenerateWorkoutInput)
+      } as unknown as GenerateWorkoutInput)
     ).toBe(true);
 
     expect(
@@ -54,7 +54,7 @@ describe("upperHypertrophySessionGate", () => {
         primary_goal: "hypertrophy",
         focus_body_parts: ["lower"],
         secondary_goals: [],
-      } as GenerateWorkoutInput)
+      } as unknown as GenerateWorkoutInput)
     ).toBe(true);
   });
 
@@ -64,7 +64,7 @@ describe("upperHypertrophySessionGate", () => {
         primary_goal: "hypertrophy",
         focus_body_parts: ["upper_push"],
         secondary_goals: ["conditioning"],
-      } as GenerateWorkoutInput)
+      } as unknown as GenerateWorkoutInput)
     ).toBe(false);
   });
 });

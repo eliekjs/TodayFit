@@ -6,7 +6,7 @@ describe("resolveSessionContext main block goal dominance", () => {
   it("anchors the earliest main block to the primary goal (ignores secondary goals)", () => {
     const template: SessionTemplateV2 = {
       id: "t",
-      session_type: "full_body",
+      session_type: "full_body_strength",
       stimulus_profile: "sport_support_strength",
       duration_minutes_min: 30,
       duration_minutes_max: 60,

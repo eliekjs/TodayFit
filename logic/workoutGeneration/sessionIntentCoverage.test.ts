@@ -781,7 +781,7 @@ describe("sessionIntentCoverage", () => {
 
   it("keeps multi-sub-goal dedicated blocks separated from fitness-goal chips", () => {
     const input: GenerateWorkoutInput = {
-      duration_minutes: 50,
+      duration_minutes: 45,
       primary_goal: "hypertrophy",
       secondary_goals: ["strength"],
       goal_weights: [0.7, 0.3],

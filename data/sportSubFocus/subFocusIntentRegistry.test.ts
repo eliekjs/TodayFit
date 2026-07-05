@@ -89,7 +89,7 @@ describe("speed/COD scoring and gates", () => {
       sport_tags: ["sport_soccer"],
       energy_fit: ["high"],
       attribute_tags: ["sprinting", "acceleration"],
-    },
+    } as unknown as Exercise["tags"],
   });
 
   const calfRaise = makeEx({
@@ -145,7 +145,7 @@ describe("speed/COD scoring and gates", () => {
       sport_tags: ["sport_lacrosse"],
       energy_fit: ["high"],
       attribute_tags: ["agility", "acceleration"],
-    },
+    } as unknown as Exercise["tags"],
   });
 
   it("prefers COD/sprint drills over burpee for change_of_direction", () => {
@@ -298,7 +298,7 @@ describe("golden speed/COD exercise scoring", () => {
         sport_tags: ["sport_rugby"],
         energy_fit: ["medium"],
         attribute_tags: ["deceleration"],
-      },
+      } as unknown as Exercise["tags"],
     });
     expect(warmupCodPrepSelectionScore(decelStep)).toBeGreaterThan(10);
   });

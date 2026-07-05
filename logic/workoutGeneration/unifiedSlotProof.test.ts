@@ -222,7 +222,7 @@ const ANKLE_STABILITY_EXERCISES: Exercise[] = [
     difficulty: 1,
     time_cost: "low",
   },
-] as Exercise[];
+] as unknown as Exercise[];
 
 // Minimal "filler" to satisfy warmup/cooldown and avoid empty blocks
 const FILLER_EXERCISES: Exercise[] = [
@@ -321,7 +321,7 @@ const ANKLE_STABILITY_ENTRY: IntentEntry = {
 
 const PROOF_INPUT: GenerateWorkoutInput = {
   primary_goal: "body_recomp",
-  duration_minutes: 53,
+  duration_minutes: 45,
   energy_level: "medium",
   seed: 42,
   available_equipment: ["dumbbells", "barbell", "cable_machine", "bodyweight", "resistance_bands", "foam_roller"],
@@ -340,6 +340,11 @@ const PROOF_INPUT: GenerateWorkoutInput = {
   session_intent: {
     selected_goals: ["body_recomp"],
     selected_sports: ["road_running", "trail_running"],
+    goal_sub_focus_by_goal: { physique: ["arms_and_shoulders"] },
+    sport_sub_focus_by_sport: {
+      road_running: ["marathon_pace"],
+      trail_running: ["ankle_stability"],
+    },
     goal_weights: [0.4],
     ranked_intent_entries: [
       // The bare goal entry is intentionally omitted: deriveLeafEntries skips it because

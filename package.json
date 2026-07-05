@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ci": "npm run lint && npm run test",
+    "ci": "npm run lint && npm run typecheck && npm run test",
     "test:generator": "npx tsx logic/workoutGeneration/seedTest.ts",
     "test:generator-async": "npx tsx lib/generator.integration.test.ts",
     "review:generator-workouts": "npx tsx scripts/reviewGeneratorWorkouts.ts",

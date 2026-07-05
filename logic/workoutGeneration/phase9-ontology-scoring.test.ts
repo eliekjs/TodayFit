@@ -3,7 +3,7 @@
  * Run with: npx tsx logic/workoutGeneration/phase9-ontology-scoring.test.ts
  */
 
-import type { Exercise } from "./types";
+import type { Exercise, GenerateWorkoutInput } from "./types";
 import {
   scoreRoleFit,
   scoreFatigueBalance,
@@ -100,12 +100,12 @@ const COOLDOWN_GENERIC: Exercise = {
   tags: {},
 };
 
-const input = {
+const input: GenerateWorkoutInput = {
   primary_goal: "strength",
   focus_body_parts: ["upper_push"],
   available_equipment: ["barbell", "cable_machine", "bands", "bodyweight"],
   duration_minutes: 45,
-  energy_level: "medium" as const,
+  energy_level: "medium",
   injuries_or_constraints: [],
   seed: 42,
 };

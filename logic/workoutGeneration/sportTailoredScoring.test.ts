@@ -4,7 +4,7 @@
  */
 
 import { scoreExercise, buildSessionTargetVectorFromInput } from "./dailyGenerator";
-import type { Exercise, GenerateWorkoutInput } from "./types";
+import type { Exercise, FocusBodyPart, GenerateWorkoutInput } from "./types";
 
 const recentIds = new Set<string>();
 const movementCounts = new Map<string, number>();
@@ -169,7 +169,7 @@ function main() {
     session_target_qualities: { pushing_strength: 0.9, hypertrophy: 0.5 },
   });
   const stvPush = buildSessionTargetVectorFromInput(inputPushSession);
-  const inputPullOnly = { ...inputPushSession, focus_body_parts: ["upper_pull"] as const };
+  const inputPullOnly: GenerateWorkoutInput = { ...inputPushSession, focus_body_parts: ["upper_pull"] as FocusBodyPart[] };
   const stvPullFocus = buildSessionTargetVectorFromInput(inputPullOnly);
 
   const benchPushFocus = scoreExercise(bench, inputPushSession, recentIds, movementCounts, undefined, {

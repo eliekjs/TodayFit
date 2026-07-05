@@ -25,7 +25,7 @@ function mkConditioning(id: string, name: string): Exercise {
     time_cost: "medium",
     tags: {
       goal_tags: ["conditioning"],
-      stimulus: ["anaerobic", "speed"],
+      stimulus: ["anaerobic", "plyometric"],
       energy_fit: ["medium", "high"],
     },
   };

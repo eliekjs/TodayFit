@@ -16,6 +16,7 @@ import {
 } from "../../lib/generator";
 import { manualPreferencesToGenerateWorkoutInput } from "../../lib/dailyGeneratorAdapter";
 import type { ManualPreferences } from "../../lib/types";
+import type { GymProfile } from "../../data/gymProfiles";
 import type { SportGoalContext } from "../../lib/dailyGeneratorAdapter";
 
 const PREFS: ManualPreferences = {
@@ -45,7 +46,7 @@ const SPORT_CTX: SportGoalContext = {
   sport_weight: 0.45,
 };
 
-const GYM = { id: "test", name: "Test Gym", equipment: ["bodyweight", "dumbbells", "barbell", "bench"] };
+const GYM = { id: "test", name: "Test Gym", equipment: ["bodyweight", "dumbbells", "barbell", "bench"] } as GymProfile;
 
 async function run() {
   loadDotEnvFromRepoRoot();
