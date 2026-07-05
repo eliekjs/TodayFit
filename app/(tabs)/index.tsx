@@ -17,7 +17,7 @@ import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
-import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
+import { scheduleWorkoutGenerationPrefetch } from "../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
 import { navigateToSessionFlow } from "../../lib/sessionFlowNavigation";
 import type { SessionFlow } from "../../lib/sessionDraft";
@@ -118,9 +118,14 @@ export default function HomeScreen() {
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
   const trainTodayCancelledRef = useRef(false);
 
-  useEffect(() => {
-    void prefetchWorkoutGenerationStack();
-  }, []);
+  useEffect(
+    () =>
+      scheduleWorkoutGenerationPrefetch({
+        delayMs: 2500,
+        waitForIdle: true,
+      }),
+    []
+  );
 
   const primaryGoal = manualPreferences.primaryFocus[0] ?? "Not set";
   const secondaryGoal = manualPreferences.primaryFocus[1] ?? "Not set";

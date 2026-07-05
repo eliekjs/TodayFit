@@ -27,6 +27,7 @@ export default defineConfig({
       "lib/dailyGeneratorAdapter.bodyFocus.test.ts",
       "lib/gymEquipment.test.ts",
       "lib/buildAppTrainingHistory.test.ts",
+      "lib/prefetchWorkoutGeneration.test.ts",
       "lib/sessionExerciseRedundancy.test.ts",
       "lib/exerciseDescriptionsCurated.test.ts",
       "lib/workoutUtils.exerciseDescription.test.ts",

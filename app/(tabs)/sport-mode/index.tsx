@@ -57,7 +57,7 @@ import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
-import { prefetchWorkoutGenerationStack } from "../../../lib/prefetchWorkoutGeneration";
+import { scheduleWorkoutGenerationPrefetch } from "../../../lib/prefetchWorkoutGeneration";
 import type { DailyWorkoutPreferences, EnergyLevel, TargetBody } from "../../../lib/types";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
@@ -286,8 +286,9 @@ export default function AdaptiveModeScreen() {
   }, [isOneDay]);
 
   useEffect(() => {
-    void prefetchWorkoutGenerationStack();
+    const cancelPrefetch = scheduleWorkoutGenerationPrefetch({ waitForIdle: true });
     void loadSportPrepPlannerModule();
+    return cancelPrefetch;
   }, []);
 
   useEffect(() => {

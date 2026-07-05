@@ -31,7 +31,7 @@ import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { backLabelForPhase } from "../../../lib/sessionFlowNav";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
-import { prefetchWorkoutGenerationStack } from "../../../lib/prefetchWorkoutGeneration";
+import { scheduleWorkoutGenerationPrefetch } from "../../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import {
   PRIMARY_FOCUS_OPTIONS,
@@ -125,9 +125,7 @@ export default function ManualPreferencesScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const generationCancelledRef = useRef(false);
 
-  useEffect(() => {
-    void prefetchWorkoutGenerationStack();
-  }, []);
+  useEffect(() => scheduleWorkoutGenerationPrefetch({ waitForIdle: true }), []);
 
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
 
