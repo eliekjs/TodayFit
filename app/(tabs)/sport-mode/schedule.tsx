@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View, Text, StyleSheet, ScrollView, LayoutAnimation } from "react-native";
 import { WeekDayFocusPlanner } from "../../../components/WeekDayFocusPlanner";
 import {
+  applyDaySessionFocusResolution,
+  dayHasUnresolvedSessionFocusConflict,
+  detectDaySessionFocusConflict,
+  type DaySessionFocusResolution,
+} from "../../../lib/daySessionFocusConflict";
+import {
   buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
   buildGymDayFocusCardLabel,
@@ -101,6 +107,12 @@ export default function AdaptiveScheduleScreen() {
   const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
   const [dayBodyFocusChoiceIds, setDayBodyFocusChoiceIds] = useState<DayBodyFocusChoiceId[]>([]);
+  const [daySubFocusOverrides, setDaySubFocusOverrides] = useState<
+    Record<number, Record<string, string[]>>
+  >({});
+  const [resolvedConflictIdsByDay, setResolvedConflictIdsByDay] = useState<Record<number, string>>(
+    {}
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -170,6 +182,88 @@ export default function AdaptiveScheduleScreen() {
     return { labels, bodyOptions, presets };
   }, [gymTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusChoiceIds]);
 
+  const daySessionFocusConflicts = useMemo(() => {
+    if (gymTrainingDays.length === 0) return [];
+    return gymTrainingDays.map((_, i) =>
+      detectDaySessionFocusConflict({
+        bodyFocusId: dayBodyFocusChoiceIds[i] ?? "full",
+        focusPresetId: dayFocusChoiceIds[i] ?? "",
+        manualPreferences,
+        adaptiveSetup,
+        presetOptions: sessionFocusMeta.presets[i] ?? [],
+      })
+    );
+  }, [
+    gymTrainingDays,
+    dayBodyFocusChoiceIds,
+    dayFocusChoiceIds,
+    manualPreferences,
+    adaptiveSetup,
+    sessionFocusMeta.presets,
+  ]);
+
+  const hasUnresolvedDayConflicts = useMemo(
+    () =>
+      daySessionFocusConflicts.some((c, i) =>
+        dayHasUnresolvedSessionFocusConflict(c, resolvedConflictIdsByDay[i])
+      ),
+    [daySessionFocusConflicts, resolvedConflictIdsByDay]
+  );
+
+  const clearDayConflictState = useCallback((dayIdx: number) => {
+    setResolvedConflictIdsByDay((prev) => {
+      if (prev[dayIdx] == null) return prev;
+      const next = { ...prev };
+      delete next[dayIdx];
+      return next;
+    });
+    setDaySubFocusOverrides((prev) => {
+      if (prev[dayIdx] == null) return prev;
+      const next = { ...prev };
+      delete next[dayIdx];
+      return next;
+    });
+  }, []);
+
+  const handleApplyDayResolution = useCallback(
+    (dayIdx: number, resolution: DaySessionFocusResolution) => {
+      const conflict = daySessionFocusConflicts[dayIdx];
+      if (!conflict) return;
+      applyDaySessionFocusResolution({
+        dayIndex: dayIdx,
+        resolution,
+        conflict,
+        subFocusByGoal: manualPreferences.subFocusByGoal ?? {},
+        setBodyFocusId: (idx, id) => {
+          setDayBodyFocusChoiceIds((prev) => {
+            const next = [...prev];
+            next[idx] = id;
+            return next;
+          });
+        },
+        setFocusPresetId: (idx, presetId) => {
+          setDayFocusChoiceIds((prev) => {
+            const next = [...prev];
+            next[idx] = presetId;
+            return next;
+          });
+        },
+        setSubFocusOverride: (idx, patch) => {
+          setDaySubFocusOverrides((prev) => {
+            const next = { ...prev };
+            if (patch) next[idx] = patch;
+            else delete next[idx];
+            return next;
+          });
+        },
+        setResolvedConflictId: (idx, conflictId) => {
+          setResolvedConflictIdsByDay((prev) => ({ ...prev, [idx]: conflictId }));
+        },
+      });
+    },
+    [daySessionFocusConflicts, manualPreferences.subFocusByGoal]
+  );
+
   const initSessionFocusStep = useCallback(() => {
     if (gymTrainingDays.length === 0) return;
     const n = gymTrainingDays.length;
@@ -198,6 +292,8 @@ export default function AdaptiveScheduleScreen() {
     });
     setDayBodyFocusChoiceIds(bodyIds);
     setDayFocusChoiceIds(ids);
+    setDaySubFocusOverrides({});
+    setResolvedConflictIdsByDay({});
     setWeekSetupStep("sessionFocus");
   }, [gymTrainingDays, manualPreferences, adaptiveSetup]);
 
@@ -324,6 +420,10 @@ export default function AdaptiveScheduleScreen() {
           dayBodyFocusChoiceIds.length === gymTrainingDays.length
             ? dayBodyFocusChoiceIds.map((id) => dayBodyFocusChoiceToBias(id))
             : undefined,
+        gymDaySubFocusByGoalOverrides:
+          gymTrainingDays.length > 0
+            ? gymTrainingDays.map((_, i) => daySubFocusOverrides[i] ?? null)
+            : undefined,
         manualPreferences,
       });
       if (generationCancelledRef.current) return;
@@ -350,6 +450,7 @@ export default function AdaptiveScheduleScreen() {
     router,
     dayFocusChoiceIds,
     dayBodyFocusChoiceIds,
+    daySubFocusOverrides,
   ]);
 
   const selectedSportSlugs = useMemo(
@@ -412,7 +513,9 @@ export default function AdaptiveScheduleScreen() {
 
   if (weekSetupStep === "sessionFocus") {
     const canGenerate =
-      gymTrainingDays.length > 0 && dayFocusChoiceIds.length === gymTrainingDays.length;
+      gymTrainingDays.length > 0 &&
+      dayFocusChoiceIds.length === gymTrainingDays.length &&
+      !hasUnresolvedDayConflicts;
     return (
       <AppScreenWrapper>
         <StatusBar style="dark" />
@@ -429,7 +532,10 @@ export default function AdaptiveScheduleScreen() {
               presetOptionsPerDay={sessionFocusMeta.presets}
               selectedBodyIds={dayBodyFocusChoiceIds}
               selectedIds={dayFocusChoiceIds}
+              conflictsPerDay={daySessionFocusConflicts}
+              resolvedConflictIdsByDay={resolvedConflictIdsByDay}
               onSelectBody={(dayIdx, id) => {
+                clearDayConflictState(dayIdx);
                 setDayBodyFocusChoiceIds((prev) => {
                   const next = [...prev];
                   next[dayIdx] = id;
@@ -437,12 +543,14 @@ export default function AdaptiveScheduleScreen() {
                 });
               }}
               onSelect={(dayIdx, id) => {
+                clearDayConflictState(dayIdx);
                 setDayFocusChoiceIds((prev) => {
                   const next = [...prev];
                   next[dayIdx] = id;
                   return next;
                 });
               }}
+              onApplyDayResolution={handleApplyDayResolution}
               onBack={() => setWeekSetupStep("pickDays")}
             />
             {error ? (

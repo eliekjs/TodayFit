@@ -21,6 +21,8 @@ export type FlowPhaseNavBarProps = {
   hint?: string | null;
   /** Pin to bottom of screen with safe-area padding (preferences-style). */
   sticky?: boolean;
+  /** Tighter padding and button heights (e.g. footers with secondary actions). */
+  compact?: boolean;
   onLayout?: (height: number) => void;
   style?: ViewStyle;
   children?: React.ReactNode;
@@ -35,16 +37,18 @@ export function FlowPhaseNavBar({
   forward,
   hint,
   sticky = false,
+  compact = false,
   onLayout,
   style,
   children,
 }: FlowPhaseNavBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, compact ? 6 : 8);
 
   const content = (
     <>
-      <View style={styles.row}>
+      <View style={[styles.row, compact && styles.rowCompact]}>
         {back ? (
           <Pressable
             onPress={back.onPress}
@@ -53,6 +57,7 @@ export function FlowPhaseNavBar({
             accessibilityLabel={back.label}
             style={({ pressed }) => [
               styles.backBtn,
+              compact && styles.backBtnCompact,
               {
                 borderColor: theme.border,
                 backgroundColor: theme.card,
@@ -64,8 +69,15 @@ export function FlowPhaseNavBar({
               <ActivityIndicator size="small" color={theme.textMuted} />
             ) : (
               <>
-                <Ionicons name="chevron-back" size={17} color={theme.text} />
-                <Text style={[styles.backLabel, { color: theme.text }]} numberOfLines={1}>
+                <Ionicons name="chevron-back" size={compact ? 16 : 17} color={theme.text} />
+                <Text
+                  style={[
+                    styles.backLabel,
+                    compact && styles.backLabelCompact,
+                    { color: theme.text },
+                  ]}
+                  numberOfLines={1}
+                >
                   {back.label}
                 </Text>
               </>
@@ -82,6 +94,7 @@ export function FlowPhaseNavBar({
           accessibilityLabel={forward.label}
           style={({ pressed }) => [
             styles.forwardBtn,
+            compact && styles.forwardBtnCompact,
             {
               backgroundColor: theme.primary,
               opacity: forward.disabled ? 0.45 : pressed ? 0.9 : 1,
@@ -92,22 +105,28 @@ export function FlowPhaseNavBar({
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Text style={styles.forwardLabel} numberOfLines={1}>
+              <Text
+                style={[styles.forwardLabel, compact && styles.forwardLabelCompact]}
+                numberOfLines={1}
+              >
                 {forward.label}
               </Text>
-              <Ionicons name="chevron-forward" size={18} color="#fff" />
+              <Ionicons name="chevron-forward" size={compact ? 16 : 18} color="#fff" />
             </>
           )}
         </Pressable>
       </View>
 
       {hint ? (
-        <Text style={[styles.hint, { color: theme.textMuted }]} numberOfLines={2}>
+        <Text
+          style={[styles.hint, compact && styles.hintCompact, { color: theme.textMuted }]}
+          numberOfLines={2}
+        >
           {hint}
         </Text>
       ) : null}
 
-      {children}
+      {children ? <View style={compact ? styles.childrenCompact : styles.children}>{children}</View> : null}
     </>
   );
 
@@ -117,10 +136,11 @@ export function FlowPhaseNavBar({
         onLayout={(e) => onLayout?.(e.nativeEvent.layout.height)}
         style={[
           styles.stickyWrap,
+          compact && styles.stickyWrapCompact,
           {
             backgroundColor: theme.cardOpaque,
             borderTopColor: theme.border,
-            paddingBottom: 10 + Math.max(insets.bottom, 8),
+            paddingBottom: (compact ? 6 : 10) + bottomInset,
           },
           Platform.select({
             web: { boxShadow: "0 -4px 16px rgba(0,0,0,0.2)" },
@@ -160,6 +180,9 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  stickyWrapCompact: {
+    paddingTop: 6,
+  },
   inlineWrap: {
     marginTop: 16,
     gap: 8,
@@ -168,6 +191,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     gap: 10,
+  },
+  rowCompact: {
+    gap: 8,
   },
   backBtn: {
     flexDirection: "row",
@@ -181,6 +207,12 @@ const styles = StyleSheet.create({
     minWidth: 96,
     maxWidth: "38%",
   },
+  backBtnCompact: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    minWidth: 88,
+  },
   backSpacer: {
     width: 0,
     minWidth: 0,
@@ -188,6 +220,9 @@ const styles = StyleSheet.create({
   backLabel: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  backLabelCompact: {
+    fontSize: 13,
   },
   forwardBtn: {
     flex: 1,
@@ -200,17 +235,36 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     minHeight: 44,
   },
+  forwardBtnCompact: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    minHeight: 40,
+  },
   forwardLabel: {
     color: "#fff",
     fontSize: 15,
     fontWeight: "600",
     flexShrink: 1,
   },
+  forwardLabelCompact: {
+    fontSize: 14,
+  },
   hint: {
     fontSize: 12,
     lineHeight: 17,
     marginTop: 8,
     textAlign: "center",
+  },
+  hintCompact: {
+    marginTop: 6,
+    lineHeight: 16,
+  },
+  children: {
+    marginTop: 8,
+  },
+  childrenCompact: {
+    marginTop: 4,
   },
 });
 

@@ -17,6 +17,7 @@ export default defineConfig({
       "lib/goalRegistry.test.ts",
       "lib/preferencesConstants.conditioningSubFocusPolicy.test.ts",
       "lib/preferenceConflictDetector.test.ts",
+      "lib/daySessionFocusConflict.test.ts",
       "lib/sportModeOneDayValidation.test.ts",
       "lib/sessionDraft.test.ts",
       "lib/exerciseProgressions.swapPool.test.ts",

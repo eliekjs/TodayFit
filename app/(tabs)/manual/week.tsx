@@ -49,10 +49,6 @@ import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/day
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import {
-  computeDeclaredIntentSplitFromPrefs,
-  buildWorkoutIntentTitle,
-} from "../../../lib/workoutIntentSplit";
-import {
   buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
   dayBodyFocusChoiceToBias,
@@ -64,6 +60,13 @@ import {
   type DayFocusPreset,
 } from "../../../lib/weekDaySessionFocus";
 import { WeekDayFocusPlanner } from "../../../components/WeekDayFocusPlanner";
+import {
+  applyDaySessionFocusResolution,
+  dayHasUnresolvedSessionFocusConflict,
+  detectDaySessionFocusConflict,
+  mergeDaySubFocusOverride,
+  type DaySessionFocusResolution,
+} from "../../../lib/daySessionFocusConflict";
 import type { BlockType, DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
@@ -188,6 +191,14 @@ export default function ManualWeekScreen() {
   /** Parallel to selectedTrainingDays: preset id from buildDayFocusPresetsForDay / resolveDayFocusPreset. */
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
   const [dayBodyFocusChoiceIds, setDayBodyFocusChoiceIds] = useState<DayBodyFocusChoiceId[]>([]);
+  /** Per-day sub-focus overrides after conflict resolution (merged at generation). */
+  const [daySubFocusOverrides, setDaySubFocusOverrides] = useState<
+    Record<number, Record<string, string[]>>
+  >({});
+  /** Conflict id marked resolved per day index. */
+  const [resolvedConflictIdsByDay, setResolvedConflictIdsByDay] = useState<Record<number, string>>(
+    {}
+  );
   const [navBarHeight, setNavBarHeight] = useState(72);
 
   const sessionHydratedRef = useRef(false);
@@ -282,37 +293,6 @@ export default function ManualWeekScreen() {
     ];
   }, [manualPreferences.primaryFocus, manualPreferences.goalMatchPrimaryPct, manualPreferences.goalMatchSecondaryPct, manualPreferences.goalMatchTertiaryPct]);
 
-  const weekFocusSplit = useMemo(() => {
-    const goalLabels = manualPreferences.primaryFocus.slice(0, 3);
-    if (goalLabels.length === 0) return [];
-    const goalSlugs = goalLabels.map((l) => PRIMARY_FOCUS_TO_GOAL_SLUG[l] ?? "strength");
-    return computeDeclaredIntentSplitFromPrefs({
-      sportSlugs: [],
-      goalSlugs,
-      sportVsGoalPct: 0,
-      goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-      goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-      goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-      orderedPrimaryLabelsForSubFocus: goalLabels,
-      subFocusByGoal: manualPreferences.subFocusByGoal,
-      subFocusPctByGoal: manualPreferences.subFocusPctByGoal,
-      weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
-    });
-  }, [
-    manualPreferences.primaryFocus,
-    manualPreferences.goalMatchPrimaryPct,
-    manualPreferences.goalMatchSecondaryPct,
-    manualPreferences.goalMatchTertiaryPct,
-    manualPreferences.subFocusByGoal,
-    manualPreferences.subFocusPctByGoal,
-    manualPreferences.weekSubFocusPrimaryLabels,
-  ]);
-
-  const weekWorkoutTitle = useMemo(
-    () => (weekFocusSplit.length > 0 ? buildWorkoutIntentTitle(weekFocusSplit) : undefined),
-    [weekFocusSplit]
-  );
-
   const sessionFocusMeta = useMemo(() => {
     if (selectedTrainingDays.length === 0) {
       return {
@@ -358,6 +338,88 @@ export default function ManualWeekScreen() {
     return { labels, bodyOptions, presets };
   }, [selectedTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusChoiceIds]);
 
+  const daySessionFocusConflicts = useMemo(() => {
+    if (selectedTrainingDays.length === 0) return [];
+    return selectedTrainingDays.map((_, i) =>
+      detectDaySessionFocusConflict({
+        bodyFocusId: dayBodyFocusChoiceIds[i] ?? "full",
+        focusPresetId: dayFocusChoiceIds[i] ?? "",
+        manualPreferences,
+        adaptiveSetup,
+        presetOptions: sessionFocusMeta.presets[i] ?? [],
+      })
+    );
+  }, [
+    selectedTrainingDays,
+    dayBodyFocusChoiceIds,
+    dayFocusChoiceIds,
+    manualPreferences,
+    adaptiveSetup,
+    sessionFocusMeta.presets,
+  ]);
+
+  const hasUnresolvedDayConflicts = useMemo(
+    () =>
+      daySessionFocusConflicts.some((c, i) =>
+        dayHasUnresolvedSessionFocusConflict(c, resolvedConflictIdsByDay[i])
+      ),
+    [daySessionFocusConflicts, resolvedConflictIdsByDay]
+  );
+
+  const clearDayConflictState = useCallback((dayIdx: number) => {
+    setResolvedConflictIdsByDay((prev) => {
+      if (prev[dayIdx] == null) return prev;
+      const next = { ...prev };
+      delete next[dayIdx];
+      return next;
+    });
+    setDaySubFocusOverrides((prev) => {
+      if (prev[dayIdx] == null) return prev;
+      const next = { ...prev };
+      delete next[dayIdx];
+      return next;
+    });
+  }, []);
+
+  const handleApplyDayResolution = useCallback(
+    (dayIdx: number, resolution: DaySessionFocusResolution) => {
+      const conflict = daySessionFocusConflicts[dayIdx];
+      if (!conflict) return;
+      applyDaySessionFocusResolution({
+        dayIndex: dayIdx,
+        resolution,
+        conflict,
+        subFocusByGoal: manualPreferences.subFocusByGoal ?? {},
+        setBodyFocusId: (idx, id) => {
+          setDayBodyFocusChoiceIds((prev) => {
+            const next = [...prev];
+            next[idx] = id;
+            return next;
+          });
+        },
+        setFocusPresetId: (idx, presetId) => {
+          setDayFocusChoiceIds((prev) => {
+            const next = [...prev];
+            next[idx] = presetId;
+            return next;
+          });
+        },
+        setSubFocusOverride: (idx, patch) => {
+          setDaySubFocusOverrides((prev) => {
+            const next = { ...prev };
+            if (patch) next[idx] = patch;
+            else delete next[idx];
+            return next;
+          });
+        },
+        setResolvedConflictId: (idx, conflictId) => {
+          setResolvedConflictIdsByDay((prev) => ({ ...prev, [idx]: conflictId }));
+        },
+      });
+    },
+    [daySessionFocusConflicts, manualPreferences.subFocusByGoal]
+  );
+
   const initSessionFocusStep = useCallback(() => {
     if (selectedTrainingDays.length === 0) return;
     const n = selectedTrainingDays.length;
@@ -401,6 +463,8 @@ export default function ManualWeekScreen() {
     });
     setDayBodyFocusChoiceIds(bodyIds);
     setDayFocusChoiceIds(ids);
+    setDaySubFocusOverrides({});
+    setResolvedConflictIdsByDay({});
     setWeekSetupStep("sessionFocus");
   }, [selectedTrainingDays, manualPreferences, adaptiveSetup]);
 
@@ -517,6 +581,10 @@ export default function ManualWeekScreen() {
         const dayPrefs: typeof manualPreferences = {
           ...manualPreferences,
           primaryFocus: effectivePrimary,
+          subFocusByGoal: mergeDaySubFocusOverride(
+            manualPreferences.subFocusByGoal ?? {},
+            daySubFocusOverrides[i]
+          ),
           /** Keep full ranked goals for sub-focus merge so dedicated days still honor cross-goal picks (e.g. Handstand). */
           weekSubFocusPrimaryLabels:
             manualPreferences.primaryFocus.length > 0
@@ -595,6 +663,7 @@ export default function ManualWeekScreen() {
     router,
     dayFocusChoiceIds,
     dayBodyFocusChoiceIds,
+    daySubFocusOverrides,
     adaptiveSetup,
     setDayFocusChoiceIds,
   ]);
@@ -940,8 +1009,6 @@ export default function ManualWeekScreen() {
             ? "Choosing blocks that fit your schedule."
             : "Generating each training day in order."
         }
-        focusSplit={weekFocusSplit.length > 0 ? weekFocusSplit : undefined}
-        workoutTitle={weekWorkoutTitle}
         onGoBack={() => router.push(weekPrefsHref)}
       />
     );
@@ -952,8 +1019,6 @@ export default function ManualWeekScreen() {
       <GenerationLoadingScreen
         message="Regenerating your workout…"
         subtitle="Applying your day edits to a fresh session."
-        focusSplit={weekFocusSplit.length > 0 ? weekFocusSplit : undefined}
-        workoutTitle={weekWorkoutTitle}
         onGoBack={() => router.push(weekPrefsHref)}
       />
     );
@@ -977,7 +1042,8 @@ export default function ManualWeekScreen() {
     if (weekSetupStep === "sessionFocus") {
       const canGenerate =
         selectedTrainingDays.length > 0 &&
-        dayFocusChoiceIds.length === selectedTrainingDays.length;
+        dayFocusChoiceIds.length === selectedTrainingDays.length &&
+        !hasUnresolvedDayConflicts;
       return (
         <AppScreenWrapper>
           <StatusBar style="dark" />
@@ -994,7 +1060,10 @@ export default function ManualWeekScreen() {
                 presetOptionsPerDay={sessionFocusMeta.presets}
                 selectedBodyIds={dayBodyFocusChoiceIds}
                 selectedIds={dayFocusChoiceIds}
+                conflictsPerDay={daySessionFocusConflicts}
+                resolvedConflictIdsByDay={resolvedConflictIdsByDay}
                 onSelectBody={(dayIdx, id) => {
+                  clearDayConflictState(dayIdx);
                   setDayBodyFocusChoiceIds((prev) => {
                     const next = [...prev];
                     next[dayIdx] = id;
@@ -1002,12 +1071,14 @@ export default function ManualWeekScreen() {
                   });
                 }}
                 onSelect={(dayIdx, id) => {
+                  clearDayConflictState(dayIdx);
                   setDayFocusChoiceIds((prev) => {
                     const next = [...prev];
                     next[dayIdx] = id;
                     return next;
                   });
                 }}
+                onApplyDayResolution={handleApplyDayResolution}
                 onBack={() => setWeekSetupStep("pickDays")}
               />
               {error ? (

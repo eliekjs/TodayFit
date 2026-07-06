@@ -11,13 +11,11 @@ import {
   Platform,
   UIManager,
   Alert,
-  type LayoutChangeEvent,
 } from "react-native";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { StatusBar } from "expo-status-bar";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppState } from "../../../context/AppStateContext";
 import { defaultManualPreferences } from "../../../context/appStateModel";
 import { cleanFlowPalette, useTheme } from "../../../lib/theme";
@@ -113,8 +111,7 @@ export default function ManualPreferencesScreen() {
   const [savePresetName, setSavePresetName] = useState("");
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
-  const [bottomBarHeight, setBottomBarHeight] = useState(145);
-  const insets = useSafeAreaInsets();
+  const [bottomBarHeight, setBottomBarHeight] = useState(115);
   const router = useRouter();
   const navigation = useNavigation();
   const headerHeight = useHeaderHeight();
@@ -458,7 +455,7 @@ export default function ManualPreferencesScreen() {
     });
     setShowSavePresetModal(false);
     setSavePresetName("");
-    router.push("/profiles");
+    router.push("/presets?kind=goal");
   };
 
   type ManualAdvNestedKey =
@@ -513,8 +510,8 @@ export default function ManualPreferencesScreen() {
     });
   }, []);
 
-  const onBottomBarLayout = useCallback((event: LayoutChangeEvent) => {
-    const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+  const onBottomBarLayout = useCallback((height: number) => {
+    const nextHeight = Math.ceil(height);
     setBottomBarHeight((prev) => (prev === nextHeight ? prev : nextHeight));
   }, []);
 
@@ -568,33 +565,11 @@ export default function ManualPreferencesScreen() {
     gymEquipmentKeys: activeProfileEquipmentKeys,
   });
 
-  const prefsFocusSplit = (() => {
-    const goalLabels = manualPreferences.primaryFocus.slice(0, 3);
-    if (goalLabels.length === 0) return [];
-    const goalSlugs = goalLabels.map((l) => PRIMARY_FOCUS_TO_GOAL_SLUG[l] ?? "strength");
-    return computeDeclaredIntentSplitFromPrefs({
-      sportSlugs: [],
-      goalSlugs,
-      sportVsGoalPct: 0,
-      goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-      goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-      goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-      orderedPrimaryLabelsForSubFocus: goalLabels,
-      subFocusByGoal: manualPreferences.subFocusByGoal,
-      subFocusPctByGoal: manualPreferences.subFocusPctByGoal,
-      weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
-    });
-  })();
-  const prefsWorkoutTitle =
-    prefsFocusSplit.length > 0 ? buildWorkoutIntentTitle(prefsFocusSplit) : undefined;
-
   if (isGenerating) {
     return (
       <GenerationLoadingScreen
         message="Building your session…"
         subtitle="Matching movements to your gym and goals."
-        focusSplit={prefsFocusSplit.length > 0 ? prefsFocusSplit : undefined}
-        workoutTitle={prefsWorkoutTitle}
       />
     );
   }
@@ -602,6 +577,7 @@ export default function ManualPreferencesScreen() {
   return (
     <AppScreenWrapper style={cleanUi ? styles.cleanScreen : undefined}>
       <StatusBar style={cleanUi ? "dark" : "light"} />
+      <View style={styles.container}>
       <ScrollView
         style={styles.scrollFill}
         ref={scrollViewRef}
@@ -1336,45 +1312,28 @@ export default function ManualPreferencesScreen() {
         </View>
       </ScrollView>
 
-      {/* Sticky bottom bar */}
-      <View
+      <FlowPhaseNavBar
+        sticky
+        compact
         onLayout={onBottomBarLayout}
-        style={[
-          styles.bottomBar,
-          cleanUi && styles.cleanBottomBar,
-          {
-            backgroundColor: theme.cardOpaque,
-            borderTopColor: theme.border,
-            paddingBottom: 10 + Math.max(insets.bottom, 8),
-            ...Platform.select({
-              web: cleanUi
-                ? {
-                    boxShadow: "0 -10px 28px rgba(44, 38, 32, 0.08)",
-                  }
-                : {
-                    boxShadow: "0 -6px 20px rgba(0, 0, 0, 0.28)",
-                  },
-              default: {
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: -3 },
-                shadowOpacity: cleanUi ? 0.08 : 0.22,
-                shadowRadius: cleanUi ? 16 : 10,
-                elevation: 14,
-              },
-            }),
-          },
-        ]}
+        style={
+          cleanUi
+            ? Platform.select({
+                web: { boxShadow: "0 -10px 28px rgba(44, 38, 32, 0.08)" },
+                default: {
+                  shadowOpacity: 0.08,
+                  shadowRadius: 16,
+                },
+              })
+            : undefined
+        }
+        forward={{
+          label: isWeek ? "Next: Training days" : "Build workout",
+          onPress: onGenerate,
+          disabled: !canProceed,
+          loading: isGenerating,
+        }}
       >
-        <FlowPhaseNavBar
-          sticky
-          onLayout={(height) => setBottomBarHeight(height)}
-          forward={{
-            label: isWeek ? "Next: Training days" : "Build workout",
-            onPress: onGenerate,
-            disabled: !canProceed,
-            loading: isGenerating,
-          }}
-        >
         <View style={styles.bottomBarRow}>
           <PrimaryButton
             compact
@@ -1389,7 +1348,7 @@ export default function ManualPreferencesScreen() {
             </Text>
           </Pressable>
         </View>
-        </FlowPhaseNavBar>
+      </FlowPhaseNavBar>
       </View>
 
       {/* Change gym profile modal */}
@@ -1801,31 +1760,19 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 140,
   },
-  bottomBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    borderTopWidth: 1,
-  },
-  cleanBottomBar: {
-    paddingTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
   bottomBarRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 6,
-    gap: 10,
+    gap: 8,
   },
   resetBtn: {
     flex: 0,
-    minWidth: 100,
+    minWidth: 88,
+    paddingVertical: 8,
+    minHeight: 36,
   },
   savePresetWrap: {
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   savePresetText: {
     fontSize: 12,

@@ -1,6 +1,6 @@
 /**
  * Utilities for computing and displaying workout focus splits (declared intent and actual exercise mix).
- * Used by: GenerationLoadingScreen (declared intent pie chart), workout screen (actual split display).
+ * Used by: workout screen (actual split display) and declared-intent title helpers.
  */
 
 import type { GeneratedWorkout, WorkoutBlock, WorkoutItem } from "./types";

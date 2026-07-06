@@ -8,6 +8,11 @@
 
 import type { ManualPreferences, TargetBody } from "./types";
 import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus";
+import {
+  isLowerBodySubFocusSlug,
+  isUpperBodySubFocusSlug,
+  resolveSubFocusSlugFromDisplayName,
+} from "./subFocusBodyRegion";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -41,50 +46,6 @@ export type ConflictContext = {
 // ---------------------------------------------------------------------------
 // Sub-goal body-region classification
 // ---------------------------------------------------------------------------
-
-/**
- * Sub-goal slugs that are primarily upper-body (any goal bucket).
- * If a user has one of these selected and targetBody=Lower, that's a high conflict.
- */
-const UPPER_BODY_SUB_FOCUS_SLUGS = new Set([
-  // Strength
-  "bench_press",
-  "overhead_press",
-  "pull",
-  // Muscle / physique (same names used in body-recomp too)
-  "back",
-  "chest",
-  "arms",
-  "shoulders",
-  // Conditioning / athletic
-  "upper",
-  "upper_body_power",
-  // Calisthenics
-  "pull_ups",
-  "push_ups",
-  "dips",
-  "handstand",
-  "front_lever_advanced",
-]);
-
-/**
- * Sub-goal slugs that are primarily lower-body.
- * If a user has one of these selected and targetBody=Upper, that's a high conflict.
- */
-const LOWER_BODY_SUB_FOCUS_SLUGS = new Set([
-  // Strength
-  "squat",
-  "deadlift_hinge",
-  // Muscle / physique
-  "glutes",
-  "legs",
-  // Conditioning / athletic
-  "lower",
-  // Calisthenics
-  "legs_pistol",
-  // Power
-  "lower_body_power_plyos",
-]);
 
 // ---------------------------------------------------------------------------
 // Sport → dominant body region map
@@ -157,11 +118,8 @@ const OPPOSING_GOAL_PAIRS: [string, string][] = [
 function resolveSelectedSubFocusSlugs(prefs: ManualPreferences): Set<string> {
   const out = new Set<string>();
   for (const [goalLabel, displayNames] of Object.entries(prefs.subFocusByGoal)) {
-    const entry = GOAL_SUB_FOCUS_OPTIONS[goalLabel];
-    if (!entry) continue;
-    const nameToSlug = new Map(entry.subFocuses.map((f) => [f.name, f.slug]));
     for (const name of displayNames) {
-      const slug = nameToSlug.get(name);
+      const slug = resolveSubFocusSlugFromDisplayName(goalLabel, name);
       if (slug) out.add(slug);
     }
   }
@@ -221,7 +179,7 @@ function detectBodyRegionVsSubGoalConflict(
   if (selectedSlugs.size === 0) return null;
 
   if (targetBody === "Upper") {
-    const lowerSlugs = new Set([...selectedSlugs].filter((s) => LOWER_BODY_SUB_FOCUS_SLUGS.has(s)));
+    const lowerSlugs = new Set([...selectedSlugs].filter((s) => isLowerBodySubFocusSlug(s)));
     if (lowerSlugs.size === 0) return null;
     const names = conflictingSubFocusDisplayNames(prefs, lowerSlugs);
     return {
@@ -242,7 +200,7 @@ function detectBodyRegionVsSubGoalConflict(
   }
 
   if (targetBody === "Lower") {
-    const upperSlugs = new Set([...selectedSlugs].filter((s) => UPPER_BODY_SUB_FOCUS_SLUGS.has(s)));
+    const upperSlugs = new Set([...selectedSlugs].filter((s) => isUpperBodySubFocusSlug(s)));
     if (upperSlugs.size === 0) return null;
     const names = conflictingSubFocusDisplayNames(prefs, upperSlugs);
     return {

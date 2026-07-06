@@ -25,10 +25,6 @@ import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
-import {
-  computeDeclaredIntentSplitFromPrefs,
-  buildWorkoutIntentTitle,
-} from "../../../lib/workoutIntentSplit";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAppState } from "../../../context/AppStateContext";
 import type { AdaptiveSetup } from "../../../context/appStateModel";
@@ -949,43 +945,11 @@ export default function AdaptiveModeScreen() {
     ...(isOneDay ? [{ id: "duration", label: `Session: ${oneDayDuration} min` }] : []),
   ];
 
-  const oneDayFocusSplit = (() => {
-    const goalSlugs = filledAdaptiveGoals.filter((g): g is string => Boolean(g));
-    const hasSport = selectedSportSlugs.length > 0;
-    const hasGoals = goalSlugs.length > 0;
-    const effSportVsGoal = hasSport && hasGoals ? sportVsGoalPct : hasSport ? 100 : 0;
-    const orderedGoalLabelsForSubs = filledAdaptiveGoals
-      .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
-      .filter((lab): lab is string => Boolean(lab));
-    return computeDeclaredIntentSplitFromPrefs({
-      sportSlugs: selectedSportSlugs,
-      goalSlugs,
-      sportVsGoalPct: effSportVsGoal,
-      goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
-      goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
-      goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-      sportShareAmongSportsPct:
-        selectedSportSlugs.length === 2
-          ? ([sportFocusPct[0]!, sportFocusPct[1]!] as [number, number])
-          : undefined,
-      sportSubFocusBySport: Object.keys(subFocusBySport).length ? subFocusBySport : undefined,
-      orderedPrimaryLabelsForSubFocus:
-        orderedGoalLabelsForSubs.length > 0 ? orderedGoalLabelsForSubs : undefined,
-      subFocusByGoal: manualPreferences.subFocusByGoal,
-      subFocusPctByGoal: manualPreferences.subFocusPctByGoal,
-      weekSubFocusPrimaryLabels: manualPreferences.weekSubFocusPrimaryLabels,
-    });
-  })();
-  const oneDayWorkoutTitle =
-    oneDayFocusSplit.length > 0 ? buildWorkoutIntentTitle(oneDayFocusSplit) : undefined;
-
   if (isGeneratingOneDay) {
     return (
       <GenerationLoadingScreen
         message="Building your session…"
         subtitle="Turning your sports and goals into today’s workout."
-        focusSplit={oneDayFocusSplit.length > 0 ? oneDayFocusSplit : undefined}
-        workoutTitle={oneDayWorkoutTitle}
       />
     );
   }

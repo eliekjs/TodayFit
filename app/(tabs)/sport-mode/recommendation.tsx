@@ -287,11 +287,6 @@ export default function AdaptiveWeekPlanScreen() {
     manualPreferences.weekSubFocusPrimaryLabels,
   ]);
 
-  const planWorkoutTitle = useMemo(
-    () => (planFocusSplit.length > 0 ? buildWorkoutIntentTitle(planFocusSplit) : undefined),
-    [planFocusSplit]
-  );
-
   const focusSectionsForModal = useMemo((): FocusSection[] => {
     const plan = sportPrepWeekPlan;
     if (!plan) return [];
@@ -827,8 +822,6 @@ export default function AdaptiveWeekPlanScreen() {
       <GenerationLoadingScreen
         message="Regenerating your week…"
         subtitle="Rebuilding your week from your sport and goals."
-        focusSplit={planFocusSplit.length > 0 ? planFocusSplit : undefined}
-        workoutTitle={planWorkoutTitle}
         onGoBack={() =>
           router.replace(
             sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
@@ -842,8 +835,6 @@ export default function AdaptiveWeekPlanScreen() {
       <GenerationLoadingScreen
         message="Regenerating your workout…"
         subtitle="Refreshing this day’s session."
-        focusSplit={planFocusSplit.length > 0 ? planFocusSplit : undefined}
-        workoutTitle={planWorkoutTitle}
         onGoBack={() =>
           router.replace(
             sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never

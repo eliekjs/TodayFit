@@ -50,10 +50,6 @@ export default function GymProfilesScreen() {
     addGymProfile,
     updateGymProfile,
     removeGymProfile,
-    preferencePresets,
-    applyPreferencePreset,
-    updatePreferencePreset,
-    removePreferencePreset,
   } = useAppState();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -122,11 +118,6 @@ export default function GymProfilesScreen() {
       return;
     }
     router.push("/");
-  };
-
-  const onApplyPreset = (presetId: string) => {
-    applyPreferencePreset(presetId);
-    router.push("/manual/preferences");
   };
 
   const onSignOut = () => {
@@ -493,67 +484,6 @@ export default function GymProfilesScreen() {
             </View>
           </View>
         ) : null}
-
-        <Text style={[styles.sectionTitle, styles.preferencePresetsTitle, { color: theme.text }]}>
-          Saved preference profiles
-        </Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-          Saved workout preference sets. Apply one to load it in Workout Preferences.
-        </Text>
-        {preferencePresets.length === 0 ? (
-          <Text style={[styles.emptyPresets, { color: theme.textMuted }]}>
-            No presets yet. Save your current preferences from Workout Preferences (Save preset).
-          </Text>
-        ) : (
-          <View style={styles.presetList}>
-            {preferencePresets.map((preset) => (
-              <View
-                key={preset.id}
-                style={[styles.presetRow, { borderColor: theme.border }]}
-              >
-                <TextInput
-                  value={preset.name}
-                  onChangeText={(name) =>
-                    updatePreferencePreset(preset.id, { name: name.trim() || preset.name })
-                  }
-                  placeholder="Preset name"
-                  placeholderTextColor={theme.textMuted}
-                  style={[
-                    styles.presetNameInput,
-                    { borderColor: theme.border, color: theme.text },
-                  ]}
-                />
-                <View style={styles.presetActions}>
-                  <PrimaryButton
-                    label="Apply"
-                    variant="secondary"
-                    onPress={() => onApplyPreset(preset.id)}
-                    style={styles.presetBtn}
-                  />
-                  <PrimaryButton
-                    label="Delete"
-                    variant="ghost"
-                    onPress={() => {
-                      Alert.alert(
-                        "Delete preset?",
-                        `Remove "${preset.name}"?`,
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Delete",
-                            style: "destructive",
-                            onPress: () => removePreferencePreset(preset.id),
-                          },
-                        ]
-                      );
-                    }}
-                    style={styles.presetBtn}
-                  />
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -591,38 +521,6 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 13,
     marginBottom: 12,
-  },
-  preferencePresetsTitle: {
-    marginTop: 32,
-  },
-  emptyPresets: {
-    fontSize: 13,
-    fontStyle: "italic",
-    marginBottom: 16,
-  },
-  presetList: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  presetRow: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    gap: 12,
-  },
-  presetNameInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  presetActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  presetBtn: {
-    flex: 1,
   },
   backToWorkout: {
     marginBottom: 16,

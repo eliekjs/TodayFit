@@ -85,6 +85,26 @@ describe("body region vs sub-goal mismatch", () => {
     expect(conflicts.map((c) => c.id)).toContain("body_vs_subgoal_upper_lower");
   });
 
+  it("detects conflict: knee health (joint health) + Upper body → high conflict", () => {
+    const prefs = basePrefs({
+      targetBody: "Upper",
+      primaryFocus: ["Strength Training for Joint Health"],
+      subFocusByGoal: { "Strength Training for Joint Health": ["Knee Health"] },
+    });
+    const conflicts = detectPreferenceConflicts(prefs);
+    expect(conflicts.map((c) => c.id)).toContain("body_vs_subgoal_upper_lower");
+  });
+
+  it("detects conflict: recovery ankles + Upper body → high conflict", () => {
+    const prefs = basePrefs({
+      targetBody: "Upper",
+      primaryFocus: ["Recovery & Mobility"],
+      subFocusByGoal: { "Recovery & Mobility": ["Ankles"] },
+    });
+    const conflicts = detectPreferenceConflicts(prefs);
+    expect(conflicts.map((c) => c.id)).toContain("body_vs_subgoal_upper_lower");
+  });
+
   it("no conflict when no sub-goals selected", () => {
     const prefs = basePrefs({
       targetBody: "Upper",

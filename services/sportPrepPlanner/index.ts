@@ -36,6 +36,7 @@ import {
   resolvedDayFocusToWorkoutParams,
 } from "../../lib/weekDaySessionFocus";
 import type { ManualPreferences } from "../../lib/types";
+import { mergeDaySubFocusOverride } from "../../lib/daySessionFocusConflict";
 import {
   buildSportDesignatedPlannedDay,
   getSportsOnCalendarDay,
@@ -132,6 +133,8 @@ export type PlanWeekInput = {
     targetModifier: string[];
     specificBodyFocus?: import("../../lib/types").SpecificBodyFocusKey[];
   }[];
+  /** Per gym slot sub-focus overrides after conflict resolution (merged into goalSubFocusByGoal). */
+  gymDaySubFocusByGoalOverrides?: Array<Record<string, string[]> | null | undefined>;
   /** Manual preferences for sub-focus / goal match % when resolving day-focus presets. */
   manualPreferences?: ManualPreferences | null;
 };
@@ -1218,6 +1221,11 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       focusedSportSlugs?.length === 1
         ? effectiveSportSubFocusBySport?.[focusedSportSlugs[0]]
         : input.sportSubFocusSlugs;
+    const daySubFocusOverride = input.gymDaySubFocusByGoalOverrides?.[slotIdx];
+    const effectiveSubFocusByGoal = mergeDaySubFocusOverride(
+      input.goalSubFocusByGoal ?? {},
+      daySubFocusOverride ?? undefined
+    );
     const workout = await buildWorkoutForSessionIntent(
       intent,
       input.gymProfile,
@@ -1236,7 +1244,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         bodyRegionBias,
         workoutTier: input.workoutTier ?? "intermediate",
         includeCreativeVariations: input.includeCreativeVariations === true,
-        subFocusByGoal: input.goalSubFocusByGoal,
+        subFocusByGoal: effectiveSubFocusByGoal,
         ...(input.goalSubFocusPctByGoal &&
         Object.keys(input.goalSubFocusPctByGoal).length > 0
           ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }

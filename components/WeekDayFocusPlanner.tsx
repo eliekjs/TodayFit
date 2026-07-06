@@ -2,6 +2,11 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { Theme } from "../lib/theme";
 import type { DayBodyFocusChoice, DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
+import type {
+  DaySessionFocusConflict,
+  DaySessionFocusResolution,
+} from "../lib/daySessionFocusConflict";
+import { DaySessionFocusConflictBanner } from "./DaySessionFocusConflictBanner";
 
 type Props = {
   theme: Theme;
@@ -12,8 +17,13 @@ type Props = {
   selectedBodyIds?: DayBodyFocusChoiceId[];
   /** Selected preset id per day (parallel arrays). */
   selectedIds: string[];
+  /** Detected body vs sub-goal conflicts per day (parallel to dayLabels). */
+  conflictsPerDay?: (DaySessionFocusConflict | null)[];
+  /** Resolution id applied per day, keyed by day index. */
+  resolvedConflictIdsByDay?: Record<number, string>;
   onSelectBody?: (dayIndex: number, bodyId: DayBodyFocusChoiceId) => void;
   onSelect: (dayIndex: number, presetId: string) => void;
+  onApplyDayResolution?: (dayIndex: number, resolution: DaySessionFocusResolution) => void;
   onBack: () => void;
 };
 
@@ -24,8 +34,11 @@ export function WeekDayFocusPlanner({
   presetOptionsPerDay,
   selectedBodyIds,
   selectedIds,
+  conflictsPerDay,
+  resolvedConflictIdsByDay,
   onSelectBody,
   onSelect,
+  onApplyDayResolution,
   onBack,
 }: Props) {
   return (
@@ -41,9 +54,18 @@ export function WeekDayFocusPlanner({
         const selectedBody = selectedBodyIds?.[dayIdx];
         const presets = presetOptionsPerDay[dayIdx] ?? [];
         const selected = selectedIds[dayIdx];
+        const conflict = conflictsPerDay?.[dayIdx] ?? null;
         return (
           <View key={label} style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
             <Text style={[styles.dayTitle, { color: theme.text }]}>{label}</Text>
+            {conflict && onApplyDayResolution ? (
+              <DaySessionFocusConflictBanner
+                theme={theme}
+                conflict={conflict}
+                resolvedId={resolvedConflictIdsByDay?.[dayIdx]}
+                onApplyResolution={(resolution) => onApplyDayResolution(dayIdx, resolution)}
+              />
+            ) : null}
             {bodyOptions.length > 0 && onSelectBody ? (
               <View style={styles.section}>
                 <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
