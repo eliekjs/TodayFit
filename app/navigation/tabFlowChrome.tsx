@@ -9,7 +9,6 @@ import { Header, getHeaderTitle } from "@react-navigation/elements";
 import type { HeaderOptions } from "@react-navigation/elements";
 import { useTheme } from "../../lib/theme";
 import {
-  manualGoalPreferencesHref,
   navigateToManualGoalPreferences,
 } from "../../lib/manualGoalPreferencesHref";
 import { sportReviewBackRoute } from "../../lib/sessionFlowNav";
@@ -96,20 +95,27 @@ export function AdaptiveRecommendationBackButton() {
   );
 }
 
-/** Back from week plan: previous screen when possible, else preferences. */
+/** Back from week plan to filters — never rely on router.back() (tab routes are not a reliable stack). */
 export function ManualWeekBackButton() {
   const router = useRouter();
   const theme = useTheme();
   const { manualGoalPreferencesScope } = useAppState();
   return (
     <Pressable
-      onPress={() => {
-        const href = manualGoalPreferencesHref(manualGoalPreferencesScope);
-        if (router.canGoBack()) router.back();
-        else router.push(href);
-      }}
+      onPress={() => navigateToManualGoalPreferences(router, manualGoalPreferencesScope, { replace: true })}
       style={{ paddingLeft: 16 }}
     >
+      <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
+
+/** Back from goal filters to Today — explicit exit so history stack cannot bounce to week review. */
+export function ManualPreferencesBackButton() {
+  const router = useRouter();
+  const theme = useTheme();
+  return (
+    <Pressable onPress={() => router.replace("/")} style={{ paddingLeft: 16 }}>
       <Ionicons name="chevron-back" size={24} color={theme.text} />
     </Pressable>
   );

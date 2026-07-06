@@ -25,7 +25,6 @@ import {
   EQUIPMENT_BY_CATEGORY,
   getDefaultEquipmentForTemplate,
   SPACE_TYPE_OPTIONS,
-  type GymProfile,
   type GymProfileTemplate,
 } from "../../../data/gymProfiles";
 import type { EquipmentKey } from "../../../lib/types";
@@ -50,22 +49,21 @@ export default function GymProfilesScreen() {
     addGymProfile,
     updateGymProfile,
     removeGymProfile,
-    preferencePresets,
-    applyPreferencePreset,
-    updatePreferencePreset,
-    removePreferencePreset,
   } = useAppState();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [addMode, setAddMode] = useState<
-    null | "choose_type" | "custom" | { template: GymProfileTemplate; suggestedName: string }
-  >(null);
-  const [customName, setCustomName] = useState("");
-  const [saveAsName, setSaveAsName] = useState("");
+  const [showAddSpaceTypes, setShowAddSpaceTypes] = useState(false);
 
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const selectProfile = (id: string) => {
+    if (id !== activeGymProfileId) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setActiveGymProfile(id);
+    }
   };
 
   const toggleEquipment = (profileId: string, key: EquipmentKey) => {
@@ -86,30 +84,29 @@ export default function GymProfilesScreen() {
     });
   };
 
-  const onAddProfile = (template: GymProfileTemplate, name?: string) => {
+  const defaultNameForTemplate = (template: GymProfileTemplate): string => {
+    const option = SPACE_TYPE_OPTIONS.find((opt) => opt.template === template);
+    return option?.label ?? "New Gym";
+  };
+
+  const onAddProfile = (template: GymProfileTemplate) => {
     const equipment = normalizeStoredGymEquipment(
       getDefaultEquipmentForTemplate(template)
     );
     const profileName =
-      name?.trim() ||
-      (template === "your_gym"
-        ? "Full Commercial Gym"
-        : template === "small_gym"
-          ? "Small Gym"
-          : template === "home_gym"
-            ? "Home Setup"
-            : template === "hotel_gym"
-              ? "Hotel Gym"
-              : template === "custom"
-                ? "Bodyweight Only"
-                : "New Gym");
-    addGymProfile({
-      name: profileName,
-      equipment,
-    });
-    setAddMode(null);
-    setCustomName("");
-    setSaveAsName("");
+      template === "custom_gym" ? "My Gym" : defaultNameForTemplate(template);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowAddSpaceTypes(false);
+    addGymProfile(
+      {
+        name: profileName,
+        equipment,
+      },
+      {
+        setActive: true,
+        onCreated: (id) => setExpandedId(id),
+      }
+    );
   };
 
   const goBackToFlow = () => {
@@ -122,11 +119,6 @@ export default function GymProfilesScreen() {
       return;
     }
     router.push("/");
-  };
-
-  const onApplyPreset = (presetId: string) => {
-    applyPreferencePreset(presetId);
-    router.push("/manual/preferences");
   };
 
   const onSignOut = () => {
@@ -220,8 +212,7 @@ export default function GymProfilesScreen() {
 
             return (
               <View key={profile.id} style={styles.profileBlock}>
-                <Pressable
-                  onPress={() => toggleExpand(profile.id)}
+                <View
                   style={[
                     styles.profileHeader,
                     {
@@ -230,7 +221,10 @@ export default function GymProfilesScreen() {
                     },
                   ]}
                 >
-                  <View style={{ flex: 1 }}>
+                  <Pressable
+                    onPress={() => selectProfile(profile.id)}
+                    style={styles.profileHeaderMain}
+                  >
                     <Text
                       style={[
                         styles.profileName,
@@ -242,14 +236,20 @@ export default function GymProfilesScreen() {
                     <Text
                       style={[styles.profileMeta, { color: theme.textMuted }]}
                     >
-                      {isActive ? "Active" : "Tap to edit"} •{" "}
+                      {isActive ? "Active" : "Tap to select"} •{" "}
                       {profile.equipment.length} items
                     </Text>
-                  </View>
-                  <Text style={{ color: theme.textMuted, fontSize: 18 }}>
-                    {isExpanded ? "−" : "+"}
-                  </Text>
-                </Pressable>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => toggleExpand(profile.id)}
+                    hitSlop={8}
+                    style={styles.expandButton}
+                  >
+                    <Text style={{ color: theme.textMuted, fontSize: 20, fontWeight: "600" }}>
+                      {isExpanded ? "−" : "+"}
+                    </Text>
+                  </Pressable>
+                </View>
 
                 {isExpanded && (
                   <View style={[styles.expandedContent, { borderColor: theme.border, backgroundColor: theme.card }]}>
@@ -272,15 +272,6 @@ export default function GymProfilesScreen() {
                           },
                         ]}
                       />
-                    </View>
-                    <View style={styles.setActiveRow}>
-                      {!isActive && (
-                        <PrimaryButton
-                          label="Set as active"
-                          variant="secondary"
-                          onPress={() => setActiveGymProfile(profile.id)}
-                        />
-                      )}
                     </View>
 
                     {EQUIPMENT_BY_CATEGORY.map((cat) => (
@@ -391,169 +382,47 @@ export default function GymProfilesScreen() {
           })}
         </View>
 
-        {addMode == null ? (
-          <View style={styles.addSection}>
-            <Text
-              style={[styles.addSectionTitle, { color: theme.text }]}
-            >
-              Add a gym
-            </Text>
-            <Text
-              style={[styles.stepLabel, { color: theme.textMuted }]}
-            >
-              Step 1 — Space type
-            </Text>
-            <View style={styles.chipRow}>
-              {SPACE_TYPE_OPTIONS.map((opt) => (
-                <View key={opt.template}>
-                  <Chip
-                    label={opt.label}
-                    selected={false}
-                    onPress={() =>
-                      setAddMode({
-                        template: opt.template,
-                        suggestedName: opt.label,
-                      })
-                    }
-                  />
-                </View>
-              ))}
-            </View>
+        <View style={styles.addSection}>
+          {!showAddSpaceTypes ? (
             <PrimaryButton
-              label="Custom (name your gym)"
-              variant="ghost"
-              onPress={() => setAddMode("custom")}
-              style={{ marginTop: 12 }}
+              label="Add a gym"
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setShowAddSpaceTypes(true);
+              }}
+              style={styles.addGymButton}
             />
-          </View>
-        ) : addMode === "custom" ? (
-          <View style={styles.addSection}>
-            <Text
-              style={[styles.addSectionTitle, { color: theme.text }]}
-            >
-              Name your gym
-            </Text>
-            <TextInput
-              placeholder="e.g. CrossFit Box"
-              placeholderTextColor={theme.textMuted}
-              value={customName}
-              onChangeText={setCustomName}
-              style={[
-                styles.input,
-                { borderColor: theme.border, color: theme.text },
-              ]}
-            />
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-              <PrimaryButton
-                label="Create"
-                onPress={() => onAddProfile("custom", customName || "My Gym")}
-              />
-              <PrimaryButton
-                label="Cancel"
-                variant="ghost"
-                onPress={() => {
-                  setAddMode(null);
-                  setCustomName("");
-                }}
-              />
-            </View>
-          </View>
-        ) : typeof addMode === "object" && "template" in addMode ? (
-          <View style={styles.addSection}>
-            <Text
-              style={[styles.addSectionTitle, { color: theme.text }]}
-            >
-              Save as
-            </Text>
-            <TextInput
-              placeholder={addMode.suggestedName}
-              placeholderTextColor={theme.textMuted}
-              value={saveAsName}
-              onChangeText={setSaveAsName}
-              style={[
-                styles.input,
-                { borderColor: theme.border, color: theme.text },
-              ]}
-            />
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-              <PrimaryButton
-                label="Create"
-                onPress={() =>
-                  onAddProfile(addMode.template, saveAsName.trim() || addMode.suggestedName)
-                }
-              />
-              <PrimaryButton
-                label="Cancel"
-                variant="ghost"
-                onPress={() => {
-                  setAddMode(null);
-                  setSaveAsName("");
-                }}
-              />
-            </View>
-          </View>
-        ) : null}
-
-        <Text style={[styles.sectionTitle, styles.preferencePresetsTitle, { color: theme.text }]}>
-          Saved preference profiles
-        </Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-          Saved workout preference sets. Apply one to load it in Workout Preferences.
-        </Text>
-        {preferencePresets.length === 0 ? (
-          <Text style={[styles.emptyPresets, { color: theme.textMuted }]}>
-            No presets yet. Save your current preferences from Workout Preferences (Save preset).
-          </Text>
-        ) : (
-          <View style={styles.presetList}>
-            {preferencePresets.map((preset) => (
-              <View
-                key={preset.id}
-                style={[styles.presetRow, { borderColor: theme.border }]}
-              >
-                <TextInput
-                  value={preset.name}
-                  onChangeText={(name) =>
-                    updatePreferencePreset(preset.id, { name: name.trim() || preset.name })
-                  }
-                  placeholder="Preset name"
-                  placeholderTextColor={theme.textMuted}
-                  style={[
-                    styles.presetNameInput,
-                    { borderColor: theme.border, color: theme.text },
-                  ]}
-                />
-                <View style={styles.presetActions}>
-                  <PrimaryButton
-                    label="Apply"
-                    variant="secondary"
-                    onPress={() => onApplyPreset(preset.id)}
-                    style={styles.presetBtn}
-                  />
-                  <PrimaryButton
-                    label="Delete"
-                    variant="ghost"
-                    onPress={() => {
-                      Alert.alert(
-                        "Delete preset?",
-                        `Remove "${preset.name}"?`,
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Delete",
-                            style: "destructive",
-                            onPress: () => removePreferencePreset(preset.id),
-                          },
-                        ]
-                      );
-                    }}
-                    style={styles.presetBtn}
-                  />
-                </View>
+          ) : (
+            <>
+              <Text style={[styles.addSectionTitle, { color: theme.text }]}>
+                Choose space type
+              </Text>
+              <Text style={[styles.stepLabel, { color: theme.textMuted }]}>
+                We&apos;ll set this as your active gym so you can name it and pick equipment.
+              </Text>
+              <View style={styles.chipRow}>
+                {SPACE_TYPE_OPTIONS.map((opt) => (
+                  <View key={opt.template}>
+                    <Chip
+                      label={opt.label}
+                      selected={false}
+                      onPress={() => onAddProfile(opt.template)}
+                    />
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        )}
+              <PrimaryButton
+                label="Cancel"
+                variant="ghost"
+                onPress={() => {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setShowAddSpaceTypes(false);
+                }}
+                style={{ marginTop: 12 }}
+              />
+            </>
+          )}
+        </View>
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -592,38 +461,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 12,
   },
-  preferencePresetsTitle: {
-    marginTop: 32,
-  },
-  emptyPresets: {
-    fontSize: 13,
-    fontStyle: "italic",
-    marginBottom: 16,
-  },
-  presetList: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  presetRow: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    gap: 12,
-  },
-  presetNameInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  presetActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  presetBtn: {
-    flex: 1,
-  },
   backToWorkout: {
     marginBottom: 16,
   },
@@ -637,9 +474,20 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    paddingVertical: 14,
+    paddingLeft: 14,
+    paddingRight: 10,
     borderRadius: 12,
     borderWidth: 1,
+  },
+  profileHeaderMain: {
+    flex: 1,
+  },
+  expandButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileName: {
     fontSize: 16,
@@ -674,9 +522,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-  },
-  setActiveRow: {
-    marginBottom: 4,
   },
   deleteRow: {
     marginTop: 8,
@@ -720,6 +565,9 @@ const styles = StyleSheet.create({
   addSection: {
     marginTop: 28,
   },
+  addGymButton: {
+    alignSelf: "stretch",
+  },
   addSectionTitle: {
     fontSize: 15,
     fontWeight: "600",
@@ -728,15 +576,5 @@ const styles = StyleSheet.create({
   stepLabel: {
     fontSize: 13,
     marginBottom: 8,
-  },
-  addButtons: {
-    gap: 0,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
   },
 });

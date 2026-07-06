@@ -1,0 +1,37 @@
+---
+description: Weekly equipment catalog validation — dry-run backfill + unit tests
+trigger: schedule
+schedule: "0 9 * * 1"
+---
+
+# Equipment Catalog Validation Automation (weekly)
+
+**Purpose:** Catch equipment tagging drift after catalog imports. Opens a PR when `backfillExerciseEquipment --dry-run` would change rows or equipment tests fail.
+
+## Cursor Automation setup
+
+| Field | Value |
+|-------|--------|
+| **Name** | TodayFit — Equipment catalog validation |
+| **Trigger** | Schedule — Mondays 9:00 (`0 9 * * 1`) |
+| **Repository** | todayfit |
+
+## Prompt
+
+```
+You are validating TodayFit exercise equipment tagging parity.
+
+1. Read docs/research/equipment-filtering-parity-2026-07.md and lib/equipmentResolution.ts.
+2. Run: npx vitest run lib/equipmentResolution.test.ts
+3. Run: npx tsx scripts/backfillExerciseEquipment.ts --dry-run
+4. If dry-run reports >0 updates OR tests fail:
+   - Apply npx tsx scripts/backfillExerciseEquipment.ts
+   - Re-run tests
+   - Open a PR with summary of changed exercise counts by source file
+5. If everything is clean (0 dry-run changes, tests pass), do nothing.
+Do not auto-merge.
+```
+
+## Tools
+
+- GitHub: branch, commit, open PR

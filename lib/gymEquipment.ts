@@ -1,3 +1,4 @@
+import { expandProfileEquipmentForFiltering } from "./equipmentResolution";
 import type { EquipmentKey } from "./types";
 
 /**
@@ -22,6 +23,11 @@ export const HIDDEN_GYM_EQUIPMENT: readonly EquipmentKey[] = ["machine"] as cons
 
 const HIDDEN_GYM_EQUIPMENT_SET = new Set<string>(HIDDEN_GYM_EQUIPMENT);
 
+/** Equipment slugs removed from the gym profile picker but may still appear on legacy profiles. */
+export const RETIRED_GYM_EQUIPMENT: readonly string[] = ["gada"] as const;
+
+const RETIRED_GYM_EQUIPMENT_SET = new Set<string>(RETIRED_GYM_EQUIPMENT);
+
 export function isHiddenGymEquipment(key: EquipmentKey): boolean {
   return HIDDEN_GYM_EQUIPMENT_SET.has(key);
 }
@@ -33,8 +39,9 @@ export function isHiddenGymEquipment(key: EquipmentKey): boolean {
 export function resolveEffectiveEquipment(
   equipment: readonly EquipmentKey[]
 ): EquipmentKey[] {
-  const resolved = new Set<EquipmentKey>(equipment);
-  const hasDedicatedMachine = equipment.some((key) =>
+  const expanded = expandProfileEquipmentForFiltering(equipment);
+  const resolved = new Set<EquipmentKey>(expanded);
+  const hasDedicatedMachine = expanded.some((key) =>
     DEDICATED_MACHINE_SET.has(key)
   );
   if (hasDedicatedMachine) {
@@ -50,5 +57,7 @@ export function resolveEffectiveEquipment(
 export function normalizeStoredGymEquipment(
   equipment: readonly EquipmentKey[]
 ): EquipmentKey[] {
-  return equipment.filter((key) => !isHiddenGymEquipment(key));
+  return equipment.filter(
+    (key) => !isHiddenGymEquipment(key) && !RETIRED_GYM_EQUIPMENT_SET.has(key)
+  );
 }

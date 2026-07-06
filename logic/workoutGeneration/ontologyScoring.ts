@@ -414,6 +414,9 @@ export const REGIONAL_MOBILITY_SUBFOCUS_TO_WARMUP_TARGETS: Record<string, string
   t_spine: ["thoracic_spine"],
   lower_back: ["low_back", "hip_flexors"],
   ankles: ["calves", "quadriceps"],
+  knees: ["quadriceps", "hamstrings", "calves"],
+  elbows: ["shoulders", "lats"],
+  wrists: ["wrists"],
   full_body: ["thoracic_spine", "shoulders", "hip_flexors", "glutes"],
 };
 

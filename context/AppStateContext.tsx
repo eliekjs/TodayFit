@@ -125,7 +125,10 @@ type AppStateContextValue = {
   manualGoalPreferencesScope: ManualGoalPreferencesScope;
   setManualGoalPreferencesScope: (scope: ManualGoalPreferencesScope) => void;
   setActiveGymProfile: (id: string) => void;
-  addGymProfile: (profile: Omit<GymProfile, "id" | "isActive">) => void;
+  addGymProfile: (
+    profile: Omit<GymProfile, "id" | "isActive">,
+    options?: { setActive?: boolean; onCreated?: (id: string) => void }
+  ) => void;
   updateGymProfile: (id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => void;
   removeGymProfile: (id: string) => void;
   addPreferencePreset: (preset: Omit<PreferencePreset, "id">) => void;
@@ -662,7 +665,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     notifySaveFailed,
   ]);
 
-  const addGymProfile = useCallback((profile: Omit<GymProfile, "id" | "isActive">) => {
+  const addGymProfile = useCallback((
+    profile: Omit<GymProfile, "id" | "isActive">,
+    options?: { setActive?: boolean; onCreated?: (id: string) => void }
+  ) => {
+    const optimisticId = `profile_${Date.now()}`;
+    const setActive = options?.setActive ?? false;
+
+    setGymProfiles((profiles) => [
+      ...profiles.map((p) => ({ ...p, isActive: setActive ? false : p.isActive })),
+      { id: optimisticId, ...profile, isActive: setActive },
+    ]);
+    if (setActive) {
+      setActiveGymProfileId(optimisticId);
+    }
+    options?.onCreated?.(optimisticId);
+
     if (persist && userId) {
       touchPersistedStateDuringRemoteLoad();
       void persistWithHandling({
@@ -672,19 +690,44 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             name: profile.name,
             equipment: profile.equipment,
             dumbbellMaxWeight: profile.dumbbellMaxWeight,
-            isActive: false,
+            isActive: setActive,
           });
-          setGymProfiles((prev) => [...prev, p]);
+          if (setActive) {
+            await GymProfileRepo.setActiveProfile(userId, p.id);
+          }
+          setGymProfiles((prev) => {
+            const withoutOptimistic = prev.filter((item) => item.id !== optimisticId);
+            return [
+              ...withoutOptimistic.map((item) => ({
+                ...item,
+                isActive: setActive ? item.id === p.id : item.isActive,
+              })),
+              { ...p, isActive: setActive },
+            ];
+          });
+          if (setActive) {
+            setActiveGymProfileId(p.id);
+          }
+          if (p.id !== optimisticId) {
+            options?.onCreated?.(p.id);
+          }
+        },
+        rollback: () => {
+          setGymProfiles((prev) => prev.filter((item) => item.id !== optimisticId));
+          if (setActive) {
+            setActiveGymProfileId(activeGymProfileId);
+          }
         },
         onFailure: notifySaveFailed,
       });
-    } else {
-      setGymProfiles((profiles) => [
-        ...profiles,
-        { id: `profile_${Date.now()}`, ...profile, isActive: false },
-      ]);
     }
-  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+  }, [
+    userId,
+    persist,
+    touchPersistedStateDuringRemoteLoad,
+    notifySaveFailed,
+    activeGymProfileId,
+  ]);
 
   const updateGymProfile = useCallback((id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => {
     const previousSnapshot = gymProfiles.find((p) => p.id === id);

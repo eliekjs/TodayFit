@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from "react-n
 import { Redirect, useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { NestableScrollContainer } from "react-native-draggable-flatlist";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
@@ -55,8 +57,11 @@ import {
 } from "../../../lib/workoutIntentSplit";
 import {
   adaptiveSetupFromPlanContext,
+  buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
+  type DayBodyFocusChoiceId,
 } from "../../../lib/weekDaySessionFocus";
+import { WeekDayFocusSummaryCard } from "../../../components/WeekDayFocusPlanner";
 
 function humanizeSportSlug(slug: string): string {
   return slug
@@ -126,9 +131,6 @@ function assignedGoalForExercise(
 }
 
 const isWeb = Platform.OS === "web";
-
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { NestableScrollContainer } from "react-native-draggable-flatlist";
 
 export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
@@ -1061,6 +1063,71 @@ export default function AdaptiveWeekPlanScreen() {
                 : day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
               const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
               const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
+              const gymDays = sportPrepWeekPlan.days.filter((d) => !isSportDesignatedPlannedDay(d));
+              const gymIndex = gymDays.findIndex((d) => d.id === day.id);
+              const adaptiveForFocus = adaptiveSetupFromPlanContext({
+                goalSlugs: sportPrepWeekPlan.goalSlugs,
+                rankedSportSlugs: sportPrepWeekPlan.rankedSportSlugs,
+                sportVsGoalPct: sportPrepWeekPlan.sportVsGoalPct,
+                sportFocusPct: sportPrepWeekPlan.sportFocusPct,
+                sportSubFocusSlugsBySport: sportPrepWeekPlan.sportSubFocusSlugsBySport,
+              });
+              const snapshotBody =
+                gymIndex >= 0 ? sportPrepWeekPlan.scheduleSnapshot?.gymDayBodyFocuses?.[gymIndex] : undefined;
+              const bodyKey = day.dayLevelFocus?.dayBodyEmphasis ?? "full";
+              const targetBody =
+                bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
+              const targetModifier = snapshotBody?.targetModifier ?? [];
+              const bodyOptions =
+                gymIndex >= 0
+                  ? buildDayBodyFocusChoicesForDay({
+                      manualPreferences,
+                      adaptiveSetup: adaptiveForFocus,
+                      slotIndex: gymIndex,
+                      fallbackTargetBody: targetBody,
+                      fallbackTargetModifier: targetModifier,
+                    })
+                  : [];
+              const selectedBodyId: DayBodyFocusChoiceId | undefined =
+                day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
+                  ? "core"
+                  : bodyKey === "upper" || bodyKey === "lower" || bodyKey === "full"
+                    ? bodyKey
+                    : undefined;
+              const bodyFocus =
+                bodyOptions.find((o) => o.id === selectedBodyId) ??
+                (gymIndex >= 0
+                  ? {
+                      label: `${targetBody} body`,
+                      subtitle: day.dayLevelFocus?.daySpecificBodyFocuses?.length
+                        ? day.dayLevelFocus.daySpecificBodyFocuses.join(", ")
+                        : "Generated body focus for this gym day.",
+                    }
+                  : null);
+              const priorityOptions =
+                gymIndex >= 0
+                  ? buildDayFocusPresetsForDay({
+                      manualPreferences,
+                      adaptiveSetup: adaptiveForFocus,
+                      targetBody,
+                      targetModifier,
+                    })
+                  : [];
+              const selectedPresetId =
+                day.preferences?.dayFocusPresetId ??
+                (gymIndex >= 0
+                  ? sportPrepWeekPlan.scheduleSnapshot?.gymDayFocusPresetIds?.[gymIndex]
+                  : undefined);
+              const priorityFocus =
+                priorityOptions.find((o) => o.id === selectedPresetId) ??
+                (isSportDesignatedPlannedDay(day)
+                  ? {
+                      label: "Sport day",
+                      subtitle: "No gym workout is planned; this day is reserved for your sport.",
+                    }
+                  : label
+                    ? { label, subtitle: "Generated focus for this gym day." }
+                    : null);
               return (
                 <View key={day.id} style={[styles.sessionRow, { marginLeft: 12 }]}>
                   <View style={styles.moveButtons}>
@@ -1085,38 +1152,18 @@ export default function AdaptiveWeekPlanScreen() {
                       <Ionicons name="chevron-down" size={20} color={theme.textMuted} />
                     </Pressable>
                   </View>
-                  <Pressable
-                    onPress={() => onSelectSession(day)}
-                    style={[
-                      styles.dayRow,
-                      {
-                        flex: 1,
-                        flexDirection: "row",
-                        alignItems: "center",
-                        borderColor: isSelected ? theme.primary : theme.border,
-                        backgroundColor: isSelected ? theme.primarySoft : "transparent",
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text style={[styles.dayLabel, { color: theme.text, flex: 1 }]} numberOfLines={1}>
-                        {label}
-                      </Text>
-                      {statusBadge ? (
-                        <Text
-                          style={[
-                            styles.todayBadge,
-                            {
-                              color: day.status === "completed" ? theme.primary : theme.textMuted,
-                              borderColor: day.status === "completed" ? theme.primary : theme.border,
-                            },
-                          ]}
-                        >
-                          {statusBadge}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <WeekDayFocusSummaryCard
+                      theme={theme}
+                      dayLabel={label}
+                      bodyFocus={bodyFocus}
+                      priorityFocus={priorityFocus}
+                      selected={isSelected}
+                      onPress={() => onSelectSession(day)}
+                      statusLabel={statusBadge}
+                      statusTone={day.status === "completed" ? "primary" : "muted"}
+                    />
+                  </View>
                 </View>
               );
             })}
@@ -1157,9 +1204,22 @@ export default function AdaptiveWeekPlanScreen() {
       ) : null}
 
       {!isSingleSessionPlan && (
-        <Card title="Week overview" style={{ marginTop: 16 }}>
-          {weekOverviewContent}
-        </Card>
+        <>
+          <Card title="Week overview" style={{ marginTop: 16 }}>
+            {weekOverviewContent}
+          </Card>
+          <Card
+            title="Regenerate week"
+            subtitle="Pick body focus and sport/goal priority for each gym day, then rebuild the week."
+            style={{ marginTop: 16 }}
+          >
+            <PrimaryButton
+              label="Regenerate week"
+              variant="ghost"
+              onPress={() => router.push("/sport-mode/schedule")}
+            />
+          </Card>
+        </>
       )}
 
       {isLoadingWorkout && (
@@ -1453,18 +1513,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
   },
-  dayRow: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  dayWeekday: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginRight: 8,
-  },
   todayBadge: {
     fontSize: 11,
     fontWeight: "600",
@@ -1472,10 +1520,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
     borderWidth: 1,
-  },
-  dayLabel: {
-    fontSize: 13,
-    marginTop: 2,
   },
   footer: {
     marginTop: 16,

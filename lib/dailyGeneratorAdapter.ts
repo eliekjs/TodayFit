@@ -7,6 +7,7 @@
 import type { ManualPreferences, GeneratedWorkout, ExerciseDefinition } from "./types";
 import type { GymProfile } from "../data/gymProfiles";
 import { resolveEffectiveEquipment } from "./gymEquipment";
+import { resolveExerciseEquipmentRequired } from "./equipmentResolution";
 import {
   deriveBodyPartFocus,
   deriveBodyPartFocusFromSubFocus,
@@ -946,32 +947,14 @@ export function exerciseDefinitionToGeneratorExercise(def: ExerciseDefinition): 
       ) &&
       !/^energy_(low|medium|high)$/.test(t.toLowerCase().replace(/\s/g, "_"))
   );
-  const idName = normalizeSlug(`${def.id} ${def.name}`);
   const rawEquipment = (def.equipment ?? []).map((eq) =>
     typeof eq === "string" ? eq.toLowerCase().replace(/\s/g, "_") : String(eq)
   );
-  // Some imported catalogs (FunctionalFitness / OTA) include specialty-tool exercises but incorrectly
-  // mark equipment as bodyweight. This breaks equipment-availability filtering.
-  // We keep this small and explicit: only override when the only equipment is bodyweight.
-  const isBodyweightOnly =
-    rawEquipment.length === 1 && rawEquipment[0] === "bodyweight";
-  const inferredSpecialtyEquipment: string[] = [];
-  if (isBodyweightOnly) {
-    // Landmine movements require a loaded barbell; take precedence over single-tool specialty checks.
-    if (/\blandmine\b/.test(idName)) {
-      inferredSpecialtyEquipment.push("barbell", "plates");
-    } else {
-      if (/\bclubbell\b/.test(idName)) inferredSpecialtyEquipment.push("clubbell");
-      if (/\bindian_club\b|\bindian_clubs\b/.test(idName))
-        inferredSpecialtyEquipment.push("indian_club");
-      if (/\bgada\b/.test(idName)) inferredSpecialtyEquipment.push("gada");
-      if (/\bmacebell\b/.test(idName)) inferredSpecialtyEquipment.push("macebell");
-      if (/\bsteel_mace\b|\bmace\b/.test(idName))
-        inferredSpecialtyEquipment.push("steel_mace");
-    }
-  }
-  const equipment_required =
-    inferredSpecialtyEquipment.length > 0 ? inferredSpecialtyEquipment : rawEquipment;
+  const equipment_required = resolveExerciseEquipmentRequired(
+    rawEquipment,
+    def.id,
+    def.name
+  );
   const tags = buildExerciseTags(def);
 
   const catalogDescription = resolveExerciseDescription(def.id, def.description);

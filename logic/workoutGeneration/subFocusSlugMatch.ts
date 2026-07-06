@@ -112,7 +112,16 @@ function passesSpeedAgilityDynamicGate(exercise: Exercise, subSlug: string): boo
   return true;
 }
 
-const REGIONAL_ANATOMY_SLUGS = new Set(["hips", "shoulders", "t_spine", "lower_back", "ankles"]);
+const REGIONAL_ANATOMY_SLUGS = new Set([
+  "hips",
+  "shoulders",
+  "t_spine",
+  "lower_back",
+  "ankles",
+  "knees",
+  "elbows",
+  "wrists",
+]);
 
 /**
  * Recovery goal uses goal_slug `resilience`. User already declared Recovery — regional anatomy
@@ -148,6 +157,21 @@ function exerciseMatchesRegionalAnatomy(exercise: Exercise, subSlug: string): bo
   if (norm === "ankles") {
     if (exTags.has("ankle_stability")) return true;
     if (hasTarget("calves") || hasTarget("ankle")) return true;
+    return false;
+  }
+  if (norm === "knees") {
+    if (exTags.has("knee_mobility") || exTags.has("knees")) return true;
+    if (hasTarget("quadriceps") || hasTarget("quad") || hasTarget("knee")) return true;
+    return false;
+  }
+  if (norm === "elbows") {
+    if (exTags.has("elbow_mobility") || exTags.has("elbows")) return true;
+    if (hasTarget("triceps") || hasTarget("biceps") || hasTarget("elbow")) return true;
+    return false;
+  }
+  if (norm === "wrists") {
+    if (exTags.has("wrist_mobility") || exTags.has("wrists")) return true;
+    if (hasTarget("wrist") || hasTarget("forearm")) return true;
     return false;
   }
   if (norm === "hips") {

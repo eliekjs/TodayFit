@@ -126,6 +126,7 @@ export function mergeContraindicationsForTags(options: {
 /** Map equipment slugs to app canonical form (EquipmentKey). Used so filtering matches gym profile options. */
 const EQUIPMENT_ALIASES: Record<string, string> = {
   resistance_band: "bands",
+  smith: "smith_machine",
 };
 
 /**

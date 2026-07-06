@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
@@ -31,6 +31,9 @@ export type DayFocusOverrideChipsProps = {
   baseIncludeCreativeVariations?: boolean;
   /** When set, show session-focus presets (sport vs goal emphasis) instead of generic goal chips. */
   dayFocusPresets?: DayFocusPreset[];
+  selectedDayFocusPresetId?: string;
+  /** Increment to open the focus controls from an external card/action. */
+  expandSignal?: number;
 };
 
 export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps>(function DayFocusOverrideChips({
@@ -46,13 +49,21 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   baseWorkoutTier = "intermediate",
   baseIncludeCreativeVariations = false,
   dayFocusPresets,
+  selectedDayFocusPresetId,
+  expandSignal,
 }, ref) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
 
+  useEffect(() => {
+    if (expandSignal == null) return;
+    setExpanded(true);
+  }, [expandSignal]);
+
   const effectiveTier = dailyPrefsOverride?.workoutTier ?? baseWorkoutTier;
   const effectiveCreative =
     (dailyPrefsOverride?.includeCreativeVariations ?? baseIncludeCreativeVariations) === true;
+  const effectiveDayFocusPresetId = dailyPrefsOverride?.dayFocusPresetId ?? selectedDayFocusPresetId;
 
   return (
     <View ref={ref} style={styles.container}>
@@ -125,7 +136,7 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
                 <View style={{ marginBottom: 12, gap: 8 }}>
                   <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Session focus: </Text>
                   {dayFocusPresets.map((p) => {
-                    const selected = dailyPrefsOverride?.dayFocusPresetId === p.id;
+                    const selected = effectiveDayFocusPresetId === p.id;
                     return (
                       <Pressable
                         key={p.id}

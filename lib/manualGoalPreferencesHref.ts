@@ -9,8 +9,27 @@ export function manualGoalPreferencesHref(scope: ManualGoalPreferencesScope): st
 
 /** Explicit navigation to filters — use instead of router.back() or dismissTo in tab flows. */
 export function navigateToManualGoalPreferences(
-  router: Pick<Router, "push">,
-  scope: ManualGoalPreferencesScope
+  router: Pick<Router, "push" | "replace">,
+  scope: ManualGoalPreferencesScope,
+  options?: { replace?: boolean }
 ): void {
-  router.push(manualGoalPreferencesHref(scope) as never);
+  const href = manualGoalPreferencesHref(scope) as never;
+  if (options?.replace) {
+    router.replace(href);
+  } else {
+    router.push(href);
+  }
+}
+
+/** Week builder — prefer replace when toggling setup ↔ review inside the same flow. */
+export function navigateToManualWeek(
+  router: Pick<Router, "push" | "replace">,
+  options?: { replace?: boolean }
+): void {
+  const href = "/manual/week" as never;
+  if (options?.replace) {
+    router.replace(href);
+  } else {
+    router.push(href);
+  }
 }

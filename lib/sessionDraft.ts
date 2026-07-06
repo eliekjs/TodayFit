@@ -83,6 +83,25 @@ export function sessionFlowFromSportScope(isOneDay: boolean): SessionFlow {
   return isOneDay ? "sport_day" : "sport_week";
 }
 
+function humanizeSportSlug(slug: string): string {
+  return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Short banner subtitle: primary goal or sport, plus day vs week scope. */
+export function buildSessionBannerDetails(
+  draft: Pick<SessionDraft, "flow" | "preferences" | "adaptiveSetup">
+): string {
+  const scopeLabel = draft.flow.endsWith("_week") ? "Week" : "Day";
+  let focusLabel: string;
+  if (draft.flow.startsWith("sport")) {
+    const slug = draft.adaptiveSetup?.rankedSportSlugs?.find((s): s is string => s != null);
+    focusLabel = slug ? humanizeSportSlug(slug) : "Sport";
+  } else {
+    focusLabel = draft.preferences.primaryFocus[0] ?? "Goal";
+  }
+  return `${focusLabel} · ${scopeLabel}`;
+}
+
 export function buildSessionSummary(
   prefs: ManualPreferences,
   flow: SessionFlow,
@@ -174,8 +193,8 @@ export function shouldShowSessionResumeBanner(pathname: string): boolean {
 }
 
 /** Height of the floating session banner (for content inset). */
-/** Flush strip under nav header: 2px track + label row. */
-export const SESSION_BANNER_HEIGHT = 40;
+/** Flush strip under nav header: title row + phase row. */
+export const SESSION_BANNER_HEIGHT = 52;
 
 export function createSessionDraft(params: {
   flow: SessionFlow;

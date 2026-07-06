@@ -147,6 +147,72 @@ const MOBILITY_ANKLES_IDS: readonly string[] = [
   "single_leg_calf_raise",
   "ff_bodyweight_calf_raise",
   "standing_quad_stretch",
+  "half_kneeling_achilles_ankle_rockers",
+  "kneeling_dorsiflexion_stretch",
+  "ankle_dorsiflexion_stretch",
+  "band_ankle_stretch",
+];
+
+/** Knee flexion / quad–hamstring mobility (NSCA lower-body warm-up; patellofemoral-friendly ROM). */
+const MOBILITY_KNEES_IDS: readonly string[] = [
+  "standing_quad_stretch",
+  "quad_stretch_side_lying",
+  "standing_hamstring_stretch",
+  "half_kneeling_achilles_ankle_rockers",
+  "kneeling_dorsiflexion_stretch",
+  "kneeling_tibial_stretch",
+  "banded_lying_hamstring_stretch",
+  "foam_roll_quad",
+  "foam_roll_it_band",
+  "quadruped_sit_back",
+  "hip_flexor_stretch",
+  "cossack_squat",
+  "90_90_stretch",
+  "ankle_dorsiflexion_stretch",
+  "wall_ankle_mobilization",
+  "straight_leg_raise",
+];
+
+/** Elbow flexion/extension mobility (epicondylalgia rehab adjacent — gentle ROM, not loading). */
+const MOBILITY_ELBOWS_IDS: readonly string[] = [
+  "bicep_stretch",
+  "doorway_bicep_stretch",
+  "triceps_stretch_overhead",
+  "cross_body_stretch",
+  "internal_external_rotations",
+  "sleeper_internal_external_stretch",
+  "band_ir_er",
+  "sleeper_stretch",
+  "prone_external_rotations",
+  "push_up_plus",
+  "lat_stretch",
+  "lat_stretch_door",
+  "wall_slide",
+  "scapular_push_up",
+  "chest_stretch_doorway",
+  "cactus_stretch",
+  "banded_pec_stretch",
+  "overhead_band_lat_stretch",
+  "dowel_lat_stretch_rockers",
+];
+
+/** Wrist / forearm mobility (climbing & desk-worker prep; flexor/extensor stretches). */
+const MOBILITY_WRISTS_IDS: readonly string[] = [
+  "wrist_circles",
+  "arm_circles",
+  "finger_extensions",
+  "wrist_flexor_stretch",
+  "wrist_extensor_stretch",
+  "tabletop_wrist_stretch",
+  "reverse_wrist_stretch",
+  "forearm_pronation_supination",
+  "bicep_stretch",
+  "internal_external_rotations",
+  "sleeper_internal_external_stretch",
+  "band_pullapart",
+  "ff_superband_shoulder_dislocates",
+  "ff_resistance_band_shoulder_dislocates",
+  "scapular_push_up",
 ];
 
 /** Lumbar / core stability continuum (NSCA PTQ mobility-stability; bird-dog, anti-rotation). */
@@ -167,6 +233,9 @@ const RESILIENCE_HIPS_IDS = MOBILITY_HIPS_IDS;
 const RESILIENCE_T_SPINE_IDS = MOBILITY_T_SPINE_IDS;
 const RESILIENCE_ANKLES_IDS = MOBILITY_ANKLES_IDS;
 const RESILIENCE_LOWER_BACK_IDS = MOBILITY_LOWER_BACK_IDS;
+const RESILIENCE_KNEES_IDS = MOBILITY_KNEES_IDS;
+const RESILIENCE_ELBOWS_IDS = MOBILITY_ELBOWS_IDS;
+const RESILIENCE_WRISTS_IDS = MOBILITY_WRISTS_IDS;
 
 const RESILIENCE_FULL_BODY_IDS: readonly string[] = [
   "worlds_greatest_stretch",
@@ -261,6 +330,46 @@ export const GOAL_COVERAGE_ELIGIBLE_CORE_IDS: readonly string[] = [
   "bird_dog",
   "ankle_circles",
   "ankle_cars",
+  "half_kneeling_achilles_ankle_rockers",
+  "kneeling_dorsiflexion_stretch",
+  "kneeling_tibial_stretch",
+  "banded_lying_hamstring_stretch",
+  "quad_stretch_side_lying",
+  "foam_roll_it_band",
+  "triceps_stretch_overhead",
+  "wrist_flexor_stretch",
+  "wrist_extensor_stretch",
+  "bicep_stretch",
+  "internal_external_rotations",
+  "sleeper_internal_external_stretch",
+  "prone_external_rotations",
+  "cossack_squat",
+  "90_90_stretch",
+  "straight_leg_raise",
+  "push_up_plus",
+  "lat_stretch",
+  "cactus_stretch",
+  "banded_pec_stretch",
+  "overhead_band_lat_stretch",
+  "dowel_lat_stretch_rockers",
+  "arm_circles",
+  "forearm_pronation_supination",
+  "tabletop_wrist_stretch",
+  "reverse_wrist_stretch",
+  "doorway_bicep_stretch",
+  "wrist_circles",
+  "finger_extensions",
+  "band_pullapart",
+  "scapular_push_up",
+  "cross_body_stretch",
+  "sleeper_stretch",
+  "band_ir_er",
+  "lat_stretch_door",
+  "wall_slide",
+  "chest_stretch_doorway",
+  "foam_roll_quad",
+  "ff_superband_shoulder_dislocates",
+  "ff_resistance_band_shoulder_dislocates",
   "front_lever_tuck",
   "front_lever_advanced_tuck",
   "front_lever_negative",
@@ -294,12 +403,18 @@ function buildEnrichmentMap(): Record<string, ExerciseMetadataPatch> {
   mergePatch(out, MOBILITY_HIPS_IDS, ["hips", "hip_mobility"], INTERMEDIATE_ACCESS);
   mergePatch(out, MOBILITY_T_SPINE_IDS, ["t_spine", "thoracic_mobility"], INTERMEDIATE_ACCESS);
   mergePatch(out, MOBILITY_ANKLES_IDS, ["ankles", "ankle_stability"], INTERMEDIATE_ACCESS);
+  mergePatch(out, MOBILITY_KNEES_IDS, ["knees", "knee_mobility"], INTERMEDIATE_ACCESS);
+  mergePatch(out, MOBILITY_ELBOWS_IDS, ["elbows", "elbow_mobility"], INTERMEDIATE_ACCESS);
+  mergePatch(out, MOBILITY_WRISTS_IDS, ["wrists", "wrist_mobility"], INTERMEDIATE_ACCESS);
   mergePatch(out, MOBILITY_LOWER_BACK_IDS, ["lower_back", "core_stability"], INTERMEDIATE_ACCESS);
   mergePatch(out, MOBILITY_FULL_BODY_IDS, ["full_body", "mobility"], INTERMEDIATE_ACCESS);
 
   mergePatch(out, RESILIENCE_HIPS_IDS, ["hips"], INTERMEDIATE_ACCESS);
   mergePatch(out, RESILIENCE_T_SPINE_IDS, ["t_spine"], INTERMEDIATE_ACCESS);
   mergePatch(out, RESILIENCE_ANKLES_IDS, ["ankles"], INTERMEDIATE_ACCESS);
+  mergePatch(out, RESILIENCE_KNEES_IDS, ["knees"], INTERMEDIATE_ACCESS);
+  mergePatch(out, RESILIENCE_ELBOWS_IDS, ["elbows"], INTERMEDIATE_ACCESS);
+  mergePatch(out, RESILIENCE_WRISTS_IDS, ["wrists"], INTERMEDIATE_ACCESS);
   mergePatch(out, RESILIENCE_LOWER_BACK_IDS, ["lower_back"], INTERMEDIATE_ACCESS);
   mergePatch(out, RESILIENCE_FULL_BODY_IDS, ["full_body", "recovery"], INTERMEDIATE_ACCESS);
 
@@ -320,6 +435,9 @@ export {
   FRONT_LEVER_ADVANCED_IDS,
   MOBILITY_HIPS_IDS,
   MOBILITY_ANKLES_IDS,
+  MOBILITY_KNEES_IDS,
+  MOBILITY_ELBOWS_IDS,
+  MOBILITY_WRISTS_IDS,
   DURABILITY_IDS,
   OLYMPIC_TRIPLE_EXTENSION_GOAL_IDS,
   BALANCED_HYPERTROPHY_IDS,

@@ -395,6 +395,21 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "ankle_stability", weight: 1.1 },
     { tag_slug: "mobility", weight: 1 },
   ],
+  [key("recovery_mobility", "knees")]: [
+    { tag_slug: "knee_mobility", weight: 1.3 },
+    { tag_slug: "mobility", weight: 1.1 },
+    { tag_slug: "recovery", weight: 1 },
+  ],
+  [key("recovery_mobility", "elbows")]: [
+    { tag_slug: "elbow_mobility", weight: 1.3 },
+    { tag_slug: "mobility", weight: 1.1 },
+    { tag_slug: "recovery", weight: 1 },
+  ],
+  [key("recovery_mobility", "wrists")]: [
+    { tag_slug: "wrist_mobility", weight: 1.3 },
+    { tag_slug: "forearm", weight: 1.1 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
   [key("recovery_mobility", "full_body")]: [
     { tag_slug: "recovery", weight: 1.2 },
     { tag_slug: "mobility", weight: 1.2 },
@@ -501,6 +516,18 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
     { tag_slug: "balance", weight: 1.1 },
     { tag_slug: "mobility", weight: 1.1 },
   ],
+  [key("mobility", "knees")]: [
+    { tag_slug: "knee_mobility", weight: 1.3 },
+    { tag_slug: "mobility", weight: 1.1 },
+  ],
+  [key("mobility", "elbows")]: [
+    { tag_slug: "elbow_mobility", weight: 1.3 },
+    { tag_slug: "mobility", weight: 1.1 },
+  ],
+  [key("mobility", "wrists")]: [
+    { tag_slug: "wrist_mobility", weight: 1.3 },
+    { tag_slug: "forearm", weight: 1.1 },
+  ],
   [key("mobility", "full_body")]: [
     { tag_slug: "mobility", weight: 1.2 },
     { tag_slug: "thoracic_mobility", weight: 1 },
@@ -527,6 +554,18 @@ export const GOAL_SUB_FOCUS_TAG_MAP: GoalSubFocusTagMap = {
   ],
   [key("resilience", "ankles")]: [
     { tag_slug: "ankle_stability", weight: 1.2 },
+  ],
+  [key("resilience", "knees")]: [
+    { tag_slug: "knee_mobility", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("resilience", "elbows")]: [
+    { tag_slug: "elbow_mobility", weight: 1.2 },
+    { tag_slug: "mobility", weight: 1 },
+  ],
+  [key("resilience", "wrists")]: [
+    { tag_slug: "wrist_mobility", weight: 1.2 },
+    { tag_slug: "forearm", weight: 1.1 },
   ],
   [key("resilience", "full_body")]: [
     { tag_slug: "recovery", weight: 1.2 },
