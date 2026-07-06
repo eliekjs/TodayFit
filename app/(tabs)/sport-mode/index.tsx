@@ -21,6 +21,7 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
+import { GymProfileSelectionPanel } from "../../../components/GymProfileSelectionPanel";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
@@ -66,6 +67,7 @@ import {
   MAX_TOTAL_SUB_GOALS_WEEK,
 } from "../../../lib/sportModeOneDayValidation";
 import { sessionFlowFromSportScope } from "../../../lib/sessionDraft";
+import { summarizeGymProfileEquipment } from "../../../lib/gymProfileDisplay";
 import {
   applySportFormSnapshot,
   buildSportFormSnapshot,
@@ -136,6 +138,7 @@ export default function AdaptiveModeScreen() {
     setSportPrepWeekPlan,
     activeGymProfileId,
     gymProfiles,
+    setActiveGymProfile,
     beginSessionFlow,
     consumeSportFormHydration,
     commitSportFormSnapshot,
@@ -173,6 +176,7 @@ export default function AdaptiveModeScreen() {
   const [qualitiesBySport, setQualitiesBySport] = useState<Record<string, SportQuality[]>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [sectionSportOpen, setSectionSportOpen] = useState(false);
+  const [sectionGymOpen, setSectionGymOpen] = useState(false);
   const [sectionSessionOpen, setSectionSessionOpen] = useState(false);
   const [sectionBodyOpen, setSectionBodyOpen] = useState(false);
   const adaptiveScrollRef = useRef<ScrollView>(null);
@@ -585,7 +589,10 @@ export default function AdaptiveModeScreen() {
 
   const activeGymProfile =
     gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
-  const gymSummary = activeGymProfile != null ? activeGymProfile.name : "Tap to choose";
+  const gymSummary =
+    activeGymProfile != null
+      ? `${activeGymProfile.name} · ${summarizeGymProfileEquipment(activeGymProfile).itemCount} items`
+      : "Tap to choose";
 
   /** Available sports to show in the picker (excludes already selected), A–Z by name. */
   const availableSportsForPicker = useMemo(() => {
@@ -994,11 +1001,19 @@ export default function AdaptiveModeScreen() {
               : "Choose a gym profile for equipment."
           }
           summary={gymSummary}
-          expanded={false}
-          onToggle={() => router.push("/profiles?from=adaptive")}
+          expanded={sectionGymOpen}
+          onToggle={() => {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setSectionGymOpen((v) => !v);
+          }}
           marginTop={12}
         >
-          <View />
+          <GymProfileSelectionPanel
+            activeProfile={activeGymProfile}
+            gymProfiles={gymProfiles}
+            onSelectProfile={setActiveGymProfile}
+            onEditProfiles={() => router.push("/profiles?from=sport-mode")}
+          />
         </CollapsiblePreferenceSection>
 
         {error ? (

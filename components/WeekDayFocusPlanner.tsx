@@ -27,6 +27,178 @@ type Props = {
   onBack: () => void;
 };
 
+export type WeekDayFocusSummaryOption = {
+  label: string;
+  subtitle?: string | null;
+  recommended?: boolean;
+};
+
+type WeekDayFocusSummaryCardProps = {
+  theme: Theme;
+  dayLabel: string;
+  bodyFocus?: WeekDayFocusSummaryOption | null;
+  priorityFocus?: WeekDayFocusSummaryOption | null;
+  selected?: boolean;
+  onPress?: () => void;
+  actionLabel?: string;
+  onActionPress?: () => void;
+  statusLabel?: string | null;
+  statusTone?: "primary" | "muted";
+};
+
+function SelectedFocusOption({
+  theme,
+  option,
+}: {
+  theme: Theme;
+  option: WeekDayFocusSummaryOption;
+}) {
+  return (
+    <View
+      style={[
+        styles.option,
+        {
+          borderColor: theme.primary,
+          backgroundColor: theme.primarySoft,
+        },
+      ]}
+    >
+      <View style={[styles.radioOuter, { borderColor: theme.primarySolid }]}>
+        <View style={[styles.radioInner, { backgroundColor: theme.primarySolid }]} />
+      </View>
+      <View style={styles.optionText}>
+        <View style={styles.optionTitleRow}>
+          <Text style={[styles.optionLabel, { color: theme.text }]}>{option.label}</Text>
+          {option.recommended ? (
+            <Text style={[styles.recommendedBadge, { color: theme.primary, borderColor: theme.primary }]}>
+              Recommended
+            </Text>
+          ) : null}
+        </View>
+        {option.subtitle ? (
+          <Text style={[styles.optionSub, { color: theme.textMuted }]}>{option.subtitle}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function SummaryFocusRow({
+  theme,
+  label,
+  value,
+}: {
+  theme: Theme;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.summaryFocusRow}>
+      <Text style={[styles.summaryFocusLabel, { color: theme.textMuted }]}>{label}</Text>
+      <Text style={[styles.summaryFocusValue, { color: theme.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+export function WeekDayFocusSummaryCard({
+  theme,
+  dayLabel,
+  bodyFocus,
+  priorityFocus,
+  selected = false,
+  onPress,
+  actionLabel,
+  onActionPress,
+  statusLabel,
+  statusTone = "muted",
+}: WeekDayFocusSummaryCardProps) {
+  const content = (
+    <>
+      <View style={styles.summaryTitleRow}>
+        <Text style={[styles.dayTitle, { color: theme.text, marginBottom: 0, flex: 1 }]}>
+          {dayLabel}
+        </Text>
+        {statusLabel ? (
+          <Text
+            style={[
+              styles.statusBadge,
+              {
+                color: statusTone === "primary" ? theme.primary : theme.textMuted,
+                borderColor: statusTone === "primary" ? theme.primary : theme.border,
+              },
+            ]}
+          >
+            {statusLabel}
+          </Text>
+        ) : null}
+      </View>
+
+      {bodyFocus ? (
+        <SummaryFocusRow theme={theme} label="Body focus" value={bodyFocus.label} />
+      ) : null}
+
+      {priorityFocus ? (
+        <SummaryFocusRow theme={theme} label="Sport / goal priority" value={priorityFocus.label} />
+      ) : null}
+
+      {actionLabel && onActionPress ? (
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            onActionPress();
+          }}
+          style={({ pressed }) => ({
+            alignSelf: "flex-start",
+            marginTop: 10,
+            paddingVertical: 7,
+            paddingHorizontal: 10,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: theme.primary,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Text style={{ fontSize: 13, color: theme.primary, fontWeight: "500" }}>
+            {actionLabel}
+          </Text>
+        </Pressable>
+      ) : null}
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View
+        style={[
+          styles.card,
+          {
+            borderColor: selected ? theme.primary : theme.border,
+            backgroundColor: selected ? theme.primarySoft : theme.card,
+          },
+        ]}
+      >
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          borderColor: selected ? theme.primary : theme.border,
+          backgroundColor: selected ? theme.primarySoft : theme.card,
+          opacity: pressed ? 0.92 : 1,
+        },
+      ]}
+    >
+      {content}
+    </Pressable>
+  );
+}
+
 export function WeekDayFocusPlanner({
   theme,
   dayLabels,
@@ -241,5 +413,38 @@ const styles = StyleSheet.create({
   optionSub: {
     fontSize: 12,
     lineHeight: 17,
+  },
+  summaryTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  statusBadge: {
+    fontSize: 11,
+    fontWeight: "600",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  summaryFocusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 5,
+  },
+  summaryFocusLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  summaryFocusValue: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "right",
   },
 });

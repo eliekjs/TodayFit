@@ -17,6 +17,7 @@ import {
   HeaderBackButton,
   HeaderGymProfileButton,
   ManualExecuteBackButton,
+  ManualPreferencesBackButton,
   ManualWeekBackButton,
   TAB_ICON_SIZE,
   TAB_ICON_SIZE_ACTIVE,
@@ -137,7 +138,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           headerTitle: () => <FlowHeaderTitle title="Build workout" />,
-          headerLeft: () => <HeaderBackButton />,
+          headerLeft: () => <ManualPreferencesBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
       />

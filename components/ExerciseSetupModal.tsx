@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { useTheme } from "../lib/theme";
 import { PrimaryButton } from "./Button";
 
@@ -31,7 +31,23 @@ export function ExerciseSetupModal({
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
-          style={[styles.sheet, { backgroundColor: theme.cardOpaque, borderColor: theme.border }]}
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.cardOpaque,
+              borderColor: theme.border,
+              ...Platform.select({
+                ios: {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 16,
+                },
+                android: { elevation: 12 },
+                default: { boxShadow: "0 12px 40px rgba(0,0,0,0.45)" },
+              }),
+            },
+          ]}
           onPress={(event) => event.stopPropagation()}
         >
           <Text style={[styles.eyebrow, { color: theme.primary }]}>Setup</Text>
@@ -55,16 +71,16 @@ export function ExerciseSetupModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "#061026",
+    backgroundColor: "rgba(0,0,0,0.55)",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
   },
   sheet: {
     width: "100%",
-    maxWidth: 420,
-    maxHeight: "82%",
-    borderRadius: 18,
+    maxWidth: 380,
+    maxHeight: "70%",
+    borderRadius: 16,
     borderWidth: 1,
     padding: 20,
   },

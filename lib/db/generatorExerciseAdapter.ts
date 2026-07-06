@@ -31,6 +31,7 @@ import {
   normalizeMatchableTagSlugs,
   normalizeSlug,
 } from "../ontology";
+import { resolveExerciseEquipmentRequired } from "../equipmentResolution";
 
 import { SPORTS_WITH_SUB_FOCUSES } from "../../data/sportSubFocus/sportsWithSubFocuses";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
@@ -228,7 +229,11 @@ export function mapDbExerciseToGeneratorExercise(
   const primary = row.primary_muscles ?? [];
   const secondary = row.secondary_muscles ?? [];
   const muscle_groups = [...primary, ...secondary].filter((m, i, a) => a.indexOf(m) === i);
-  const equipment_required = (row.equipment ?? []).map(normalizeEquipmentSlug);
+  const equipment_required = resolveExerciseEquipmentRequired(
+    row.equipment ?? [],
+    row.slug,
+    row.name
+  );
 
   const exercise: Exercise = {
     id: row.slug,

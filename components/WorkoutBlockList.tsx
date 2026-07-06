@@ -4,227 +4,8 @@ import { useTheme } from "../lib/theme";
 import type { BlockType, GeneratedWorkout, WorkoutBlock, WorkoutItem } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 import { formatExerciseDisplayCue } from "../lib/exerciseDisplayCue";
-import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
-import { displayNameForSportSubFocusSlug } from "../lib/workoutIntentSplit";
+import { buildBlockGoalBadgeLabel, getBlockDisplayTitle } from "../lib/blockGoalDisplay";
 import { ExerciseSetupModal } from "./ExerciseSetupModal";
-
-// ─── Intent chip helpers ────────────────────────────────────────────────────
-
-const _sportBySlug = new Map(SPORTS_WITH_SUB_FOCUSES.map((s) => [s.slug, s]));
-
-function _humanizeGoalSlug(slug: string): string {
-  const map: Record<string, string> = {
-    strength: "Strength",
-    hypertrophy: "Build Muscle",
-    muscle: "Build Muscle",
-    body_recomp: "Body Recomp",
-    conditioning: "Conditioning",
-    endurance: "Endurance",
-    mobility: "Mobility",
-    recovery: "Recovery",
-    power: "Power",
-    athletic_performance: "Athletic Performance",
-    calisthenics: "Calisthenics",
-    physique: "Physique",
-    resilience: "Resilience",
-  };
-  return (
-    map[slug] ??
-    slug
-      .split("_")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ")
-  );
-}
-
-function _formatIntentLabel(intent: {
-  kind: "goal" | "goal_sub_focus" | "sport" | "sport_sub_focus";
-  slug: string;
-  parent_slug?: string;
-}): string {
-  if (intent.kind === "sport" || intent.kind === "sport_sub_focus") {
-    const parentSlug = intent.kind === "sport_sub_focus" ? (intent.parent_slug ?? intent.slug) : intent.slug;
-    const sport = _sportBySlug.get(parentSlug);
-    if (!sport) return _humanizeGoalSlug(intent.slug);
-    if (intent.kind === "sport") return sport.name;
-    return displayNameForSportSubFocusSlug(parentSlug, intent.slug);
-  }
-  if (intent.kind === "goal_sub_focus") {
-    const parent = intent.parent_slug ? _humanizeGoalSlug(intent.parent_slug) : null;
-    const label = _humanizeGoalSlug(intent.slug);
-    return parent ? `${parent} → ${label}` : label;
-  }
-  return _humanizeGoalSlug(intent.slug);
-}
-
-/** True for the internal "athletic_performance" goal slug — too generic to show users. */
-function _isAthletic(m: { kind: string; slug: string }): boolean {
-  return m.kind === "goal" && m.slug === "athletic_performance";
-}
-
-/**
- * Returns 1–2 human-readable labels for why this exercise is in the workout.
- * Rules (in priority order):
- *  1. Session prep (warmup/cooldown) — no FOR chip; shows nothing.
- *  2. Specific matched intents (sport sub-focus > goal sub-focus > bare sport),
- *     "athletic_performance" goal entries are never displayed (too generic).
- *  3. Exercises that matched a sport tag but not a specific sub-focus → sport name.
- *  4. Exercises with no sport connection in a sport session → session sport names as context.
- *  5. Non-sport sessions → humanized goal name.
- */
-function getIntentLabels(item: WorkoutItem): string[] {
-  const links = item.session_intent_links;
-  if (!links) return [];
-
-  // Warmup / cooldown: block title already provides context; no FOR chip needed.
-  if (links.session_prep) return [];
-
-  const labels: string[] = [];
-
-  // 1. Specific matched intents from ranked_intent_entries (most precise source).
-  //    Priority: sport_sub_focus > goal_sub_focus > goal > bare sport.
-  //    This matches intentSpecificityRank in sessionIntentCoverage.ts — goal ranks
-  //    before bare sport so a hypertrophy exercise in a soccer session shows
-  //    "Build Muscle" rather than "Soccer".
-  const specificMatched = (links.matched_intents ?? []).filter(
-    (m) => m.match_strength !== "inferred" && !_isAthletic(m)
-  );
-  const strengthOrder = (m: (typeof specificMatched)[number]) =>
-    m.match_strength === "direct" ? 0 : 1;
-  const tier = (m: (typeof specificMatched)[number]) =>
-    m.kind === "sport_sub_focus" ? 0
-    : m.kind === "goal_sub_focus" ? 1
-    : m.kind === "goal" ? 2        // goal before bare sport (aligns with intentSpecificityRank)
-    : m.kind === "sport" ? 3 : 4;
-
-  const orderedMatched = [...specificMatched].sort((a, b) => {
-    const td = tier(a) - tier(b);
-    if (td !== 0) return td;
-    const sw = strengthOrder(a) - strengthOrder(b);
-    if (sw !== 0) return sw;
-    return a.rank - b.rank;
-  });
-
-  for (const m of orderedMatched) {
-    if (labels.length >= 2) break;
-    const lbl = _formatIntentLabel(m);
-    if (!labels.includes(lbl)) labels.push(lbl);
-  }
-
-  if (labels.length < 2 && (links.sub_focus?.length ?? 0) > 0) {
-    for (const sf of links.sub_focus ?? []) {
-      if (labels.length >= 2) break;
-      const parent = _humanizeGoalSlug(sf.goal_slug);
-      const sub = _humanizeGoalSlug(sf.sub_slug);
-      const lbl = `${parent} → ${sub}`;
-      if (!labels.includes(lbl)) labels.push(lbl);
-    }
-  }
-
-  // 2. Fitness goal fallback — preferred over bare sport tag when no specific match was
-  //    shown yet. Skip when intent_inferred (proportional slot fill without tag proof).
-  if (labels.length === 0 && !links.intent_inferred) {
-    for (const goal of (links.goals ?? []).filter((g) => g !== "athletic_performance")) {
-      if (labels.length >= 2) break;
-      const humanized = _humanizeGoalSlug(goal);
-      if (!labels.includes(humanized)) labels.push(humanized);
-    }
-  }
-
-  // 3. Exercise has a sport tag matching the session sport but no sub-focus match.
-  //    Runs after goal fallback so sport only appears as a secondary or fallback label.
-  if (labels.length < 2) {
-    const coveredParents = new Set(
-      orderedMatched
-        .filter((m) => m.kind === "sport" || m.kind === "sport_sub_focus")
-        .map((m) => (m.kind === "sport_sub_focus" ? (m.parent_slug ?? m.slug) : m.slug))
-    );
-    for (const sportSlug of links.sport_slugs ?? []) {
-      if (labels.length >= 2) break;
-      if (coveredParents.has(sportSlug)) continue;
-      const sport = _sportBySlug.get(sportSlug);
-      const lbl = sport ? sport.name : _humanizeGoalSlug(sportSlug);
-      if (!labels.includes(lbl)) labels.push(lbl);
-    }
-  }
-
-  // 4. Last resort for sport sessions: show session sport context so the chip is never blank.
-  if (labels.length === 0 && (links.session_sport_slugs?.length ?? 0) > 0) {
-    for (const sportSlug of (links.session_sport_slugs ?? []).slice(0, 2)) {
-      if (labels.length >= 2) break;
-      const sport = _sportBySlug.get(sportSlug);
-      const lbl = sport ? sport.name : _humanizeGoalSlug(sportSlug);
-      if (!labels.includes(lbl)) labels.push(lbl);
-    }
-  }
-
-  return [...new Set(labels)].slice(0, 2);
-}
-
-function IntentChips({
-  item,
-  theme,
-}: {
-  item: WorkoutItem;
-  theme: ReturnType<typeof useTheme>;
-}) {
-  const labels = getIntentLabels(item);
-  if (labels.length === 0) return null;
-  return (
-    <View style={intentStyles.row}>
-      <Text style={[intentStyles.forLabel, { color: theme.textMuted }]}>FOR:</Text>
-      <View style={intentStyles.chips}>
-        {labels.map((label) => (
-          <View key={label} style={[intentStyles.chip, { borderColor: theme.primary }]}>
-            <Text style={[intentStyles.chipText, { color: theme.primary }]}>{label}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-/**
- * Build a user-facing label for a block's goal intent.
- *
- * Priority:
- * 1. Sport sub-focus → sport name (from SPORTS_WITH_SUB_FOCUSES) + sub-focus name
- * 2. Sport → sport name
- * 3. Goal sub-focus → sub-focus name only (parent goal is implied by context)
- * 4. Plain goal → goal label, BUT suppress the bare "athletic_performance" entry
- *    because it's too generic and always confuses users in sport sessions.
- */
-function _buildBlockBadgeLabel(intent: NonNullable<WorkoutBlock["goal_intent"]>): string | null {
-  const { intent_kind, goal_slug, sub_focus_slug, parent_slug } = intent;
-
-  if (intent_kind === "sport_sub_focus" || intent_kind === "sport") {
-    // Use the canonical sport slug (parent_slug for sub-focus, goal_slug for bare sport)
-    const sportSlug = intent_kind === "sport_sub_focus" ? (parent_slug ?? goal_slug) : goal_slug;
-    // Safety: if slug resolved to the internal fallback, suppress rather than show a misleading label.
-    if (sportSlug === "athletic_performance") return null;
-    const sport = _sportBySlug.get(sportSlug);
-    const sportName = sport ? sport.name : _humanizeGoalSlug(sportSlug);
-    if (intent_kind === "sport_sub_focus" && sub_focus_slug) {
-      return displayNameForSportSubFocusSlug(sportSlug, sub_focus_slug);
-    }
-    return sportName;
-  }
-
-  if (intent_kind === "goal_sub_focus" && sub_focus_slug) {
-    // Show only the sub-focus name; the parent goal is conveyed by block context
-    return _humanizeGoalSlug(sub_focus_slug);
-  }
-
-  // Bare goal: suppress the generic "athletic_performance" label — it adds no user
-  // context beyond what the sport chips and block title already convey.
-  if (goal_slug === "athletic_performance" && !sub_focus_slug) {
-    return null;
-  }
-
-  const goalLabel = _humanizeGoalSlug(goal_slug);
-  if (!sub_focus_slug) return goalLabel;
-  return `${goalLabel} · ${_humanizeGoalSlug(sub_focus_slug)}`;
-}
 
 function BlockGoalBadge({
   block,
@@ -236,7 +17,7 @@ function BlockGoalBadge({
   const intent = block.goal_intent;
   if (!intent) return null;
 
-  const label = _buildBlockBadgeLabel(intent);
+  const label = buildBlockGoalBadgeLabel(intent);
   if (!label) return null;
 
   return (
@@ -266,37 +47,6 @@ const blockGoalStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 0.7,
-  },
-});
-
-const intentStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginTop: 6,
-    gap: 6,
-  },
-  forLabel: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    paddingTop: 3,
-  },
-  chips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-    flex: 1,
-  },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  chipText: {
-    fontSize: 11,
-    fontWeight: "500",
   },
 });
 
@@ -345,7 +95,7 @@ export function WorkoutBlockList({
             style={styles.sectionBlock}
           >
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              {block.title ?? block.block_type}
+              {getBlockDisplayTitle(block)}
             </Text>
             <BlockGoalBadge block={block} theme={theme} />
             {renderBlockContent(
@@ -461,7 +211,6 @@ function renderBlockContent(
                         ))}
                       </View>
                     )}
-                    <IntentChips item={item} theme={theme} />
                     {noteFor(item.exercise_id)}
                   </View>
                   {setupButtonFor(item)}

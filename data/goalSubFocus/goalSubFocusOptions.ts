@@ -75,6 +75,9 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "t_spine", name: "T-spine" },
     { slug: "lower_back", name: "Lower back" },
     { slug: "ankles", name: "Ankles" },
+    { slug: "knees", name: "Knees" },
+    { slug: "elbows", name: "Elbows" },
+    { slug: "wrists", name: "Wrists" },
     { slug: "full_body", name: "Full-body" },
   ]),
   /** @deprecated persisted presets */
@@ -84,6 +87,9 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "t_spine", name: "T-spine" },
     { slug: "lower_back", name: "Lower back" },
     { slug: "ankles", name: "Ankles" },
+    { slug: "knees", name: "Knees" },
+    { slug: "elbows", name: "Elbows" },
+    { slug: "wrists", name: "Wrists" },
     { slug: "full_body", name: "Full-body" },
   ]),
   Recovery: entry("recovery_mobility", [
@@ -92,6 +98,9 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "t_spine", name: "T-spine" },
     { slug: "lower_back", name: "Lower back" },
     { slug: "ankles", name: "Ankles" },
+    { slug: "knees", name: "Knees" },
+    { slug: "elbows", name: "Elbows" },
+    { slug: "wrists", name: "Wrists" },
     { slug: "full_body", name: "Full-body" },
   ]),
   "Athletic Performance": entry("athletic_performance", [

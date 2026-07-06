@@ -32,6 +32,7 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "chest_press", label: "Chest Press" },
       { id: "hamstring_curl", label: "Hamstring Curl" },
       { id: "leg_extension", label: "Leg Extension" },
+      { id: "smith_machine", label: "Smith Machine" },
     ],
   },
   {
@@ -43,7 +44,6 @@ export const EQUIPMENT_BY_CATEGORY: {
       { id: "macebell", label: "Macebell" },
       { id: "steel_mace", label: "Steel mace" },
       { id: "indian_club", label: "Indian club(s)" },
-      { id: "gada", label: "Gada" },
       { id: "adjustable_bench", label: "Adjustable Bench" },
     ],
   },
@@ -87,6 +87,7 @@ const YOUR_GYM_DEFAULTS: EquipmentKey[] = [
   "leg_press",
   "hamstring_curl",
   "leg_extension",
+  "smith_machine",
   "treadmill",
   "pullup_bar",
   "foam_roller",
@@ -124,9 +125,10 @@ export type GymProfileTemplate =
   | "small_gym"
   | "home_gym"
   | "hotel_gym"
-  | "custom";
+  | "custom"
+  | "custom_gym";
 
-/** Step 1 — Space type labels per spec (Full Commercial Gym, Small Gym, Home Setup, Hotel Gym, Bodyweight Only) */
+/** Space type labels (Full Commercial Gym, Small Gym, Home Setup, Hotel Gym, Bodyweight Only, Custom Gym) */
 export const SPACE_TYPE_OPTIONS: {
   template: GymProfileTemplate;
   label: string;
@@ -136,6 +138,7 @@ export const SPACE_TYPE_OPTIONS: {
   { template: "home_gym", label: "Home Setup" },
   { template: "hotel_gym", label: "Hotel Gym" },
   { template: "custom", label: "Bodyweight Only" },
+  { template: "custom_gym", label: "Custom Gym" },
 ];
 
 export function getDefaultEquipmentForTemplate(
@@ -151,6 +154,8 @@ export function getDefaultEquipmentForTemplate(
     case "hotel_gym":
       return [...HOTEL_GYM_DEFAULTS];
     case "custom":
+      return ["bodyweight"];
+    case "custom_gym":
       return ["bodyweight"];
     default:
       return ["bodyweight"];

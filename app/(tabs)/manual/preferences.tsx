@@ -61,6 +61,9 @@ import type { TargetBody } from "../../../lib/types";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
 import { sessionFlowFromManualScope } from "../../../lib/sessionDraft";
+import { navigateToManualWeek } from "../../../lib/manualGoalPreferencesHref";
+import { GymProfileSelectionPanel } from "../../../components/GymProfileSelectionPanel";
+import { summarizeGymProfileEquipment } from "../../../lib/gymProfileDisplay";
 
 if (
   Platform.OS === "android" &&
@@ -96,6 +99,7 @@ export default function ManualPreferencesScreen() {
     savedWorkouts,
     manualSessionProgress,
     beginSessionFlow,
+    manualWeekPlan,
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
   const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
@@ -106,7 +110,6 @@ export default function ManualPreferencesScreen() {
   const scrollContentRef = useRef<View>(null);
   const advancedSectionRef = useRef<View>(null);
   const subFocusWeightsSectionRef = useRef<View>(null);
-  const [showChangeProfileModal, setShowChangeProfileModal] = useState(false);
   const [showSavePresetModal, setShowSavePresetModal] = useState(false);
   const [savePresetName, setSavePresetName] = useState("");
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
@@ -201,7 +204,9 @@ export default function ManualPreferencesScreen() {
         ? `${manualPreferences.targetBody} (${manualPreferences.targetModifier[0]})`
         : manualPreferences.targetBody;
   const gymSummary =
-    activeProfile != null ? activeProfile.name : "Tap to choose";
+    activeProfile != null
+      ? `${activeProfile.name} · ${summarizeGymProfileEquipment(activeProfile).itemCount} items`
+      : "Tap to choose";
 
   const togglePrimaryFocus = (option: string) => {
     const current = manualPreferences.primaryFocus;
@@ -397,10 +402,13 @@ export default function ManualPreferencesScreen() {
       });
     };
 
+  const hasGeneratedWeekPlan =
+    isWeek && manualWeekPlan != null && manualWeekPlan.days.length > 0;
+
   const onGenerate = async () => {
     if (!canProceed) return;
     if (scope === "week") {
-      router.push("/manual/week");
+      navigateToManualWeek(router, { replace: true });
       return;
     }
     generationCancelledRef.current = false;
@@ -870,20 +878,12 @@ export default function ManualPreferencesScreen() {
           }}
           marginTop={12}
         >
-          <View style={[styles.gymProfileActions, { marginBottom: 8 }]}>
-            <PrimaryButton
-              label="Change gym profile"
-              variant="secondary"
-              onPress={() => setShowChangeProfileModal(true)}
-              style={styles.gymProfileBtn}
-            />
-            <PrimaryButton
-              label="Edit gym profiles"
-              variant="secondary"
-              onPress={() => router.push("/profiles?from=manual")}
-              style={styles.gymProfileBtn}
-            />
-          </View>
+          <GymProfileSelectionPanel
+            activeProfile={activeProfile}
+            gymProfiles={gymProfiles}
+            onSelectProfile={setActiveGymProfile}
+            onEditProfiles={() => router.push("/profiles?from=manual")}
+          />
         </CollapsiblePreferenceSection>
 
         {!isWeek ? (
@@ -1334,6 +1334,19 @@ export default function ManualPreferencesScreen() {
           loading: isGenerating,
         }}
       >
+<<<<<<< HEAD
+=======
+        <FlowPhaseNavBar
+          sticky
+          onLayout={(height) => setBottomBarHeight(height)}
+          forward={{
+            label: hasGeneratedWeekPlan ? "Review week" : isWeek ? "Next: Training days" : "Build workout",
+            onPress: onGenerate,
+            disabled: !canProceed,
+            loading: isGenerating,
+          }}
+        >
+>>>>>>> feature/week-session-drag-reorder
         <View style={styles.bottomBarRow}>
           <PrimaryButton
             compact
@@ -1350,88 +1363,6 @@ export default function ManualPreferencesScreen() {
         </View>
       </FlowPhaseNavBar>
       </View>
-
-      {/* Change gym profile modal */}
-      <Modal
-        transparent
-        visible={showChangeProfileModal}
-        animationType="slide"
-        onRequestClose={() => setShowChangeProfileModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable
-            style={styles.modalDismiss}
-            onPress={() => setShowChangeProfileModal(false)}
-          />
-          <View
-            style={[styles.modalSheet, { backgroundColor: theme.card }]}
-          >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Change gym profile
-            </Text>
-            <Text style={[styles.modalSubtitle, { color: theme.textMuted }]}>
-              Workouts will use equipment from the selected profile.
-            </Text>
-            <View style={styles.profileList}>
-              {gymProfiles.map((profile) => {
-                const isActive = profile.id === activeGymProfileId;
-                return (
-                  <View key={profile.id} style={styles.profileRowWrap}>
-                    <Pressable
-                      onPress={() => {
-                        setActiveGymProfile(profile.id);
-                        setShowChangeProfileModal(false);
-                      }}
-                      style={[
-                        styles.profileRow,
-                        {
-                          borderColor: isActive ? theme.chipSelectedBorder : theme.border,
-                          backgroundColor: isActive
-                            ? theme.primarySoft
-                            : "transparent",
-                          flex: 1,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.profileRowText,
-                          {
-                            color: theme.text,
-                            fontWeight: isActive ? "700" : "500",
-                          },
-                        ]}
-                      >
-                        {profile.name}
-                      </Text>
-                      {isActive && (
-                        <Text style={{ color: theme.chipSelectedText, fontSize: 12 }}>
-                          Active
-                        </Text>
-                      )}
-                    </Pressable>
-                    <PrimaryButton
-                      label="Edit"
-                      variant="ghost"
-                      onPress={() => {
-                        setShowChangeProfileModal(false);
-                        router.push("/profiles?from=workout");
-                      }}
-                      style={styles.editProfileBtn}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-            <View style={styles.modalFooter}>
-              <PrimaryButton
-                label="Done"
-                onPress={() => setShowChangeProfileModal(false)}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Save preset modal */}
       <Modal

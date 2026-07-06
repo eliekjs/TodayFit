@@ -105,6 +105,9 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     t_spine: "intent",
     lower_back: "intent",
     ankles: "intent",
+    knees: "intent",
+    elbows: "intent",
+    wrists: "intent",
     full_body: "overlay",
   },
   resilience: {
@@ -113,6 +116,9 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     t_spine: "intent",
     lower_back: "intent",
     ankles: "intent",
+    knees: "intent",
+    elbows: "intent",
+    wrists: "intent",
     full_body: "overlay",
   },
   recovery_mobility: {
@@ -121,6 +127,9 @@ const SUB_FOCUS_CLASS_BY_GOAL: Record<string, SubFocusClassMap> = {
     t_spine: "intent",
     lower_back: "intent",
     ankles: "intent",
+    knees: "intent",
+    elbows: "intent",
+    wrists: "intent",
     full_body: "overlay",
   },
   joint_health: {

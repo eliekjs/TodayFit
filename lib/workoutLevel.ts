@@ -206,7 +206,7 @@ export function inferWorkoutLevelsWithExplanation(src: WorkoutLevelExtendedSourc
     complexity += 1.6;
     reasons.push("equipment:rings");
   }
-  if (eq.has("clubbell") || eq.has("macebell") || eq.has("steel_mace") || eq.has("gada") || eq.has("indian_club")) {
+  if (eq.has("clubbell") || eq.has("macebell") || eq.has("steel_mace") || eq.has("indian_club")) {
     complexity += 1.4;
     reasons.push("equipment:implement");
   }

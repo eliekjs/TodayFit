@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSessionBannerDetails,
   buildSessionSummary,
   createSessionDraft,
   getSessionResumeRoute,
@@ -15,6 +16,35 @@ describe("sessionDraft", () => {
   it("maps manual scope to session flow", () => {
     expect(sessionFlowFromManualScope("day")).toBe("goal_day");
     expect(sessionFlowFromManualScope("week")).toBe("goal_week");
+  });
+
+  it("builds short banner details from goal and scope", () => {
+    expect(
+      buildSessionBannerDetails({
+        flow: "goal_day",
+        preferences: {
+          ...defaultManualPreferences,
+          primaryFocus: ["Build strength", "Get stronger"],
+        },
+        adaptiveSetup: null,
+      })
+    ).toBe("Build strength · Day");
+
+    expect(
+      buildSessionBannerDetails({
+        flow: "sport_week",
+        preferences: defaultManualPreferences,
+        adaptiveSetup: {
+          rankedGoals: [null, null, null],
+          intensityLevel: "Moderate",
+          injuryStatus: "No Concerns",
+          injuryTypes: [],
+          rankedSportSlugs: ["rock_climbing", null, null],
+          subFocusBySport: {},
+          sportFocusPct: [60, 40],
+        },
+      })
+    ).toBe("Rock Climbing · Week");
   });
 
   it("builds human-readable summary from preferences", () => {

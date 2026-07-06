@@ -11,9 +11,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -1775,10 +1773,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "bands"
-    ],
+    equipment: ["hamstring_curl"],
     "tags": [
       "ota_movements",
       "strength",
@@ -1847,10 +1842,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "bands"
-    ],
+    equipment: ["kettlebells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -2003,9 +1995,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -2029,9 +2019,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -2055,9 +2043,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell"],
     "tags": [
       "ota_movements",
       "strength",
@@ -2077,9 +2063,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell"],
     "tags": [
       "ota_movements",
       "strength",
@@ -2099,9 +2083,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell"],
     "tags": [
       "ota_movements",
       "strength",
@@ -2269,9 +2251,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -2317,10 +2297,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "rower"
-    ],
+    equipment: ["barbell"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -2771,9 +2748,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["hamstring_curl"],
     "tags": [
       "ota_movements",
       "strength",
@@ -2947,9 +2922,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["cable_machine"],
     "tags": [
       "ota_movements",
       "strength",
@@ -2969,9 +2942,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["cable_machine"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -2995,10 +2966,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "rower"
-    ],
+    equipment: ["cable_machine"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -3022,9 +2990,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["cable_machine"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3044,9 +3010,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["cable_machine"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3194,9 +3158,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -3246,9 +3208,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["clubbell"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3567,9 +3527,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3589,9 +3547,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3611,10 +3567,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "rower"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -3638,9 +3591,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "modalities": [
       "mobility"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "mobility",
@@ -3662,10 +3613,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "modalities": [
       "power"
     ],
-    "equipment": [
-      "bodyweight",
-      "plyo_box"
-    ],
+    equipment: ["dumbbells", "plyo_box"],
     "contraindications": [
       "knee",
       "ankle"
@@ -3690,9 +3638,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3712,9 +3658,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -3738,9 +3682,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -3764,9 +3706,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -3790,9 +3730,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3811,9 +3749,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "modalities": [
       "mobility"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -3840,9 +3776,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -3862,9 +3796,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -4458,9 +4390,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -4484,9 +4414,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -4510,9 +4438,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -4536,9 +4462,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -4558,9 +4482,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -4584,9 +4506,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -4610,9 +4530,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -4636,9 +4554,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -5007,9 +4923,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["ez_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -5029,9 +4943,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["ez_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -6617,9 +6529,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -6643,9 +6553,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -7269,9 +7177,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -7291,9 +7197,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -7423,10 +7327,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "rower"
-    ],
+    equipment: ["kettlebells"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -7450,9 +7351,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["kettlebells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -7957,9 +7856,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -10007,9 +9904,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell"],
     "tags": [
       "ota_movements",
       "strength",
@@ -10029,9 +9924,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -10055,9 +9948,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -10129,9 +10020,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["cable_machine"],
     "tags": [
       "ota_movements",
       "strength",
@@ -10151,9 +10040,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -10636,9 +10523,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["kettlebells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -11488,9 +11373,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "modalities": [
       "mobility"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "mobility",
@@ -11701,9 +11584,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "modalities": [
       "power"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "contraindications": [
       "knee",
       "ankle"
@@ -12340,9 +12221,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["cable_machine"],
     "tags": [
       "ota_movements",
       "strength",
@@ -12664,10 +12543,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "rower"
-    ],
+    equipment: ["cable_machine"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -13309,9 +13185,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -13433,9 +13307,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -13486,10 +13358,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight",
-      "rower"
-    ],
+    equipment: ["cable_machine"],
     "contraindications": [
       "shoulder",
       "elbow"
@@ -13513,9 +13382,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["dumbbells"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -13593,9 +13460,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["barbell", "bench"],
     "contraindications": [
       "wrist",
       "shoulder"
@@ -14681,9 +14546,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["hamstring_curl"],
     "tags": [
       "ota_movements",
       "strength",
@@ -14725,9 +14588,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -15596,9 +15457,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -16262,9 +16121,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["hamstring_curl"],
     "tags": [
       "ota_movements",
       "strength",
@@ -16411,9 +16268,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -16433,9 +16288,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -16454,9 +16307,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
     "modalities": [
       "power"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "contraindications": [
       "knee",
       "ankle"
@@ -16481,9 +16332,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["trap_bar"],
     "tags": [
       "ota_movements",
       "strength",
@@ -16503,9 +16352,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["cable_machine"],
     "tags": [
       "ota_movements",
       "strength",
@@ -16602,9 +16449,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["kettlebells"],
     "tags": [
       "ota_movements",
       "strength",
@@ -16624,9 +16469,7 @@ export const OTA_MOVEMENTS: ExerciseDefinition[] = [
       "strength",
       "hypertrophy"
     ],
-    "equipment": [
-      "bodyweight"
-    ],
+    equipment: ["kettlebells"],
     "tags": [
       "ota_movements",
       "strength",

@@ -25,7 +25,6 @@ import {
   EQUIPMENT_BY_CATEGORY,
   getDefaultEquipmentForTemplate,
   SPACE_TYPE_OPTIONS,
-  type GymProfile,
   type GymProfileTemplate,
 } from "../../../data/gymProfiles";
 import type { EquipmentKey } from "../../../lib/types";
@@ -53,15 +52,18 @@ export default function GymProfilesScreen() {
   } = useAppState();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [addMode, setAddMode] = useState<
-    null | "choose_type" | "custom" | { template: GymProfileTemplate; suggestedName: string }
-  >(null);
-  const [customName, setCustomName] = useState("");
-  const [saveAsName, setSaveAsName] = useState("");
+  const [showAddSpaceTypes, setShowAddSpaceTypes] = useState(false);
 
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const selectProfile = (id: string) => {
+    if (id !== activeGymProfileId) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setActiveGymProfile(id);
+    }
   };
 
   const toggleEquipment = (profileId: string, key: EquipmentKey) => {
@@ -82,30 +84,29 @@ export default function GymProfilesScreen() {
     });
   };
 
-  const onAddProfile = (template: GymProfileTemplate, name?: string) => {
+  const defaultNameForTemplate = (template: GymProfileTemplate): string => {
+    const option = SPACE_TYPE_OPTIONS.find((opt) => opt.template === template);
+    return option?.label ?? "New Gym";
+  };
+
+  const onAddProfile = (template: GymProfileTemplate) => {
     const equipment = normalizeStoredGymEquipment(
       getDefaultEquipmentForTemplate(template)
     );
     const profileName =
-      name?.trim() ||
-      (template === "your_gym"
-        ? "Full Commercial Gym"
-        : template === "small_gym"
-          ? "Small Gym"
-          : template === "home_gym"
-            ? "Home Setup"
-            : template === "hotel_gym"
-              ? "Hotel Gym"
-              : template === "custom"
-                ? "Bodyweight Only"
-                : "New Gym");
-    addGymProfile({
-      name: profileName,
-      equipment,
-    });
-    setAddMode(null);
-    setCustomName("");
-    setSaveAsName("");
+      template === "custom_gym" ? "My Gym" : defaultNameForTemplate(template);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowAddSpaceTypes(false);
+    addGymProfile(
+      {
+        name: profileName,
+        equipment,
+      },
+      {
+        setActive: true,
+        onCreated: (id) => setExpandedId(id),
+      }
+    );
   };
 
   const goBackToFlow = () => {
@@ -211,8 +212,7 @@ export default function GymProfilesScreen() {
 
             return (
               <View key={profile.id} style={styles.profileBlock}>
-                <Pressable
-                  onPress={() => toggleExpand(profile.id)}
+                <View
                   style={[
                     styles.profileHeader,
                     {
@@ -221,7 +221,10 @@ export default function GymProfilesScreen() {
                     },
                   ]}
                 >
-                  <View style={{ flex: 1 }}>
+                  <Pressable
+                    onPress={() => selectProfile(profile.id)}
+                    style={styles.profileHeaderMain}
+                  >
                     <Text
                       style={[
                         styles.profileName,
@@ -233,14 +236,20 @@ export default function GymProfilesScreen() {
                     <Text
                       style={[styles.profileMeta, { color: theme.textMuted }]}
                     >
-                      {isActive ? "Active" : "Tap to edit"} •{" "}
+                      {isActive ? "Active" : "Tap to select"} •{" "}
                       {profile.equipment.length} items
                     </Text>
-                  </View>
-                  <Text style={{ color: theme.textMuted, fontSize: 18 }}>
-                    {isExpanded ? "−" : "+"}
-                  </Text>
-                </Pressable>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => toggleExpand(profile.id)}
+                    hitSlop={8}
+                    style={styles.expandButton}
+                  >
+                    <Text style={{ color: theme.textMuted, fontSize: 20, fontWeight: "600" }}>
+                      {isExpanded ? "−" : "+"}
+                    </Text>
+                  </Pressable>
+                </View>
 
                 {isExpanded && (
                   <View style={[styles.expandedContent, { borderColor: theme.border, backgroundColor: theme.card }]}>
@@ -263,15 +272,6 @@ export default function GymProfilesScreen() {
                           },
                         ]}
                       />
-                    </View>
-                    <View style={styles.setActiveRow}>
-                      {!isActive && (
-                        <PrimaryButton
-                          label="Set as active"
-                          variant="secondary"
-                          onPress={() => setActiveGymProfile(profile.id)}
-                        />
-                      )}
                     </View>
 
                     {EQUIPMENT_BY_CATEGORY.map((cat) => (
@@ -382,40 +382,17 @@ export default function GymProfilesScreen() {
           })}
         </View>
 
-        {addMode == null ? (
-          <View style={styles.addSection}>
-            <Text
-              style={[styles.addSectionTitle, { color: theme.text }]}
-            >
-              Add a gym
-            </Text>
-            <Text
-              style={[styles.stepLabel, { color: theme.textMuted }]}
-            >
-              Step 1 — Space type
-            </Text>
-            <View style={styles.chipRow}>
-              {SPACE_TYPE_OPTIONS.map((opt) => (
-                <View key={opt.template}>
-                  <Chip
-                    label={opt.label}
-                    selected={false}
-                    onPress={() =>
-                      setAddMode({
-                        template: opt.template,
-                        suggestedName: opt.label,
-                      })
-                    }
-                  />
-                </View>
-              ))}
-            </View>
+        <View style={styles.addSection}>
+          {!showAddSpaceTypes ? (
             <PrimaryButton
-              label="Custom (name your gym)"
-              variant="ghost"
-              onPress={() => setAddMode("custom")}
-              style={{ marginTop: 12 }}
+              label="Add a gym"
+              onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setShowAddSpaceTypes(true);
+              }}
+              style={styles.addGymButton}
             />
+<<<<<<< HEAD
           </View>
         ) : addMode === "custom" ? (
           <View style={styles.addSection}>
@@ -439,10 +416,32 @@ export default function GymProfilesScreen() {
                 label="Create"
                 onPress={() => onAddProfile("custom", customName || "My Gym")}
               />
+=======
+          ) : (
+            <>
+              <Text style={[styles.addSectionTitle, { color: theme.text }]}>
+                Choose space type
+              </Text>
+              <Text style={[styles.stepLabel, { color: theme.textMuted }]}>
+                We&apos;ll set this as your active gym so you can name it and pick equipment.
+              </Text>
+              <View style={styles.chipRow}>
+                {SPACE_TYPE_OPTIONS.map((opt) => (
+                  <View key={opt.template}>
+                    <Chip
+                      label={opt.label}
+                      selected={false}
+                      onPress={() => onAddProfile(opt.template)}
+                    />
+                  </View>
+                ))}
+              </View>
+>>>>>>> feature/week-session-drag-reorder
               <PrimaryButton
                 label="Cancel"
                 variant="ghost"
                 onPress={() => {
+<<<<<<< HEAD
                   setAddMode(null);
                   setCustomName("");
                 }}
@@ -484,6 +483,16 @@ export default function GymProfilesScreen() {
             </View>
           </View>
         ) : null}
+=======
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setShowAddSpaceTypes(false);
+                }}
+                style={{ marginTop: 12 }}
+              />
+            </>
+          )}
+        </View>
+>>>>>>> feature/week-session-drag-reorder
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -535,9 +544,20 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    paddingVertical: 14,
+    paddingLeft: 14,
+    paddingRight: 10,
     borderRadius: 12,
     borderWidth: 1,
+  },
+  profileHeaderMain: {
+    flex: 1,
+  },
+  expandButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileName: {
     fontSize: 16,
@@ -572,9 +592,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-  },
-  setActiveRow: {
-    marginBottom: 4,
   },
   deleteRow: {
     marginTop: 8,
@@ -618,6 +635,9 @@ const styles = StyleSheet.create({
   addSection: {
     marginTop: 28,
   },
+  addGymButton: {
+    alignSelf: "stretch",
+  },
   addSectionTitle: {
     fontSize: 15,
     fontWeight: "600",
@@ -626,15 +646,5 @@ const styles = StyleSheet.create({
   stepLabel: {
     fontSize: 13,
     marginBottom: 8,
-  },
-  addButtons: {
-    gap: 0,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
   },
 });
