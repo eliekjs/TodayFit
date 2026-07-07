@@ -157,7 +157,9 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
                         })}
                       >
                         <Text style={{ fontSize: 13, fontWeight: "600", color: theme.text }}>{p.label}</Text>
-                        <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>{p.subtitle}</Text>
+                        {p.subtitle ? (
+                          <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>{p.subtitle}</Text>
+                        ) : null}
                       </Pressable>
                     );
                   })}

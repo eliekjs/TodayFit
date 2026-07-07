@@ -82,6 +82,46 @@ const FACE_PULL: Exercise = {
   pairing_category: "back",
 };
 
+const BUILD_UP_SPRINT: Exercise = {
+  id: "build_up_sprint",
+  name: "Build Up Sprint",
+  movement_pattern: "locomotion",
+  muscle_groups: ["legs"],
+  modality: "power",
+  equipment_required: ["bodyweight"],
+  difficulty: 2,
+  time_cost: "low",
+  tags: { attribute_tags: ["speed", "sprint"], goal_tags: ["power"] },
+  primary_movement_family: "lower_body",
+};
+
+const LATERAL_SHUFFLE: Exercise = {
+  id: "lateral_power_shuffle",
+  name: "Lateral Power Shuffle",
+  movement_pattern: "locomotion",
+  muscle_groups: ["legs"],
+  modality: "power",
+  equipment_required: ["bodyweight"],
+  difficulty: 2,
+  time_cost: "low",
+  tags: { attribute_tags: ["speed", "agility"], goal_tags: ["power"] },
+  primary_movement_family: "lower_body",
+};
+
+const LEG_PRESS: Exercise = {
+  id: "leg_press_machine",
+  name: "Leg Press",
+  movement_pattern: "squat",
+  muscle_groups: ["quads", "glutes"],
+  modality: "strength",
+  equipment_required: ["leg_press"],
+  difficulty: 2,
+  time_cost: "medium",
+  tags: { goal_tags: ["strength", "hypertrophy"] },
+  primary_movement_family: "lower_body",
+  pairing_category: "leg_press",
+};
+
 describe("validateWorkoutAgainstConstraints accessory superset repair", () => {
   it("does not swap accessory superset partner to sprint wall drills", () => {
     const workout = {
@@ -158,5 +198,47 @@ describe("validateWorkoutAgainstConstraints accessory superset repair", () => {
     expect(main).toBeDefined();
     const ids = main!.items.map((i) => i.exercise_id);
     expect(ids).not.toContain("wall_drill_single_switch");
+  });
+});
+
+describe("validateWorkoutAgainstConstraints power block duplicate repair", () => {
+  it("does not swap duplicate power intent drills to leg-press family", () => {
+    const workout = {
+      title: "Soccer speed power",
+      estimated_duration_minutes: 45,
+      blocks: [
+        {
+          block_type: "warmup",
+          items: [{ exercise_id: "build_up_sprint", exercise_name: "Build Up Sprint" }],
+        },
+        {
+          block_type: "power",
+          title: "Main (Soccer Speed)",
+          goal_intent: { intent_kind: "sport_sub_focus", sub_focus_slug: "speed" },
+          items: [
+            { exercise_id: "build_up_sprint", exercise_name: "Build Up Sprint" },
+            { exercise_id: "lateral_power_shuffle", exercise_name: "Lateral Power Shuffle" },
+          ],
+        },
+      ],
+    };
+
+    const constraints = makeConstraints({
+      allowed_movement_families: ["lower_body"],
+    });
+
+    const result = validateWorkoutAgainstConstraints(workout, constraints, [
+      BUILD_UP_SPRINT,
+      LATERAL_SHUFFLE,
+      LEG_PRESS,
+    ]);
+
+    const power =
+      result.repairedWorkout?.blocks.find((b) => b.block_type === "power") ??
+      workout.blocks.find((b) => b.block_type === "power");
+    expect(power).toBeDefined();
+    const ids = power!.items.map((i) => i.exercise_id);
+    expect(ids).not.toContain("leg_press_machine");
+    expect(ids).toContain("lateral_power_shuffle");
   });
 });

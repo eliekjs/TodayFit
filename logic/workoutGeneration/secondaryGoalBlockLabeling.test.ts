@@ -10,7 +10,7 @@ import type { GenerateWorkoutInput } from "./types";
  * ("recovery_mobility") instead of the goal that actually drove the block. In the UI this
  * showed a "RECOVERY MOBILITY" badge on a block full of squats/hinges, and — because the
  * block also lacked `goal_intent` at chunking time — its title collapsed to a generic
- * "Block A" instead of a semantic title like "Main hypertrophy (secondary goal)".
+ * "Block A" instead of a semantic title like "Main hypertrophy".
  */
 function baseInput(overrides: Partial<GenerateWorkoutInput>): GenerateWorkoutInput {
   return {

@@ -1,0 +1,42 @@
+{
+  "loop": {
+    "tick": 1,
+    "maxTicks": 6,
+    "complete": false,
+    "nextTickAt": "in 10 minutes"
+  },
+  "report": {
+    "tick": 1,
+    "seed": 1783461238,
+    "persona": {
+      "id": "P10",
+      "name": "Drew — managing injury",
+      "testPriority": "P0",
+      "mode": "sport_day"
+    },
+    "score": 100,
+    "band": "high",
+    "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+    "failedChecks": [],
+    "personaIssues": [],
+    "topFixesThisTick": []
+  },
+  "aggregateTopFixes": [
+    {
+      "rank": 1,
+      "issueId": "P02:leg_press_in_athletic_block",
+      "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+      "score": 420
+    },
+    {
+      "rank": 2,
+      "issueId": "P01:zone2_on_power_day",
+      "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)",
+      "score": 180
+    }
+  ],
+  "artifacts": {
+    "tickPath": "/Users/ellie/todayfit/artifacts/persona-loop/tick-01-seed1783461221.json",
+    "aggregatePath": "/Users/ellie/todayfit/artifacts/persona-loop/aggregate.json"
+  }
+}

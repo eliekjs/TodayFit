@@ -12,7 +12,9 @@ import {
   exerciseIsSprintOrCodDrill,
   inputHasIntentDedicatedPowerArchetypeSubFocus,
   resolveBlockStructureProfile,
+  sessionBlocksLegPressInAthleticWorkingBlocks,
 } from "../../data/sportSubFocus/subFocusIntentRegistry";
+import { hardBanLegPressFamily } from "./sportProfileBanPredicates";
 import { matchesBodyPartFocus } from "../workoutIntelligence/constraints/eligibilityHelpers";
 import type { ResolvedWorkoutConstraints } from "../workoutIntelligence/constraints/constraintTypes";
 import { toExerciseWithQualities, type GeneratorExercise } from "../workoutIntelligence/adapters";
@@ -420,6 +422,17 @@ export function isExerciseEligibleForBlock(
   const input = ctx.input ?? activeBlockFillInput;
   if (input && inputHasVerticalJumpSubFocus(input)) {
     if (!exerciseEligibleForVerticalJumpSession(exercise, true)) return false;
+  }
+
+  if (
+    input &&
+    sessionBlocksLegPressInAthleticWorkingBlocks(input) &&
+    hardBanLegPressFamily(exercise)
+  ) {
+    const blockNorm = (ctx.blockType ?? "").toLowerCase().replace(/\s/g, "_");
+    if (blockNorm === "power" || blockNorm === "main_strength" || blockNorm === "main_hypertrophy") {
+      return false;
+    }
   }
 
   const blockNorm = (ctx.blockType ?? "").toLowerCase().replace(/\s/g, "_");

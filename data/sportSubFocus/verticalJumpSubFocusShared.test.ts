@@ -80,6 +80,24 @@ describe("verticalJumpSubFocusShared", () => {
     expect(exercisePassesVerticalJumpDynamicGate(backSquat)).toBe(false);
   });
 
+  it("rejects leg-press family from vertical jump strength foundation signal", () => {
+    const legPress = synth({
+      id: "leg_press",
+      name: "Leg Press",
+      movement_pattern: "squat",
+      modality: "strength",
+      equipment_required: ["leg_press"],
+      muscle_groups: ["quads"],
+      tags: {
+        goal_tags: ["strength"],
+        attribute_tags: ["squat_pattern"],
+      },
+      exercise_role: "main_compound",
+    });
+    expect(exerciseHasVerticalJumpStrengthFoundationSignal(legPress)).toBe(false);
+    expect(exercisePassesVerticalJumpTrainingGate(legPress)).toBe(false);
+  });
+
   it("detects vertical_jump intent across sport and goal maps", () => {
     expect(
       inputHasVerticalJumpSubFocus({

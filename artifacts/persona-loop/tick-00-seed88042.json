@@ -1,0 +1,54 @@
+{
+  "tick": 0,
+  "seed": 88042,
+  "persona": {
+    "id": "P03",
+    "name": "Riley — outdoor endurance prep (single day)",
+    "testPriority": "P0",
+    "mode": "sport_day"
+  },
+  "score": 87,
+  "band": "high",
+  "summary": "Simulation result: HIGH quality (87/100). Persona=P03 (Riley — outdoor endurance prep (single day)). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: exercise_catalog_validity. Persona issues: 2.",
+  "failedChecks": [
+    "exercise_catalog_validity"
+  ],
+  "personaIssues": [
+    {
+      "personaId": "P03",
+      "personaName": "Riley — outdoor endurance prep (single day)",
+      "testPriority": "P0",
+      "issueId": "P03:intent_label_leak",
+      "severity": "critical",
+      "message": "P03: Exercise name looks like intent label: \"Single Leg RDL\"",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0#7 catalog validity",
+      "tick": 0,
+      "seed": 88042
+    },
+    {
+      "personaId": "P03",
+      "personaName": "Riley — outdoor endurance prep (single day)",
+      "testPriority": "P0",
+      "issueId": "P03:exercise_catalog_validity",
+      "severity": "critical",
+      "message": "P03: exercise_catalog_validity failed — 1 invalid names",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0",
+      "tick": 0,
+      "seed": 88042
+    }
+  ],
+  "topFixesThisTick": [
+    {
+      "rank": 1,
+      "issueId": "P03:intent_label_leak",
+      "message": "P03: Exercise name looks like intent label: \"Single Leg RDL\""
+    },
+    {
+      "rank": 2,
+      "issueId": "P03:exercise_catalog_validity",
+      "message": "P03: exercise_catalog_validity failed — 1 invalid names"
+    }
+  ]
+}

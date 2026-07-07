@@ -1,0 +1,54 @@
+{
+  "tick": 0,
+  "seed": 77010,
+  "persona": {
+    "id": "P01",
+    "name": "Maya — in-season court athlete",
+    "testPriority": "P0",
+    "mode": "sport_day"
+  },
+  "score": 87,
+  "band": "high",
+  "summary": "Simulation result: HIGH quality (87/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: exercise_catalog_validity. Persona issues: 2.",
+  "failedChecks": [
+    "exercise_catalog_validity"
+  ],
+  "personaIssues": [
+    {
+      "personaId": "P01",
+      "personaName": "Maya — in-season court athlete",
+      "testPriority": "P0",
+      "issueId": "P01:intent_label_leak",
+      "severity": "critical",
+      "message": "P01: Exercise name looks like intent label: \"Single Leg Linear Pogos\"",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0#7 catalog validity",
+      "tick": 0,
+      "seed": 77010
+    },
+    {
+      "personaId": "P01",
+      "personaName": "Maya — in-season court athlete",
+      "testPriority": "P0",
+      "issueId": "P01:exercise_catalog_validity",
+      "severity": "critical",
+      "message": "P01: exercise_catalog_validity failed — 1 invalid names",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0",
+      "tick": 0,
+      "seed": 77010
+    }
+  ],
+  "topFixesThisTick": [
+    {
+      "rank": 1,
+      "issueId": "P01:intent_label_leak",
+      "message": "P01: Exercise name looks like intent label: \"Single Leg Linear Pogos\""
+    },
+    {
+      "rank": 2,
+      "issueId": "P01:exercise_catalog_validity",
+      "message": "P01: exercise_catalog_validity failed — 1 invalid names"
+    }
+  ]
+}

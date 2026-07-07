@@ -23,6 +23,11 @@ import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGenerat
 import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
 import type { SessionFlow } from "../../lib/sessionDraft";
 import { navigateToSessionFlow } from "../../lib/sessionFlowNavigation";
+import {
+  buildTrainTodayGenerationParams,
+  canUseTrainToday,
+  trainTodaySubtitle,
+} from "../../lib/trainToday";
 
 type ActionCardProps = {
   icon: React.ComponentProps<typeof Ionicons>["name"];
@@ -120,6 +125,7 @@ export default function HomeScreen() {
     applyPreferencePreset,
     updatePreferencePreset,
     removePreferencePreset,
+    savedSportForm,
   } = useAppState();
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
   const [showPreferenceProfiles, setShowPreferenceProfiles] = useState(false);
@@ -133,8 +139,12 @@ export default function HomeScreen() {
   const secondaryGoal = manualPreferences.primaryFocus[1] ?? "Not set";
   const activeProfile =
     gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-  const canTrainToday =
-    manualPreferences.primaryFocus.length >= 1 && activeProfile != null;
+  const canTrainToday = canUseTrainToday(manualPreferences, savedSportForm, activeProfile != null);
+  const trainTodayLabel = trainTodaySubtitle(
+    manualPreferences,
+    savedSportForm,
+    activeProfile?.name ?? null
+  );
 
   const onNavigateFlow = (flow: SessionFlow, href: string) => {
     navigateToSessionFlow(
@@ -152,11 +162,15 @@ export default function HomeScreen() {
     trainTodayCancelledRef.current = false;
     setIsTrainTodayGenerating(true);
     try {
-      const prefs = {
-        ...manualPreferences,
-        durationMinutes: manualPreferences.durationMinutes ?? 45,
+      const { prefs, sportGoalContext } = buildTrainTodayGenerationParams(
+        manualPreferences,
+        savedSportForm
+      );
+      const prefsWithDuration = {
+        ...prefs,
+        durationMinutes: prefs.durationMinutes ?? 45,
       };
-      const preferredNamesPromise = preferredExerciseNamesForManualPreferences(prefs);
+      const preferredNamesPromise = preferredExerciseNamesForManualPreferences(prefsWithDuration);
       const generatorPromise = loadGeneratorModule();
       const [preferredNames, { generateWorkoutAsync }] = await Promise.all([
         preferredNamesPromise,
@@ -164,11 +178,11 @@ export default function HomeScreen() {
       ]);
       if (trainTodayCancelledRef.current) return;
       const workout = await generateWorkoutAsync(
-        prefs,
+        prefsWithDuration,
         activeProfile,
         undefined,
         preferredNames,
-        undefined,
+        sportGoalContext,
         {
           historySources: {
             workoutHistory,
@@ -191,12 +205,13 @@ export default function HomeScreen() {
 
   const onTrainToday = () => {
     if (!canTrainToday || !activeProfile) return;
-    if (beginSessionFlow("goal_day")) {
+    const { sessionFlow } = buildTrainTodayGenerationParams(manualPreferences, savedSportForm);
+    if (beginSessionFlow(sessionFlow)) {
       void runTrainToday();
       return;
     }
     if (!activeSessionDraft) {
-      replaceSessionFlow("goal_day");
+      replaceSessionFlow(sessionFlow);
       void runTrainToday();
       return;
     }
@@ -213,7 +228,11 @@ export default function HomeScreen() {
           text: "Train today",
           style: "destructive",
           onPress: () => {
-            replaceSessionFlow("goal_day");
+            const { sessionFlow } = buildTrainTodayGenerationParams(
+              manualPreferences,
+              savedSportForm
+            );
+            replaceSessionFlow(sessionFlow);
             void runTrainToday();
           },
         },
@@ -261,9 +280,7 @@ export default function HomeScreen() {
           >
             <Text style={[styles.trainTodayTitle, { color: theme.text }]}>Train today</Text>
             <Text style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}>
-              {primaryGoal}
-              {secondaryGoal !== "Not set" ? ` · ${secondaryGoal}` : ""}
-              {activeProfile ? ` · ${activeProfile.name}` : ""}
+              {trainTodayLabel}
             </Text>
             <Pressable
               style={({ pressed }) => [styles.trainTodayButtonWrap, { opacity: pressed ? 0.9 : 1 }]}

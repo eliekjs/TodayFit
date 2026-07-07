@@ -1,12 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
   buildDayFocusPresetsForDay,
+  buildBodyFocusSummary,
   buildGymDayFocusCardLabel,
+  buildPriorityFocusSummary,
+  bodyFocusLineFromBias,
   resolveDayFocusPreset,
   reorderPrimaryFocusForEmphasis,
   primaryFocusLabelsFromGoalSlugs,
   resolvedDayFocusToWorkoutParams,
   adaptiveSetupFromPlanContext,
+  summarizePresetSubtitle,
 } from "./weekDaySessionFocus";
 import type { ManualPreferences } from "./types";
 import type { AdaptiveSetup } from "../context/appStateModel";
@@ -136,6 +140,121 @@ describe("weekDaySessionFocus", () => {
     expect(buildGymDayFocusCardLabel(0, 0, "Upper", ["Pull"])).toBe("Mon · Upper (Pull)");
     expect(buildGymDayFocusCardLabel(4, 2, "Lower", [])).toBe("Fri · Lower");
     expect(buildGymDayFocusCardLabel(99, 2, "Full", [])).toBe("Gym day 3 · Full");
+    expect(buildGymDayFocusCardLabel(0, 0, "Full", [], ["core"])).toBe("Mon · Core");
     expect(buildGymDayFocusCardLabel(0, 0, "Upper", [])).not.toMatch(/\d{2}-\d{2}/);
+  });
+
+  it("bodyFocusLineFromBias shows Core for core-specific focus", () => {
+    expect(
+      bodyFocusLineFromBias({ targetBody: "Full", targetModifier: [], specificBodyFocus: ["core"] })
+    ).toBe("Core");
+    expect(
+      bodyFocusLineFromBias({ targetBody: "Upper", targetModifier: [], specificBodyFocus: ["core"] })
+    ).toBe("Core");
+    expect(bodyFocusLineFromBias({ targetBody: "Upper", targetModifier: [] })).toBe("Upper body");
+  });
+
+  it("buildDayFocusPresetsForDay uses Core in subtitles when specificBodyFocus includes core", () => {
+    const adaptive: AdaptiveSetup = {
+      rankedGoals: ["physique"],
+      rankedSportSlugs: ["surfing"],
+      subFocusBySport: {},
+      sportFocusPct: [60, 40],
+      sportVsGoalPct: 55,
+      intensityLevel: "medium",
+      injuryStatus: "ok",
+      injuryTypes: [],
+    };
+    const presets = buildDayFocusPresetsForDay({
+      manualPreferences: basePrefs,
+      adaptiveSetup: adaptive,
+      targetBody: "Full",
+      targetModifier: [],
+      specificBodyFocus: ["core"],
+    });
+    expect(presets.length).toBeGreaterThan(0);
+    for (const p of presets) {
+      expect(p.subtitle).toMatch(/^Core — /);
+      expect(p.subtitle).not.toMatch(/^Full body — /);
+    }
+  });
+
+  it("buildBodyFocusSummary fallback shows Core when specificBodyFocus includes core", () => {
+    const summary = buildBodyFocusSummary(null, {
+      targetBody: "Full",
+      targetModifier: [],
+      specificBodyFocus: ["core"],
+    });
+    expect(summary?.label).toBe("Core");
+    expect(summary?.subtitle).toBeNull();
+  });
+
+  it("summarizePresetSubtitle strips body prefix from preset subtitles", () => {
+    expect(
+      summarizePresetSubtitle(
+        "Upper body — this day mainly supports Climbing; goals fill the rest."
+      )
+    ).toBe("this day mainly supports Climbing; goals fill the rest.");
+  });
+
+  it("sport and goal emphasis presets include body line; balanced options keep descriptive subtitles", () => {
+    const adaptive: AdaptiveSetup = {
+      rankedGoals: ["physique", "strength"],
+      rankedSportSlugs: ["surfing", "rock_climbing"],
+      subFocusBySport: {},
+      sportFocusPct: [60, 40],
+      sportVsGoalPct: 55,
+      intensityLevel: "medium",
+      injuryStatus: "ok",
+      injuryTypes: [],
+    };
+    const presets = buildDayFocusPresetsForDay({
+      manualPreferences: basePrefs,
+      adaptiveSetup: adaptive,
+      targetBody: "Upper",
+      targetModifier: [],
+    });
+    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toMatch(/^Upper body — /);
+    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toMatch(/^Upper body — /);
+    expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/^Upper body — about 55%/);
+  });
+
+  it("buildPriorityFocusSummary uses preset label and shortened subtitle", () => {
+    const summary = buildPriorityFocusSummary(
+      {
+        label: "Climbing first",
+        subtitle: "Upper body — this day mainly supports Climbing; goals fill the rest.",
+      },
+      { displayTitle: "Strength - Upper Body", workoutFocus: ["Strength"] }
+    );
+    expect(summary?.label).toBe("Climbing first");
+    expect(summary?.subtitle).toContain("Climbing");
+
+    const balanced = buildPriorityFocusSummary(
+      {
+        label: "Balanced sport + goals",
+        subtitle: "Upper body — about 55% sport focus and 45% goals (your Sport vs goals setting).",
+      },
+      { displayTitle: "Strength - Upper Body", workoutFocus: ["Strength"] }
+    );
+    expect(balanced?.subtitle).toContain("55% sport focus");
+  });
+
+  it("buildPriorityFocusSummary falls back to goals only from display title", () => {
+    const summary = buildPriorityFocusSummary(null, {
+      displayTitle: "Strength + Hypertrophy - Upper Body",
+      workoutFocus: ["Strength"],
+    });
+    expect(summary?.label).toBe("Strength + Hypertrophy");
+    expect(summary?.subtitle).toBeUndefined();
+  });
+
+  it("buildBodyFocusSummary includes modifier as subtitle", () => {
+    const summary = buildBodyFocusSummary(null, {
+      targetBody: "Upper",
+      targetModifier: ["Push"],
+    });
+    expect(summary?.label).toBe("Upper body");
+    expect(summary?.subtitle).toBe("Push");
   });
 });

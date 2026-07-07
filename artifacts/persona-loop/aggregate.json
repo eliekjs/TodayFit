@@ -1,0 +1,1438 @@
+{
+  "startedAt": "2026-07-07T02:30:44.149Z",
+  "ticks": [
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 66458,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 92025,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 55024,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88025,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 77027,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 66458,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 92025,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 55024,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88025,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 77027,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 66458,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 92025,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 55024,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88025,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 77027,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P06",
+        "name": "Casey — physique + performance",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P06 (Casey — physique + performance). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P06",
+        "name": "Casey — physique + performance",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P06 (Casey — physique + performance). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 66458,
+      "persona": {
+        "id": "P06",
+        "name": "Casey — physique + performance",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P06 (Casey — physique + performance). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 92025,
+      "persona": {
+        "id": "P06",
+        "name": "Casey — physique + performance",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P06 (Casey — physique + performance). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 55024,
+      "persona": {
+        "id": "P06",
+        "name": "Casey — physique + performance",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P06 (Casey — physique + performance). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88025,
+      "persona": {
+        "id": "P06",
+        "name": "Casey — physique + performance",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P06 (Casey — physique + performance). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 77027,
+      "persona": {
+        "id": "P06",
+        "name": "Casey — physique + performance",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P06 (Casey — physique + performance). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 66458,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 92025,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 55024,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88025,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 77027,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P08",
+        "name": "Taylor — joint-health focus",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P08 (Taylor — joint-health focus). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P08",
+        "name": "Taylor — joint-health focus",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P08 (Taylor — joint-health focus). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 66458,
+      "persona": {
+        "id": "P08",
+        "name": "Taylor — joint-health focus",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P08 (Taylor — joint-health focus). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 92025,
+      "persona": {
+        "id": "P08",
+        "name": "Taylor — joint-health focus",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P08 (Taylor — joint-health focus). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 55024,
+      "persona": {
+        "id": "P08",
+        "name": "Taylor — joint-health focus",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P08 (Taylor — joint-health focus). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88025,
+      "persona": {
+        "id": "P08",
+        "name": "Taylor — joint-health focus",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P08 (Taylor — joint-health focus). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 2,
+      "seed": 392089,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 77027,
+      "persona": {
+        "id": "P08",
+        "name": "Taylor — joint-health focus",
+        "testPriority": "P1",
+        "mode": "goal_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P08 (Taylor — joint-health focus). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:leg_press_in_athletic_block",
+          "severity": "moderate",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#1 sport vs bodybuilding tone",
+          "tick": 1,
+          "seed": 99019
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:leg_press_in_athletic_block",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 66458,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 92025,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88042,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P01",
+          "personaName": "Maya — in-season court athlete",
+          "testPriority": "P0",
+          "issueId": "P01:zone2_on_power_day",
+          "severity": "moderate",
+          "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P0#4 sport sub-focus + P1#4 prescription",
+          "tick": 1,
+          "seed": 88042
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P01:zone2_on_power_day",
+          "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 55024,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88025,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 77027,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 3,
+      "seed": 1783392308,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:leg_press_in_athletic_block",
+          "severity": "moderate",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#1 sport vs bodybuilding tone",
+          "tick": 3,
+          "seed": 1783392308
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:leg_press_in_athletic_block",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)"
+        }
+      ]
+    },
+    {
+      "tick": 4,
+      "seed": 1783392926,
+      "persona": {
+        "id": "P04",
+        "name": "Sam — climber cross-training",
+        "testPriority": "P1",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P04 (Sam — climber cross-training). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 5,
+      "seed": 1783393538,
+      "persona": {
+        "id": "P07",
+        "name": "Alex — traveling athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 6,
+      "seed": 1783394154,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 6,
+      "seed": 1783394155,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88042,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P01",
+          "personaName": "Maya — in-season court athlete",
+          "testPriority": "P0",
+          "issueId": "P01:zone2_on_power_day",
+          "severity": "moderate",
+          "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P0#4 sport sub-focus + P1#4 prescription",
+          "tick": 1,
+          "seed": 88042
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P01:zone2_on_power_day",
+          "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:leg_press_in_athletic_block",
+          "severity": "moderate",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#1 sport vs bodybuilding tone",
+          "tick": 1,
+          "seed": 99019
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:leg_press_in_athletic_block",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 88042,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P01",
+          "personaName": "Maya — in-season court athlete",
+          "testPriority": "P0",
+          "issueId": "P01:zone2_on_power_day",
+          "severity": "moderate",
+          "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P0#4 sport sub-focus + P1#4 prescription",
+          "tick": 1,
+          "seed": 88042
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P01:zone2_on_power_day",
+          "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 88042,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:single_sport_dominance",
+          "severity": "moderate",
+          "message": "P02: Multi-sport blend not reflected (basketball=true, soccer=false)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#2 multi-sport blend",
+          "tick": 1,
+          "seed": 99019
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:single_sport_dominance",
+          "message": "P02: Multi-sport blend not reflected (basketball=true, soccer=false)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:leg_press_in_athletic_block",
+          "severity": "moderate",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#1 sport vs bodybuilding tone",
+          "tick": 1,
+          "seed": 99019
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:leg_press_in_athletic_block",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 88042,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:leg_press_in_athletic_block",
+          "severity": "moderate",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#1 sport vs bodybuilding tone",
+          "tick": 1,
+          "seed": 99019
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:leg_press_in_athletic_block",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:leg_press_in_athletic_block",
+          "severity": "moderate",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#1 sport vs bodybuilding tone",
+          "tick": 1,
+          "seed": 99019
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:leg_press_in_athletic_block",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 1.",
+      "failedChecks": [],
+      "personaIssues": [
+        {
+          "personaId": "P02",
+          "personaName": "Morgan — multi-sport blend",
+          "testPriority": "P0",
+          "issueId": "P02:leg_press_in_athletic_block",
+          "severity": "moderate",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P1#1 sport vs bodybuilding tone",
+          "tick": 1,
+          "seed": 99019
+        }
+      ],
+      "topFixesThisTick": [
+        {
+          "rank": 1,
+          "issueId": "P02:leg_press_in_athletic_block",
+          "message": "P02: Leg-press family in athletic power/main work (Leg Press)"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 88059,
+      "persona": {
+        "id": "P01",
+        "name": "Maya — in-season court athlete",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P01 (Maya — in-season court athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 1783461238,
+      "persona": {
+        "id": "P10",
+        "name": "Drew — managing injury",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P10 (Drew — managing injury). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    },
+    {
+      "tick": 1,
+      "seed": 99019,
+      "persona": {
+        "id": "P02",
+        "name": "Morgan — multi-sport blend",
+        "testPriority": "P0",
+        "mode": "sport_day"
+      },
+      "score": 100,
+      "band": "high",
+      "summary": "Simulation result: HIGH quality (100/100). Persona=P02 (Morgan — multi-sport blend). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+      "failedChecks": [],
+      "personaIssues": [],
+      "topFixesThisTick": []
+    }
+  ],
+  "issueCounts": {
+    "P02:leg_press_in_athletic_block": {
+      "count": 7,
+      "severity": "moderate",
+      "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+      "personaIds": [
+        "P02"
+      ]
+    },
+    "P01:zone2_on_power_day": {
+      "count": 3,
+      "severity": "moderate",
+      "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)",
+      "personaIds": [
+        "P01"
+      ]
+    },
+    "P02:single_sport_dominance": {
+      "count": 1,
+      "severity": "moderate",
+      "message": "P02: Multi-sport blend not reflected (basketball=true, soccer=false)",
+      "personaIds": [
+        "P02"
+      ]
+    }
+  },
+  "topFixes": [
+    {
+      "rank": 1,
+      "issueId": "P02:leg_press_in_athletic_block",
+      "message": "P02: Leg-press family in athletic power/main work (Leg Press)",
+      "score": 420
+    },
+    {
+      "rank": 2,
+      "issueId": "P01:zone2_on_power_day",
+      "message": "P01: Zone 2 steady-state conditioning on vertical-jump day (Zone 2 Treadmill / Run)",
+      "score": 180
+    }
+  ]
+}

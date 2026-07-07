@@ -329,4 +329,31 @@ describe("exerciseEligibleForWorkingBlock", () => {
       isExerciseEligibleForBlock(vjTest, { blockType: "power", constraints: lowerBodyConstraints })
     ).toBe(false);
   });
+
+  it("rejects leg press in power blocks for athletic vertical_jump sessions", () => {
+    const legPress = makeEx({
+      id: "leg_press",
+      name: "Leg Press",
+      modality: "power",
+      movement_pattern: "squat",
+      equipment_required: ["leg_press"],
+      muscle_groups: ["quads"],
+      tags: {
+        goal_tags: ["power"],
+        sport_tags: [],
+        energy_fit: ["medium"],
+      },
+    });
+    const vjInput = asInput({
+      sport_sub_focus: { basketball: ["vertical_jump"] },
+      sport_slugs: ["basketball"],
+    });
+    expect(
+      isExerciseEligibleForBlock(legPress, {
+        blockType: "power",
+        constraints: lowerBodyConstraints,
+        input: vjInput,
+      })
+    ).toBe(false);
+  });
 });

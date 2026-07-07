@@ -392,31 +392,6 @@ export default function GymProfilesScreen() {
               }}
               style={styles.addGymButton}
             />
-<<<<<<< HEAD
-          </View>
-        ) : addMode === "custom" ? (
-          <View style={styles.addSection}>
-            <Text
-              style={[styles.addSectionTitle, { color: theme.text }]}
-            >
-              Name your gym
-            </Text>
-            <TextInput
-              placeholder="e.g. CrossFit Box"
-              placeholderTextColor={theme.textMuted}
-              value={customName}
-              onChangeText={setCustomName}
-              style={[
-                styles.input,
-                { borderColor: theme.border, color: theme.text },
-              ]}
-            />
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-              <PrimaryButton
-                label="Create"
-                onPress={() => onAddProfile("custom", customName || "My Gym")}
-              />
-=======
           ) : (
             <>
               <Text style={[styles.addSectionTitle, { color: theme.text }]}>
@@ -436,54 +411,10 @@ export default function GymProfilesScreen() {
                   </View>
                 ))}
               </View>
->>>>>>> feature/week-session-drag-reorder
               <PrimaryButton
                 label="Cancel"
                 variant="ghost"
                 onPress={() => {
-<<<<<<< HEAD
-                  setAddMode(null);
-                  setCustomName("");
-                }}
-              />
-            </View>
-          </View>
-        ) : typeof addMode === "object" && "template" in addMode ? (
-          <View style={styles.addSection}>
-            <Text
-              style={[styles.addSectionTitle, { color: theme.text }]}
-            >
-              Save as
-            </Text>
-            <TextInput
-              placeholder={addMode.suggestedName}
-              placeholderTextColor={theme.textMuted}
-              value={saveAsName}
-              onChangeText={setSaveAsName}
-              style={[
-                styles.input,
-                { borderColor: theme.border, color: theme.text },
-              ]}
-            />
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-              <PrimaryButton
-                label="Create"
-                onPress={() =>
-                  onAddProfile(addMode.template, saveAsName.trim() || addMode.suggestedName)
-                }
-              />
-              <PrimaryButton
-                label="Cancel"
-                variant="ghost"
-                onPress={() => {
-                  setAddMode(null);
-                  setSaveAsName("");
-                }}
-              />
-            </View>
-          </View>
-        ) : null}
-=======
                   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                   setShowAddSpaceTypes(false);
                 }}
@@ -492,7 +423,6 @@ export default function GymProfilesScreen() {
             </>
           )}
         </View>
->>>>>>> feature/week-session-drag-reorder
       </ScrollView>
     </AppScreenWrapper>
   );

@@ -1,0 +1,179 @@
+{
+  "startedAt": "2026-07-07T22:01:56.648Z",
+  "ticks": [
+    {
+      "tick": 1,
+      "seed": 1783461699,
+      "flowScenario": {
+        "id": "hotel_gym_profile",
+        "label": "Switch to hotel gym then generate",
+        "personaId": "P07"
+      },
+      "flowSteps": 4,
+      "flowScore": 53,
+      "outputScore": 100,
+      "combinedScore": 84,
+      "band": "medium",
+      "summary": "Flow+Output tick 1: MEDIUM (combined 84/100, flow 53, output 100). Scenario=hotel_gym_profile persona=P07. Flow issues=4; output issues=0. Top fix: flow:sport_subfocus_not_in_ui.",
+      "flowIssues": [
+        {
+          "issueId": "flow:sport_subfocus_not_in_ui",
+          "category": "flow",
+          "severity": "critical",
+          "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)",
+          "fixScope": "narrow",
+          "productPriorityRef": "PRODUCT_PRIORITIES P0#4 sport sub-focus"
+        },
+        {
+          "issueId": "flow:phase_mismatch",
+          "category": "flow",
+          "severity": "moderate",
+          "message": "Step \"gen\": expected phase review, got setup",
+          "stepId": "gen",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P0#8 E2E smoke"
+        },
+        {
+          "issueId": "flow:duration_not_in_ui",
+          "category": "flow",
+          "severity": "minor",
+          "message": "Duration 35 not in DURATIONS chips — nearest UI option may drift from intent",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P0#6 duration"
+        },
+        {
+          "issueId": "flow:energy_not_in_ui",
+          "category": "flow",
+          "severity": "minor",
+          "message": "Energy \"medium\" not in ENERGY_LEVELS",
+          "fixScope": "global",
+          "productPriorityRef": "PRODUCT_PRIORITIES P0#6 energy"
+        }
+      ],
+      "outputIssues": [],
+      "topFlowFixes": [
+        {
+          "rank": 1,
+          "issueId": "flow:sport_subfocus_not_in_ui",
+          "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)"
+        },
+        {
+          "rank": 2,
+          "issueId": "flow:phase_mismatch",
+          "message": "Step \"gen\": expected phase review, got setup"
+        }
+      ],
+      "topOutputFixes": [],
+      "topFixesOverall": [
+        {
+          "rank": 1,
+          "issueId": "flow:sport_subfocus_not_in_ui",
+          "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)",
+          "category": "flow"
+        },
+        {
+          "rank": 2,
+          "issueId": "flow:phase_mismatch",
+          "message": "Step \"gen\": expected phase review, got setup",
+          "category": "flow"
+        }
+      ]
+    },
+    {
+      "tick": 1,
+      "seed": 1783461763,
+      "flowScenario": {
+        "id": "goal_week_dedicate",
+        "label": "Goal week → preferences → week planner → generate",
+        "personaId": "P06"
+      },
+      "flowSteps": 4,
+      "flowScore": 100,
+      "outputScore": 100,
+      "combinedScore": 100,
+      "band": "high",
+      "summary": "Flow+Output tick 1: HIGH (combined 100/100, flow 100, output 100). Scenario=goal_week_dedicate persona=P06. Flow issues=0; output issues=0. Top fix: none.",
+      "flowIssues": [],
+      "outputIssues": [],
+      "topFlowFixes": [],
+      "topOutputFixes": [],
+      "topFixesOverall": []
+    },
+    {
+      "tick": 1,
+      "seed": 99002,
+      "flowScenario": {
+        "id": "train_today_sport_persona",
+        "label": "Train today from home (sport-only saved prefs)",
+        "personaId": "P02"
+      },
+      "flowSteps": 1,
+      "flowScore": 100,
+      "outputScore": 100,
+      "combinedScore": 100,
+      "band": "high",
+      "summary": "Flow+Output tick 1: HIGH (combined 100/100, flow 100, output 100). Scenario=train_today_sport_persona persona=P02. Flow issues=0; output issues=0. Top fix: none.",
+      "flowIssues": [],
+      "outputIssues": [],
+      "topFlowFixes": [],
+      "topOutputFixes": [],
+      "topFixesOverall": []
+    }
+  ],
+  "issueCounts": {
+    "flow:sport_subfocus_not_in_ui": {
+      "count": 1,
+      "category": "flow",
+      "severity": "critical",
+      "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)"
+    },
+    "flow:phase_mismatch": {
+      "count": 1,
+      "category": "flow",
+      "severity": "moderate",
+      "message": "Step \"gen\": expected phase review, got setup"
+    },
+    "flow:duration_not_in_ui": {
+      "count": 1,
+      "category": "flow",
+      "severity": "minor",
+      "message": "Duration 35 not in DURATIONS chips — nearest UI option may drift from intent"
+    },
+    "flow:energy_not_in_ui": {
+      "count": 1,
+      "category": "flow",
+      "severity": "minor",
+      "message": "Energy \"medium\" not in ENERGY_LEVELS"
+    }
+  },
+  "topFixes": [
+    {
+      "rank": 1,
+      "issueId": "flow:sport_subfocus_not_in_ui",
+      "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)",
+      "score": 90,
+      "category": "flow"
+    },
+    {
+      "rank": 2,
+      "issueId": "flow:phase_mismatch",
+      "message": "Step \"gen\": expected phase review, got setup",
+      "score": 60,
+      "category": "flow"
+    },
+    {
+      "rank": 3,
+      "issueId": "flow:duration_not_in_ui",
+      "message": "Duration 35 not in DURATIONS chips — nearest UI option may drift from intent",
+      "score": 30,
+      "category": "flow"
+    },
+    {
+      "rank": 4,
+      "issueId": "flow:energy_not_in_ui",
+      "message": "Energy \"medium\" not in ENERGY_LEVELS",
+      "score": 30,
+      "category": "flow"
+    }
+  ]
+}

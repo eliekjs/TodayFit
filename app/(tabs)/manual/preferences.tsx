@@ -1328,25 +1328,16 @@ export default function ManualPreferencesScreen() {
             : undefined
         }
         forward={{
-          label: isWeek ? "Next: Training days" : "Build workout",
+          label: hasGeneratedWeekPlan
+            ? "Review week"
+            : isWeek
+              ? "Next: Training days"
+              : "Build workout",
           onPress: onGenerate,
           disabled: !canProceed,
           loading: isGenerating,
         }}
       >
-<<<<<<< HEAD
-=======
-        <FlowPhaseNavBar
-          sticky
-          onLayout={(height) => setBottomBarHeight(height)}
-          forward={{
-            label: hasGeneratedWeekPlan ? "Review week" : isWeek ? "Next: Training days" : "Build workout",
-            onPress: onGenerate,
-            disabled: !canProceed,
-            loading: isGenerating,
-          }}
-        >
->>>>>>> feature/week-session-drag-reorder
         <View style={styles.bottomBarRow}>
           <PrimaryButton
             compact

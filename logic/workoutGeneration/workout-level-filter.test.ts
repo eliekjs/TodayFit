@@ -5,7 +5,10 @@
 
 import { filterByHardConstraints } from "./dailyGenerator";
 import type { Exercise, GenerateWorkoutInput } from "./types";
-import { inferCreativeVariationFromSource } from "../../lib/workoutLevel";
+import {
+  inferCreativeVariationFromSource,
+  inferWorkoutLevelsFromExtendedSource,
+} from "../../lib/workoutLevel";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
@@ -69,32 +72,74 @@ function runTests() {
   const bottomsUpLunge = minimalExercise({
     id: "ff_double_kettlebell_bottoms_up_front_rack_walking_lunge",
     name: "Double Kettlebell Bottoms Up Front Rack Walking Lunge",
-    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_double_kettlebell_bottoms_up_front_rack_walking_lunge",
+      name: "Double Kettlebell Bottoms Up Front Rack Walking Lunge",
+      tags: [],
+    }),
   });
   const curtsyBroad = minimalExercise({
     id: "ff_single_arm_kettlebell_suitcase_alternating_curtsy_lunge",
     name: "Single Arm Kettlebell Suitcase Alternating Curtsy Lunge",
-    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_single_arm_kettlebell_suitcase_alternating_curtsy_lunge",
+      name: "Single Arm Kettlebell Suitcase Alternating Curtsy Lunge",
+      tags: [],
+    }),
   });
   const cyclistSquat = minimalExercise({
     id: "ff_double_kettlebell_suitcase_cyclist_squat",
     name: "Double Kettlebell Suitcase Cyclist Squat",
-    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_double_kettlebell_suitcase_cyclist_squat",
+      name: "Double Kettlebell Suitcase Cyclist Squat",
+      tags: [],
+    }),
   });
   const ipsiBss = minimalExercise({
     id: "ff_single_arm_kettlebell_suitcase_ipsilateral_bulgarian_split_squat",
     name: "Single Arm Kettlebell Suitcase Ipsilateral Bulgarian Split Squat",
-    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_single_arm_kettlebell_suitcase_ipsilateral_bulgarian_split_squat",
+      name: "Single Arm Kettlebell Suitcase Ipsilateral Bulgarian Split Squat",
+      tags: [],
+    }),
   });
   const hornGripLunge = minimalExercise({
     id: "ff_kettlebell_horn_grip_alternating_forward_lunge",
     name: "Kettlebell Horn Grip Alternating Forward Lunge",
-    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_kettlebell_horn_grip_alternating_forward_lunge",
+      name: "Kettlebell Horn Grip Alternating Forward Lunge",
+      tags: [],
+    }),
   });
   const overheadWalk = minimalExercise({
     id: "ff_single_arm_dumbbell_overhead_walking_lunge",
     name: "Single Arm Dumbbell Overhead Walking Lunge",
-    workout_level_tags: ["beginner", "intermediate", "advanced"],
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_single_arm_dumbbell_overhead_walking_lunge",
+      name: "Single Arm Dumbbell Overhead Walking Lunge",
+      tags: [],
+    }),
+  });
+  const cossackLowSwitch = minimalExercise({
+    id: "ff_double_kettlebell_overhead_low_switch_cossack_squat",
+    name: "Double Kettlebell Overhead Low Switch Cossack Squat",
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_double_kettlebell_overhead_low_switch_cossack_squat",
+      name: "Double Kettlebell Overhead Low Switch Cossack Squat",
+      tags: [],
+    }),
+  });
+  const bottomsUpCossack = minimalExercise({
+    id: "ff_single_arm_kettlebell_bottoms_up_overhead_low_switch_cossack_squat",
+    name: "Single Arm Kettlebell Bottoms Up Overhead Low Switch Cossack Squat",
+    workout_level_tags: inferWorkoutLevelsFromExtendedSource({
+      id: "ff_single_arm_kettlebell_bottoms_up_overhead_low_switch_cossack_squat",
+      name: "Single Arm Kettlebell Bottoms Up Overhead Low Switch Cossack Squat",
+      tags: [],
+    }),
   });
   const simpleWalkLunge = minimalExercise({
     id: "walking_lunge",
@@ -115,6 +160,8 @@ function runTests() {
     ipsiBss,
     hornGripLunge,
     overheadWalk,
+    cossackLowSwitch,
+    bottomsUpCossack,
     simpleWalkLunge,
     simpleBss,
   ];
@@ -144,6 +191,8 @@ function runTests() {
     ipsiBss.id,
     hornGripLunge.id,
     overheadWalk.id,
+    cossackLowSwitch.id,
+    bottomsUpCossack.id,
     complexButBroadTier.id,
   ]);
   assert(
@@ -184,6 +233,8 @@ function runTests() {
       advancedAllTiers.some((e) => e.id === "beginner_ok") &&
       advancedAllTiers.some((e) => e.id === bottomsUpLunge.id) &&
       advancedAllTiers.some((e) => e.id === curtsyBroad.id) &&
+      advancedAllTiers.some((e) => e.id === cossackLowSwitch.id) &&
+      advancedAllTiers.some((e) => e.id === bottomsUpCossack.id) &&
       !advancedAllTiers.some((e) => e.id === "creative_move") &&
       !advancedAllTiers.some(
         (e) => e.id === "ff_double_clubbell_side_shoulder_cast_to_side_flag_press"

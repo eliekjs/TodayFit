@@ -166,6 +166,8 @@ type AppStateContextValue = {
       Pick<SessionDraft, "phase" | "preferences" | "adaptiveSetup" | "weekSetup" | "gymProfileId">
     >
   ) => void;
+  /** Sport-mode last-edited form snapshot (for Train today + resume). */
+  savedSportForm: SportFormSnapshot | null;
   /** Sport-mode: persist local form for last-edited + active session. */
   commitSportFormSnapshot: (form: SportFormSnapshot) => void;
   /** One-shot hydration for sport-mode setup when resuming / starting with last-edited filters. */
@@ -266,6 +268,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const lastEditedFiltersByModeRef = useRef<LastEditedFiltersByMode>({});
   const [pendingSportFormHydration, setPendingSportFormHydration] =
     useState<SportFormSnapshot | null>(null);
+  const [savedSportForm, setSavedSportForm] = useState<SportFormSnapshot | null>(null);
   const lastSportFormSnapshotRef = useRef<SportFormSnapshot | null>(null);
   const activeSessionDraftRef = useRef<SessionDraft | null>(null);
   const manualPreferencesRef = useRef(manualPreferences);
@@ -291,6 +294,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void loadLastEditedFiltersByMode().then((data) => {
       lastEditedFiltersByModeRef.current = data;
+      const sportSnap = data.sport_day?.sportForm ?? data.sport_week?.sportForm ?? null;
+      if (sportSnap) {
+        lastSportFormSnapshotRef.current = sportSnap;
+        setSavedSportForm(sportSnap);
+      }
     });
   }, []);
 
@@ -322,6 +330,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (snap?.sportForm) {
         setPendingSportFormHydration(snap.sportForm);
         lastSportFormSnapshotRef.current = snap.sportForm;
+        setSavedSportForm(snap.sportForm);
       }
       return snap ?? null;
     },
@@ -436,6 +445,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const commitSportFormSnapshot = useCallback(
     (form: SportFormSnapshot) => {
       lastSportFormSnapshotRef.current = form;
+      setSavedSportForm(form);
       const draft = activeSessionDraftRef.current;
       if (!draft?.flow.startsWith("sport")) return;
       const snapshot: ModeFilterSnapshot = {
@@ -1085,6 +1095,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (!preset) return;
         if (persist && userId) touchPersistedStateDuringRemoteLoad();
         lastSportFormSnapshotRef.current = preset.sportForm;
+        setSavedSportForm(preset.sportForm);
         setPendingSportFormHydration(preset.sportForm);
       },
       updateManualPreferences,
@@ -1106,6 +1117,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       discardActiveSession,
       updateActiveSessionDraft,
       commitSportFormSnapshot,
+      savedSportForm,
       pendingSportFormHydration,
       consumeSportFormHydration,
       remoteSyncStatus,
@@ -1136,6 +1148,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       discardActiveSession,
       updateActiveSessionDraft,
       commitSportFormSnapshot,
+      savedSportForm,
       pendingSportFormHydration,
       consumeSportFormHydration,
       remoteSyncStatus,

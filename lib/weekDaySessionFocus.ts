@@ -117,6 +117,32 @@ function bodyLine(targetBody: string, targetModifier: string[]): string {
   return `${targetBody} body${mod}`;
 }
 
+/** User-facing body emphasis for preset subtitles (matches body focus picker labels). */
+export function bodyFocusLineFromBias(bias: {
+  targetBody: "Upper" | "Lower" | "Full";
+  targetModifier?: string[];
+  specificBodyFocus?: readonly string[];
+}): string {
+  const choiceId = bodyChoiceIdForBias(bias.targetBody, bias.specificBodyFocus);
+  if (choiceId === "core") return "Core";
+  return bodyLine(bias.targetBody, bias.targetModifier ?? []);
+}
+
+/** Short body emphasis for day headers (e.g. "Upper", "Core", "Lower (Push)"). */
+export function bodyFocusEmphasisLabel(bias: {
+  targetBody: "Upper" | "Lower" | "Full";
+  targetModifier?: string[];
+  specificBodyFocus?: readonly string[];
+}): string {
+  const choiceId = bodyChoiceIdForBias(bias.targetBody, bias.specificBodyFocus);
+  const mod =
+    (bias.targetModifier?.length ?? 0) > 0
+      ? ` (${bias.targetModifier!.join(" · ")})`
+      : "";
+  if (choiceId === "core") return "Core";
+  return `${bias.targetBody}${mod}`;
+}
+
 export function dayBodyFocusChoiceToBias(
   choiceId: DayBodyFocusChoiceId
 ): {
@@ -291,8 +317,9 @@ export function buildDayFocusPresetsForDay(opts: {
   /** From getBodyEmphasisDistribution — scheduled split for this session */
   targetBody: "Upper" | "Lower" | "Full";
   targetModifier: string[];
+  specificBodyFocus?: SpecificBodyFocusKey[];
 }): DayFocusPreset[] {
-  const { manualPreferences, adaptiveSetup, targetBody, targetModifier } = opts;
+  const { manualPreferences, adaptiveSetup, targetBody, targetModifier, specificBodyFocus } = opts;
   const rankedGoals = manualPreferencesForSportWeekFocus(
     manualPreferences,
     adaptiveSetup
@@ -300,7 +327,7 @@ export function buildDayFocusPresetsForDay(opts: {
   const sports =
     adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
   const sportSlugs = sports.map((s) => getCanonicalSportSlug(s));
-  const bodyStr = bodyLine(targetBody, targetModifier);
+  const bodyStr = bodyFocusLineFromBias({ targetBody, targetModifier, specificBodyFocus });
 
   const out: DayFocusPreset[] = [];
 
@@ -351,10 +378,13 @@ export function buildDayFocusPresetsForDay(opts: {
         subtitle: `${bodyStr} — most volume aligns with this goal; others stay in the mix.`,
       });
     });
+    const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
+    const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
+    const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
     out.push({
       id: "balanced_goals",
       label: "Blend all ranked goals",
-      subtitle: `${bodyStr} — use your global goal percentages (${manualPreferences.goalMatchPrimaryPct ?? 50}/${manualPreferences.goalMatchSecondaryPct ?? 30}/${manualPreferences.goalMatchTertiaryPct ?? 20}).`,
+      subtitle: `${bodyStr} — use your global goal percentages (${p1}/${p2}/${p3}).`,
     });
     return out;
   }
@@ -599,6 +629,66 @@ export function resolvedDayFocusToWorkoutParams(
   };
 }
 
+export type WeekDayFocusSummaryDisplay = {
+  label: string;
+  subtitle?: string | null;
+};
+
+/** Normalize preset subtitles for summary cards (omit empty; strip legacy body prefix). */
+export function summarizePresetSubtitle(subtitle: string): string | null {
+  const trimmed = subtitle.trim();
+  if (!trimmed) return null;
+  const dash = trimmed.indexOf(" — ");
+  const text = (dash >= 0 ? trimmed.slice(dash + 3) : trimmed).trim();
+  return text || null;
+}
+
+/** Build sport/goal priority line for week overview cards (goals only — body is a separate row). */
+export function buildPriorityFocusSummary(
+  preset: WeekDayFocusSummaryDisplay | null | undefined,
+  fallback: { displayTitle?: string; workoutFocus?: string[] }
+): WeekDayFocusSummaryDisplay | null {
+  if (preset?.label) {
+    return {
+      label: preset.label,
+      subtitle: preset.subtitle ? summarizePresetSubtitle(preset.subtitle) : null,
+    };
+  }
+  const fromTitle = fallback.displayTitle?.split(" - ")[0]?.trim();
+  const fromFocus = fallback.workoutFocus?.filter(Boolean).join(" + ");
+  const label = fromTitle || fromFocus;
+  if (!label) return null;
+  return { label };
+}
+
+/** Build body focus line for week overview cards. */
+export function buildBodyFocusSummary(
+  choice: WeekDayFocusSummaryDisplay | null | undefined,
+  fallback?: {
+    targetBody?: string;
+    targetModifier?: string[];
+    specificBodyFocus?: readonly string[];
+  }
+): WeekDayFocusSummaryDisplay | null {
+  if (choice?.label) {
+    return {
+      label: choice.label,
+      subtitle: choice.subtitle?.trim() || null,
+    };
+  }
+  if (!fallback?.targetBody) return null;
+  const mod = fallback.targetModifier?.filter(Boolean) ?? [];
+  const choiceId = bodyChoiceIdForBias(
+    fallback.targetBody as "Upper" | "Lower" | "Full",
+    fallback.specificBodyFocus
+  );
+  const label = choiceId === "core" ? "Core" : `${fallback.targetBody} body`;
+  return {
+    label,
+    subtitle: mod.length > 0 ? mod.join(" · ") : null,
+  };
+}
+
 const DEFAULT_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** Card title for per-day focus picker — weekday + body emphasis, no calendar date. */
@@ -607,12 +697,16 @@ export function buildGymDayFocusCardLabel(
   slotIndex: number,
   targetBody: string,
   targetModifier: string[] = [],
+  specificBodyFocus?: readonly string[],
   weekdayLabels: readonly string[] = DEFAULT_WEEKDAY_LABELS
 ): string {
   const dayLabel = weekdayLabels[dow] ?? `Gym day ${slotIndex + 1}`;
-  const mod =
-    targetModifier.length > 0 ? ` (${targetModifier.join(" · ")})` : "";
-  return `${dayLabel} · ${targetBody}${mod}`;
+  const emphasis = bodyFocusEmphasisLabel({
+    targetBody: targetBody as "Upper" | "Lower" | "Full",
+    targetModifier,
+    specificBodyFocus,
+  });
+  return `${dayLabel} · ${emphasis}`;
 }
 
 /** Minimal AdaptiveSetup from sport week plan / regenerate inputs. */

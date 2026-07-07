@@ -57,8 +57,10 @@ import {
 } from "../../../lib/workoutIntentSplit";
 import {
   adaptiveSetupFromPlanContext,
+  buildBodyFocusSummary,
   buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
+  buildPriorityFocusSummary,
   type DayBodyFocusChoiceId,
 } from "../../../lib/weekDaySessionFocus";
 import { WeekDayFocusSummaryCard } from "../../../components/WeekDayFocusPlanner";
@@ -677,6 +679,9 @@ export default function AdaptiveWeekPlanScreen() {
     const bodyKey = session.dayLevelFocus?.dayBodyEmphasis ?? "full";
     const targetBody =
       bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
+    const specificBodyFocus = session.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
+      ? (["core"] as const)
+      : undefined;
     const adaptive = adaptiveSetupFromPlanContext({
       goalSlugs: plan.goalSlugs,
       rankedSportSlugs: plan.rankedSportSlugs,
@@ -689,6 +694,7 @@ export default function AdaptiveWeekPlanScreen() {
       adaptiveSetup: adaptive,
       targetBody,
       targetModifier: [],
+      specificBodyFocus,
     });
   }, [sportPrepWeekPlan, selectedSession, manualPreferences]);
 
@@ -1052,7 +1058,8 @@ export default function AdaptiveWeekPlanScreen() {
               const rawLabel = isSportDesignatedPlannedDay(day)
                 ? sportDesignatedDayDisplayTitle(day)
                 : day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
-              const label = rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
+              const displayTitle =
+                rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
               const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
               const gymDays = sportPrepWeekPlan.days.filter((d) => !isSportDesignatedPlannedDay(d));
               const gymIndex = gymDays.findIndex((d) => d.id === day.id);
@@ -1069,6 +1076,9 @@ export default function AdaptiveWeekPlanScreen() {
               const targetBody =
                 bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
               const targetModifier = snapshotBody?.targetModifier ?? [];
+              const specificBodyFocus = day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
+                ? (["core"] as const)
+                : undefined;
               const bodyOptions =
                 gymIndex >= 0
                   ? buildDayBodyFocusChoicesForDay({
@@ -1085,16 +1095,16 @@ export default function AdaptiveWeekPlanScreen() {
                   : bodyKey === "upper" || bodyKey === "lower" || bodyKey === "full"
                     ? bodyKey
                     : undefined;
-              const bodyFocus =
-                bodyOptions.find((o) => o.id === selectedBodyId) ??
-                (gymIndex >= 0
+              const bodyFocus = buildBodyFocusSummary(
+                bodyOptions.find((o) => o.id === selectedBodyId),
+                gymIndex >= 0
                   ? {
-                      label: `${targetBody} body`,
-                      subtitle: day.dayLevelFocus?.daySpecificBodyFocuses?.length
-                        ? day.dayLevelFocus.daySpecificBodyFocuses.join(", ")
-                        : "Generated body focus for this gym day.",
+                      targetBody,
+                      targetModifier,
+                      specificBodyFocus: day.dayLevelFocus?.daySpecificBodyFocuses ?? undefined,
                     }
-                  : null);
+                  : undefined
+              );
               const priorityOptions =
                 gymIndex >= 0
                   ? buildDayFocusPresetsForDay({
@@ -1102,6 +1112,7 @@ export default function AdaptiveWeekPlanScreen() {
                       adaptiveSetup: adaptiveForFocus,
                       targetBody,
                       targetModifier,
+                      specificBodyFocus,
                     })
                   : [];
               const selectedPresetId =
@@ -1109,16 +1120,18 @@ export default function AdaptiveWeekPlanScreen() {
                 (gymIndex >= 0
                   ? sportPrepWeekPlan.scheduleSnapshot?.gymDayFocusPresetIds?.[gymIndex]
                   : undefined);
-              const priorityFocus =
-                priorityOptions.find((o) => o.id === selectedPresetId) ??
-                (isSportDesignatedPlannedDay(day)
-                  ? {
-                      label: "Sport day",
-                      subtitle: "No gym workout is planned; this day is reserved for your sport.",
+              const priorityFocus = isSportDesignatedPlannedDay(day)
+                ? {
+                    label: "Sport day",
+                    subtitle: "No gym workout is planned; this day is reserved for your sport.",
+                  }
+                : buildPriorityFocusSummary(
+                    priorityOptions.find((o) => o.id === selectedPresetId),
+                    {
+                      displayTitle,
+                      workoutFocus: day.intentLabel ? [day.intentLabel] : undefined,
                     }
-                  : label
-                    ? { label, subtitle: "Generated focus for this gym day." }
-                    : null);
+                  );
               return (
                 <View key={day.id} style={[styles.sessionRow, { marginLeft: 12 }]}>
                   <View style={styles.moveButtons}>
@@ -1146,7 +1159,6 @@ export default function AdaptiveWeekPlanScreen() {
                   <View style={{ flex: 1 }}>
                     <WeekDayFocusSummaryCard
                       theme={theme}
-                      dayLabel={label}
                       bodyFocus={bodyFocus}
                       priorityFocus={priorityFocus}
                       selected={isSelected}

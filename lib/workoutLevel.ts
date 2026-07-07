@@ -128,6 +128,193 @@ export type WorkoutLevelInferenceResult = {
   complexityScore?: number;
 };
 
+const ADVANCED_COMPLEX_HIGH_SKILL_MODIFIERS = [
+  "bottoms_up",
+  "overhead",
+  "low_switch",
+  "horn_grip",
+  "slider",
+  "zercher",
+  "ipsilateral",
+  "contralateral",
+  "pass_through",
+] as const;
+
+const ADVANCED_COMPLEX_STACKING_MODIFIERS = [
+  ...ADVANCED_COMPLEX_HIGH_SKILL_MODIFIERS,
+  "alternating",
+  "double_kettlebell",
+  "double_dumbbell",
+  "single_arm",
+  "cyclist",
+  "suitcase",
+  "walking_lunge",
+  "foot_elevated",
+  "front_rack",
+  "knee_over_toe",
+] as const;
+
+function compactExerciseIdentity(id: string, name?: string): string {
+  return `${id} ${name ?? ""}`.toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_");
+}
+
+function collectAdvancedComplexModifiers(compact: string): {
+  stacking: string[];
+  highSkill: string[];
+  hasLowerBodyPattern: boolean;
+  isBodyweightOnly: boolean;
+} {
+  const stacking = ADVANCED_COMPLEX_STACKING_MODIFIERS.filter((m) => compact.includes(m));
+  const highSkill = ADVANCED_COMPLEX_HIGH_SKILL_MODIFIERS.filter((m) => compact.includes(m));
+  const hasLowerBodyPattern =
+    compact.includes("cossack") ||
+    compact.includes("lunge") ||
+    compact.includes("squat") ||
+    compact.includes("split_squat") ||
+    compact.includes("bulgarian") ||
+    compact.includes("curtsy") ||
+    compact.includes("pistol");
+  const isBodyweightOnly = compact.includes("ff_bodyweight_");
+  return { stacking, highSkill, hasLowerBodyPattern, isBodyweightOnly };
+}
+
+/**
+ * Loaded variations that stack multiple high-skill form modifiers (bottoms-up, overhead,
+ * low-switch, horn grip, ipsi/contra, etc.) on lunges/squats/cossacks — same bar as
+ * e.g. SA KB bottoms-up OH low-switch cossack or horn-grip alternating forward lunge.
+ */
+export function isAdvancedComplexLoadedVariation(args: { id: string; name?: string }): boolean {
+  const compact = compactExerciseIdentity(args.id, args.name);
+  const { stacking, highSkill, hasLowerBodyPattern, isBodyweightOnly } =
+    collectAdvancedComplexModifiers(compact);
+
+  if (
+    compact.includes("single_leg_standing") &&
+    compact.includes("bent_knee") &&
+    compact.includes("overhead") &&
+    !isBodyweightOnly
+  ) {
+    return true;
+  }
+  if (
+    (compact.includes("clean_to") || compact.includes("start_stop_clean")) &&
+    compact.includes("overhead") &&
+    (stacking.includes("bottoms_up") ||
+      stacking.includes("alternating") ||
+      stacking.includes("single_arm"))
+  ) {
+    return true;
+  }
+
+  if (isBodyweightOnly || !hasLowerBodyPattern) return false;
+
+  if (highSkill.length >= 2) return true;
+  if (stacking.length >= 3) return true;
+
+  if (stacking.includes("horn_grip") && stacking.includes("alternating") && (compact.includes("lunge") || compact.includes("cossack"))) {
+    return true;
+  }
+  if (stacking.includes("overhead") && stacking.includes("walking_lunge")) return true;
+  if (stacking.includes("bottoms_up") && stacking.includes("walking_lunge")) return true;
+  if (
+    stacking.includes("suitcase") &&
+    stacking.includes("alternating") &&
+    (compact.includes("curtsy") || compact.includes("lunge"))
+  ) {
+    return true;
+  }
+  if (
+    stacking.includes("suitcase") &&
+    stacking.includes("ipsilateral") &&
+    (compact.includes("bulgarian") || compact.includes("split_squat"))
+  ) {
+    return true;
+  }
+  if (
+    stacking.includes("cyclist") &&
+    (stacking.includes("double_kettlebell") ||
+      stacking.includes("double_dumbbell") ||
+      stacking.includes("suitcase"))
+  ) {
+    return true;
+  }
+  if (
+    stacking.includes("double_kettlebell") &&
+    stacking.includes("overhead") &&
+    (stacking.includes("low_switch") || stacking.includes("alternating") || compact.includes("cossack"))
+  ) {
+    return true;
+  }
+
+  if (stacking.includes("front_rack") && stacking.includes("alternating") && hasLowerBodyPattern) {
+    return true;
+  }
+  if (stacking.includes("front_rack") && stacking.includes("low_switch") && compact.includes("cossack")) {
+    return true;
+  }
+  if (stacking.includes("front_rack") && stacking.includes("foot_elevated") && hasLowerBodyPattern) {
+    return true;
+  }
+  if (
+    stacking.includes("zercher") &&
+    stacking.includes("alternating") &&
+    (compact.includes("cossack") || compact.includes("curtsy"))
+  ) {
+    return true;
+  }
+  if (stacking.includes("zercher") && stacking.includes("foot_elevated") && hasLowerBodyPattern) {
+    return true;
+  }
+  if (stacking.includes("overhead") && stacking.includes("foot_elevated") && hasLowerBodyPattern) {
+    return true;
+  }
+  if (
+    stacking.includes("overhead") &&
+    stacking.includes("alternating") &&
+    (compact.includes("cossack") || compact.includes("curtsy") || compact.includes("lunge"))
+  ) {
+    return true;
+  }
+  if (stacking.includes("low_switch") && stacking.includes("alternating") && compact.includes("cossack")) {
+    return true;
+  }
+  if (
+    stacking.includes("slider") &&
+    stacking.includes("front_rack") &&
+    (compact.includes("curtsy") || compact.includes("lunge") || compact.includes("cossack"))
+  ) {
+    return true;
+  }
+  if (
+    (compact.includes("clean_to") || compact.includes("dead_clean")) &&
+    stacking.includes("horn_grip") &&
+    hasLowerBodyPattern
+  ) {
+    return true;
+  }
+  if (stacking.includes("horn_grip") && stacking.includes("cyclist")) {
+    return true;
+  }
+  if (stacking.includes("horn_grip") && stacking.includes("walking_lunge")) {
+    return true;
+  }
+  if (
+    stacking.includes("horn_grip") &&
+    (compact.includes("cossack") || compact.includes("curtsy") || compact.includes("split_squat"))
+  ) {
+    return true;
+  }
+  if (
+    stacking.includes("horn_grip") &&
+    (compact.includes("cossack") || compact.includes("curtsy") || stacking.includes("walking_lunge")) &&
+    (stacking.includes("foot_elevated") || stacking.includes("knee_over_toe"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Infer experience tiers with explainability. Avoids tagging every movement as all three levels.
  */
@@ -155,6 +342,11 @@ export function inferWorkoutLevelsWithExplanation(src: WorkoutLevelExtendedSourc
   if (advancedOnly) {
     reasons.push("name_pattern:elite_movement");
     return { levels: ["advanced"], origin: "inferred", reasons, complexityScore: 99 };
+  }
+
+  if (isAdvancedComplexLoadedVariation({ id: src.id, name: src.name })) {
+    reasons.push("name_pattern:advanced_complex_loaded_variation");
+    return { levels: ["advanced"], origin: "inferred", reasons, complexityScore: 98 };
   }
 
   if (slugs.has("advanced_only") || slugs.has("elite_skill")) {
@@ -388,6 +580,13 @@ export function isComplexSkillLiftForNonAdvanced(args: {
   if (/(?:^|_)slider(?:_|$)|\bslider\b/.test(raw)) return true;
   if (/(?:^|_)pass_through(?:_|$)|\bpass[\s_]+through\b/.test(raw)) return true;
   if (/\boverhead\b.*\bwalking\b|\bwalking\b.*\boverhead\b/.test(raw)) return true;
+  if (
+    (/(?:^|_)low_switch(?:_|$)|\blow[\s_]+switch\b/.test(raw) ||
+      (/\blow\b/.test(raw) && /\bswitch\b/.test(raw))) &&
+    /\b(overhead|bottoms_up|front_rack|zercher)\b/.test(raw)
+  ) {
+    return true;
+  }
 
   return false;
 }

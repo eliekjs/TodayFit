@@ -1,0 +1,78 @@
+{
+  "tick": 1,
+  "seed": 1783461699,
+  "flowScenario": {
+    "id": "hotel_gym_profile",
+    "label": "Switch to hotel gym then generate",
+    "personaId": "P07"
+  },
+  "flowSteps": 4,
+  "flowScore": 53,
+  "outputScore": 100,
+  "combinedScore": 84,
+  "band": "medium",
+  "summary": "Flow+Output tick 1: MEDIUM (combined 84/100, flow 53, output 100). Scenario=hotel_gym_profile persona=P07. Flow issues=4; output issues=0. Top fix: flow:sport_subfocus_not_in_ui.",
+  "flowIssues": [
+    {
+      "issueId": "flow:sport_subfocus_not_in_ui",
+      "category": "flow",
+      "severity": "critical",
+      "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)",
+      "fixScope": "narrow",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0#4 sport sub-focus"
+    },
+    {
+      "issueId": "flow:phase_mismatch",
+      "category": "flow",
+      "severity": "moderate",
+      "message": "Step \"gen\": expected phase review, got setup",
+      "stepId": "gen",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0#8 E2E smoke"
+    },
+    {
+      "issueId": "flow:duration_not_in_ui",
+      "category": "flow",
+      "severity": "minor",
+      "message": "Duration 35 not in DURATIONS chips — nearest UI option may drift from intent",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0#6 duration"
+    },
+    {
+      "issueId": "flow:energy_not_in_ui",
+      "category": "flow",
+      "severity": "minor",
+      "message": "Energy \"medium\" not in ENERGY_LEVELS",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0#6 energy"
+    }
+  ],
+  "outputIssues": [],
+  "topFlowFixes": [
+    {
+      "rank": 1,
+      "issueId": "flow:sport_subfocus_not_in_ui",
+      "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)"
+    },
+    {
+      "rank": 2,
+      "issueId": "flow:phase_mismatch",
+      "message": "Step \"gen\": expected phase review, got setup"
+    }
+  ],
+  "topOutputFixes": [],
+  "topFixesOverall": [
+    {
+      "rank": 1,
+      "issueId": "flow:sport_subfocus_not_in_ui",
+      "message": "Sub-focus \"repeat_sprint\" for soccer not in sport UI options (aerobic_base, speed, change_of_direction, hamstring_resilience, leg_power…)",
+      "category": "flow"
+    },
+    {
+      "rank": 2,
+      "issueId": "flow:phase_mismatch",
+      "message": "Step \"gen\": expected phase review, got setup",
+      "category": "flow"
+    }
+  ]
+}

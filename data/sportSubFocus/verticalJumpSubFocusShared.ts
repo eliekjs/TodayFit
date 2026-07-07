@@ -7,6 +7,7 @@
 
 import type { SubFocusTagMapEntry } from "./types";
 import type { Exercise } from "../../logic/workoutGeneration/types";
+import { hardBanLegPressFamily } from "../../logic/workoutGeneration/sportProfileBanPredicates";
 import { tagSetHasDynamicPowerSignal } from "./subFocusIntentArchetypes";
 
 export const VERTICAL_JUMP_SUB_FOCUS_SLUG = "vertical_jump";
@@ -139,6 +140,7 @@ export function exercisePassesVerticalJumpDynamicGate(exercise: Exercise): boole
 /** Squat/hinge strength staples that support vertical-jump programming (secondary to plyos). */
 export function exerciseHasVerticalJumpStrengthFoundationSignal(exercise: Exercise): boolean {
   if (exerciseIsMedBallPowerThrow(exercise)) return false;
+  if (hardBanLegPressFamily(exercise)) return false;
   if (exercise.modality !== "strength" && exercise.modality !== "power") return false;
 
   const pattern = normVerticalJumpToken(exercise.movement_pattern ?? "");

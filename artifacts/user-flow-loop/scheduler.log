@@ -1,0 +1,7 @@
+User flow+output loop scheduler started: 6 ticks, 600s interval
+AGENT_LOOP_TICK_user_flow_output {"prompt":"Run user flow+output loop tick 1/6 with --fix-top: npx tsx scripts/userFlowOutputLoop.ts 1783461786 --tick=1 --max-ticks=6 --fix-top","tick":1,"maxTicks":6,"seed":1783461786}
+User flow+output loop scheduler started: 6 ticks, 600s interval
+AGENT_LOOP_TICK_user_flow_output {"prompt":"Run user flow+output loop tick 1/6 with --fix-top: npx tsx scripts/userFlowOutputLoop.ts 1783461853 --tick=1 --max-ticks=6 --fix-top","tick":1,"maxTicks":6,"seed":1783461853}
+2026-07-07T16:43:13-06:00 Deep user-flow loop started: 18 ticks, 600s interval (~170 min)
+AGENT_LOOP_TICK_user_flow_output {"prompt":"Run deep user flow simulation tick 1/18: npx tsx scripts/deepUserFlowSimulation.ts 1783464193","tick":1,"maxTicks":18,"seed":1783464193}
+2026-07-07T16:43:13-06:00 tick 1/18 seed=1783464193

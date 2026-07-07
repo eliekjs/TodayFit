@@ -265,7 +265,6 @@ function renderBlockContent(
                 ))}
               </View>
             )}
-            <IntentChips item={item} theme={theme} />
             {noteFor(item.exercise_id)}
           </View>
           {setupButtonFor(item)}

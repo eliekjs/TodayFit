@@ -1,0 +1,54 @@
+{
+  "tick": 0,
+  "seed": 99002,
+  "persona": {
+    "id": "P07",
+    "name": "Alex — traveling athlete",
+    "testPriority": "P0",
+    "mode": "sport_day"
+  },
+  "score": 87,
+  "band": "high",
+  "summary": "Simulation result: HIGH quality (87/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: exercise_catalog_validity. Persona issues: 2.",
+  "failedChecks": [
+    "exercise_catalog_validity"
+  ],
+  "personaIssues": [
+    {
+      "personaId": "P07",
+      "personaName": "Alex — traveling athlete",
+      "testPriority": "P0",
+      "issueId": "P07:intent_label_leak",
+      "severity": "critical",
+      "message": "P07: Exercise name looks like intent label: \"Lateral Power Shuffle\"",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0#7 catalog validity",
+      "tick": 0,
+      "seed": 99002
+    },
+    {
+      "personaId": "P07",
+      "personaName": "Alex — traveling athlete",
+      "testPriority": "P0",
+      "issueId": "P07:exercise_catalog_validity",
+      "severity": "critical",
+      "message": "P07: exercise_catalog_validity failed — 1 invalid names",
+      "fixScope": "global",
+      "productPriorityRef": "PRODUCT_PRIORITIES P0",
+      "tick": 0,
+      "seed": 99002
+    }
+  ],
+  "topFixesThisTick": [
+    {
+      "rank": 1,
+      "issueId": "P07:intent_label_leak",
+      "message": "P07: Exercise name looks like intent label: \"Lateral Power Shuffle\""
+    },
+    {
+      "rank": 2,
+      "issueId": "P07:exercise_catalog_validity",
+      "message": "P07: exercise_catalog_validity failed — 1 invalid names"
+    }
+  ]
+}

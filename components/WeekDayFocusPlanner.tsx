@@ -6,6 +6,7 @@ import type {
   DaySessionFocusConflict,
   DaySessionFocusResolution,
 } from "../lib/daySessionFocusConflict";
+import { dayHasUnresolvedSessionFocusConflict } from "../lib/daySessionFocusConflict";
 import { DaySessionFocusConflictBanner } from "./DaySessionFocusConflictBanner";
 
 type Props = {
@@ -30,12 +31,10 @@ type Props = {
 export type WeekDayFocusSummaryOption = {
   label: string;
   subtitle?: string | null;
-  recommended?: boolean;
 };
 
 type WeekDayFocusSummaryCardProps = {
   theme: Theme;
-  dayLabel: string;
   bodyFocus?: WeekDayFocusSummaryOption | null;
   priorityFocus?: WeekDayFocusSummaryOption | null;
   selected?: boolean;
@@ -46,63 +45,35 @@ type WeekDayFocusSummaryCardProps = {
   statusTone?: "primary" | "muted";
 };
 
-function SelectedFocusOption({
-  theme,
-  option,
-}: {
-  theme: Theme;
-  option: WeekDayFocusSummaryOption;
-}) {
-  return (
-    <View
-      style={[
-        styles.option,
-        {
-          borderColor: theme.primary,
-          backgroundColor: theme.primarySoft,
-        },
-      ]}
-    >
-      <View style={[styles.radioOuter, { borderColor: theme.primarySolid }]}>
-        <View style={[styles.radioInner, { backgroundColor: theme.primarySolid }]} />
-      </View>
-      <View style={styles.optionText}>
-        <View style={styles.optionTitleRow}>
-          <Text style={[styles.optionLabel, { color: theme.text }]}>{option.label}</Text>
-          {option.recommended ? (
-            <Text style={[styles.recommendedBadge, { color: theme.primary, borderColor: theme.primary }]}>
-              Recommended
-            </Text>
-          ) : null}
-        </View>
-        {option.subtitle ? (
-          <Text style={[styles.optionSub, { color: theme.textMuted }]}>{option.subtitle}</Text>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
 function SummaryFocusRow({
   theme,
   label,
   value,
+  subtitle,
 }: {
   theme: Theme;
   label: string;
   value: string;
+  subtitle?: string | null;
 }) {
   return (
-    <View style={styles.summaryFocusRow}>
+    <View
+      style={[
+        styles.summaryFocusBlock,
+        { backgroundColor: theme.background, borderColor: theme.border },
+      ]}
+    >
       <Text style={[styles.summaryFocusLabel, { color: theme.textMuted }]}>{label}</Text>
       <Text style={[styles.summaryFocusValue, { color: theme.text }]}>{value}</Text>
+      {subtitle ? (
+        <Text style={[styles.summaryFocusSub, { color: theme.textMuted }]}>{subtitle}</Text>
+      ) : null}
     </View>
   );
 }
 
 export function WeekDayFocusSummaryCard({
   theme,
-  dayLabel,
   bodyFocus,
   priorityFocus,
   selected = false,
@@ -114,11 +85,8 @@ export function WeekDayFocusSummaryCard({
 }: WeekDayFocusSummaryCardProps) {
   const content = (
     <>
-      <View style={styles.summaryTitleRow}>
-        <Text style={[styles.dayTitle, { color: theme.text, marginBottom: 0, flex: 1 }]}>
-          {dayLabel}
-        </Text>
-        {statusLabel ? (
+      {statusLabel ? (
+        <View style={styles.summaryStatusRow}>
           <Text
             style={[
               styles.statusBadge,
@@ -130,16 +98,28 @@ export function WeekDayFocusSummaryCard({
           >
             {statusLabel}
           </Text>
+        </View>
+      ) : null}
+
+      <View style={styles.summaryFocusStack}>
+        {bodyFocus ? (
+          <SummaryFocusRow
+            theme={theme}
+            label="Body focus"
+            value={bodyFocus.label}
+            subtitle={bodyFocus.subtitle}
+          />
+        ) : null}
+
+        {priorityFocus ? (
+          <SummaryFocusRow
+            theme={theme}
+            label="Sport / goal priority"
+            value={priorityFocus.label}
+            subtitle={priorityFocus.subtitle}
+          />
         ) : null}
       </View>
-
-      {bodyFocus ? (
-        <SummaryFocusRow theme={theme} label="Body focus" value={bodyFocus.label} />
-      ) : null}
-
-      {priorityFocus ? (
-        <SummaryFocusRow theme={theme} label="Sport / goal priority" value={priorityFocus.label} />
-      ) : null}
 
       {actionLabel && onActionPress ? (
         <Pressable
@@ -230,7 +210,12 @@ export function WeekDayFocusPlanner({
         return (
           <View key={label} style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
             <Text style={[styles.dayTitle, { color: theme.text }]}>{label}</Text>
-            {conflict && onApplyDayResolution ? (
+            {conflict &&
+            onApplyDayResolution &&
+            dayHasUnresolvedSessionFocusConflict(
+              conflict,
+              resolvedConflictIdsByDay?.[dayIdx]
+            ) ? (
               <DaySessionFocusConflictBanner
                 theme={theme}
                 conflict={conflict}
@@ -263,14 +248,7 @@ export function WeekDayFocusPlanner({
                           {isSel ? <View style={[styles.radioInner, { backgroundColor: theme.primarySolid }]} /> : null}
                         </View>
                         <View style={styles.optionText}>
-                          <View style={styles.optionTitleRow}>
-                            <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>
-                            {p.recommended ? (
-                              <Text style={[styles.recommendedBadge, { color: theme.primary, borderColor: theme.primary }]}>
-                                Recommended
-                              </Text>
-                            ) : null}
-                          </View>
+                          <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>
                           <Text style={[styles.optionSub, { color: theme.textMuted }]}>{p.subtitle}</Text>
                         </View>
                       </Pressable>
@@ -304,7 +282,9 @@ export function WeekDayFocusPlanner({
                     </View>
                     <View style={styles.optionText}>
                       <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>
-                      <Text style={[styles.optionSub, { color: theme.textMuted }]}>{p.subtitle}</Text>
+                      {p.subtitle ? (
+                        <Text style={[styles.optionSub, { color: theme.textMuted }]}>{p.subtitle}</Text>
+                      ) : null}
                     </View>
                   </Pressable>
                 );
@@ -391,34 +371,18 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  optionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
   optionLabel: {
     fontSize: 14,
     fontWeight: "600",
-  },
-  recommendedBadge: {
-    fontSize: 10,
-    fontWeight: "700",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-    overflow: "hidden",
   },
   optionSub: {
     fontSize: 12,
     lineHeight: 17,
   },
-  summaryTitleRow: {
+  summaryStatusRow: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+    justifyContent: "flex-end",
+    marginBottom: 8,
   },
   statusBadge: {
     fontSize: 11,
@@ -428,23 +392,30 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  summaryFocusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 5,
+  summaryFocusStack: {
+    gap: 8,
+  },
+  summaryFocusBlock: {
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 3,
   },
   summaryFocusLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   summaryFocusValue: {
-    flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
-    textAlign: "right",
+    letterSpacing: -0.2,
+  },
+  summaryFocusSub: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 1,
   },
 });

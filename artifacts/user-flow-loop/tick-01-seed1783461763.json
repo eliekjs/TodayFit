@@ -1,0 +1,20 @@
+{
+  "tick": 1,
+  "seed": 1783461763,
+  "flowScenario": {
+    "id": "goal_week_dedicate",
+    "label": "Goal week → preferences → week planner → generate",
+    "personaId": "P06"
+  },
+  "flowSteps": 4,
+  "flowScore": 100,
+  "outputScore": 100,
+  "combinedScore": 100,
+  "band": "high",
+  "summary": "Flow+Output tick 1: HIGH (combined 100/100, flow 100, output 100). Scenario=goal_week_dedicate persona=P06. Flow issues=0; output issues=0. Top fix: none.",
+  "flowIssues": [],
+  "outputIssues": [],
+  "topFlowFixes": [],
+  "topOutputFixes": [],
+  "topFixesOverall": []
+}

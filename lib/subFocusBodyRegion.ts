@@ -8,44 +8,43 @@ import type { DayBodyFocusChoiceId } from "./weekDaySessionFocus";
 
 export type SubFocusBodyRegion = "upper" | "lower" | "core";
 
+export type CatalogSubFocusMatch = {
+  displayName: string;
+  slug: string;
+  region: SubFocusBodyRegion;
+};
+
 export type DayBodyRegion = SubFocusBodyRegion | "full";
 
-/** Sub-focus slug → dominant body region. Omitted slugs are region-neutral (no conflict). */
 const SUB_FOCUS_BODY_REGION: Record<string, SubFocusBodyRegion> = {
-  // Strength
   squat: "lower",
   deadlift_hinge: "lower",
   bench_press: "upper",
   overhead_press: "upper",
   pull: "upper",
-  // Hypertrophy / physique
   back: "upper",
   chest: "upper",
   arms: "upper",
   shoulders: "upper",
   glutes: "lower",
   legs: "lower",
-  // Conditioning / athletic overlays
   upper: "upper",
   lower: "lower",
   core: "core",
   upper_body_power: "upper",
   lower_body_power_plyos: "lower",
-  // Calisthenics
   pull_ups: "upper",
   push_ups: "upper",
   dips: "upper",
   handstand: "upper",
   front_lever_advanced: "upper",
   legs_pistol: "lower",
-  // Joint health
   knee_health: "lower",
   hip_health: "lower",
   ankle_foot_health: "lower",
   shoulder_health: "upper",
   elbow_wrist_health: "upper",
   back_spine_health: "core",
-  // Recovery & mobility (regional)
   hips: "lower",
   knees: "lower",
   ankles: "lower",
@@ -55,7 +54,6 @@ const SUB_FOCUS_BODY_REGION: Record<string, SubFocusBodyRegion> = {
   lower_back: "core",
 };
 
-/** Fallback when display names persist but catalog options drift (e.g. legacy Recovery subs). */
 const REGIONAL_DISPLAY_NAME_TO_SLUG: Record<string, string> = {
   "knee health": "knee_health",
   "shoulder health": "shoulder_health",
@@ -81,7 +79,6 @@ export function getSubFocusBodyRegion(slug: string): SubFocusBodyRegion | null {
   return SUB_FOCUS_BODY_REGION[normSlug(slug)] ?? null;
 }
 
-/** Resolve sub-focus slug from goal label + display name (catalog first, then regional fallback). */
 export function resolveSubFocusSlugFromDisplayName(
   goalLabel: string,
   displayName: string
@@ -114,7 +111,6 @@ export function dayBodyFocusToRegion(bodyId: DayBodyFocusChoiceId): DayBodyRegio
   }
 }
 
-/** True when a regional sub-focus contradicts the day's body emphasis. */
 export function subFocusRegionConflictsWithDay(
   subRegion: SubFocusBodyRegion,
   dayRegion: DayBodyRegion
@@ -139,22 +135,28 @@ export function dayRegionLabel(region: DayBodyRegion): string {
   }
 }
 
-export function subFocusRegionLabel(region: SubFocusBodyRegion): string {
-  switch (region) {
-    case "upper":
-      return "upper body";
-    case "lower":
-      return "lower body";
-    case "core":
-      return "core";
-  }
-}
-
-/** Body focus id that best matches a sub-focus region. */
 export function bodyFocusIdForSubFocusRegion(
   region: SubFocusBodyRegion
 ): DayBodyFocusChoiceId {
   if (region === "upper") return "upper";
   if (region === "lower") return "lower";
   return "core";
+}
+
+/** Catalog sub-goals for a goal that align with an upper or lower body day focus. */
+export function catalogSubFocusesMatchingDayRegion(
+  goalLabel: string,
+  dayRegion: "upper" | "lower"
+): CatalogSubFocusMatch[] {
+  const entry = GOAL_SUB_FOCUS_OPTIONS[goalLabel];
+  if (!entry) return [];
+  const out: CatalogSubFocusMatch[] = [];
+  for (const sf of entry.subFocuses) {
+    const region = getSubFocusBodyRegion(sf.slug);
+    if (!region) continue;
+    if (!subFocusRegionConflictsWithDay(region, dayRegion)) {
+      out.push({ displayName: sf.name, slug: sf.slug, region });
+    }
+  }
+  return out;
 }

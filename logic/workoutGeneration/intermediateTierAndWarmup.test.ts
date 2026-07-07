@@ -112,6 +112,19 @@ function testReactiveSkaterConesBlocked() {
   console.log("  OK: reactive skater + cones gated");
 }
 
+function testLoadedLowSwitchCossackBlocked() {
+  assert.strictEqual(
+    isComplexSkillLiftForNonAdvanced({
+      id: "ff_double_kettlebell_overhead_low_switch_cossack_squat",
+      name: "Double Kettlebell Overhead Low Switch Cossack Squat",
+      movementPattern: "squat",
+      modality: "strength",
+    }),
+    true
+  );
+  console.log("  OK: overhead low-switch cossack gated for non-advanced");
+}
+
 function main() {
   console.log("Intermediate tier + warmup sport bias tests...");
   testMergeAlpineKneeBiasReplacesFullBody();
@@ -123,6 +136,7 @@ function main() {
   testGobletOverheadSquatAllowed();
   testPlainOverheadPressAllowed();
   testReactiveSkaterConesBlocked();
+  testLoadedLowSwitchCossackBlocked();
   console.log("All tests passed.");
 }
 

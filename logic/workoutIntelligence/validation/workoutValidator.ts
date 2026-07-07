@@ -17,6 +17,7 @@ import {
   isAccessoryEligible,
   isSprintMechanicsDrill,
 } from "../../workoutGeneration/blockSelectionEligibility";
+import { hardBanLegPressFamily } from "../../workoutGeneration/sportProfileBanPredicates";
 import type { Exercise } from "../../workoutGeneration/types";
 
 /** Roles that must not appear in main work blocks (align with cooldownSelection.MAIN_WORK_EXCLUDED_ROLES). */
@@ -112,6 +113,19 @@ function isEligibleMainHypertrophyRepairCandidate(ex: ExerciseWithQualities): bo
   return true;
 }
 
+function isEligiblePowerBlockRepairCandidate(ex: ExerciseWithQualities): boolean {
+  const exercise = asExercise(ex);
+  if (hardBanLegPressFamily(exercise)) return false;
+  if (isSprintMechanicsDrill(exercise)) return true;
+  const modality = (exercise.modality ?? "").toLowerCase().replace(/\s/g, "_");
+  if (modality === "power") return true;
+  if (modality === "conditioning") {
+    const goalTags = (exercise.tags?.goal_tags ?? []).map((t) => String(t).toLowerCase());
+    return goalTags.includes("power") || goalTags.includes("athleticism");
+  }
+  return false;
+}
+
 function isEligibleBlockRepairCandidate(ex: ExerciseWithQualities, blockType: string): boolean {
   const norm = normBlockType(blockType);
   if (norm === "accessory") {
@@ -119,6 +133,9 @@ function isEligibleBlockRepairCandidate(ex: ExerciseWithQualities, blockType: st
   }
   if (norm === "main_hypertrophy") {
     return isEligibleMainHypertrophyRepairCandidate(ex);
+  }
+  if (norm === "power") {
+    return isEligiblePowerBlockRepairCandidate(ex);
   }
   return true;
 }
@@ -450,7 +467,7 @@ export function validateWorkoutAgainstConstraints(
       const isMain = WORKING_BLOCK_TYPES.has(block.block_type);
       const blockNorm = normBlockType(block.block_type);
       const looseReplacement =
-        blockNorm === "accessory" || blockNorm === "main_hypertrophy"
+        blockNorm === "accessory" || blockNorm === "main_hypertrophy" || blockNorm === "power"
           ? null
           : findLooseDuplicateReplacement(id, constraints, exercisesById, usedIds);
       const replacement =

@@ -4,6 +4,8 @@ This file defines how we judge generated workout quality for both:
 - sport-mode simulations
 - regular goal-oriented simulations
 
+**Personas & priorities:** Pick a scenario from [USER_PERSONAS.md](./USER_PERSONAS.md) (P01–P10) and test tier from [PRODUCT_PRIORITIES.md](./PRODUCT_PRIORITIES.md) before scoring.
+
 ## Purpose
 
 - Validate that user inputs and filters actually transfer into generated workouts.

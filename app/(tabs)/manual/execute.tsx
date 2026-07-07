@@ -32,6 +32,7 @@ import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
+import { getBlockDisplayTitle } from "../../../lib/blockGoalDisplay";
 
 type ExerciseProgress = {
   completed: boolean;
@@ -96,7 +97,7 @@ export default function ExecuteScreen() {
                   id: item.exercise_id,
                   name: item.exercise_name,
                   prescription: formatPrescription(item),
-                  sectionTitle: `${block.title ?? block.block_type} • Pair ${idx + 1} (${formatSupersetPairLabel(pair)})`,
+                  sectionTitle: `${getBlockDisplayTitle(block)} • Pair ${idx + 1} (${formatSupersetPairLabel(pair)})`,
                   blockType: block.block_type,
                   swapPoolExerciseIds,
                 }))
@@ -108,7 +109,7 @@ export default function ExecuteScreen() {
               id: item.exercise_id,
               name: item.exercise_name,
               prescription: formatPrescription(item),
-              sectionTitle: block.title ?? block.block_type,
+              sectionTitle: getBlockDisplayTitle(block),
               blockType: block.block_type,
               swapPoolExerciseIds,
             }));

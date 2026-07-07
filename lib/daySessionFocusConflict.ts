@@ -4,22 +4,20 @@
  */
 
 import type { AdaptiveSetup } from "../context/appStateModel";
-import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus";
 import type { ManualPreferences } from "./types";
 import {
   bodyFocusIdForSubFocusRegion,
+  catalogSubFocusesMatchingDayRegion,
   dayBodyFocusToRegion,
   dayRegionLabel,
   getSubFocusBodyRegion,
   resolveSubFocusSlugFromDisplayName,
   subFocusRegionConflictsWithDay,
-  subFocusRegionLabel,
   type DayBodyRegion,
   type SubFocusBodyRegion,
 } from "./subFocusBodyRegion";
 import {
   manualPreferencesForSportWeekFocus,
-  resolveDayFocusPreset,
   type DayBodyFocusChoiceId,
   type DayFocusPreset,
 } from "./weekDaySessionFocus";
@@ -36,7 +34,6 @@ export type DaySessionFocusResolution = {
   label: string;
   bodyFocusId?: DayBodyFocusChoiceId;
   focusPresetId?: string;
-  /** Per-day sub-focus override (merged into global subs at generation). */
   subFocusByGoalPatch?: Record<string, string[]>;
 };
 
@@ -63,14 +60,46 @@ function resolveAllRegionalSubFocuses(prefs: ManualPreferences): ResolvedSubFocu
   return out;
 }
 
+/** Goal label when preset dedicates the day to one ranked goal (`goal_emphasis_N`). */
+export function goalEmphasisLabelForPreset(
+  focusPresetId: string,
+  manualPreferences: ManualPreferences,
+  adaptiveSetup: AdaptiveSetup | null
+): string | null {
+  if (!focusPresetId.startsWith("goal_emphasis_")) return null;
+  const ranked = manualPreferencesForSportWeekFocus(manualPreferences, adaptiveSetup).primaryFocus;
+  const idx = parseInt(focusPresetId.replace("goal_emphasis_", ""), 10);
+  if (Number.isNaN(idx) || idx < 0 || idx >= ranked.length) return null;
+  return ranked[idx] ?? null;
+}
+
 function emphasizedGoalLabel(
   focusPresetId: string,
   manualPreferences: ManualPreferences,
   adaptiveSetup: AdaptiveSetup | null
 ): string | null {
-  const resolved = resolveDayFocusPreset(focusPresetId, manualPreferences, adaptiveSetup);
-  const label = resolved.primaryFocus[0];
-  return label && label !== "Sport preparation" ? label : null;
+  return goalEmphasisLabelForPreset(focusPresetId, manualPreferences, adaptiveSetup);
+}
+
+function regionalSubFocusesForConflict(opts: {
+  manualPreferences: ManualPreferences;
+  subFocusByGoalOverride?: Record<string, string[]>;
+  focusPresetId: string;
+  adaptiveSetup: AdaptiveSetup | null;
+}): ResolvedSubFocus[] {
+  const mergedPrefs: ManualPreferences = {
+    ...opts.manualPreferences,
+    subFocusByGoal: mergeDaySubFocusOverride(
+      opts.manualPreferences.subFocusByGoal ?? {},
+      opts.subFocusByGoalOverride
+    ),
+  };
+  const allRegional = resolveAllRegionalSubFocuses(mergedPrefs);
+  const emphasizedGoal = opts.focusPresetId
+    ? goalEmphasisLabelForPreset(opts.focusPresetId, mergedPrefs, opts.adaptiveSetup)
+    : null;
+  if (!emphasizedGoal) return allRegional;
+  return allRegional.filter((s) => s.goalLabel === emphasizedGoal);
 }
 
 function findGoalEmphasisPresetId(
@@ -90,6 +119,26 @@ function formatSubFocusList(items: ResolvedSubFocus[], max = 2): string {
     .slice(0, max)
     .map((s) => s.displayName)
     .join(", ");
+}
+
+function subFocusPatchForDayRegion(opts: {
+  goalLabel: string;
+  dayRegion: "upper" | "lower";
+  conflicting: ResolvedSubFocus[];
+  aligned: ResolvedSubFocus[];
+}): Record<string, string[]> | null {
+  const goalAligned = opts.aligned.filter((s) => s.goalLabel === opts.goalLabel);
+  if (goalAligned.length > 0) {
+    return { [opts.goalLabel]: goalAligned.map((s) => s.displayName) };
+  }
+  const catalogMatches = catalogSubFocusesMatchingDayRegion(opts.goalLabel, opts.dayRegion);
+  if (catalogMatches.length === 0) return null;
+  const conflictingNames = new Set(
+    opts.conflicting.filter((c) => c.goalLabel === opts.goalLabel).map((c) => c.displayName)
+  );
+  const pick =
+    catalogMatches.find((m) => !conflictingNames.has(m.displayName)) ?? catalogMatches[0]!;
+  return { [opts.goalLabel]: [pick.displayName] };
 }
 
 function buildResolutions(opts: {
@@ -118,9 +167,7 @@ function buildResolutions(opts: {
     add({
       id: `use_aligned_${emphasizedGoal}_${names.join("_")}`,
       label: `Use ${formatSubFocusList(emphasizedAligned)} for this day`,
-      subFocusByGoalPatch: {
-        [emphasizedGoal!]: names,
-      },
+      subFocusByGoalPatch: { [emphasizedGoal!]: names },
     });
   }
 
@@ -138,35 +185,68 @@ function buildResolutions(opts: {
       id: `emphasize_goal_${goalLabel}`,
       label: `Emphasize ${goalLabel} first`,
       focusPresetId: presetId,
-      subFocusByGoalPatch: {
-        [goalLabel]: subs.map((s) => s.displayName),
-      },
+      subFocusByGoalPatch: { [goalLabel]: subs.map((s) => s.displayName) },
     });
+  }
+
+  if (dayRegion === "upper" || dayRegion === "lower") {
+    const conflictingByGoal = new Map<string, ResolvedSubFocus[]>();
+    for (const c of conflicting) {
+      const list = conflictingByGoal.get(c.goalLabel) ?? [];
+      list.push(c);
+      conflictingByGoal.set(c.goalLabel, list);
+    }
+
+    if (conflictingByGoal.size === 1) {
+      const goalLabel = [...conflictingByGoal.keys()][0]!;
+      const alreadyAlignedForEmphasis =
+        emphasizedGoal === goalLabel && emphasizedAligned.length > 0;
+      if (!alreadyAlignedForEmphasis) {
+        const patch = subFocusPatchForDayRegion({
+          goalLabel,
+          dayRegion,
+          conflicting,
+          aligned,
+        });
+        if (patch) {
+          const pickName = patch[goalLabel]![0]!;
+          add({
+            id: `match_day_${dayRegion}_${goalLabel}`,
+            label: `Use ${pickName} for this day (match ${dayRegionLabel(dayRegion)})`,
+            subFocusByGoalPatch: patch,
+          });
+        }
+      }
+    } else if (conflictingByGoal.size > 1) {
+      const patch: Record<string, string[]> = {};
+      for (const goalLabel of conflictingByGoal.keys()) {
+        const goalPatch = subFocusPatchForDayRegion({
+          goalLabel,
+          dayRegion,
+          conflicting,
+          aligned,
+        });
+        if (goalPatch) Object.assign(patch, goalPatch);
+      }
+      if (Object.keys(patch).length > 0) {
+        add({
+          id: `match_day_${dayRegion}_multi`,
+          label: `Switch sub-goals to match ${dayRegionLabel(dayRegion)}`,
+          subFocusByGoalPatch: patch,
+        });
+      }
+    }
   }
 
   if (dayRegion !== "full") {
-    add({
-      id: "switch_full_body",
-      label: "Switch to Full body",
-      bodyFocusId: "full",
-    });
+    add({ id: "switch_full_body", label: "Switch to Full body", bodyFocusId: "full" });
   }
 
-  const lowerConflict = conflicting.some((c) => c.region === "lower");
-  const upperConflict = conflicting.some((c) => c.region === "upper");
-  if (lowerConflict && dayRegion === "upper") {
-    add({
-      id: "switch_lower_body",
-      label: "Switch to Lower body",
-      bodyFocusId: "lower",
-    });
+  if (conflicting.some((c) => c.region === "lower") && dayRegion === "upper") {
+    add({ id: "switch_lower_body", label: "Switch to Lower body", bodyFocusId: "lower" });
   }
-  if (upperConflict && dayRegion === "lower") {
-    add({
-      id: "switch_upper_body",
-      label: "Switch to Upper body",
-      bodyFocusId: "upper",
-    });
+  if (conflicting.some((c) => c.region === "upper") && dayRegion === "lower") {
+    add({ id: "switch_upper_body", label: "Switch to Upper body", bodyFocusId: "upper" });
   }
 
   if (conflicting.length === 1) {
@@ -184,20 +264,24 @@ function buildResolutions(opts: {
   return resolutions.slice(0, 4);
 }
 
-/**
- * Returns a conflict when regional sub-goals clash with the day's body focus.
- */
 export function detectDaySessionFocusConflict(opts: {
   bodyFocusId: DayBodyFocusChoiceId;
   focusPresetId: string;
   manualPreferences: ManualPreferences;
   adaptiveSetup: AdaptiveSetup | null;
   presetOptions?: DayFocusPreset[];
+  /** Per-day sub-focus patch after conflict resolution (merged before detection). */
+  subFocusByGoalOverride?: Record<string, string[]>;
 }): DaySessionFocusConflict | null {
   const dayRegion = dayBodyFocusToRegion(opts.bodyFocusId);
   if (dayRegion === "full" || dayRegion === "core") return null;
 
-  const allRegional = resolveAllRegionalSubFocuses(opts.manualPreferences);
+  const allRegional = regionalSubFocusesForConflict({
+    manualPreferences: opts.manualPreferences,
+    subFocusByGoalOverride: opts.subFocusByGoalOverride,
+    focusPresetId: opts.focusPresetId,
+    adaptiveSetup: opts.adaptiveSetup,
+  });
   if (allRegional.length === 0) return null;
 
   const conflicting = allRegional.filter((s) =>
@@ -216,11 +300,9 @@ export function detectDaySessionFocusConflict(opts: {
   const conflictNames = formatSubFocusList(conflicting);
   const dayLabel = dayRegionLabel(dayRegion);
   const emphasizedNote =
-    emphasizedGoal &&
-    conflicting.some((c) => c.goalLabel === emphasizedGoal)
+    emphasizedGoal && conflicting.some((c) => c.goalLabel === emphasizedGoal)
       ? ` (${emphasizedGoal} is prioritized this day)`
       : "";
-
   const opposingRegion = dayRegion === "upper" ? "lower body" : "upper body";
   const message = `Your sub-goals (${conflictNames}) focus on ${opposingRegion}, but this day is set to ${dayLabel}${emphasizedNote}. Pick how to align them before generating.`;
 
@@ -245,20 +327,12 @@ export function detectDaySessionFocusConflict(opts: {
   };
 }
 
-/** Merge per-day sub-focus override into base prefs for one session. */
 export function mergeDaySubFocusOverride(
   base: Record<string, string[]>,
   override: Record<string, string[]> | undefined
 ): Record<string, string[]> {
   if (!override || Object.keys(override).length === 0) return base;
   return { ...base, ...override };
-}
-
-export function detectAllDaySessionFocusConflicts(
-  dayCount: number,
-  getDayInput: (index: number) => Parameters<typeof detectDaySessionFocusConflict>[0]
-): (DaySessionFocusConflict | null)[] {
-  return Array.from({ length: dayCount }, (_, i) => detectDaySessionFocusConflict(getDayInput(i)));
 }
 
 export function dayHasUnresolvedSessionFocusConflict(
@@ -268,7 +342,27 @@ export function dayHasUnresolvedSessionFocusConflict(
   return conflict != null && resolvedId !== conflict.id;
 }
 
-/** Apply a user-selected resolution to day-level week setup state. */
+/** Drop stale per-day resolution state when conflict is gone or conflict id changed. */
+export function reconcileDaySessionFocusConflictState(args: {
+  conflict: DaySessionFocusConflict | null;
+  resolvedId: string | undefined;
+  subFocusOverride: Record<string, string[]> | undefined;
+}): {
+  resolvedId: string | undefined;
+  subFocusOverride: Record<string, string[]> | undefined;
+} {
+  if (!args.conflict) {
+    return { resolvedId: undefined, subFocusOverride: undefined };
+  }
+  if (args.resolvedId != null && args.resolvedId !== args.conflict.id) {
+    return { resolvedId: undefined, subFocusOverride: undefined };
+  }
+  return {
+    resolvedId: args.resolvedId,
+    subFocusOverride: args.subFocusOverride,
+  };
+}
+
 export function applyDaySessionFocusResolution(args: {
   dayIndex: number;
   resolution: DaySessionFocusResolution;
@@ -282,18 +376,18 @@ export function applyDaySessionFocusResolution(args: {
   ) => void;
   setResolvedConflictId: (dayIndex: number, conflictId: string) => void;
 }): void {
-  const { dayIndex, resolution, conflict, subFocusByGoal } = args;
+  const { resolution, conflict, subFocusByGoal } = args;
   if (resolution.bodyFocusId) {
-    args.setBodyFocusId(dayIndex, resolution.bodyFocusId);
+    args.setBodyFocusId(args.dayIndex, resolution.bodyFocusId);
   }
   if (resolution.focusPresetId) {
-    args.setFocusPresetId(dayIndex, resolution.focusPresetId);
+    args.setFocusPresetId(args.dayIndex, resolution.focusPresetId);
   }
   if (resolution.subFocusByGoalPatch) {
-    args.setSubFocusOverride(dayIndex, {
+    args.setSubFocusOverride(args.dayIndex, {
       ...subFocusByGoal,
       ...resolution.subFocusByGoalPatch,
     });
   }
-  args.setResolvedConflictId(dayIndex, conflict.id);
+  args.setResolvedConflictId(args.dayIndex, conflict.id);
 }

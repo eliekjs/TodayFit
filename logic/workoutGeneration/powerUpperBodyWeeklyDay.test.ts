@@ -141,7 +141,9 @@ describe("power upper body weekly day 1", () => {
     const input = manualPreferencesToGenerateWorkoutInput(basePrefs(), TEST_GYM, "power-upper-cal-title");
     const session = generateWorkoutSession(input, pool);
     const secondaryBlock = session.blocks.find(
-      (b) => b.title?.toLowerCase().includes("secondary goal") && b.block_type === "main_hypertrophy"
+      (b) =>
+        b.goal_intent?.goal_slug === "calisthenics" &&
+        b.block_type === "main_hypertrophy"
     );
     if (secondaryBlock) {
       expect(secondaryBlock.title).toMatch(/calisthenics/i);

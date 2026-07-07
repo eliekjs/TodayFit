@@ -1,0 +1,20 @@
+{
+  "tick": 1,
+  "seed": 99002,
+  "flowScenario": {
+    "id": "train_today_sport_persona",
+    "label": "Train today from home (sport-only saved prefs)",
+    "personaId": "P02"
+  },
+  "flowSteps": 1,
+  "flowScore": 100,
+  "outputScore": 100,
+  "combinedScore": 100,
+  "band": "high",
+  "summary": "Flow+Output tick 1: HIGH (combined 100/100, flow 100, output 100). Scenario=train_today_sport_persona persona=P02. Flow issues=0; output issues=0. Top fix: none.",
+  "flowIssues": [],
+  "outputIssues": [],
+  "topFlowFixes": [],
+  "topOutputFixes": [],
+  "topFixesOverall": []
+}

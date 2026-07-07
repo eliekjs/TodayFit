@@ -1,0 +1,16 @@
+{
+  "tick": 5,
+  "seed": 1783393538,
+  "persona": {
+    "id": "P07",
+    "name": "Alex — traveling athlete",
+    "testPriority": "P0",
+    "mode": "sport_day"
+  },
+  "score": 100,
+  "band": "high",
+  "summary": "Simulation result: HIGH quality (100/100). Persona=P07 (Alex — traveling athlete). Transfer: filter_transfer_equipment:pass, filter_transfer_injuries_constraints:pass, filter_transfer_body_focus:pass, filter_transfer_duration:pass, filter_transfer_user_level:pass, filter_transfer_sport_or_goal_context:pass. Key failures: none. Persona issues: 0.",
+  "failedChecks": [],
+  "personaIssues": [],
+  "topFixesThisTick": []
+}

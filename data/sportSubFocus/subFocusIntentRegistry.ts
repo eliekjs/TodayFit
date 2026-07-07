@@ -14,6 +14,7 @@ import {
 } from "./verticalJumpSubFocusShared";
 import {
   isExplosivePlyometricSportSubFocusSlug,
+  ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS,
   tagSetHasDynamicPowerSignal,
 } from "./subFocusIntentArchetypes";
 import {
@@ -317,6 +318,50 @@ export function inputHasSpeedOrCodSubFocus(input: SubFocusIntentInput): boolean 
       s === "reactive_speed" ||
       s === "speed_power" ||
       s === "change_of_direction"
+  );
+}
+
+export function isEnduranceConditioningSubFocusSlug(slug: string): boolean {
+  const canon = normalizeSubFocusSlug(slug);
+  if (ENDURANCE_CONDITIONING_SUB_FOCUS_SLUGS.has(canon)) return true;
+  return (
+    canon === "zone2_aerobic_base" ||
+    canon === "zone2_long_steady" ||
+    canon.startsWith("zone2")
+  );
+}
+
+/** Explosive/speed sport subs without endurance engine subs — prefer sprint/plyo over Zone 2 steady state. */
+export function inputPrefersExplosiveConditioningOverSteadyState(input: SubFocusIntentInput): boolean {
+  const subs = collectActiveSubFocusSlugs(input);
+  if (!subs.length) return false;
+  const hasExplosive = subs.some(
+    (s) =>
+      isExplosivePlyometricSportSubFocusSlug(s) ||
+      isVerticalJumpSubFocusSlug(s) ||
+      s === "repeat_sprint" ||
+      s === "change_of_direction" ||
+      s === "deceleration" ||
+      s === "deceleration_control" ||
+      s === "speed"
+  );
+  if (!hasExplosive) return false;
+  return !subs.some(isEnduranceConditioningSubFocusSlug);
+}
+
+/** Leg-press family is inappropriate in power/main work for athletic explosive sessions. */
+export function sessionBlocksLegPressInAthleticWorkingBlocks(input: SubFocusIntentInput): boolean {
+  if (inputHasVerticalJumpSubFocus(input)) return true;
+  if (inputHasIntentDedicatedPowerArchetypeSubFocus(input)) return true;
+  return collectActiveSubFocusSlugs(input).some(
+    (s) =>
+      isExplosivePlyometricSportSubFocusSlug(s) ||
+      isVerticalJumpSubFocusSlug(s) ||
+      s === "repeat_sprint" ||
+      s === "change_of_direction" ||
+      s === "deceleration" ||
+      s === "deceleration_control" ||
+      s === "speed"
   );
 }
 

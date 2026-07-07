@@ -109,14 +109,12 @@ export default function AdaptiveScheduleScreen() {
   const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
   const [dayBodyFocusChoiceIds, setDayBodyFocusChoiceIds] = useState<DayBodyFocusChoiceId[]>([]);
-<<<<<<< HEAD
   const [daySubFocusOverrides, setDaySubFocusOverrides] = useState<
     Record<number, Record<string, string[]>>
   >({});
   const [resolvedConflictIdsByDay, setResolvedConflictIdsByDay] = useState<Record<number, string>>(
     {}
   );
-=======
   const sessionHydratedRef = useRef(false);
 
   useEffect(() => {
@@ -192,7 +190,6 @@ export default function AdaptiveScheduleScreen() {
       setWeeklyEmphasis(snap.emphasis ?? null);
     }
   }, [sportPrepWeekPlan?.scheduleSnapshot?.weekStartDate]);
->>>>>>> feature/week-session-drag-reorder
 
   useEffect(() => {
     const load = async () => {
@@ -237,7 +234,14 @@ export default function AdaptiveScheduleScreen() {
       const bodyChoice = dayBodyFocusChoiceIds[i]
         ? dayBodyFocusChoiceToBias(dayBodyFocusChoiceIds[i]!)
         : b;
-      return buildGymDayFocusCardLabel(dow, i, bodyChoice.targetBody, bodyChoice.targetModifier, WEEKDAY_LABELS);
+      return buildGymDayFocusCardLabel(
+        dow,
+        i,
+        bodyChoice.targetBody,
+        bodyChoice.targetModifier,
+        bodyChoice.specificBodyFocus,
+        WEEKDAY_LABELS
+      );
     });
     const bodyOptions = gymTrainingDays.map((_, i) =>
       buildDayBodyFocusChoicesForDay({
@@ -257,6 +261,7 @@ export default function AdaptiveScheduleScreen() {
         adaptiveSetup,
         targetBody: bodyChoice.targetBody,
         targetModifier: bodyChoice.targetModifier,
+        specificBodyFocus: bodyChoice.specificBodyFocus,
       });
     });
     return { labels, bodyOptions, presets };
@@ -271,6 +276,7 @@ export default function AdaptiveScheduleScreen() {
         manualPreferences,
         adaptiveSetup,
         presetOptions: sessionFocusMeta.presets[i] ?? [],
+        subFocusByGoalOverride: daySubFocusOverrides[i],
       })
     );
   }, [
@@ -280,7 +286,36 @@ export default function AdaptiveScheduleScreen() {
     manualPreferences,
     adaptiveSetup,
     sessionFocusMeta.presets,
+    daySubFocusOverrides,
   ]);
+
+  useEffect(() => {
+    setResolvedConflictIdsByDay((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [dayIdxStr, resolvedId] of Object.entries(prev)) {
+        const dayIdx = Number(dayIdxStr);
+        const conflict = daySessionFocusConflicts[dayIdx] ?? null;
+        if (!conflict || conflict.id !== resolvedId) {
+          delete next[dayIdx];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    setDaySubFocusOverrides((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const dayIdxStr of Object.keys(prev)) {
+        const dayIdx = Number(dayIdxStr);
+        if (!daySessionFocusConflicts[dayIdx]) {
+          delete next[dayIdx];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [daySessionFocusConflicts]);
 
   const hasUnresolvedDayConflicts = useMemo(
     () =>
@@ -380,6 +415,7 @@ export default function AdaptiveScheduleScreen() {
         adaptiveSetup,
         targetBody: bodyChoice.targetBody,
         targetModifier: bodyChoice.targetModifier,
+        specificBodyFocus: bodyChoice.specificBodyFocus,
       });
       return defaultPresetIdForWeekDay(presets, {
         dedicateDays,
