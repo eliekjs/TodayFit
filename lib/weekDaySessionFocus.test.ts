@@ -11,6 +11,7 @@ import {
   resolvedDayFocusToWorkoutParams,
   adaptiveSetupFromPlanContext,
   summarizePresetSubtitle,
+  sportGoalPrioritySectionNote,
 } from "./weekDaySessionFocus";
 import type { ManualPreferences } from "./types";
 import type { AdaptiveSetup } from "../context/appStateModel";
@@ -154,7 +155,7 @@ describe("weekDaySessionFocus", () => {
     expect(bodyFocusLineFromBias({ targetBody: "Upper", targetModifier: [] })).toBe("Upper body");
   });
 
-  it("buildDayFocusPresetsForDay uses Core in subtitles when specificBodyFocus includes core", () => {
+  it("buildDayFocusPresetsForDay omits body prefix and shared goal-emphasis subtitles", () => {
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique"],
       rankedSportSlugs: ["surfing"],
@@ -174,9 +175,11 @@ describe("weekDaySessionFocus", () => {
     });
     expect(presets.length).toBeGreaterThan(0);
     for (const p of presets) {
-      expect(p.subtitle).toMatch(/^Core — /);
+      expect(p.subtitle).not.toMatch(/^Core — /);
       expect(p.subtitle).not.toMatch(/^Full body — /);
     }
+    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe("");
+    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("Goals fill the rest.");
   });
 
   it("buildBodyFocusSummary fallback shows Core when specificBodyFocus includes core", () => {
@@ -197,7 +200,7 @@ describe("weekDaySessionFocus", () => {
     ).toBe("this day mainly supports Climbing; goals fill the rest.");
   });
 
-  it("sport and goal emphasis presets include body line; balanced options keep descriptive subtitles", () => {
+  it("sport and goal emphasis presets omit body line; balanced options keep descriptive subtitles", () => {
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique", "strength"],
       rankedSportSlugs: ["surfing", "rock_climbing"],
@@ -214,26 +217,41 @@ describe("weekDaySessionFocus", () => {
       targetBody: "Upper",
       targetModifier: [],
     });
-    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toMatch(/^Upper body — /);
-    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toMatch(/^Upper body — /);
-    expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/^Upper body — about 55%/);
+    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("Goals fill the rest.");
+    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe("");
+    expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/^About 55%/);
+  });
+
+  it("sportGoalPrioritySectionNote returns shared explanation for goals-only and sport+goal weeks", () => {
+    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("One goal leads each day");
+    const adaptive: AdaptiveSetup = {
+      rankedGoals: ["physique", "strength"],
+      rankedSportSlugs: ["surfing"],
+      subFocusBySport: {},
+      sportFocusPct: [60, 40],
+      sportVsGoalPct: 55,
+      intensityLevel: "medium",
+      injuryStatus: "ok",
+      injuryTypes: [],
+    };
+    expect(sportGoalPrioritySectionNote(basePrefs, adaptive)).toContain("sports and ranked goals");
   });
 
   it("buildPriorityFocusSummary uses preset label and shortened subtitle", () => {
     const summary = buildPriorityFocusSummary(
       {
         label: "Climbing first",
-        subtitle: "Upper body — this day mainly supports Climbing; goals fill the rest.",
+        subtitle: "Goals fill the rest.",
       },
       { displayTitle: "Strength - Upper Body", workoutFocus: ["Strength"] }
     );
     expect(summary?.label).toBe("Climbing first");
-    expect(summary?.subtitle).toContain("Climbing");
+    expect(summary?.subtitle).toBe("Goals fill the rest.");
 
     const balanced = buildPriorityFocusSummary(
       {
         label: "Balanced sport + goals",
-        subtitle: "Upper body — about 55% sport focus and 45% goals (your Sport vs goals setting).",
+        subtitle: "About 55% sport focus and 45% goals (your Sport vs goals setting).",
       },
       { displayTitle: "Strength - Upper Body", workoutFocus: ["Strength"] }
     );

@@ -142,6 +142,27 @@ describe("body region vs sub-goal mismatch", () => {
     // "Glutes" is lower; "Back" is upper → only Glutes removed
     expect(patch.subFocusByGoal?.["Build Muscle (Hypertrophy)"]).toEqual(["Back"]);
   });
+
+  it("cross-goal upper + lower subs on upper session offers Switch to Full body", () => {
+    const prefs = basePrefs({
+      targetBody: "Upper",
+      primaryFocus: [
+        "Body Recomp (fat loss & muscle gain)",
+        "Build Muscle (Hypertrophy)",
+      ],
+      subFocusByGoal: {
+        "Body Recomp (fat loss & muscle gain)": ["Glutes"],
+        "Build Muscle (Hypertrophy)": ["Back"],
+      },
+    });
+    const conflicts = detectPreferenceConflicts(prefs);
+    const conflict = conflicts.find((c) => c.id === "body_vs_subgoal_upper_lower")!;
+    expect(conflict).toBeDefined();
+    expect(conflict.message).toContain("different body regions");
+    expect(conflict.resolutions[0]!.label).toBe("Switch to Full body");
+    const patch = conflict.resolutions[0]!.apply(prefs);
+    expect(patch.targetBody).toBe("Full");
+  });
 });
 
 // ---------------------------------------------------------------------------

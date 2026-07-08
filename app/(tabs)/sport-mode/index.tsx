@@ -38,6 +38,7 @@ import {
   normalizeGoalMatchPct,
   ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
   TARGET_OPTIONS,
+  oneDayBodyBiasFromTargetBody,
   goalSubFocusPayloadForAdaptiveGoals,
   goalSubFocusPctPayloadForAdaptiveGoals,
   collectInvalidConditioningSubFocusSelections,
@@ -2056,7 +2057,11 @@ export default function AdaptiveModeScreen() {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               setDismissedConflictIds((prev) => [...prev, id]);
             }}
-            onApplyResolution={(patch) => updateManualPreferences(patch)}
+            onApplyResolution={(patch) => {
+              updateManualPreferences(patch);
+              const nextBias = oneDayBodyBiasFromTargetBody(patch.targetBody);
+              if (nextBias != null) setOneDayBodyBias(nextBias);
+            }}
           />
         )}
 

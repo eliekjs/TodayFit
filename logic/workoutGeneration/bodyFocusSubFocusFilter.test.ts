@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   exerciseIsLowerBodyDominantPowerMovement,
   filterSubFocusSlugsForBodyFocus,
+  isCoreOnlyFocusBodyParts,
   isLowerOnlyFocusBodyParts,
 } from "./bodyFocusSubFocusFilter";
 import type { Exercise } from "./types";
@@ -29,6 +30,20 @@ describe("isLowerOnlyFocusBodyParts", () => {
   it("detects lower-only sessions", () => {
     expect(isLowerOnlyFocusBodyParts(["lower"])).toBe(true);
     expect(isLowerOnlyFocusBodyParts(["upper_push"])).toBe(false);
+  });
+});
+
+describe("isCoreOnlyFocusBodyParts", () => {
+  it("detects core-only sessions", () => {
+    expect(isCoreOnlyFocusBodyParts(["core"])).toBe(true);
+  });
+
+  it("is false for full_body, other single regions, and mixed focus", () => {
+    expect(isCoreOnlyFocusBodyParts(["full_body"])).toBe(false);
+    expect(isCoreOnlyFocusBodyParts(["lower"])).toBe(false);
+    expect(isCoreOnlyFocusBodyParts(["core", "lower"])).toBe(false);
+    expect(isCoreOnlyFocusBodyParts(undefined)).toBe(false);
+    expect(isCoreOnlyFocusBodyParts([])).toBe(false);
   });
 });
 

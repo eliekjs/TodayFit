@@ -77,13 +77,6 @@ export default function GymProfilesScreen() {
     updateGymProfile(profileId, { equipment: next });
   };
 
-  const setDumbbellMax = (profileId: string, value: string) => {
-    const num = value === "" ? undefined : parseInt(value, 10);
-    updateGymProfile(profileId, {
-      dumbbellMaxWeight: num !== undefined && !isNaN(num) ? num : undefined,
-    });
-  };
-
   const defaultNameForTemplate = (template: GymProfileTemplate): string => {
     const option = SPACE_TYPE_OPTIONS.find((opt) => opt.template === template);
     return option?.label ?? "New Gym";
@@ -288,11 +281,7 @@ export default function GymProfilesScreen() {
                           {cat.options.map((opt) => (
                             <View key={opt.id}>
                               <Chip
-                                label={
-                                  opt.hasInput === "dumbbell_max"
-                                    ? "Dumbbells"
-                                    : opt.label
-                                }
+                                label={opt.label}
                                 selected={profile.equipment.includes(opt.id)}
                                 onPress={() =>
                                   toggleEquipment(profile.id, opt.id)
@@ -301,41 +290,6 @@ export default function GymProfilesScreen() {
                             </View>
                           ))}
                         </View>
-                        {cat.options.some(
-                          (o) => o.hasInput === "dumbbell_max"
-                        ) &&
-                          profile.equipment.includes("dumbbells") && (
-                            <View style={styles.dumbbellRow}>
-                              <Text
-                                style={[
-                                  styles.dumbbellLabel,
-                                  { color: theme.textMuted },
-                                ]}
-                              >
-                                Max weight (kg)
-                              </Text>
-                              <TextInput
-                                placeholder="e.g. 25"
-                                placeholderTextColor={theme.textMuted}
-                                keyboardType="number-pad"
-                                value={
-                                  profile.dumbbellMaxWeight != null
-                                    ? String(profile.dumbbellMaxWeight)
-                                    : ""
-                                }
-                                onChangeText={(t) =>
-                                  setDumbbellMax(profile.id, t)
-                                }
-                                style={[
-                                  styles.dumbbellInput,
-                                  {
-                                    borderColor: theme.border,
-                                    color: theme.text,
-                                  },
-                                ]}
-                              />
-                            </View>
-                          )}
                       </View>
                     ))}
 
@@ -544,23 +498,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-  },
-  dumbbellInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 13,
-    minWidth: 70,
-  },
-  dumbbellRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 6,
-  },
-  dumbbellLabel: {
-    fontSize: 13,
   },
   addSection: {
     marginTop: 28,

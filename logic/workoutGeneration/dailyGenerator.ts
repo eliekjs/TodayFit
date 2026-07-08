@@ -45,7 +45,8 @@ import {
 } from "../../lib/generation/fatigueRules";
 import {
   getGoalRules,
-  scaleSetsByEnergy,
+  resolveVolumePrescription,
+  DEFAULT_VOLUME_PROFILE,
   getConditioningDurationMinutes,
   getConditioningIntervalStructure,
   getNonZone2ConditioningIntervalStructure,
@@ -143,6 +144,7 @@ import {
   classifyLeafArchetype,
   deriveLeafEntries,
   estimateIntentWorkingExerciseSlots,
+  getMainWorkPatternSlugsForGoal,
   isEnduranceConditioningSportIntentEntry,
   isIntentMainWorkCandidate,
   isMainWorkCandidateForIntentEntry,
@@ -1837,21 +1839,6 @@ function getEffectiveRepRange(
   return goalRange;
 }
 
-const ALLOWED_REP_TARGETS = [5, 6, 8, 10, 12, 15, 20] as const;
-
-function snapRepsToAllowedBuckets(reps: number): number {
-  let best: number = ALLOWED_REP_TARGETS[0];
-  let bestDiff = Math.abs(reps - best);
-  for (const bucket of ALLOWED_REP_TARGETS) {
-    const diff = Math.abs(reps - bucket);
-    if (diff < bestDiff) {
-      best = bucket;
-      bestDiff = diff;
-    }
-  }
-  return best;
-}
-
 function normalizeRestSeconds(rest: number, intensity: "light" | "intense"): number {
   const allowed = intensity === "light" ? [20, 30] : [60, 90, 120];
   let best = allowed[0]!;
@@ -1924,11 +1911,15 @@ function getPrescription(
     rules.powerRepRange &&
     rules.powerRestRange
   ) {
-    const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
-    let sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
-    sets = capPowerBlockSets(sets, blockType);
     const repRange = getEffectiveRepRange(exercise, rules.powerRepRange);
-    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
+    const { reps, baseSets } = resolveVolumePrescription(
+      repRange,
+      rules.setRange,
+      energyLevel,
+      "min"
+    );
+    let sets = scaleSets(baseSets);
+    sets = capPowerBlockSets(sets, blockType);
     const rest = normalizeRestSeconds(
       Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2),
       "intense"
@@ -1951,84 +1942,95 @@ function getPrescription(
     };
   }
 
+  const volumeProfile = rules.volumeProfile ?? DEFAULT_VOLUME_PROFILE;
+
+  const prescribeFromGoalRange = (
+    goalRepRange: { min: number; max: number },
+    setRange: { min: number; max: number },
+    repSelection: "min" | "mid" | "max",
+    restSeconds: number,
+    intensity: "light" | "intense",
+    cue: string
+  ) => {
+    const repRange = getEffectiveRepRange(exercise, goalRepRange);
+    const { reps, baseSets } = resolveVolumePrescription(repRange, setRange, energyLevel, repSelection);
+    return {
+      sets: scaleSets(baseSets),
+      reps,
+      rest_seconds: normalizeRestSeconds(restSeconds, intensity),
+      coaching_cues: beginnerCue(cue),
+    };
+  };
+
   // Accessory work (e.g. strength superset pairs): use accessory rules when present. DB/KB-only → 8–12 reps.
   if (isAccessory && rules.accessoryRepRange) {
     const setRange = rules.accessorySetRange ?? { min: 3, max: 4 };
-    const sets = scaleSets(scaleSetsByEnergy(Math.round((setRange.min + setRange.max) / 2), energyLevel));
-    const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.accessoryRepRange;
-    const repRange = getEffectiveRepRange(exercise, goalRepRange);
-    const reps = Math.round((repRange.min + repRange.max) / 2);
-    const rest = normalizeRestSeconds(
-      rules.accessoryRestRange ? Math.round((rules.accessoryRestRange.min + rules.accessoryRestRange.max) / 2) : 30,
-      "light"
+    const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise)
+      ? { min: 8, max: 12 }
+      : rules.accessoryRepRange;
+    const restMid = rules.accessoryRestRange
+      ? Math.round((rules.accessoryRestRange.min + rules.accessoryRestRange.max) / 2)
+      : 30;
+    return prescribeFromGoalRange(
+      goalRepRange,
+      setRange,
+      volumeProfile.accessoryRepSelection,
+      restMid,
+      "light",
+      rules.cueStyle.strength ?? "Controlled tempo. Muscular balance."
     );
-    return {
-      sets,
-      reps: snapRepsToAllowedBuckets(reps),
-      rest_seconds: rest,
-      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Controlled tempo. Muscular balance."),
-    };
   }
 
   // Main strength with power primary still uses power rep/rest when not caught above.
   if (blockType === "main_strength" && goal === "power" && rules.powerRepRange && rules.powerRestRange) {
-    const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
-    const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
     const repRange = getEffectiveRepRange(exercise, rules.powerRepRange);
-    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
-    const rest = normalizeRestSeconds(Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2), "intense");
+    const { reps, baseSets } = resolveVolumePrescription(repRange, rules.setRange, energyLevel, "min");
     return {
-      sets,
+      sets: scaleSets(baseSets),
       reps,
-      rest_seconds: rest,
+      rest_seconds: normalizeRestSeconds(
+        Math.round((rules.powerRestRange.min + rules.powerRestRange.max) / 2),
+        "intense"
+      ),
       coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Explosive intent. Quality over volume."),
     };
   }
 
   // Main strength: DB/KB-only (e.g. goblet squat) → 8–12 reps unless truly max strength; barbell stays low-rep.
   if (blockType === "main_strength" || exercise.tags.goal_tags?.includes("strength")) {
-    const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
-    const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
     const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
-    const repRange = getEffectiveRepRange(exercise, goalRepRange);
-    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
-    const rest = normalizeRestSeconds(Math.round((rules.restRange.min + rules.restRange.max) / 2), "intense");
-    return {
-      sets,
-      reps,
-      rest_seconds: rest,
-      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Heavy, controlled. Full lockout."),
-    };
+    return prescribeFromGoalRange(
+      goalRepRange,
+      rules.setRange,
+      volumeProfile.mainRepSelection,
+      Math.round((rules.restRange.min + rules.restRange.max) / 2),
+      "intense",
+      rules.cueStyle.strength ?? "Heavy, controlled. Full lockout."
+    );
   }
 
   if (blockType === "main_hypertrophy" || exercise.tags.goal_tags?.includes("hypertrophy")) {
-    const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
-    const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
     const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
-    const repRange = getEffectiveRepRange(exercise, goalRepRange);
-    const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
-    const rest = normalizeRestSeconds(Math.round((rules.restRange.min + rules.restRange.max) / 2), "light");
-    return {
-      sets,
-      reps,
-      rest_seconds: rest,
-      coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Moderate load. Squeeze at peak contraction."),
-    };
+    return prescribeFromGoalRange(
+      goalRepRange,
+      rules.setRange,
+      volumeProfile.mainRepSelection,
+      Math.round((rules.restRange.min + rules.restRange.max) / 2),
+      "light",
+      rules.cueStyle.strength ?? "Moderate load. Squeeze at peak contraction."
+    );
   }
 
   // Default: DB/KB-only → 8–12
-  const baseSets = Math.round((rules.setRange.min + rules.setRange.max) / 2);
-  const sets = scaleSets(scaleSetsByEnergy(baseSets, energyLevel));
   const goalRepRange = exerciseUsesOnlyDumbbellsOrKettlebells(exercise) ? { min: 8, max: 12 } : rules.repRange;
-  const repRange = getEffectiveRepRange(exercise, goalRepRange);
-  const reps = snapRepsToAllowedBuckets(Math.round((repRange.min + repRange.max) / 2));
-  const rest = normalizeRestSeconds(Math.round((rules.restRange.min + rules.restRange.max) / 2), "light");
-  return {
-    sets,
-    reps,
-    rest_seconds: rest,
-    coaching_cues: beginnerCue(rules.cueStyle.strength ?? "Controlled tempo."),
-  };
+  return prescribeFromGoalRange(
+    goalRepRange,
+    rules.setRange,
+    volumeProfile.mainRepSelection,
+    Math.round((rules.restRange.min + rules.restRange.max) / 2),
+    "light",
+    rules.cueStyle.strength ?? "Controlled tempo."
+  );
 }
 
 /** Add exercise's fatigue regions to session map (mutates map). */
@@ -3318,21 +3320,20 @@ function tryBuildIntentSlotAllocatedMainInject(
   const targetMainByDuration =
     (input.duration_minutes ?? 60) >= 75 ? 4 : (input.duration_minutes ?? 60) >= 45 ? 3 : 2;
 
-  const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
-  const hypePatterns = new Set(["squat", "hinge", "push", "pull", "rotate"]);
+  const mainWorkPatterns = getMainWorkPatternSlugsForGoal(primary, input.focus_body_parts);
   let sizingPool = exercises.filter((e) => isExerciseAvailableForSession(e.id, used));
   if (primary === "hypertrophy" || primary === "body_recomp") {
     sizingPool = sizingPool.filter(
       (e) =>
         (e.modality === "hypertrophy" || e.modality === "strength") &&
-        hypePatterns.has(effectiveMainWorkPattern(e)) &&
+        mainWorkPatterns.has(effectiveMainWorkPattern(e)) &&
         !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
     );
   } else {
     sizingPool = sizingPool.filter(
       (e) =>
         (e.modality === "strength" || e.modality === "power") &&
-        mainStrengthPatterns.has(effectiveMainWorkPattern(e)) &&
+        mainWorkPatterns.has(effectiveMainWorkPattern(e)) &&
         !(e.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(e.exercise_role.toLowerCase().replace(/\s/g, "_")))
     );
   }
@@ -3399,7 +3400,7 @@ function tryBuildIntentSlotAllocatedMainInject(
       (e) =>
         isExerciseAvailableForSession(e.id, used) &&
         matchesIntentEntry(e, entry) &&
-        isMainWorkCandidateForIntentEntry(e, entry, entryPrimary) &&
+        isMainWorkCandidateForIntentEntry(e, entry, entryPrimary, input.focus_body_parts) &&
         !(
           entryBlockType === "power" &&
           sessionBlocksLegPressInAthleticWorkingBlocks(input) &&
@@ -3434,7 +3435,7 @@ function tryBuildIntentSlotAllocatedMainInject(
         (e) =>
           isExerciseAvailableForSession(e.id, used) &&
           matchesIntentEntry(e, entry) &&
-          isMainWorkCandidateForIntentEntry(e, entry, entryPrimary) &&
+          isMainWorkCandidateForIntentEntry(e, entry, entryPrimary, input.focus_body_parts) &&
           !(
             entryBlockType === "power" &&
             sessionBlocksLegPressInAthleticWorkingBlocks(input) &&
@@ -3493,7 +3494,7 @@ function tryBuildIntentSlotAllocatedMainInject(
         .filter(
           (e) =>
             matchesIntentEntry(e, entry) &&
-            isMainWorkCandidateForIntentEntry(e, entry, entryPrimary) &&
+            isMainWorkCandidateForIntentEntry(e, entry, entryPrimary, input.focus_body_parts) &&
             !(
               entryBlockType === "power" &&
               sessionBlocksLegPressInAthleticWorkingBlocks(input) &&
@@ -3651,7 +3652,7 @@ function tryBuildBlendedManualStrengthReserve(
       : ["squat", "deadlift_hinge"];
   if (targetSlugs.length === 0) return undefined;
 
-  const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
+  const mainStrengthPatterns = getMainWorkPatternSlugsForGoal(input.primary_goal, input.focus_body_parts);
   let mainPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "power") &&
@@ -4050,7 +4051,7 @@ function tryBuildGoalDedicatedMainStrengthInject(
   const entries = getPrimarySubFocusWeightedEntriesDedicated(input, primary).filter((e) => e.slug !== "balanced");
   if (entries.length < 2) return undefined;
 
-  const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
+  const mainStrengthPatterns = getMainWorkPatternSlugsForGoal(primary, input.focus_body_parts);
   let mainPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "power") &&
@@ -4238,7 +4239,7 @@ function tryBuildGoalDedicatedHypertrophyBlocks(
   const entries = getPrimarySubFocusWeightedEntriesDedicated(input, primary).filter((e) => e.slug !== "balanced");
   if (entries.length < 2) return undefined;
 
-  const mainWorkPatternSet = new Set(["push", "pull", "squat", "hinge", "rotate"]);
+  const mainWorkPatternSet = getMainWorkPatternSlugsForGoal(primary, input.focus_body_parts);
   let pool = exercises.filter(
     (e) =>
       (e.modality === "hypertrophy" || e.modality === "strength") &&
@@ -4457,7 +4458,7 @@ function buildMainStrength(
   const intentSlugs = strengthProfile ? getStrengthIntentSlugs(strengthProfile) : [];
   const overlayFilter = strengthProfile?.overlayFilter;
 
-  const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
+  const mainStrengthPatterns = getMainWorkPatternSlugsForGoal(input.primary_goal, input.focus_body_parts);
   let mainPool = exercises.filter(
     (e) =>
       (e.modality === "strength" || e.modality === "power") &&
@@ -5978,6 +5979,22 @@ function isSteadyStateZone2ForExplosiveSessionPolicy(exercise: Exercise): boolea
   const name = (exercise.name ?? "").toLowerCase();
   if (id.startsWith("zone2_") || /\bzone\s*2\b/.test(name)) return true;
   if (
+    /\b(tempo\s*run|tempo\s*jog|threshold|steady.?state|cruise\s*interval|incline\s*treadmill|treadmill\s*run)\b/.test(
+      name
+    )
+  ) {
+    return true;
+  }
+  if (id.includes("tempo_run") || id.includes("threshold") || id.includes("cruise_interval")) return true;
+  const tagBlob = [
+    ...(exercise.tags?.stimulus ?? []),
+    ...(exercise.tags?.attribute_tags ?? []),
+    ...(exercise.tags?.goal_tags ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (/\bthreshold_tempo|lactate_threshold|aerobic_zone2|zone2_aerobic\b/.test(tagBlob)) return true;
+  if (
     exercise.modality === "conditioning" &&
     exerciseHasSubFocusSlug(exercise, "zone2_aerobic_base") &&
     !isSprintBurstConditioning(exercise) &&
@@ -6132,7 +6149,7 @@ function buildMainHypertrophy(
   const rockClimbingEmphasisH = sportPatternRockClimbingEmphasis ?? 0;
   const snowKindH = resolveSnowSportKind(input);
   const snowSportAppliesH = snowKindH != null && snowSportBodyFocusAllows(input);
-  const mainWorkPatternSet = new Set(["push", "pull", "squat", "hinge", "rotate"]);
+  const mainWorkPatternSet = getMainWorkPatternSlugsForGoal(input.primary_goal, input.focus_body_parts);
   let pool = exercises.filter(
     (e) =>
       (e.modality === "hypertrophy" || e.modality === "strength") &&
@@ -10823,7 +10840,7 @@ export function generateWorkoutSession(
   if (constraints.prefer_strength_block && primary !== "strength" && primary !== "power") {
     const hasStrengthBlock = blocks.some((b) => b.block_type === "main_strength");
     if (!hasStrengthBlock) {
-      const mainStrengthPatterns = new Set(["squat", "hinge", "push", "pull"]);
+      const mainStrengthPatterns = getMainWorkPatternSlugsForGoal("strength", input.focus_body_parts);
       let strengthPool = filtered.filter(
         (e) =>
           (e.modality === "strength" || e.modality === "power") &&
@@ -12530,9 +12547,16 @@ export function generateWorkoutSession(
       !hypertrophyPrimaryExcludesConditioning(input) &&
       !forcedBlocks.some((b) => b.block_type === "conditioning")
     ) {
+      const explosiveOnly = inputPrefersExplosiveConditioningOverSteadyState(input);
+      const condOk = (e: Exercise) =>
+        !explosiveOnly || !isSteadyStateZone2ForExplosiveSessionPolicy(e);
       const cond =
-        pickFromPools((e) => e.modality === "conditioning" && isConditioningEligible(e)) ??
-        pickFromPools((e) => isConditioningEligible(e));
+        pickFromPools((e) => e.modality === "conditioning" && isConditioningEligible(e) && condOk(e)) ??
+        pickFromPools((e) => isConditioningEligible(e) && condOk(e)) ??
+        (explosiveOnly
+          ? undefined
+          : pickFromPools((e) => e.modality === "conditioning" && isConditioningEligible(e)) ??
+            pickFromPools((e) => isConditioningEligible(e)));
       if (cond) {
         forcedIds.add(cond.id);
         const p = getPrescription(

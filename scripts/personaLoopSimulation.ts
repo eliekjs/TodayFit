@@ -33,6 +33,7 @@ import {
   type PersonaFixture,
   type PersonaTestPriority,
 } from "../logic/workoutGeneration/personaSimulationFixtures";
+import { multiSportBlendCheck } from "../logic/workoutGeneration/personaMultiSportSignals";
 
 const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts", "persona-loop");
 const AGGREGATE_PATH = path.join(ARTIFACTS_DIR, "aggregate.json");
@@ -316,7 +317,7 @@ function evaluatePersonaSignals(
     const zone2Conditioning = allItems.filter(
       (it) =>
         it.block_type === "conditioning" &&
-        /zone 2|treadmill|steady|long run|aerobic base/i.test(it.exercise_name)
+        /zone 2|treadmill|steady|long run|aerobic base|tempo run|tempo jog|threshold|cruise interval/i.test(it.exercise_name)
     );
     if (zone2Conditioning.length > 0) {
       addIssue(
@@ -354,20 +355,13 @@ function evaluatePersonaSignals(
   }
 
   if (fixture.id === "P02") {
-    const sportTags = exercises.flatMap((ex) => ex.tags?.sport_tags ?? []);
-    const blockTitles = workout.blocks.map((b) => (b.title ?? "").toLowerCase()).join(" ");
-    const names = allItems.map((it) => it.exercise_name.toLowerCase()).join(" ");
-    const hasBasketball =
-      sportTags.some((t) => /basketball|court|jump|vertical/.test(t)) ||
-      /basketball|jump|pogo|vertical|cod|lateral bound/.test(names + blockTitles);
-    const hasSoccer =
-      sportTags.some((t) => /soccer|sprint|field|football/.test(t)) ||
-      /soccer|sprint|decel|hurdle run|toss/.test(names + blockTitles);
-    if (!hasBasketball || !hasSoccer) {
+    const slugs = fixture.sportGoalContext?.sport_slugs ?? [];
+    const blend = multiSportBlendCheck(workout, slugs, poolById);
+    if (!blend.pass) {
       addIssue(
         "P02:single_sport_dominance",
         "moderate",
-        `P02: Multi-sport blend not reflected (basketball=${hasBasketball}, soccer=${hasSoccer})`,
+        `P02: Multi-sport blend not reflected (${blend.evidence})`,
         "global",
         "PRODUCT_PRIORITIES P1#2 multi-sport blend"
       );

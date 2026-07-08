@@ -187,7 +187,7 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
     },
     gymTemplate: "your_gym",
     successCriteria: [
-      "Hypertrophy volume 6–12 rep main work",
+      "Hypertrophy volume 8–15 rep main work (median ≥10 reps)",
       "Lower-body region honored",
     ],
     failureSignals: [

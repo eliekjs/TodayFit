@@ -1,11 +1,8 @@
 import type { AdaptiveSetup } from "../context/appStateModel";
 import type { ManualPreferences } from "./types";
-import { sportSetupRouteWhenNoPlan } from "./sessionFlowNav";
-
-/** Goal day/week or sport day/week — one active session at a time. */
-export type SessionFlow = "goal_day" | "goal_week" | "sport_day" | "sport_week";
-
-export type SessionPhase = "setup" | "review" | "train";
+import { sportSetupRouteWhenNoPlan } from "./sessionFlowRoutes";
+import type { SessionFlow, SessionPhase } from "./sessionFlowTypes";
+export type { SessionFlow, SessionPhase } from "./sessionFlowTypes";
 
 export type WeekSetupDraft = {
   /** User opened week builder (past preferences). */
@@ -62,11 +59,7 @@ export type SessionDraft = {
   updatedAt: number;
 };
 
-export const SESSION_PHASES: { key: SessionPhase; label: string }[] = [
-  { key: "setup", label: "Set up" },
-  { key: "review", label: "Review" },
-  { key: "train", label: "Train" },
-];
+export { SESSION_PHASES } from "./sessionFlowTypes";
 
 export const SESSION_FLOW_LABELS: Record<SessionFlow, string> = {
   goal_day: "Goal · One day",

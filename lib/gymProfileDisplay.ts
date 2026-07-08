@@ -6,7 +6,7 @@ export function equipmentLabelForKey(key: string): string {
   for (const cat of EQUIPMENT_BY_CATEGORY) {
     const opt = cat.options.find((o) => o.id === key);
     if (opt) {
-      return opt.hasInput === "dumbbell_max" ? "Dumbbells" : opt.label;
+      return opt.label;
     }
   }
   return key.replace(/_/g, " ");

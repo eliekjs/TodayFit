@@ -32,6 +32,14 @@ export function isLowerOnlyFocusBodyParts(focus: FocusBodyPart[] | undefined): b
   return parts.some((p) => p === "lower");
 }
 
+/** True when the session's body-part focus is exclusively core (no upper/lower/full_body mixed in). */
+export function isCoreOnlyFocusBodyParts(focus: FocusBodyPart[] | undefined): boolean {
+  if (!focus?.length) return false;
+  const parts = focus.map((f) => norm(String(f)));
+  if (parts.some((p) => p === "full_body")) return false;
+  return parts.every((p) => p === "core");
+}
+
 /**
  * Drop body-mismatched power / athletic intent slugs when the session has explicit upper or lower focus.
  * Keeps neutral slugs (e.g. olympic_triple_extension) on both; prefers upper slugs on upper-only days.

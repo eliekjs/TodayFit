@@ -3,11 +3,12 @@
  * Leaf entries (bare goals/sports or their sub-focus rows) drive pool matching and slot counts.
  */
 
-import type { Exercise, PrimaryGoal } from "./types";
+import type { Exercise, FocusBodyPart, PrimaryGoal } from "./types";
 import type { IntentEntry } from "./sessionIntentContract";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
 import { getLegacyMovementPattern } from "../../lib/ontology/legacyMapping";
 import { MAIN_WORK_EXCLUDED_ROLES } from "./cooldownSelection";
+import { isCoreOnlyFocusBodyParts } from "./bodyFocusSubFocusFilter";
 import {
   exerciseMatchesGoalSubFocusSlugUnified,
   exerciseMatchesSportSubFocusSlug,
@@ -146,22 +147,48 @@ function exerciseTagSet(ex: Exercise): Set<string> {
 }
 
 /**
+ * Movement patterns eligible for main-strength/hypertrophy work, given the session's primary goal
+ * and body-part focus. This is the single source of truth for "which movement patterns may fill a
+ * main-work slot" — reused by the intent-slot allocator and by dailyGenerator's main-block builders
+ * so all main-work assembly paths agree.
+ *
+ * On a core-only body-focus day, restrict to core patterns (rotate/carry) instead of the usual
+ * squat/hinge/push/pull(/rotate) set: otherwise limb compounds structurally crowd out core work
+ * because core exercises (movement pattern rotate/carry) were never in the eligible main-work
+ * pattern set to begin with, regardless of body-part focus or scoring bonuses.
+ */
+export function getMainWorkPatternSlugsForGoal(
+  primary: PrimaryGoal,
+  focusBodyParts?: FocusBodyPart[]
+): Set<string> {
+  if (isCoreOnlyFocusBodyParts(focusBodyParts)) {
+    return new Set(["rotate", "carry"]);
+  }
+  if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
+    return new Set(["push", "pull", "squat", "hinge", "rotate"]);
+  }
+  return new Set(["squat", "hinge", "push", "pull"]);
+}
+
+/**
  * True when the exercise is suitable as a main compound for the given primary (strength-style gate
  * or hypertrophy main-work pattern set).
  */
-export function isIntentMainWorkCandidate(ex: Exercise, primary: PrimaryGoal): boolean {
+export function isIntentMainWorkCandidate(
+  ex: Exercise,
+  primary: PrimaryGoal,
+  focusBodyParts?: FocusBodyPart[]
+): boolean {
   if (ex.exercise_role && MAIN_WORK_EXCLUDED_ROLES.has(ex.exercise_role.toLowerCase().replace(/\s/g, "_"))) {
     return false;
   }
   const pattern = effectiveMainWorkPatternForIntent(ex);
   if (primary === "hypertrophy" || primary === "body_recomp") {
     if (!(ex.modality === "hypertrophy" || ex.modality === "strength")) return false;
-    const set = new Set(["push", "pull", "squat", "hinge", "rotate"]);
-    return set.has(pattern);
+    return getMainWorkPatternSlugsForGoal(primary, focusBodyParts).has(pattern);
   }
   if (!(ex.modality === "strength" || ex.modality === "power")) return false;
-  const set = new Set(["squat", "hinge", "push", "pull"]);
-  return set.has(pattern);
+  return getMainWorkPatternSlugsForGoal(primary, focusBodyParts).has(pattern);
 }
 
 export function isPowerStyleSportIntentEntry(entry: IntentEntry): boolean {
@@ -239,7 +266,8 @@ export function isDynamicSportSubFocusMainWorkCandidate(ex: Exercise, entry: Int
 export function isMainWorkCandidateForIntentEntry(
   ex: Exercise,
   entry: IntentEntry,
-  primary: PrimaryGoal
+  primary: PrimaryGoal,
+  focusBodyParts?: FocusBodyPart[]
 ): boolean {
   if (isStabilityPrehabSportIntentEntry(entry)) return false;
   if (isEnduranceConditioningSportIntentEntry(entry)) return false;
@@ -249,7 +277,7 @@ export function isMainWorkCandidateForIntentEntry(
   ) {
     return isDynamicSportSubFocusMainWorkCandidate(ex, entry);
   }
-  return isIntentMainWorkCandidate(ex, primary);
+  return isIntentMainWorkCandidate(ex, primary, focusBodyParts);
 }
 
 export function mainWorkPrimaryForIntentEntry(entry: IntentEntry, sessionPrimary: PrimaryGoal): PrimaryGoal {

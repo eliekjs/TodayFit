@@ -242,6 +242,15 @@ function buildResolutions(opts: {
     add({ id: "switch_full_body", label: "Switch to Full body", bodyFocusId: "full" });
   }
 
+  const crossGoalConflict = new Set(conflicting.map((c) => c.goalLabel)).size > 1;
+  if (crossGoalConflict) {
+    const fullIdx = resolutions.findIndex((r) => r.id === "switch_full_body");
+    if (fullIdx > 0) {
+      const [fullRes] = resolutions.splice(fullIdx, 1);
+      resolutions.unshift(fullRes);
+    }
+  }
+
   if (conflicting.some((c) => c.region === "lower") && dayRegion === "upper") {
     add({ id: "switch_lower_body", label: "Switch to Lower body", bodyFocusId: "lower" });
   }

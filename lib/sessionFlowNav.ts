@@ -1,7 +1,9 @@
 import type { AdaptiveSetup } from "../context/appStateModel";
-import type { SessionFlow, SessionPhase } from "./sessionDraft";
-import { SESSION_PHASES } from "./sessionDraft";
+import type { SessionFlow, SessionPhase } from "./sessionFlowTypes";
+import { SESSION_PHASES } from "./sessionFlowTypes";
 import { manualGoalPreferencesHref } from "./manualGoalPreferencesHref";
+
+export { sportSetupRouteWhenNoPlan } from "./sessionFlowRoutes";
 
 export type FlowNavAction = {
   label: string;
@@ -41,16 +43,6 @@ export function reviewRouteForFlow(flow: SessionFlow): string {
   if (flow.startsWith("sport")) return "/sport-mode/recommendation";
   if (flow === "goal_week") return "/manual/week";
   return "/manual/workout";
-}
-
-/** Where to send users who hit sport review without a generated week plan. */
-export function sportSetupRouteWhenNoPlan(input: {
-  flow?: SessionFlow | null;
-  adaptiveSetup?: AdaptiveSetup | null;
-}): string {
-  if (input.flow === "sport_day") return "/sport-mode?scope=day";
-  if (input.adaptiveSetup != null) return "/sport-mode/schedule";
-  return "/sport-mode";
 }
 
 type SportReviewNavContext = {

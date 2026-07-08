@@ -1,0 +1,817 @@
+{
+  "runAt": "2026-07-08T04:59:43.792Z",
+  "seed": 1783486740,
+  "scenarioCount": 5,
+  "summary": [
+    {
+      "scenarioId": "deep_p01_maya_vertical_jump",
+      "personaId": "P01",
+      "band": "high",
+      "combinedScore": 100,
+      "flowScore": 100,
+      "outputScore": 100,
+      "flowIssues": 0,
+      "failedExpectations": 0,
+      "topFix": "none"
+    },
+    {
+      "scenarioId": "deep_p02_morgan_multi_sport",
+      "personaId": "P02",
+      "band": "high",
+      "combinedScore": 100,
+      "flowScore": 100,
+      "outputScore": 100,
+      "flowIssues": 0,
+      "failedExpectations": 0,
+      "topFix": "none"
+    },
+    {
+      "scenarioId": "deep_p06_casey_hypertrophy_goal",
+      "personaId": "P06",
+      "band": "high",
+      "combinedScore": 100,
+      "flowScore": 100,
+      "outputScore": 100,
+      "flowIssues": 0,
+      "failedExpectations": 0,
+      "topFix": "none"
+    },
+    {
+      "scenarioId": "deep_p07_alex_hotel_gym",
+      "personaId": "P07",
+      "band": "high",
+      "combinedScore": 100,
+      "flowScore": 100,
+      "outputScore": 100,
+      "flowIssues": 0,
+      "failedExpectations": 0,
+      "topFix": "none"
+    },
+    {
+      "scenarioId": "deep_p10_drew_injury_sport",
+      "personaId": "P10",
+      "band": "high",
+      "combinedScore": 100,
+      "flowScore": 100,
+      "outputScore": 100,
+      "flowIssues": 0,
+      "failedExpectations": 0,
+      "topFix": "none"
+    }
+  ],
+  "reports": [
+    {
+      "scenarioId": "deep_p01_maya_vertical_jump",
+      "label": "P01 Maya — Home → Sport one day → basketball + vertical jump → build → review → execute",
+      "personaId": "P01",
+      "seed": 1783534740,
+      "userStory": "In-season basketball player opens Sport-Focused one-day flow, picks basketball + vertical jump, lower body 45 min, builds workout, reviews blocks, starts training.",
+      "expectedUserOutcome": "Athletic lower-body session with jump/plyo transfer — not bodybuilding filler or Zone 2 steady cardio.",
+      "flowScore": 100,
+      "outputScore": 100,
+      "combinedScore": 100,
+      "band": "high",
+      "flowIssueCount": 0,
+      "flowIssues": [],
+      "stepTraces": [
+        {
+          "stepId": "home",
+          "screen": "Home (/)",
+          "action": "assert_on_screen",
+          "description": "User lands on home — sees Goal-Oriented and Sport-Focused cards",
+          "routeAfter": "/",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "tap_sport_one_day",
+          "screen": "Home",
+          "action": "tap_home_card",
+          "description": "User taps Sport-Focused Training → One day",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "Sport setup form opens in day scope (not week)",
+          "ok": true
+        },
+        {
+          "stepId": "pick_basketball",
+          "screen": "Sport setup",
+          "action": "tap_sport",
+          "description": "User searches sport list and taps Basketball chip",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "Basketball appears in ranked sport slot 1",
+          "ok": true
+        },
+        {
+          "stepId": "pick_vertical_jump",
+          "screen": "Sport setup",
+          "action": "toggle_subfocus",
+          "description": "User taps Vertical Jump sub-focus under basketball",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "Sub-focus chip selected (max 3 per sport)",
+          "ok": true
+        },
+        {
+          "stepId": "pick_lower_body",
+          "screen": "Sport setup — one day options",
+          "action": "tap_body_bias",
+          "description": "User taps Lower body bias chip",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "One-day body region set to lower",
+          "ok": true
+        },
+        {
+          "stepId": "pick_duration_45",
+          "screen": "Sport setup — one day options",
+          "action": "tap_duration_chip",
+          "description": "User taps 45 min duration chip",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "Session length 45 min (matches DURATIONS UI)",
+          "ok": true
+        },
+        {
+          "stepId": "pick_energy_medium",
+          "screen": "Sport setup",
+          "action": "tap_intensity",
+          "description": "User sets intensity to Medium (Fresh/Fatigued/Medium row)",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "Energy maps to medium for generation",
+          "ok": true
+        },
+        {
+          "stepId": "assert_build_enabled",
+          "screen": "Sport setup",
+          "action": "assert_cta_enabled",
+          "description": "Build workout CTA enabled after sport + sub-focus selected",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "User can proceed — not blocked by missing sport",
+          "ok": true
+        },
+        {
+          "stepId": "tap_build",
+          "screen": "Sport setup",
+          "action": "tap_build_workout",
+          "description": "User taps Build workout — loading screen then recommendation",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "userExpectation": "Generated workout visible with blocks; user can swap exercises",
+          "ok": true
+        },
+        {
+          "stepId": "assert_intent_transfer",
+          "screen": "Sport recommendation",
+          "action": "assert_flow_intent_parity",
+          "description": "Generation inputs reflect UI selections (basketball + vertical_jump)",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "userExpectation": "sportGoalContext matches what user configured in form",
+          "ok": true
+        },
+        {
+          "stepId": "tap_start",
+          "screen": "Sport recommendation",
+          "action": "tap_start_workout",
+          "description": "User taps Start workout → Execute screen",
+          "routeAfter": "/manual/execute",
+          "phaseAfter": "train",
+          "userExpectation": "User can log sets — session is actionable",
+          "ok": true
+        }
+      ],
+      "outputAnalysis": {
+        "narrativeSummary": "In-season court athlete wants jump/COD transfer — not a bodybuilding pump day. Output aligns with persona intent. Main work: Jump Lunge, Single Leg Linear Pogos, Approach Tuck Jump to Split Lunge, Oscillatory Bulgarians.",
+        "intentFidelity": {
+          "filterTransfer": 100,
+          "personaIntent": 100,
+          "sessionUsability": 100
+        },
+        "failedChecks": [],
+        "failedExpectations": [],
+        "expectationResults": [
+          {
+            "id": "plyo_jump_transfer",
+            "label": "Plyometric / jump transfer",
+            "pass": true,
+            "evidence": "Jump/plyo present (Jump Lunge, Single Leg Linear Pogos, Approach Tuck Jump to Split Lunge)"
+          },
+          {
+            "id": "no_zone2_on_explosive_day",
+            "label": "No steady-state Zone 2 on explosive day",
+            "pass": true,
+            "evidence": "No steady-state Zone 2 conditioning"
+          },
+          {
+            "id": "athletic_not_bodybuilding",
+            "label": "Athletic tone (not bodybuilding filler)",
+            "pass": true,
+            "evidence": "athletic main=3, isolation main=0"
+          },
+          {
+            "id": "lower_body_honored",
+            "label": "Lower-body emphasis",
+            "pass": true,
+            "evidence": "4/4 main exercises match body focus"
+          },
+          {
+            "id": "no_intent_label_leak",
+            "label": "Real exercise names (not ontology labels)",
+            "pass": true,
+            "evidence": "Catalog names valid"
+          }
+        ],
+        "exerciseHighlights": {
+          "mainWork": [
+            "Jump Lunge",
+            "Single Leg Linear Pogos",
+            "Approach Tuck Jump to Split Lunge",
+            "Oscillatory Bulgarians"
+          ],
+          "conditioning": [
+            "Burpee"
+          ],
+          "concerns": []
+        }
+      },
+      "topFixes": []
+    },
+    {
+      "scenarioId": "deep_p02_morgan_multi_sport",
+      "label": "P02 Morgan — Two sports, sub-focus blend, 60/40 split → generate",
+      "personaId": "P02",
+      "seed": 1783534740,
+      "userStory": "Multi-sport athlete selects basketball + soccer, multiple sub-focuses, adjusts sport split slider, builds one-day session.",
+      "expectedUserOutcome": "Both sports influence exercise selection; COD/sprint/jump patterns; no single-sport drowning.",
+      "flowScore": 100,
+      "outputScore": 100,
+      "combinedScore": 100,
+      "band": "high",
+      "flowIssueCount": 0,
+      "flowIssues": [],
+      "stepTraces": [
+        {
+          "stepId": "home",
+          "screen": "Home",
+          "action": "assert_on_screen",
+          "description": "Open home",
+          "routeAfter": "/",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sport_day",
+          "screen": "Home",
+          "action": "tap_home_card",
+          "description": "Sport-Focused → One day",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sport_basketball",
+          "screen": "Sport setup",
+          "action": "tap_sport",
+          "description": "Add basketball as sport 1",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sport_soccer",
+          "screen": "Sport setup",
+          "action": "tap_sport",
+          "description": "Add soccer as sport 2",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sub_vj",
+          "screen": "Sport setup",
+          "action": "toggle_subfocus",
+          "description": "Basketball → vertical jump",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sub_cod",
+          "screen": "Sport setup",
+          "action": "toggle_subfocus",
+          "description": "Basketball → change of direction",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sub_speed",
+          "screen": "Sport setup",
+          "action": "toggle_subfocus",
+          "description": "Soccer → speed",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sport_split",
+          "screen": "Sport setup — advanced",
+          "action": "set_sport_split",
+          "description": "User sets 60/40 sport focus split (basketball primary)",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "body_lower",
+          "screen": "Sport setup",
+          "action": "tap_body_bias",
+          "description": "Lower body bias",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "build",
+          "screen": "Sport setup",
+          "action": "tap_build_workout",
+          "description": "Build workout",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "ok": true
+        },
+        {
+          "stepId": "intent_parity",
+          "screen": "Recommendation",
+          "action": "assert_flow_intent_parity",
+          "description": "Both sports + sub-focuses in generation context",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "ok": true
+        }
+      ],
+      "outputAnalysis": {
+        "narrativeSummary": "Multi-sport athlete needs both basketball and soccer to influence one session. Output aligns with persona intent. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Single Leg Lateral Pogos.",
+        "intentFidelity": {
+          "filterTransfer": 100,
+          "personaIntent": 100,
+          "sessionUsability": 100
+        },
+        "failedChecks": [],
+        "failedExpectations": [],
+        "expectationResults": [
+          {
+            "id": "athletic_not_bodybuilding",
+            "label": "Athletic tone (not bodybuilding filler)",
+            "pass": true,
+            "evidence": "athletic main=5, isolation main=0"
+          },
+          {
+            "id": "multi_sport_representation",
+            "label": "Both sports influence output",
+            "pass": true,
+            "evidence": "basketball=true, soccer=true"
+          },
+          {
+            "id": "no_leg_press_athletic_power",
+            "label": "No leg-press in athletic power blocks",
+            "pass": true,
+            "evidence": "No leg-press in power/main"
+          },
+          {
+            "id": "no_intent_label_leak",
+            "label": "Real exercise names (not ontology labels)",
+            "pass": true,
+            "evidence": "Catalog names valid"
+          }
+        ],
+        "exerciseHighlights": {
+          "mainWork": [
+            "Dynamic Soccer Toss",
+            "Single Arm Broad Toss",
+            "Reverse Lunge",
+            "Single Leg Lateral Pogos",
+            "Approach Single Leg Vertical Jump",
+            "Jump Squat",
+            "Jump Lunge",
+            "Lateral Bound"
+          ],
+          "conditioning": [
+            "Single Leg High Knee Mini Hurdles"
+          ],
+          "concerns": []
+        }
+      },
+      "topFixes": []
+    },
+    {
+      "scenarioId": "deep_p06_casey_hypertrophy_goal",
+      "label": "P06 Casey — Goal one day → hypertrophy + glutes/legs → build → review",
+      "personaId": "P06",
+      "seed": 1783534740,
+      "userStory": "User wants muscle in glutes/legs without sport mode — Goal-Oriented one day with sub-focus chips.",
+      "expectedUserOutcome": "Hypertrophy 6–12 rep main work, lower-body honored, practical session structure.",
+      "flowScore": 100,
+      "outputScore": 100,
+      "combinedScore": 100,
+      "band": "high",
+      "flowIssueCount": 0,
+      "flowIssues": [],
+      "stepTraces": [
+        {
+          "stepId": "home",
+          "screen": "Home",
+          "action": "assert_on_screen",
+          "description": "Home screen",
+          "routeAfter": "/",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "goal_day",
+          "screen": "Home",
+          "action": "tap_home_card",
+          "description": "Goal-Oriented Training → One day",
+          "routeAfter": "/manual/preferences",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "goal_hypertrophy",
+          "screen": "Goal preferences",
+          "action": "tap_primary_goal",
+          "description": "User selects Build Muscle (Hypertrophy) as primary goal",
+          "routeAfter": "/manual/preferences",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sub_glutes",
+          "screen": "Goal preferences",
+          "action": "toggle_goal_subfocus",
+          "description": "User toggles Glutes sub-focus",
+          "routeAfter": "/manual/preferences",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sub_legs",
+          "screen": "Goal preferences",
+          "action": "toggle_goal_subfocus",
+          "description": "User toggles Legs sub-focus",
+          "routeAfter": "/manual/preferences",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "body_lower",
+          "screen": "Goal preferences",
+          "action": "set_manual_preferences",
+          "description": "User taps Lower body focus",
+          "routeAfter": "/manual/preferences",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "duration_45",
+          "screen": "Goal preferences",
+          "action": "tap_duration_chip",
+          "description": "User selects 45 min",
+          "routeAfter": "/manual/preferences",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "energy_medium",
+          "screen": "Goal preferences",
+          "action": "set_manual_preferences",
+          "description": "User selects Medium energy",
+          "routeAfter": "/manual/preferences",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "build",
+          "screen": "Goal preferences",
+          "action": "tap_build_workout",
+          "description": "User taps Build workout",
+          "routeAfter": "/manual/workout",
+          "phaseAfter": "review",
+          "ok": true
+        },
+        {
+          "stepId": "intent_parity",
+          "screen": "Workout review",
+          "action": "assert_flow_intent_parity",
+          "description": "Goals/sub-focus/body match fixture",
+          "routeAfter": "/manual/workout",
+          "phaseAfter": "review",
+          "ok": true
+        }
+      ],
+      "outputAnalysis": {
+        "narrativeSummary": "Physique + performance — hypertrophy lower with glutes/legs sub-focus. Output aligns with persona intent. Main work: Swiss Ball Hamstring Curl, Glute - Ham Raise, Good Mornings, Dumbbell Split Squat.",
+        "intentFidelity": {
+          "filterTransfer": 100,
+          "personaIntent": 100,
+          "sessionUsability": 100
+        },
+        "failedChecks": [],
+        "failedExpectations": [],
+        "expectationResults": [
+          {
+            "id": "hypertrophy_rep_range",
+            "label": "Hypertrophy-appropriate rep ranges",
+            "pass": true,
+            "evidence": "main rep samples: 12, 12, 12, 10, 10 (8/8 in 5–15)"
+          },
+          {
+            "id": "lower_body_honored",
+            "label": "Lower-body emphasis",
+            "pass": true,
+            "evidence": "8/8 main exercises match body focus"
+          },
+          {
+            "id": "no_intent_label_leak",
+            "label": "Real exercise names (not ontology labels)",
+            "pass": true,
+            "evidence": "Catalog names valid"
+          }
+        ],
+        "exerciseHighlights": {
+          "mainWork": [
+            "Swiss Ball Hamstring Curl",
+            "Glute - Ham Raise",
+            "Good Mornings",
+            "Dumbbell Split Squat",
+            "Single Leg Glute Bridge",
+            "Overcoming ISO BB Split Squat",
+            "Front Rack Split Squat",
+            "Iso-Extreme Split Squat"
+          ],
+          "conditioning": [],
+          "concerns": []
+        }
+      },
+      "topFixes": []
+    },
+    {
+      "scenarioId": "deep_p07_alex_hotel_gym",
+      "label": "P07 Alex — Profiles → Hotel gym → sport RSA → build with equipment constraint",
+      "personaId": "P07",
+      "seed": 1783534740,
+      "userStory": "Traveling athlete switches gym profile to hotel, then builds soccer repeat-sprint session from limited equipment.",
+      "expectedUserOutcome": "Zero barbell/rack/cable exercises; ≥5 exercises with DB/band/bodyweight substitutions.",
+      "flowScore": 100,
+      "outputScore": 100,
+      "combinedScore": 100,
+      "band": "high",
+      "flowIssueCount": 0,
+      "flowIssues": [],
+      "stepTraces": [
+        {
+          "stepId": "home",
+          "screen": "Home",
+          "action": "assert_on_screen",
+          "description": "Home",
+          "routeAfter": "/",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "open_profiles",
+          "screen": "Home / Profiles",
+          "action": "switch_gym_template",
+          "description": "User opens Profiles tab and selects Hotel Gym template",
+          "routeAfter": "/",
+          "phaseAfter": "setup",
+          "userExpectation": "Active gym profile uses hotel equipment list only",
+          "ok": true
+        },
+        {
+          "stepId": "sport_day",
+          "screen": "Home",
+          "action": "tap_home_card",
+          "description": "Sport-Focused → One day",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sport_soccer",
+          "screen": "Sport setup",
+          "action": "tap_sport",
+          "description": "Select soccer",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sub_speed",
+          "screen": "Sport setup",
+          "action": "toggle_subfocus",
+          "description": "Select speed (UI label for repeat-sprint intent)",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "duration_45",
+          "screen": "Sport setup",
+          "action": "tap_duration_chip",
+          "description": "45 min (nearest UI chip to 35 min persona fixture)",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "build",
+          "screen": "Sport setup",
+          "action": "tap_build_workout",
+          "description": "Build workout with hotel gym active",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "ok": true
+        },
+        {
+          "stepId": "gym_assert",
+          "screen": "Recommendation",
+          "action": "assert_gym_template",
+          "description": "Generation uses hotel gym equipment profile",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "ok": true
+        },
+        {
+          "stepId": "intent_parity",
+          "screen": "Recommendation",
+          "action": "assert_flow_intent_parity",
+          "description": "Soccer speed/RSA intent in context",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "ok": true
+        }
+      ],
+      "outputAnalysis": {
+        "narrativeSummary": "Traveling athlete — hotel gym only; sensible substitutions required. Output aligns with persona intent. Main work: Lateral Power Shuffle, Build Up Sprint.",
+        "intentFidelity": {
+          "filterTransfer": 100,
+          "personaIntent": 100,
+          "sessionUsability": 100
+        },
+        "failedChecks": [],
+        "failedExpectations": [],
+        "expectationResults": [
+          {
+            "id": "hotel_equipment_only",
+            "label": "Hotel gym feasibility",
+            "pass": true,
+            "evidence": "All exercises hotel-feasible"
+          },
+          {
+            "id": "hotel_session_density",
+            "label": "Usable hotel session density",
+            "pass": true,
+            "evidence": "4 blocks, 8 exercises"
+          },
+          {
+            "id": "no_intent_label_leak",
+            "label": "Real exercise names (not ontology labels)",
+            "pass": true,
+            "evidence": "Catalog names valid"
+          }
+        ],
+        "exerciseHighlights": {
+          "mainWork": [
+            "Lateral Power Shuffle",
+            "Build Up Sprint"
+          ],
+          "conditioning": [
+            "Zone 2 Treadmill / Run"
+          ],
+          "concerns": []
+        }
+      },
+      "topFixes": []
+    },
+    {
+      "scenarioId": "deep_p10_drew_injury_sport",
+      "label": "P10 Drew — Sport day with knee + shoulder injury toggles → safe session",
+      "personaId": "P10",
+      "seed": 1783535740,
+      "userStory": "User with knee and shoulder concerns selects soccer + speed in sport mode with injury status set.",
+      "expectedUserOutcome": "Usable session with contraindicated exercises filtered; no joint-stress violations.",
+      "flowScore": 100,
+      "outputScore": 100,
+      "combinedScore": 100,
+      "band": "high",
+      "flowIssueCount": 0,
+      "flowIssues": [],
+      "stepTraces": [
+        {
+          "stepId": "home",
+          "screen": "Home",
+          "action": "assert_on_screen",
+          "description": "Home",
+          "routeAfter": "/",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sport_day",
+          "screen": "Home",
+          "action": "tap_home_card",
+          "description": "Sport one day",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sport_soccer",
+          "screen": "Sport setup",
+          "action": "tap_sport",
+          "description": "Select soccer",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "sub_speed",
+          "screen": "Sport setup",
+          "action": "toggle_subfocus",
+          "description": "Speed sub-focus",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "ok": true
+        },
+        {
+          "stepId": "injury_status",
+          "screen": "Sport setup — injury section",
+          "action": "set_injury_status",
+          "description": "User sets injury status (not No Concerns) and selects Knee + Shoulder",
+          "routeAfter": "/sport-mode?scope=day",
+          "phaseAfter": "setup",
+          "userExpectation": "Injury filters flow into generation constraints",
+          "ok": true
+        },
+        {
+          "stepId": "build",
+          "screen": "Sport setup",
+          "action": "tap_build_workout",
+          "description": "Build workout",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "ok": true
+        },
+        {
+          "stepId": "intent_parity",
+          "screen": "Recommendation",
+          "action": "assert_flow_intent_parity",
+          "description": "Injuries + sport intent in generation path",
+          "routeAfter": "/sport-mode/recommendation",
+          "phaseAfter": "review",
+          "ok": true
+        }
+      ],
+      "outputAnalysis": {
+        "narrativeSummary": "Managing knee + shoulder injury — usable session with safe alternatives. Output aligns with persona intent. Main work: Barbell Row, Barbell Romanian Deadlift.",
+        "intentFidelity": {
+          "filterTransfer": 100,
+          "personaIntent": 100,
+          "sessionUsability": 100
+        },
+        "failedChecks": [],
+        "failedExpectations": [],
+        "expectationResults": [
+          {
+            "id": "injury_contraindications_respected",
+            "label": "Injury filters honored",
+            "pass": true,
+            "evidence": "No injury violations"
+          },
+          {
+            "id": "no_intent_label_leak",
+            "label": "Real exercise names (not ontology labels)",
+            "pass": true,
+            "evidence": "Catalog names valid"
+          }
+        ],
+        "exerciseHighlights": {
+          "mainWork": [
+            "Barbell Row",
+            "Barbell Romanian Deadlift"
+          ],
+          "conditioning": [
+            "Kettlebell Swing"
+          ],
+          "concerns": []
+        }
+      },
+      "topFixes": []
+    }
+  ]
+}

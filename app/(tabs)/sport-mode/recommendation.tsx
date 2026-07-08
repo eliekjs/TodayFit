@@ -61,6 +61,7 @@ import {
   buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
   buildPriorityFocusSummary,
+  sportGoalPrioritySectionNote,
   type DayBodyFocusChoiceId,
 } from "../../../lib/weekDaySessionFocus";
 import { WeekDayFocusSummaryCard } from "../../../components/WeekDayFocusPlanner";
@@ -697,6 +698,19 @@ export default function AdaptiveWeekPlanScreen() {
       specificBodyFocus,
     });
   }, [sportPrepWeekPlan, selectedSession, manualPreferences]);
+
+  const sportGoalPriorityNoteForSelectedDay = useMemo(() => {
+    const plan = sportPrepWeekPlan;
+    if (!plan) return null;
+    const adaptive = adaptiveSetupFromPlanContext({
+      goalSlugs: plan.goalSlugs,
+      rankedSportSlugs: plan.rankedSportSlugs,
+      sportVsGoalPct: plan.sportVsGoalPct,
+      sportFocusPct: plan.sportFocusPct,
+      sportSubFocusSlugsBySport: plan.sportSubFocusSlugsBySport,
+    });
+    return sportGoalPrioritySectionNote(manualPreferences, adaptive);
+  }, [sportPrepWeekPlan, manualPreferences]);
 
   useEffect(() => {
     const session = selectedSession ?? sportPrepWeekPlan?.days[0];
@@ -1354,6 +1368,7 @@ export default function AdaptiveWeekPlanScreen() {
                   ? dayFocusPresetsForSelectedDay
                   : undefined
               }
+              sportGoalPriorityNote={sportGoalPriorityNoteForSelectedDay}
               showAdjustFocusLink={focusSectionsForModal.length > 0}
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
               helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}

@@ -144,6 +144,43 @@ function conflictingSubFocusDisplayNames(
   return names.slice(0, 2).join(", ");
 }
 
+function partitionRegionalSubFocusSlugs(slugs: Set<string>): {
+  upper: Set<string>;
+  lower: Set<string>;
+} {
+  return {
+    upper: new Set([...slugs].filter((s) => isUpperBodySubFocusSlug(s))),
+    lower: new Set([...slugs].filter((s) => isLowerBodySubFocusSlug(s))),
+  };
+}
+
+/** True when upper regional subs and lower regional subs come from different goals. */
+function subFocusRegionsSplitAcrossGoals(
+  prefs: ManualPreferences,
+  upperSlugs: Set<string>,
+  lowerSlugs: Set<string>
+): boolean {
+  if (upperSlugs.size === 0 || lowerSlugs.size === 0) return false;
+  const goalsWithUpper = new Set<string>();
+  const goalsWithLower = new Set<string>();
+  for (const [goalLabel, displayNames] of Object.entries(prefs.subFocusByGoal)) {
+    const entry = GOAL_SUB_FOCUS_OPTIONS[goalLabel];
+    if (!entry) continue;
+    const nameToSlug = new Map(entry.subFocuses.map((f) => [f.name, f.slug]));
+    for (const name of displayNames) {
+      const slug = nameToSlug.get(name);
+      if (!slug) continue;
+      if (upperSlugs.has(slug)) goalsWithUpper.add(goalLabel);
+      if (lowerSlugs.has(slug)) goalsWithLower.add(goalLabel);
+    }
+  }
+  if (goalsWithUpper.size === 0 || goalsWithLower.size === 0) return false;
+  for (const goal of goalsWithUpper) {
+    if (!goalsWithLower.has(goal)) return true;
+  }
+  return false;
+}
+
 /** Remove sub-focus display-name entries whose slugs are in the given set. */
 function removeConflictingSubFocuses(
   prefs: ManualPreferences,
@@ -178,14 +215,22 @@ function detectBodyRegionVsSubGoalConflict(
   const selectedSlugs = resolveSelectedSubFocusSlugs(prefs);
   if (selectedSlugs.size === 0) return null;
 
+  const { upper: upperSlugs, lower: lowerSlugs } = partitionRegionalSubFocusSlugs(selectedSlugs);
+  const spansUpperAndLower = upperSlugs.size > 0 && lowerSlugs.size > 0;
+  const splitAcrossGoals = subFocusRegionsSplitAcrossGoals(prefs, upperSlugs, lowerSlugs);
+
   if (targetBody === "Upper") {
-    const lowerSlugs = new Set([...selectedSlugs].filter((s) => isLowerBodySubFocusSlug(s)));
     if (lowerSlugs.size === 0) return null;
     const names = conflictingSubFocusDisplayNames(prefs, lowerSlugs);
+    const message = spansUpperAndLower
+      ? splitAcrossGoals
+        ? `Your goals use sub-goals for different body regions (e.g. ${names}), but this session is set to Upper body.`
+        : `Your sub-goals span upper and lower body, but this session is set to Upper body. Lower-body picks like ${names} won't fully match.`
+      : `Your sub-goals (${names}) focus on lower body, but your session is set to Upper body.`;
     return {
       id: "body_vs_subgoal_upper_lower",
       severity: "high",
-      message: `Your sub-goals (${names}) focus on lower body, but your session is set to Upper body.`,
+      message,
       resolutions: [
         {
           label: "Switch to Full body",
@@ -200,13 +245,17 @@ function detectBodyRegionVsSubGoalConflict(
   }
 
   if (targetBody === "Lower") {
-    const upperSlugs = new Set([...selectedSlugs].filter((s) => isUpperBodySubFocusSlug(s)));
     if (upperSlugs.size === 0) return null;
     const names = conflictingSubFocusDisplayNames(prefs, upperSlugs);
+    const message = spansUpperAndLower
+      ? splitAcrossGoals
+        ? `Your goals use sub-goals for different body regions (e.g. ${names}), but this session is set to Lower body.`
+        : `Your sub-goals span upper and lower body, but this session is set to Lower body. Upper-body picks like ${names} won't fully match.`
+      : `Your sub-goals (${names}) focus on upper body, but your session is set to Lower body.`;
     return {
       id: "body_vs_subgoal_lower_upper",
       severity: "high",
-      message: `Your sub-goals (${names}) focus on upper body, but your session is set to Lower body.`,
+      message,
       resolutions: [
         {
           label: "Switch to Full body",

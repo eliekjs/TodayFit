@@ -32,6 +32,8 @@ export type DayFocusOverrideChipsProps = {
   /** When set, show session-focus presets (sport vs goal emphasis) instead of generic goal chips. */
   dayFocusPresets?: DayFocusPreset[];
   selectedDayFocusPresetId?: string;
+  /** Shown once above session-focus presets (shared "X first" explanation). */
+  sportGoalPriorityNote?: string | null;
   /** Increment to open the focus controls from an external card/action. */
   expandSignal?: number;
 };
@@ -50,6 +52,7 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   baseIncludeCreativeVariations = false,
   dayFocusPresets,
   selectedDayFocusPresetId,
+  sportGoalPriorityNote,
   expandSignal,
 }, ref) {
   const theme = useTheme();
@@ -134,7 +137,12 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
               </Text>
               {dayFocusPresets && dayFocusPresets.length > 0 ? (
                 <View style={{ marginBottom: 12, gap: 8 }}>
-                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Session focus: </Text>
+                  <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Session focus</Text>
+                  {sportGoalPriorityNote ? (
+                    <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
+                      {sportGoalPriorityNote}
+                    </Text>
+                  ) : null}
                   {dayFocusPresets.map((p) => {
                     const selected = effectiveDayFocusPresetId === p.id;
                     return (
@@ -157,7 +165,7 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
                         })}
                       >
                         <Text style={{ fontSize: 13, fontWeight: "600", color: theme.text }}>{p.label}</Text>
-                        {p.subtitle ? (
+                        {p.subtitle?.trim() ? (
                           <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 2 }}>{p.subtitle}</Text>
                         ) : null}
                       </Pressable>

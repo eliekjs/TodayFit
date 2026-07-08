@@ -56,6 +56,7 @@ import {
   defaultBodyFocusChoiceIdForDay,
   resolveDayFocusPreset,
   defaultPresetIdForWeekDay,
+  sportGoalPrioritySectionNote,
   type DayBodyFocusChoice,
   type DayBodyFocusChoiceId,
   type DayFocusPreset,
@@ -1144,6 +1145,7 @@ export default function ManualWeekScreen() {
                 selectedIds={dayFocusChoiceIds}
                 conflictsPerDay={daySessionFocusConflicts}
                 resolvedConflictIdsByDay={resolvedConflictIdsByDay}
+                sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}
                 onSelectBody={(dayIdx, id) => {
                   clearDayConflictState(dayIdx);
                   setDayBodyFocusChoiceIds((prev) => {
@@ -1432,6 +1434,7 @@ export default function ManualWeekScreen() {
               baseIncludeCreativeVariations={manualPreferences.includeCreativeVariations === true}
               dayFocusPresets={selectedDayPresetOptions}
               selectedDayFocusPresetId={selectedDayFocusPresetId}
+              sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}
               expandSignal={focusEditorExpandSignal}
             />
             {userId && isDbConfigured() ? (

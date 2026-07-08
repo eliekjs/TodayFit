@@ -209,7 +209,7 @@ export const DEEP_USER_FLOW_SCENARIOS: UserFlowScenario[] = [
     userStory:
       "User wants muscle in glutes/legs without sport mode — Goal-Oriented one day with sub-focus chips.",
     expectedUserOutcome:
-      "Hypertrophy 6–12 rep main work, lower-body honored, practical session structure.",
+      "Hypertrophy 8–15 rep main work (median ≥10), lower-body honored, practical session structure.",
     steps: [
       { id: "home", screen: "Home", description: "Home screen", action: "assert_on_screen", expectRoute: "/" },
       {

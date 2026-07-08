@@ -22,6 +22,8 @@ type Props = {
   conflictsPerDay?: (DaySessionFocusConflict | null)[];
   /** Resolution id applied per day, keyed by day index. */
   resolvedConflictIdsByDay?: Record<number, string>;
+  /** Shown once at top — explains "X first" options without repeating per day/option. */
+  sportGoalPriorityNote?: string | null;
   onSelectBody?: (dayIndex: number, bodyId: DayBodyFocusChoiceId) => void;
   onSelect: (dayIndex: number, presetId: string) => void;
   onApplyDayResolution?: (dayIndex: number, resolution: DaySessionFocusResolution) => void;
@@ -57,17 +59,16 @@ function SummaryFocusRow({
   subtitle?: string | null;
 }) {
   return (
-    <View
-      style={[
-        styles.summaryFocusBlock,
-        { backgroundColor: theme.background, borderColor: theme.border },
-      ]}
-    >
+    <View style={styles.summaryFocusRow}>
       <Text style={[styles.summaryFocusLabel, { color: theme.textMuted }]}>{label}</Text>
-      <Text style={[styles.summaryFocusValue, { color: theme.text }]}>{value}</Text>
-      {subtitle ? (
-        <Text style={[styles.summaryFocusSub, { color: theme.textMuted }]}>{subtitle}</Text>
-      ) : null}
+      <View style={styles.summaryFocusValueWrap}>
+        <Text style={[styles.summaryFocusValue, { color: theme.text }]}>
+          {value}
+          {subtitle ? (
+            <Text style={[styles.summaryFocusSub, { color: theme.textMuted }]}> · {subtitle}</Text>
+          ) : null}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -105,7 +106,7 @@ export function WeekDayFocusSummaryCard({
         {bodyFocus ? (
           <SummaryFocusRow
             theme={theme}
-            label="Body focus"
+            label="Body"
             value={bodyFocus.label}
             subtitle={bodyFocus.subtitle}
           />
@@ -114,7 +115,7 @@ export function WeekDayFocusSummaryCard({
         {priorityFocus ? (
           <SummaryFocusRow
             theme={theme}
-            label="Sport / goal priority"
+            label="Focus"
             value={priorityFocus.label}
             subtitle={priorityFocus.subtitle}
           />
@@ -188,6 +189,7 @@ export function WeekDayFocusPlanner({
   selectedIds,
   conflictsPerDay,
   resolvedConflictIdsByDay,
+  sportGoalPriorityNote,
   onSelectBody,
   onSelect,
   onApplyDayResolution,
@@ -200,6 +202,11 @@ export function WeekDayFocusPlanner({
         We preselect body areas that fit your sport and goals. Adjust them if you want a different
         lower, core, upper, or full-body mix for the week.
       </Text>
+      {sportGoalPriorityNote ? (
+        <Text style={[styles.screenNote, { color: theme.textMuted }]}>
+          {sportGoalPriorityNote}
+        </Text>
+      ) : null}
 
       {dayLabels.map((label, dayIdx) => {
         const bodyOptions = bodyOptionsPerDay?.[dayIdx] ?? [];
@@ -282,7 +289,7 @@ export function WeekDayFocusPlanner({
                     </View>
                     <View style={styles.optionText}>
                       <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>
-                      {p.subtitle ? (
+                      {p.subtitle?.trim() ? (
                         <Text style={[styles.optionSub, { color: theme.textMuted }]}>{p.subtitle}</Text>
                       ) : null}
                     </View>
@@ -319,6 +326,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 8,
+  },
+  screenNote: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 12,
+    fontWeight: "500",
   },
   card: {
     borderRadius: 14,
@@ -393,29 +406,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   summaryFocusStack: {
+    gap: 4,
+  },
+  summaryFocusRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
     gap: 8,
   },
-  summaryFocusBlock: {
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 3,
-  },
   summaryFocusLabel: {
+    width: 46,
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+  },
+  summaryFocusValueWrap: {
+    flex: 1,
   },
   summaryFocusValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     letterSpacing: -0.2,
   },
   summaryFocusSub: {
     fontSize: 12,
-    lineHeight: 17,
-    marginTop: 1,
+    fontWeight: "400",
   },
 });

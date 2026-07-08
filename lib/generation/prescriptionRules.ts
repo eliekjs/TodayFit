@@ -17,6 +17,22 @@ import type { BlockFormat } from "../types";
 
 export type EnergyLevel = "low" | "medium" | "high";
 
+/** Where in the goal rep band to anchor before energy bucket shifts. */
+export type RepSelectionStrategy = "min" | "mid" | "max";
+
+export type VolumeProfile = {
+  mainRepSelection: RepSelectionStrategy;
+  accessoryRepSelection: RepSelectionStrategy;
+};
+
+export const DEFAULT_VOLUME_PROFILE: VolumeProfile = {
+  mainRepSelection: "mid",
+  accessoryRepSelection: "max",
+};
+
+/** Discrete rep targets shown in the app; energy shifts move along this ladder. */
+export const ALLOWED_REP_TARGETS = [5, 6, 8, 10, 12, 15, 20] as const;
+
 export type ConditioningStrategy =
   | "none"
   | "optional_short"
@@ -85,13 +101,15 @@ export type GoalTrainingRule = {
   conditioningModalities?: string[];
   /** Structure hint: warmup, main, accessory, conditioning, cooldown. */
   blockOrder?: string[];
+  /** Goal-specific rep/set selection strategy (energy applied on top). */
+  volumeProfile?: VolumeProfile;
 };
 
 /** Keys match PrimaryGoal in logic/workoutGeneration/types. */
 export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   strength: {
-    // ACSM: heavy loading 1–6 RM, 3–5 min rest between sets for intermediate/advanced.
-    repRange: { min: 3, max: 6 },
+    // Practical strength: 5–8 reps (not powerlifting peaking); ACSM heavy loading with gym-friendly volume.
+    repRange: { min: 5, max: 8 },
     setRange: { min: 3, max: 5 },
     restRange: { min: 150, max: 300 },
     preferredFormats: ["straight_sets", "superset"],
@@ -103,14 +121,15 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     },
     compoundLiftMin: 2,
     supersetsNonCompetingOnly: true,
-    accessoryRepRange: { min: 8, max: 10 },
+    accessoryRepRange: { min: 8, max: 12 },
     accessorySetRange: { min: 3, max: 4 },
     accessoryRestRange: { min: 60, max: 90 },
     preferredMovementPatterns: ["squat", "hinge", "push", "pull"],
+    volumeProfile: { mainRepSelection: "mid", accessoryRepSelection: "max" },
   },
 
   hypertrophy: {
-    // Evidence-based: hypertrophy similar across 6–20 reps near failure; 8–15 favors efficiency (Schoenfeld). Rest 1–2 min (ACSM); 60–90 s supported by meta-analysis (≥60 s may slightly favor volume).
+    // Evidence-based: hypertrophy similar across 6–20 reps near failure; bias upper band for volume.
     repRange: { min: 8, max: 15 },
     setRange: { min: 3, max: 4 },
     restRange: { min: 60, max: 90 },
@@ -122,10 +141,14 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
       strength: "Controlled tempo. Focus on full range of motion.",
     },
     mainBlockMovementCount: { min: 3, max: 4 },
+    accessoryRepRange: { min: 12, max: 15 },
+    accessorySetRange: { min: 3, max: 4 },
+    accessoryRestRange: { min: 45, max: 75 },
+    volumeProfile: { mainRepSelection: "max", accessoryRepSelection: "max" },
   },
 
   body_recomp: {
-    repRange: { min: 10, max: 15 },
+    repRange: { min: 12, max: 15 },
     setRange: { min: 3, max: 4 },
     restRange: { min: 45, max: 60 },
     preferredFormats: ["superset", "straight_sets"],
@@ -138,6 +161,10 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
       cardio: "Steady lower-intensity effort.",
     },
     maxStrengthExercises: 6,
+    accessoryRepRange: { min: 12, max: 15 },
+    accessorySetRange: { min: 3, max: 4 },
+    accessoryRestRange: { min: 45, max: 60 },
+    volumeProfile: { mainRepSelection: "max", accessoryRepSelection: "max" },
   },
 
   endurance: {
@@ -232,7 +259,7 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   },
 
   athletic_performance: {
-    repRange: { min: 5, max: 8 },
+    repRange: { min: 6, max: 8 },
     setRange: { min: 3, max: 4 },
     restRange: { min: 90, max: 120 },
     preferredFormats: ["straight_sets", "superset"],
@@ -241,9 +268,13 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     powerRepRange: { min: 3, max: 5 },
     powerRestRange: { min: 90, max: 120 },
     powerBeforeStrength: true,
+    accessoryRepRange: { min: 8, max: 12 },
+    accessorySetRange: { min: 2, max: 3 },
+    accessoryRestRange: { min: 45, max: 75 },
     cueStyle: {
       strength: "Power then strength. Explosive intent.",
     },
+    volumeProfile: { mainRepSelection: "mid", accessoryRepSelection: "mid" },
   },
 
   power: {
@@ -253,10 +284,13 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
     preferredFormats: ["straight_sets"],
     conditioningStrategy: "optional_short",
     powerBeforeStrength: true,
+    powerRepRange: { min: 3, max: 5 },
+    powerRestRange: { min: 120, max: 180 },
     cueStyle: {
       strength: "Explosive. Jumps, throws, Olympic variations, swings.",
     },
     preferredMovementPatterns: ["plyometric", "olympic", "swing", "throw"],
+    volumeProfile: { mainRepSelection: "min", accessoryRepSelection: "mid" },
   },
 
   calisthenics: {
@@ -289,6 +323,7 @@ export function getGoalRules(goal: string): GoalTrainingRule {
 
 /**
  * Apply energy-level scaling to sets (low: -25%, high: +25%).
+ * Prefer {@link resolveSetsFromRange} in the daily generator path to avoid double-scaling.
  */
 export function scaleSetsByEnergy(
   sets: number,
@@ -297,6 +332,110 @@ export function scaleSetsByEnergy(
   if (energy === "low") return Math.max(1, Math.round(sets * 0.75));
   if (energy === "high") return Math.round(sets * 1.25);
   return sets;
+}
+
+export function snapRepsToAllowedBuckets(reps: number): number {
+  let best: number = ALLOWED_REP_TARGETS[0];
+  let bestDiff = Math.abs(reps - best);
+  for (const bucket of ALLOWED_REP_TARGETS) {
+    const diff = Math.abs(reps - bucket);
+    if (diff < bestDiff) {
+      best = bucket;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
+function clampRepsToGoalRange(
+  reps: number,
+  goalRange: { min: number; max: number }
+): number {
+  if (reps < goalRange.min) {
+    return ALLOWED_REP_TARGETS.find((b) => b >= goalRange.min) ?? goalRange.min;
+  }
+  if (reps > goalRange.max) {
+    return [...ALLOWED_REP_TARGETS].reverse().find((b) => b <= goalRange.max) ?? goalRange.max;
+  }
+  return reps;
+}
+
+function repBucketIndex(reps: number): number {
+  const snapped = snapRepsToAllowedBuckets(reps);
+  const direct = ALLOWED_REP_TARGETS.indexOf(snapped as (typeof ALLOWED_REP_TARGETS)[number]);
+  if (direct >= 0) return direct;
+  let best = 0;
+  let bestDiff = Math.abs(ALLOWED_REP_TARGETS[0] - snapped);
+  for (let i = 1; i < ALLOWED_REP_TARGETS.length; i++) {
+    const diff = Math.abs(ALLOWED_REP_TARGETS[i]! - snapped);
+    if (diff < bestDiff) {
+      best = i;
+      bestDiff = diff;
+    }
+  }
+  return best;
+}
+
+/**
+ * Pick a rep target from a goal range using min / mid / upper-half bias, then snap to buckets.
+ */
+export function selectRepsFromRange(
+  goalRange: { min: number; max: number },
+  selection: RepSelectionStrategy
+): number {
+  const { min, max } = goalRange;
+  let target: number;
+  if (selection === "min") {
+    target = min;
+  } else if (selection === "max") {
+    target = min + Math.ceil((max - min) * 0.75);
+  } else {
+    target = Math.round((min + max) / 2);
+  }
+  return snapRepsToAllowedBuckets(target);
+}
+
+/**
+ * Shift reps along allowed buckets for energy (low −1, high +1), clamped to goal range.
+ */
+export function scaleRepsByEnergy(
+  reps: number,
+  energy: EnergyLevel,
+  goalRange: { min: number; max: number }
+): number {
+  if (energy === "medium") return clampRepsToGoalRange(reps, goalRange);
+  const shift = energy === "high" ? 1 : -1;
+  const idx = repBucketIndex(reps);
+  const newIdx = Math.max(0, Math.min(ALLOWED_REP_TARGETS.length - 1, idx + shift));
+  return clampRepsToGoalRange(ALLOWED_REP_TARGETS[newIdx]!, goalRange);
+}
+
+/**
+ * Energy-aware set count from goal set range (low → min, medium → mid, high → max + 1 capped at 6).
+ */
+export function resolveSetsFromRange(
+  setRange: { min: number; max: number },
+  energy: EnergyLevel
+): number {
+  const mid = Math.round((setRange.min + setRange.max) / 2);
+  if (energy === "low") return setRange.min;
+  if (energy === "high") return Math.min(setRange.max + 1, 6);
+  return mid;
+}
+
+/**
+ * Resolve baseline reps and sets from goal rules before fatigue / beginner caps.
+ */
+export function resolveVolumePrescription(
+  goalRange: { min: number; max: number },
+  setRange: { min: number; max: number },
+  energy: EnergyLevel,
+  repSelection: RepSelectionStrategy
+): { reps: number; baseSets: number } {
+  const baseReps = selectRepsFromRange(goalRange, repSelection);
+  const reps = scaleRepsByEnergy(baseReps, energy, goalRange);
+  const baseSets = resolveSetsFromRange(setRange, energy);
+  return { reps, baseSets };
 }
 
 /**

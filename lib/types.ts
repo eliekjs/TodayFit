@@ -86,6 +86,12 @@ export type ManualPreferences = {
   targetBody: TargetBody | null;
   /** e.g. Push, Pull for Upper; Quad, Posterior for Lower; empty for Full. */
   targetModifier: string[];
+  /**
+   * Specific body-part emphasis for this session (e.g. "core" day focus, stored as
+   * targetBody="Full" + specificBodyFocus=["core"] since Core is not a TargetBody value).
+   * See `manualPreferencesToGenerateWorkoutInput` for how this reaches the generator.
+   */
+  specificBodyFocus?: SpecificBodyFocusKey[];
   durationMinutes: number | null;
   energyLevel: EnergyLevel | null;
   /** Single list: joints + "No restrictions" (mutually exclusive with others). */

@@ -40,9 +40,9 @@ describe("shouldPrescribePowerIntent", () => {
     ).toBe(true);
   });
 
-  it("strength feel only prescribes power intent for power primary on power blocks", () => {
+  it("power blocks always use power prescription regardless of primary goal", () => {
     expect(shouldPrescribePowerIntent("power", "power", stubExercise(), "strength")).toBe(true);
-    expect(shouldPrescribePowerIntent("power", "strength", stubExercise(), "strength")).toBe(false);
+    expect(shouldPrescribePowerIntent("power", "strength", stubExercise(), "strength")).toBe(true);
   });
 
   it("main_strength back squat stays strength prescription under sports feel", () => {

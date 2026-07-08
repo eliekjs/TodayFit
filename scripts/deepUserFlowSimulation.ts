@@ -24,11 +24,10 @@ import {
 import { DEEP_USER_FLOW_SCENARIOS } from "../logic/workoutGeneration/deepUserFlowScenarios";
 import { simulateUserFlow } from "../logic/workoutGeneration/userFlowSimulator";
 import { analyzePersonaOutput } from "../logic/workoutGeneration/personaOutputAnalysis";
-import { expectationsForPersona } from "../logic/workoutGeneration/personaExpectationContracts";
 
-const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts", "deep-user-flow");
+export const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts", "deep-user-flow");
 
-type ScenarioReport = {
+export type ScenarioReport = {
   scenarioId: string;
   label: string;
   personaId: string;
@@ -98,6 +97,25 @@ function rankFixes(
     .slice(0, 3)
     .map((f, i) => ({ rank: i + 1, category: f.category, issueId: f.issueId, message: f.message }));
 }
+
+export type DeepSimulationResult = {
+  runAt: string;
+  seed: number;
+  scenarioCount: number;
+  summary: Array<{
+    scenarioId: string;
+    personaId: string;
+    band: string;
+    combinedScore: number;
+    flowScore: number;
+    outputScore: number;
+    flowIssues: number;
+    failedExpectations: number;
+    topFix: string;
+  }>;
+  reports: ScenarioReport[];
+  artifactPath: string;
+};
 
 async function runScenario(
   scenario: (typeof DEEP_USER_FLOW_SCENARIOS)[number],
@@ -187,22 +205,15 @@ async function runScenario(
   };
 }
 
-async function main() {
-  loadDotEnvFromRepoRoot();
-  const seedArg = process.argv[2];
-  const scenarioArg = process.argv.find((a) => a.startsWith("--scenario="))?.split("=")[1];
-  const seed =
-    seedArg != null && seedArg !== "" && !seedArg.startsWith("--")
-      ? Number(seedArg)
-      : Math.floor(Date.now() / 1000) % 1_000_000;
-
-  const scenarios = scenarioArg
-    ? DEEP_USER_FLOW_SCENARIOS.filter((s) => s.id === scenarioArg)
+export async function runDeepSimulation(seed: number, scenarioId?: string): Promise<DeepSimulationResult> {
+  const scenarios = scenarioId
+    ? DEEP_USER_FLOW_SCENARIOS.filter((s) => s.id === scenarioId)
     : DEEP_USER_FLOW_SCENARIOS;
 
   if (scenarios.length === 0) {
-    console.error(`Unknown scenario "${scenarioArg}". Available: ${DEEP_USER_FLOW_SCENARIOS.map((s) => s.id).join(", ")}`);
-    process.exit(1);
+    throw new Error(
+      `Unknown scenario "${scenarioId}". Available: ${DEEP_USER_FLOW_SCENARIOS.map((s) => s.id).join(", ")}`
+    );
   }
 
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
@@ -212,31 +223,53 @@ async function main() {
     reports.push(await runScenario(scenario, seed));
   }
 
-  const aggregate = {
+  const summary = reports.map((r) => ({
+    scenarioId: r.scenarioId,
+    personaId: r.personaId,
+    band: r.band,
+    combinedScore: r.combinedScore,
+    flowScore: r.flowScore,
+    outputScore: r.outputScore,
+    flowIssues: r.flowIssueCount,
+    failedExpectations: r.outputAnalysis.failedExpectations.length,
+    topFix: r.topFixes[0]?.message ?? "none",
+  }));
+
+  const artifactPath = path.join(ARTIFACTS_DIR, `deep-run-seed${seed}.json`);
+  fs.writeFileSync(
+    artifactPath,
+    JSON.stringify({ runAt: new Date().toISOString(), seed, scenarioCount: reports.length, summary, reports }, null, 2)
+  );
+
+  return {
     runAt: new Date().toISOString(),
     seed,
     scenarioCount: reports.length,
-    summary: reports.map((r) => ({
-      scenarioId: r.scenarioId,
-      personaId: r.personaId,
-      band: r.band,
-      combinedScore: r.combinedScore,
-      flowScore: r.flowScore,
-      outputScore: r.outputScore,
-      flowIssues: r.flowIssueCount,
-      failedExpectations: r.outputAnalysis.failedExpectations.length,
-      topFix: r.topFixes[0]?.message ?? "none",
-    })),
+    summary,
     reports,
+    artifactPath,
   };
-
-  const outPath = path.join(ARTIFACTS_DIR, `deep-run-seed${seed}.json`);
-  fs.writeFileSync(outPath, JSON.stringify(aggregate, null, 2));
-
-  console.log(JSON.stringify({ artifacts: outPath, aggregate: aggregate.summary }, null, 2));
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+async function main() {
+  loadDotEnvFromRepoRoot();
+  const seedArg = process.argv[2];
+  const scenarioArg = process.argv.find((a) => a.startsWith("--scenario="))?.split("=")[1];
+  const seed =
+    seedArg != null && seedArg !== "" && !seedArg.startsWith("--")
+      ? Number(seedArg)
+      : Math.floor(Date.now() / 1000) % 1_000_000;
+
+  const result = await runDeepSimulation(seed, scenarioArg);
+  console.log(JSON.stringify({ artifacts: result.artifactPath, aggregate: result.summary }, null, 2));
+}
+
+const isDirectRun =
+  typeof process.argv[1] === "string" && process.argv[1].includes("deepUserFlowSimulation");
+
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

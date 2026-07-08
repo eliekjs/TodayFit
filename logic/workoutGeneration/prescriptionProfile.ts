@@ -14,7 +14,6 @@ import {
 } from "../../data/sportSubFocus/subFocusIntentArchetypes";
 import { isSpeedAgilityPowerStyleSubFocusSlug } from "../../data/sportSubFocus/speedAgilitySubFocusShared";
 import type { BlockType, Exercise, GenerateWorkoutInput, PrimaryGoal } from "./types";
-import { getActiveSessionPrescriptionFeel, shouldPrescribePowerIntent } from "./sessionFeelPrescription";
 
 export type PrescriptionContext = {
   blockType: BlockType;
@@ -50,7 +49,6 @@ export function resolvePrescriptionContext(
   isAccessory?: boolean
 ): PrescriptionContext {
   const primaryGoal = input.primary_goal;
-  const feel = getActiveSessionPrescriptionFeel();
   const tags = exercisePowerSignalTags(exercise);
   const isPlyoOrPower =
     exercise.modality === "power" ||
@@ -68,13 +66,6 @@ export function resolvePrescriptionContext(
     sessionHasSpeedAgilitySubFocus(input);
 
   if (explosiveIntent && isPlyoOrPower && (blockType === "accessory" || blockType === "main_strength")) {
-    return { blockType: "power", primaryGoal: "power", isAccessory: isAccessory ?? blockType === "accessory" };
-  }
-
-  if (
-    shouldPrescribePowerIntent(blockType, primaryGoal, exercise, feel) &&
-    (blockType === "main_strength" || blockType === "accessory")
-  ) {
     return { blockType: "power", primaryGoal: "power", isAccessory: isAccessory ?? blockType === "accessory" };
   }
 

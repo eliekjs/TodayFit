@@ -1,0 +1,240 @@
+{
+  "runAt": "2026-07-08T04:13:03.714Z",
+  "baseSeed": 42007,
+  "seedCount": 32,
+  "totalRuns": 288,
+  "failureCount": 13,
+  "rankedFixes": [
+    {
+      "issueId": "multi_sport_representation",
+      "count": 13,
+      "personas": [
+        "P02"
+      ],
+      "sample": "Both sports influence output: basketball signals=true, soccer signals=false"
+    }
+  ],
+  "failures": [
+    {
+      "personaId": "P02",
+      "seed": 156511,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Resisted and Assisted Lunge Jump, Jump Lunge. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 86215,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Single Leg Tuck Jump. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 332409,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Bulgarian Split Squat Jumps. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 529897,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Single Leg Lateral Pogos. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 734972,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Jump Lunge. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 669425,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Oscillatory Low Squat Jumps. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 806221,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Resisted and Assisted Lunge Jump, Jump Lunge. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 192639,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Bulgarian Split Squat Jumps. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 158448,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Resisted and Assisted Lunge Jump, Jump Squat. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 800203,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Single Leg Tuck Jump. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 617268,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Jump Squat. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 918045,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Approach Single Leg Vertical Jump. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    },
+    {
+      "personaId": "P02",
+      "seed": 522795,
+      "score": 64,
+      "band": "low",
+      "flowIssues": [],
+      "failedChecks": [],
+      "failedExpectations": [
+        "multi_sport_representation"
+      ],
+      "evidence": [
+        "Both sports influence output: basketball signals=true, soccer signals=false",
+        "Multi-sport athlete needs both basketball and soccer to influence one session. Output does not meet persona expectations. Main work: Dynamic Soccer Toss, Single Arm Broad Toss, Reverse Lunge, Single Leg Vertical. Intent gaps: Both sports influence output (basketball signals=true, soccer signals=false)."
+      ],
+      "topIssueId": "multi_sport_representation",
+      "guidance": "Read expectation evidence in fix-queue; trace from personaExpectationContracts to generator scoring/filtering."
+    }
+  ]
+}

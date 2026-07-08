@@ -58,12 +58,6 @@ export function GymProfileSelectionPanel({
                   {summary.itemCount} items
                 </Text>
               )}
-              {activeProfile.dumbbellMaxWeight != null &&
-              activeProfile.equipment.includes("dumbbells") ? (
-                <Text style={[styles.categoryLine, { color: theme.textMuted }]}>
-                  Dumbbells up to {activeProfile.dumbbellMaxWeight} kg
-                </Text>
-              ) : null}
             </View>
           ) : null}
 

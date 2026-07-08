@@ -70,7 +70,7 @@ export const PERSONA_EXPECTATIONS: PersonaExpectation[] = [
     id: "hypertrophy_rep_range",
     dimension: "prescription",
     label: "Hypertrophy-appropriate rep ranges",
-    passWhen: "Main hypertrophy work predominantly 6–12 reps with sensible rest",
+    passWhen: "Main hypertrophy work predominantly 8–15 reps (median ≥10) with sensible rest",
     severity: "moderate",
     personaIds: ["P06"],
   },

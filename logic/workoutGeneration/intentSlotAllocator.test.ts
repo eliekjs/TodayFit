@@ -7,6 +7,7 @@ import {
   classifyLeafArchetype,
   deriveLeafEntries,
   estimateIntentWorkingExerciseSlots,
+  getMainWorkPatternSlugsForGoal,
   isEnduranceConditioningSportIntentEntry,
   isMainWorkCandidateForIntentEntry,
   isIntentMainWorkCandidate,
@@ -120,6 +121,58 @@ describe("isIntentMainWorkCandidate", () => {
 
   it("accepts strength squat compound", () => {
     expect(isIntentMainWorkCandidate(base as Exercise, "strength")).toBe(true);
+  });
+
+  it("on a core-only focus day, a squat compound is no longer a main-work candidate", () => {
+    expect(isIntentMainWorkCandidate(base as Exercise, "strength", ["core"])).toBe(false);
+  });
+
+  it("on a core-only focus day, a rotate-pattern core exercise becomes a main-work candidate", () => {
+    const core: Partial<Exercise> = {
+      modality: "strength",
+      movement_pattern: "rotate",
+      muscle_groups: ["core"],
+    };
+    expect(isIntentMainWorkCandidate(core as Exercise, "strength", ["core"])).toBe(true);
+    // Not eligible outside of core-only focus (rotate isn't a strength main-work pattern otherwise).
+    expect(isIntentMainWorkCandidate(core as Exercise, "strength")).toBe(false);
+  });
+
+  it("a carry-pattern exercise is a main-work candidate on a core-only day", () => {
+    const carry: Partial<Exercise> = {
+      modality: "strength",
+      movement_pattern: "carry",
+      muscle_groups: ["core"],
+    };
+    expect(isIntentMainWorkCandidate(carry as Exercise, "strength", ["core"])).toBe(true);
+  });
+});
+
+describe("getMainWorkPatternSlugsForGoal", () => {
+  it("returns squat/hinge/push/pull for strength when not core-only", () => {
+    expect(getMainWorkPatternSlugsForGoal("strength")).toEqual(
+      new Set(["squat", "hinge", "push", "pull"])
+    );
+  });
+
+  it("includes rotate for hypertrophy/body_recomp/calisthenics when not core-only", () => {
+    expect(getMainWorkPatternSlugsForGoal("hypertrophy").has("rotate")).toBe(true);
+    expect(getMainWorkPatternSlugsForGoal("body_recomp").has("rotate")).toBe(true);
+    expect(getMainWorkPatternSlugsForGoal("calisthenics").has("rotate")).toBe(true);
+  });
+
+  it("restricts to rotate/carry on a core-only focus day regardless of goal", () => {
+    expect(getMainWorkPatternSlugsForGoal("strength", ["core"])).toEqual(new Set(["rotate", "carry"]));
+    expect(getMainWorkPatternSlugsForGoal("hypertrophy", ["core"])).toEqual(new Set(["rotate", "carry"]));
+  });
+
+  it("does not restrict when focus is mixed or full body", () => {
+    expect(getMainWorkPatternSlugsForGoal("strength", ["full_body"])).toEqual(
+      new Set(["squat", "hinge", "push", "pull"])
+    );
+    expect(getMainWorkPatternSlugsForGoal("strength", ["core", "lower"])).toEqual(
+      new Set(["squat", "hinge", "push", "pull"])
+    );
   });
 });
 

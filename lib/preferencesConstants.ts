@@ -39,6 +39,16 @@ export const ENERGY_LEVELS = ["Low", "Medium", "High"] as const;
 /** Targets: body target (single select). */
 export const TARGET_OPTIONS: TargetBody[] = ["Upper", "Lower", "Full"];
 
+/** Map session body emphasis to sport one-day body bias chips. */
+export function oneDayBodyBiasFromTargetBody(
+  targetBody: TargetBody | null | undefined
+): "upper" | "lower" | "full" | null {
+  if (targetBody === "Upper") return "upper";
+  if (targetBody === "Lower") return "lower";
+  if (targetBody === "Full") return "full";
+  return null;
+}
+
 /** Targets: modifiers by target. Upper → Push/Pull; Lower → Quad/Posterior; Full → none. */
 export const MODIFIERS_BY_TARGET: Record<TargetBody, string[]> = {
   Upper: ["Push", "Pull"],

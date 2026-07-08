@@ -10,7 +10,7 @@ export type GymProfile = {
 
 export const EQUIPMENT_BY_CATEGORY: {
   category: string;
-  options: { id: EquipmentKey; label: string; hasInput?: "dumbbell_max" }[];
+  options: { id: EquipmentKey; label: string }[];
 }[] = [
   {
     category: "Barbell & Strength",
@@ -38,7 +38,7 @@ export const EQUIPMENT_BY_CATEGORY: {
   {
     category: "Free Weights",
     options: [
-      { id: "dumbbells", label: "Dumbbells (max weight)", hasInput: "dumbbell_max" },
+      { id: "dumbbells", label: "Dumbbells" },
       { id: "kettlebells", label: "Kettlebells" },
       { id: "clubbell", label: "Clubbell(s)" },
       { id: "macebell", label: "Macebell" },

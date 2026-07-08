@@ -4,7 +4,7 @@
  * and WorkoutSession → GeneratedWorkout.
  */
 
-import type { ManualPreferences, GeneratedWorkout, ExerciseDefinition } from "./types";
+import type { ManualPreferences, GeneratedWorkout, ExerciseDefinition, BodyPartFocusKey } from "./types";
 import type { GymProfile } from "../data/gymProfiles";
 import { resolveEffectiveEquipment } from "./gymEquipment";
 import { resolveExerciseEquipmentRequired } from "./equipmentResolution";
@@ -422,7 +422,15 @@ export function manualPreferencesToGenerateWorkoutInput(
 ): GenerateWorkoutInput {
   preferences = normalizeAthleticGoalPreferences(preferences);
   const durationMinutes = clampDuration(preferences.durationMinutes);
-  const bodyPartFromTarget = deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier);
+  // "Core" day focus is stored as targetBody="Full" + specificBodyFocus=["core"] (Core is not a
+  // TargetBody value). Same precedence as the UI (see bodyChoiceIdForBias in weekDaySessionFocus.ts):
+  // core overrides targetBody so the generator actually restricts to core work instead of full body.
+  // Other specificBodyFocus values (glutes, quad, posterior, shoulders, back, push, pull) already
+  // reach the generator via targetModifier upstream (see SPECIFIC_FOCUS_TO_MODIFIER in sportPrepPlanner),
+  // so only "core" needs this direct override here.
+  const bodyPartFromTarget = preferences.specificBodyFocus?.includes("core")
+    ? (["Core"] as BodyPartFocusKey[])
+    : deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier);
   const subFocusByGoalSanitized = normalizeSubFocusByGoalAgainstConditioningPolicy(
     preferences.subFocusByGoal ?? {}
   );

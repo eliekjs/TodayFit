@@ -327,8 +327,6 @@ export function buildDayFocusPresetsForDay(opts: {
   const sports =
     adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
   const sportSlugs = sports.map((s) => getCanonicalSportSlug(s));
-  const bodyStr = bodyFocusLineFromBias({ targetBody, targetModifier, specificBodyFocus });
-
   const out: DayFocusPreset[] = [];
 
   if (sportSlugs.length > 0) {
@@ -337,9 +335,7 @@ export function buildDayFocusPresetsForDay(opts: {
       out.push({
         id: `sport_emphasis_${idx}`,
         label: `${name} first`,
-        subtitle: rankedGoals.length > 0
-          ? `${bodyStr} — this day mainly supports ${name}; goals fill the rest.`
-          : `${bodyStr} — this day mainly supports ${name}.`,
+        subtitle: rankedGoals.length > 0 ? "Goals fill the rest." : "",
       });
     });
 
@@ -348,14 +344,14 @@ export function buildDayFocusPresetsForDay(opts: {
         out.push({
           id: `goal_emphasis_${idx}`,
           label: `${label} first`,
-          subtitle: `${bodyStr} — this goal leads the session; sport work supports transfer.`,
+          subtitle: "",
         });
       });
       const pct = adaptiveSetup?.sportVsGoalPct ?? 50;
       out.push({
         id: "balanced_split",
         label: "Balanced sport + goals",
-        subtitle: `${bodyStr} — about ${pct}% sport focus and ${100 - pct}% goals (your Sport vs goals setting).`,
+        subtitle: `About ${pct}% sport focus and ${100 - pct}% goals (your Sport vs goals setting).`,
       });
       return out;
     }
@@ -364,7 +360,7 @@ export function buildDayFocusPresetsForDay(opts: {
       out.push({
         id: "balanced_sports",
         label: "Blend selected sports",
-        subtitle: `${bodyStr} — split support across your selected sports.`,
+        subtitle: "Split support across your selected sports.",
       });
     }
     return out;
@@ -375,7 +371,7 @@ export function buildDayFocusPresetsForDay(opts: {
       out.push({
         id: `goal_emphasis_${idx}`,
         label: `${label} first`,
-        subtitle: `${bodyStr} — most volume aligns with this goal; others stay in the mix.`,
+        subtitle: "",
       });
     });
     const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
@@ -384,7 +380,7 @@ export function buildDayFocusPresetsForDay(opts: {
     out.push({
       id: "balanced_goals",
       label: "Blend all ranked goals",
-      subtitle: `${bodyStr} — use your global goal percentages (${p1}/${p2}/${p3}).`,
+      subtitle: `Use your global goal percentages (${p1}/${p2}/${p3}).`,
     });
     return out;
   }
@@ -393,7 +389,7 @@ export function buildDayFocusPresetsForDay(opts: {
     out.push({
       id: "single_goal",
       label: `${rankedGoals[0]} session`,
-      subtitle: `${bodyStr} — full session aligned to your focus.`,
+      subtitle: "Full session aligned to your focus.",
     });
     return out;
   }
@@ -401,7 +397,7 @@ export function buildDayFocusPresetsForDay(opts: {
   out.push({
     id: "default",
     label: "Standard session",
-    subtitle: bodyStr,
+    subtitle: bodyFocusLineFromBias({ targetBody, targetModifier, specificBodyFocus }),
   });
   return out;
 }
@@ -641,6 +637,38 @@ export function summarizePresetSubtitle(subtitle: string): string | null {
   const dash = trimmed.indexOf(" — ");
   const text = (dash >= 0 ? trimmed.slice(dash + 3) : trimmed).trim();
   return text || null;
+}
+
+/**
+ * Shared sport/goal priority explanation shown once above the preset list
+ * (instead of repeating on every "X first" option across days).
+ */
+export function sportGoalPrioritySectionNote(
+  manualPreferences: ManualPreferences,
+  adaptiveSetup: AdaptiveSetup | null
+): string | null {
+  const rankedGoals = manualPreferencesForSportWeekFocus(
+    manualPreferences,
+    adaptiveSetup
+  ).primaryFocus.filter(Boolean);
+  const sports =
+    adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
+
+  if (sports.length > 0 && rankedGoals.length > 0) {
+    return "Pick what leads each day — your other sports and ranked goals still contribute.";
+  }
+  if (rankedGoals.length >= 2) {
+    return "One goal leads each day — most volume aligns with it; your other ranked goals stay in the mix.";
+  }
+  if (sports.length > 1) {
+    return "Pick which sport leads each day — your other sports still contribute.";
+  }
+  return null;
+}
+
+/** True when presets include per-goal emphasis choices (shared section note applies). */
+export function presetsIncludeGoalEmphasis(presets: DayFocusPreset[]): boolean {
+  return presets.some((p) => p.id.startsWith("goal_emphasis_"));
 }
 
 /** Build sport/goal priority line for week overview cards (goals only — body is a separate row). */

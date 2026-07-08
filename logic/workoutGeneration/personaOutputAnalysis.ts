@@ -11,6 +11,7 @@ import type { Exercise, WorkoutSession } from "../workoutGeneration/types";
 import type { GeneratedWorkout } from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
 import type { PersonaFixture } from "./personaSimulationFixtures";
+import { multiSportBlendCheck } from "./personaMultiSportSignals";
 import {
   expectationsForPersona,
   personaStory,
@@ -172,19 +173,28 @@ function evaluateExpectations(
         const zone2 = allItems.filter(
           (it) =>
             it.block_type === "conditioning" &&
-            /zone 2|treadmill|steady|long run|aerobic base/i.test(it.exercise_name)
+            /zone 2|treadmill|steady|long run|aerobic base|tempo run|tempo jog|threshold|cruise interval/i.test(
+              it.exercise_name
+            )
         );
         pass = zone2.length === 0;
         evidence = pass ? "No steady-state Zone 2 conditioning" : `Zone 2 found: ${zone2.map((i) => i.exercise_name).join(", ")}`;
         break;
       }
       case "multi_sport_representation": {
-        const sportTags = exercises.flatMap((ex) => ex.tags?.sport_tags ?? []);
-        const text = allItems.map((it) => it.exercise_name.toLowerCase()).join(" ");
-        const hasBb = sportTags.some((t) => /basketball|court|jump|vertical/.test(t)) || /jump|pogo|vertical|cod|lateral bound/.test(text);
-        const hasSoc = sportTags.some((t) => /soccer|sprint|field/.test(t)) || /sprint|decel|hurdle|shuffle/.test(text);
-        pass = hasBb && hasSoc;
-        evidence = `basketball signals=${hasBb}, soccer signals=${hasSoc}`;
+        const slugs = fixture.sportGoalContext?.sport_slugs ?? [];
+        if (slugs.length < 2) {
+          pass = true;
+          evidence = "Single sport session";
+          break;
+        }
+        const blend = multiSportBlendCheck(
+          workout,
+          slugs.map((s) => s.toLowerCase()),
+          poolById
+        );
+        pass = blend.pass;
+        evidence = blend.evidence;
         break;
       }
       case "no_leg_press_athletic_power": {
@@ -201,9 +211,13 @@ function evaluateExpectations(
       case "hypertrophy_rep_range": {
         const hypoMain = allItems.filter((it) => it.block_type === "main_hypertrophy" || it.block_type === "main_strength");
         const reps = hypoMain.map((it) => parseRepMid(it.reps)).filter((r): r is number => r != null);
-        const inRange = reps.filter((r) => r >= 5 && r <= 15).length;
-        pass = reps.length === 0 || inRange / reps.length >= 0.6;
-        evidence = `main rep samples: ${reps.slice(0, 5).join(", ") || "n/a"} (${inRange}/${reps.length} in 5–15)`;
+        const inRange = reps.filter((r) => r >= 8 && r <= 15).length;
+        const median =
+          reps.length > 0
+            ? [...reps].sort((a, b) => a - b)[Math.floor(reps.length / 2)]!
+            : 0;
+        pass = reps.length === 0 || (inRange / reps.length >= 0.6 && median >= 10);
+        evidence = `main rep samples: ${reps.slice(0, 5).join(", ") || "n/a"} (${inRange}/${reps.length} in 8–15, median ${median})`;
         break;
       }
       case "lower_body_honored": {

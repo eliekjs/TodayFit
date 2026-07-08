@@ -1,0 +1,13 @@
+{
+  "tick": 1,
+  "seed": 1783486740,
+  "runAt": "2026-07-08T05:04:16.138Z",
+  "mode": "detect",
+  "pendingFix": false,
+  "allScenariosPass": true,
+  "topFixes": [],
+  "agentInstruction": null,
+  "implementationSteps": [],
+  "verifyCommand": "npx tsx scripts/deepUserFlowLoop.ts 1783486740 --pressure --verify --seeds=64",
+  "lastRunArtifact": "/Users/ellie/todayfit/artifacts/deep-user-flow/pressure-seed1783486740-n64.json"
+}

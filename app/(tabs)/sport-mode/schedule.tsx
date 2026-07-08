@@ -14,6 +14,7 @@ import {
   dayBodyFocusChoiceToBias,
   defaultBodyFocusChoiceIdForDay,
   defaultPresetIdForWeekDay,
+  sportGoalPrioritySectionNote,
   type DayBodyFocusChoice,
   type DayBodyFocusChoiceId,
   type DayFocusPreset,
@@ -688,6 +689,7 @@ export default function AdaptiveScheduleScreen() {
               selectedIds={dayFocusChoiceIds}
               conflictsPerDay={daySessionFocusConflicts}
               resolvedConflictIdsByDay={resolvedConflictIdsByDay}
+              sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}
               onSelectBody={(dayIdx, id) => {
                 clearDayConflictState(dayIdx);
                 setDayBodyFocusChoiceIds((prev) => {

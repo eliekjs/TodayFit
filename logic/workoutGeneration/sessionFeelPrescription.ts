@@ -57,20 +57,17 @@ function exerciseTagSetForPrescription(exercise: Exercise): Set<string> {
 }
 
 /**
- * Use power-style reps/rest (low reps, long rest) instead of strength/hypertrophy defaults.
+ * Use power-style reps/rest (low reps, long rest) for power blocks and plyometric/power exercises only.
  */
 export function shouldPrescribePowerIntent(
   blockType: BlockType,
   primaryGoal: PrimaryGoal,
   exercise: Exercise,
-  feel: SessionFeelEmphasis
+  _feel: SessionFeelEmphasis
 ): boolean {
-  if (feel === "strength") {
-    return blockType === "power" && primaryGoal === "power";
-  }
-
   if (blockType === "power") return true;
-  if (primaryGoal === "power") return blockType === "main_strength";
+
+  if (primaryGoal === "power" && blockType === "main_strength") return true;
 
   if (blockType !== "main_strength" && blockType !== "accessory") return false;
 

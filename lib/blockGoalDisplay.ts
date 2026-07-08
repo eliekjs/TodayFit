@@ -1,8 +1,16 @@
+import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
 import { SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus/sportsWithSubFocuses";
-import { displayNameForSportSubFocusSlug } from "./workoutIntentSplit";
 import type { WorkoutBlock, WorkoutBlockGoalIntent } from "./types";
 
 const _sportBySlug = new Map(SPORTS_WITH_SUB_FOCUSES.map((s) => [s.slug, s]));
+
+function _sportSubFocusDisplayName(sportSlug: string, subSlug: string): string {
+  const canon = getCanonicalSportSlug(sportSlug);
+  const sport = _sportBySlug.get(canon);
+  const norm = subSlug.toLowerCase().replace(/\s/g, "_");
+  const sf = sport?.sub_focuses.find((f) => f.slug === norm);
+  return sf?.name ?? _humanizeGoalSlug(subSlug);
+}
 
 function _humanizeGoalSlug(slug: string): string {
   const map: Record<string, string> = {
@@ -59,7 +67,7 @@ export function buildBlockGoalBadgeLabel(intent: WorkoutBlockGoalIntent): string
     const sport = _sportBySlug.get(sportSlug);
     const sportName = sport ? sport.name : _humanizeGoalSlug(sportSlug);
     if (intent_kind === "sport_sub_focus" && sub_focus_slug) {
-      return displayNameForSportSubFocusSlug(sportSlug, sub_focus_slug);
+      return _sportSubFocusDisplayName(sportSlug, sub_focus_slug);
     }
     return sportName;
   }

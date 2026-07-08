@@ -18,8 +18,8 @@ function testStrengthRestInEvidenceRange() {
   const rules = getGoalRules("strength");
   assert(rules.restRange.min >= 150, "strength rest min >= 150 s (2.5 min; ACSM 3–5 min)");
   assert(rules.restRange.max >= 240, "strength rest max >= 240 s (4 min)");
-  assert(rules.repRange.min >= 1 && rules.repRange.max <= 8, "strength rep range 1–8 (ACSM 1–6 RM)");
-  console.log("  OK: strength rest 150–300 s, rep range 3–6");
+  assert(rules.repRange.min >= 5 && rules.repRange.max <= 8, "strength rep range 5–8 (practical gym strength)");
+  console.log("  OK: strength rest 150–300 s, rep range 5–8");
 }
 
 function testHypertrophyRestInEvidenceRange() {

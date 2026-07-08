@@ -289,6 +289,7 @@ describe("detectDaySessionFocusConflict", () => {
       "Strength Training for Joint Health": ["Shoulder Health"],
       "Body Recomp (fat loss & muscle gain)": ["Back"],
     });
+    expect(conflict!.resolutions[0]?.id).toBe("switch_full_body");
   });
 
   it("clears conflict on one day via override while another upper day still conflicts", () => {

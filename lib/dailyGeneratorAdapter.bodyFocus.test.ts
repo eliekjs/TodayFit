@@ -59,6 +59,24 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
     );
     expect(input.focus_body_parts).toEqual(["full_body"]);
   });
+
+  it("maps Full + specificBodyFocus core to core (not full_body)", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      { ...BASE, targetBody: "Full", specificBodyFocus: ["core"] },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["core"]);
+  });
+
+  it("specificBodyFocus core overrides Upper/Lower target body too", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      { ...BASE, targetBody: "Upper", specificBodyFocus: ["core"] },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["core"]);
+  });
 });
 
 describe("manualPreferencesToGenerateWorkoutInput regeneration avoid ids", () => {
