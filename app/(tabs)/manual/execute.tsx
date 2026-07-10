@@ -18,12 +18,17 @@ import { backLabelForPhase } from "../../../lib/sessionFlowNav";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { ExerciseSetupModal } from "../../../components/ExerciseSetupModal";
+import { ExerciseSetLogTable } from "../../../components/ExerciseSetLogTable";
 import {
+  createSetLogRow,
   formatPrescription,
   formatSupersetPairLabel,
   getSupersetPairsForBlock,
+  isTimeBasedPrescription,
   type BlockType,
   type ExecutionProgress,
+  type ExerciseExecutionProgress,
+  type SetLogRow,
 } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import { formatExerciseDisplayCue } from "../../../lib/exerciseDisplayCue";
@@ -32,29 +37,38 @@ import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
+import {
+  markManualWeekDayByWorkoutId,
+  markSportWeekDayByWorkoutId,
+  WEEK_PROGRESS_ROUTE,
+} from "../../../lib/weekProgress";
 import { getBlockDisplayTitle } from "../../../lib/blockGoalDisplay";
 
-type ExerciseProgress = {
-  completed: boolean;
-  setsCompleted: number;
-  notes?: string;
-};
+function migrateLegacySets(saved: ExerciseExecutionProgress): SetLogRow[] | undefined {
+  if (saved.sets != null) return saved.sets;
+  const count = saved.setsCompleted ?? 0;
+  if (count <= 0) return undefined;
+  return Array.from({ length: count }, () => createSetLogRow());
+}
 
 function buildProgressMap(
   exerciseIds: string[],
   saved: ExecutionProgress | null
-): Record<string, ExerciseProgress> {
-  const out: Record<string, ExerciseProgress> = {};
+): Record<string, ExerciseExecutionProgress> {
+  const out: Record<string, ExerciseExecutionProgress> = {};
   for (const id of exerciseIds) {
     const s = saved?.[id];
-    out[id] =
-      s != null
-        ? {
-            completed: Boolean(s.completed),
-            setsCompleted: s.setsCompleted ?? 0,
-            notes: s.notes,
-          }
-        : { completed: false, setsCompleted: 0 };
+    if (s != null) {
+      const sets = migrateLegacySets(s);
+      out[id] = {
+        completed: Boolean(s.completed),
+        setsCompleted: sets?.length ?? s.setsCompleted ?? 0,
+        sets,
+        notes: s.notes,
+      };
+    } else {
+      out[id] = { completed: false, setsCompleted: 0 };
+    }
   }
   return out;
 }
@@ -74,6 +88,10 @@ export default function ExecuteScreen() {
     setManualExecutionStarted,
     manualGoalPreferencesScope,
     manualWeekPlan,
+    sportPrepWeekPlan,
+    activeSessionDraft,
+    setManualWeekPlan,
+    setSportPrepWeekPlan,
   } = useAppState();
   const router = useRouter();
   const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
@@ -118,7 +136,7 @@ export default function ExecuteScreen() {
     [generatedWorkout]
   );
 
-  const [progress, setProgress] = useState<Record<string, ExerciseProgress>>({});
+  const [progress, setProgress] = useState<Record<string, ExerciseExecutionProgress>>({});
 
   const manualProgressRef = useRef(manualSessionProgress);
   manualProgressRef.current = manualSessionProgress;
@@ -181,12 +199,13 @@ export default function ExecuteScreen() {
     }));
   };
 
-  const incrementSets = (id: string) => {
+  const updateSetRows = (id: string, sets: SetLogRow[]) => {
     setProgress((prev) => ({
       ...prev,
       [id]: {
         ...(prev[id] ?? { completed: false, setsCompleted: 0 }),
-        setsCompleted: (prev[id]?.setsCompleted ?? 0) + 1,
+        sets,
+        setsCompleted: sets.length,
       },
     }));
   };
@@ -268,10 +287,17 @@ export default function ExecuteScreen() {
       router.replace(manualPrefsHref);
       return;
     }
+    const workoutId = generatedWorkout.id;
+    const isWeekFlow =
+      activeSessionDraft?.flow === "goal_week" || activeSessionDraft?.flow === "sport_week";
     lastPersistWorkoutIdRef.current = null;
     const exerciseNotes: Record<string, string> = {};
+    const exercisePerformance: Record<string, { sets: SetLogRow[] }> = {};
     Object.entries(progress).forEach(([exId, p]) => {
       if (p.notes?.trim()) exerciseNotes[exId] = p.notes.trim();
+      if (p.sets != null && p.sets.length > 0) {
+        exercisePerformance[exId] = { sets: p.sets };
+      }
     });
     addCompletedWorkout({
       date: new Date().toISOString(),
@@ -279,13 +305,27 @@ export default function ExecuteScreen() {
       durationMinutes: generatedWorkout.durationMinutes,
       workout: generatedWorkout,
       exerciseNotes: Object.keys(exerciseNotes).length > 0 ? exerciseNotes : undefined,
+      exercisePerformance:
+        Object.keys(exercisePerformance).length > 0 ? exercisePerformance : undefined,
     });
     removeSavedWorkoutByWorkoutId(generatedWorkout.id);
+
+    if (isWeekFlow) {
+      if (manualWeekPlan) {
+        setManualWeekPlan(markManualWeekDayByWorkoutId(manualWeekPlan, workoutId, "completed"));
+      }
+      if (sportPrepWeekPlan) {
+        setSportPrepWeekPlan(
+          markSportWeekDayByWorkoutId(sportPrepWeekPlan, workoutId, "completed")
+        );
+      }
+    }
+
     setGeneratedWorkout(null);
     setManualSessionProgress(null);
     setManualExecutionStarted(false);
     setResumeProgress(null);
-    router.replace("/history/complete");
+    router.replace(isWeekFlow ? WEEK_PROGRESS_ROUTE : "/history/complete");
   };
 
   const onSaveForLater = () => {
@@ -337,11 +377,12 @@ export default function ExecuteScreen() {
               setsCompleted: 0,
             };
             const setupText = formatExerciseDisplayCue(exercise);
+            const isRounds = isTimeBasedPrescription(exercise);
             return (
               <View
                 key={exercise.exercise_id}
                 style={[
-                  styles.exerciseRow,
+                  styles.exerciseCard,
                   {
                     borderColor: theme.border,
                     backgroundColor: state.completed
@@ -350,85 +391,90 @@ export default function ExecuteScreen() {
                   },
                 ]}
               >
-                <Pressable
-                  onPress={() => toggleCompleted(exercise.exercise_id)}
-                  style={[
-                    styles.checkbox,
-                    {
-                      borderColor: theme.border,
-                      backgroundColor: state.completed
-                        ? theme.primary
-                        : "transparent",
-                    },
-                  ]}
-                >
-                  {state.completed && (
-                    <Text style={styles.checkboxMark}>✓</Text>
-                  )}
-                </Pressable>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.exerciseName, { color: theme.text }]}>
-                    {exercise.exercise_name}
-                  </Text>
-                  <Text
-                    style={[styles.exerciseMeta, { color: theme.textMuted }]}
-                  >
-                    {exercise.prescription} • {exercise.sectionTitle}
-                  </Text>
-                  <TextInput
+                <View style={styles.exerciseHeader}>
+                  <Pressable
+                    onPress={() => toggleCompleted(exercise.exercise_id)}
                     style={[
-                      styles.notesInput,
+                      styles.checkbox,
                       {
                         borderColor: theme.border,
-                        color: theme.text,
-                        backgroundColor: theme.cardOpaque,
+                        backgroundColor: state.completed
+                          ? theme.primary
+                          : "transparent",
                       },
                     ]}
-                    placeholder="Notes (optional)"
-                    placeholderTextColor={theme.textMuted}
-                    value={state.notes ?? ""}
-                    onChangeText={(text) => setNote(exercise.exercise_id, text)}
-                    multiline
-                  />
-                </View>
-                {setupText ? (
-                  <Pressable
-                    onPress={() =>
-                      setSetupModal({
-                        exerciseName: exercise.exercise_name,
-                        setupText,
-                      })
-                    }
-                    style={[styles.setupButton, { borderColor: theme.primary }]}
                   >
-                    <Text style={[styles.setupButtonText, { color: theme.primary }]}>
-                      setup
-                    </Text>
+                    {state.completed && (
+                      <Text style={styles.checkboxMark}>✓</Text>
+                    )}
                   </Pressable>
-                ) : null}
-                <Pressable
-                  onPress={() =>
-                    setSwapModal({
-                      exerciseId: exercise.exercise_id,
-                      exerciseName: exercise.exercise_name,
-                      blockType: exercise.blockType,
-                      swapPoolExerciseIds: exercise.swapPoolExerciseIds,
-                    })
-                  }
-                  style={[styles.swapButton, { borderColor: theme.border }]}
-                >
-                  <Text style={[styles.logButtonText, { color: theme.textMuted }]}>
-                    Swap
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => incrementSets(exercise.exercise_id)}
-                  style={[styles.logButton, { borderColor: theme.border }]}
-                >
-                  <Text style={[styles.logButtonText, { color: theme.text }]}>
-                    + Set ({state.setsCompleted})
-                  </Text>
-                </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.exerciseName, { color: theme.text }]}>
+                      {exercise.exercise_name}
+                    </Text>
+                    <Text
+                      style={[styles.exerciseMeta, { color: theme.textMuted }]}
+                    >
+                      {exercise.prescription} • {exercise.sectionTitle}
+                    </Text>
+                  </View>
+                  <View style={styles.exerciseActions}>
+                    {setupText ? (
+                      <Pressable
+                        onPress={() =>
+                          setSetupModal({
+                            exerciseName: exercise.exercise_name,
+                            setupText,
+                          })
+                        }
+                        style={[styles.setupButton, { borderColor: theme.primary }]}
+                      >
+                        <Text style={[styles.setupButtonText, { color: theme.primary }]}>
+                          setup
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      onPress={() =>
+                        setSwapModal({
+                          exerciseId: exercise.exercise_id,
+                          exerciseName: exercise.exercise_name,
+                          blockType: exercise.blockType,
+                          swapPoolExerciseIds: exercise.swapPoolExerciseIds,
+                        })
+                      }
+                      style={[styles.swapButton, { borderColor: theme.border }]}
+                    >
+                      <Text style={[styles.logButtonText, { color: theme.textMuted }]}>
+                        Swap
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                <ExerciseSetLogTable
+                  mode={isRounds ? "rounds" : "strength"}
+                  rows={state.sets ?? []}
+                  onChange={(sets) => updateSetRows(exercise.exercise_id, sets)}
+                  defaultReps={exercise.reps}
+                  defaultDurationSeconds={exercise.time_seconds}
+                />
+
+                <TextInput
+                  style={[
+                    styles.notesInput,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      backgroundColor: theme.cardOpaque,
+                    },
+                  ]}
+                  placeholder="Exercise notes (optional)"
+                  placeholderTextColor={theme.textMuted}
+                  value={state.notes ?? ""}
+                  onChangeText={(text) => setNote(exercise.exercise_id, text)}
+                  multiline
+                />
               </View>
             );
           })}
@@ -499,14 +545,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
   },
-  exerciseRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  exerciseCard: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
+    gap: 4,
+  },
+  exerciseHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 10,
+  },
+  exerciseActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
   },
   checkbox: {
     width: 22,
@@ -541,12 +596,6 @@ const styles = StyleSheet.create({
     textTransform: "lowercase",
   },
   swapButton: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  logButton: {
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 10,

@@ -371,7 +371,16 @@ function bodyPartFocusToGeneratorFocus(keys: string[]): FocusBodyPart[] {
     if (keys.includes("Pull") && !keys.includes("Push")) return ["upper_pull"];
     return ["upper_push", "upper_pull"];
   }
-  if (keys.includes("Lower body")) return ["lower"];
+  if (keys.includes("Lower body")) {
+    // "quad"/"posterior" are additive emphasis tags on top of "lower" (not a replacement, unlike
+    // upper_push/upper_pull) — they unlock the existing quad/posterior scoring bonus in
+    // dailyGenerator.ts's scoreExercise (see focusSet.has("quad")/.has("posterior")) which was
+    // previously unreachable because FocusBodyPart had no quad/posterior values at all.
+    const base: FocusBodyPart[] = ["lower"];
+    if (keys.includes("Quad") && !keys.includes("Posterior")) base.push("quad");
+    if (keys.includes("Posterior") && !keys.includes("Quad")) base.push("posterior");
+    return base;
+  }
   if (keys.includes("Core") && !keys.includes("Upper body") && !keys.includes("Lower body")) return ["core"];
   return out;
 }

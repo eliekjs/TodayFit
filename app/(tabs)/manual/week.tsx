@@ -22,7 +22,7 @@ import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustF
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { DiscardSessionLink } from "../../navigation/tabFlowChrome";
-import { saveManualWeek, saveManualDay } from "../../../lib/db/weekPlanRepository";
+import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { isDbConfigured } from "../../../lib/db";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
@@ -141,6 +141,7 @@ export default function ManualWeekScreen() {
     setManualGoalPreferencesScope,
     workoutHistory,
     savedWorkouts,
+    addSavedWeek,
     manualSessionProgress,
     beginSessionFlow,
     updateActiveSessionDraft,
@@ -167,7 +168,6 @@ export default function ManualWeekScreen() {
   );
 
   const [generating, setGenerating] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
@@ -647,6 +647,7 @@ export default function ManualWeekScreen() {
               : undefined,
           targetBody: bodyBias.targetBody,
           targetModifier: bodyBias.targetModifier,
+          specificBodyFocus: bodyBias.specificBodyFocus,
           weekMainStrengthLiftIdsUsed:
             weekMainStrengthLiftIds.length > 0 ? [...weekMainStrengthLiftIds] : undefined,
           weeklySubFocusCoverage:
@@ -689,7 +690,7 @@ export default function ManualWeekScreen() {
           bodyKey,
           specificForDay.length ? specificForDay : undefined
         );
-        days.push({ date: dateToISO(date), workout, displayTitle });
+        days.push({ date: dateToISO(date), workout, displayTitle, status: "planned" });
       }
       if (generationCancelledRef.current) return;
       setWeekSetupStep("pickDays");
@@ -963,6 +964,7 @@ export default function ManualWeekScreen() {
       primaryFocus: effectivePrimaryFocus,
       targetBody: bodyBias.targetBody,
       targetModifier: bodyBias.targetModifier,
+      specificBodyFocus: bodyBias.specificBodyFocus,
     };
     if (dailyPrefsOverride) {
       if (dailyPrefsOverride.goalBias) {
@@ -972,11 +974,11 @@ export default function ManualWeekScreen() {
       if (dailyPrefsOverride.bodyRegionBias) {
         const b = dailyPrefsOverride.bodyRegionBias;
         if (b === "upper" || b === "lower" || b === "full") {
-          dayPrefs = { ...dayPrefs, targetBody: b.charAt(0).toUpperCase() + b.slice(1) as "Upper" | "Lower" | "Full", targetModifier: [] };
+          dayPrefs = { ...dayPrefs, targetBody: b.charAt(0).toUpperCase() + b.slice(1) as "Upper" | "Lower" | "Full", targetModifier: [], specificBodyFocus: undefined };
         } else if (b === "pull" || b === "push") {
-          dayPrefs = { ...dayPrefs, targetBody: "Upper", targetModifier: [b.charAt(0).toUpperCase() + b.slice(1)] };
+          dayPrefs = { ...dayPrefs, targetBody: "Upper", targetModifier: [b.charAt(0).toUpperCase() + b.slice(1)], specificBodyFocus: undefined };
         } else if (b === "core") {
-          dayPrefs = { ...dayPrefs, targetBody: "Full", targetModifier: [] };
+          dayPrefs = { ...dayPrefs, targetBody: "Full", targetModifier: [], specificBodyFocus: ["core"] };
         }
       }
       if (dailyPrefsOverride.energyLevel) dayPrefs = { ...dayPrefs, energyLevel: dailyPrefsOverride.energyLevel };
@@ -1042,25 +1044,17 @@ export default function ManualWeekScreen() {
     setManualWeekPlan,
   ]);
 
-  const onSaveWeek = async () => {
+  const onSaveWeek = () => {
     const weekPlan = manualWeekPlan;
-    if (!weekPlan || !userId || !isDbConfigured()) {
-      if (!userId || !isDbConfigured()) {
-        setError("Sign in and enable sync to save weeks.");
-      }
-      return;
-    }
-    setError(null);
-    setSaving(true);
-    try {
-      await saveManualWeek(userId, weekPlan.weekStartDate, weekPlan.days);
-      setManualWeekPlan(null);
-      router.back();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
+    if (!weekPlan) return;
+    addSavedWeek({
+      savedAt: new Date().toISOString(),
+      weekStartDate: weekPlan.weekStartDate,
+      days: weekPlan.days,
+      source: "manual",
+    });
+    setManualWeekPlan(null);
+    router.replace("/library");
   };
 
   const onSaveDay = async () => {
@@ -1455,11 +1449,10 @@ export default function ManualWeekScreen() {
       )}
 
       <PrimaryButton
-        label={saving ? "Saving…" : "Save week"}
+        label="Save week for later"
         onPress={onSaveWeek}
         variant="secondary"
         style={styles.saveWeekBtn}
-        disabled={saving}
       />
 
       <DiscardSessionLink style={{ marginTop: 12, marginBottom: 24 }} />

@@ -15,6 +15,20 @@ export function getTodayLocalDateString(): string {
   return getLocalDateString(new Date());
 }
 
+/** Monday (YYYY-MM-DD) of the week containing the given date, in local timezone. */
+export function getWeekStartMonday(isoDate: string): string {
+  const d = parseLocalDate(isoDate);
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
+  d.setDate(d.getDate() - diff);
+  return getLocalDateString(d);
+}
+
+/** Monday (YYYY-MM-DD) of the current week in local timezone. */
+export function getCurrentWeekStartMonday(): string {
+  return getWeekStartMonday(getTodayLocalDateString());
+}
+
 /** Parse YYYY-MM-DD as a local date (noon avoids UTC midnight day-boundary issues). */
 export function parseLocalDate(isoDate: string): Date {
   return new Date(isoDate + "T12:00:00");

@@ -57,6 +57,7 @@ import {
   getRepBasedHighIntensityConditioningStructure,
   HIGH_INTENSITY_CONDITIONING_IDS,
   REP_BASED_HIGH_INTENSITY_CONDITIONING_IDS,
+  isAllowedSteadyStateConditioning,
   type EnergyLevel,
 } from "../../lib/generation/prescriptionRules";
 import { getBestSubstitute } from "../../lib/generation/exerciseSubstitution";
@@ -5935,41 +5936,7 @@ function isTrueSteadyStateZone2Cardio(exercise: Exercise): boolean {
   if (exercise.modality !== "conditioning") return false;
   if (isExplosiveConditioning(exercise) || isHighIntensityConditioning(exercise)) return false;
   if (isSprintBurstConditioning(exercise)) return false;
-  const id = (exercise.id ?? "").toLowerCase();
-  const name = (exercise.name ?? "").toLowerCase();
-  const blob = `${id} ${name}`;
-  if (
-    /\b(quarter\s*arc|lateral\s*(high\s*|\s*)knee|high[_\s-]?knee|butt[_\s-]?kick|agility|cone\s|shuffle|karaoke|zig\s*zag|cutting|piston)\b/.test(
-      blob
-    )
-  ) {
-    return false;
-  }
-  const eq = (exercise.equipment_required ?? []).map((x) => x.toLowerCase().replace(/\s/g, "_"));
-  const machineEq = eq.some((x) =>
-    ["bike", "treadmill", "rower", "elliptical", "stair_climber", "stairs", "ski_erg"].includes(x)
-  );
-  const idSteady =
-    id.startsWith("zone2_") ||
-    id.includes("_zone2_") ||
-    id.includes("treadmill") ||
-    id.includes("_bike") ||
-    id.includes("air_bike") ||
-    id.includes("assault") ||
-    id.includes("rower") ||
-    id.includes("elliptical") ||
-    id.includes("stair");
-  const nameSteady =
-    /\b(treadmill|elliptical|stair\s*climb|ski\s*erg|assault\s*bike|air\s*bike|incline\s*walk|brisk\s*walk|easy\s*ride|light\s*row|rowing\s*machine)\b/.test(
-      name
-    );
-  const stim = (exercise.tags?.stimulus ?? []).map((s) => String(s).toLowerCase().replace(/\s/g, "_"));
-  const hasAerobicZone2 = stim.includes("aerobic_zone2");
-  if (machineEq || idSteady || nameSteady) return true;
-  if (hasAerobicZone2 && !/\b(sprint|interval|hiit|shuttle)\b/.test(blob)) return true;
-  const walkLike = /\b(walk|walking)\b/.test(name) && !/\b(farmers|weighted|shuttle)\b/.test(blob);
-  if (walkLike && exerciseHasSubFocusSlug(exercise, "zone2_aerobic_base")) return true;
-  return false;
+  return isAllowedSteadyStateConditioning(exercise);
 }
 
 /** Broader Zone 2 steady-state detection for explosive-primary session policy (catalog tag noise safe). */

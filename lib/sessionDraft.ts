@@ -177,7 +177,11 @@ export function inferSessionPhase(input: SessionPhaseInput): SessionPhase {
 
 /** True when the user is inside the workout/week build or execute flow. */
 export function isSessionFlowScreen(pathname: string): boolean {
-  return pathname.includes("/manual/") || pathname.includes("/sport-mode/");
+  return (
+    pathname.includes("/manual/") ||
+    pathname.includes("/sport-mode/") ||
+    pathname.includes("/week/")
+  );
 }
 
 /** Floating resume banner — only when a session exists and user left the flow. */

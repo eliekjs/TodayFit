@@ -7,6 +7,7 @@
 import type { Exercise, ExerciseTags } from "../../logic/workoutGeneration/types";
 import { CONDITIONING_INTENT_SLUGS } from "../../data/goalSubFocus/conditioningSubFocus";
 import type { ExerciseInferenceInput } from "./inferenceTypes";
+import { blobIsSprintOrAgilityConditioningDrill } from "../generation/prescriptionRules";
 
 const INTENT_SET = new Set<string>(CONDITIONING_INTENT_SLUGS);
 
@@ -195,7 +196,8 @@ export function inferPhase4ConditioningIntents(
 
   // --- Locomotion (no machine): run/jog/shuffle ---
   if (patterns.has("locomotion") && isConditioningMod) {
-    if (sprintName) {
+    const sprintOrDrillBlob = blobIsSprintOrAgilityConditioningDrill(b);
+    if (sprintName || sprintOrDrillBlob) {
       add("sprint");
       if (hiitName) add("intervals_hiit");
     } else if (hiitName) {
@@ -204,7 +206,7 @@ export function inferPhase4ConditioningIntents(
       add("threshold_tempo");
     } else if (hillName) {
       add("hills");
-    } else if (zone2Name || /jog|run|shuffle|march/.test(b)) {
+    } else if (zone2Name || /\b(jog|shuffle|march)\b/.test(b) || (/\b(run|jog)\b/.test(b) && !sprintOrDrillBlob)) {
       add("zone2_aerobic_base");
       if (/tempo/.test(b) && !sprintName) add("threshold_tempo");
     }

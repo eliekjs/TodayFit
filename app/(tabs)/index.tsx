@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   Alert,
-  TextInput,
 } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -16,7 +15,6 @@ import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
 import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
-import { PrimaryButton } from "../../components/Button";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
@@ -122,14 +120,12 @@ export default function HomeScreen() {
     savedWorkouts,
     manualSessionProgress,
     preferencePresets,
-    applyPreferencePreset,
-    updatePreferencePreset,
-    removePreferencePreset,
+    sportPresets,
     savedSportForm,
   } = useAppState();
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
-  const [showPreferenceProfiles, setShowPreferenceProfiles] = useState(false);
   const trainTodayCancelledRef = useRef(false);
+  const savedPresetCount = preferencePresets.length + sportPresets.length;
 
   useEffect(() => {
     void prefetchWorkoutGenerationStack();
@@ -251,7 +247,7 @@ export default function HomeScreen() {
     return (
       <GenerationLoadingScreen
         message="Building your session…"
-        subtitle="Using your goals, gym, and recent workouts."
+        subtitle="Using your goals and gym."
         onGoBack={() => {
           trainTodayCancelledRef.current = true;
           setIsTrainTodayGenerating(false);
@@ -300,91 +296,6 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
-
-        <View
-          style={[
-            styles.preferenceProfilesCard,
-            { backgroundColor: theme.card, borderColor: theme.border },
-          ]}
-        >
-          <Pressable
-            onPress={() => setShowPreferenceProfiles((prev) => !prev)}
-            style={({ pressed }) => [
-              styles.preferenceProfilesHeader,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.preferenceProfilesTitle, { color: theme.text }]}>
-                Workout preference profiles
-              </Text>
-              <Text style={[styles.preferenceProfilesSubtitle, { color: theme.textMuted }]}>
-                {preferencePresets.length === 0
-                  ? "Save presets from Goal-Oriented Training to switch quickly."
-                  : `${preferencePresets.length} saved — tap to change`}
-              </Text>
-            </View>
-            <Ionicons
-              name={showPreferenceProfiles ? "chevron-up" : "chevron-down"}
-              size={20}
-              color={theme.textMuted}
-            />
-          </Pressable>
-          {showPreferenceProfiles && (
-            <View style={styles.preferenceProfilesList}>
-              {preferencePresets.length === 0 ? (
-                <Text style={[styles.preferenceProfilesEmpty, { color: theme.textMuted }]}>
-                  No presets yet. Use Save preset at the bottom of Goal-Oriented Training.
-                </Text>
-              ) : (
-                preferencePresets.map((preset) => (
-                  <View
-                    key={preset.id}
-                    style={[styles.preferencePresetRow, { borderColor: theme.border }]}
-                  >
-                    <TextInput
-                      value={preset.name}
-                      onChangeText={(name) =>
-                        updatePreferencePreset(preset.id, {
-                          name: name.trim() || preset.name,
-                        })
-                      }
-                      placeholder="Preset name"
-                      placeholderTextColor={theme.textMuted}
-                      style={[
-                        styles.preferencePresetNameInput,
-                        { borderColor: theme.border, color: theme.text },
-                      ]}
-                    />
-                    <View style={styles.preferencePresetActions}>
-                      <PrimaryButton
-                        label="Use"
-                        variant="secondary"
-                        onPress={() => applyPreferencePreset(preset.id)}
-                        style={styles.preferencePresetBtn}
-                      />
-                      <PrimaryButton
-                        label="Delete"
-                        variant="ghost"
-                        onPress={() => {
-                          Alert.alert("Delete preset?", `Remove "${preset.name}"?`, [
-                            { text: "Cancel", style: "cancel" },
-                            {
-                              text: "Delete",
-                              style: "destructive",
-                              onPress: () => removePreferencePreset(preset.id),
-                            },
-                          ]);
-                        }}
-                        style={styles.preferencePresetBtn}
-                      />
-                    </View>
-                  </View>
-                ))
-              )}
-            </View>
-          )}
-        </View>
 
         <ActionCard
           icon="barbell-outline"
@@ -447,7 +358,9 @@ export default function HomeScreen() {
               Want to utilize a saved preset?
             </Text>
             <Text style={[styles.savedPresetsSubtitle, { color: theme.textMuted }]}>
-              Reuse a saved goal or sport setup for a day or a week.
+              {savedPresetCount === 0
+                ? "Reuse a saved goal or sport setup for a day or a week."
+                : `${savedPresetCount} saved — reuse a goal or sport setup for a day or a week.`}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
@@ -499,55 +412,6 @@ const styles = StyleSheet.create({
   trainTodayHint: {
     fontSize: 12,
     lineHeight: 17,
-  },
-  preferenceProfilesCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  preferenceProfilesHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    gap: 10,
-  },
-  preferenceProfilesTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  preferenceProfilesSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  preferenceProfilesList: {
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-    gap: 10,
-  },
-  preferenceProfilesEmpty: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  preferencePresetRow: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-  },
-  preferencePresetNameInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  preferencePresetActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  preferencePresetBtn: {
-    flex: 1,
   },
   actionCard: {
     borderRadius: 22,

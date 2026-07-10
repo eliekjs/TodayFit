@@ -1,5 +1,13 @@
 import { getSupabase } from "./client";
-import type { GeneratedWorkout, WorkoutBlock, WorkoutItem, WorkoutHistoryItem, SavedWorkout } from "../types";
+import type {
+  GeneratedWorkout,
+  WorkoutBlock,
+  WorkoutItem,
+  WorkoutHistoryItem,
+  SavedWorkout,
+  SetLogRow,
+  ExerciseExecutionProgress,
+} from "../types";
 import { normalizeGeneratedWorkout } from "../types";
 
 function requireClient() {
@@ -173,19 +181,62 @@ function asExerciseNotes(value: unknown): Record<string, string> | undefined {
   return Object.fromEntries(entries);
 }
 
+function isSetLogRow(value: unknown): value is SetLogRow {
+  if (!isRecord(value)) return false;
+  if (typeof value.id !== "string") return false;
+  if (value.reps != null && (typeof value.reps !== "number" || !Number.isFinite(value.reps))) {
+    return false;
+  }
+  if (value.load_kg != null && (typeof value.load_kg !== "number" || !Number.isFinite(value.load_kg))) {
+    return false;
+  }
+  if (
+    value.duration_seconds != null &&
+    (typeof value.duration_seconds !== "number" || !Number.isFinite(value.duration_seconds))
+  ) {
+    return false;
+  }
+  if (value.notes != null && typeof value.notes !== "string") return false;
+  return true;
+}
+
+function asSetLogRows(value: unknown): SetLogRow[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows = value.filter(isSetLogRow);
+  return rows.length > 0 ? rows : undefined;
+}
+
+function asExercisePerformance(
+  value: unknown
+): WorkoutHistoryItem["exercisePerformance"] {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value).flatMap(([exerciseId, perf]) => {
+    if (typeof exerciseId !== "string" || !isRecord(perf)) return [];
+    const sets = asSetLogRows(perf.sets);
+    if (!sets) return [];
+    return [[exerciseId, { sets }] as const];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 function asProgress(value: unknown): SavedWorkout["progress"] {
   if (!isRecord(value)) return undefined;
-  const entries = Object.entries(value).filter(([, state]) => {
-    if (!isRecord(state)) return false;
-    return (
-      typeof state.completed === "boolean" &&
-      typeof state.setsCompleted === "number" &&
-      Number.isFinite(state.setsCompleted)
-    );
+  const entries = Object.entries(value).flatMap(([exerciseId, state]) => {
+    if (typeof exerciseId !== "string" || !isRecord(state)) return [];
+    if (typeof state.completed !== "boolean") return [];
+    if (typeof state.setsCompleted !== "number" || !Number.isFinite(state.setsCompleted)) {
+      return [];
+    }
+    const progress: ExerciseExecutionProgress = {
+      completed: state.completed,
+      setsCompleted: state.setsCompleted,
+    };
+    const sets = asSetLogRows(state.sets);
+    if (sets) progress.sets = sets;
+    if (typeof state.notes === "string") progress.notes = state.notes;
+    return [[exerciseId, progress] as const];
   });
-  return entries.length > 0
-    ? (Object.fromEntries(entries) as SavedWorkout["progress"])
-    : undefined;
+  return entries.length > 0 ? (Object.fromEntries(entries) as SavedWorkout["progress"]) : undefined;
 }
 
 function asIntentRecord(value: unknown): Record<string, unknown> {
@@ -411,6 +462,7 @@ export async function saveCompletedWorkout(userId: string, item: Omit<WorkoutHis
         name: item.name,
         workout: item.workout,
         exerciseNotes: item.exerciseNotes,
+        exercisePerformance: item.exercisePerformance,
       },
     })
     .select("id")
@@ -435,6 +487,7 @@ export async function listCompletedWorkouts(userId: string): Promise<WorkoutHist
       name: asString(i.name),
       workout,
       exerciseNotes: asExerciseNotes(i.exerciseNotes),
+      exercisePerformance: asExercisePerformance(i.exercisePerformance),
     };
   });
 }

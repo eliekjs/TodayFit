@@ -403,10 +403,17 @@ export type GeneratedWorkout = {
   };
 };
 
+export type WeekDayStatus = "planned" | "completed" | "skipped";
+
 /** In-memory manual week: 7 generated workouts keyed by date. */
 export type ManualWeekPlan = {
   weekStartDate: string;
-  days: { date: string; workout: GeneratedWorkout; displayTitle?: string }[];
+  days: {
+    date: string;
+    workout: GeneratedWorkout;
+    displayTitle?: string;
+    status?: WeekDayStatus;
+  }[];
 };
 
 /**
@@ -435,10 +442,11 @@ export function formatPrescription(item: WorkoutItem, options?: { includeRest?: 
   const restText =
     includeRest && item.rest_seconds > 0 ? ` · Rest ${item.rest_seconds}s` : "";
   if (item.time_seconds != null && item.time_seconds > 0) {
-    const min = Math.round(item.time_seconds / 60);
+    const durationLabel =
+      item.time_seconds < 90 ? `${item.time_seconds}s` : `${Math.round(item.time_seconds / 60)} min`;
     const sets = item.sets ?? 1;
-    if (sets > 1) return `${sets} rounds × ${min} min${restText}`;
-    return `${min} min${restText}`;
+    if (sets > 1) return `${sets} rounds × ${durationLabel}${restText}`;
+    return `${durationLabel}${restText}`;
   }
   const reps = item.reps != null ? ` ${item.reps} reps` : "";
   const perLeg = item.unilateral && item.reps != null ? " each leg" : "";
@@ -541,6 +549,24 @@ function mapSectionIdToBlockType(sectionId: string): BlockType {
   return "main_hypertrophy";
 }
 
+/** One logged set or round during workout execution. */
+export type SetLogRow = {
+  id: string;
+  reps?: number;
+  load_kg?: number;
+  /** Logged duration for time-based exercises (seconds). */
+  duration_seconds?: number;
+  notes?: string;
+};
+
+export type ExerciseExecutionProgress = {
+  completed: boolean;
+  /** Legacy aggregate; kept in sync with `sets.length` when rows exist. */
+  setsCompleted: number;
+  sets?: SetLogRow[];
+  notes?: string;
+};
+
 export type WorkoutHistoryItem = {
   id: string;
   date: string;
@@ -552,6 +578,8 @@ export type WorkoutHistoryItem = {
   workout?: GeneratedWorkout;
   /** Notes per exercise (exerciseId -> note) from execution. */
   exerciseNotes?: Record<string, string>;
+  /** Per-exercise set/round logs from execution. */
+  exercisePerformance?: Record<string, { sets: SetLogRow[] }>;
 };
 
 /** Saved workout preference preset (named snapshot of ManualPreferences). */
@@ -562,14 +590,33 @@ export type PreferencePreset = {
   preferences: ManualPreferences;
 };
 
-export type ExecutionProgress = Record<
-  string,
-  { completed: boolean; setsCompleted: number; notes?: string }
->;
+export type ExecutionProgress = Record<string, ExerciseExecutionProgress>;
+
+export function createSetLogRow(): SetLogRow {
+  return { id: `set_${Date.now()}_${Math.random().toString(36).slice(2, 7)}` };
+}
+
+export function deriveSetsCompleted(progress: ExerciseExecutionProgress): number {
+  return progress.sets?.length ?? progress.setsCompleted ?? 0;
+}
+
+/** Whether prescription is time/round-based rather than rep-based. */
+export function isTimeBasedPrescription(item: Pick<WorkoutItem, "time_seconds">): boolean {
+  return item.time_seconds != null && item.time_seconds > 0;
+}
 
 export type SavedWorkout = {
   id: string;
   savedAt: string;
   workout: GeneratedWorkout;
   progress?: ExecutionProgress;
+};
+
+/** Saved week plan for redoing a full training week from the library. */
+export type SavedWeek = {
+  id: string;
+  savedAt: string;
+  weekStartDate: string;
+  days: ManualWeekPlan["days"];
+  source: "manual" | "adaptive";
 };

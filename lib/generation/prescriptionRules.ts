@@ -14,8 +14,112 @@
  */
 
 import type { BlockFormat } from "../types";
+import type { Exercise } from "../../logic/workoutGeneration/types";
 
 export type EnergyLevel = "low" | "medium" | "high";
+
+/** Sprint / agility / COD drills must never receive long steady-state cardio prescriptions. */
+const SPRINT_OR_AGILITY_DRILL_CUES = [
+  "dead_leg",
+  "figure_8",
+  "figure8",
+  "carioca",
+  "pro_shuttle",
+  "pro_agility",
+  "l_drill",
+  "cone_drill",
+  "agility_ladder",
+  "footwork",
+  "mirror_drill",
+  "wall_drill",
+  "high_knee",
+  "butt_kick",
+  "piston",
+  "shuttle",
+  "sprint",
+  "cod",
+  "agility",
+  "hurdle",
+  "decel",
+  "accel",
+  "arm_pump",
+  "quarter_arc",
+  "half_arc",
+  "circle_run",
+  "crossover",
+  "ball_drop",
+  "back_pedal",
+  "karaoke",
+  "zig_zag",
+] as const;
+
+export function blobIsSprintOrAgilityConditioningDrill(blob: string): boolean {
+  const b = blob.toLowerCase().replace(/[\s-]+/g, "_");
+  if (SPRINT_OR_AGILITY_DRILL_CUES.some((cue) => b.includes(cue))) return true;
+  if (/\b(skip|bound|hop|skater|cutting|reaction)\b/.test(b)) return true;
+  return /_start\b/.test(b) || /\bstarts\b/.test(b);
+}
+
+/**
+ * Steady-state conditioning whitelist: stair climber, Zone 2 ergs/treadmill, elliptical,
+ * sustained run/jog/walk, incline walk. Everything else (sprint drills, metcons, plyos) → intervals.
+ */
+export function isAllowedSteadyStateConditioning(
+  exercise: Pick<Exercise, "id" | "name" | "modality" | "equipment_required" | "tags">
+): boolean {
+  if (exercise.modality !== "conditioning") return false;
+
+  const id = (exercise.id ?? "").toLowerCase();
+  const name = (exercise.name ?? "").toLowerCase();
+  const blob = `${id} ${name}`.replace(/[\s-]+/g, "_");
+
+  if (blobIsSprintOrAgilityConditioningDrill(blob)) return false;
+  if (/\b(hiit|tabata|emom|interval|burpee|mountain_climber|battle_rope|metcon|sled_push|sled_drag)\b/.test(blob)) {
+    return false;
+  }
+
+  const eq = (exercise.equipment_required ?? []).map((x) => x.toLowerCase().replace(/\s/g, "_"));
+  const machineCardio = eq.some((x) =>
+    [
+      "treadmill",
+      "bike",
+      "indoor_bike",
+      "rower",
+      "elliptical",
+      "stair_climber",
+      "stairs",
+      "ski_erg",
+      "assault_bike",
+      "air_bike",
+    ].includes(x)
+  );
+  if (machineCardio) {
+    if (/\b(interval|sprint|hiit|tabata|hill_sprint)\b/.test(blob)) return false;
+    return true;
+  }
+
+  if (id.startsWith("zone2_")) return true;
+  if (/\b(incline_walk|incline_treadmill_walk|uphill_walk|hill_walk|stair_climber)\b/.test(blob)) return true;
+
+  if (
+    /\b(easy_run|recovery_run|long_slow|steady_run|zone2_run|treadmill_run|brisk_walk)\b/.test(blob) &&
+    !/\b(sprint|interval|shuttle|drill|high_knee|butt_kick|piston|tempo)\b/.test(blob)
+  ) {
+    return true;
+  }
+
+  const attrs = (exercise.tags?.attribute_tags ?? []).map((s) => String(s).toLowerCase().replace(/\s/g, "_"));
+  const hasSprintOrHiit = attrs.some((t) =>
+    ["sprint", "intervals_hiit", "speed", "acceleration", "agility", "lower_body_power_plyos"].includes(t)
+  );
+  const hasZone2Only =
+    attrs.some((t) => t.includes("zone2") || t.includes("aerobic_base")) && !hasSprintOrHiit;
+  if (hasZone2Only && /\b(run|jog|walk)\b/.test(name) && !blobIsSprintOrAgilityConditioningDrill(blob)) {
+    return true;
+  }
+
+  return false;
+}
 
 /** Where in the goal rep band to anchor before energy bucket shifts. */
 export type RepSelectionStrategy = "min" | "mid" | "max";
@@ -515,6 +619,9 @@ export function getConditioningIntervalStructure(
     isErg && totalMinutes >= CONDITIONING_INTERVAL_THRESHOLD_MIN;
 
   if (!useIntervals || totalMinutes < 10) {
+    if (!isErg) {
+      return getNonZone2ConditioningIntervalStructure(totalMinutes);
+    }
     return {
       sets: 1,
       time_seconds: Math.min(totalMinutes * 60, 45 * 60),
@@ -606,7 +713,10 @@ export function getConditioningStructureByIntent(
       reasoning: "Medium sustained effort; threshold/tempo.",
     };
   }
-  // hills or unknown: use existing logic (lower-body/incline bias is in exercise selection, not structure)
+  // hills or unknown: non-machine conditioning defaults to short interval rounds
+  if (!equipmentRequired.some((eq) => ERG_EQUIPMENT.has(eq.toLowerCase().replace(/\s/g, "_")))) {
+    return getNonZone2ConditioningIntervalStructure(totalMinutes);
+  }
   return getConditioningIntervalStructure(totalMinutes, goal, equipmentRequired);
 }
 

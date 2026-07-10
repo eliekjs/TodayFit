@@ -1,6 +1,6 @@
 import { getSupabase } from "./client";
-import { saveGeneratedWorkout, getWorkoutsByIds } from "./workoutRepository";
-import type { GeneratedWorkout } from "../types";
+import { saveGeneratedWorkout, getWorkoutsByIds, deleteWorkout } from "./workoutRepository";
+import type { GeneratedWorkout, SavedWeek } from "../types";
 import type { PlannedDay } from "../../services/sportPrepPlanner";
 import { plannedDayFromDbRow } from "../../services/sportPrepPlanner/sportDesignatedDay";
 import { parseLocalDate } from "../dateUtils";
@@ -229,6 +229,124 @@ export async function listWeeklyPlanInstances(userId: string): Promise<SavedWeek
     created_at: r.created_at,
     goals_snapshot: (r.goals_snapshot as Record<string, unknown>) ?? {},
   }));
+}
+
+function isFullWeekSummary(summary: SavedWeekSummary): boolean {
+  return summary.goals_snapshot?.singleDay !== true;
+}
+
+function savedWeekFromPlan(
+  summary: SavedWeekSummary,
+  plan: WeeklyPlanWithWorkouts
+): SavedWeek | null {
+  const days = plan.days
+    .map((day) => {
+      const workout = plan.guestWorkouts[day.date];
+      if (!workout) return null;
+      return {
+        date: day.date,
+        workout,
+        displayTitle: day.intentLabel ?? day.title ?? undefined,
+      };
+    })
+    .filter((day): day is NonNullable<typeof day> => day != null);
+  if (days.length === 0) return null;
+  const source =
+    (summary.goals_snapshot?.source as string) === "manual" ? "manual" : "adaptive";
+  return {
+    id: summary.id,
+    savedAt: summary.created_at,
+    weekStartDate: summary.week_start_date,
+    days,
+    source,
+  };
+}
+
+/**
+ * List saved full-week plans with workouts (excludes single-day saves).
+ */
+export async function listSavedWeeks(userId: string): Promise<SavedWeek[]> {
+  const summaries = (await listWeeklyPlanInstances(userId)).filter(isFullWeekSummary);
+  if (summaries.length === 0) return [];
+
+  const supabase = requireClient();
+  const instanceIds = summaries.map((summary) => summary.id);
+  const { data: dayRows, error: daysErr } = await supabase
+    .from("weekly_plan_days")
+    .select("weekly_plan_instance_id, id, date, intent_label, status, generated_workout_id")
+    .in("weekly_plan_instance_id", instanceIds)
+    .order("date");
+  if (daysErr) throw new Error(daysErr.message);
+
+  type BatchDayRow = WeeklyPlanDayRow & { weekly_plan_instance_id: string };
+  const typedDayRows = (dayRows ?? []) as BatchDayRow[];
+  const workoutIds = [
+    ...new Set(
+      typedDayRows
+        .map((row) => row.generated_workout_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  const workoutsById =
+    workoutIds.length > 0 ? await getWorkoutsByIds(userId, workoutIds) : {};
+
+  const daysByInstance = new Map<string, WeeklyPlanDayRow[]>();
+  for (const row of typedDayRows) {
+    const instanceId = row.weekly_plan_instance_id;
+    const { weekly_plan_instance_id: _instanceId, ...dayRow } = row;
+    const existing = daysByInstance.get(instanceId) ?? [];
+    existing.push(dayRow);
+    daysByInstance.set(instanceId, existing);
+  }
+
+  return summaries
+    .map((summary) => {
+      const instanceDays = daysByInstance.get(summary.id) ?? [];
+      const plan = buildWeeklyPlanWithWorkoutsFromRows(
+        { id: summary.id, week_start_date: summary.week_start_date },
+        instanceDays,
+        workoutsById
+      );
+      return savedWeekFromPlan(summary, plan);
+    })
+    .filter((week): week is SavedWeek => week != null);
+}
+
+/**
+ * Delete a saved week plan and its linked generated workouts.
+ */
+export async function deleteSavedWeek(userId: string, instanceId: string): Promise<void> {
+  const supabase = requireClient();
+  const { data: dayRows, error: daysErr } = await supabase
+    .from("weekly_plan_days")
+    .select("generated_workout_id")
+    .eq("weekly_plan_instance_id", instanceId);
+  if (daysErr) throw new Error(daysErr.message);
+
+  const workoutIds = [
+    ...new Set(
+      (dayRows ?? [])
+        .map((row) => row.generated_workout_id)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+
+  const { error: deleteDaysError } = await supabase
+    .from("weekly_plan_days")
+    .delete()
+    .eq("weekly_plan_instance_id", instanceId);
+  if (deleteDaysError) throw new Error(deleteDaysError.message);
+
+  const { error: deleteInstanceError } = await supabase
+    .from("weekly_plan_instances")
+    .delete()
+    .eq("id", instanceId)
+    .eq("user_id", userId);
+  if (deleteInstanceError) throw new Error(deleteInstanceError.message);
+
+  for (const workoutId of workoutIds) {
+    await deleteWorkout(userId, workoutId);
+  }
 }
 
 export type WeeklyPlanWithWorkouts = {

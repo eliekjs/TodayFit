@@ -8,7 +8,7 @@
  * Examples: 2=U,L; 3=U,L,Full; 4=U,L,U,L; 5=U,L,Full,U,L; 6=U,L,U,L,U,L.
  */
 
-import type { BodyEmphasisKey } from "../../lib/types";
+import type { BodyEmphasisKey, SpecificBodyFocusKey } from "../../lib/types";
 
 export type IntentKey = "strength" | "power" | "aerobic" | "mobility" | "prehab" | "recovery";
 
@@ -24,9 +24,9 @@ export type DayBias = {
  * Does not set intentKey; caller combines with goal/intent order.
  * Rule: even days = Upper/Lower alternating; odd days = one Full (middle), rest U/L alternating.
  */
-export function getBodyEmphasisDistribution(gymDaysPerWeek: number): { targetBody: "Upper" | "Lower" | "Full"; targetModifier: string[] }[] {
+export function getBodyEmphasisDistribution(gymDaysPerWeek: number): { targetBody: "Upper" | "Lower" | "Full"; targetModifier: string[]; specificBodyFocus?: SpecificBodyFocusKey[] }[] {
   const n = Math.max(1, Math.min(7, gymDaysPerWeek));
-  const out: { targetBody: "Upper" | "Lower" | "Full"; targetModifier: string[] }[] = [];
+  const out: { targetBody: "Upper" | "Lower" | "Full"; targetModifier: string[]; specificBodyFocus?: SpecificBodyFocusKey[] }[] = [];
   if (n % 2 === 0) {
     for (let i = 0; i < n; i++) {
       out.push({ targetBody: i % 2 === 0 ? "Upper" : "Lower", targetModifier: [] });

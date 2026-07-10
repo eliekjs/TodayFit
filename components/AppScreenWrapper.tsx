@@ -2,6 +2,7 @@ import React from "react";
 import { View, StyleSheet, Platform, type ViewStyle } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useSessionBannerInset } from "./ActiveSessionCard";
+import { useWeekProgressBannerInset } from "./WeekProgressBanner";
 import { useTheme } from "../lib/theme";
 
 type Props = {
@@ -13,6 +14,8 @@ type Props = {
 export function AppScreenWrapper({ children, style }: Props) {
   const isFocused = useIsFocused();
   const bannerInset = useSessionBannerInset();
+  const weekBannerInset = useWeekProgressBannerInset();
+  const bottomInset = weekBannerInset;
   const theme = useTheme();
 
   /** RN Web keeps every tab route mounted; hide unfocused scenes to avoid stacked UI (see FocusAwareTabHeader). */
@@ -22,7 +25,13 @@ export function AppScreenWrapper({ children, style }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }, style]}>
-      <View style={[styles.foreground, bannerInset > 0 ? { paddingTop: bannerInset } : null]}>
+      <View
+        style={[
+          styles.foreground,
+          bannerInset > 0 ? { paddingTop: bannerInset } : null,
+          bottomInset > 0 ? { paddingBottom: bottomInset } : null,
+        ]}
+      >
         {children}
       </View>
     </View>

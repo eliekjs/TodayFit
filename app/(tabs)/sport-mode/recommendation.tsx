@@ -22,7 +22,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
-import type { GeneratedWorkout, DailyWorkoutPreferences } from "../../../lib/types";
+import type { GeneratedWorkout, DailyWorkoutPreferences, SpecificBodyFocusKey } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
 import type { PlannedDay, PlanWeekResult } from "../../../services/sportPrepPlanner";
@@ -680,8 +680,8 @@ export default function AdaptiveWeekPlanScreen() {
     const bodyKey = session.dayLevelFocus?.dayBodyEmphasis ?? "full";
     const targetBody =
       bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
-    const specificBodyFocus = session.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
-      ? (["core"] as const)
+    const specificBodyFocus: SpecificBodyFocusKey[] | undefined = session.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
+      ? ["core"]
       : undefined;
     const adaptive = adaptiveSetupFromPlanContext({
       goalSlugs: plan.goalSlugs,
@@ -1090,8 +1090,8 @@ export default function AdaptiveWeekPlanScreen() {
               const targetBody =
                 bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
               const targetModifier = snapshotBody?.targetModifier ?? [];
-              const specificBodyFocus = day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
-                ? (["core"] as const)
+              const specificBodyFocus: SpecificBodyFocusKey[] | undefined = day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
+                ? ["core"]
                 : undefined;
               const bodyOptions =
                 gymIndex >= 0

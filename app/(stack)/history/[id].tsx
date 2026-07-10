@@ -14,6 +14,7 @@ import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { WorkoutSessionLog } from "../../../components/WorkoutSessionLog";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 
 export default function ViewCompletedWorkoutScreen() {
@@ -46,6 +47,7 @@ export default function ViewCompletedWorkoutScreen() {
   const rawWorkout = item.workout;
   const workout = rawWorkout ? normalizeGeneratedWorkout(rawWorkout) : null;
   const notes = item.exerciseNotes ?? {};
+  const performance = item.exercisePerformance ?? {};
 
   if (!workout) {
     return (
@@ -137,9 +139,21 @@ export default function ViewCompletedWorkoutScreen() {
           />
         </View>
 
+        <View style={styles.sessionLogSection}>
+          <WorkoutSessionLog
+            workout={workout}
+            exerciseNotes={notes}
+            exercisePerformance={performance}
+          />
+        </View>
+
+        <Text style={[styles.planSectionTitle, { color: theme.text }]}>
+          Workout plan
+        </Text>
+
         <WorkoutBlockList
           workout={workout}
-          exerciseNotes={notes}
+          showCompletionLog={false}
         />
       </ScrollView>
     </AppScreenWrapper>
@@ -179,6 +193,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 20,
+  },
+  sessionLogSection: {
+    marginBottom: 24,
+  },
+  planSectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
   },
   centered: {
     flex: 1,

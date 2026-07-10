@@ -51,6 +51,33 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
     expect(input.focus_body_parts).toEqual(["lower"]);
   });
 
+  it("maps Lower + Quad modifier to lower + quad (not just lower)", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      { ...BASE, targetBody: "Lower", targetModifier: ["Quad"] },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["lower", "quad"]);
+  });
+
+  it("maps Lower + Posterior modifier to lower + posterior (not just lower)", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      { ...BASE, targetBody: "Lower", targetModifier: ["Posterior"] },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["lower", "posterior"]);
+  });
+
+  it("ignores Quad/Posterior modifier when both are selected (ambiguous)", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      { ...BASE, targetBody: "Lower", targetModifier: ["Quad", "Posterior"] },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["lower"]);
+  });
+
   it("maps Full to full_body", () => {
     const input = manualPreferencesToGenerateWorkoutInput(
       { ...BASE, targetBody: "Full" },

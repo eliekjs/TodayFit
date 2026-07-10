@@ -52,6 +52,8 @@ import {
   HIGH_INTENSITY_CONDITIONING_IDS,
   MAX_HIGH_INTENSITY_WORK_SECONDS,
   HIGH_INTENSITY_REST_SECONDS,
+  getSprintBurstConditioningStructure,
+  isAllowedSteadyStateConditioning,
 } from "./generation/prescriptionRules";
 import { pickBestSupersetPairs } from "../logic/workoutIntelligence/supersetPairing";
 import type { PairingInput } from "../logic/workoutIntelligence/supersetPairing";
@@ -250,13 +252,18 @@ function prescriptionForExercise(
   if (exercise.modalities.includes("conditioning")) {
     const isZone2 = exercise.tags.includes("zone2");
     const zone2Cue = isZone2 ? `${BODY_RECOMP_CUES.cardio} ${ZONE2_HR_GUIDANCE}` : BODY_RECOMP_CUES.cardio;
-    if (isBodyRecomp) {
-      const timeSeconds = Math.round((BODY_RECOMP_CARDIO_DURATION_MIN + BODY_RECOMP_CARDIO_DURATION_MAX) / 2) * 60;
-      return { sets: 1, time_seconds: timeSeconds, rest_seconds: 0, coaching_cues: zone2Cue };
-    }
-    // High-intensity conditioning (burpees, KB swings, high knees, etc.): max 1 min per round, rounds + rest.
+    const totalWorkMinutes = energy === "high" ? 8 : energy === "low" ? 5 : 6;
+    const steadyAllowed = isAllowedSteadyStateConditioning({
+      id: exercise.id,
+      name: exercise.name,
+      modality: "conditioning",
+      equipment_required: (exercise.equipment ?? []).map((eq) =>
+        String(eq).toLowerCase().replace(/\s/g, "_")
+      ),
+      tags: { attribute_tags: exercise.tags },
+    });
+
     if (HIGH_INTENSITY_CONDITIONING_IDS.has(exercise.id)) {
-      const totalWorkMinutes = energy === "high" ? 8 : energy === "low" ? 5 : 6;
       const rounds = Math.max(1, Math.min(20, totalWorkMinutes));
       return {
         sets: rounds,
@@ -264,6 +271,21 @@ function prescriptionForExercise(
         rest_seconds: HIGH_INTENSITY_REST_SECONDS,
         coaching_cues: `High intensity. Rest ${HIGH_INTENSITY_REST_SECONDS} s between rounds.`,
       };
+    }
+
+    if (!steadyAllowed) {
+      const structure = getSprintBurstConditioningStructure(totalWorkMinutes);
+      return {
+        sets: structure.sets,
+        time_seconds: structure.time_seconds,
+        rest_seconds: structure.rest_seconds,
+        coaching_cues: structure.reasoning ?? "Short interval rounds with recovery between efforts.",
+      };
+    }
+
+    if (isBodyRecomp) {
+      const timeSeconds = Math.round((BODY_RECOMP_CARDIO_DURATION_MIN + BODY_RECOMP_CARDIO_DURATION_MAX) / 2) * 60;
+      return { sets: 1, time_seconds: timeSeconds, rest_seconds: 0, coaching_cues: zone2Cue };
     }
     const minutes = energy === "high" ? 12 : energy === "low" ? 6 : 8;
     const steadyCue = isZone2 ? `Steady effort. ${ZONE2_HR_GUIDANCE}` : "Steady effort. Keep heart rate in target zone.";

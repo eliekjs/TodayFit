@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useTheme } from "../lib/theme";
-import type { BlockType, GeneratedWorkout, WorkoutBlock, WorkoutItem } from "../lib/types";
+import type { BlockType, GeneratedWorkout, SetLogRow, WorkoutBlock, WorkoutItem } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 import { formatExerciseDisplayCue } from "../lib/exerciseDisplayCue";
 import { buildBlockGoalBadgeLabel, getBlockDisplayTitle } from "../lib/blockGoalDisplay";
@@ -62,6 +62,10 @@ export type WorkoutBlockListProps = {
   showTags?: boolean;
   /** Optional notes per exercise id (e.g. from completed workout history). */
   exerciseNotes?: Record<string, string>;
+  /** Optional set/round logs per exercise id (from completed workout history). */
+  exercisePerformance?: Record<string, { sets: SetLogRow[] }>;
+  /** When false, hides per-exercise notes and set logs (e.g. when shown in WorkoutSessionLog). */
+  showCompletionLog?: boolean;
 };
 
 export function WorkoutBlockList({
@@ -70,6 +74,8 @@ export function WorkoutBlockList({
   onSwap,
   showTags = false,
   exerciseNotes,
+  exercisePerformance,
+  showCompletionLog = true,
 }: WorkoutBlockListProps) {
   const theme = useTheme();
   const [setupModal, setSetupModal] = React.useState<{
@@ -105,7 +111,8 @@ export function WorkoutBlockList({
               showSwap,
               onSwap,
               showTags,
-              exerciseNotes,
+              showCompletionLog ? exerciseNotes : undefined,
+              showCompletionLog ? exercisePerformance : undefined,
               (item) => {
                 const setupText = formatExerciseDisplayCue(item);
                 if (!setupText) return;
@@ -125,6 +132,20 @@ export function WorkoutBlockList({
   );
 }
 
+function formatLoggedSet(row: SetLogRow, index: number, mode: "strength" | "rounds"): string {
+  const label = mode === "rounds" ? `Round ${index + 1}` : `Set ${index + 1}`;
+  const parts: string[] = [];
+  if (mode === "strength") {
+    if (row.reps != null) parts.push(`${row.reps} reps`);
+    if (row.load_kg != null) parts.push(`@ ${row.load_kg}`);
+  } else if (row.duration_seconds != null) {
+    const min = row.duration_seconds / 60;
+    parts.push(`${Number.isInteger(min) ? min : min.toFixed(1)} min`);
+  }
+  if (row.notes?.trim()) parts.push(row.notes.trim());
+  return parts.length > 0 ? `${label}: ${parts.join(" · ")}` : label;
+}
+
 function renderBlockContent(
   block: WorkoutBlock,
   blockType: BlockType,
@@ -140,6 +161,7 @@ function renderBlockContent(
     | undefined,
   showTags: boolean,
   exerciseNotes: Record<string, string> | undefined,
+  exercisePerformance: Record<string, { sets: SetLogRow[] }> | undefined,
   onSetupPress: (item: WorkoutItem) => void
 ) {
   const pairs = getSupersetPairsForBlock(block);
@@ -154,6 +176,27 @@ function renderBlockContent(
         </Text>
       </View>
     ) : null;
+  const performanceFor = (item: WorkoutItem) => {
+    const rows = exercisePerformance?.[item.exercise_id]?.sets;
+    if (!rows?.length) return null;
+    const mode =
+      item.time_seconds != null && item.time_seconds > 0 ? "rounds" : "strength";
+    return (
+      <View style={[styles.performanceBox, { backgroundColor: theme.cardOpaque ?? theme.card }]}>
+        <Text style={[styles.noteLabel, { color: theme.textMuted }]}>
+          Logged
+        </Text>
+        {rows.map((row, idx) => (
+          <Text
+            key={row.id}
+            style={[styles.performanceLine, { color: theme.text }]}
+          >
+            {formatLoggedSet(row, idx, mode)}
+          </Text>
+        ))}
+      </View>
+    );
+  };
   const setupButtonFor = (item: WorkoutItem) => {
     const cue = formatExerciseDisplayCue(item);
     if (!cue) return null;
@@ -212,6 +255,7 @@ function renderBlockContent(
                       </View>
                     )}
                     {noteFor(item.exercise_id)}
+                    {performanceFor(item)}
                   </View>
                   {setupButtonFor(item)}
                   {showSwap && onSwap && (
@@ -266,6 +310,7 @@ function renderBlockContent(
               </View>
             )}
             {noteFor(item.exercise_id)}
+            {performanceFor(item)}
           </View>
           {setupButtonFor(item)}
           {showSwap && onSwap && (
@@ -378,6 +423,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   noteText: {
+    fontSize: 13,
+  },
+  performanceBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    gap: 4,
+  },
+  performanceLine: {
     fontSize: 13,
   },
 });

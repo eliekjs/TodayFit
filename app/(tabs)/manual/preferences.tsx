@@ -470,11 +470,9 @@ export default function ManualPreferencesScreen() {
     | "energy"
     | "goalWeights"
     | "subGoals"
-    | "extraGoals"
     | "avoid"
     | "style"
-    | "upcoming"
-    | "zone2";
+    | "upcoming";
   const [manualAdvNestedOpen, setManualAdvNestedOpen] = useState<
     Partial<Record<ManualAdvNestedKey, boolean>>
   >({});
@@ -549,8 +547,6 @@ export default function ManualPreferencesScreen() {
   );
   const manualAdvSubGoalsSummary =
     subGoalsTotalCount === 0 ? "None" : `${subGoalsTotalCount} selected`;
-  const manualAdvExtraGoalsSummary =
-    rankedGoals.length >= MAX_GOALS ? "Full" : `${MAX_GOALS - rankedGoals.length} slot(s)`;
   const manualAdvAvoidSummary = (() => {
     const inj = manualPreferences.injuries;
     if (inj.includes("No restrictions") || inj.length === 0) return "No restrictions";
@@ -648,7 +644,7 @@ export default function ManualPreferencesScreen() {
         >
           {isWeek
             ? "Two quick choices, then pick your training days. Fine-tune anytime in Advanced options."
-            : "Three quick choices. You can fine-tune later."}
+            : "A few quick choices. You can fine-tune later."}
         </Text>
         <ExperienceLevelToggle
           marginTop={16}
@@ -1281,30 +1277,6 @@ export default function ManualPreferencesScreen() {
               ))}
             </View>
             </CollapsiblePreferenceSection>
-
-            {hasPrimaryFocus && rankedGoals.length < MAX_GOALS ? (
-              <CollapsiblePreferenceSection
-                nested
-                title="Additional goals (optional)"
-                subtitle="Second or third ranked goal. Reorder from Training goal above."
-                summary={manualAdvExtraGoalsSummary}
-                expanded={manualAdvNestedOpen.extraGoals === true}
-                onToggle={() => toggleManualAdvNested("extraGoals")}
-              >
-                <View style={styles.chipGroup}>
-                  {PRIMARY_FOCUS_OPTIONS.filter(
-                    (option) => !manualPreferences.primaryFocus.includes(option)
-                  ).map((option) => (
-                    <Chip
-                      key={option}
-                      label={option}
-                      selected={false}
-                      onPress={() => togglePrimaryFocus(option)}
-                    />
-                  ))}
-                </View>
-              </CollapsiblePreferenceSection>
-            ) : null}
           </View>
         )}
 

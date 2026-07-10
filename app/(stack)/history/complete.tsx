@@ -6,6 +6,8 @@ import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { PrimaryButton } from "../../../components/Button";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
+import { summarizeWorkoutLog } from "../../../lib/workoutCompletionLog";
+import { normalizeGeneratedWorkout } from "../../../lib/types";
 
 export default function WorkoutCompleteScreen() {
   const theme = useTheme();
@@ -13,12 +15,17 @@ export default function WorkoutCompleteScreen() {
   const { workoutHistory } = useAppState();
 
   const last = workoutHistory[workoutHistory.length - 1];
+  const workout = last?.workout ? normalizeGeneratedWorkout(last.workout) : null;
+  const logSummary =
+    workout != null
+      ? summarizeWorkoutLog(workout, last?.exerciseNotes, last?.exercisePerformance)
+      : null;
 
   const summary =
     last != null
       ? `${new Date(last.date).toLocaleDateString()} • ${
           last.focus.join(" • ") || "General training"
-        }`
+        }${logSummary ? ` · ${logSummary}` : ""}`
       : "Workout summary will appear here once you finish a session.";
 
   return (
@@ -33,6 +40,13 @@ export default function WorkoutCompleteScreen() {
         </Text>
         <View style={styles.actions}>
           <PrimaryButton label="Train again" onPress={() => router.replace("/")} />
+          {last != null && last.workout != null && (
+            <PrimaryButton
+              label="View session log"
+              variant="secondary"
+              onPress={() => router.replace(`/history/${last.id}`)}
+            />
+          )}
           <PrimaryButton
             label="View Library"
             variant="secondary"

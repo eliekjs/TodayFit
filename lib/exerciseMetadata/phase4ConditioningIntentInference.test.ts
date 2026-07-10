@@ -100,6 +100,20 @@ function testStrengthBenchNoPhase4() {
   console.log("  OK: strength bench does not get conditioning intents");
 }
 
+function testDeadLegRunNotZone2() {
+  const def = partialDef({
+    id: "dead_leg_run",
+    name: "Dead Leg Run",
+    equipment: ["bodyweight"],
+    modalities: ["conditioning"],
+  });
+  const ex = exerciseDefinitionToGeneratorExercise(def);
+  const attrs = ex.tags.attribute_tags ?? [];
+  assert(!attrs.includes("zone2_aerobic_base"), "dead leg run is a sprint drill, not zone2");
+  assert(attrs.includes("sprint"), "dead leg run should keep sprint intent");
+  console.log("  OK: dead leg run → sprint (not zone2)");
+}
+
 function run() {
   console.log("phase4ConditioningIntentInference tests\n");
   testZone2Bike();
@@ -107,6 +121,7 @@ function run() {
   testOlympicStrength();
   testInferRowerMultiIntent();
   testStrengthBenchNoPhase4();
+  testDeadLegRunNotZone2();
   console.log("\nAll phase4ConditioningIntentInference tests passed.");
 }
 

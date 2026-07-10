@@ -192,6 +192,8 @@ export type FocusBodyPart =
   | "upper_push"
   | "upper_pull"
   | "lower"
+  | "quad"
+  | "posterior"
   | "core"
   | "full_body";
 

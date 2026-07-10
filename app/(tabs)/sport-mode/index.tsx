@@ -56,7 +56,14 @@ import type { SportQuality } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
 import { prefetchWorkoutGenerationStack } from "../../../lib/prefetchWorkoutGeneration";
-import type { DailyWorkoutPreferences, EnergyLevel, TargetBody } from "../../../lib/types";
+import type { DailyWorkoutPreferences, TargetBody } from "../../../lib/types";
+import {
+  SPORT_INTENSITY_OPTIONS,
+  energyFromSportIntensity,
+  sportIntensityDisplayLabel,
+  sportIntensityFromEnergy,
+  type SportIntensityLevel,
+} from "../../../lib/energyLevelMapping";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
 import {
@@ -102,8 +109,6 @@ const INJURY_STATUS_OPTIONS = [
 
 /** Injury area options for sport-specific training (same body regions as Build flow, minus "No restrictions"). */
 const INJURY_TYPE_OPTIONS = CONSTRAINT_OPTIONS.filter((o) => o !== "No restrictions");
-
-const INTENSITY_LEVEL_OPTIONS = ["Fresh", "Moderate", "Fatigued"] as const;
 
 const MAX_SUB_GOALS_PER_GOAL = 3;
 
@@ -153,8 +158,9 @@ export default function AdaptiveModeScreen() {
     null,
     null,
   ]);
-  const [intensityLevel, setIntensityLevel] =
-    useState<(typeof INTENSITY_LEVEL_OPTIONS)[number]>("Moderate");
+  const [intensityLevel, setIntensityLevel] = useState<SportIntensityLevel>(() =>
+    sportIntensityFromEnergy(manualPreferences.energyLevel)
+  );
   const [injuryStatus, setInjuryStatus] =
     useState<(typeof INJURY_STATUS_OPTIONS)[number]>("No Concerns");
   /** Selected injury areas when status is Managing or Rebuilding (labels, e.g. "Knee", "Shoulder"). */
@@ -190,6 +196,13 @@ export default function AdaptiveModeScreen() {
   const toggleAdaptiveAdvNested = useCallback((key: AdaptiveAdvNestedKey) => {
     setAdaptiveAdvNestedOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
+  const setIntensityAndSyncEnergy = useCallback(
+    (opt: SportIntensityLevel) => {
+      setIntensityLevel(opt);
+      updateManualPreferences({ energyLevel: energyFromSportIntensity(opt) });
+    },
+    [updateManualPreferences]
+  );
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
@@ -238,8 +251,8 @@ export default function AdaptiveModeScreen() {
           setRankedGoals,
           // Snapshot values are plain strings; only apply when they're valid options.
           setIntensityLevel: (value) => {
-            if (typeof value === "string" && (INTENSITY_LEVEL_OPTIONS as readonly string[]).includes(value)) {
-              setIntensityLevel(value as (typeof INTENSITY_LEVEL_OPTIONS)[number]);
+            if (typeof value === "string" && (SPORT_INTENSITY_OPTIONS as readonly string[]).includes(value)) {
+              setIntensityLevel(value as SportIntensityLevel);
             }
           },
           setInjuryStatus: (value) => {
@@ -258,6 +271,9 @@ export default function AdaptiveModeScreen() {
             setOneDayBodyBias(next);
           },
         });
+        updateManualPreferences({
+          energyLevel: energyFromSportIntensity(snap.intensityLevel),
+        });
       }
       return () => {
         generationCancelledRef.current = true;
@@ -271,6 +287,7 @@ export default function AdaptiveModeScreen() {
       beginSessionFlow,
       consumeSportFormHydration,
       commitSportFormSnapshot,
+      updateManualPreferences,
       oneDayBodyBiasForSnapshot,
     ])
   );
@@ -496,12 +513,7 @@ export default function AdaptiveModeScreen() {
           const primary = rankedGoals[0] ?? null;
           const secondary = rankedGoals[1] ?? null;
           const tertiary = rankedGoals[2] ?? null;
-          const energyFromIntensity = (level: string): EnergyLevel => {
-            if (level === "Fresh") return "high";
-            if (level === "Fatigued") return "low";
-            return "medium";
-          };
-          const energyBaseline = energyFromIntensity(intensityLevel);
+          const energyBaseline = energyFromSportIntensity(intensityLevel);
           const activeProfile = gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];
           const selectedSportSlugs = rankedSportSlugs.filter((s): s is string => s != null);
           const todayDOW = (new Date().getDay() + 6) % 7;
@@ -942,7 +954,7 @@ export default function AdaptiveModeScreen() {
       ? [{ id: "creative", label: "Style: Creative on" }]
       : []),
     ...(intensityLevel !== "Moderate"
-      ? [{ id: "intensity", label: `Intensity level: ${intensityLevel}` }]
+      ? [{ id: "intensity", label: `Energy: ${sportIntensityDisplayLabel(intensityLevel)}` }]
       : []),
     ...(injuryStatus !== "No Concerns"
       ? [{ id: "injury_status", label: `Injury status: ${injuryStatus}` }]
@@ -2026,19 +2038,19 @@ export default function AdaptiveModeScreen() {
 
             <CollapsiblePreferenceSection
               nested
-              title="Intensity level"
-              subtitle="How hard you want training to feel."
-              summary={intensityLevel}
+              title="How hard to train"
+              subtitle="Low, medium, or high affects sets and conditioning length."
+              summary={sportIntensityDisplayLabel(intensityLevel)}
               expanded={adaptiveAdvNestedOpen.intensityLevel === true}
               onToggle={() => toggleAdaptiveAdvNested("intensityLevel")}
             >
               <View style={styles.chipGroup}>
-                {INTENSITY_LEVEL_OPTIONS.map((opt) => (
+                {SPORT_INTENSITY_OPTIONS.map((opt) => (
                   <Chip
                     key={opt}
-                    label={opt}
+                    label={sportIntensityDisplayLabel(opt)}
                     selected={intensityLevel === opt}
-                    onPress={() => setIntensityLevel(opt)}
+                    onPress={() => setIntensityAndSyncEnergy(opt)}
                   />
                 ))}
               </View>
@@ -2059,6 +2071,9 @@ export default function AdaptiveModeScreen() {
             }}
             onApplyResolution={(patch) => {
               updateManualPreferences(patch);
+              if (patch.energyLevel != null) {
+                setIntensityLevel(sportIntensityFromEnergy(patch.energyLevel));
+              }
               const nextBias = oneDayBodyBiasFromTargetBody(patch.targetBody);
               if (nextBias != null) setOneDayBodyBias(nextBias);
             }}
@@ -2093,7 +2108,7 @@ export default function AdaptiveModeScreen() {
           style={styles.advancedLinkWrap}
         >
           <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-            Advanced options (sport %, goal weights, fatigue, injuries…)
+            Advanced options (sport %, goal weights, intensity, injuries…)
           </Text>
         </Pressable>
         <Pressable onPress={onSaveSportPreset} style={styles.savePresetWrap}>

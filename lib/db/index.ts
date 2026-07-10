@@ -58,5 +58,5 @@ export {
   removePreset,
 } from "./preferencesRepository";
 
-export { saveManualWeek, saveManualDay, listWeeklyPlanInstances, getWeeklyPlanWithWorkouts } from "./weekPlanRepository";
+export { saveManualWeek, saveManualDay, listWeeklyPlanInstances, listSavedWeeks, deleteSavedWeek, getWeeklyPlanWithWorkouts } from "./weekPlanRepository";
 export type { SavedWeekSummary, WeeklyPlanWithWorkouts } from "./weekPlanRepository";

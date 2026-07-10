@@ -37,7 +37,8 @@ import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
-import type { EnergyLevel, BodyEmphasisKey } from "../../../lib/types";
+import type { BodyEmphasisKey } from "../../../lib/types";
+import { energyFromSportIntensity } from "../../../lib/energyLevelMapping";
 import { listSportsForPrep, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import { SPORTS_WITH_SUB_FOCUSES, getCanonicalSportSlug } from "../../../data/sportSubFocus";
@@ -468,12 +469,7 @@ export default function AdaptiveScheduleScreen() {
     const secondary = adaptiveSetup.rankedGoals[1] ?? null;
     const tertiary = adaptiveSetup.rankedGoals[2] ?? null;
 
-    const energyFromIntensity = (level: string): EnergyLevel => {
-      if (level === "Fresh") return "high";
-      if (level === "Fatigued") return "low";
-      return "medium";
-    };
-    const energyBaseline = energyFromIntensity(adaptiveSetup.intensityLevel);
+    const energyBaseline = energyFromSportIntensity(adaptiveSetup.intensityLevel);
 
     const activeProfile =
       gymProfiles.find((p) => p.id === activeGymProfileId) ?? gymProfiles[0];

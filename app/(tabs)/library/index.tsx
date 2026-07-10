@@ -1,70 +1,55 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
-import { useRouter } from "expo-router";
+import React, { useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
-import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
-import { listWeeklyPlanInstances, saveManualWeek } from "../../../lib/db/weekPlanRepository";
-import type { SavedWeekSummary } from "../../../lib/db/weekPlanRepository";
-import { isDbConfigured } from "../../../lib/db";
-import { getLocalDateString } from "../../../lib/dateUtils";
-import { formatRemoteLoadError } from "../../../context/formatRemoteLoadError";
-
-function getCurrentWeekStartIso(): string {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysSinceMonday = (dayOfWeek + 6) % 7;
-  const monday = new Date(now);
-  monday.setDate(monday.getDate() - daysSinceMonday);
-  return getLocalDateString(monday);
-}
+import { WorkoutLibraryTitle } from "../../../components/WorkoutLibraryTitle";
+import { getCurrentWeekStartMonday } from "../../../lib/dateUtils";
+import { workoutLibraryDedupKey } from "../../../lib/workoutLibraryLabel";
+import {
+  savedWeekToManualWeekPlan,
+  savedWeekToSportPrepWeekPlan,
+} from "../../../lib/savedWeekUtils";
+import type { SavedWeek } from "../../../lib/types";
+import { summarizeWorkoutLog } from "../../../lib/workoutCompletionLog";
 
 export default function LibraryScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { userId } = useAuth();
   const {
     workoutHistory,
     savedWorkouts,
+    savedWeeks,
     setGeneratedWorkout,
     setResumeProgress,
     setManualExecutionStarted,
     removeSavedWorkout,
+    removeSavedWeek,
     manualWeekPlan,
     sportPrepWeekPlan,
     setManualWeekPlan,
     setSportPrepWeekPlan,
     setAdaptiveSetup,
+    addSavedWeek,
+    reloadSavedWeeks,
   } = useAppState();
-  const [savedWeeks, setSavedWeeks] = useState<SavedWeekSummary[]>([]);
-  const [movingToLibrary, setMovingToLibrary] = useState(false);
 
-  const currentWeekStart = getCurrentWeekStartIso();
+  useFocusEffect(
+    useCallback(() => {
+      reloadSavedWeeks();
+    }, [reloadSavedWeeks])
+  );
+
+  const currentWeekStart = getCurrentWeekStartMonday();
   const manualStale =
     manualWeekPlan != null && manualWeekPlan.weekStartDate < currentWeekStart;
   const sportPrepStale =
     sportPrepWeekPlan != null && sportPrepWeekPlan.weekStartDate < currentWeekStart;
   const hasStaleInProgress = manualStale || sportPrepStale;
-
-  useEffect(() => {
-    if (!userId || !isDbConfigured()) return;
-    let cancelled = false;
-    listWeeklyPlanInstances(userId)
-      .then((list) => {
-        if (!cancelled) setSavedWeeks(list);
-      })
-      .catch((error) => {
-        console.error("[LibrarySavedWeeksLoad]", error);
-        if (!cancelled) {
-          Alert.alert("Couldn't load saved weeks", formatRemoteLoadError(error));
-        }
-      });
-    return () => { cancelled = true; };
-  }, [userId]);
 
   const onResumeSaved = (saved: (typeof savedWorkouts)[0]) => {
     setGeneratedWorkout(saved.workout);
@@ -73,51 +58,64 @@ export default function LibraryScreen() {
     router.push("/manual/execute");
   };
 
+  const onRedoSavedWeek = (week: SavedWeek) => {
+    if (week.source === "manual") {
+      setManualWeekPlan(savedWeekToManualWeekPlan(week));
+      router.push("/manual/week");
+      return;
+    }
+    setSportPrepWeekPlan(savedWeekToSportPrepWeekPlan(week));
+    router.push("/sport-mode/recommendation");
+  };
+
   const items = [...workoutHistory].sort((a, b) =>
     a.date.localeCompare(b.date)
   );
   const getItemKey = (item: (typeof items)[0]) =>
-    `${new Date(item.date).toLocaleDateString()} • ${item.focus.join(" • ") || "General training"}`;
+    workoutLibraryDedupKey(item.date, item.focus);
   const keyToIndices = items.reduce<Record<string, number[]>>((acc, item, i) => {
     const key = getItemKey(item);
     if (!acc[key]) acc[key] = [];
     acc[key].push(i);
     return acc;
   }, {});
-  const getDisplayLabel = (item: (typeof items)[0], index: number) => {
+  const getDuplicateSuffix = (item: (typeof items)[0], index: number) => {
     const key = getItemKey(item);
     const indices = keyToIndices[key] ?? [index];
-    if (indices.length <= 1) return key;
+    if (indices.length <= 1) return undefined;
     const which = indices.indexOf(index) + 1;
-    return `${key} (${which})`;
+    return `(${which})`;
   };
-  const getCompletedItemLabel = (item: (typeof items)[0], index: number) =>
-    item.name?.trim() || getDisplayLabel(item, index);
 
   const hasAny =
     savedWorkouts.length > 0 || savedWeeks.length > 0 || items.length > 0;
 
-  const onMoveManualToLibrary = async () => {
-    if (!manualWeekPlan || !userId || !isDbConfigured()) {
+  const onMoveManualToLibrary = () => {
+    if (!manualWeekPlan) {
       setManualWeekPlan(null);
       return;
     }
-    setMovingToLibrary(true);
-    try {
-      await saveManualWeek(userId, manualWeekPlan.weekStartDate, manualWeekPlan.days);
-      setManualWeekPlan(null);
-      const list = await listWeeklyPlanInstances(userId);
-      setSavedWeeks(list);
-    } catch {
-      setManualWeekPlan(null);
-    } finally {
-      setMovingToLibrary(false);
-    }
+    addSavedWeek({
+      savedAt: new Date().toISOString(),
+      weekStartDate: manualWeekPlan.weekStartDate,
+      days: manualWeekPlan.days,
+      source: "manual",
+    });
+    setManualWeekPlan(null);
   };
 
   const onMoveSportPrepToLibrary = () => {
     setSportPrepWeekPlan(null);
     setAdaptiveSetup(null);
+  };
+
+  const formatSavedWeekLabel = (week: SavedWeek) => {
+    const weekStart = new Date(week.weekStartDate + "T12:00:00");
+    return `Week of ${weekStart.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
   };
 
   return (
@@ -160,10 +158,9 @@ export default function LibraryScreen() {
                     style={{ flex: 1 }}
                   />
                   <PrimaryButton
-                    label={movingToLibrary ? "Saving…" : "Move to library"}
+                    label="Move to library"
                     variant="secondary"
                     onPress={onMoveManualToLibrary}
-                    disabled={movingToLibrary}
                     style={{ flex: 1 }}
                   />
                 </View>
@@ -201,29 +198,37 @@ export default function LibraryScreen() {
               Resume or discard workouts you did not finish.
             </Text>
             {savedWorkouts.map((saved) => {
-              const date = new Date(saved.savedAt);
-              const label = `${date.toLocaleDateString()} • ${
-                saved.workout.focus.join(" • ") || "General"
-              }`;
+              const logSummary = summarizeWorkoutLog(
+                saved.workout,
+                undefined,
+                undefined,
+                saved.progress
+              );
               return (
                 <View
                   key={saved.id}
                   style={[styles.savedCard, { borderColor: theme.border }]}
                 >
-                  <Text
-                    style={[styles.savedTitle, { color: theme.text }]}
-                    numberOfLines={2}
-                  >
-                    {label}
-                  </Text>
+                  <WorkoutLibraryTitle
+                    date={saved.savedAt}
+                    focusAreas={saved.workout.focus}
+                    fallbackFocus="General"
+                  />
                   <Text
                     style={[styles.savedMeta, { color: theme.textMuted }]}
                   >
                     {saved.workout.durationMinutes != null
                       ? `${saved.workout.durationMinutes} min`
                       : "—"}
+                    {logSummary ? ` · ${logSummary}` : ""}
                   </Text>
                   <View style={styles.savedActions}>
+                    <PrimaryButton
+                      label="View"
+                      variant="secondary"
+                      onPress={() => router.push(`/library/saved/${saved.id}`)}
+                      style={{ flex: 1 }}
+                    />
                     <PrimaryButton
                       label="Resume"
                       onPress={() => onResumeSaved(saved)}
@@ -248,25 +253,35 @@ export default function LibraryScreen() {
               Saved weeks
             </Text>
             <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-              Load a saved week plan to view or continue.
+              Redo a saved week plan or discard it when you are done.
             </Text>
             {savedWeeks.map((week) => {
-              const weekStart = new Date(week.week_start_date + "T12:00:00");
-              const label = `Week of ${weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
-              const isManual = (week.goals_snapshot?.source as string) === "manual";
               return (
-                <Pressable
+                <View
                   key={week.id}
                   style={[styles.savedCard, { borderColor: theme.border }]}
-                  onPress={() => router.push(`/history/weeks/${week.id}`)}
                 >
                   <Text style={[styles.savedTitle, { color: theme.text }]}>
-                    {label}
+                    {formatSavedWeekLabel(week)}
                   </Text>
                   <Text style={[styles.savedMeta, { color: theme.textMuted }]}>
-                    {isManual ? "Manual" : "Adaptive"}
+                    {week.source === "manual" ? "Manual" : "Adaptive"} ·{" "}
+                    {week.days.length} session{week.days.length !== 1 ? "s" : ""}
                   </Text>
-                </Pressable>
+                  <View style={styles.savedActions}>
+                    <PrimaryButton
+                      label="Redo week"
+                      onPress={() => onRedoSavedWeek(week)}
+                      style={{ flex: 1 }}
+                    />
+                    <PrimaryButton
+                      label="Discard"
+                      variant="ghost"
+                      onPress={() => removeSavedWeek(week.id)}
+                      style={styles.discardBtn}
+                    />
+                  </View>
+                </View>
               );
             })}
           </View>
@@ -278,18 +293,33 @@ export default function LibraryScreen() {
               Completed
             </Text>
             {items.map((item, index) => {
-              const label = getCompletedItemLabel(item, index);
               const canViewOrRepeat = item.workout != null;
+              const logSummary =
+                item.workout != null
+                  ? summarizeWorkoutLog(
+                      item.workout,
+                      item.exerciseNotes,
+                      item.exercisePerformance
+                    )
+                  : null;
               const subtitleParts = [
                 item.durationMinutes != null ? `${item.durationMinutes} min` : null,
                 item.workout
                   ? `${item.workout.blocks.length} block${item.workout.blocks.length !== 1 ? "s" : ""}`
                   : null,
+                logSummary,
               ].filter(Boolean);
               return (
                 <View key={item.id} style={{ marginBottom: 12 }}>
                   <Card
-                    title={label}
+                    titleNode={
+                      <WorkoutLibraryTitle
+                        date={item.date}
+                        focusAreas={item.focus}
+                        primaryLabel={item.name}
+                        suffix={getDuplicateSuffix(item, index)}
+                      />
+                    }
                     subtitle={subtitleParts.length > 0 ? subtitleParts.join(" · ") : undefined}
                   />
                   {canViewOrRepeat && (
@@ -354,6 +384,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     marginBottom: 12,
+    gap: 4,
   },
   savedTitle: {
     fontSize: 15,

@@ -7,51 +7,75 @@ import { AppScreenWrapper } from "../../../../components/AppScreenWrapper";
 import { useAppState } from "../../../../context/AppStateContext";
 import { useAuth } from "../../../../context/AuthContext";
 import { PrimaryButton } from "../../../../components/Button";
-import { getWeeklyPlanWithWorkouts } from "../../../../lib/db/weekPlanRepository";
-import { getTodayLocalDateString } from "../../../../lib/dateUtils";
+import { getWeeklyPlanWithWorkouts, listWeeklyPlanInstances } from "../../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../../lib/db";
-import type { PlanWeekResult } from "../../../../services/sportPrepPlanner";
+import {
+  savedWeekToManualWeekPlan,
+  savedWeekToSportPrepWeekPlan,
+} from "../../../../lib/savedWeekUtils";
+import type { SavedWeek } from "../../../../lib/types";
 
 export default function SavedWeekDetailScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userId } = useAuth();
-  const { setSportPrepWeekPlan } = useAppState();
+  const { savedWeeks, setSportPrepWeekPlan, setManualWeekPlan } = useAppState();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id || !userId || !isDbConfigured()) {
-      if (!userId || !isDbConfigured()) setError("Sign in and enable sync to load weeks.");
+    if (!id) {
       setLoading(false);
       return;
     }
+
+    const inMemory = savedWeeks.find((week) => week.id === id);
+    if (inMemory) {
+      openSavedWeek(inMemory);
+      return;
+    }
+
+    if (!userId || !isDbConfigured()) {
+      setError("Sign in and enable sync to load weeks.");
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
-    getWeeklyPlanWithWorkouts(userId, id)
-      .then((planWith) => {
+    Promise.all([
+      getWeeklyPlanWithWorkouts(userId, id),
+      listWeeklyPlanInstances(userId),
+    ])
+      .then(([planWith, summaries]) => {
         if (cancelled) return;
         if (!planWith) {
           setError("Week not found.");
           setLoading(false);
           return;
         }
-        const todayIso = getTodayLocalDateString();
-        const todayDay = planWith.days.find((d) => d.date === todayIso) ?? planWith.days[0] ?? null;
-        const todayWorkout = todayDay
-          ? planWith.guestWorkouts[todayDay.date] ?? null
-          : null;
-        const plan: PlanWeekResult = {
-          weeklyPlanInstanceId: planWith.weeklyPlanInstanceId,
+        const summary = summaries.find((item) => item.id === id);
+        const source =
+          (summary?.goals_snapshot?.source as string) === "manual" ? "manual" : "adaptive";
+        const savedWeek: SavedWeek = {
+          id: planWith.weeklyPlanInstanceId,
+          savedAt: summary?.created_at ?? new Date().toISOString(),
           weekStartDate: planWith.weekStartDate,
-          days: planWith.days,
-          today: todayDay,
-          todayWorkout,
-          guestWorkouts: planWith.guestWorkouts,
+          days: planWith.days
+            .map((day) => {
+              const workout = planWith.guestWorkouts[day.date];
+              if (!workout) return null;
+              return {
+                date: day.date,
+                workout,
+                displayTitle: day.intentLabel ?? day.title ?? undefined,
+              };
+            })
+            .filter((day): day is NonNullable<typeof day> => day != null),
+          source,
         };
-        setSportPrepWeekPlan(plan);
-        router.replace("/sport-mode/recommendation");
+        openSavedWeek(savedWeek);
       })
       .catch((e) => {
         if (!cancelled) {
@@ -59,8 +83,20 @@ export default function SavedWeekDetailScreen() {
           setLoading(false);
         }
       });
-    return () => { cancelled = true; };
-  }, [id, userId, setSportPrepWeekPlan, router]);
+    return () => {
+      cancelled = true;
+    };
+
+    function openSavedWeek(week: SavedWeek) {
+      if (week.source === "manual") {
+        setManualWeekPlan(savedWeekToManualWeekPlan(week));
+        router.replace("/manual/week");
+        return;
+      }
+      setSportPrepWeekPlan(savedWeekToSportPrepWeekPlan(week));
+      router.replace("/sport-mode/recommendation");
+    }
+  }, [id, userId, savedWeeks, setSportPrepWeekPlan, setManualWeekPlan, router]);
 
   if (loading) {
     return (

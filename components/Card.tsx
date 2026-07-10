@@ -4,7 +4,9 @@ import { useTheme } from "../lib/theme";
 import { PrimaryButton } from "./Button";
 
 type Props = {
-  title: string;
+  title?: string;
+  /** Custom title layout; takes precedence over `title` when provided. */
+  titleNode?: React.ReactNode;
   subtitle?: string;
   children?: React.ReactNode;
   style?: ViewStyle;
@@ -14,6 +16,7 @@ type Props = {
 
 export function Card({
   title,
+  titleNode,
   subtitle,
   children,
   style,
@@ -37,7 +40,11 @@ export function Card({
     >
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+          {titleNode ?? (
+            title != null ? (
+              <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+            ) : null
+          )}
           {subtitle && (
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>
               {subtitle}

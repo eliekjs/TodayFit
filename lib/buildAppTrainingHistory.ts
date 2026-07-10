@@ -44,9 +44,19 @@ function performanceFromProgress(
   for (const id of ids) {
     const p = progress[id];
     if (!p) continue;
-    out[id] = {
-      completed_sets: p.setsCompleted,
-    };
+    const rows = p.sets;
+    if (rows && rows.length > 0) {
+      const last = rows[rows.length - 1]!;
+      out[id] = {
+        completed_sets: rows.length,
+        reps: last.reps,
+        load_kg: last.load_kg,
+      };
+    } else {
+      out[id] = {
+        completed_sets: p.setsCompleted,
+      };
+    }
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }

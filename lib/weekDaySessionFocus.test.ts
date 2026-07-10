@@ -12,6 +12,9 @@ import {
   adaptiveSetupFromPlanContext,
   summarizePresetSubtitle,
   sportGoalPrioritySectionNote,
+  goalEmphasisPresetSubtitle,
+  presetUsesEmphasisGoalWeights,
+  EMPHASIS_GOAL_WEIGHTS_PCT,
 } from "./weekDaySessionFocus";
 import type { ManualPreferences } from "./types";
 import type { AdaptiveSetup } from "../context/appStateModel";
@@ -178,7 +181,7 @@ describe("weekDaySessionFocus", () => {
       expect(p.subtitle).not.toMatch(/^Core — /);
       expect(p.subtitle).not.toMatch(/^Full body — /);
     }
-    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe("");
+    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe(goalEmphasisPresetSubtitle());
     expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("Goals fill the rest.");
   });
 
@@ -218,12 +221,14 @@ describe("weekDaySessionFocus", () => {
       targetModifier: [],
     });
     expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("Goals fill the rest.");
-    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe("");
-    expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/^About 55%/);
+    expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe(goalEmphasisPresetSubtitle());
+    expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/55% sport/);
+    expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/50\/30\/20/);
   });
 
-  it("sportGoalPrioritySectionNote returns shared explanation for goals-only and sport+goal weeks", () => {
-    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("One goal leads each day");
+  it("sportGoalPrioritySectionNote explains emphasis override vs balanced presets", () => {
+    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("62/26/12");
+    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("global goal match");
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique", "strength"],
       rankedSportSlugs: ["surfing"],
@@ -234,7 +239,25 @@ describe("weekDaySessionFocus", () => {
       injuryStatus: "ok",
       injuryTypes: [],
     };
-    expect(sportGoalPrioritySectionNote(basePrefs, adaptive)).toContain("sports and ranked goals");
+    expect(sportGoalPrioritySectionNote(basePrefs, adaptive)).toContain("62/26/12");
+  });
+
+  it("presetUsesEmphasisGoalWeights identifies goal emphasis presets", () => {
+    expect(presetUsesEmphasisGoalWeights("goal_emphasis_0")).toBe(true);
+    expect(presetUsesEmphasisGoalWeights("goal_first")).toBe(true);
+    expect(presetUsesEmphasisGoalWeights("balanced_goals")).toBe(false);
+    expect(presetUsesEmphasisGoalWeights("balanced_split")).toBe(false);
+  });
+
+  it("resolve balanced_goals uses global goal weights not emphasis split", () => {
+    const prefs = { ...basePrefs, goalMatchPrimaryPct: 70, goalMatchSecondaryPct: 20, goalMatchTertiaryPct: 10 };
+    const r = resolveDayFocusPreset("balanced_goals", prefs, null);
+    expect(r.sportGoalContext?.goal_weights?.[0]).toBeCloseTo(0.7, 5);
+  });
+
+  it("resolve goal_emphasis uses fixed emphasis weights", () => {
+    const r = resolveDayFocusPreset("goal_emphasis_1", basePrefs, null);
+    expect(r.sportGoalContext?.goal_weights?.[0]).toBeCloseTo(EMPHASIS_GOAL_WEIGHTS_PCT[0] / 100, 5);
   });
 
   it("buildPriorityFocusSummary uses preset label and shortened subtitle", () => {
@@ -251,11 +274,11 @@ describe("weekDaySessionFocus", () => {
     const balanced = buildPriorityFocusSummary(
       {
         label: "Balanced sport + goals",
-        subtitle: "About 55% sport focus and 45% goals (your Sport vs goals setting).",
+        subtitle: "About 55% sport / 45% goals; goal share uses your 50/30/20% settings.",
       },
       { displayTitle: "Strength - Upper Body", workoutFocus: ["Strength"] }
     );
-    expect(balanced?.subtitle).toContain("55% sport focus");
+    expect(balanced?.subtitle).toContain("55% sport");
   });
 
   it("buildPriorityFocusSummary falls back to goals only from display title", () => {

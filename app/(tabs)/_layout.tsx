@@ -7,6 +7,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../lib/theme";
 import { useAppState } from "../../context/AppStateContext";
 import { ActiveSessionBanner } from "../../components/ActiveSessionCard";
+import { WeekProgressBanner } from "../../components/WeekProgressBanner";
 import {
   AdaptiveRecommendationBackButton,
   EditWorkoutBackButton,
@@ -26,8 +27,8 @@ import {
 export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { savedWorkouts } = useAppState();
-  const libraryBadgeCount = savedWorkouts.length;
+  const { savedWorkouts, savedWeeks } = useAppState();
+  const libraryBadgeCount = savedWorkouts.length + savedWeeks.length;
 
   return (
     <>
@@ -170,6 +171,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="week/progress"
+        options={{
+          href: null,
+          title: "This week",
+          headerLeft: () => <HeaderBackButton />,
+        }}
+      />
+      <Tabs.Screen
         name="sport-mode/index"
         options={{
           href: null,
@@ -198,6 +207,7 @@ export default function TabsLayout() {
       />
     </Tabs>
     <ActiveSessionBanner />
+    <WeekProgressBanner />
     </>
   );
 }

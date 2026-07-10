@@ -3,6 +3,7 @@ import type { SportGoalContext } from "./dailyGeneratorAdapter";
 import { GOAL_SLUG_TO_PRIMARY_FOCUS } from "./preferencesConstants";
 import type { SportFormSnapshot } from "./sessionDraft";
 import type { EnergyLevel, ManualPreferences } from "./types";
+import { energyFromSportIntensity } from "./energyLevelMapping";
 
 export function sportSlugsFromForm(form: SportFormSnapshot | null | undefined): string[] {
   return (form?.rankedSportSlugs ?? []).filter((s): s is string => s != null && s !== "");
@@ -16,12 +17,6 @@ export function canUseTrainToday(
 ): boolean {
   if (!hasActiveGym) return false;
   return manualPreferences.primaryFocus.length >= 1 || sportSlugsFromForm(sportForm).length >= 1;
-}
-
-function energyFromIntensity(level: string): EnergyLevel {
-  if (level === "Fresh") return "high";
-  if (level === "Fatigued") return "low";
-  return "medium";
 }
 
 function bodyTargetFromBias(bias: "upper" | "lower" | "full"): ManualPreferences["targetBody"] {
@@ -78,7 +73,7 @@ export function buildTrainTodayGenerationParams(
       ...manualPreferences,
       primaryFocus,
       durationMinutes: sportForm.oneDayDuration ?? manualPreferences.durationMinutes ?? 45,
-      energyLevel: energyFromIntensity(sportForm.intensityLevel),
+      energyLevel: energyFromSportIntensity(sportForm.intensityLevel),
       targetBody: bodyTargetFromBias(sportForm.oneDayBodyBias) ?? manualPreferences.targetBody,
       injuries:
         sportForm.injuryStatus !== "No Concerns" && sportForm.injuryTypes.length > 0

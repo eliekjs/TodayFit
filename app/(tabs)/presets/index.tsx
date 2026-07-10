@@ -7,6 +7,7 @@ import {
   Pressable,
   Modal,
   Alert,
+  TextInput,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -74,6 +75,8 @@ export default function SavedPresetsScreen() {
     sportPresets,
     removePreferencePreset,
     removeSportPreset,
+    updatePreferencePreset,
+    updateSportPreset,
     applyPreferencePreset,
     applySportPreset,
     activeSessionDraft,
@@ -144,6 +147,15 @@ export default function SavedPresetsScreen() {
       applyPreset
     );
     setBlockingIssues(null);
+  };
+
+  const onRenamePreset = (id: string, name: string, fallback: string) => {
+    const trimmed = name.trim() || fallback;
+    if (kind === "goal") {
+      updatePreferencePreset(id, { name: trimmed });
+    } else if (kind === "sport") {
+      updateSportPreset(id, { name: trimmed });
+    }
   };
 
   const onDeletePreset = (id: string, name: string) => {
@@ -225,16 +237,24 @@ export default function SavedPresetsScreen() {
             ) : (
               <View style={styles.presetList}>
                 {summaries.map((s) => (
-                  <Pressable
+                  <View
                     key={s.id}
-                    onPress={() => setSelectedPresetId(s.id)}
-                    style={({ pressed }) => [
+                    style={[
                       styles.presetRow,
-                      { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 },
+                      { backgroundColor: theme.card, borderColor: theme.border },
                     ]}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.presetName, { color: theme.text }]}>{s.name}</Text>
+                    <View style={styles.presetRowMain}>
+                      <TextInput
+                        value={s.name}
+                        onChangeText={(name) => onRenamePreset(s.id, name, s.name)}
+                        placeholder="Preset name"
+                        placeholderTextColor={theme.textMuted}
+                        style={[
+                          styles.presetNameInput,
+                          { borderColor: theme.border, color: theme.text },
+                        ]}
+                      />
                       <Text style={[styles.presetDetail, { color: theme.textMuted }]}>
                         {s.detail}
                         {s.savedAt ? ` · Saved ${formatSavedAt(s.savedAt)}` : ""}
@@ -247,8 +267,10 @@ export default function SavedPresetsScreen() {
                     >
                       <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
                     </Pressable>
-                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-                  </Pressable>
+                    <Pressable hitSlop={10} onPress={() => setSelectedPresetId(s.id)}>
+                      <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+                    </Pressable>
+                  </View>
                 ))}
               </View>
             )}
@@ -448,11 +470,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 14,
     borderWidth: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 10,
   },
-  presetName: {
+  presetRowMain: {
+    flex: 1,
+    gap: 4,
+  },
+  presetNameInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     fontSize: 15,
     fontWeight: "600",
   },

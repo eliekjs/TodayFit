@@ -14,6 +14,7 @@ import type {
   GeneratedWorkout,
   WorkoutHistoryItem,
   SavedWorkout,
+  SavedWeek,
   ExecutionProgress,
   PreferencePreset,
   ManualWeekPlan,
@@ -25,6 +26,7 @@ import * as GymProfileRepo from "../lib/db/gymProfileRepository";
 import * as PreferencesRepo from "../lib/db/preferencesRepository";
 import * as SportPresetsRepo from "../lib/db/sportPresetsRepository";
 import * as WorkoutRepo from "../lib/db/workoutRepository";
+import * as WeekPlanRepo from "../lib/db/weekPlanRepository";
 import type { PlanWeekResult } from "../services/sportPrepPlanner";
 import { persistWithHandling } from "./persistWithHandling";
 import { createLatestSerializedPersistenceQueue } from "./latestSerializedPersistenceQueue";
@@ -107,6 +109,7 @@ type AppStateContextValue = {
   generatedWorkout: GeneratedWorkout | null;
   workoutHistory: WorkoutHistoryItem[];
   savedWorkouts: SavedWorkout[];
+  savedWeeks: SavedWeek[];
   resumeProgress: ExecutionProgress | null;
   /** In-memory execution progress for the current `generatedWorkout` (survives leaving Execute). */
   manualSessionProgress: ExecutionProgress | null;
@@ -150,6 +153,8 @@ type AppStateContextValue = {
   addSavedWorkout: (item: Omit<SavedWorkout, "id">) => void;
   removeSavedWorkout: (id: string) => void;
   removeSavedWorkoutByWorkoutId: (workoutId: string) => void;
+  addSavedWeek: (item: Omit<SavedWeek, "id">) => void;
+  removeSavedWeek: (id: string) => void;
   setSportPrepWeekPlan: (plan: PlanWeekResult | null) => void;
   setManualWeekPlan: (plan: ManualWeekPlan | null) => void;
   setAdaptiveSetup: (setup: AdaptiveSetup | null) => void;
@@ -180,6 +185,8 @@ type AppStateContextValue = {
   remoteSyncSkippedMerge: boolean;
   /** Re-fetch from Supabase and replace local synced slices (use after errors or skipped merge). */
   reloadRemoteAppState: () => void;
+  /** Refresh saved weeks from Supabase (e.g. after adaptive plan generation). */
+  reloadSavedWeeks: () => void;
   dismissRemoteSyncSkippedMerge: () => void;
 };
 
@@ -206,7 +213,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [userId]);
 
   const applyRemoteData = useCallback((data: LoadedRemoteAppState) => {
-    const { profiles, prefs, presets, sportPresets, history, saved } = data;
+    const { profiles, prefs, presets, sportPresets, history, saved, savedWeeks } = data;
     if (profiles.length) {
       setGymProfiles(profiles);
       const active = profiles.find((p) => p.isActive) ?? profiles[0];
@@ -217,6 +224,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSportPresets(sportPresets);
     setWorkoutHistory(history);
     setSavedWorkouts(saved);
+    setSavedWeeks(savedWeeks);
   }, []);
 
   const touchPersistedStateDuringRemoteLoad = useCallback(() => {
@@ -239,6 +247,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setReloadToken((t) => t + 1);
   }, []);
 
+  const reloadSavedWeeks = useCallback(() => {
+    if (!persist || !userIdRef.current) return;
+    void WeekPlanRepo.listSavedWeeks(userIdRef.current)
+      .then(setSavedWeeks)
+      .catch((error) => {
+        console.error("[SavedWeeksReload]", error);
+      });
+  }, [persist]);
+
   const dismissRemoteSyncSkippedMerge = useCallback(() => {
     setRemoteSyncSkippedMerge(false);
   }, []);
@@ -253,6 +270,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     useState<GeneratedWorkout | null>(null);
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryItem[]>([]);
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
+  const [savedWeeks, setSavedWeeks] = useState<SavedWeek[]>([]);
   const [resumeProgress, setResumeProgress] = useState<ExecutionProgress | null>(null);
   const [manualSessionProgress, setManualSessionProgress] =
     useState<ExecutionProgress | null>(null);
@@ -1056,6 +1074,54 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId, persist, savedWorkouts, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
+  const addSavedWeek = useCallback((item: Omit<SavedWeek, "id">) => {
+    if (persist && userId) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "addSavedWeek",
+        action: async () => {
+          const rowId = await WeekPlanRepo.saveManualWeek(
+            userId,
+            item.weekStartDate,
+            item.days
+          );
+          setSavedWeeks((prev) => [...prev, { ...item, id: rowId }]);
+        },
+        onFailure: notifySaveFailed,
+      });
+    } else {
+      setSavedWeeks((prev) => [
+        ...prev,
+        { ...item, id: `saved_week_${Date.now()}` },
+      ]);
+    }
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+
+  const removeSavedWeek = useCallback((id: string) => {
+    const removedIndex = savedWeeks.findIndex((week) => week.id === id);
+    const removedItem = removedIndex >= 0 ? savedWeeks[removedIndex] : undefined;
+    setSavedWeeks((prev) => prev.filter((week) => week.id !== id));
+    if (persist && userId) {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "removeSavedWeek",
+        action: () => WeekPlanRepo.deleteSavedWeek(userId, id),
+        rollback: () => {
+          if (!removedItem) return;
+          setSavedWeeks((prev) => {
+            if (prev.some((week) => week.id === removedItem.id)) return prev;
+            const insertionIndex =
+              removedIndex >= 0 ? Math.min(Math.max(removedIndex, 0), prev.length) : prev.length;
+            const next = [...prev];
+            next.splice(insertionIndex, 0, removedItem);
+            return next;
+          });
+        },
+        onFailure: notifySaveFailed,
+      });
+    }
+  }, [userId, persist, savedWeeks, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+
   const value = useMemo<AppStateContextValue>(
     () => ({
       activeGymProfileId,
@@ -1066,6 +1132,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       generatedWorkout,
       workoutHistory,
       savedWorkouts,
+      savedWeeks,
       resumeProgress,
       manualSessionProgress,
       manualExecutionStarted,
@@ -1108,6 +1175,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addSavedWorkout,
       removeSavedWorkout,
       removeSavedWorkoutByWorkoutId,
+      addSavedWeek,
+      removeSavedWeek,
       setSportPrepWeekPlan,
       setManualWeekPlan,
       setAdaptiveSetup,
@@ -1124,6 +1193,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       remoteSyncError,
       remoteSyncSkippedMerge,
       reloadRemoteAppState,
+      reloadSavedWeeks,
       dismissRemoteSyncSkippedMerge,
     }),
     [
@@ -1135,6 +1205,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       generatedWorkout,
       workoutHistory,
       savedWorkouts,
+      savedWeeks,
       resumeProgress,
       manualSessionProgress,
       manualExecutionStarted,
@@ -1170,11 +1241,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       addSavedWorkout,
       removeSavedWorkout,
       removeSavedWorkoutByWorkoutId,
+      addSavedWeek,
+      removeSavedWeek,
       setSportPrepWeekPlan,
       setManualWeekPlan,
       setAdaptiveSetup,
       setManualGoalPreferencesScope,
       reloadRemoteAppState,
+      reloadSavedWeeks,
       dismissRemoteSyncSkippedMerge,
       persist,
       userId,
