@@ -32,22 +32,40 @@ export type DayBodyFocusChoice = {
   recommended?: boolean;
 };
 
-const EMPHASIS_GOAL_WEIGHTS: [number, number, number] = [0.62, 0.26, 0.12];
+const EMPHASIS_GOAL_WEIGHTS: [number, number, number] = [1, 0, 0];
 
-/** Display percentages for emphasis presets (62/26/12). */
-export const EMPHASIS_GOAL_WEIGHTS_PCT: [number, number, number] = [62, 26, 12];
+/** Display percentages for exclusive single-goal day focus (100%). */
+export const EMPHASIS_GOAL_WEIGHTS_PCT: [number, number, number] = [100, 0, 0];
 
 const BALANCED_FALLBACK: [number, number, number] = [0.5, 0.3, 0.2];
 
-/** True when a day-focus preset replaces global goal-match % with the fixed emphasis split. */
+/** True when a day-focus preset commits the session to a single goal (not a blend). */
 export function presetUsesEmphasisGoalWeights(presetId: string): boolean {
   return presetId.startsWith("goal_emphasis_") || presetId === "goal_first";
 }
 
-/** Subtitle for "X first" goal emphasis presets. */
+/** True when the day pick fully replaces earlier goals/sports for that session. */
+export function presetUsesExclusiveDayFocus(presetId: string): boolean {
+  return (
+    presetUsesEmphasisGoalWeights(presetId) ||
+    presetId.startsWith("sport_emphasis_") ||
+    presetId === "sport_first" ||
+    presetId === "single_goal"
+  );
+}
+
+/** Subtitle for single-goal day presets (empty — label is enough). */
 export function goalEmphasisPresetSubtitle(): string {
-  const [a, b, c] = EMPHASIS_GOAL_WEIGHTS_PCT;
-  return `Uses fixed goal split (${a}/${b}/${c}%) instead of your global settings.`;
+  return "";
+}
+
+function isExclusiveGoalWeightTriplet(gw: number[] | undefined): boolean {
+  if (!gw || gw.length === 0) return false;
+  return (gw[0] ?? 0) >= 0.999 && (gw[1] ?? 0) < 0.001 && (gw[2] ?? 0) < 0.001;
+}
+
+function isExclusiveSportWeight(sportWeight: number | undefined, gw: number[] | undefined): boolean {
+  return sportWeight != null && sportWeight >= 0.999 && !isExclusiveGoalWeightTriplet(gw);
 }
 
 function globalGoalMatchPctLine(prefs: ManualPreferences): string {
@@ -356,18 +374,17 @@ export function buildDayFocusPresetsForDay(opts: {
       const name = sportDisplayName(slug);
       out.push({
         id: `sport_emphasis_${idx}`,
-        label: `${name} first`,
-        subtitle: rankedGoals.length > 0 ? "Goals fill the rest." : "",
+        label: name,
+        subtitle: "",
       });
     });
 
     if (rankedGoals.length > 0) {
-      const emphasisSub = goalEmphasisPresetSubtitle();
       rankedGoals.slice(0, 3).forEach((label, idx) => {
         out.push({
           id: `goal_emphasis_${idx}`,
-          label: `${label} first`,
-          subtitle: emphasisSub,
+          label,
+          subtitle: "",
         });
       });
       const pct = adaptiveSetup?.sportVsGoalPct ?? 50;
@@ -391,12 +408,11 @@ export function buildDayFocusPresetsForDay(opts: {
   }
 
   if (rankedGoals.length >= 2) {
-    const emphasisSub = goalEmphasisPresetSubtitle();
     rankedGoals.slice(0, 3).forEach((label, idx) => {
       out.push({
         id: `goal_emphasis_${idx}`,
-        label: `${label} first`,
-        subtitle: emphasisSub,
+        label,
+        subtitle: "",
       });
     });
     out.push({
@@ -453,8 +469,8 @@ export function resolveDayFocusPreset(
         sportGoalContext: {
           sport_slugs: [selectedSport],
           ...(Object.keys(selectedSub).length ? { sport_sub_focus: selectedSub } : {}),
-          sport_weight: ranked.length > 0 ? 0.72 : 1,
-          ...(ranked.length > 0 ? { goal_weights: [...baseGlobal] } : {}),
+          // Dedicated sport day: sport only (no goal blend).
+          sport_weight: 1,
         },
       };
     }
@@ -464,9 +480,7 @@ export function resolveDayFocusPreset(
       return {
         primaryFocus: [ranked[goalIdx]!],
         sportGoalContext: {
-          sport_slugs: sportSlugs,
-          ...(Object.keys(sub).length ? { sport_sub_focus: sub } : {}),
-          sport_weight: 0.14,
+          // Dedicated goal day: that goal only (no sport blend).
           goal_weights: EMPHASIS_GOAL_WEIGHTS,
         },
       };
@@ -501,7 +515,7 @@ export function resolveDayFocusPreset(
       const idx = parseInt(presetId.replace("goal_emphasis_", ""), 10);
       if (!Number.isNaN(idx) && idx >= 0 && idx < ranked.length) {
         return {
-          primaryFocus: reorderPrimaryFocusForEmphasis(ranked, idx),
+          primaryFocus: [ranked[idx]!],
           sportGoalContext: { goal_weights: EMPHASIS_GOAL_WEIGHTS },
         };
       }
@@ -537,7 +551,9 @@ export function defaultPresetIdForDay(presets: DayFocusPreset[]): string {
 }
 
 /**
- * Default when opening the planner: honor dedicate-days (that day’s goal) when presets include goal_emphasis_k.
+ * Default when opening the planner:
+ * - dedicate_days → that day’s assigned goal (exclusive)
+ * - blend → balanced mix when available
  */
 export function defaultPresetIdForWeekDay(
   presets: DayFocusPreset[],
@@ -551,6 +567,11 @@ export function defaultPresetIdForWeekDay(
     const id = `goal_emphasis_${opts.weekGoalSlotIndex}`;
     if (presets.some((p) => p.id === id)) return id;
   }
+  const balanced =
+    presets.find((p) => p.id === "balanced_goals") ??
+    presets.find((p) => p.id === "balanced_split") ??
+    presets.find((p) => p.id === "balanced_sports");
+  if (balanced) return balanced.id;
   return defaultPresetIdForDay(presets);
 }
 
@@ -584,6 +605,11 @@ export type ResolvedDayFocusWorkoutParams = {
   goalWeightsOverride?: number[];
   sportSlugsOverride?: string[];
   sportSubFocusBySportOverride?: Record<string, string[]>;
+  /**
+   * When true, the day pick replaces earlier page goals for this session —
+   * callers must not fall back to the full ranked goal list.
+   */
+  exclusive: boolean;
 };
 
 /**
@@ -615,13 +641,26 @@ export function resolvedDayFocusToWorkoutParams(
       slugOrder.push(rankedMatch);
     }
   }
-  for (const slug of rankedGoalSlugs) {
-    if (!slugOrder.includes(slug)) slugOrder.push(slug);
+
+  const gw = resolved.sportGoalContext?.goal_weights;
+  const sportWeight = resolved.sportGoalContext?.sport_weight;
+  const exclusiveGoal = isExclusiveGoalWeightTriplet(gw);
+  const exclusiveSport = isExclusiveSportWeight(sportWeight, gw);
+  const exclusive = exclusiveGoal || exclusiveSport;
+
+  let orderedGoalSlugs: string[];
+  if (exclusiveSport) {
+    orderedGoalSlugs = [];
+  } else if (exclusiveGoal) {
+    orderedGoalSlugs = slugOrder;
+  } else {
+    for (const slug of rankedGoalSlugs) {
+      if (!slugOrder.includes(slug)) slugOrder.push(slug);
+    }
+    orderedGoalSlugs = slugOrder.length > 0 ? slugOrder : rankedGoalSlugs;
   }
-  const orderedGoalSlugs = slugOrder.length > 0 ? slugOrder : rankedGoalSlugs;
 
   let goalWeightsPct: [number, number, number] = [...fallbackGoalWeightsPct];
-  const gw = resolved.sportGoalContext?.goal_weights;
   if (gw && gw.length > 0) {
     const pcts = gw.map((w) => Math.round(w * 100));
     goalWeightsPct = [
@@ -629,13 +668,16 @@ export function resolvedDayFocusToWorkoutParams(
       pcts[1] ?? fallbackGoalWeightsPct[1],
       pcts[2] ?? fallbackGoalWeightsPct[2],
     ];
+  } else if (exclusiveSport) {
+    goalWeightsPct = [0, 0, 0];
   }
 
   return {
     focusLabels,
     orderedGoalSlugs,
     goalWeightsPct,
-    sportWeightOverride: resolved.sportGoalContext?.sport_weight,
+    exclusive,
+    sportWeightOverride: sportWeight,
     goalWeightsOverride: gw,
     sportSlugsOverride: resolved.sportGoalContext?.sport_slugs?.length
       ? [...resolved.sportGoalContext.sport_slugs]
@@ -662,8 +704,7 @@ export function summarizePresetSubtitle(subtitle: string): string | null {
 }
 
 /**
- * Shared sport/goal priority explanation shown once above the preset list
- * (instead of repeating on every "X first" option across days).
+ * Shared sport/goal priority explanation shown once above the preset list.
  */
 export function sportGoalPrioritySectionNote(
   manualPreferences: ManualPreferences,
@@ -677,15 +718,13 @@ export function sportGoalPrioritySectionNote(
     adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
 
   if (sports.length > 0 && rankedGoals.length > 0) {
-    const [a, b, c] = EMPHASIS_GOAL_WEIGHTS_PCT;
-    return `Pick what leads each day. "X first" uses ${a}/${b}/${c}% among goals; balanced options use your global goal match %.`;
+    return "What you pick for a day is exclusive for that day — it replaces the goals from earlier pages. Balanced options mix sport and goals using your global settings.";
   }
   if (rankedGoals.length >= 2) {
-    const [a, b, c] = EMPHASIS_GOAL_WEIGHTS_PCT;
-    return `"${rankedGoals[0]} first" and similar use a fixed ${a}/${b}/${c}% split. Balanced options use your global goal match %.`;
+    return "What you pick for a day is exclusive for that day — it replaces the goals from earlier pages. Balanced options use your global goal match %.";
   }
   if (sports.length > 1) {
-    return "Pick which sport leads each day — your other sports still contribute.";
+    return "What you pick for a day is exclusive for that day. Or choose blend to mix your selected sports.";
   }
   return null;
 }

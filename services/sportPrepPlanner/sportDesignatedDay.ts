@@ -51,7 +51,7 @@ export function buildSportDesignatedPlannedDay(params: {
   discipline?: string;
 }): SportDesignatedPlannedDay {
   const sportLabel = sportDesignatedDayLabel(params.sportSlug, params.discipline);
-  const title = `${sportLabel} — Sport day`;
+  const title = sportLabel;
   return {
     id: params.id,
     date: params.date,
@@ -87,9 +87,13 @@ export function sportSlugFromPlannedDay(
 export function sportDesignatedDayDisplayTitle(
   day: Pick<SportDesignatedPlannedDay, "title" | "sportSlug" | "intentLabel">
 ): string {
-  if (day.title?.trim()) return day.title.trim();
+  const raw = day.title?.trim();
+  if (raw) {
+    // Strip legacy "— Sport day" suffix from older saved plans.
+    return raw.replace(/\s*—\s*Sport day\s*$/i, "").trim() || raw;
+  }
   const slug = sportSlugFromPlannedDay(day);
-  return slug ? `${sportDesignatedDayLabel(slug)} — Sport day` : "Sport day";
+  return slug ? sportDesignatedDayLabel(slug) : "Sport";
 }
 
 export function plannedDayFromDbRow(row: {
@@ -103,7 +107,7 @@ export function plannedDayFromDbRow(row: {
   const isSport = intentLabel?.startsWith(SPORT_DAY_INTENT_PREFIX) ?? false;
   const sportSlug = isSport ? sportSlugFromPlannedDay({ intentLabel }) : null;
   const title = isSport && sportSlug
-    ? `${sportDesignatedDayLabel(sportSlug)} — Sport day`
+    ? sportDesignatedDayLabel(sportSlug)
     : intentLabel;
 
   return {

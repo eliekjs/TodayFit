@@ -218,7 +218,7 @@ export const FOCUS_AREAS: FocusArea[] = [
         }),
         expectedDecision: {
           mainRepRange: { min: 1, max: 6 },
-          mainRestSecondsMin: 90,
+          mainRestSecondsMin: 60,
           valid: true,
         },
       },
@@ -231,7 +231,7 @@ export const FOCUS_AREAS: FocusArea[] = [
         }),
         expectedDecision: {
           mainRepRange: { min: 1, max: 6 },
-          mainRestSecondsMin: 90,
+          mainRestSecondsMin: 60,
           valid: true,
         },
       },

@@ -121,6 +121,10 @@ function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
       prefs.goalDistributionStyle === "dedicate_days" || prefs.goalDistributionStyle === "blend"
         ? prefs.goalDistributionStyle
         : undefined,
+    sessionFocusDistribution:
+      prefs.sessionFocusDistribution === "spread" || prefs.sessionFocusDistribution === "resolve"
+        ? prefs.sessionFocusDistribution
+        : undefined,
     weeklyBodyEmphasisStyle:
       prefs.weeklyBodyEmphasisStyle === "auto_alternate" || prefs.weeklyBodyEmphasisStyle === "manual"
         ? prefs.weeklyBodyEmphasisStyle

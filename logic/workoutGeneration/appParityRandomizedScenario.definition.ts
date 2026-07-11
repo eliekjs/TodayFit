@@ -1,5 +1,6 @@
 import type { ManualPreferences } from "../../lib/types";
 import type { SportGoalContext } from "../../lib/dailyGeneratorAdapter";
+import { MAX_RANKED_GOALS, MAX_TOTAL_SUB_GOALS } from "../../lib/selectionCaps";
 
 export type AppParityMode = "manual_goal_mode" | "adaptive_sport_mode";
 
@@ -11,8 +12,9 @@ export type AppParityScenarioDefinition = {
   sportGoalContext?: SportGoalContext;
 };
 
-const DAILY_MAX_GOALS = 2;
-const DAILY_MAX_TOTAL_SUB_GOALS = 3;
+/** Daily scenarios keep a slightly tighter goal count for session density; sub-goals match shared UI cap. */
+const DAILY_MAX_GOALS = Math.min(2, MAX_RANKED_GOALS);
+const DAILY_MAX_TOTAL_SUB_GOALS = MAX_TOTAL_SUB_GOALS;
 
 function seeded(seed: number): () => number {
   let s = seed >>> 0;

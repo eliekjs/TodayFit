@@ -34,6 +34,8 @@ import { isDbConfigured } from "../../../lib/db";
 import { formatRemoteLoadError } from "../../../context/formatRemoteLoadError";
 import {
   CONSTRAINT_OPTIONS,
+  CONSTRAINT_OPTIONS_UPPER,
+  CONSTRAINT_OPTIONS_LOWER,
   DURATIONS,
   normalizeGoalMatchPct,
   ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
@@ -66,14 +68,24 @@ import {
 } from "../../../lib/energyLevelMapping";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
+import { FocusDistributionNote } from "../../../components/FocusDistributionNote";
+import {
+  canProceedWithDailyFocusDistribution,
+  getDailyBodyFocusConflicts,
+  isBodyFocusPreferenceConflict,
+  shouldShowDailyFocusDistributionNote,
+} from "../../../lib/sessionFocusDistribution";
 import {
   isOneDaySportModeCombinationValid,
   ONE_DAY_SPORT_MODE_COMBINATION_HINT,
   MAX_TOTAL_PRIORITY_PICKS_DAY,
   MAX_TOTAL_PRIORITY_PICKS_WEEK,
-  MAX_TOTAL_SUB_GOALS_DAY,
-  MAX_TOTAL_SUB_GOALS_WEEK,
 } from "../../../lib/sportModeOneDayValidation";
+import {
+  MAX_SUB_GOALS_PER_PARENT,
+  MAX_TOTAL_SUB_GOALS,
+  countTotalSubGoalPicks,
+} from "../../../lib/selectionCaps";
 import { sessionFlowFromSportScope } from "../../../lib/sessionDraft";
 import { summarizeGymProfileEquipment } from "../../../lib/gymProfileDisplay";
 import {
@@ -107,10 +119,15 @@ const INJURY_STATUS_OPTIONS = [
   "Rebuilding",
 ] as const;
 
-/** Injury area options for sport-specific training (same body regions as Build flow, minus "No restrictions"). */
-const INJURY_TYPE_OPTIONS = CONSTRAINT_OPTIONS.filter((o) => o !== "No restrictions");
+/** Same body regions as Build “Avoid or protect”, minus “No restrictions” (sport uses status chips instead). */
+const withoutNoRestrictions = (opts: readonly string[]) =>
+  opts.filter((o) => o !== "No restrictions");
 
-const MAX_SUB_GOALS_PER_GOAL = 3;
+const INJURY_TYPE_OPTIONS = withoutNoRestrictions(CONSTRAINT_OPTIONS);
+const INJURY_TYPE_OPTIONS_UPPER = withoutNoRestrictions(CONSTRAINT_OPTIONS_UPPER);
+const INJURY_TYPE_OPTIONS_LOWER = withoutNoRestrictions(CONSTRAINT_OPTIONS_LOWER);
+
+const MAX_SUB_GOALS_PER_GOAL = MAX_SUB_GOALS_PER_PARENT;
 
 /** Screen-space point for anchoring the selection-limit tooltip (e.g. from press `nativeEvent`). */
 type LimitPopupAnchor = { pageX: number; pageY: number };
@@ -202,6 +219,43 @@ export default function AdaptiveModeScreen() {
       updateManualPreferences({ energyLevel: energyFromSportIntensity(opt) });
     },
     [updateManualPreferences]
+  );
+
+  const syncInjuriesToManualPreferences = useCallback(
+    (status: (typeof INJURY_STATUS_OPTIONS)[number], types: string[]) => {
+      updateManualPreferences({
+        injuries:
+          status === "No Concerns" || types.length === 0 ? ["No restrictions"] : types,
+      });
+    },
+    [updateManualPreferences]
+  );
+
+  const setInjuryStatusAndSync = useCallback(
+    (opt: (typeof INJURY_STATUS_OPTIONS)[number]) => {
+      setInjuryStatus(opt);
+      if (opt === "No Concerns") {
+        setInjuryTypes([]);
+        syncInjuriesToManualPreferences(opt, []);
+      } else {
+        syncInjuriesToManualPreferences(opt, injuryTypes);
+      }
+    },
+    [injuryTypes, syncInjuriesToManualPreferences]
+  );
+
+  const toggleInjuryArea = useCallback(
+    (label: string) => {
+      const next = injuryTypes.includes(label)
+        ? injuryTypes.filter((x) => x !== label)
+        : [...injuryTypes, label];
+      const nextStatus =
+        next.length > 0 && injuryStatus === "No Concerns" ? "Managing" : injuryStatus;
+      if (nextStatus !== injuryStatus) setInjuryStatus(nextStatus);
+      setInjuryTypes(next);
+      syncInjuriesToManualPreferences(nextStatus, next);
+    },
+    [injuryTypes, injuryStatus, syncInjuriesToManualPreferences]
   );
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
@@ -409,24 +463,18 @@ export default function AdaptiveModeScreen() {
       : undefined;
     const current = subFocusBySport[sportSlug] ?? [];
     const has = current.includes(qualitySlug);
-    const totalGoalSubGoals = Object.values(manualPreferences.subFocusByGoal).reduce<number>(
-      (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
-      0
-    );
-    const totalSportSubGoals = Object.values(subFocusBySport).reduce<number>(
-      (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
-      0
-    );
+    const totalGoalSubGoals = countTotalSubGoalPicks(manualPreferences.subFocusByGoal);
+    const totalSportSubGoals = countTotalSubGoalPicks(subFocusBySport);
     if (has) {
       setSubFocusBySport((prev) => ({
         ...prev,
         [sportSlug]: current.filter((x) => x !== qualitySlug),
       }));
     } else {
-      if (current.length >= 3) return;
+      if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
       if (totalGoalSubGoals + totalSportSubGoals >= totalSubGoalCap) {
         showLimitPopup(
-          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`,
+          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports (same as Goal Mode).`,
           anchor
         );
         return;
@@ -552,10 +600,9 @@ export default function AdaptiveModeScreen() {
             sportSubFocusSlugsBySport: Object.keys(subFocusBySport).length > 0 ? subFocusBySport : undefined,
             defaultSessionDuration: oneDayDuration,
             energyBaseline,
-            injuries:
-              injuryStatus === "No Concerns"
-                ? []
-                : injuryTypes.map((label) => label.toLowerCase().replace(/\s/g, "_")),
+            injuries: injuryTypes.map((label) =>
+              label.toLowerCase().replace(/\s/g, "_")
+            ),
             sportSessions: [],
             gymProfile: activeProfile,
             goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
@@ -564,12 +611,11 @@ export default function AdaptiveModeScreen() {
             workoutTier: manualPreferences.workoutTier ?? "intermediate",
             includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
             dailyPreferences: { bodyRegionBias: oneDayBodyBias },
+            sessionFocusDistribution: manualPreferences.sessionFocusDistribution ?? undefined,
             adaptiveScheduleLabels: {
               intensityLevel,
               injuryStatus,
-              ...(injuryStatus !== "No Concerns" && injuryTypes.length > 0
-                ? { injuryAreas: [...injuryTypes] }
-                : {}),
+              ...(injuryTypes.length > 0 ? { injuryAreas: [...injuryTypes] } : {}),
             },
             forceIntentKey: forceIntentKeyForOneDaySport(primary, rankedSportSlugs),
           });
@@ -736,7 +782,7 @@ export default function AdaptiveModeScreen() {
       );
       if (totalOthers + current.length + totalSportSubGoals >= totalSubGoalCap) {
         showLimitPopup(
-          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports in ${isOneDay ? "one-day" : "week"} mode.`,
+          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports (same as Goal Mode).`,
           anchor
         );
         return;
@@ -771,11 +817,26 @@ export default function AdaptiveModeScreen() {
   const sessionSectionSummary = `${oneDayDuration} min`;
   const bodySectionSummary = oneDayBodyBias.charAt(0).toUpperCase() + oneDayBodyBias.slice(1);
 
-  const setOneDayTargetBody = useCallback((target: TargetBody) => {
-    if (target === "Upper") setOneDayBodyBias("upper");
-    else if (target === "Lower") setOneDayBodyBias("lower");
-    else setOneDayBodyBias("full");
-  }, []);
+  const setOneDayTargetBody = useCallback(
+    (target: TargetBody) => {
+      if (target === "Upper") setOneDayBodyBias("upper");
+      else if (target === "Lower") setOneDayBodyBias("lower");
+      else setOneDayBodyBias("full");
+
+      const allowed =
+        target === "Upper"
+          ? INJURY_TYPE_OPTIONS_UPPER
+          : target === "Lower"
+            ? INJURY_TYPE_OPTIONS_LOWER
+            : INJURY_TYPE_OPTIONS;
+      const next = injuryTypes.filter((i) => allowed.includes(i));
+      if (next.length !== injuryTypes.length) {
+        setInjuryTypes(next);
+        syncInjuriesToManualPreferences(injuryStatus, next);
+      }
+    },
+    [injuryTypes, injuryStatus, syncInjuriesToManualPreferences]
+  );
 
   type OpenAdaptiveAdvancedScrollOptions = {
     nestedKey?: AdaptiveAdvNestedKey;
@@ -824,22 +885,34 @@ export default function AdaptiveModeScreen() {
       goalCount: oneDayGoalCount,
       sportSubGoalCount: totalSportSubGoalsSelected,
     });
+
+  const oneDayTargetBodyForConflict: TargetBody | null =
+    oneDayBodyBias === "upper" ? "Upper" : oneDayBodyBias === "lower" ? "Lower" : "Full";
+  const sportModeConflictContext = {
+    sportSlugs: selectedSportSlugs,
+    targetBodyOverride: oneDayTargetBodyForConflict,
+    gymEquipmentKeys: activeGymProfile?.equipment ?? [],
+  };
+  const sportModeConflicts = isOneDay
+    ? detectPreferenceConflicts(manualPreferences, sportModeConflictContext)
+    : [];
+  const showDailyFocusDistribution =
+    isOneDay && shouldShowDailyFocusDistributionNote(manualPreferences, sportModeConflictContext);
+  const dailyFocusDistributionGate = isOneDay
+    ? canProceedWithDailyFocusDistribution(manualPreferences, sportModeConflictContext)
+    : { ok: true as const };
+  const dailyResolveMode =
+    showDailyFocusDistribution && manualPreferences.sessionFocusDistribution === "resolve";
+  const dailyBodyFocusConflicts = dailyResolveMode
+    ? getDailyBodyFocusConflicts(manualPreferences, sportModeConflictContext)
+    : [];
   const canContinueAdaptive =
     isDbConfigured() &&
     activeGymProfile != null &&
     selectedSportSlugs.length >= 1 &&
     oneDayCombinationValid &&
-    (!isOneDay || oneDayDuration > 0);
-
-  const oneDayTargetBodyForConflict: TargetBody | null =
-    oneDayBodyBias === "upper" ? "Upper" : oneDayBodyBias === "lower" ? "Lower" : "Full";
-  const sportModeConflicts = isOneDay
-    ? detectPreferenceConflicts(manualPreferences, {
-        sportSlugs: selectedSportSlugs,
-        targetBodyOverride: oneDayTargetBodyForConflict,
-        gymEquipmentKeys: activeGymProfile?.equipment ?? [],
-      })
-    : [];
+    (!isOneDay || oneDayDuration > 0) &&
+    dailyFocusDistributionGate.ok;
 
   const adaptiveAdvSportVsSummary = `${sportVsGoalPct}% sport · ${100 - sportVsGoalPct}% goals`;
   const agw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
@@ -864,18 +937,23 @@ export default function AdaptiveModeScreen() {
     adaptiveSubGoalsTotalCount === 0 ? "None" : `${adaptiveSubGoalsTotalCount} selected`;
   const adaptiveAdvSportFocusSummary = `${sportFocusPct[0]}/${sportFocusPct[1]}%`;
   const adaptiveAdvInjurySummary =
-    injuryStatus === "No Concerns"
+    injuryStatus === "No Concerns" && injuryTypes.length === 0
       ? "No concerns"
-      : `${injuryStatus}${injuryTypes.length > 0 ? ` · ${injuryTypes.length} area(s)` : ""}`;
+      : [
+          injuryStatus !== "No Concerns" ? injuryStatus : null,
+          injuryTypes.length > 0 ? injuryTypes.join(", ") : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "No concerns";
+  const injuryAreaOptions =
+    isOneDay && oneDayBodyBias === "upper"
+      ? INJURY_TYPE_OPTIONS_UPPER
+      : isOneDay && oneDayBodyBias === "lower"
+        ? INJURY_TYPE_OPTIONS_LOWER
+        : INJURY_TYPE_OPTIONS;
   const totalPriorityCap = isOneDay ? MAX_TOTAL_PRIORITY_PICKS_DAY : MAX_TOTAL_PRIORITY_PICKS_WEEK;
-  const totalSubGoalCap = isOneDay ? MAX_TOTAL_SUB_GOALS_DAY : MAX_TOTAL_SUB_GOALS_WEEK;
-  const totalPrioritySelections =
-    rankedGoals.filter((g): g is string => g != null).length +
-    rankedSportSlugs.filter((s): s is string => s != null).length;
-  const totalGoalSubGoalsSelected = Object.values(manualPreferences.subFocusByGoal).reduce<number>(
-    (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
-    0
-  );
+  const totalSubGoalCap = MAX_TOTAL_SUB_GOALS;
+  const totalGoalSubGoalsSelected = countTotalSubGoalPicks(manualPreferences.subFocusByGoal);
   const totalSubGoalsSelected = totalGoalSubGoalsSelected + totalSportSubGoalsSelected;
   const rankedGoalEntries = rankedGoals
     .filter((goalId): goalId is string => goalId != null)
@@ -993,9 +1071,10 @@ export default function AdaptiveModeScreen() {
         <View ref={adaptiveContentRef} collapsable={false}>
         <Card title="Sport Mode">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
+            Gym sessions that support your sport — strength, durability, and gaps your sport doesn’t cover. Not a replacement for practice or skill work.
             {isOneDay
-              ? "Choose your sport to get one tailored workout today."
-              : "Choose your sport to get a tailored weekly plan."}
+              ? " Choose your sport for today’s workout."
+              : " Choose your sport for a weekly plan."}
           </Text>
         </Card>
 
@@ -1005,6 +1084,33 @@ export default function AdaptiveModeScreen() {
           includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
           onChange={(patch) => updateManualPreferences(patch)}
         />
+
+        {showDailyFocusDistribution ? (
+          <FocusDistributionNote
+            variant="daily"
+            value={manualPreferences.sessionFocusDistribution}
+            needsResolution={dailyResolveMode && dailyBodyFocusConflicts.length > 0}
+            onChange={(value) => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              updateManualPreferences({ sessionFocusDistribution: value });
+              if (value === "spread") {
+                setDismissedConflictIds((prev) => [
+                  ...prev,
+                  ...sportModeConflicts.filter(isBodyFocusPreferenceConflict).map((c) => c.id),
+                ]);
+              } else {
+                setDismissedConflictIds((prev) =>
+                  prev.filter(
+                    (id) =>
+                      !sportModeConflicts.some(
+                        (c) => c.id === id && isBodyFocusPreferenceConflict(c)
+                      )
+                  )
+                );
+              }
+            }}
+          />
+        ) : null}
 
         <CollapsiblePreferenceSection
           title="Where you train"
@@ -1041,11 +1147,8 @@ export default function AdaptiveModeScreen() {
           </Text>
           <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 12 }}>
             {isOneDay
-              ? "Limits: 2 sports, 1 sport + 1 goal, or 1 sport with sport sub-focus (daily); up to 3 total sub-goals."
-              : `Limits: up to ${totalPriorityCap} total sports + goals, and up to ${totalSubGoalCap} total sub-goals.`}
-          </Text>
-          <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 12 }}>
-            Selected: {totalPrioritySelections}/{totalPriorityCap} priorities, {totalSubGoalsSelected}/{totalSubGoalCap} sub-goals.
+              ? `Limits: 2 sports, 1 sport + 1 goal, or 1 sport with sport sub-focus (daily); up to ${totalSubGoalCap} total sub-goals (same as Goal Mode).`
+              : `Limits: up to ${totalPriorityCap} total sports + goals, and up to ${totalSubGoalCap} total sub-goals (same as Goal Mode).`}
           </Text>
 
           {topPriorityRows.length > 0 ? (
@@ -1984,56 +2087,53 @@ export default function AdaptiveModeScreen() {
 
             <CollapsiblePreferenceSection
               nested
-              title="Injuries & protection"
-              subtitle="Status and areas to protect in generated workouts."
+              title="Avoid or protect"
+              subtitle="We’ll skip exercises that bother these areas. Status is optional context."
               summary={adaptiveAdvInjurySummary}
               expanded={adaptiveAdvNestedOpen.injury === true}
               onToggle={() => toggleAdaptiveAdvNested("injury")}
             >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: theme.textMuted,
+                  marginBottom: 8,
+                }}
+              >
+                Status
+              </Text>
               <View style={styles.chipGroup}>
                 {INJURY_STATUS_OPTIONS.map((opt) => (
                   <Chip
                     key={opt}
                     label={opt}
                     selected={injuryStatus === opt}
-                    onPress={() => {
-                      setInjuryStatus(opt);
-                      if (opt === "No Concerns") setInjuryTypes([]);
-                    }}
+                    onPress={() => setInjuryStatusAndSync(opt)}
                   />
                 ))}
               </View>
-              {(injuryStatus === "Managing" || injuryStatus === "Rebuilding") && (
-                <>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "600",
-                      color: theme.textMuted,
-                      marginTop: 14,
-                      marginBottom: 8,
-                    }}
-                  >
-                    Injury areas
-                  </Text>
-                  <View style={styles.chipGroup}>
-                    {INJURY_TYPE_OPTIONS.map((label) => (
-                      <Chip
-                        key={label}
-                        label={label}
-                        selected={injuryTypes.includes(label)}
-                        onPress={() => {
-                          setInjuryTypes((prev) =>
-                            prev.includes(label)
-                              ? prev.filter((x) => x !== label)
-                              : [...prev, label]
-                          );
-                        }}
-                      />
-                    ))}
-                  </View>
-                </>
-              )}
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: "600",
+                  color: theme.textMuted,
+                  marginTop: 14,
+                  marginBottom: 8,
+                }}
+              >
+                Body areas
+              </Text>
+              <View style={styles.chipGroup}>
+                {injuryAreaOptions.map((label) => (
+                  <Chip
+                    key={label}
+                    label={label}
+                    selected={injuryTypes.includes(label)}
+                    onPress={() => toggleInjuryArea(label)}
+                  />
+                ))}
+              </View>
             </CollapsiblePreferenceSection>
 
             <CollapsiblePreferenceSection
@@ -2062,9 +2162,20 @@ export default function AdaptiveModeScreen() {
 
         {isOneDay && (
           <PreferenceConflictBanner
-            conflicts={sportModeConflicts}
+            conflicts={
+              dailyResolveMode
+                ? [
+                    ...dailyBodyFocusConflicts,
+                    ...sportModeConflicts.filter((c) => !isBodyFocusPreferenceConflict(c)),
+                  ]
+                : showDailyFocusDistribution &&
+                    manualPreferences.sessionFocusDistribution === "spread"
+                  ? sportModeConflicts.filter((c) => !isBodyFocusPreferenceConflict(c))
+                  : sportModeConflicts
+            }
             dismissedIds={dismissedConflictIds}
             currentPrefs={manualPreferences}
+            requireResolution={dailyResolveMode}
             onDismiss={(id) => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               setDismissedConflictIds((prev) => [...prev, id]);
@@ -2097,9 +2208,11 @@ export default function AdaptiveModeScreen() {
         }}
         hint={
           !canContinueAdaptive && isDbConfigured()
-            ? isOneDay
-              ? `${ONE_DAY_SPORT_MODE_COMBINATION_HINT} Also choose a session length.`
-              : "Choose at least one sport to continue."
+            ? !dailyFocusDistributionGate.ok
+              ? dailyFocusDistributionGate.reason ?? null
+              : isOneDay
+                ? `${ONE_DAY_SPORT_MODE_COMBINATION_HINT} Also choose a session length.`
+                : "Choose at least one sport to continue."
             : null
         }
       >

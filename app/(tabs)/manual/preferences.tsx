@@ -60,10 +60,22 @@ import {
 import type { TargetBody } from "../../../lib/types";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
+import { FocusDistributionNote } from "../../../components/FocusDistributionNote";
+import {
+  canProceedWithDailyFocusDistribution,
+  getDailyBodyFocusConflicts,
+  isBodyFocusPreferenceConflict,
+  shouldShowDailyFocusDistributionNote,
+} from "../../../lib/sessionFocusDistribution";
 import { sessionFlowFromManualScope } from "../../../lib/sessionDraft";
 import { navigateToManualWeek } from "../../../lib/manualGoalPreferencesHref";
 import { GymProfileSelectionPanel } from "../../../components/GymProfileSelectionPanel";
 import { summarizeGymProfileEquipment } from "../../../lib/gymProfileDisplay";
+import {
+  MAX_RANKED_GOALS,
+  MAX_SUB_GOALS_PER_PARENT,
+  MAX_TOTAL_SUB_GOALS,
+} from "../../../lib/selectionCaps";
 
 if (
   Platform.OS === "android" &&
@@ -72,10 +84,8 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const MAX_GOALS = 3;
-const MAX_SUB_GOALS_PER_GOAL = 3;
-/** Cap total sub-goal chips across all ranked goals (was 3 per goal → up to 9). */
-const MAX_TOTAL_SUB_GOALS = 3;
+const MAX_GOALS = MAX_RANKED_GOALS;
+const MAX_SUB_GOALS_PER_GOAL = MAX_SUB_GOALS_PER_PARENT;
 const MAX_UPCOMING = 3;
 
 const DEFAULT_SESSION_MINUTES = 45 as const;
@@ -131,6 +141,25 @@ export default function ManualPreferencesScreen() {
 
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
 
+  useEffect(() => {
+    if (isWeek) return;
+    if (
+      manualPreferences.sessionFocusDistribution != null &&
+      !shouldShowDailyFocusDistributionNote(manualPreferences, {
+        gymEquipmentKeys:
+          (gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0])?.equipment ?? [],
+      })
+    ) {
+      updateManualPreferences({ sessionFocusDistribution: undefined });
+    }
+  }, [
+    isWeek,
+    manualPreferences,
+    gymProfiles,
+    activeGymProfileId,
+    updateManualPreferences,
+  ]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
       title: isWeek ? "Plan your week" : "Build workout",
@@ -182,10 +211,30 @@ export default function ManualPreferencesScreen() {
   const hasDuration = manualPreferences.durationMinutes != null;
   const hasBodyEmphasis = manualPreferences.targetBody != null;
   const hasGymProfile = activeProfile != null;
+  const preferenceConflicts = detectPreferenceConflicts(manualPreferences, {
+    gymEquipmentKeys: activeProfile?.equipment ?? [],
+  });
+  const showDailyFocusDistribution =
+    !isWeek && shouldShowDailyFocusDistributionNote(manualPreferences, {
+      gymEquipmentKeys: activeProfile?.equipment ?? [],
+    });
+  const dailyFocusDistributionGate = !isWeek
+    ? canProceedWithDailyFocusDistribution(manualPreferences, {
+        gymEquipmentKeys: activeProfile?.equipment ?? [],
+      })
+    : { ok: true as const };
+  const dailyResolveMode =
+    showDailyFocusDistribution && manualPreferences.sessionFocusDistribution === "resolve";
+  const dailyBodyFocusConflicts = dailyResolveMode
+    ? getDailyBodyFocusConflicts(manualPreferences, {
+        gymEquipmentKeys: activeProfile?.equipment ?? [],
+      })
+    : [];
   const canProceed =
-    isWeek
+    (isWeek
       ? hasGoal && hasDuration && hasGymProfile
-      : hasGoal && hasDuration && hasBodyEmphasis && hasGymProfile;
+      : hasGoal && hasDuration && hasBodyEmphasis && hasGymProfile) &&
+    dailyFocusDistributionGate.ok;
 
   const durationSummary =
     manualPreferences.durationMinutes != null
@@ -564,11 +613,6 @@ export default function ManualPreferencesScreen() {
       ? "None"
       : `${manualPreferences.upcoming.length} picked`;
 
-  const activeProfileEquipmentKeys = activeProfile?.equipment ?? [];
-  const preferenceConflicts = detectPreferenceConflicts(manualPreferences, {
-    gymEquipmentKeys: activeProfileEquipmentKeys,
-  });
-
   if (isGenerating) {
     return (
       <GenerationLoadingScreen
@@ -652,6 +696,37 @@ export default function ManualPreferencesScreen() {
           includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
           onChange={(patch) => updateManualPreferences(patch)}
         />
+
+        {showDailyFocusDistribution ? (
+          <FocusDistributionNote
+            variant="daily"
+            value={manualPreferences.sessionFocusDistribution}
+            needsResolution={
+              dailyResolveMode && dailyBodyFocusConflicts.length > 0
+            }
+            onChange={(value) => {
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              updateManualPreferences({ sessionFocusDistribution: value });
+              if (value === "spread") {
+                setDismissedConflictIds((prev) => [
+                  ...prev,
+                  ...preferenceConflicts
+                    .filter(isBodyFocusPreferenceConflict)
+                    .map((c) => c.id),
+                ]);
+              } else {
+                setDismissedConflictIds((prev) =>
+                  prev.filter(
+                    (id) =>
+                      !preferenceConflicts.some(
+                        (c) => c.id === id && isBodyFocusPreferenceConflict(c)
+                      )
+                  )
+                );
+              }
+            }}
+          />
+        ) : null}
 
         <CollapsiblePreferenceSection
           title="Session length"
@@ -750,7 +825,10 @@ export default function ManualPreferencesScreen() {
         {hasPrimaryFocus && (
           <View style={[styles.subFocusSectionWrap, { borderTopColor: theme.border, borderTopWidth: 0, marginTop: 8 }]}>
             <Text style={[styles.subFocusSectionLabel, { color: theme.textMuted }]}>
-              Sub-goals <Text style={{ fontWeight: "400" }}>(optional, up to 3 total)</Text>
+              Sub-goals{" "}
+              <Text style={{ fontWeight: "400" }}>
+                (optional, up to {MAX_TOTAL_SUB_GOALS} total)
+              </Text>
             </Text>
             {rankedGoals.map((goal, goalIdx) => {
               const subOptions = subFocusChoicesForManualPrimaryGoal(goal);
@@ -924,9 +1002,20 @@ export default function ManualPreferencesScreen() {
         ) : null}
 
         <PreferenceConflictBanner
-          conflicts={preferenceConflicts}
+          conflicts={
+            dailyResolveMode
+              ? [
+                  ...dailyBodyFocusConflicts,
+                  ...preferenceConflicts.filter((c) => !isBodyFocusPreferenceConflict(c)),
+                ]
+              : showDailyFocusDistribution &&
+                  manualPreferences.sessionFocusDistribution === "spread"
+                ? preferenceConflicts.filter((c) => !isBodyFocusPreferenceConflict(c))
+                : preferenceConflicts
+          }
           dismissedIds={dismissedConflictIds}
           currentPrefs={manualPreferences}
+          requireResolution={dailyResolveMode}
           onDismiss={(id) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setDismissedConflictIds((prev) => [...prev, id]);
@@ -1309,6 +1398,11 @@ export default function ManualPreferencesScreen() {
           disabled: !canProceed,
           loading: isGenerating,
         }}
+        hint={
+          !isWeek && !dailyFocusDistributionGate.ok
+            ? dailyFocusDistributionGate.reason ?? null
+            : null
+        }
       >
         <View style={styles.bottomBarRow}>
           <PrimaryButton

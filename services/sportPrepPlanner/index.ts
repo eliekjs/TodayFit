@@ -110,6 +110,11 @@ export type PlanWeekInput = {
   emphasis?: import("../../lib/types").BodyEmphasisKey | null;
   /** Goal distribution: dedicate entire days to goals vs blend. Default blend. */
   goalDistributionStyle?: import("../../lib/types").GoalDistributionStyle | null;
+  /**
+   * One-day / per-session: when focus areas conflict across body regions,
+   * spread all picks vs resolve toward body emphasis.
+   */
+  sessionFocusDistribution?: import("../../lib/types").SessionFocusDistributionStyle | null;
   /** Body emphasis structure: auto upper/lower/full vs manual. Default auto_alternate. */
   weeklyBodyEmphasisStyle?: import("../../lib/types").WeeklyBodyEmphasisStyle | null;
   /** Specific body-part behavior: auto-apply to relevant days vs manual. Default auto_apply. */
@@ -1201,19 +1206,26 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       slot.dayBias
         ? { targetBody: slot.dayBias.targetBody, targetModifier: slot.dayBias.targetModifier }
         : undefined;
-    const effectiveGoalSlugs = dayFocusParams?.orderedGoalSlugs.length
+    const effectiveGoalSlugs = dayFocusParams?.exclusive
       ? dayFocusParams.orderedGoalSlugs
-      : dayGoalSlug
-        ? [dayGoalSlug]
-        : goalSlugs;
+      : dayFocusParams?.orderedGoalSlugs.length
+        ? dayFocusParams.orderedGoalSlugs
+        : dayGoalSlug
+          ? [dayGoalSlug]
+          : goalSlugs;
     const effectiveGoalWeights = dayFocusParams?.goalWeightsPct ?? (
       dayGoalSlug ? singleGoalWeights : goalWeightsPct
     );
-    const focusedSportSlugs = dayFocusParams?.sportSlugsOverride?.length
-      ? dayFocusParams.sportSlugsOverride
-      : undefined;
+    const focusedSportSlugs = dayFocusParams?.exclusive
+      ? (dayFocusParams.sportSlugsOverride ?? [])
+      : dayFocusParams?.sportSlugsOverride?.length
+        ? dayFocusParams.sportSlugsOverride
+        : undefined;
     const effectiveRankedSportSlugs = focusedSportSlugs ?? input.rankedSportSlugs;
-    const effectiveSportSlug = focusedSportSlugs?.[0] ?? input.sportSlug ?? null;
+    const effectiveSportSlug =
+      focusedSportSlugs != null
+        ? focusedSportSlugs[0] ?? null
+        : input.sportSlug ?? null;
     const effectiveSportSubFocusBySport = focusedSportSlugs
       ? dayFocusParams?.sportSubFocusBySportOverride
       : input.sportSubFocusSlugsBySport;
@@ -1222,10 +1234,17 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         ? effectiveSportSubFocusBySport?.[focusedSportSlugs[0]]
         : input.sportSubFocusSlugs;
     const daySubFocusOverride = input.gymDaySubFocusByGoalOverrides?.[slotIdx];
-    const effectiveSubFocusByGoal = mergeDaySubFocusOverride(
-      input.goalSubFocusByGoal ?? {},
-      daySubFocusOverride ?? undefined
-    );
+    const effectiveSubFocusByGoal = (() => {
+      const merged = mergeDaySubFocusOverride(
+        input.goalSubFocusByGoal ?? {},
+        daySubFocusOverride ?? undefined
+      );
+      if (!dayFocusParams?.exclusive) return merged;
+      if (!dayFocusParams.focusLabels.length) return {};
+      return Object.fromEntries(
+        Object.entries(merged).filter(([label]) => dayFocusParams.focusLabels.includes(label))
+      );
+    })();
     const workout = await buildWorkoutForSessionIntent(
       intent,
       input.gymProfile,
@@ -1250,12 +1269,18 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           ? { subFocusPctByGoal: input.goalSubFocusPctByGoal }
           : {}),
         exercisePool: sharedExercisePool,
+        ...(dayFocusParams?.exclusive ? { exclusiveDayFocus: true } : {}),
         ...(dayFocusParams?.sportWeightOverride != null
           ? { sportWeightOverride: dayFocusParams.sportWeightOverride }
           : {}),
         ...(dayFocusParams?.goalWeightsOverride?.length
           ? { goalWeightsOverride: dayFocusParams.goalWeightsOverride }
           : {}),
+        ...(input.sessionFocusDistribution
+          ? { sessionFocusDistribution: input.sessionFocusDistribution }
+          : input.manualPreferences?.sessionFocusDistribution
+            ? { sessionFocusDistribution: input.manualPreferences.sessionFocusDistribution }
+            : {}),
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -1847,6 +1872,7 @@ function dayFocusOverridesForRegenerate(input: RegenerateDayInput): {
   focusLabels?: string[];
   sportSlugsOverride?: string[];
   sportSubFocusBySportOverride?: Record<string, string[]>;
+  exclusive?: boolean;
 } {
   const presetId = input.dailyPreferences?.dayFocusPresetId;
   const rankedGoalSlugs = (input.goalSlugs ?? []).filter(Boolean);
@@ -1893,13 +1919,20 @@ function dayFocusOverridesForRegenerate(input: RegenerateDayInput): {
   }));
   const params = resolvedDayFocusToWorkoutParams(resolved, rankedGoalSlugs, fallbackWeights);
   return {
-    goalSlugs: params.orderedGoalSlugs.length ? params.orderedGoalSlugs : rankedGoalSlugs,
+    goalSlugs: params.exclusive
+      ? params.orderedGoalSlugs
+      : params.orderedGoalSlugs.length
+        ? params.orderedGoalSlugs
+        : rankedGoalSlugs,
     goalWeightsPct: params.goalWeightsPct,
     sportWeightOverride: params.sportWeightOverride,
     goalWeightsOverride: params.goalWeightsOverride,
     focusLabels: params.focusLabels.length ? params.focusLabels : undefined,
-    sportSlugsOverride: params.sportSlugsOverride,
+    sportSlugsOverride: params.exclusive
+      ? (params.sportSlugsOverride ?? [])
+      : params.sportSlugsOverride,
     sportSubFocusBySportOverride: params.sportSubFocusBySportOverride,
+    exclusive: params.exclusive,
   };
 }
 
@@ -1911,11 +1944,16 @@ export async function regenerateDay(
   const resolvedIncludeCreative =
     (input.dailyPreferences?.includeCreativeVariations ?? input.includeCreativeVariations) === true;
   const dayFocusOverrides = dayFocusOverridesForRegenerate(input);
-  const focusedSportSlugs = dayFocusOverrides.sportSlugsOverride?.length
-    ? dayFocusOverrides.sportSlugsOverride
-    : undefined;
+  const focusedSportSlugs = dayFocusOverrides.exclusive
+    ? (dayFocusOverrides.sportSlugsOverride ?? [])
+    : dayFocusOverrides.sportSlugsOverride?.length
+      ? dayFocusOverrides.sportSlugsOverride
+      : undefined;
   const regenerateRankedSportSlugs = focusedSportSlugs ?? input.rankedSportSlugs;
-  const regenerateSportSlug = focusedSportSlugs?.[0] ?? input.sportSlug ?? input.rankedSportSlugs?.[0] ?? null;
+  const regenerateSportSlug =
+    focusedSportSlugs != null
+      ? focusedSportSlugs[0] ?? null
+      : input.sportSlug ?? input.rankedSportSlugs?.[0] ?? null;
   const regenerateSportSubFocusBySport = focusedSportSlugs
     ? dayFocusOverrides.sportSubFocusBySportOverride
     : input.sportSubFocusSlugsBySport;
@@ -1984,12 +2022,23 @@ export async function regenerateDay(
         workoutTier: resolvedWorkoutTier,
         includeCreativeVariations: resolvedIncludeCreative,
         ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
-          ? { subFocusByGoal: input.subFocusByGoal }
+          ? {
+              subFocusByGoal: dayFocusOverrides.exclusive && dayFocusOverrides.focusLabels?.length
+                ? Object.fromEntries(
+                    Object.entries(input.subFocusByGoal).filter(([label]) =>
+                      dayFocusOverrides.focusLabels!.includes(label)
+                    )
+                  )
+                : dayFocusOverrides.exclusive
+                  ? {}
+                  : input.subFocusByGoal,
+            }
           : {}),
         ...(input.subFocusPctByGoal && Object.keys(input.subFocusPctByGoal).length > 0
           ? { subFocusPctByGoal: input.subFocusPctByGoal }
           : {}),
         ...(regContractGuest ? { session_intent_contract: regContractGuest } : {}),
+        ...(dayFocusOverrides.exclusive ? { exclusiveDayFocus: true } : {}),
         ...(dayFocusOverrides.sportWeightOverride != null
           ? { sportWeightOverride: dayFocusOverrides.sportWeightOverride }
           : {}),
@@ -2119,12 +2168,23 @@ export async function regenerateDay(
       workoutTier: resolvedWorkoutTier,
       includeCreativeVariations: resolvedIncludeCreative,
       ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
-        ? { subFocusByGoal: input.subFocusByGoal }
+        ? {
+            subFocusByGoal: dayFocusOverrides.exclusive && dayFocusOverrides.focusLabels?.length
+              ? Object.fromEntries(
+                  Object.entries(input.subFocusByGoal).filter(([label]) =>
+                    dayFocusOverrides.focusLabels!.includes(label)
+                  )
+                )
+              : dayFocusOverrides.exclusive
+                ? {}
+                : input.subFocusByGoal,
+          }
         : {}),
       ...(input.subFocusPctByGoal && Object.keys(input.subFocusPctByGoal).length > 0
         ? { subFocusPctByGoal: input.subFocusPctByGoal }
         : {}),
       ...(regContractDb ? { session_intent_contract: regContractDb } : {}),
+      ...(dayFocusOverrides.exclusive ? { exclusiveDayFocus: true } : {}),
       ...(dayFocusOverrides.sportWeightOverride != null
         ? { sportWeightOverride: dayFocusOverrides.sportWeightOverride }
         : {}),

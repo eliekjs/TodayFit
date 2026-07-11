@@ -47,6 +47,10 @@ import { formatDayTitle, isSpecificFocusRelevantForBody } from "../../../lib/day
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import {
+  canProceedWithWeeklyGoalDistribution,
+  shouldShowWeeklyGoalDistributionNote,
+} from "../../../lib/sessionFocusDistribution";
+import {
   buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
   buildBodyFocusSummary,
@@ -57,6 +61,7 @@ import {
   resolveDayFocusPreset,
   defaultPresetIdForWeekDay,
   sportGoalPrioritySectionNote,
+  presetUsesExclusiveDayFocus,
   type DayBodyFocusChoice,
   type DayBodyFocusChoiceId,
   type DayFocusPreset,
@@ -69,7 +74,12 @@ import {
   mergeDaySubFocusOverride,
   type DaySessionFocusResolution,
 } from "../../../lib/daySessionFocusConflict";
-import type { BlockType, DailyWorkoutPreferences, ManualWeekPlan } from "../../../lib/types";
+import type {
+  BlockType,
+  DailyWorkoutPreferences,
+  GoalDistributionStyle,
+  ManualWeekPlan,
+} from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 import { navigateToManualGoalPreferences } from "../../../lib/manualGoalPreferencesHref";
 
@@ -396,6 +406,14 @@ export default function ManualWeekScreen() {
     [daySessionFocusConflicts, resolvedConflictIdsByDay]
   );
 
+  const showWeeklyGoalDistribution = shouldShowWeeklyGoalDistributionNote(
+    manualPreferences.primaryFocus.length
+  );
+  const weeklyGoalDistributionGate = canProceedWithWeeklyGoalDistribution(
+    manualPreferences.goalDistributionStyle,
+    manualPreferences.primaryFocus.length
+  );
+
   const clearDayConflictState = useCallback((dayIdx: number) => {
     setResolvedConflictIdsByDay((prev) => {
       if (prev[dayIdx] == null) return prev;
@@ -633,6 +651,7 @@ export default function ManualWeekScreen() {
         const resolved = resolveDayFocusPreset(presetId, manualPreferences, adaptiveSetup);
         const effectivePrimary =
           resolved.primaryFocus.length > 0 ? resolved.primaryFocus : manualPreferences.primaryFocus;
+        const exclusiveDay = presetUsesExclusiveDayFocus(presetId);
         const dayPrefs: typeof manualPreferences = {
           ...manualPreferences,
           primaryFocus: effectivePrimary,
@@ -640,11 +659,16 @@ export default function ManualWeekScreen() {
             manualPreferences.subFocusByGoal ?? {},
             daySubFocusOverrides[i]
           ),
-          /** Keep full ranked goals for sub-focus merge so dedicated days still honor cross-goal picks (e.g. Handstand). */
-          weekSubFocusPrimaryLabels:
-            manualPreferences.primaryFocus.length > 0
-              ? [...manualPreferences.primaryFocus]
-              : undefined,
+          // Exclusive day picks: only that day's goal drives sub-focus (overrides earlier pages).
+          // Blend days: keep full ranked goals so cross-goal sub-picks still apply.
+          ...(exclusiveDay
+            ? {}
+            : {
+                weekSubFocusPrimaryLabels:
+                  manualPreferences.primaryFocus.length > 0
+                    ? [...manualPreferences.primaryFocus]
+                    : undefined,
+              }),
           targetBody: bodyBias.targetBody,
           targetModifier: bodyBias.targetModifier,
           specificBodyFocus: bodyBias.specificBodyFocus,
@@ -1120,7 +1144,8 @@ export default function ManualWeekScreen() {
       const canGenerate =
         selectedTrainingDays.length > 0 &&
         dayFocusChoiceIds.length === selectedTrainingDays.length &&
-        !hasUnresolvedDayConflicts;
+        !hasUnresolvedDayConflicts &&
+        weeklyGoalDistributionGate.ok;
       return (
         <AppScreenWrapper>
           <StatusBar style="dark" />
@@ -1140,6 +1165,11 @@ export default function ManualWeekScreen() {
                 conflictsPerDay={daySessionFocusConflicts}
                 resolvedConflictIdsByDay={resolvedConflictIdsByDay}
                 sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}
+                showGoalDistributionNote={showWeeklyGoalDistribution}
+                goalDistributionStyle={manualPreferences.goalDistributionStyle}
+                onChangeGoalDistributionStyle={(value: GoalDistributionStyle) =>
+                  updateManualPreferences({ goalDistributionStyle: value })
+                }
                 onSelectBody={(dayIdx, id) => {
                   clearDayConflictState(dayIdx);
                   setDayBodyFocusChoiceIds((prev) => {
@@ -1182,6 +1212,13 @@ export default function ManualWeekScreen() {
                 disabled: generating || !canGenerate,
                 loading: generating,
               }}
+              hint={
+                !weeklyGoalDistributionGate.ok
+                  ? weeklyGoalDistributionGate.reason ?? null
+                  : hasUnresolvedDayConflicts
+                    ? "Resolve day focus conflicts before generating."
+                    : null
+              }
             />
           </View>
         </AppScreenWrapper>
@@ -1424,8 +1461,6 @@ export default function ManualWeekScreen() {
                   : undefined
               }
               regenerateLabel={isSingleDayWeek ? "Regenerate workout" : "Regenerate this day"}
-              baseWorkoutTier={manualPreferences.workoutTier ?? "intermediate"}
-              baseIncludeCreativeVariations={manualPreferences.includeCreativeVariations === true}
               dayFocusPresets={selectedDayPresetOptions}
               selectedDayFocusPresetId={selectedDayFocusPresetId}
               sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}

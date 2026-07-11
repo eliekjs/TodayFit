@@ -125,19 +125,19 @@ const SCENARIOS: WeeklyScenario[] = [
   },
   {
     id: "MAX",
-    label: "Max UI: 3 goals + 3 sub-goals (1 per goal)",
+    label: "Max UI: 3 goals + 5 sub-goals (shared Goal↔Sport cap)",
     seed: 99001,
     manualPreferences: {
       ...BASE_MANUAL,
       primaryFocus: [
         "Build Muscle (Hypertrophy)",
         "Athletic Performance",
-        "Power & Explosiveness",
+        "Build Strength",
       ],
       subFocusByGoal: {
-        "Build Muscle (Hypertrophy)": ["Glutes"],
-        "Athletic Performance": ["Speed / Sprint"],
-        "Power & Explosiveness": ["Vertical jump"],
+        "Build Muscle (Hypertrophy)": ["Glutes", "Back"],
+        "Athletic Performance": ["Speed / Sprint", "Vertical jump"],
+        "Build Strength": ["Squat"],
       },
     },
   },

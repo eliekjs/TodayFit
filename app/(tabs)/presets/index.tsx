@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,10 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useTheme } from "../../../lib/theme";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
+import {
+  SessionFlowConflictModal,
+  type SessionFlowConflict,
+} from "../../../components/SessionFlowConflictModal";
 import { navigateToSessionFlow } from "../../../lib/sessionFlowNavigation";
 import { setupRouteForFlow } from "../../../lib/sessionFlowNav";
 import type { SportPreset, WorkoutPresetKind } from "../../../lib/sessionDraft";
@@ -92,6 +96,8 @@ export default function SavedPresetsScreen() {
     scope: Scope;
     issues: SportFormScopeIssue[];
   } | null>(null);
+  const [flowConflict, setFlowConflict] = useState<SessionFlowConflict | null>(null);
+  const pendingPresetApplyRef = useRef<(() => void) | null>(null);
 
   const goalSummaries = useMemo(() => preferencePresets.map(goalPresetSummary), [preferencePresets]);
   const sportSummaries = useMemo(() => sportPresets.map(sportPresetSummary), [sportPresets]);
@@ -144,7 +150,11 @@ export default function SavedPresetsScreen() {
       beginSessionFlow,
       replaceSessionFlow,
       activeSessionDraft,
-      applyPreset
+      applyPreset,
+      (conflict) => {
+        pendingPresetApplyRef.current = applyPreset;
+        setFlowConflict(conflict);
+      }
     );
     setBlockingIssues(null);
   };
@@ -178,6 +188,29 @@ export default function SavedPresetsScreen() {
   return (
     <AppScreenWrapper>
       <StatusBar style="dark" />
+      <SessionFlowConflictModal
+        conflict={flowConflict}
+        onCancel={() => {
+          setFlowConflict(null);
+          pendingPresetApplyRef.current = null;
+        }}
+        onContinue={() => {
+          if (!flowConflict) return;
+          const resume = flowConflict.resumeRoute;
+          setFlowConflict(null);
+          pendingPresetApplyRef.current = null;
+          router.push(resume as never);
+        }}
+        onStartNew={() => {
+          if (!flowConflict) return;
+          const { nextFlow, targetHref } = flowConflict;
+          setFlowConflict(null);
+          replaceSessionFlow(nextFlow);
+          pendingPresetApplyRef.current?.();
+          pendingPresetApplyRef.current = null;
+          router.push(targetHref as never);
+        }}
+      />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

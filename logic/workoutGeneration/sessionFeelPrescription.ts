@@ -33,14 +33,14 @@ export function adjustGoalRulesForSessionFeel(
     out.accessoryRepRange = { min: 6, max: 10 };
     out.accessoryRestRange = { min: 45, max: 75 };
     out.powerRepRange = out.powerRepRange ?? { min: 3, max: 5 };
-    out.powerRestRange = out.powerRestRange ?? { min: 120, max: 180 };
+    out.powerRestRange = out.powerRestRange ?? { min: 60, max: 90 };
     out.cueStyle.strength =
       out.cueStyle.strength ?? "Athletic intent. Explosive quality, full recovery between sets.";
   } else {
     out.accessoryRepRange = { min: 6, max: 12 };
     out.accessoryRestRange = { min: 45, max: 90 };
     out.powerRepRange = out.powerRepRange ?? { min: 3, max: 6 };
-    out.powerRestRange = out.powerRestRange ?? { min: 90, max: 150 };
+    out.powerRestRange = out.powerRestRange ?? { min: 60, max: 90 };
   }
 
   return out;

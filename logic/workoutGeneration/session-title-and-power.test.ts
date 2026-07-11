@@ -77,8 +77,9 @@ function testPowerPrescription() {
   const reps = firstItem.reps ?? 0;
   const rest = firstItem.rest_seconds ?? 0;
   assert(reps >= 2 && reps <= 6, "power reps in 2–6 range (power rep range)");
-  assert(rest >= 90, "power rest >= 90 s (power uses long rest)");
-  console.log("  OK: power goal → power block reps 2–6, rest ≥90 s");
+  assert(rest === 60 || rest === 90, "power rest is 60 or 90 s (individual-exercise buckets)");
+  assert(rest <= 90, "power rest ≤ 90 s");
+  console.log("  OK: power goal → power block reps 2–6, rest 60–90 s");
 }
 
 // --- Beginner: fewer sets and simpler cues ---

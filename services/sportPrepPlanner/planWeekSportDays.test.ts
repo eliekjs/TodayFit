@@ -164,11 +164,14 @@ describe("planWeek sport-designated days", () => {
     expect(firstOptions.sportSubFocusSlugsBySport).toEqual({
       rock_climbing: ["grip_endurance"],
     });
-    expect(firstOptions.sportWeightOverride).toBeCloseTo(0.72, 5);
+    expect(firstOptions.sportWeightOverride).toBe(1);
+    expect(firstOptions.goalSlugs).toEqual([]);
+    expect(firstOptions.exclusiveDayFocus).toBe(true);
 
     expect(secondIntent.focus).toEqual(["Recovery & Mobility"]);
-    expect(secondOptions.goalSlugs[0]).toBe("mobility");
-    expect(secondOptions.sportWeightOverride).toBeCloseTo(0.14, 5);
-    expect(secondOptions.goalWeightsOverride[0]).toBeCloseTo(0.62, 5);
+    expect(secondOptions.goalSlugs).toEqual(["mobility"]);
+    expect(secondOptions.sportWeightOverride).toBeUndefined();
+    expect(secondOptions.goalWeightsOverride[0]).toBeCloseTo(1, 5);
+    expect(secondOptions.exclusiveDayFocus).toBe(true);
   });
 });

@@ -183,7 +183,7 @@ function buildResolutions(opts: {
     if (!presetId) continue;
     add({
       id: `emphasize_goal_${goalLabel}`,
-      label: `Emphasize ${goalLabel} first`,
+      label: `Focus on ${goalLabel}`,
       focusPresetId: presetId,
       subFocusByGoalPatch: { [goalLabel]: subs.map((s) => s.displayName) },
     });

@@ -94,9 +94,9 @@ export function inferPhase4ConditioningIntents(
     (b.includes("clean") && !b.includes("curl"));
 
   // --- Olympic / barbell triple extension (strength or power) ---
+  // Do not also tag as lower_body_power_plyos — keeps Olympic intent distinct from plyo sessions.
   if (olympicName && !b.includes("curl")) {
     add("olympic_triple_extension");
-    add("lower_body_power_plyos");
   }
 
   // --- Sprint / acceleration ---

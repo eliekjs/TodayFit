@@ -70,7 +70,7 @@ describe("detectDaySessionFocusConflict", () => {
       presetOptions: [
         {
           id: "goal_emphasis_0",
-          label: "Strength Training for Joint Health first",
+          label: "Strength Training for Joint Health",
           subtitle: "Upper body",
         },
       ],
@@ -117,7 +117,7 @@ describe("detectDaySessionFocusConflict", () => {
       presetOptions: [
         {
           id: "goal_emphasis_0",
-          label: "Strength Training for Joint Health first",
+          label: "Strength Training for Joint Health",
           subtitle: "Upper body",
         },
       ],
@@ -147,12 +147,12 @@ describe("detectDaySessionFocusConflict", () => {
       presetOptions: [
         {
           id: "goal_emphasis_0",
-          label: "Strength Training for Joint Health first",
+          label: "Strength Training for Joint Health",
           subtitle: "Upper body",
         },
         {
           id: "goal_emphasis_1",
-          label: "Build Strength first",
+          label: "Build Strength",
           subtitle: "Upper body",
         },
       ],

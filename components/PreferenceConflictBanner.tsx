@@ -31,6 +31,11 @@ type Props = {
   currentPrefs?: ManualPreferences;
   onDismiss: (id: string) => void;
   onApplyResolution: (patch: Partial<ManualPreferences>) => void;
+  /**
+   * When true, hide the dismiss (✕) control — used for daily "focus & resolve" so
+   * body-region conflicts must be resolved or the user switches to spread.
+   */
+  requireResolution?: boolean;
 };
 
 const HIGH_COLOR = "#f59e0b";    // amber — high severity
@@ -42,6 +47,7 @@ export function PreferenceConflictBanner({
   currentPrefs,
   onDismiss,
   onApplyResolution,
+  requireResolution = false,
 }: Props) {
   const theme = useTheme();
 
@@ -71,18 +77,24 @@ export function PreferenceConflictBanner({
             <View style={styles.body}>
               <View style={styles.headerRow}>
                 <Text style={[styles.severityLabel, { color: accentColor }]}>
-                  {conflict.severity === "high" ? "Heads up" : "Note"}
+                  {requireResolution
+                    ? "Needs alignment"
+                    : conflict.severity === "high"
+                      ? "Heads up"
+                      : "Note"}
                 </Text>
-                <Pressable
-                  hitSlop={12}
-                  onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    onDismiss(conflict.id);
-                  }}
-                  style={styles.dismissBtn}
-                >
-                  <Text style={[styles.dismissText, { color: theme.textMuted }]}>✕</Text>
-                </Pressable>
+                {!requireResolution ? (
+                  <Pressable
+                    hitSlop={12}
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      onDismiss(conflict.id);
+                    }}
+                    style={styles.dismissBtn}
+                  >
+                    <Text style={[styles.dismissText, { color: theme.textMuted }]}>✕</Text>
+                  </Pressable>
+                ) : null}
               </View>
 
               <Text style={[styles.message, { color: theme.text }]}>

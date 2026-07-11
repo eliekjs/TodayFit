@@ -39,7 +39,7 @@ export function applyRecommendationToPrescription(
         ...base,
         sets,
         reps,
-        rest_seconds: Math.min(base.rest_seconds + 15, 180),
+        rest_seconds: Math.min(base.rest_seconds + 15, 90),
         coaching_cues: base.coaching_cues + " Prioritize form; reduce load if needed.",
       };
     }

@@ -10,13 +10,13 @@ export const PRESCRIPTION_STYLES: Record<PrescriptionStyleSlug, PrescriptionStyl
   heavy_strength: {
     slug: "heavy_strength",
     name: "Heavy strength",
-    // ACSM: 1–6 RM, 3–5 min rest for strength.
+    // App UX: individual-exercise rest ≤90s (bias 60s); denser than classic ACSM 3–5 min.
     rep_range_min: 3,
     rep_range_max: 6,
     set_range_min: 3,
     set_range_max: 5,
-    rest_seconds_min: 150,
-    rest_seconds_max: 300,
+    rest_seconds_min: 60,
+    rest_seconds_max: 90,
     intent_guidance: "High force intent; quality over speed",
     rpe_target: 8,
   },
@@ -40,8 +40,8 @@ export const PRESCRIPTION_STYLES: Record<PrescriptionStyleSlug, PrescriptionStyl
     rep_range_max: 5,
     set_range_min: 3,
     set_range_max: 6,
-    rest_seconds_min: 120,
-    rest_seconds_max: 300,
+    rest_seconds_min: 60,
+    rest_seconds_max: 90,
     intent_guidance: "Maximal speed intent; stop before fatigue",
     rpe_target: 8,
   },

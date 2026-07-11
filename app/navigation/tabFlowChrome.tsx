@@ -324,7 +324,13 @@ const restartModalStyles = StyleSheet.create({
 });
 
 /** Clears in-progress workout/week state and navigates to Today. */
-export function RestartFlowButton({ compact = false }: { compact?: boolean }) {
+export function RestartFlowButton({
+  compact = false,
+  label = "Discard",
+}: {
+  compact?: boolean;
+  label?: string;
+}) {
   const theme = useTheme();
   const restart = useRestartFlow();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -333,10 +339,13 @@ export function RestartFlowButton({ compact = false }: { compact?: boolean }) {
     <>
       <Pressable
         onPress={() => setConfirmOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Discard session"
+        hitSlop={8}
         style={{ paddingRight: compact ? 8 : 16, paddingLeft: compact ? 4 : 0 }}
       >
         <Text style={{ fontSize: compact ? 13 : 15, color: theme.primary, fontWeight: "600" }}>
-          Start fresh
+          {label}
         </Text>
       </Pressable>
       <RestartConfirmModal
@@ -378,7 +387,8 @@ export function DiscardSessionLink({ style }: { style?: object }) {
 
 export function FlowHeaderRight() {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, maxWidth: 220 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, maxWidth: 260, gap: 2 }}>
+      <RestartFlowButton compact />
       <HeaderGymProfileButton />
     </View>
   );

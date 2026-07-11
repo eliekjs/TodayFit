@@ -33,11 +33,14 @@ import { GenerationLoadingScreen } from "../../../components/GenerationLoadingSc
 import { backLabelForPhase, setupRouteForFlow } from "../../../lib/sessionFlowNav";
 import { sessionFlowFromSportScope } from "../../../lib/sessionDraft";
 import { useAppState } from "../../../context/AppStateContext";
-import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
-import type { BodyEmphasisKey } from "../../../lib/types";
+import type { BodyEmphasisKey, GoalDistributionStyle } from "../../../lib/types";
+import {
+  canProceedWithWeeklyGoalDistribution,
+  shouldShowWeeklyGoalDistributionNote,
+} from "../../../lib/sessionFocusDistribution";
 import { energyFromSportIntensity } from "../../../lib/energyLevelMapping";
 import { listSportsForPrep, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
@@ -327,6 +330,18 @@ export default function AdaptiveScheduleScreen() {
     [daySessionFocusConflicts, resolvedConflictIdsByDay]
   );
 
+  const weeklyPrimaryFocusCount = manualPreferences.primaryFocus.length;
+  const hasSportGoals =
+    (adaptiveSetup?.rankedGoals?.filter(Boolean).length ?? 0) > 0 || weeklyPrimaryFocusCount > 0;
+  const showWeeklyGoalDistribution = shouldShowWeeklyGoalDistributionNote(weeklyPrimaryFocusCount, {
+    hasSportGoals,
+  });
+  const weeklyGoalDistributionGate = canProceedWithWeeklyGoalDistribution(
+    manualPreferences.goalDistributionStyle,
+    weeklyPrimaryFocusCount,
+    { hasSportGoals }
+  );
+
   const clearDayConflictState = useCallback((dayIdx: number) => {
     setResolvedConflictIdsByDay((prev) => {
       if (prev[dayIdx] == null) return prev;
@@ -540,12 +555,9 @@ export default function AdaptiveScheduleScreen() {
         sportSubFocusSlugsBySport: Object.keys(adaptiveSetup.subFocusBySport).length > 0 ? adaptiveSetup.subFocusBySport : undefined,
         defaultSessionDuration: defaultDuration,
         energyBaseline,
-        injuries:
-          adaptiveSetup.injuryStatus === "No Concerns"
-            ? []
-            : adaptiveSetup.injuryTypes.map((label) =>
-                label.toLowerCase().replace(/\s/g, "_")
-              ),
+        injuries: adaptiveSetup.injuryTypes.map((label) =>
+          label.toLowerCase().replace(/\s/g, "_")
+        ),
         sportSessions: [],
         gymProfile: activeProfile,
         goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
@@ -554,11 +566,11 @@ export default function AdaptiveScheduleScreen() {
         emphasis: weeklyEmphasis ?? undefined,
         workoutTier: manualPreferences.workoutTier ?? "intermediate",
         includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
+        goalDistributionStyle: manualPreferences.goalDistributionStyle ?? undefined,
         adaptiveScheduleLabels: {
           intensityLevel: adaptiveSetup.intensityLevel,
           injuryStatus: adaptiveSetup.injuryStatus,
-          ...(adaptiveSetup.injuryStatus !== "No Concerns" &&
-          adaptiveSetup.injuryTypes.length > 0
+          ...(adaptiveSetup.injuryTypes.length > 0
             ? { injuryAreas: [...adaptiveSetup.injuryTypes] }
             : {}),
         },
@@ -666,7 +678,8 @@ export default function AdaptiveScheduleScreen() {
     const canGenerate =
       gymTrainingDays.length > 0 &&
       dayFocusChoiceIds.length === gymTrainingDays.length &&
-      !hasUnresolvedDayConflicts;
+      !hasUnresolvedDayConflicts &&
+      weeklyGoalDistributionGate.ok;
     return (
       <AppScreenWrapper>
         <StatusBar style="dark" />
@@ -686,6 +699,11 @@ export default function AdaptiveScheduleScreen() {
               conflictsPerDay={daySessionFocusConflicts}
               resolvedConflictIdsByDay={resolvedConflictIdsByDay}
               sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}
+              showGoalDistributionNote={showWeeklyGoalDistribution}
+              goalDistributionStyle={manualPreferences.goalDistributionStyle}
+              onChangeGoalDistributionStyle={(value: GoalDistributionStyle) =>
+                updateManualPreferences({ goalDistributionStyle: value })
+              }
               onSelectBody={(dayIdx, id) => {
                 clearDayConflictState(dayIdx);
                 setDayBodyFocusChoiceIds((prev) => {
@@ -724,6 +742,13 @@ export default function AdaptiveScheduleScreen() {
               disabled: isSubmitting || !canGenerate,
               loading: isSubmitting,
             }}
+            hint={
+              !weeklyGoalDistributionGate.ok
+                ? weeklyGoalDistributionGate.reason ?? null
+                : hasUnresolvedDayConflicts
+                  ? "Resolve day focus conflicts before generating."
+                  : null
+            }
           />
         </View>
       </AppScreenWrapper>
@@ -741,13 +766,6 @@ export default function AdaptiveScheduleScreen() {
         <Card
           title="Your schedule"
           subtitle="Pick gym days, optional sport days, and defaults—each section expands on tap."
-        />
-
-        <ExperienceLevelToggle
-          marginTop={16}
-          workoutTier={manualPreferences.workoutTier ?? "intermediate"}
-          includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
-          onChange={(patch) => updateManualPreferences(patch)}
         />
 
         {error ? (

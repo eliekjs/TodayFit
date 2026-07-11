@@ -254,7 +254,8 @@ function buildEnrichmentMap(): Record<string, ExerciseMetadataPatch> {
   mergeTags(out, HILLS_IDS, ["hills"]);
   mergeTags(out, LOWER_POWER_PLYO_IDS, ["lower_body_power_plyos", "intervals_hiit"]);
   mergeTags(out, VERTICAL_JUMP_IDS, ["vertical_jump", "lower_body_power_plyos"]);
-  mergeTags(out, OLYMPIC_TRIPLE_EXTENSION_IDS, ["olympic_triple_extension", "lower_body_power_plyos"]);
+  // Keep olympic distinct from plyos so dual sub-focus sessions can cover both intents.
+  mergeTags(out, OLYMPIC_TRIPLE_EXTENSION_IDS, ["olympic_triple_extension"]);
   mergeTags(out, HIIT_POWER_IDS, ["intervals_hiit"]);
   mergeTags(out, THRESHOLD_IDS, ["threshold_tempo"]);
   mergeTags(out, UPPER_BODY_POWER_IDS, ["upper_body_power"]);

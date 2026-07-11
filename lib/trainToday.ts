@@ -76,7 +76,7 @@ export function buildTrainTodayGenerationParams(
       energyLevel: energyFromSportIntensity(sportForm.intensityLevel),
       targetBody: bodyTargetFromBias(sportForm.oneDayBodyBias) ?? manualPreferences.targetBody,
       injuries:
-        sportForm.injuryStatus !== "No Concerns" && sportForm.injuryTypes.length > 0
+        sportForm.injuryTypes.length > 0
           ? sportForm.injuryTypes
           : manualPreferences.injuries,
     };

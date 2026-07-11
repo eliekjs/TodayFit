@@ -122,11 +122,27 @@ describe("validateSportFormForScope", () => {
       {
         rankedSportSlugs: ["basketball", "soccer"],
         rankedGoals: [null, null, null],
-        subFocusBySport: { basketball: ["a", "b", "c"], soccer: ["d", "e"] },
+        // Shared Goal↔Sport ceiling is 5; six exceeds it.
+        subFocusBySport: {
+          basketball: ["a", "b", "c"],
+          soccer: ["d", "e", "f"],
+        },
       },
       "day"
     );
     expect(issues.some((i) => i.id === "combination")).toBe(false);
     expect(issues.some((i) => i.id === "sub_goal_cap")).toBe(true);
+  });
+
+  it("allows up to the shared sub-goal ceiling on one day", () => {
+    const issues = validateSportFormForScope(
+      {
+        rankedSportSlugs: ["basketball", "soccer"],
+        rankedGoals: [null, null, null],
+        subFocusBySport: { basketball: ["a", "b", "c"], soccer: ["d", "e"] },
+      },
+      "day"
+    );
+    expect(issues.some((i) => i.id === "sub_goal_cap")).toBe(false);
   });
 });

@@ -28,7 +28,7 @@ TodayFit is a **training decision engine**: reduce cognitive load while aligning
 |------|-------------|------------------------|------------------|
 | **Entry** | Two top-level intents | **Two gym flows** on Today hub: Goal-Oriented Training, Sport-Focused Training | `app/(tabs)/index.tsx` |
 | **Scopes** | Daily focus | **One day** + **This week** per flow | `SessionFlow`: `goal_day`, `goal_week`, `sport_day`, `sport_week` |
-| **Goals** | Primary + secondary + sub-goals | Up to **3 ranked goals**, sub-goals per goal (cap 3 total sub-goals) | `ManualPreferences`, `PRIMARY_FOCUS_OPTIONS` |
+| **Goals** | Primary + secondary + sub-goals | Up to **3 ranked goals**, sub-goals per goal (cap 5 total sub-goals; shared with Sport Mode) | `ManualPreferences`, `PRIMARY_FOCUS_OPTIONS`, `lib/selectionCaps.ts` |
 | **Sport prep** | Sport-specific training | **Sport-Focused Training** with sport slugs, sub-focuses, optional additional goals, sport vs goal blend | `app/(tabs)/sport-mode/`, `data/sportSubFocus/` |
 | **Equipment** | Multiple equipment profiles | **Gym profiles** (6 space types), active profile drives generation | `data/gymProfiles.ts`, Profiles tab |
 | **Constraints** | Injuries, duration, energy | Joint injury chips, duration 20–75, energy Low/Medium/High, body focus Upper/Lower/Full + modifiers | `lib/preferencesConstants.ts` |

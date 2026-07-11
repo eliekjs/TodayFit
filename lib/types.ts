@@ -66,6 +66,12 @@ export type DailyWorkoutPreferences = {
 /** How to distribute primary/secondary goals across the week. */
 export type GoalDistributionStyle = "dedicate_days" | "blend";
 
+/**
+ * Daily session: when focus areas span multiple body regions (or conflict with body emphasis),
+ * either spread all picks into one mixed workout or resolve toward a focused session.
+ */
+export type SessionFocusDistributionStyle = "spread" | "resolve";
+
 /** How to assign body emphasis (upper/lower/full) across the week. */
 export type WeeklyBodyEmphasisStyle = "auto_alternate" | "manual";
 
@@ -99,7 +105,7 @@ export type ManualPreferences = {
   upcoming: string[];
   /**
    * Sub-goals per goal: key = goal label, value = ordered sub-goal labels (order = rank).
-   * UI caps total selections at 3 across all goals.
+   * UI caps total selections at MAX_TOTAL_SUB_GOALS (shared with Sport Mode; see lib/selectionCaps.ts).
    */
   subFocusByGoal: Record<string, string[]>;
   /**
@@ -108,9 +114,9 @@ export type ManualPreferences = {
    */
   subFocusPctByGoal?: Record<string, Record<string, number>>;
   /**
-   * When generating a single day inside a week, `primaryFocus` may be narrowed to that day’s goal while
-   * sub-goals should still reflect the user’s full ranked goals (so e.g. Calisthenics + Handstand still
-   * bias an upper day dedicated to another primary). Optional; when unset, `primaryFocus` drives sub-focus merge.
+   * When generating a blended week day, keep sub-goals from the full ranked list even if
+   * `primaryFocus` is the day’s title labels. Exclusive day picks omit this so earlier goals
+   * do not bleed into that session.
    */
   weekSubFocusPrimaryLabels?: string[];
   workoutStyle: string[];
@@ -122,6 +128,11 @@ export type ManualPreferences = {
   goalMatchTertiaryPct?: number;
   /** Weekly programming: dedicate entire days to specific goals vs blend in each workout. */
   goalDistributionStyle?: GoalDistributionStyle;
+  /**
+   * Daily programming when focus areas conflict across body regions:
+   * spread all goals/body parts into the session vs resolve conflicts for a focused workout.
+   */
+  sessionFocusDistribution?: SessionFocusDistributionStyle;
   /** Weekly programming: auto upper/lower/full structure vs manual (future). */
   weeklyBodyEmphasisStyle?: WeeklyBodyEmphasisStyle;
   /** Weekly programming: auto-apply specific body-part focus to relevant days vs manual (future). */

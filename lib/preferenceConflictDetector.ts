@@ -386,6 +386,46 @@ function detectOpposingGoalsConflict(prefs: ManualPreferences): PreferenceConfli
   return null;
 }
 
+/**
+ * Sub-goals span both upper and lower body regions (even when session body is Full).
+ * Surfaces the daily spread-vs-resolve choice; resolutions align toward one region.
+ */
+function detectMultiRegionSubGoalsConflict(prefs: ManualPreferences): PreferenceConflict | null {
+  const selectedSlugs = resolveSelectedSubFocusSlugs(prefs);
+  if (selectedSlugs.size === 0) return null;
+  const { upper: upperSlugs, lower: lowerSlugs } = partitionRegionalSubFocusSlugs(selectedSlugs);
+  if (upperSlugs.size === 0 || lowerSlugs.size === 0) return null;
+
+  // Body vs sub-goal detectors already cover Upper/Lower mismatch; this covers Full / unset.
+  if (prefs.targetBody === "Upper" || prefs.targetBody === "Lower") return null;
+
+  const upperNames = conflictingSubFocusDisplayNames(prefs, upperSlugs);
+  const lowerNames = conflictingSubFocusDisplayNames(prefs, lowerSlugs);
+  return {
+    id: "multi_region_subgoals",
+    severity: "high",
+    message: `Your sub-goals cover both upper (${upperNames || "upper"}) and lower (${lowerNames || "lower"}) body. You can spread them across this session or focus on one region.`,
+    resolutions: [
+      {
+        label: "Focus upper (clear lower)",
+        apply: (p) => ({
+          targetBody: "Upper" as TargetBody,
+          targetModifier: [],
+          ...removeConflictingSubFocuses(p, lowerSlugs),
+        }),
+      },
+      {
+        label: "Focus lower (clear upper)",
+        apply: (p) => ({
+          targetBody: "Lower" as TargetBody,
+          targetModifier: [],
+          ...removeConflictingSubFocuses(p, upperSlugs),
+        }),
+      },
+    ],
+  };
+}
+
 function detectCalisthenicsNoBodyweightConflict(
   prefs: ManualPreferences,
   gymEquipmentKeys?: string[]
@@ -429,6 +469,7 @@ export function detectPreferenceConflicts(
 
   const conflicts: (PreferenceConflict | null)[] = [
     detectBodyRegionVsSubGoalConflict(prefs, targetBody),
+    detectMultiRegionSubGoalsConflict(prefs),
     detectSportVsBodyRegionConflict(context?.sportSlugs ?? [], targetBody),
     detectRecoveryHighEnergyConflict(prefs),
     detectOpposingGoalsConflict(prefs),

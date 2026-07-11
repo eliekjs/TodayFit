@@ -268,15 +268,23 @@ const DURABILITY_IDS: readonly string[] = [
   "glute_bridge",
 ];
 
-/** Olympic / triple extension — intermediate-accessible KB/DB derivatives (NSCA Essentials). */
+/**
+ * Olympic / triple extension — intermediate-accessible derivatives (NSCA Essentials).
+ * Real cleans/jerks only (no plyo/slam false positives that starve true Olympic intent).
+ */
 const OLYMPIC_TRIPLE_EXTENSION_GOAL_IDS: readonly string[] = [
   "kettlebell_dead_clean",
   "dumbbell_hang_clean",
   "kettlebell_high_pull",
-  "kb_swing",
-  "jump_squat",
-  "box_jump",
-  "med_ball_slam",
+  "power_clean",
+  "ff_barbell_power_clean",
+  "ff_barbell_hang_power_clean",
+  "ff_double_dumbbell_hang_power_clean",
+  "ff_double_kettlebell_clean",
+  "ff_single_arm_kettlebell_clean",
+  "ff_kettlebell_dead_clean",
+  "ff_double_kettlebell_push_jerk",
+  "ff_single_arm_kettlebell_push_jerk",
 ];
 
 const UPPER_BODY_POWER_GOAL_IDS: readonly string[] = [
@@ -385,6 +393,15 @@ export const GOAL_COVERAGE_ELIGIBLE_CORE_IDS: readonly string[] = [
   "dumbbell_hang_clean",
   "kettlebell_high_pull",
   "dumbbell_push_press",
+  "power_clean",
+  "ff_barbell_power_clean",
+  "ff_barbell_hang_power_clean",
+  "ff_double_dumbbell_hang_power_clean",
+  "ff_double_kettlebell_clean",
+  "ff_single_arm_kettlebell_clean",
+  "ff_kettlebell_dead_clean",
+  "ff_double_kettlebell_push_jerk",
+  "ff_single_arm_kettlebell_push_jerk",
   "ff_ring_front_lever_pull_to_inverted_hang",
   "ff_bar_tuck_front_lever",
   "ff_bar_advanced_tuck_front_lever",

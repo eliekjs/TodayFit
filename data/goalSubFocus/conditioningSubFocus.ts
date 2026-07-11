@@ -167,6 +167,20 @@ export function exerciseHasSubFocusSlug(exercise: ExerciseForSubFocus, slug: str
     );
   }
 
+  // Olympic / triple extension: direct slug, or clean/snatch/jerk/high-pull name evidence.
+  if (norm === "olympic_triple_extension") {
+    if (attrs.includes("olympic_triple_extension")) return true;
+    const blob = exerciseBlob(exercise);
+    if (blob.includes("curl") || blob.includes("hammer_curl")) return false;
+    return (
+      /\b(power_clean|hang_clean|squat_clean|muscle_clean|power_snatch|hang_snatch|split_jerk|push_jerk|high_pull)\b/.test(
+        blob
+      ) ||
+      ((blob.includes("clean") || blob.includes("snatch") || blob.includes("jerk")) &&
+        !blob.includes("curl"))
+    );
+  }
+
   // Conditioning / Endurance overlay slugs: used both as selection filters (filterPoolByOverlay)
   // and for session-intent annotation. Match using the same shape signals as filterPoolByOverlay
   // so coverage counts reflect exercises that will actually be selected.

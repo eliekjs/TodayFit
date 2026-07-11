@@ -74,24 +74,21 @@ export function resolveReps(ctx: ResolverContext): number | string {
 
 /**
  * Resolve rest in seconds within style range.
- * High fatigue / strength → toward max. Density / short session → toward min.
- * Wide range (typically heavy strength 2.5–5 min): bias upward so prescribed rest
- * lands in the evidence band more often (ACSM 3–5 min for heavy compound work).
+ * Product: bias toward shorter rest (≈60s) for individual exercises; cap is typically 90s.
+ * High fatigue / longer sessions can still nudge toward the upper band.
  */
 export function resolveRest(ctx: ResolverContext): number | undefined {
   const { style, fatigueCost, durationTier } = ctx;
   const min = style.rest_seconds_min ?? 60;
-  const max = style.rest_seconds_max ?? 90;
-  if (min >= max) return min;
+  const max = Math.min(style.rest_seconds_max ?? 90, 90);
+  if (min >= max) return Math.min(min, 90);
 
   const restSpan = max - min;
-  let bias = 0.5;
-  // Strength-style prescriptions use a wide rest window; prefer the upper half unless
-  // context explicitly pulls toward density (handled below).
-  if (restSpan >= 120) bias += 0.12;
-  if (fatigueCost === "high") bias += 0.3;
-  else if (fatigueCost === "low") bias -= 0.2;
-  if (durationTier <= 30) bias -= 0.3;
+  // Below midpoint by default so 60–90 bands land nearer 60.
+  let bias = 0.35;
+  if (fatigueCost === "high") bias += 0.25;
+  else if (fatigueCost === "low") bias -= 0.15;
+  if (durationTier <= 30) bias -= 0.2;
   else if (durationTier >= 60) bias += 0.1;
 
   bias = Math.max(0, Math.min(1, bias));

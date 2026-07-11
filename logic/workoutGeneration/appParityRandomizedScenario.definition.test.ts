@@ -1,7 +1,7 @@
 /**
  * Guardrails for daily app-parity randomized scenarios:
- * - max 2 goals
- * - max 3 total sub-goals
+ * - max 2 goals (daily density; UI allows up to MAX_RANKED_GOALS)
+ * - max MAX_TOTAL_SUB_GOALS total sub-goals (shared Goal↔Sport UI cap)
  * - explicit one-day body focus present in resolved generator input
  * - equipment is always present in resolved generator input
  *
@@ -11,6 +11,7 @@
 
 import assert from "node:assert/strict";
 import { manualPreferencesToGenerateWorkoutInput } from "../../lib/dailyGeneratorAdapter";
+import { MAX_TOTAL_SUB_GOALS } from "../../lib/selectionCaps";
 import { buildRandomAppParityScenario } from "./appParityRandomizedScenario.definition";
 
 function run() {
@@ -37,7 +38,10 @@ function run() {
       (n, list) => n + (list?.length ?? 0),
       0
     );
-    assert.ok(totalSubGoals <= 3, `seed ${seed}: expected <=3 total sub-goals, got ${totalSubGoals}`);
+    assert.ok(
+      totalSubGoals <= MAX_TOTAL_SUB_GOALS,
+      `seed ${seed}: expected <=${MAX_TOTAL_SUB_GOALS} total sub-goals, got ${totalSubGoals}`
+    );
 
     const input = manualPreferencesToGenerateWorkoutInput(
       scenario.manualPreferences,
@@ -64,8 +68,8 @@ function run() {
       0
     );
     assert.ok(
-      totalResolvedSubGoals <= 3,
-      `seed ${seed}: expected <=3 resolved sub-goals, got ${totalResolvedSubGoals}`
+      totalResolvedSubGoals <= MAX_TOTAL_SUB_GOALS,
+      `seed ${seed}: expected <=${MAX_TOTAL_SUB_GOALS} resolved sub-goals, got ${totalResolvedSubGoals}`
     );
     assert.ok(
       (input.available_equipment?.length ?? 0) > 0,

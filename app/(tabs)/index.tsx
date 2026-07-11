@@ -16,6 +16,10 @@ import { useTheme } from "../../lib/theme";
 import { useWelcome } from "../../context/WelcomeContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
+import {
+  SessionFlowConflictModal,
+  type SessionFlowConflict,
+} from "../../components/SessionFlowConflictModal";
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
@@ -124,6 +128,7 @@ export default function HomeScreen() {
     savedSportForm,
   } = useAppState();
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
+  const [flowConflict, setFlowConflict] = useState<SessionFlowConflict | null>(null);
   const trainTodayCancelledRef = useRef(false);
   const savedPresetCount = preferencePresets.length + sportPresets.length;
 
@@ -149,7 +154,9 @@ export default function HomeScreen() {
       href,
       beginSessionFlow,
       replaceSessionFlow,
-      activeSessionDraft
+      activeSessionDraft,
+      undefined,
+      setFlowConflict
     );
   };
 
@@ -259,6 +266,23 @@ export default function HomeScreen() {
   return (
     <AppScreenWrapper>
       <StatusBar style="dark" />
+      <SessionFlowConflictModal
+        conflict={flowConflict}
+        onCancel={() => setFlowConflict(null)}
+        onContinue={() => {
+          if (!flowConflict) return;
+          const resume = flowConflict.resumeRoute;
+          setFlowConflict(null);
+          router.push(resume as never);
+        }}
+        onStartNew={() => {
+          if (!flowConflict) return;
+          const { nextFlow, targetHref } = flowConflict;
+          setFlowConflict(null);
+          replaceSessionFlow(nextFlow);
+          router.push(targetHref as never);
+        }}
+      />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -312,7 +336,7 @@ export default function HomeScreen() {
         <ActionCard
           icon="sparkles-outline"
           title="Sport-Focused Training"
-          subtitle="Train for your sport(s) to prevent injuries and improve performance."
+          subtitle="Gym work that complements your sport."
           oneDayFlow="sport_day"
           weekFlow="sport_week"
           oneDayHref="/sport-mode?scope=day"

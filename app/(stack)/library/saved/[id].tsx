@@ -7,14 +7,14 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useAppState } from "../../../context/AppStateContext";
-import { useTheme } from "../../../lib/theme";
-import { Card } from "../../../components/Card";
-import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
-import { PrimaryButton } from "../../../components/Button";
-import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
-import { WorkoutSessionLog } from "../../../components/WorkoutSessionLog";
-import { normalizeGeneratedWorkout } from "../../../lib/types";
+import { useAppState } from "../../../../context/AppStateContext";
+import { useTheme } from "../../../../lib/theme";
+import { Card } from "../../../../components/Card";
+import { AppScreenWrapper } from "../../../../components/AppScreenWrapper";
+import { PrimaryButton } from "../../../../components/Button";
+import { WorkoutBlockList } from "../../../../components/WorkoutBlockList";
+import { WorkoutSessionLog } from "../../../../components/WorkoutSessionLog";
+import { normalizeGeneratedWorkout } from "../../../../lib/types";
 
 export default function ViewSavedWorkoutScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

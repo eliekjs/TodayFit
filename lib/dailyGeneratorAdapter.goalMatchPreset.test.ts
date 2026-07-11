@@ -40,18 +40,19 @@ describe("dailyGeneratorAdapter goal-match preset contract", () => {
     expect(input.session_intent?.goal_weights?.[0]).toBeCloseTo(0.6, 5);
   });
 
-  it("overrides with emphasis weights when goal_emphasis preset is resolved", () => {
+  it("overrides with exclusive weights when goal_emphasis preset is resolved", () => {
     const resolved = resolveDayFocusPreset("goal_emphasis_0", BASE_PREFS, null);
     const input = manualPreferencesToGenerateWorkoutInput(
-      BASE_PREFS,
+      { ...BASE_PREFS, primaryFocus: resolved.primaryFocus },
       GYM,
       undefined,
       undefined,
       resolved.sportGoalContext
     );
-    expect(input.goal_weights?.[0]).toBeCloseTo(0.62, 5);
-    expect(input.goal_weights?.[1]).toBeCloseTo(0.26, 5);
-    expect(input.goal_weights?.[2]).toBeCloseTo(0.12, 5);
+    expect(resolved.primaryFocus).toEqual(["Build Strength"]);
+    expect(input.goal_weights?.[0]).toBeCloseTo(1, 5);
+    expect(input.goal_weights?.[1]).toBeCloseTo(0, 5);
+    expect(input.goal_weights?.[2]).toBeCloseTo(0, 5);
   });
 
   it("uses global goal-match for balanced_goals preset", () => {

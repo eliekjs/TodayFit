@@ -20,7 +20,7 @@ describe("sportDesignatedDay", () => {
     expect(day.sportSlug).toBe("road_running");
     expect(day.generatedWorkoutId).toBeNull();
     expect(day.intentLabel).toBe(`${SPORT_DAY_INTENT_PREFIX}road_running`);
-    expect(day.title).toBe("Road Running — Sport day");
+    expect(day.title).toBe("Road Running");
   });
 
   it("getSportsOnCalendarDay returns ranked sports on that weekday", () => {
@@ -42,7 +42,17 @@ describe("sportDesignatedDay", () => {
     });
     expect(isSportDesignatedPlannedDay(day)).toBe(true);
     expect(sportSlugFromPlannedDay(day)).toBe("rock_climbing");
-    expect(sportDesignatedDayDisplayTitle(day)).toBe("Rock Climbing — Sport day");
+    expect(sportDesignatedDayDisplayTitle(day)).toBe("Rock Climbing");
+  });
+
+  it("sportDesignatedDayDisplayTitle strips legacy Sport day suffix", () => {
+    expect(
+      sportDesignatedDayDisplayTitle({
+        title: "Basketball — Sport day",
+        sportSlug: "basketball",
+        intentLabel: `${SPORT_DAY_INTENT_PREFIX}basketball`,
+      })
+    ).toBe("Basketball");
   });
 
   it("isSportDesignatedPlannedDay accepts sessionKind without prefix", () => {

@@ -165,11 +165,16 @@ function sportSharesAmongRankedSports(
 function applyBodyEmphasisToMergedGoalSubFocus(
   goalSubFocus: Record<string, string[]>,
   goalSubFocusWeights: Record<string, number[]>,
-  focusBodyParts: FocusBodyPart[]
+  focusBodyParts: FocusBodyPart[],
+  sessionFocusDistribution?: ManualPreferences["sessionFocusDistribution"]
 ): {
   goal_sub_focus: Record<string, string[]>;
   goal_sub_focus_weights: Record<string, number[]>;
 } {
+  // Spread mode: keep all selected sub-focuses even when they conflict with body emphasis.
+  if (sessionFocusDistribution === "spread") {
+    return { goal_sub_focus: goalSubFocus, goal_sub_focus_weights: goalSubFocusWeights };
+  }
   const outFocus = { ...goalSubFocus };
   const outWeights = { ...goalSubFocusWeights };
   for (const goalKey of ["power", "athletic_performance", "conditioning"] as const) {
@@ -447,8 +452,16 @@ export function manualPreferencesToGenerateWorkoutInput(
   const bodyPartFromSubFocus = deriveBodyPartFocusFromSubFocus(subFocus);
   const bodyPartFocus =
     bodyPartFromTarget.length > 0 ? bodyPartFromTarget : bodyPartFromSubFocus;
-  const focus_body_parts = bodyPartFocusToGeneratorFocus(bodyPartFocus);
-  const normalizedFocusBodyParts: FocusBodyPart[] = focus_body_parts.length > 0 ? focus_body_parts : ["full_body"];
+  const focus_body_parts_raw = bodyPartFocusToGeneratorFocus(bodyPartFocus);
+  // Spread mode: allow all body regions in the session so conflicting sub-goals/goals can appear.
+  const focus_body_parts =
+    preferences.sessionFocusDistribution === "spread" &&
+    focus_body_parts_raw.length > 0 &&
+    !focus_body_parts_raw.includes("full_body")
+      ? (["full_body"] as FocusBodyPart[])
+      : focus_body_parts_raw;
+  const normalizedFocusBodyParts: FocusBodyPart[] =
+    focus_body_parts.length > 0 ? focus_body_parts : ["full_body"];
 
   const injuryFilter =
     preferences.injuries.includes("No restrictions") || preferences.injuries.length === 0
@@ -510,7 +523,8 @@ export function manualPreferencesToGenerateWorkoutInput(
   ({ goal_sub_focus, goal_sub_focus_weights } = applyBodyEmphasisToMergedGoalSubFocus(
     goal_sub_focus,
     goal_sub_focus_weights,
-    normalizedFocusBodyParts
+    normalizedFocusBodyParts,
+    preferences.sessionFocusDistribution
   ));
 
   // Goal weights from match percentages (normalize to sum 1)

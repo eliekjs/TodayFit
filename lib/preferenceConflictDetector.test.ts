@@ -323,6 +323,52 @@ describe("neutral prefs → no conflicts", () => {
       expect(conflicts[0]!.severity).toBe("high");
     }
   });
+
+  it("flags multi_region_subgoals when Full body spans upper and lower subs", () => {
+    const prefs = basePrefs({
+      targetBody: "Full",
+      primaryFocus: ["Build Muscle (Hypertrophy)"],
+      subFocusByGoal: { "Build Muscle (Hypertrophy)": ["Back", "Glutes"] },
+    });
+    const conflicts = detectPreferenceConflicts(prefs);
+    expect(conflicts.map((c) => c.id)).toContain("multi_region_subgoals");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Daily / weekly focus distribution gates
+// ---------------------------------------------------------------------------
+
+describe("session focus distribution gates", () => {
+  it("requires daily spread-vs-resolve when body conflicts exist", async () => {
+    const {
+      canProceedWithDailyFocusDistribution,
+      shouldShowDailyFocusDistributionNote,
+    } = await import("./sessionFocusDistribution");
+    const prefs = basePrefs({
+      targetBody: "Upper",
+      primaryFocus: ["Build Muscle (Hypertrophy)"],
+      subFocusByGoal: { "Build Muscle (Hypertrophy)": ["Glutes"] },
+    });
+    expect(shouldShowDailyFocusDistributionNote(prefs)).toBe(true);
+    expect(canProceedWithDailyFocusDistribution(prefs).ok).toBe(false);
+    expect(
+      canProceedWithDailyFocusDistribution({
+        ...prefs,
+        sessionFocusDistribution: "spread",
+      }).ok
+    ).toBe(true);
+  });
+
+  it("requires weekly blend-vs-dedicate when goals exist", async () => {
+    const {
+      canProceedWithWeeklyGoalDistribution,
+      shouldShowWeeklyGoalDistributionNote,
+    } = await import("./sessionFocusDistribution");
+    expect(shouldShowWeeklyGoalDistributionNote()).toBe(true);
+    expect(canProceedWithWeeklyGoalDistribution(undefined).ok).toBe(false);
+    expect(canProceedWithWeeklyGoalDistribution("blend").ok).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ import {
   sportGoalPrioritySectionNote,
   goalEmphasisPresetSubtitle,
   presetUsesEmphasisGoalWeights,
+  presetUsesExclusiveDayFocus,
   EMPHASIS_GOAL_WEIGHTS_PCT,
 } from "./weekDaySessionFocus";
 import type { ManualPreferences } from "./types";
@@ -65,7 +66,7 @@ describe("weekDaySessionFocus", () => {
     expect(presets.some((p) => p.id === "balanced_split")).toBe(true);
   });
 
-  it("resolve sport_emphasis selects only that sport and sets high sport_weight", () => {
+  it("resolve sport_emphasis selects only that sport exclusively", () => {
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique"],
       rankedSportSlugs: ["surfing", "rock_climbing"],
@@ -77,13 +78,18 @@ describe("weekDaySessionFocus", () => {
       injuryTypes: [],
     };
     const r = resolveDayFocusPreset("sport_emphasis_1", basePrefs, adaptive);
-    expect(r.sportGoalContext?.sport_weight).toBeCloseTo(0.72, 5);
+    expect(r.sportGoalContext?.sport_weight).toBe(1);
     expect(r.sportGoalContext?.sport_slugs).toEqual(["rock_climbing"]);
     expect(r.sportGoalContext?.sport_sub_focus).toEqual({ rock_climbing: ["grip_endurance"] });
+    expect(r.sportGoalContext?.goal_weights).toBeUndefined();
     expect(r.primaryFocus).toEqual(["Climbing performance"]);
+    const params = resolvedDayFocusToWorkoutParams(r, ["muscle"], [50, 30, 20]);
+    expect(params.exclusive).toBe(true);
+    expect(params.orderedGoalSlugs).toEqual([]);
+    expect(params.goalWeightsPct).toEqual([0, 0, 0]);
   });
 
-  it("resolve goal_emphasis with sports makes that goal the day focus", () => {
+  it("resolve goal_emphasis with sports makes that goal exclusive (no sport blend)", () => {
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique", "strength"],
       rankedSportSlugs: ["surfing", "rock_climbing"],
@@ -99,14 +105,15 @@ describe("weekDaySessionFocus", () => {
       50, 30, 20,
     ]);
     expect(r.primaryFocus).toEqual(["Build Strength"]);
-    expect(params.orderedGoalSlugs[0]).toBe("strength");
-    expect(params.sportWeightOverride).toBeCloseTo(0.14, 5);
-    expect(params.goalWeightsPct[0]).toBeGreaterThan(params.goalWeightsPct[1] ?? 0);
+    expect(params.exclusive).toBe(true);
+    expect(params.orderedGoalSlugs).toEqual(["strength"]);
+    expect(params.sportWeightOverride).toBeUndefined();
+    expect(params.goalWeightsPct).toEqual([100, 0, 0]);
   });
 
-  it("resolve goal_emphasis_1 reorders primary focus", () => {
+  it("resolve goal_emphasis_1 uses only that goal", () => {
     const r = resolveDayFocusPreset("goal_emphasis_1", basePrefs, null);
-    expect(r.primaryFocus[0]).toBe("Build Strength");
+    expect(r.primaryFocus).toEqual(["Build Strength"]);
   });
 
   it("reorderPrimaryFocusForEmphasis rotates by index", () => {
@@ -120,13 +127,14 @@ describe("weekDaySessionFocus", () => {
     expect(labels[1]).toBe("Build Muscle (Hypertrophy)");
   });
 
-  it("resolvedDayFocusToWorkoutParams reorders goal slugs for goal_emphasis_1", () => {
+  it("resolvedDayFocusToWorkoutParams keeps only the exclusive goal slug", () => {
     const resolved = resolveDayFocusPreset("goal_emphasis_1", basePrefs, null);
     const params = resolvedDayFocusToWorkoutParams(resolved, ["muscle", "strength", "mobility"], [
       50, 30, 20,
     ]);
-    expect(params.orderedGoalSlugs[0]).toBe("strength");
-    expect(params.goalWeightsPct[0]).toBeGreaterThan(params.goalWeightsPct[1] ?? 0);
+    expect(params.orderedGoalSlugs).toEqual(["strength"]);
+    expect(params.exclusive).toBe(true);
+    expect(params.goalWeightsPct).toEqual([100, 0, 0]);
   });
 
   it("adaptiveSetupFromPlanContext builds setup from plan fields", () => {
@@ -182,7 +190,8 @@ describe("weekDaySessionFocus", () => {
       expect(p.subtitle).not.toMatch(/^Full body — /);
     }
     expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe(goalEmphasisPresetSubtitle());
-    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("Goals fill the rest.");
+    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("");
+    expect(presets.find((p) => p.id === "sport_emphasis_0")?.label).toBe("Surfing");
   });
 
   it("buildBodyFocusSummary fallback shows Core when specificBodyFocus includes core", () => {
@@ -203,7 +212,7 @@ describe("weekDaySessionFocus", () => {
     ).toBe("this day mainly supports Climbing; goals fill the rest.");
   });
 
-  it("sport and goal emphasis presets omit body line; balanced options keep descriptive subtitles", () => {
+  it("sport and goal emphasis presets are exclusive labels; balanced options keep descriptive subtitles", () => {
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique", "strength"],
       rankedSportSlugs: ["surfing", "rock_climbing"],
@@ -220,14 +229,15 @@ describe("weekDaySessionFocus", () => {
       targetBody: "Upper",
       targetModifier: [],
     });
-    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("Goals fill the rest.");
+    expect(presets.find((p) => p.id === "sport_emphasis_0")?.subtitle).toBe("");
     expect(presets.find((p) => p.id === "goal_emphasis_0")?.subtitle).toBe(goalEmphasisPresetSubtitle());
     expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/55% sport/);
     expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/50\/30\/20/);
   });
 
-  it("sportGoalPrioritySectionNote explains emphasis override vs balanced presets", () => {
-    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("62/26/12");
+  it("sportGoalPrioritySectionNote explains exclusive day override vs balanced presets", () => {
+    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("exclusive");
+    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("earlier pages");
     expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("global goal match");
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique", "strength"],
@@ -239,7 +249,7 @@ describe("weekDaySessionFocus", () => {
       injuryStatus: "ok",
       injuryTypes: [],
     };
-    expect(sportGoalPrioritySectionNote(basePrefs, adaptive)).toContain("62/26/12");
+    expect(sportGoalPrioritySectionNote(basePrefs, adaptive)).toContain("exclusive");
   });
 
   it("presetUsesEmphasisGoalWeights identifies goal emphasis presets", () => {
@@ -249,27 +259,39 @@ describe("weekDaySessionFocus", () => {
     expect(presetUsesEmphasisGoalWeights("balanced_split")).toBe(false);
   });
 
+  it("presetUsesExclusiveDayFocus covers sport and goal day picks", () => {
+    expect(presetUsesExclusiveDayFocus("goal_emphasis_0")).toBe(true);
+    expect(presetUsesExclusiveDayFocus("sport_emphasis_0")).toBe(true);
+    expect(presetUsesExclusiveDayFocus("single_goal")).toBe(true);
+    expect(presetUsesExclusiveDayFocus("balanced_goals")).toBe(false);
+    expect(presetUsesExclusiveDayFocus("balanced_split")).toBe(false);
+  });
+
   it("resolve balanced_goals uses global goal weights not emphasis split", () => {
     const prefs = { ...basePrefs, goalMatchPrimaryPct: 70, goalMatchSecondaryPct: 20, goalMatchTertiaryPct: 10 };
     const r = resolveDayFocusPreset("balanced_goals", prefs, null);
     expect(r.sportGoalContext?.goal_weights?.[0]).toBeCloseTo(0.7, 5);
+    const params = resolvedDayFocusToWorkoutParams(r, ["muscle", "strength", "mobility"], [70, 20, 10]);
+    expect(params.exclusive).toBe(false);
+    expect(params.orderedGoalSlugs).toEqual(["muscle", "strength", "mobility"]);
   });
 
-  it("resolve goal_emphasis uses fixed emphasis weights", () => {
+  it("resolve goal_emphasis uses exclusive 100% weights", () => {
     const r = resolveDayFocusPreset("goal_emphasis_1", basePrefs, null);
     expect(r.sportGoalContext?.goal_weights?.[0]).toBeCloseTo(EMPHASIS_GOAL_WEIGHTS_PCT[0] / 100, 5);
+    expect(r.sportGoalContext?.goal_weights?.[1]).toBe(0);
   });
 
   it("buildPriorityFocusSummary uses preset label and shortened subtitle", () => {
     const summary = buildPriorityFocusSummary(
       {
-        label: "Climbing first",
-        subtitle: "Goals fill the rest.",
+        label: "Climbing",
+        subtitle: "",
       },
       { displayTitle: "Strength - Upper Body", workoutFocus: ["Strength"] }
     );
-    expect(summary?.label).toBe("Climbing first");
-    expect(summary?.subtitle).toBe("Goals fill the rest.");
+    expect(summary?.label).toBe("Climbing");
+    expect(summary?.subtitle).toBeNull();
 
     const balanced = buildPriorityFocusSummary(
       {

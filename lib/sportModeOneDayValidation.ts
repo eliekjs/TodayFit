@@ -1,3 +1,5 @@
+import { MAX_TOTAL_SUB_GOALS } from "./selectionCaps";
+
 export type OneDaySportModeCounts = {
   sportCount: number;
   goalCount: number;
@@ -27,15 +29,20 @@ export const ONE_DAY_SPORT_MODE_COMBINATION_HINT =
   "Choose either 2 sports, 1 sport + 1 goal, or 1 sport with at least one sport sub-focus.";
 
 /**
- * Shared caps for total (sport + goal) priority picks and total sub-focus picks across
- * Sport Mode's one-day vs week scopes. Single source of truth — used both by the live
- * setup screen (`app/(tabs)/sport-mode/index.tsx`) and by saved-preset scope validation
- * (`lib/workoutPresetValidation.ts`) so the two never drift apart.
+ * Shared caps for total (sport + goal) priority picks across Sport Mode's one-day vs
+ * week scopes. Single source of truth — used both by the live setup screen
+ * (`app/(tabs)/sport-mode/index.tsx`) and by saved-preset scope validation so the two
+ * never drift apart.
+ *
+ * Total sub-goal / sub-focus picks use the shared Goal↔Sport ceiling in
+ * `lib/selectionCaps.ts` (same for day and week).
  */
 export const MAX_TOTAL_PRIORITY_PICKS_DAY = 2;
 export const MAX_TOTAL_PRIORITY_PICKS_WEEK = 3;
-export const MAX_TOTAL_SUB_GOALS_DAY = 3;
-export const MAX_TOTAL_SUB_GOALS_WEEK = 5;
+/** @deprecated Use MAX_TOTAL_SUB_GOALS from selectionCaps — day/week now share one ceiling. */
+export const MAX_TOTAL_SUB_GOALS_DAY = MAX_TOTAL_SUB_GOALS;
+/** @deprecated Use MAX_TOTAL_SUB_GOALS from selectionCaps — day/week now share one ceiling. */
+export const MAX_TOTAL_SUB_GOALS_WEEK = MAX_TOTAL_SUB_GOALS;
 
 /** Minimal shape needed to validate a sport-mode form against a day/week scope. */
 export type SportFormScopeCounts = {
@@ -51,10 +58,10 @@ export type SportFormScopeIssue = {
 
 /**
  * Checks whether a sport-mode form's selections (sports, goals, sub-focuses) fit within
- * the given scope's limits. One-day sessions allow far fewer total picks than a week plan,
- * so a form saved/edited in week mode can become invalid when applied to a single day.
- * Week scope never has fewer allowances than day scope, so this only ever reports issues
- * for `scope === "day"`.
+ * the given scope's limits. One-day sessions allow a tighter sports+goals priority budget
+ * than a week plan, so a form saved/edited in week mode can become invalid when applied
+ * to a single day. Sub-goal ceilings match Goal Mode (shared). Week scope never has fewer
+ * priority allowances than day scope, so this only ever reports issues for `scope === "day"`.
  */
 export function validateSportFormForScope(
   form: SportFormScopeCounts,
@@ -86,10 +93,10 @@ export function validateSportFormForScope(
     });
   }
 
-  if (sportSubGoalCount > MAX_TOTAL_SUB_GOALS_DAY) {
+  if (sportSubGoalCount > MAX_TOTAL_SUB_GOALS) {
     issues.push({
       id: "sub_goal_cap",
-      message: `This preset has ${sportSubGoalCount} sport sub-focus picks, but one-day sessions allow up to ${MAX_TOTAL_SUB_GOALS_DAY} total.`,
+      message: `This preset has ${sportSubGoalCount} sport sub-focus picks, but sessions allow up to ${MAX_TOTAL_SUB_GOALS} total.`,
     });
   }
 

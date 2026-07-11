@@ -5,9 +5,10 @@
  * Used by the daily workout generator.
  *
  * Rep ranges by goal (research summary):
- * - Strength: 1–6 reps (ACSM: heavy loading 1–6 RM); neural adaptations, 3–5 min rest (ACSM).
- * - Hypertrophy: 6–20 effective when near failure (Schoenfeld); 8–15 typical. Rest 1–2 min (ACSM)
- *   or 60–90 s (meta-analyses: minimal difference vs longer; ≥60 s may slightly favor volume).
+ * - Strength: 1–6 reps (ACSM: heavy loading 1–6 RM); neural adaptations.
+ *   App individual-exercise rest: 60–90 s (bias 60; denser than classic ACSM 3–5 min).
+ * - Hypertrophy: 6–20 effective when near failure (Schoenfeld); 8–15 typical. Rest 60–90 s
+ *   (meta-analyses: minimal difference vs longer; ≥60 s may slightly favor volume).
  * - Body recomp: 10–15 (moderate-high volume, time under tension).
  * - Endurance: 15–25+ (50–65% 1RM), metabolic stress.
  * Exercise-specific overrides (e.g. calves 15–25, isolation 10–20) live in exercises.rep_range_min/max.
@@ -213,9 +214,10 @@ export type GoalTrainingRule = {
 export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   strength: {
     // Practical strength: 5–8 reps (not powerlifting peaking); ACSM heavy loading with gym-friendly volume.
+    // App UX: individual-exercise rest capped at 90s (bias 60s); denser than classic ACSM 3–5 min.
     repRange: { min: 5, max: 8 },
     setRange: { min: 3, max: 5 },
-    restRange: { min: 150, max: 300 },
+    restRange: { min: 60, max: 90 },
     preferredFormats: ["straight_sets", "superset"],
     conditioningStrategy: "optional_short",
     conditioningDuration: { min: 6, max: 10 },
@@ -365,12 +367,12 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   athletic_performance: {
     repRange: { min: 6, max: 8 },
     setRange: { min: 3, max: 4 },
-    restRange: { min: 90, max: 120 },
+    restRange: { min: 60, max: 90 },
     preferredFormats: ["straight_sets", "superset"],
     conditioningStrategy: "optional_short",
     conditioningDuration: { min: 6, max: 8 },
     powerRepRange: { min: 3, max: 5 },
-    powerRestRange: { min: 90, max: 120 },
+    powerRestRange: { min: 60, max: 90 },
     powerBeforeStrength: true,
     accessoryRepRange: { min: 8, max: 12 },
     accessorySetRange: { min: 2, max: 3 },
@@ -384,12 +386,12 @@ export const GOAL_TRAINING_RULES: Record<string, GoalTrainingRule> = {
   power: {
     repRange: { min: 2, max: 5 },
     setRange: { min: 3, max: 5 },
-    restRange: { min: 120, max: 180 },
+    restRange: { min: 60, max: 90 },
     preferredFormats: ["straight_sets"],
     conditioningStrategy: "optional_short",
     powerBeforeStrength: true,
     powerRepRange: { min: 3, max: 5 },
-    powerRestRange: { min: 120, max: 180 },
+    powerRestRange: { min: 60, max: 90 },
     cueStyle: {
       strength: "Explosive. Jumps, throws, Olympic variations, swings.",
     },

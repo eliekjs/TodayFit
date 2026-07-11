@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { Theme } from "../lib/theme";
+import type { GoalDistributionStyle } from "../lib/types";
 import type { DayBodyFocusChoice, DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
 import type {
   DaySessionFocusConflict,
@@ -8,6 +9,7 @@ import type {
 } from "../lib/daySessionFocusConflict";
 import { dayHasUnresolvedSessionFocusConflict } from "../lib/daySessionFocusConflict";
 import { DaySessionFocusConflictBanner } from "./DaySessionFocusConflictBanner";
+import { FocusDistributionNote } from "./FocusDistributionNote";
 
 type Props = {
   theme: Theme;
@@ -22,8 +24,13 @@ type Props = {
   conflictsPerDay?: (DaySessionFocusConflict | null)[];
   /** Resolution id applied per day, keyed by day index. */
   resolvedConflictIdsByDay?: Record<number, string>;
-  /** Shown once at top — explains "X first" options without repeating per day/option. */
+  /** Shown once at top — explains sport/goal day options without repeating per day/option. */
   sportGoalPriorityNote?: string | null;
+  /** Mandatory weekly goal distribution: blend vs dedicate_days. */
+  goalDistributionStyle?: GoalDistributionStyle | null;
+  onChangeGoalDistributionStyle?: (value: GoalDistributionStyle) => void;
+  /** When true, show the weekly distribution note (default: when onChange is provided). */
+  showGoalDistributionNote?: boolean;
   onSelectBody?: (dayIndex: number, bodyId: DayBodyFocusChoiceId) => void;
   onSelect: (dayIndex: number, presetId: string) => void;
   onApplyDayResolution?: (dayIndex: number, resolution: DaySessionFocusResolution) => void;
@@ -190,22 +197,38 @@ export function WeekDayFocusPlanner({
   conflictsPerDay,
   resolvedConflictIdsByDay,
   sportGoalPriorityNote,
+  goalDistributionStyle,
+  onChangeGoalDistributionStyle,
+  showGoalDistributionNote,
   onSelectBody,
   onSelect,
   onApplyDayResolution,
   onBack,
 }: Props) {
+  const showWeeklyDistribution =
+    showGoalDistributionNote === true ||
+    (showGoalDistributionNote !== false && onChangeGoalDistributionStyle != null);
+
   return (
     <View style={styles.scroll}>
       <Text style={[styles.screenTitle, { color: theme.text }]}>Focus for each day</Text>
       <Text style={[styles.screenSub, { color: theme.textMuted }]}>
-        We preselect body areas that fit your sport and goals. Adjust them if you want a different
-        lower, core, upper, or full-body mix for the week.
+        Choose body focus and sport/goal for each day. What you select below is exclusive for that
+        day — it replaces the goals from earlier pages for that day.
       </Text>
       {sportGoalPriorityNote ? (
         <Text style={[styles.screenNote, { color: theme.textMuted }]}>
           {sportGoalPriorityNote}
         </Text>
+      ) : null}
+
+      {showWeeklyDistribution && onChangeGoalDistributionStyle ? (
+        <FocusDistributionNote
+          variant="weekly"
+          value={goalDistributionStyle}
+          required
+          onChange={onChangeGoalDistributionStyle}
+        />
       ) : null}
 
       {dayLabels.map((label, dayIdx) => {
@@ -266,7 +289,10 @@ export function WeekDayFocusPlanner({
             ) : null}
             <View style={styles.section}>
               <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
-                Sport / goal priority
+                Focus this day
+              </Text>
+              <Text style={[styles.sectionHint, { color: theme.textMuted }]}>
+                Overrides earlier goals for this day only
               </Text>
             <View style={styles.options}>
               {presets.map((p) => {
@@ -353,6 +379,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.4,
+  },
+  sectionHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: -4,
+    marginBottom: 2,
   },
   options: {
     gap: 10,

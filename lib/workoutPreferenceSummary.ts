@@ -11,6 +11,7 @@ import type {
   DailyWorkoutPreferences,
   GoalDistributionStyle,
   ManualPreferences,
+  SessionFocusDistributionStyle,
   SpecificBodyFocusKey,
 } from "./types";
 
@@ -218,6 +219,7 @@ export function buildAdaptiveGoalsAndSportsLines(
         sportVsGoalPct?: number;
         goalSubFocusByGoal?: Record<string, string[]>;
         goalDistributionStyle?: GoalDistributionStyle | null;
+        sessionFocusDistribution?: SessionFocusDistributionStyle | null;
         specificBodyPartEmphasis?: SpecificBodyFocusKey[] | null;
       }
     | null
@@ -271,6 +273,12 @@ export function buildAdaptiveGoalsAndSportsLines(
         ? "Gym: one main goal per day"
         : "Gym: blended goals across days"
     );
+  }
+
+  if (snapshot.sessionFocusDistribution === "spread") {
+    lines.push("Session: spread focus areas across the workout");
+  } else if (snapshot.sessionFocusDistribution === "resolve") {
+    lines.push("Session: focused after resolving conflicts");
   }
 
   if (snapshot.specificBodyPartEmphasis?.length) {

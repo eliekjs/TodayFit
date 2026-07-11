@@ -42,6 +42,27 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
     expect(input.goal_sub_focus?.power).toEqual(["upper_body_power"]);
   });
 
+  it("spread mode keeps mismatched power sub-focuses and expands to full_body", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      {
+        ...BASE,
+        primaryFocus: ["Power & Explosiveness", "Calisthenics"],
+        targetBody: "Upper",
+        sessionFocusDistribution: "spread",
+        subFocusByGoal: {
+          "Power & Explosiveness": ["Upper body power", "Lower body power / Plyos"],
+        },
+        weekSubFocusPrimaryLabels: ["Power & Explosiveness", "Calisthenics"],
+      },
+      undefined,
+      3
+    );
+    expect(input.focus_body_parts).toEqual(["full_body"]);
+    expect(input.goal_sub_focus?.power).toEqual(
+      expect.arrayContaining(["upper_body_power", "lower_body_power_plyos"])
+    );
+  });
+
   it("maps Lower to lower focus", () => {
     const input = manualPreferencesToGenerateWorkoutInput(
       { ...BASE, targetBody: "Lower" },

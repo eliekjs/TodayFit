@@ -1,10 +1,11 @@
-import React from "react";
-import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, StyleSheet, Pressable, Platform, Modal } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
 import { useAppState } from "../context/AppStateContext";
+import { PrimaryButton } from "./Button";
 import {
   SESSION_PHASES,
   SESSION_BANNER_HEIGHT,
@@ -73,9 +74,16 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const navHeaderBottom = useNavHeaderBottomOffset();
-  const { activeSessionDraft } = useAppState();
+  const { activeSessionDraft, discardActiveSession } = useAppState();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const top = topOffset ?? navHeaderBottom;
+
+  const onDiscard = useCallback(() => {
+    setConfirmOpen(false);
+    discardActiveSession();
+    router.replace("/");
+  }, [discardActiveSession, router]);
 
   if (!activeSessionDraft || !shouldShowSessionResumeBanner(pathname)) {
     return null;
@@ -99,25 +107,60 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
         },
       ]}
     >
-      <Pressable
-        style={({ pressed }) => [styles.mainTap, { opacity: pressed ? 0.88 : 1 }]}
-        onPress={() => router.push(resumeRoute as never)}
-        accessibilityRole="button"
-        accessibilityLabel={`Continue in progress workout, ${details}, ${currentPhaseLabel} phase`}
-      >
-        <View style={styles.textColumn}>
-          <Text style={[styles.titleLine, { color: theme.text }]} numberOfLines={1}>
-            <Text style={{ color: theme.textMuted }}>In progress workout: </Text>
-            {details}
-          </Text>
-          <PhaseStepRow
-            currentIdx={currentIdx}
-            primaryColor={theme.primary}
-            mutedColor={theme.textMuted}
-          />
-        </View>
-        <Ionicons name="chevron-forward" size={14} color={theme.primary} style={styles.chevron} />
-      </Pressable>
+      <View style={styles.bannerRow}>
+        <Pressable
+          style={({ pressed }) => [styles.mainTap, { opacity: pressed ? 0.88 : 1 }]}
+          onPress={() => router.push(resumeRoute as never)}
+          accessibilityRole="button"
+          accessibilityLabel={`Continue in progress workout, ${details}, ${currentPhaseLabel} phase`}
+        >
+          <View style={styles.textColumn}>
+            <Text style={[styles.titleLine, { color: theme.text }]} numberOfLines={1}>
+              <Text style={{ color: theme.textMuted }}>In progress workout: </Text>
+              {details}
+            </Text>
+            <PhaseStepRow
+              currentIdx={currentIdx}
+              primaryColor={theme.primary}
+              mutedColor={theme.textMuted}
+            />
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={theme.primary} style={styles.chevron} />
+        </Pressable>
+        <Pressable
+          onPress={() => setConfirmOpen(true)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Discard session"
+          style={({ pressed }) => [styles.discardTap, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Text style={[styles.discardLabel, { color: theme.primary }]}>Discard</Text>
+        </Pressable>
+      </View>
+      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setConfirmOpen(false)}>
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: theme.cardOpaque, borderColor: theme.border }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Discard session?</Text>
+            <Text style={[styles.modalBody, { color: theme.textMuted }]}>
+              This clears your current workout or week plan and returns to Today. Saved library items are not
+              deleted.
+            </Text>
+            <View style={styles.modalActions}>
+              <PrimaryButton
+                label="Keep working"
+                variant="secondary"
+                compact
+                onPress={() => setConfirmOpen(false)}
+                style={{ flex: 1 }}
+              />
+              <PrimaryButton label="Discard" compact onPress={onDiscard} style={{ flex: 1 }} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -144,13 +187,29 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     ...(Platform.OS === "web" ? ({ pointerEvents: "auto" } as const) : null),
   },
+  bannerRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   mainTap: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingLeft: 16,
     paddingVertical: 8,
     gap: 8,
+    minWidth: 0,
+  },
+  discardTap: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  discardLabel: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   textColumn: {
     flex: 1,
@@ -179,6 +238,36 @@ const styles = StyleSheet.create({
   chevron: {
     flexShrink: 0,
     opacity: 0.85,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalSheet: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  modalBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8,
   },
 });
 

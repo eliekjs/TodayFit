@@ -21,6 +21,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
+import { ChangeDayFocusModal } from "../../../components/ChangeDayFocusModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import type { GeneratedWorkout, DailyWorkoutPreferences, SpecificBodyFocusKey } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
@@ -180,6 +181,7 @@ export default function AdaptiveWeekPlanScreen() {
   const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
+  const [showChangeFocusModal, setShowChangeFocusModal] = useState(false);
   /** Override preferences for the selected day when regenerating (goal, body, intensity). */
   const [dailyPrefsOverride, setDailyPrefsOverride] = useState<DailyWorkoutPreferences | null>(null);
   const [swapModal, setSwapModal] = useState<{
@@ -871,6 +873,95 @@ export default function AdaptiveWeekPlanScreen() {
     setSelectedSession(session);
   };
 
+  const openChangeFocusForSession = (session: PlannedDay) => {
+    if (isSportDesignatedPlannedDay(session)) return;
+    setSelectedSession(session);
+    setShowChangeFocusModal(true);
+  };
+
+  const buildSessionFocusSummaries = (day: PlannedDay) => {
+    const gymDays = sportPrepWeekPlan.days.filter((d) => !isSportDesignatedPlannedDay(d));
+    const gymIndex = gymDays.findIndex((d) => d.id === day.id);
+    const adaptiveForFocus = adaptiveSetupFromPlanContext({
+      goalSlugs: sportPrepWeekPlan.goalSlugs,
+      rankedSportSlugs: sportPrepWeekPlan.rankedSportSlugs,
+      sportVsGoalPct: sportPrepWeekPlan.sportVsGoalPct,
+      sportFocusPct: sportPrepWeekPlan.sportFocusPct,
+      sportSubFocusSlugsBySport: sportPrepWeekPlan.sportSubFocusSlugsBySport,
+    });
+    const snapshotBody =
+      gymIndex >= 0 ? sportPrepWeekPlan.scheduleSnapshot?.gymDayBodyFocuses?.[gymIndex] : undefined;
+    const bodyKey = day.dayLevelFocus?.dayBodyEmphasis ?? "full";
+    const targetBody =
+      bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
+    const targetModifier = snapshotBody?.targetModifier ?? [];
+    const specificBodyFocus: SpecificBodyFocusKey[] | undefined = day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
+      ? ["core"]
+      : undefined;
+    const bodyOptions =
+      gymIndex >= 0
+        ? buildDayBodyFocusChoicesForDay({
+            manualPreferences,
+            adaptiveSetup: adaptiveForFocus,
+            slotIndex: gymIndex,
+            fallbackTargetBody: targetBody,
+            fallbackTargetModifier: targetModifier,
+          })
+        : [];
+    const selectedBodyId: DayBodyFocusChoiceId | undefined =
+      day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
+        ? "core"
+        : bodyKey === "upper" || bodyKey === "lower" || bodyKey === "full"
+          ? bodyKey
+          : undefined;
+    const bodyFocus = buildBodyFocusSummary(
+      bodyOptions.find((o) => o.id === selectedBodyId),
+      gymIndex >= 0
+        ? {
+            targetBody,
+            targetModifier,
+            specificBodyFocus: day.dayLevelFocus?.daySpecificBodyFocuses ?? undefined,
+          }
+        : undefined
+    );
+    const priorityOptions =
+      gymIndex >= 0
+        ? buildDayFocusPresetsForDay({
+            manualPreferences,
+            adaptiveSetup: adaptiveForFocus,
+            targetBody,
+            targetModifier,
+            specificBodyFocus,
+          })
+        : [];
+    const selectedPresetId =
+      day.preferences?.dayFocusPresetId ??
+      (gymIndex >= 0
+        ? sportPrepWeekPlan.scheduleSnapshot?.gymDayFocusPresetIds?.[gymIndex]
+        : undefined);
+    const rawLabel = isSportDesignatedPlannedDay(day)
+      ? sportDesignatedDayDisplayTitle(day)
+      : day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
+    const displayTitle =
+      rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
+    const priorityFocus = isSportDesignatedPlannedDay(day)
+      ? { label: sportDesignatedDayDisplayTitle(day) }
+      : buildPriorityFocusSummary(
+          priorityOptions.find((o) => o.id === selectedPresetId),
+          {
+            displayTitle,
+            workoutFocus: day.intentLabel ? [day.intentLabel] : undefined,
+          }
+        );
+    const canChangeFocus =
+      !isSportDesignatedPlannedDay(day) &&
+      (day.generatedWorkoutId != null ||
+        guestWorkoutsById[day.id] != null ||
+        guestWorkoutsById[day.date] != null ||
+        (sportPrepWeekPlan.today?.id === day.id && sportPrepWeekPlan.todayWorkout != null));
+    return { bodyFocus, priorityFocus, canChangeFocus, selectedPresetId };
+  };
+
   const onSwapChoose = (optionId: string, optionName: string) => {
     if (!sportPrepWeekPlan || !selectedDay || !selectedWorkout || !swapModal) return;
     const updatedWorkout = replaceExerciseInWorkout(
@@ -1047,6 +1138,9 @@ export default function AdaptiveWeekPlanScreen() {
 
   /** Treat plans with a single training session as "one-day" for display. */
   const isSingleSessionPlan = daySlotsWithSessions.length === 1;
+  const selectedDayFocusSummary = selectedDay
+    ? buildSessionFocusSummaries(selectedDay)
+    : null;
 
   const weekOverviewContent = (
     <View>
@@ -1069,83 +1163,8 @@ export default function AdaptiveWeekPlanScreen() {
             {slot.sessions.map((session) => {
               const day = session;
               const isSelected = selectedDay?.id === day.id;
-              const rawLabel = isSportDesignatedPlannedDay(day)
-                ? sportDesignatedDayDisplayTitle(day)
-                : day.dayLevelFocus?.displayTitle ?? day.title ?? day.intentLabel ?? "Rest / low-load day";
-              const displayTitle =
-                rawLabel.replace(/\s*\(sport-specific\)\s*/gi, "").trim() || rawLabel;
               const statusBadge = day.status === "completed" ? "Completed" : day.status === "skipped" ? "Skipped" : null;
-              const gymDays = sportPrepWeekPlan.days.filter((d) => !isSportDesignatedPlannedDay(d));
-              const gymIndex = gymDays.findIndex((d) => d.id === day.id);
-              const adaptiveForFocus = adaptiveSetupFromPlanContext({
-                goalSlugs: sportPrepWeekPlan.goalSlugs,
-                rankedSportSlugs: sportPrepWeekPlan.rankedSportSlugs,
-                sportVsGoalPct: sportPrepWeekPlan.sportVsGoalPct,
-                sportFocusPct: sportPrepWeekPlan.sportFocusPct,
-                sportSubFocusSlugsBySport: sportPrepWeekPlan.sportSubFocusSlugsBySport,
-              });
-              const snapshotBody =
-                gymIndex >= 0 ? sportPrepWeekPlan.scheduleSnapshot?.gymDayBodyFocuses?.[gymIndex] : undefined;
-              const bodyKey = day.dayLevelFocus?.dayBodyEmphasis ?? "full";
-              const targetBody =
-                bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
-              const targetModifier = snapshotBody?.targetModifier ?? [];
-              const specificBodyFocus: SpecificBodyFocusKey[] | undefined = day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
-                ? ["core"]
-                : undefined;
-              const bodyOptions =
-                gymIndex >= 0
-                  ? buildDayBodyFocusChoicesForDay({
-                      manualPreferences,
-                      adaptiveSetup: adaptiveForFocus,
-                      slotIndex: gymIndex,
-                      fallbackTargetBody: targetBody,
-                      fallbackTargetModifier: targetModifier,
-                    })
-                  : [];
-              const selectedBodyId: DayBodyFocusChoiceId | undefined =
-                day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
-                  ? "core"
-                  : bodyKey === "upper" || bodyKey === "lower" || bodyKey === "full"
-                    ? bodyKey
-                    : undefined;
-              const bodyFocus = buildBodyFocusSummary(
-                bodyOptions.find((o) => o.id === selectedBodyId),
-                gymIndex >= 0
-                  ? {
-                      targetBody,
-                      targetModifier,
-                      specificBodyFocus: day.dayLevelFocus?.daySpecificBodyFocuses ?? undefined,
-                    }
-                  : undefined
-              );
-              const priorityOptions =
-                gymIndex >= 0
-                  ? buildDayFocusPresetsForDay({
-                      manualPreferences,
-                      adaptiveSetup: adaptiveForFocus,
-                      targetBody,
-                      targetModifier,
-                      specificBodyFocus,
-                    })
-                  : [];
-              const selectedPresetId =
-                day.preferences?.dayFocusPresetId ??
-                (gymIndex >= 0
-                  ? sportPrepWeekPlan.scheduleSnapshot?.gymDayFocusPresetIds?.[gymIndex]
-                  : undefined);
-              const priorityFocus = isSportDesignatedPlannedDay(day)
-                ? {
-                    label: "Sport day",
-                    subtitle: "No gym workout is planned; this day is reserved for your sport.",
-                  }
-                : buildPriorityFocusSummary(
-                    priorityOptions.find((o) => o.id === selectedPresetId),
-                    {
-                      displayTitle,
-                      workoutFocus: day.intentLabel ? [day.intentLabel] : undefined,
-                    }
-                  );
+              const { bodyFocus, priorityFocus, canChangeFocus } = buildSessionFocusSummaries(day);
               return (
                 <View key={day.id} style={[styles.sessionRow, { marginLeft: 12 }]}>
                   <View style={styles.moveButtons}>
@@ -1179,6 +1198,10 @@ export default function AdaptiveWeekPlanScreen() {
                       onPress={() => onSelectSession(day)}
                       statusLabel={statusBadge}
                       statusTone={day.status === "completed" ? "primary" : "muted"}
+                      actionLabel={canChangeFocus ? "Change focus" : undefined}
+                      onActionPress={
+                        canChangeFocus ? () => openChangeFocusForSession(day) : undefined
+                      }
                     />
                   </View>
                 </View>
@@ -1202,8 +1225,8 @@ export default function AdaptiveWeekPlanScreen() {
       >
         <Text style={{ fontSize: 13, color: theme.textMuted }}>
           {isSingleSessionPlan
-            ? "Tweak or regenerate below."
-            : "Tap a session to view it. Use arrows to move days."}
+            ? "Tweak focus or regenerate below."
+            : "Tap a session to view it. Use Change focus to adjust body/priority, then regenerate."}
         </Text>
         {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
           <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
@@ -1218,6 +1241,23 @@ export default function AdaptiveWeekPlanScreen() {
 
       {error ? (
         <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
+      ) : null}
+
+      {isSingleSessionPlan && selectedDay && selectedDayFocusSummary && !isSportDesignatedPlannedDay(selectedDay) ? (
+        <Card title="Session focus" style={{ marginTop: 16 }}>
+          <WeekDayFocusSummaryCard
+            theme={theme}
+            bodyFocus={selectedDayFocusSummary.bodyFocus}
+            priorityFocus={selectedDayFocusSummary.priorityFocus}
+            selected
+            actionLabel={selectedDayFocusSummary.canChangeFocus ? "Change focus" : undefined}
+            onActionPress={
+              selectedDayFocusSummary.canChangeFocus
+                ? () => openChangeFocusForSession(selectedDay)
+                : undefined
+            }
+          />
+        </Card>
       ) : null}
 
       {!isSingleSessionPlan && (
@@ -1245,15 +1285,7 @@ export default function AdaptiveWeekPlanScreen() {
         </Text>
       )}
       {!isLoadingWorkout && !selectedWorkout && selectedDay && isSportDesignatedPlannedDay(selectedDay) && (
-        <Card title="Sport day" style={{ marginTop: 16 }}>
-          <Text style={{ fontSize: 16, fontWeight: "700", color: theme.text }}>
-            {sportDesignatedDayDisplayTitle(selectedDay)}
-          </Text>
-          <Text style={{ fontSize: 14, color: theme.textMuted, marginTop: 8 }}>
-            You designated this day for your sport. No gym workout is planned — train for{" "}
-            {sportDesignatedDayDisplayTitle(selectedDay).replace(/\s*—\s*Sport day\s*$/i, "")} on your own
-            schedule.
-          </Text>
+        <Card title={sportDesignatedDayDisplayTitle(selectedDay)} style={{ marginTop: 16 }}>
           <View style={styles.footer}>
             {selectedDay.status === "planned" ? (
               <>
@@ -1368,6 +1400,7 @@ export default function AdaptiveWeekPlanScreen() {
                   ? dayFocusPresetsForSelectedDay
                   : undefined
               }
+              selectedDayFocusPresetId={selectedDayFocusSummary?.selectedPresetId}
               sportGoalPriorityNote={sportGoalPriorityNoteForSelectedDay}
               showAdjustFocusLink={focusSectionsForModal.length > 0}
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
@@ -1378,15 +1411,6 @@ export default function AdaptiveWeekPlanScreen() {
                 guestWorkoutsById[selectedDay.id] ||
                 guestWorkoutsById[selectedDay.date]
               )}
-              baseWorkoutTier={
-                sportPrepWeekPlan.scheduleSnapshot?.workoutTier ??
-                manualPreferences.workoutTier ??
-                "intermediate"
-              }
-              baseIncludeCreativeVariations={
-                (sportPrepWeekPlan.scheduleSnapshot?.includeCreativeVariations ??
-                  manualPreferences.includeCreativeVariations) === true
-              }
             />
             {userId && isDbConfigured() && selectedWorkout ? (
               <PrimaryButton
@@ -1428,6 +1452,36 @@ export default function AdaptiveWeekPlanScreen() {
         </View>
       )}
 
+      <ChangeDayFocusModal
+        visible={showChangeFocusModal}
+        onClose={() => setShowChangeFocusModal(false)}
+        title="Change focus"
+        subtitle={
+          isSingleSessionPlan
+            ? "Adjust this session's focus, then regenerate."
+            : "Adjust this day's focus, then regenerate only this session."
+        }
+        dailyPrefsOverride={dailyPrefsOverride}
+        onOverrideChange={(update) =>
+          setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
+        }
+        onRegenerate={onRegenerate}
+        isRegenerating={isRegenerating}
+        dayFocusPresets={
+          dayFocusPresetsForSelectedDay.length > 1
+            ? dayFocusPresetsForSelectedDay
+            : undefined
+        }
+        selectedDayFocusPresetId={selectedDayFocusSummary?.selectedPresetId}
+        sportGoalPriorityNote={sportGoalPriorityNoteForSelectedDay}
+        showAdjustFocusLink={focusSectionsForModal.length > 0}
+        onAdjustFocusPress={() => {
+          setShowChangeFocusModal(false);
+          setShowAdjustFocusModal(true);
+        }}
+        helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}
+        regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
+      />
       <SwapExerciseModal
         visible={swapModal != null}
         onClose={() => setSwapModal(null)}

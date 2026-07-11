@@ -4,6 +4,7 @@
 
 import type { GoalSubFocusTagMapEntry } from "./types";
 import { SHARED_TAG_WEIGHTS_VERTICAL_JUMP } from "../sportSubFocus/verticalJumpSubFocusShared";
+import { SHARED_TAG_WEIGHTS_OLYMPIC_TRIPLE_EXTENSION } from "./olympicTripleExtensionShared";
 
 export const TAGS_SPEED_SPRINT: GoalSubFocusTagMapEntry[] = [
   { tag_slug: "plyometric", weight: 1.2 },
@@ -35,9 +36,7 @@ export const TAGS_LOWER_BODY_POWER_PLYOS: GoalSubFocusTagMapEntry[] = [
 ];
 
 export const TAGS_OLYMPIC_TRIPLE_EXTENSION: GoalSubFocusTagMapEntry[] = [
-  { tag_slug: "power", weight: 1.3 },
-  { tag_slug: "hinge", weight: 1.1 },
-  { tag_slug: "compound", weight: 1 },
+  ...SHARED_TAG_WEIGHTS_OLYMPIC_TRIPLE_EXTENSION,
 ];
 
 export const TAGS_UPPER_BODY_POWER: GoalSubFocusTagMapEntry[] = [

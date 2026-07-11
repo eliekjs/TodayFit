@@ -22,7 +22,7 @@ function ctx(partial: Partial<ResolverContext> & Pick<ResolverContext, "style">)
   };
 }
 
-function testStrengthRestSkewsLongInWideRange() {
+function testStrengthRestBiasesTowardSixty() {
   const style = getPrescriptionStyle("heavy_strength");
   const rest = resolveRest(
     ctx({
@@ -32,14 +32,15 @@ function testStrengthRestSkewsLongInWideRange() {
     })
   );
   assert(rest !== undefined, "rest defined");
+  assert(rest! <= 90, `strength rest ${rest} must be ≤90 s`);
   const midpoint = ((style.rest_seconds_min ?? 0) + (style.rest_seconds_max ?? 0)) / 2;
   assert(
-    rest! >= midpoint,
-    `strength rest ${rest} should be at or above midpoint ${midpoint} (wide-range bias toward ACSM 3–5 min)`
+    rest! <= midpoint,
+    `strength rest ${rest} should be at or below midpoint ${midpoint} (bias toward 60 s)`
   );
 }
 
-function testHypertrophyRestUnchangedBand() {
+function testHypertrophyRestBiasesTowardSixty() {
   const style = getPrescriptionStyle("moderate_hypertrophy");
   const rest = resolveRest(
     ctx({
@@ -50,20 +51,20 @@ function testHypertrophyRestUnchangedBand() {
   );
   assert(rest !== undefined, "rest defined");
   assert(
-    rest! >= (style.rest_seconds_min ?? 0) && rest! <= (style.rest_seconds_max ?? 999),
-    `hypertrophy rest ${rest} stays within style band`
+    rest! >= (style.rest_seconds_min ?? 0) && rest! <= Math.min(style.rest_seconds_max ?? 999, 90),
+    `hypertrophy rest ${rest} stays within style band (≤90)`
   );
   const midpoint = ((style.rest_seconds_min ?? 0) + (style.rest_seconds_max ?? 0)) / 2;
   assert(
-    Math.abs(rest! - midpoint) <= 12,
-    `hypertrophy narrow band: rest ${rest} near midpoint ${midpoint} (no wide-range skew)`
+    rest! <= midpoint,
+    `hypertrophy rest ${rest} at or below midpoint ${midpoint} (bias toward 60 s)`
   );
 }
 
 function run() {
   console.log("setRepResolver tests\n");
-  testStrengthRestSkewsLongInWideRange();
-  testHypertrophyRestUnchangedBand();
+  testStrengthRestBiasesTowardSixty();
+  testHypertrophyRestBiasesTowardSixty();
   console.log("\nAll setRepResolver tests passed.");
 }
 
