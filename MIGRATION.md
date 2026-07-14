@@ -2,12 +2,20 @@
 
 ## Phase 0 — Current state (inventory)
 
+> **Updated 2026-07-12** for ship readiness. See also `docs/SHIP_SPEC.md`.
+
 ### Persistence in use today
-- **None** — No Firebase, Firestore, AsyncStorage, SQLite, or REST backend.
-- All app “persistence” is **in-memory React state** in `AppStateContext` (context/AppStateContext.tsx).
-- **Reference data** is static TypeScript:
-  - `data/exercises.ts`: `EXERCISES` array (ExerciseDefinition). Used only by `lib/generator.ts`.
-  - `data/gymProfiles.ts`: `EQUIPMENT_BY_CATEGORY`, `initialGymProfiles`, `getDefaultEquipmentForTemplate`. Used as initial state and by profiles UI.
+- **In-memory React state** in `AppStateContext` for gyms, prefs, presets, workouts, history (primary UX state).
+- **AsyncStorage (device-local, not auth):**
+  - `todayfit_has_entered` — welcome gate (`WelcomeContext`)
+  - `@todayfit/lastEditedFiltersByMode` — last-edited filters (`sessionDraftStorage`)
+  - `@todayfit/defaultTrainTodayPreset` — Train today default pointer
+- **Supabase (when configured + signed-in user):** gym profiles, preferences, presets, workouts, week plans via repositories and `loadRemoteAppState`.
+- **Guest durability:** out of ship scope — guest data may be ephemeral; sign-in required to keep data.
+- **Auth UI:** `app/welcome.tsx` is still preview/stub until Phase 1 closes; remote sync paths exist but are unreachable without a real session.
+- **Reference data** is static TypeScript (with optional remote catalog):
+  - `data/exercises.ts` / DB exercise tables
+  - `data/gymProfiles.ts`: `EQUIPMENT_BY_CATEGORY`, `initialGymProfiles`, `getDefaultEquipmentForTemplate`
 
 ### Data entities
 

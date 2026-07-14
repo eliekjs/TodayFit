@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  Modal,
 } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -23,12 +24,15 @@ import {
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
-import type { SessionFlow } from "../../lib/sessionDraft";
+import type { SessionFlow, SportPreset, WorkoutPresetKind } from "../../lib/sessionDraft";
 import { navigateToSessionFlow } from "../../lib/sessionFlowNavigation";
+import { resolveDefaultTrainTodayPreset } from "../../lib/defaultTrainTodayPreset";
+import type { PreferencePreset } from "../../lib/types";
 import {
-  buildTrainTodayGenerationParams,
   canUseTrainToday,
-  trainTodaySubtitle,
+  resolveTrainTodayFromPreset,
+  sportSlugsFromForm,
+  trainTodaySubtitleFromPreset,
 } from "../../lib/trainToday";
 
 type ActionCardProps = {
@@ -60,7 +64,6 @@ function ActionCard({
   theme,
   onNavigateFlow,
 }: ActionCardProps) {
-  const isBuild = variant === "build";
   const accent = theme.primary;
   const accentSoft = theme.primarySoft;
 
@@ -108,12 +111,34 @@ function ActionCard({
   );
 }
 
+type PresetPickerRow = {
+  kind: WorkoutPresetKind;
+  id: string;
+  name: string;
+  detail: string;
+};
+
+function goalDetail(preset: PreferencePreset): string {
+  const goals = preset.preferences.primaryFocus;
+  if (goals.length === 0) return "No goals set";
+  if (goals.length === 1) return goals[0]!;
+  return `${goals[0]} +${goals.length - 1} more`;
+}
+
+function sportDetail(preset: SportPreset): string {
+  const sports = sportSlugsFromForm(preset.sportForm);
+  if (sports.length === 0) return "No sports set";
+  return sports
+    .slice(0, 2)
+    .map((s) => s.replace(/_/g, " "))
+    .join(" · ");
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { hasEntered, isHydrated } = useWelcome();
   const {
-    manualPreferences,
     activeSessionDraft,
     beginSessionFlow,
     replaceSessionFlow,
@@ -125,27 +150,51 @@ export default function HomeScreen() {
     manualSessionProgress,
     preferencePresets,
     sportPresets,
-    savedSportForm,
+    defaultTrainTodayPreset,
+    setDefaultTrainTodayPreset,
   } = useAppState();
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
   const [flowConflict, setFlowConflict] = useState<SessionFlowConflict | null>(null);
+  const [switchOpen, setSwitchOpen] = useState(false);
   const trainTodayCancelledRef = useRef(false);
-  const savedPresetCount = preferencePresets.length + sportPresets.length;
 
   useEffect(() => {
     void prefetchWorkoutGenerationStack();
   }, []);
 
-  const primaryGoal = manualPreferences.primaryFocus[0] ?? "Not set";
-  const secondaryGoal = manualPreferences.primaryFocus[1] ?? "Not set";
   const activeProfile =
     gymProfiles.find((g) => g.id === activeGymProfileId) ?? gymProfiles[0];
-  const canTrainToday = canUseTrainToday(manualPreferences, savedSportForm, activeProfile != null);
-  const trainTodayLabel = trainTodaySubtitle(
-    manualPreferences,
-    savedSportForm,
+  const resolvedDefault = useMemo(
+    () =>
+      resolveDefaultTrainTodayPreset(
+        defaultTrainTodayPreset,
+        preferencePresets,
+        sportPresets
+      ),
+    [defaultTrainTodayPreset, preferencePresets, sportPresets]
+  );
+  const hasPresets = preferencePresets.length + sportPresets.length > 0;
+  const canTrainToday = canUseTrainToday(activeProfile != null, resolvedDefault);
+  const trainTodayLabel = trainTodaySubtitleFromPreset(
+    resolvedDefault,
     activeProfile?.name ?? null
   );
+
+  const pickerRows = useMemo((): PresetPickerRow[] => {
+    const goals: PresetPickerRow[] = preferencePresets.map((p) => ({
+      kind: "goal",
+      id: p.id,
+      name: p.name,
+      detail: goalDetail(p),
+    }));
+    const sports: PresetPickerRow[] = sportPresets.map((p) => ({
+      kind: "sport",
+      id: p.id,
+      name: p.name,
+      detail: sportDetail(p),
+    }));
+    return [...goals, ...sports];
+  }, [preferencePresets, sportPresets]);
 
   const onNavigateFlow = (flow: SessionFlow, href: string) => {
     navigateToSessionFlow(
@@ -161,14 +210,11 @@ export default function HomeScreen() {
   };
 
   const runTrainToday = async () => {
-    if (!canTrainToday || !activeProfile) return;
+    if (!canTrainToday || !activeProfile || !resolvedDefault) return;
     trainTodayCancelledRef.current = false;
     setIsTrainTodayGenerating(true);
     try {
-      const { prefs, sportGoalContext } = buildTrainTodayGenerationParams(
-        manualPreferences,
-        savedSportForm
-      );
+      const { prefs, sportGoalContext } = resolveTrainTodayFromPreset(resolvedDefault);
       const prefsWithDuration = {
         ...prefs,
         durationMinutes: prefs.durationMinutes ?? 45,
@@ -207,8 +253,8 @@ export default function HomeScreen() {
   };
 
   const onTrainToday = () => {
-    if (!canTrainToday || !activeProfile) return;
-    const { sessionFlow } = buildTrainTodayGenerationParams(manualPreferences, savedSportForm);
+    if (!canTrainToday || !activeProfile || !resolvedDefault) return;
+    const { sessionFlow } = resolveTrainTodayFromPreset(resolvedDefault);
     if (beginSessionFlow(sessionFlow)) {
       void runTrainToday();
       return;
@@ -231,10 +277,6 @@ export default function HomeScreen() {
           text: "Train today",
           style: "destructive",
           onPress: () => {
-            const { sessionFlow } = buildTrainTodayGenerationParams(
-              manualPreferences,
-              savedSportForm
-            );
             replaceSessionFlow(sessionFlow);
             void runTrainToday();
           },
@@ -254,7 +296,7 @@ export default function HomeScreen() {
     return (
       <GenerationLoadingScreen
         message="Building your session…"
-        subtitle="Using your goals and gym."
+        subtitle="Using your default preset and gym."
         onGoBack={() => {
           trainTodayCancelledRef.current = true;
           setIsTrainTodayGenerating(false);
@@ -283,25 +325,79 @@ export default function HomeScreen() {
           router.push(targetHref as never);
         }}
       />
+      <Modal
+        visible={switchOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSwitchOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setSwitchOpen(false)}>
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: theme.cardOpaque, borderColor: theme.border }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Default for Train today</Text>
+            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+              {pickerRows.map((row) => {
+                const selected =
+                  defaultTrainTodayPreset?.kind === row.kind &&
+                  defaultTrainTodayPreset.id === row.id;
+                return (
+                  <Pressable
+                    key={`${row.kind}:${row.id}`}
+                    style={({ pressed }) => [
+                      styles.modalRow,
+                      {
+                        borderColor: theme.border,
+                        opacity: pressed ? 0.85 : 1,
+                        backgroundColor: selected ? theme.primarySoft : "transparent",
+                      },
+                    ]}
+                    onPress={() => {
+                      setDefaultTrainTodayPreset({ kind: row.kind, id: row.id });
+                      setSwitchOpen(false);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.modalRowTitle, { color: theme.text }]}>
+                        {row.name}
+                      </Text>
+                      <Text style={[styles.modalRowDetail, { color: theme.textMuted }]}>
+                        {row.kind === "goal" ? "Goal" : "Sport"} · {row.detail}
+                      </Text>
+                    </View>
+                    {selected ? (
+                      <Ionicons name="checkmark-circle" size={20} color={theme.primary} />
+                    ) : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Pressable onPress={() => setSwitchOpen(false)} style={styles.modalClose}>
+              <Text style={{ color: theme.primary, fontWeight: "600" }}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.headline, { color: theme.text }]}>
-          Customize your gym session:
+          How do you want to train?
         </Text>
 
-        {canTrainToday && !activeSessionDraft && (
-          <View
-            style={[
-              styles.trainTodayCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.trainTodayTitle, { color: theme.text }]}>Train today</Text>
-            <Text style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}>
-              {trainTodayLabel}
-            </Text>
+        <View
+          style={[
+            styles.trainTodayCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.trainTodayTitle, { color: theme.text }]}>Train today</Text>
+          <Text style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}>
+            {trainTodayLabel}
+          </Text>
+          {canTrainToday ? (
             <Pressable
               style={({ pressed }) => [styles.trainTodayButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
               onPress={onTrainToday}
@@ -315,11 +411,28 @@ export default function HomeScreen() {
                 <Text style={styles.trainTodayButtonText}>Build today&apos;s workout</Text>
               </LinearGradient>
             </Pressable>
+          ) : (
             <Text style={[styles.trainTodayHint, { color: theme.textMuted }]}>
-              Uses your saved goals and gym. Sport prep and advanced options stay in the cards below.
+              Save a goal or sport setup as a preset to enable one-tap Train today.
             </Text>
-          </View>
-        )}
+          )}
+          {hasPresets ? (
+            <Pressable
+              style={({ pressed }) => [styles.switchRow, { opacity: pressed ? 0.85 : 1 }]}
+              onPress={() => setSwitchOpen(true)}
+            >
+              <Text style={[styles.switchLabel, { color: theme.primary }]}>Switch preset</Text>
+              <Ionicons name="swap-horizontal" size={16} color={theme.primary} />
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={({ pressed }) => [styles.manageRow, { opacity: pressed ? 0.85 : 1 }]}
+            onPress={() => router.push("/presets")}
+          >
+            <Text style={[styles.manageLabel, { color: theme.textMuted }]}>Manage presets</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+          </Pressable>
+        </View>
 
         <ActionCard
           icon="barbell-outline"
@@ -345,50 +458,6 @@ export default function HomeScreen() {
           theme={theme}
           onNavigateFlow={onNavigateFlow}
         />
-
-        {!canTrainToday && (
-          <View style={[styles.goalSummary, { backgroundColor: theme.card, borderColor: theme.border }]}>
-            <View style={styles.goalRow}>
-              <Text style={[styles.goalLabel, { color: theme.textMuted }]}>
-                Primary Goal:
-              </Text>
-              <Text style={[styles.goalValue, { color: theme.text }]}>
-                {primaryGoal}
-              </Text>
-            </View>
-            <View style={styles.goalRow}>
-              <Text style={[styles.goalLabel, { color: theme.textMuted }]}>
-                Secondary Goal:
-              </Text>
-              <Text style={[styles.goalValue, { color: theme.text }]}>
-                {secondaryGoal}
-              </Text>
-            </View>
-            <Text style={[styles.trainTodayHint, { color: theme.textMuted, marginTop: 8 }]}>
-              Pick at least one goal in Goal-Oriented or Sport-Focused training to enable Train today.
-            </Text>
-          </View>
-        )}
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.savedPresetsCard,
-            { backgroundColor: theme.card, borderColor: theme.border, opacity: pressed ? 0.9 : 1 },
-          ]}
-          onPress={() => router.push("/presets")}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.savedPresetsTitle, { color: theme.text }]}>
-              Want to utilize a saved preset?
-            </Text>
-            <Text style={[styles.savedPresetsSubtitle, { color: theme.textMuted }]}>
-              {savedPresetCount === 0
-                ? "Reuse a saved goal or sport setup for a day or a week."
-                : `${savedPresetCount} saved — reuse a goal or sport setup for a day or a week.`}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
-        </Pressable>
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -402,7 +471,7 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   headline: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: "700",
     marginBottom: 4,
   },
@@ -436,6 +505,70 @@ const styles = StyleSheet.create({
   trainTodayHint: {
     fontSize: 12,
     lineHeight: 17,
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  switchLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  manageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  manageLabel: {
+    fontSize: 13,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalSheet: {
+    width: "100%",
+    maxWidth: 400,
+    maxHeight: "70%",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  modalList: {
+    flexGrow: 0,
+  },
+  modalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  modalRowTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  modalRowDetail: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  modalClose: {
+    alignItems: "center",
+    paddingVertical: 6,
   },
   actionCard: {
     borderRadius: 22,
@@ -489,43 +622,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#fffdf8",
-  },
-  goalSummary: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginTop: 8,
-    gap: 10,
-    borderWidth: 1,
-    backgroundColor: "#fffdf8",
-  },
-  goalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  goalLabel: {
-    fontSize: 14,
-  },
-  goalValue: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  savedPresetsCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    gap: 10,
-  },
-  savedPresetsTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  savedPresetsSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
   },
 });

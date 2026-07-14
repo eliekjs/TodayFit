@@ -8,6 +8,8 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +17,7 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useWelcome } from "../context/WelcomeContext";
+import { useAuth } from "../context/AuthContext";
 
 const CLEAN_BG = "#f7f3ec";
 const CLEAN_CARD = "#fffdf8";
@@ -28,11 +31,96 @@ const INPUT_BG = "rgba(255,253,248,0.92)";
 export default function WelcomeScreen() {
   const router = useRouter();
   const { setHasEntered } = useWelcome();
+  const {
+    isAuthConfigured,
+    signInWithPassword,
+    signUpWithPassword,
+    resetPasswordForEmail,
+  } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const enterApp = () => {
+  const enterAsGuest = () => {
     setHasEntered();
     router.replace("/");
+  };
+
+  const enterAfterAuth = () => {
+    setHasEntered();
+    router.replace("/");
+  };
+
+  const onSubmit = async () => {
+    setFormError(null);
+    const trimmed = email.trim();
+    if (!trimmed || !password) {
+      setFormError("Enter email and password.");
+      return;
+    }
+    if (password.length < 6) {
+      setFormError("Password must be at least 6 characters.");
+      return;
+    }
+    if (!isAuthConfigured) {
+      setFormError("Auth is not configured on this build. Continue as guest, or set Supabase env.");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (isLogin) {
+        const { error } = await signInWithPassword(trimmed, password);
+        if (error) {
+          setFormError(error);
+          return;
+        }
+        enterAfterAuth();
+        return;
+      }
+      const { error, needsEmailConfirmation } = await signUpWithPassword(trimmed, password);
+      if (error) {
+        setFormError(error);
+        return;
+      }
+      if (needsEmailConfirmation) {
+        Alert.alert(
+          "Check your email",
+          "We sent a confirmation link. After confirming, come back and log in.",
+          [{ text: "OK" }]
+        );
+        setIsLogin(true);
+        return;
+      }
+      enterAfterAuth();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onForgotPassword = async () => {
+    setFormError(null);
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setFormError("Enter your email above, then tap Forgot password.");
+      return;
+    }
+    if (!isAuthConfigured) {
+      setFormError("Auth is not configured on this build.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await resetPasswordForEmail(trimmed);
+      if (error) {
+        setFormError(error);
+        return;
+      }
+      Alert.alert("Reset email sent", "Check your inbox for a password reset link.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -60,16 +148,26 @@ export default function WelcomeScreen() {
             <View style={styles.authCard}>
               <View style={styles.toggleRow}>
                 <Pressable
-                  onPress={() => setIsLogin(true)}
+                  onPress={() => {
+                    setIsLogin(true);
+                    setFormError(null);
+                  }}
                   style={[styles.toggleBtn, isLogin && styles.toggleBtnActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isLogin }}
                 >
                   <Text style={[styles.toggleText, isLogin && styles.toggleTextActive]}>
                     Login
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => setIsLogin(false)}
+                  onPress={() => {
+                    setIsLogin(false);
+                    setFormError(null);
+                  }}
                   style={[styles.toggleBtn, !isLogin && styles.toggleBtnActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: !isLogin }}
                 >
                   <Text style={[styles.toggleText, !isLogin && styles.toggleTextActive]}>
                     Sign Up
@@ -78,34 +176,58 @@ export default function WelcomeScreen() {
               </View>
 
               <TextInput
-                style={[styles.input, styles.inputNonInteractive]}
+                style={styles.input}
                 placeholder="Email"
                 placeholderTextColor={CLEAN_MUTED}
                 autoCapitalize="none"
+                autoCorrect={false}
                 keyboardType="email-address"
-                editable={false}
+                textContentType="emailAddress"
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+                editable={!busy}
+                accessibilityLabel="Email"
               />
               <TextInput
-                style={[styles.input, styles.inputLast, styles.inputNonInteractive]}
+                style={[styles.input, styles.inputLast]}
                 placeholder="Password"
                 placeholderTextColor={CLEAN_MUTED}
                 secureTextEntry
-                editable={false}
+                textContentType={isLogin ? "password" : "newPassword"}
+                autoComplete={isLogin ? "password" : "new-password"}
+                value={password}
+                onChangeText={setPassword}
+                editable={!busy}
+                accessibilityLabel="Password"
               />
 
-              <Text style={styles.previewHint}>
-                Preview build: sign-in fields are placeholders. Tap below to use the app.
-              </Text>
-
-              {isLogin && (
-                <Text style={styles.forgotStatic}>
-                  Forgot password? Recovery is not available in this preview.
+              {!isAuthConfigured && (
+                <Text style={styles.previewHint}>
+                  Supabase is not configured in this build. You can still continue as a guest —
+                  sign-in will not sync data until env is set.
                 </Text>
               )}
 
+              {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+
+              {isLogin && (
+                <Pressable
+                  onPress={onForgotPassword}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Forgot password"
+                >
+                  <Text style={styles.forgotLink}>Forgot password?</Text>
+                </Pressable>
+              )}
+
               <Pressable
-                style={({ pressed }) => [styles.primaryBtnWrap, { opacity: pressed ? 0.9 : 1 }]}
-                onPress={enterApp}
+                style={({ pressed }) => [styles.primaryBtnWrap, { opacity: pressed || busy ? 0.85 : 1 }]}
+                onPress={onSubmit}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel={isLogin ? "Log in" : "Sign up"}
               >
                 <LinearGradient
                   colors={[CLEAN_ACCENT, CLEAN_ACCENT_DARK]}
@@ -113,9 +235,11 @@ export default function WelcomeScreen() {
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryBtn}
                 >
-                  <Text style={styles.primaryBtnText}>
-                    Continue to app
-                  </Text>
+                  {busy ? (
+                    <ActivityIndicator color="#fffdf8" />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>{isLogin ? "Log in" : "Create account"}</Text>
+                  )}
                 </LinearGradient>
               </Pressable>
 
@@ -127,23 +251,19 @@ export default function WelcomeScreen() {
 
               <Pressable
                 style={({ pressed }) => [styles.socialBtn, { opacity: pressed ? 0.9 : 1 }]}
-                onPress={enterApp}
+                onPress={enterAsGuest}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel="Continue as guest"
               >
-                <Text style={styles.socialBtnText}>Continue with Google</Text>
+                <Text style={styles.socialBtnText}>Continue as guest</Text>
               </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.socialBtn, { opacity: pressed ? 0.9 : 1 }]}
-                onPress={enterApp}
-              >
-                <Text style={styles.socialBtnText}>Continue with Apple</Text>
-              </Pressable>
+              <Text style={styles.guestHint}>
+                Guest sessions are not saved to the cloud. Sign in to keep presets, gyms, and history.
+              </Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-
-        <Pressable style={styles.helpBtn} onPress={enterApp}>
-          <Text style={styles.helpText}>?</Text>
-        </Pressable>
       </SafeAreaView>
     </View>
   );
@@ -236,9 +356,6 @@ const styles = StyleSheet.create({
     color: CLEAN_TEXT,
     marginBottom: 12,
   },
-  inputNonInteractive: {
-    pointerEvents: "none",
-  },
   inputLast: {
     marginBottom: 10,
   },
@@ -249,13 +366,20 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     lineHeight: 18,
   },
-  forgotStatic: {
+  errorText: {
+    fontSize: 13,
+    color: "#9b2c2c",
+    textAlign: "center",
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  forgotLink: {
     fontSize: 13,
     alignSelf: "center",
     textAlign: "center",
     marginBottom: 16,
-    color: CLEAN_MUTED,
-    fontWeight: "400",
+    color: CLEAN_ACCENT_DARK,
+    fontWeight: "600",
   },
   primaryBtnWrap: {
     marginBottom: 20,
@@ -265,6 +389,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 52,
   },
   primaryBtnText: {
     fontSize: 16,
@@ -300,22 +425,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: CLEAN_TEXT,
   },
-  helpBtn: {
-    position: "absolute",
-    right: 20,
-    bottom: 24,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: CLEAN_CARD,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: CLEAN_BORDER,
-  },
-  helpText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: CLEAN_TEXT,
+  guestHint: {
+    fontSize: 12,
+    color: CLEAN_MUTED,
+    textAlign: "center",
+    lineHeight: 17,
   },
 });

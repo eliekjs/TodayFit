@@ -48,8 +48,8 @@ The Feb 2026 spec described a fork: *"Help me decide what activity to do"* vs *"
 |---------|---------------|-------|-------|
 | **Goal-Oriented Training** | What gym work fits my strength/physique/endurance/mobility goals? | One day · This week | `/manual/preferences` |
 | **Sport-Focused Training** | What gym work supports my sport(s)? | One day · This week | `/sport-mode` |
-| **Train today** | Same as last time, fast | One day | Home (`/`) |
-| **Presets** | Restore a saved setup | Day or week | `/presets` |
+| **Train today** | Same as last time, fast (default preset) | One day | Home (`/`) |
+| **Presets** | Save / switch / manage setups; set Train today default | Day or week | `/presets` |
 | **Gym profiles** | What equipment do I have here? | Persistent | Profiles tab |
 
 Week planning dedicates days to goals or spreads sport prep across the week. Sub-goals (per goal or per sport) are the **primary semantic target** for generation when present.

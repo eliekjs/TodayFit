@@ -23,8 +23,8 @@ export const DEEP_LOOP_FIX_REGISTRY: FixGuidance[] = [
       "data/sportSubFocus/subFocusIntentRegistry.ts",
     ],
     implementationHint:
-      "Explosive sport sub-focus sessions should prefer sprint/RSA/plyo conditioning over steady-state Zone 2. Extend inputPrefersExplosiveConditioningOverSteadyState and conditioning block filters.",
-    verifyCommand: "npx tsx scripts/deepUserFlowLoop.ts --scenario=deep_p01_maya_vertical_jump --verify",
+      "Explosive sport sub-focus sessions should prefer sprint/RSA/plyo conditioning over steady-state Zone 2. Extend inputPrefersExplosiveConditioningOverSteadyState and conditioning block filters. Verified non-recurring on 32+ seeds (personaDeepLoopRepro) 2026-07-12.",
+    verifyCommand: "npx vitest run logic/workoutGeneration/personaDeepLoopRepro.test.ts",
     testPriority: "P0",
   },
   {
@@ -57,8 +57,9 @@ export const DEEP_LOOP_FIX_REGISTRY: FixGuidance[] = [
       "logic/workoutGeneration/dailyGenerator.ts",
       "logic/workoutGeneration/sportProfileBanPredicates.ts",
     ],
-    implementationHint: "Exclude leg-press family from power block repair swaps and intent-slot athletic pools.",
-    verifyCommand: "npx tsx scripts/deepUserFlowLoop.ts --scenario=deep_p02_morgan_multi_sport --verify",
+    implementationHint:
+      "Exclude leg-press family from power/main athletic blocks and repair swaps (main_strength + main_hypertrophy parallel to power). Verified non-recurring on 32+ seeds (personaDeepLoopRepro) 2026-07-12.",
+    verifyCommand: "npx vitest run logic/workoutGeneration/personaDeepLoopRepro.test.ts",
     testPriority: "P0",
   },
   {
@@ -67,7 +68,7 @@ export const DEEP_LOOP_FIX_REGISTRY: FixGuidance[] = [
     title: "Train today blocks sport-only or mismatched intent",
     likelyFiles: ["app/(tabs)/index.tsx", "lib/trainToday.ts", "context/AppStateContext.tsx"],
     implementationHint:
-      "canUseTrainToday must accept saved sportForm; runTrainToday must pass sportGoalContext to generateWorkoutAsync.",
+      "canUseTrainToday must resolve a default goal/sport preset; runTrainToday must pass sportGoalContext for sport defaults.",
     verifyCommand: "npx tsx scripts/deepUserFlowLoop.ts --scenario=deep_p02_morgan_multi_sport --verify",
     testPriority: "P0",
   },

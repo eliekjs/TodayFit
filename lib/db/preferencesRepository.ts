@@ -8,6 +8,7 @@ const DEFAULT_MANUAL_PREFERENCES: ManualPreferences = {
   targetModifier: [],
   durationMinutes: null,
   energyLevel: null,
+  volumePreference: null,
   injuries: [],
   upcoming: [],
   subFocusByGoal: {},
@@ -40,6 +41,13 @@ function asBoolean(value: unknown): boolean | undefined {
 
 function asEnergyLevel(value: unknown): ManualPreferences["energyLevel"] | undefined {
   if (value === "low" || value === "medium" || value === "high") return value;
+  return undefined;
+}
+
+function asVolumePreference(value: unknown): ManualPreferences["volumePreference"] | undefined {
+  if (value === "conservative" || value === "standard" || value === "high_volume" || value === null) {
+    return value;
+  }
   return undefined;
 }
 
@@ -106,6 +114,8 @@ function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
     targetModifier: asStringArray(prefs.targetModifier) ?? DEFAULT_MANUAL_PREFERENCES.targetModifier,
     durationMinutes: asNumber(prefs.durationMinutes) ?? DEFAULT_MANUAL_PREFERENCES.durationMinutes,
     energyLevel: asEnergyLevel(prefs.energyLevel) ?? DEFAULT_MANUAL_PREFERENCES.energyLevel,
+    volumePreference:
+      asVolumePreference(prefs.volumePreference) ?? DEFAULT_MANUAL_PREFERENCES.volumePreference,
     injuries: asStringArray(prefs.injuries) ?? DEFAULT_MANUAL_PREFERENCES.injuries,
     upcoming: asStringArray(prefs.upcoming) ?? DEFAULT_MANUAL_PREFERENCES.upcoming,
     subFocusByGoal,

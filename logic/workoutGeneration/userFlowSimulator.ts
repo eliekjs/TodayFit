@@ -25,9 +25,11 @@ import {
 } from "../../lib/sessionFlowNav";
 import type { PersonaFixture } from "./personaSimulationFixtures";
 import {
-  buildTrainTodayGenerationParams,
   canUseTrainToday,
+  resolveTrainTodayFromPreset,
+  sportSlugsFromForm,
 } from "../../lib/trainToday";
+import type { ResolvedDefaultTrainTodayPreset } from "../../lib/defaultTrainTodayPreset";
 import { SPORTS_WITH_SUB_FOCUSES } from "../../data/sportSubFocus/sportsWithSubFocuses";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
 import { TARGET_OPTIONS, DURATIONS } from "../../lib/preferencesConstants";
@@ -332,6 +334,34 @@ function goalCtaReady(state: FlowSimState): boolean {
   return state.manualPreferences.primaryFocus.length >= 1;
 }
 
+/** Simulate Home default preset from current flow state (goal prefs or sport form). */
+function resolvedTrainTodayDefault(state: FlowSimState): ResolvedDefaultTrainTodayPreset | null {
+  const sports = sportSlugsFromForm(state.sportForm);
+  if (sports.length >= 1 && state.sportForm) {
+    return {
+      kind: "sport",
+      preset: {
+        id: "sim_sport_default",
+        name: "Sim sport default",
+        savedAt: new Date(0).toISOString(),
+        sportForm: state.sportForm,
+      },
+    };
+  }
+  if (state.manualPreferences.primaryFocus.length >= 1) {
+    return {
+      kind: "goal",
+      preset: {
+        id: "sim_goal_default",
+        name: "Sim goal default",
+        savedAt: new Date(0).toISOString(),
+        preferences: state.manualPreferences,
+      },
+    };
+  }
+  return null;
+}
+
 export function simulateUserFlow(
   scenario: UserFlowScenario,
   fixture: PersonaFixture
@@ -358,22 +388,24 @@ export function simulateUserFlow(
   validateIntentOptions(fixture, state, issues);
 
   if (fixture.sportGoalContext?.sport_slugs?.length) {
-    state.sportForm.rankedSportSlugs = [
+    const sportForm = state.sportForm ?? defaultSportForm();
+    sportForm.rankedSportSlugs = [
       fixture.sportGoalContext.sport_slugs[0] ?? null,
       fixture.sportGoalContext.sport_slugs[1] ?? null,
     ];
-    state.sportForm.subFocusBySport = { ...(fixture.sportGoalContext.sport_sub_focus ?? {}) };
-    state.sportForm.sportVsGoalPct = Math.round((fixture.sportGoalContext.sport_weight ?? 0.55) * 100);
+    sportForm.subFocusBySport = { ...(fixture.sportGoalContext.sport_sub_focus ?? {}) };
+    sportForm.sportVsGoalPct = Math.round((fixture.sportGoalContext.sport_weight ?? 0.55) * 100);
     if (fixture.sportGoalContext.sport_focus_pct) {
-      state.sportForm.sportFocusPct = fixture.sportGoalContext.sport_focus_pct;
+      sportForm.sportFocusPct = fixture.sportGoalContext.sport_focus_pct;
     }
-    state.sportForm.oneDayDuration = fixture.manualPreferences.durationMinutes ?? 45;
-    state.sportForm.oneDayBodyBias =
+    sportForm.oneDayDuration = fixture.manualPreferences.durationMinutes ?? 45;
+    sportForm.oneDayBodyBias =
       fixture.manualPreferences.targetBody === "Upper"
         ? "upper"
         : fixture.manualPreferences.targetBody === "Full"
           ? "full"
           : "lower";
+    state.sportForm = sportForm;
   }
 
   for (const step of scenario.steps) {
@@ -446,7 +478,7 @@ export function simulateUserFlow(
               ? sportCtaReady(state)
               : goalCtaReady(state)
             : cta === "train_today"
-              ? canUseTrainToday(state.manualPreferences, state.sportForm, true)
+              ? canUseTrainToday(true, resolvedTrainTodayDefault(state))
               : true;
         if (!ok) {
           issues.push({
@@ -591,16 +623,16 @@ export function simulateUserFlow(
         break;
       case "tap_train_today":
         state.trainTodayAttempted = true;
-        state.trainTodayAllowed = canUseTrainToday(state.manualPreferences, state.sportForm, true);
-        if (state.trainTodayAllowed) {
-          const { sessionFlow } = buildTrainTodayGenerationParams(
-            state.manualPreferences,
-            state.sportForm
-          );
-          state.flow = sessionFlow;
-          state.generatedWorkout = { stub: true };
-          state.route = "/manual/workout";
-          recomputePhase(state);
+        {
+          const resolved = resolvedTrainTodayDefault(state);
+          state.trainTodayAllowed = canUseTrainToday(true, resolved);
+          if (state.trainTodayAllowed && resolved) {
+            const { sessionFlow } = resolveTrainTodayFromPreset(resolved);
+            state.flow = sessionFlow;
+            state.generatedWorkout = { stub: true };
+            state.route = "/manual/workout";
+            recomputePhase(state);
+          }
         }
         break;
       case "switch_gym_template":
@@ -735,12 +767,12 @@ export const USER_FLOW_SCENARIOS: UserFlowScenario[] = [
   },
   {
     id: "train_today_sport_persona",
-    label: "Train today from home (sport-only saved prefs)",
+    label: "Train today from home (default sport preset)",
     personaId: "P02",
     flow: "goal_day",
     testPriority: "P1",
     steps: [
-      { id: "train_today", action: "tap_train_today", description: "Tap Train today with sport-only prefs" },
+      { id: "train_today", action: "tap_train_today", description: "Tap Train today with default sport preset" },
     ],
   },
   {

@@ -130,7 +130,7 @@ Use this format:
 
 ## Latest Single-Simulation Review
 
-- Status: `pending refresh after new tagging + weighted checks are wired into simulation script`
-- Reviewer decision: `pending`
+- Status: `weighted_alignment_*` wired into `logic/workoutGeneration/weightedAlignmentScoring.ts`, consumed by `scripts/personaLoopSimulation.ts` and `logic/workoutGeneration/personaOutputAnalysis.ts` (deep user-flow)
+- Reviewer decision: `pass` for Phase 3 G3.4 wiring (soft intent drift surfaces as P1 checks)
 - Rule change notes:
-  - `pending`
+  - Shared module exports `buildWeightedAlignmentChecks` covering primary, order, tolerance (±0.15), and minimum_presence (≥0.10 when target ≥0.20)

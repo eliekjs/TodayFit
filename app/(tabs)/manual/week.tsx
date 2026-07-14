@@ -1006,6 +1006,9 @@ export default function ManualWeekScreen() {
         }
       }
       if (dailyPrefsOverride.energyLevel) dayPrefs = { ...dayPrefs, energyLevel: dailyPrefsOverride.energyLevel };
+      if (dailyPrefsOverride.volumePreference) {
+        dayPrefs = { ...dayPrefs, volumePreference: dailyPrefsOverride.volumePreference };
+      }
       if (dailyPrefsOverride.workoutTier != null) {
         dayPrefs = { ...dayPrefs, workoutTier: dailyPrefsOverride.workoutTier };
       }

@@ -472,6 +472,38 @@ export async function saveCompletedWorkout(userId: string, item: Omit<WorkoutHis
 }
 
 /**
+ * Rename a completed (history) workout. Updates title + intent.name.
+ */
+export async function updateCompletedWorkoutName(
+  userId: string,
+  workoutId: string,
+  name: string
+): Promise<void> {
+  const supabase = requireClient();
+  const { data: existing, error: readErr } = await supabase
+    .from("workouts")
+    .select("id, intent")
+    .eq("id", workoutId)
+    .eq("user_id", userId)
+    .eq("mode", "completed")
+    .maybeSingle();
+  if (readErr) throw new Error(readErr.message);
+  if (!existing) throw new Error("Completed workout not found");
+  const intent = {
+    ...(typeof existing.intent === "object" && existing.intent != null
+      ? (existing.intent as Record<string, unknown>)
+      : {}),
+    name,
+  };
+  const { error } = await supabase
+    .from("workouts")
+    .update({ title: name || "Completed", intent })
+    .eq("id", workoutId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+}
+
+/**
  * List completed workouts (history) for user. Normalizes legacy section-based workouts to blocks.
  */
 export async function listCompletedWorkouts(userId: string): Promise<WorkoutHistoryItem[]> {

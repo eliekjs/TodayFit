@@ -3,6 +3,7 @@ import type {
   EnergyLevel,
   ManualPreferences,
   TargetBody,
+  VolumePreference,
   WorkoutTierPreference,
 } from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
@@ -27,6 +28,8 @@ export type SessionIntent = {
   focus: string[];
   durationMinutes: number;
   energyLevel: EnergyLevel;
+  /** Optional set/rep density dial; stacks with energy. */
+  volumePreference?: VolumePreference | null;
   /** Optional rationale or notes for this session. */
   notes?: string;
   /** Optional body-region bias for this session (emphasis, not strict filter). */
@@ -58,6 +61,8 @@ export type SportGoalOptions = {
   workoutTier?: WorkoutTierPreference;
   /** When true, allow exercises tagged as creative/complex variations. */
   includeCreativeVariations?: boolean;
+  /** Optional set/rep density dial (conservative / standard / high_volume). */
+  volumePreference?: VolumePreference | null;
   /** Per–primary-focus sub-goal labels (Manual `subFocusByGoal` keys). Biases exercise selection. */
   subFocusByGoal?: Record<string, string[]>;
   /** Optional integer % per primary-focus sub-goal (same shape as ManualPreferences.subFocusPctByGoal). */
@@ -131,6 +136,7 @@ export async function buildWorkoutForSessionIntent(
     targetModifier: bodyBias?.targetModifier ?? [],
     durationMinutes: intent.durationMinutes,
     energyLevel: intent.energyLevel,
+    volumePreference: options?.volumePreference ?? intent.volumePreference ?? null,
     injuries: options?.injuries ?? [],
     upcoming: options?.recentLoad ? [options.recentLoad] : [],
     subFocusByGoal: subFocusByGoalForPrefs,

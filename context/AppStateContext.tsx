@@ -90,6 +90,13 @@ import {
   persistModeFilterSnapshot,
   type LastEditedFiltersByMode,
 } from "./sessionDraftStorage";
+import {
+  fallbackDefaultAfterRemoval,
+  loadDefaultTrainTodayPreset,
+  recoverDefaultTrainTodayPreset,
+  saveDefaultTrainTodayPreset,
+  type DefaultTrainTodayPresetRef,
+} from "../lib/defaultTrainTodayPreset";
 
 /** Strip engine/cardio-conditioning sub-focus labels mismatched to primary goals; sync % maps. */
 function sanitizeManualPreferenceSubLayers(prefs: ManualPreferences): ManualPreferences {
@@ -143,6 +150,9 @@ type AppStateContextValue = {
   removeSportPreset: (id: string) => void;
   /** Queues the preset's sport form for one-shot hydration next time the sport-mode screen focuses. */
   applySportPreset: (id: string) => void;
+  /** Home Train today default preset pointer (local). */
+  defaultTrainTodayPreset: DefaultTrainTodayPresetRef | null;
+  setDefaultTrainTodayPreset: (ref: DefaultTrainTodayPresetRef | null) => void;
   updateManualPreferences: (update: Partial<ManualPreferences>) => void;
   setGeneratedWorkout: (workout: GeneratedWorkout | null) => void;
   setResumeProgress: (progress: ExecutionProgress | null) => void;
@@ -277,6 +287,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [manualExecutionStarted, setManualExecutionStarted] = useState(false);
   const [preferencePresets, setPreferencePresets] = useState<PreferencePreset[]>([]);
   const [sportPresets, setSportPresets] = useState<SportPreset[]>([]);
+  const [defaultTrainTodayPreset, setDefaultTrainTodayPresetState] =
+    useState<DefaultTrainTodayPresetRef | null>(null);
+  const preferencePresetsRef = useRef(preferencePresets);
+  const sportPresetsRef = useRef(sportPresets);
+  preferencePresetsRef.current = preferencePresets;
+  sportPresetsRef.current = sportPresets;
   const [sportPrepWeekPlan, setSportPrepWeekPlan] = useState<PlanWeekResult | null>(null);
   const [manualWeekPlan, setManualWeekPlan] = useState<ManualWeekPlan | null>(null);
   const [adaptiveSetup, setAdaptiveSetup] = useState<AdaptiveSetup | null>(null);
@@ -296,6 +312,32 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     persistUserId: string;
     enqueue: (preferences: ManualPreferences) => void;
   } | null>(null);
+
+  /** When a signed-in session ends, drop cloud-shaped state so guest does not keep another user's data. */
+  const previousUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousUserIdRef.current;
+    previousUserIdRef.current = userId;
+    if (!previous || userId) return;
+    setGymProfiles(initialGymProfiles);
+    setActiveGymProfileId(initialGymProfiles[0]?.id ?? null);
+    setManualPreferences(defaultManualPreferences);
+    setGeneratedWorkout(null);
+    setWorkoutHistory([]);
+    setSavedWorkouts([]);
+    setSavedWeeks([]);
+    setResumeProgress(null);
+    setManualSessionProgress(null);
+    setManualExecutionStarted(false);
+    setPreferencePresets([]);
+    setSportPresets([]);
+    setSportPrepWeekPlan(null);
+    setManualWeekPlan(null);
+    setAdaptiveSetup(null);
+    setRemoteSyncStatus("idle");
+    setRemoteSyncError(null);
+    setRemoteSyncSkippedMerge(false);
+  }, [userId]);
 
   const prevGeneratedWorkoutIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -319,6 +361,44 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
     });
   }, []);
+
+  useEffect(() => {
+    void loadDefaultTrainTodayPreset().then((ref) => {
+      setDefaultTrainTodayPresetState(ref);
+    });
+  }, []);
+
+  const setDefaultTrainTodayPreset = useCallback((ref: DefaultTrainTodayPresetRef | null) => {
+    setDefaultTrainTodayPresetState(ref);
+    void saveDefaultTrainTodayPreset(ref);
+  }, []);
+
+  const adoptDefaultIfEmpty = useCallback((ref: DefaultTrainTodayPresetRef) => {
+    setDefaultTrainTodayPresetState((prev) => {
+      if (prev != null) return prev;
+      void saveDefaultTrainTodayPreset(ref);
+      return ref;
+    });
+  }, []);
+
+  /** If stored pointer is stale after presets load/sync, recover to a live preset. */
+  useEffect(() => {
+    setDefaultTrainTodayPresetState((prev) => {
+      const next = recoverDefaultTrainTodayPreset(
+        prev,
+        preferencePresets,
+        sportPresets
+      );
+      if (
+        (next == null && prev == null) ||
+        (next != null && prev != null && next.kind === prev.kind && next.id === prev.id)
+      ) {
+        return prev;
+      }
+      void saveDefaultTrainTodayPreset(next);
+      return next;
+    });
+  }, [preferencePresets, sportPresets]);
 
   const activeGymName = useMemo(
     () => gymProfiles.find((g) => g.id === activeGymProfileId)?.name ?? null,
@@ -824,16 +904,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         action: async () => {
           const p = await PreferencesRepo.addPreset(userId, preset);
           setPreferencePresets((prev) => [...prev, p]);
+          adoptDefaultIfEmpty({ kind: "goal", id: p.id });
         },
         onFailure: notifySaveFailed,
       });
     } else {
-      setPreferencePresets((prev) => [
-        ...prev,
-        { ...preset, id: `preset_${Date.now()}` },
-      ]);
+      const id = `preset_${Date.now()}`;
+      setPreferencePresets((prev) => [...prev, { ...preset, id }]);
+      adoptDefaultIfEmpty({ kind: "goal", id });
     }
-  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed, adoptDefaultIfEmpty]);
 
   const updatePreferencePreset = useCallback((id: string, update: Partial<Pick<PreferencePreset, "name" | "preferences">>) => {
     const previousSnapshot = preferencePresets.find((p) => p.id === id);
@@ -857,7 +937,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const removePreferencePreset = useCallback((id: string) => {
     const removed = preferencePresets.find((p) => p.id === id);
     const removedIndex = preferencePresets.findIndex((p) => p.id === id);
-    setPreferencePresets((prev) => prev.filter((p) => p.id !== id));
+    setPreferencePresets((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      setDefaultTrainTodayPresetState((current) => {
+        if (current?.kind !== "goal" || current.id !== id) return current;
+        const nextRef = fallbackDefaultAfterRemoval(
+          { kind: "goal", id },
+          next,
+          sportPresetsRef.current
+        );
+        void saveDefaultTrainTodayPreset(nextRef);
+        return nextRef;
+      });
+      return next;
+    });
     if (persist && userId && removed != null) {
       touchPersistedStateDuringRemoteLoad();
       void persistWithHandling({
@@ -884,16 +977,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         action: async () => {
           const p = await SportPresetsRepo.addSportPreset(userId, preset);
           setSportPresets((prev) => [...prev, p]);
+          adoptDefaultIfEmpty({ kind: "sport", id: p.id });
         },
         onFailure: notifySaveFailed,
       });
     } else {
-      setSportPresets((prev) => [
-        ...prev,
-        { ...preset, id: `sport_preset_${Date.now()}` },
-      ]);
+      const id = `sport_preset_${Date.now()}`;
+      setSportPresets((prev) => [...prev, { ...preset, id }]);
+      adoptDefaultIfEmpty({ kind: "sport", id });
     }
-  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed, adoptDefaultIfEmpty]);
 
   const updateSportPreset = useCallback((id: string, update: Partial<Pick<SportPreset, "name" | "sportForm">>) => {
     const previousSnapshot = sportPresets.find((p) => p.id === id);
@@ -917,7 +1010,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const removeSportPreset = useCallback((id: string) => {
     const removed = sportPresets.find((p) => p.id === id);
     const removedIndex = sportPresets.findIndex((p) => p.id === id);
-    setSportPresets((prev) => prev.filter((p) => p.id !== id));
+    setSportPresets((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      setDefaultTrainTodayPresetState((current) => {
+        if (current?.kind !== "sport" || current.id !== id) return current;
+        const nextRef = fallbackDefaultAfterRemoval(
+          { kind: "sport", id },
+          preferencePresetsRef.current,
+          next
+        );
+        void saveDefaultTrainTodayPreset(nextRef);
+        return nextRef;
+      });
+      return next;
+    });
     if (persist && userId && removed != null) {
       touchPersistedStateDuringRemoteLoad();
       void persistWithHandling({
@@ -984,13 +1090,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   const addCompletedWorkout = useCallback((summary: Omit<WorkoutHistoryItem, "id">) => {
-    const item = { ...summary, id: `hist_${Date.now()}` };
+    const localId = `hist_${Date.now()}`;
+    const item = { ...summary, id: localId };
     setWorkoutHistory((prev) => [...prev, item]);
     if (persist && userId) {
       touchPersistedStateDuringRemoteLoad();
       void persistWithHandling({
         operation: "addCompletedWorkout",
-        action: () => WorkoutRepo.saveCompletedWorkout(userId, summary),
+        action: async () => {
+          const rowId = await WorkoutRepo.saveCompletedWorkout(userId, summary);
+          setWorkoutHistory((prev) =>
+            prev.map((h) => (h.id === localId ? { ...h, id: rowId } : h))
+          );
+        },
         onFailure: notifySaveFailed,
       });
     }
@@ -1000,8 +1112,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setWorkoutHistory((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...update } : item))
     );
-    // Optional: persist name update to workout intent (would need updateWorkoutIntent or similar)
-  }, []);
+    if (persist && userId && typeof update.name === "string") {
+      touchPersistedStateDuringRemoteLoad();
+      void persistWithHandling({
+        operation: "updateWorkoutHistoryItem",
+        action: () => WorkoutRepo.updateCompletedWorkoutName(userId, id, update.name!),
+        onFailure: notifySaveFailed,
+      });
+    }
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const addSavedWorkout = useCallback((item: Omit<SavedWorkout, "id">) => {
     if (persist && userId) {
@@ -1151,8 +1270,28 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       applyPreferencePreset: (id) => {
         const preset = preferencePresets.find((p) => p.id === id);
         if (!preset) return;
-        if (persist && userId) touchPersistedStateDuringRemoteLoad();
-        setManualPreferences(sanitizeManualPreferenceSubLayers(preset.preferences));
+        const next = sanitizeManualPreferenceSubLayers(preset.preferences);
+        setManualPreferences(next);
+        if (persist && userId) {
+          touchPersistedStateDuringRemoteLoad();
+          if (
+            !manualPreferencesPersistQueueRef.current ||
+            manualPreferencesPersistQueueRef.current.persistUserId !== userId
+          ) {
+            manualPreferencesPersistQueueRef.current = {
+              persistUserId: userId,
+              enqueue: createLatestSerializedPersistenceQueue<ManualPreferences>(
+                (preferences) =>
+                  persistWithHandling({
+                    operation: "applyPreferencePreset",
+                    action: () => PreferencesRepo.upsertPreferences(userId, preferences),
+                    onFailure: notifySaveFailed,
+                  })
+              ).enqueue,
+            };
+          }
+          manualPreferencesPersistQueueRef.current.enqueue(next);
+        }
       },
       addSportPreset,
       updateSportPreset,
@@ -1165,6 +1304,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         setSavedSportForm(preset.sportForm);
         setPendingSportFormHydration(preset.sportForm);
       },
+      defaultTrainTodayPreset,
+      setDefaultTrainTodayPreset,
       updateManualPreferences,
       setGeneratedWorkout,
       setResumeProgress,
@@ -1201,6 +1342,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       gymProfiles,
       preferencePresets,
       sportPresets,
+      defaultTrainTodayPreset,
+      setDefaultTrainTodayPreset,
       manualPreferences,
       generatedWorkout,
       workoutHistory,

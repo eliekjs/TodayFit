@@ -1909,6 +1909,7 @@ function getPrescription(
   isAccessory = rxCtx.isAccessory;
   const feel = getActiveSessionPrescriptionFeel();
   const rules = adjustGoalRulesForSessionFeel(getGoalRules(goal), feel);
+  const volumePreference = sessionInput?.volume_preference ?? "standard";
   const strengthVolumeContext =
     goal === "strength" ||
     blockType === "main_strength" ||
@@ -1949,7 +1950,9 @@ function getPrescription(
       repRange,
       rules.setRange,
       energyLevel,
-      "min"
+      "min",
+      volumePreference,
+      { lockReps: true }
     );
     let sets = scaleSets(baseSets);
     sets = capPowerBlockSets(sets, blockType);
@@ -1986,7 +1989,7 @@ function getPrescription(
     cue: string
   ) => {
     const repRange = getEffectiveRepRange(exercise, goalRepRange);
-    const { reps, baseSets } = resolveVolumePrescription(repRange, setRange, energyLevel, repSelection);
+    const { reps, baseSets } = resolveVolumePrescription(repRange, setRange, energyLevel, repSelection, volumePreference);
     return {
       sets: scaleSets(baseSets),
       reps,
@@ -2017,7 +2020,9 @@ function getPrescription(
   // Main strength with power primary still uses power rep/rest when not caught above.
   if (blockType === "main_strength" && goal === "power" && rules.powerRepRange && rules.powerRestRange) {
     const repRange = getEffectiveRepRange(exercise, rules.powerRepRange);
-    const { reps, baseSets } = resolveVolumePrescription(repRange, rules.setRange, energyLevel, "min");
+    const { reps, baseSets } = resolveVolumePrescription(repRange, rules.setRange, energyLevel, "min", volumePreference, {
+      lockReps: true,
+    });
     return {
       sets: scaleSets(baseSets),
       reps,
@@ -2606,7 +2611,7 @@ function selectExercises(
   const chosen: Exercise[] = [];
   /** Recovery-primary cooldown lists many stretches that share the same coarse movement_pattern; relax the session cap. */
   const patternCap =
-    opts.blockType === "cooldown" && input.primary_goal === "recovery"
+    opts.blockType === "cooldown" && isRecoveryMobilityPrimaryGoal(input.primary_goal)
       ? Math.max(MAX_SAME_PATTERN_PER_SESSION, 12)
       : MAX_SAME_PATTERN_PER_SESSION;
 

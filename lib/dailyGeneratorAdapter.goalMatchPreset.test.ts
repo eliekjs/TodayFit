@@ -2,8 +2,14 @@ import { describe, it, expect } from "vitest";
 import { manualPreferencesToGenerateWorkoutInput } from "./dailyGeneratorAdapter";
 import { resolveDayFocusPreset } from "./weekDaySessionFocus";
 import type { ManualPreferences } from "./types";
+import type { GymProfile } from "../data/gymProfiles";
+import type { EquipmentKey } from "./types";
 
-const GYM = { id: "g1", name: "Test Gym", equipment: ["dumbbells", "barbell"] };
+const GYM: GymProfile = {
+  id: "g1",
+  name: "Test Gym",
+  equipment: ["dumbbells", "barbell"] as EquipmentKey[],
+};
 
 const BASE_PREFS: ManualPreferences = {
   primaryFocus: ["Build Strength", "Build Muscle (Hypertrophy)", "Mobility & Joint Health"],

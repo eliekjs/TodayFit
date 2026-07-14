@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { EXERCISES } from "../../data/exercisesMerged";
 import { exerciseDefinitionToGeneratorExercise } from "../dailyGeneratorAdapter";
 import { generateWorkoutSession } from "../../logic/workoutGeneration/dailyGenerator";
+import type { Exercise } from "../../logic/workoutGeneration/types";
 import { formatPrescription } from "../types";
 import {
   blobIsSprintOrAgilityConditioningDrill,
@@ -42,8 +43,8 @@ function testDeadLegZone2PrimaryNeverSustained() {
       stimulus: ["aerobic_zone2"],
     },
   };
-  const pool = [
-    stripped,
+  const pool: Exercise[] = [
+    stripped as Exercise,
     ...EXERCISES.filter((e) => e.id === "zone2_treadmill").map(exerciseDefinitionToGeneratorExercise),
   ];
 

@@ -9,18 +9,16 @@ import { validateWorkoutAgainstConstraints } from "./workoutValidator";
 import type { Exercise } from "../../workoutGeneration/types";
 
 function makeConstraints(
-  overrides: Partial<{
-    superset_pairing: ResolvedWorkoutConstraints["superset_pairing"];
-  }> = {}
+  overrides: Partial<ResolvedWorkoutConstraints> = {}
 ): ResolvedWorkoutConstraints {
   return {
-    rules: [],
-    excluded_exercise_ids: new Set(),
-    excluded_joint_stress_tags: new Set(),
-    excluded_contraindication_keys: new Set(),
-    allowed_movement_families: null,
-    allowed_lower_body_emphasis: undefined,
-    min_cooldown_mobility_exercises: 0,
+    rules: overrides.rules ?? [],
+    excluded_exercise_ids: overrides.excluded_exercise_ids ?? new Set(),
+    excluded_joint_stress_tags: overrides.excluded_joint_stress_tags ?? new Set(),
+    excluded_contraindication_keys: overrides.excluded_contraindication_keys ?? new Set(),
+    allowed_movement_families: overrides.allowed_movement_families ?? null,
+    allowed_lower_body_emphasis: overrides.allowed_lower_body_emphasis,
+    min_cooldown_mobility_exercises: overrides.min_cooldown_mobility_exercises ?? 0,
     superset_pairing: overrides.superset_pairing ?? null,
   };
 }

@@ -108,6 +108,10 @@ export function ThemeOverrideProvider({ theme, children }: ThemeOverrideProvider
   );
 }
 
+/**
+ * Active product theme. v1 ships **light-only** (`cleanFlowPalette`).
+ * Legacy dark/teal palettes remain via `useLegacyTheme` but are unused by screens.
+ */
 export function useTheme(): Theme {
   const override = useContext(themeOverrideContext);
   if (override != null) {

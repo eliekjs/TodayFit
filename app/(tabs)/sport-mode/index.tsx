@@ -45,6 +45,8 @@ import {
   goalSubFocusPctPayloadForAdaptiveGoals,
   collectInvalidConditioningSubFocusSelections,
   subFocusChoicesForManualPrimaryGoal,
+  VOLUME_PREFERENCE_OPTIONS,
+  volumePreferenceDisplayLabel,
 } from "../../../lib/preferencesConstants";
 import {
   equalIntegerPctsForLabels,
@@ -144,7 +146,8 @@ type AdaptiveAdvNestedKey =
   | "goalSubGoals"
   | "sportFocus"
   | "injury"
-  | "intensityLevel";
+  | "intensityLevel"
+  | "volumePreference";
 
 export default function AdaptiveModeScreen() {
   const theme = useTheme();
@@ -612,6 +615,7 @@ export default function AdaptiveModeScreen() {
             includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
             dailyPreferences: { bodyRegionBias: oneDayBodyBias },
             sessionFocusDistribution: manualPreferences.sessionFocusDistribution ?? undefined,
+            manualPreferences,
             adaptiveScheduleLabels: {
               intensityLevel,
               injuryStatus,
@@ -1033,6 +1037,14 @@ export default function AdaptiveModeScreen() {
       : []),
     ...(intensityLevel !== "Moderate"
       ? [{ id: "intensity", label: `Energy: ${sportIntensityDisplayLabel(intensityLevel)}` }]
+      : []),
+    ...((manualPreferences.volumePreference ?? "standard") !== "standard"
+      ? [
+          {
+            id: "volume",
+            label: `Volume: ${volumePreferenceDisplayLabel(manualPreferences.volumePreference)}`,
+          },
+        ]
       : []),
     ...(injuryStatus !== "No Concerns"
       ? [{ id: "injury_status", label: `Injury status: ${injuryStatus}` }]
@@ -2139,7 +2151,7 @@ export default function AdaptiveModeScreen() {
             <CollapsiblePreferenceSection
               nested
               title="How hard to train"
-              subtitle="Low, medium, or high affects sets and conditioning length."
+              subtitle="Low, medium, or high affects how hard the session feels (sets and conditioning length)."
               summary={sportIntensityDisplayLabel(intensityLevel)}
               expanded={adaptiveAdvNestedOpen.intensityLevel === true}
               onToggle={() => toggleAdaptiveAdvNested("intensityLevel")}
@@ -2151,6 +2163,35 @@ export default function AdaptiveModeScreen() {
                     label={sportIntensityDisplayLabel(opt)}
                     selected={intensityLevel === opt}
                     onPress={() => setIntensityAndSyncEnergy(opt)}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
+
+            <CollapsiblePreferenceSection
+              nested
+              title="Volume preference"
+              subtitle="Conservative, standard, or high volume adjusts sets and reps on top of your goal and energy."
+              summary={volumePreferenceDisplayLabel(manualPreferences.volumePreference)}
+              expanded={adaptiveAdvNestedOpen.volumePreference === true}
+              onToggle={() => toggleAdaptiveAdvNested("volumePreference")}
+            >
+              <View style={styles.chipGroup}>
+                {VOLUME_PREFERENCE_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt.value}
+                    label={opt.label}
+                    selected={
+                      (manualPreferences.volumePreference ?? "standard") === opt.value
+                    }
+                    onPress={() => {
+                      updateManualPreferences({
+                        volumePreference:
+                          (manualPreferences.volumePreference ?? "standard") === opt.value
+                            ? null
+                            : opt.value,
+                      });
+                    }}
                   />
                 ))}
               </View>

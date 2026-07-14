@@ -42,6 +42,7 @@ export {
   getWorkoutsByIds,
   saveGeneratedWorkout,
   saveCompletedWorkout,
+  updateCompletedWorkoutName,
   listCompletedWorkouts,
   saveSavedWorkout,
   listSavedWorkouts,

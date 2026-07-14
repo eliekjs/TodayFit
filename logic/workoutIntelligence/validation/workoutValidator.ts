@@ -106,6 +106,8 @@ function isEligibleAccessoryRepairCandidate(ex: ExerciseWithQualities): boolean 
 
 function isEligibleMainHypertrophyRepairCandidate(ex: ExerciseWithQualities): boolean {
   const exercise = asExercise(ex);
+  // Parallel to power repair: leg-press family is never a valid athletic main-work swap.
+  if (hardBanLegPressFamily(exercise)) return false;
   if (isSprintMechanicsDrill(exercise)) return false;
   const modality = (exercise.modality ?? "").toLowerCase().replace(/\s/g, "_");
   if (modality === "conditioning") return false;
@@ -126,6 +128,15 @@ function isEligiblePowerBlockRepairCandidate(ex: ExerciseWithQualities): boolean
   return false;
 }
 
+function isEligibleMainStrengthRepairCandidate(ex: ExerciseWithQualities): boolean {
+  const exercise = asExercise(ex);
+  if (hardBanLegPressFamily(exercise)) return false;
+  if (isSprintMechanicsDrill(exercise)) return false;
+  const modality = (exercise.modality ?? "").toLowerCase().replace(/\s/g, "_");
+  if (modality === "conditioning" || modality === "mobility" || modality === "recovery") return false;
+  return true;
+}
+
 function isEligibleBlockRepairCandidate(ex: ExerciseWithQualities, blockType: string): boolean {
   const norm = normBlockType(blockType);
   if (norm === "accessory") {
@@ -133,6 +144,9 @@ function isEligibleBlockRepairCandidate(ex: ExerciseWithQualities, blockType: st
   }
   if (norm === "main_hypertrophy") {
     return isEligibleMainHypertrophyRepairCandidate(ex);
+  }
+  if (norm === "main_strength") {
+    return isEligibleMainStrengthRepairCandidate(ex);
   }
   if (norm === "power") {
     return isEligiblePowerBlockRepairCandidate(ex);

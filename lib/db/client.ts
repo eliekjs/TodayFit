@@ -1,29 +1,16 @@
+import { Platform } from "react-native";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { supabaseAuthStorage } from "./authStorage";
+import {
+  isDbConfigured,
+  isPlaceholderSupabaseConfig,
+  readSupabaseEnv,
+} from "./supabaseEnv";
+
+export { isDbConfigured, isPlaceholderSupabaseConfig, readSupabaseEnv };
 
 let client: SupabaseClient | null = null;
 let clientKey: string | null = null;
-
-function readSupabaseEnv(): { url: string; anonKey: string } {
-  return {
-    url: (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim(),
-    anonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim(),
-  };
-}
-
-/** Reject copied `.env.example` placeholders so we do not attempt doomed fetches. */
-export function isPlaceholderSupabaseConfig(url: string, anonKey: string): boolean {
-  const lowerUrl = url.toLowerCase();
-  const lowerKey = anonKey.toLowerCase();
-  return (
-    !url ||
-    !anonKey ||
-    lowerUrl.includes("your-project") ||
-    lowerUrl.includes("example.com") ||
-    lowerKey === "your-anon-key" ||
-    lowerKey.includes("your-anon") ||
-    anonKey.length < 32
-  );
-}
 
 /**
  * Returns the Supabase client. Use this instead of creating your own client.
@@ -36,16 +23,16 @@ export function getSupabase(): SupabaseClient | null {
   }
   const cacheKey = `${url}\0${anonKey}`;
   if (!client || clientKey !== cacheKey) {
-    client = createClient(url, anonKey);
+    client = createClient(url, anonKey, {
+      auth: {
+        storage: supabaseAuthStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: Platform.OS === "web",
+        flowType: "pkce",
+      },
+    });
     clientKey = cacheKey;
   }
   return client;
-}
-
-/**
- * Check if the DB layer is configured (env vars present).
- */
-export function isDbConfigured(): boolean {
-  const { url, anonKey } = readSupabaseEnv();
-  return !isPlaceholderSupabaseConfig(url, anonKey);
 }

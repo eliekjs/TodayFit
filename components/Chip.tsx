@@ -55,6 +55,9 @@ export function Chip({ label, selected = false, disabled = false, onPress, style
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected, disabled }}
       style={({ pressed }) => (pressed ? { opacity: 0.8 } : undefined)}
       onPress={(e) => onPress(e)}
     >

@@ -148,11 +148,22 @@ export function isGentleRecoveryExercise(exercise: Exercise): boolean {
  */
 export function isRecoveryPrimaryFriendlyExercise(exercise: Exercise): boolean {
   if (!isGentleRecoveryExercise(exercise)) return false;
-  if (isWarmupPrimaryCooldownExcluded(exercise)) return false;
 
   const id = exercise.id.toLowerCase();
   const name = (exercise.name ?? "").toLowerCase();
   const haystack = `${id} ${name}`;
+  const modality = (exercise.modality ?? "").toLowerCase();
+
+  // Warmup-primary exclusion is for strength-session cooldowns. Recovery primary still wants
+  // classic spinal mobility (cat-camel, child's pose) even when tagged high warmup / low cooldown.
+  if (isWarmupPrimaryCooldownExcluded(exercise)) {
+    const spinalRecoveryAllow =
+      (modality === "mobility" || modality === "recovery") &&
+      /\b(cat_camel|cat_cow|childs_pose|child_pose|birds?_dog|thread_needle|open_book|pelvic_tilt|sphinx)\b/.test(
+        haystack
+      );
+    if (!spinalRecoveryAllow) return false;
+  }
 
   if (/\bcossack\b/.test(haystack)) return false;
   if (/\bcuban\b/.test(haystack)) return false;

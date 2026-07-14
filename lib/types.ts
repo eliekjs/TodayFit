@@ -1,5 +1,8 @@
 export type EnergyLevel = "low" | "medium" | "high";
 
+/** User dial for session set/rep density on top of goal + energy. */
+export type VolumePreference = "conservative" | "standard" | "high_volume";
+
 /** Single body target: Upper / Lower / Full. Modifiers (Push, Pull, Quad, Posterior) are separate. */
 export type TargetBody = "Upper" | "Lower" | "Full";
 
@@ -52,6 +55,8 @@ export type DailyWorkoutPreferences = {
   /** Specific body-part emphasis for this day (e.g. glutes, shoulders). Only include when relevant to body region. */
   specificBodyFocus?: SpecificBodyFocusKey[];
   energyLevel?: EnergyLevel;
+  /** Per-day override for set/rep density (conservative / standard / high_volume). */
+  volumePreference?: VolumePreference;
   stylePreference?: string;
   /** Override global workout tier for this day’s regeneration. */
   workoutTier?: WorkoutTierPreference;
@@ -100,6 +105,11 @@ export type ManualPreferences = {
   specificBodyFocus?: SpecificBodyFocusKey[];
   durationMinutes: number | null;
   energyLevel: EnergyLevel | null;
+  /**
+   * Set/rep density dial: conservative (−1 set/rep bucket), standard (default), high_volume (+1).
+   * Stacks with energy and goal volume profiles. Null → standard.
+   */
+  volumePreference?: VolumePreference | null;
   /** Single list: joints + "No restrictions" (mutually exclusive with others). */
   injuries: string[];
   upcoming: string[];

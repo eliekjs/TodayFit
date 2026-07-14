@@ -21,3 +21,6 @@ jobs:
 
       - name: Lint and tests
         run: npm run ci
+
+      - name: Ship gates (fidelity)
+        run: bash scripts/shipGates.sh

@@ -30,10 +30,15 @@ import type { GeneratedWorkout } from "../lib/types";
 import {
   gymForPersona,
   pickPersonaForLoop,
+  singleDayPrefsForPersona,
   type PersonaFixture,
   type PersonaTestPriority,
 } from "../logic/workoutGeneration/personaSimulationFixtures";
 import { multiSportBlendCheck } from "../logic/workoutGeneration/personaMultiSportSignals";
+import {
+  buildWeightedAlignmentChecks,
+  buildAssignmentReasoningFromSession,
+} from "../logic/workoutGeneration/weightedAlignmentScoring";
 
 const ARTIFACTS_DIR = path.join(process.cwd(), "artifacts", "persona-loop");
 const AGGREGATE_PATH = path.join(ARTIFACTS_DIR, "aggregate.json");
@@ -270,6 +275,17 @@ function buildChecks(
     tier: "P0",
   });
 
+  const assignments = buildAssignmentReasoningFromSession(resolvedInput, session, pool);
+  for (const wa of buildWeightedAlignmentChecks(resolvedInput, assignments)) {
+    checks.push({
+      id: wa.id,
+      pass: wa.pass,
+      detail: wa.detail,
+      weight: wa.weight,
+      tier: "P1",
+    });
+  }
+
   return checks;
 }
 
@@ -317,7 +333,10 @@ function evaluatePersonaSignals(
     const zone2Conditioning = allItems.filter(
       (it) =>
         it.block_type === "conditioning" &&
-        /zone 2|treadmill|steady|long run|aerobic base|tempo run|tempo jog|threshold|cruise interval/i.test(it.exercise_name)
+        /zone\s*2|aerobic base|tempo run|tempo jog|cruise interval|long run|steady.?state|incline treadmill|treadmill run\b/i.test(
+          it.exercise_name
+        ) &&
+        !/sprint|interval|hiit|rsa|shuttle|agility|repeat/i.test(it.exercise_name)
     );
     if (zone2Conditioning.length > 0) {
       addIssue(
@@ -434,6 +453,26 @@ function evaluatePersonaSignals(
     }
   }
 
+  if (fixture.id === "P05") {
+    const zone2 = allItems.filter(
+      (it) =>
+        it.block_type === "conditioning" &&
+        /zone\s*2|aerobic base|tempo run|tempo jog|cruise interval|long run|steady.?state/i.test(
+          it.exercise_name
+        ) &&
+        !/sprint|interval|hiit|rsa|shuttle|agility|repeat/i.test(it.exercise_name)
+    );
+    if (zone2.length > 0) {
+      addIssue(
+        "P05:zone2_on_athletic_day",
+        "moderate",
+        `P05: Zone 2 on athletic/power representative day (${zone2.map((i) => i.exercise_name).join(", ")})`,
+        "global",
+        "PRODUCT_PRIORITIES P1#5 weighted goal alignment"
+      );
+    }
+  }
+
   if (fixture.id === "P10") {
     const intentLabels = allItems.filter((it) => looksLikeIntentLabel(it.exercise_name));
     if (intentLabels.length > 0) {
@@ -515,12 +554,13 @@ export async function runPersonaOutputTick(
 ): Promise<TickReport> {
   const persona = pickPersonaForLoop(seed, personaId);
   const gym = gymForPersona(persona);
-  const injurySlugs = injurySlugsFromManualPreferences(persona.manualPreferences);
+  const dayPrefs = singleDayPrefsForPersona(persona);
+  const injurySlugs = injurySlugsFromManualPreferences(dayPrefs);
   const pool = await getExercisePoolForManualGeneration(injurySlugs);
   const poolById = new Map(pool.map((e) => [e.id, e]));
 
   const workout = await generateWorkoutAsync(
-    persona.manualPreferences,
+    dayPrefs,
     gym,
     seed,
     undefined,
@@ -529,7 +569,7 @@ export async function runPersonaOutputTick(
   );
 
   const resolvedInput = manualPreferencesToGenerateWorkoutInput(
-    persona.manualPreferences,
+    dayPrefs,
     gym,
     seed,
     undefined,
@@ -566,7 +606,10 @@ export async function runPersonaOutputTick(
   const summary = `Simulation result: ${band.toUpperCase()} quality (${score}/100). Persona=${persona.id} (${persona.name}). Transfer: ${checks
     .filter((c) => c.id.startsWith("filter_transfer"))
     .map((c) => `${c.id}:${c.pass ? "pass" : "fail"}`)
-    .join(", ")}. Key failures: ${failedChecks.length ? failedChecks.join(", ") : "none"}. Persona issues: ${personaIssues.length}.`;
+    .join(", ")}. Weighted alignment: ${checks
+    .filter((c) => c.id.startsWith("weighted_alignment"))
+    .map((c) => `${c.id}:${c.pass ? "pass" : "fail"}`)
+    .join(", ") || "n/a"}. Key failures: ${failedChecks.length ? failedChecks.join(", ") : "none"}. Persona issues: ${personaIssues.length}.`;
 
   return {
     tick,

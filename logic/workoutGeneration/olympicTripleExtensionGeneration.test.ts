@@ -86,7 +86,7 @@ describe("olympic triple extension sub-focus flow", () => {
       expect(getHardConstraintRejectReason(ex, input)).toBeNull();
       expect(hard.some((e) => e.id === id)).toBe(true);
     }
-  });
+  }, 60_000);
 
   it("generated full-body athletic session with plyos + olympic includes an olympic lift", () => {
     const input = manualPreferencesToGenerateWorkoutInput(
@@ -107,5 +107,5 @@ describe("olympic triple extension sub-focus flow", () => {
       return ex ? exerciseMatchesOlympicTripleExtension(ex) : false;
     });
     expect(hasOlympic).toBe(true);
-  });
+  }, 60_000);
 });

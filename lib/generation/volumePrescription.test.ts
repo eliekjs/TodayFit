@@ -69,6 +69,34 @@ function testEnergySetShift() {
   console.log("  OK: energy set shift 3 / 4 / 5");
 }
 
+function testUserVolumePreferenceStacksWithEnergy() {
+  const rules = getGoalRules("hypertrophy");
+  const standard = resolveVolumePrescription(rules.repRange, rules.setRange, "medium", "max", "standard");
+  const high = resolveVolumePrescription(rules.repRange, rules.setRange, "medium", "max", "high_volume");
+  const low = resolveVolumePrescription(rules.repRange, rules.setRange, "medium", "max", "conservative");
+  assert(high.baseSets > standard.baseSets, `high volume sets (${high.baseSets}) > standard (${standard.baseSets})`);
+  assert(low.baseSets < standard.baseSets, `conservative sets (${low.baseSets}) < standard (${standard.baseSets})`);
+  assert(high.reps >= standard.reps, `high volume reps (${high.reps}) ≥ standard (${standard.reps})`);
+  assert(low.reps <= standard.reps, `conservative reps (${low.reps}) ≤ standard (${standard.reps})`);
+  console.log(
+    `  OK: volume dial medium energy → conservative ${low.reps}×${low.baseSets}, standard ${standard.reps}×${standard.baseSets}, high ${high.reps}×${high.baseSets}`
+  );
+}
+
+function testPowerLocksRepsUnderHighVolume() {
+  const powerRange = { min: 3, max: 5 };
+  const setRange = { min: 3, max: 4 };
+  const standard = resolveVolumePrescription(powerRange, setRange, "medium", "min", "standard", {
+    lockReps: true,
+  });
+  const high = resolveVolumePrescription(powerRange, setRange, "medium", "min", "high_volume", {
+    lockReps: true,
+  });
+  assert(high.reps === standard.reps, `power high volume should lock reps (${high.reps} vs ${standard.reps})`);
+  assert(high.baseSets > standard.baseSets, "power high volume still adds a set");
+  console.log(`  OK: power lockReps keeps ${standard.reps} reps, sets ${standard.baseSets} → ${high.baseSets}`);
+}
+
 function run() {
   console.log("Volume prescription tests\n");
   testStrengthDefaultsAwayFromFive();
@@ -78,6 +106,8 @@ function run() {
   testBodyRecompHighReps();
   testEnergyRepShift();
   testEnergySetShift();
+  testUserVolumePreferenceStacksWithEnergy();
+  testPowerLocksRepsUnderHighVolume();
   console.log("\nAll volume prescription tests passed.");
 }
 

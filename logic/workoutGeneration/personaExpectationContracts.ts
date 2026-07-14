@@ -75,6 +75,23 @@ export const PERSONA_EXPECTATIONS: PersonaExpectation[] = [
     personaIds: ["P06"],
   },
   {
+    id: "p05_dedicated_day_primary_dominates",
+    dimension: "intent_tone",
+    label: "P05 dedicated-day primary dominates",
+    passWhen:
+      "On a dedicate_days representative session, the day's primary goal/sub-focus is the largest assigned share",
+    severity: "critical",
+    personaIds: ["P05"],
+  },
+  {
+    id: "p05_athletic_power_not_zone2",
+    dimension: "intent_tone",
+    label: "P05 athletic/power day avoids Zone 2 filler",
+    passWhen: "Athletic Performance Speed/Vertical jump day has no steady Zone 2 conditioning",
+    severity: "moderate",
+    personaIds: ["P05"],
+  },
+  {
     id: "lower_body_honored",
     dimension: "body_region",
     label: "Lower-body emphasis",
@@ -110,7 +127,7 @@ export const PERSONA_EXPECTATIONS: PersonaExpectation[] = [
     id: "train_today_reflects_saved",
     dimension: "intent_tone",
     label: "Train today matches saved intent",
-    passWhen: "One-tap output reflects saved goals/sport without re-entering filters",
+    passWhen: "One-tap output reflects the default goal/sport preset without re-entering filters",
     severity: "moderate",
     personaIds: ["P09"],
   },
@@ -128,7 +145,7 @@ export const PERSONA_EXPECTATIONS: PersonaExpectation[] = [
     label: "Real exercise names (not ontology labels)",
     passWhen: "No block titles or exercise names that look like intent taxonomy labels",
     severity: "critical",
-    personaIds: ["P01", "P02", "P06", "P07", "P08", "P09", "P10"],
+    personaIds: ["P01", "P02", "P05", "P06", "P07", "P08", "P09", "P10"],
   },
 ];
 
@@ -142,10 +159,11 @@ export function personaStory(fixture: PersonaFixture): string {
     P02: "Multi-sport athlete needs both basketball and soccer to influence one session.",
     P03: "Outdoor endurance prep — eccentric durability and sport energy systems.",
     P04: "Climber cross-training — pull/finger/shoulder, not leg hypertrophy.",
+    P05: "Multi-goal week planner — dedicate days across hypertrophy + athletic/power subs.",
     P06: "Physique + performance — hypertrophy lower with glutes/legs sub-focus.",
     P07: "Traveling athlete — hotel gym only; sensible substitutions required.",
     P08: "Joint-health focus — controlled strength, no high-impact plyos.",
-    P09: "Train-today habitual — saved prefs, one tap from home.",
+    P09: "Train-today habitual — default preset, one tap from home.",
     P10: "Managing knee + shoulder injury — usable session with safe alternatives.",
   };
   return stories[fixture.id] ?? fixture.name;

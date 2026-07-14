@@ -199,6 +199,9 @@ export type FocusBodyPart =
 
 export type EnergyLevel = "low" | "medium" | "high";
 
+/** User dial for set/rep density; stacks with energy and goal volume profiles. */
+export type VolumePreference = "conservative" | "standard" | "high_volume";
+
 export type StylePrefs = {
   wants_supersets?: boolean;
   conditioning_minutes?: number;
@@ -233,6 +236,11 @@ export type GenerateWorkoutInput = {
   secondary_goals?: PrimaryGoal[];
   focus_body_parts?: FocusBodyPart[];
   energy_level: EnergyLevel;
+  /**
+   * Optional user volume dial. When omitted or `"standard"`, goal + energy alone drive sets/reps.
+   * `"conservative"` trims a set/rep bucket; `"high_volume"` adds one (capped).
+   */
+  volume_preference?: VolumePreference;
   available_equipment: string[];
   injuries_or_constraints: string[];
   recent_history?: RecentSessionSummary[];

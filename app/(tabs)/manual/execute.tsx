@@ -92,6 +92,7 @@ export default function ExecuteScreen() {
     activeSessionDraft,
     setManualWeekPlan,
     setSportPrepWeekPlan,
+    discardActiveSession,
   } = useAppState();
   const router = useRouter();
   const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
@@ -325,6 +326,9 @@ export default function ExecuteScreen() {
     setManualSessionProgress(null);
     setManualExecutionStarted(false);
     setResumeProgress(null);
+    if (!isWeekFlow) {
+      discardActiveSession();
+    }
     router.replace(isWeekFlow ? WEEK_PROGRESS_ROUTE : "/history/complete");
   };
 

@@ -1,22 +1,44 @@
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
 import type { SportGoalContext } from "./dailyGeneratorAdapter";
+import type {
+  DefaultTrainTodayPresetRef,
+  ResolvedDefaultTrainTodayPreset,
+} from "./defaultTrainTodayPreset";
+import { resolveDefaultTrainTodayPreset } from "./defaultTrainTodayPreset";
 import { GOAL_SLUG_TO_PRIMARY_FOCUS } from "./preferencesConstants";
-import type { SportFormSnapshot } from "./sessionDraft";
-import type { EnergyLevel, ManualPreferences } from "./types";
+import type { SportFormSnapshot, SportPreset } from "./sessionDraft";
+import type { ManualPreferences, PreferencePreset } from "./types";
 import { energyFromSportIntensity } from "./energyLevelMapping";
+
+const EMPTY_MANUAL_PREFERENCES: ManualPreferences = {
+  primaryFocus: [],
+  targetBody: null,
+  targetModifier: [],
+  durationMinutes: null,
+  energyLevel: null,
+  injuries: [],
+  upcoming: [],
+  subFocusByGoal: {},
+  subFocusPctByGoal: {},
+  workoutStyle: [],
+  preferredZone2Cardio: [],
+  goalMatchPrimaryPct: 50,
+  goalMatchSecondaryPct: 30,
+  goalMatchTertiaryPct: 20,
+  workoutTier: "intermediate",
+  includeCreativeVariations: false,
+};
 
 export function sportSlugsFromForm(form: SportFormSnapshot | null | undefined): string[] {
   return (form?.rankedSportSlugs ?? []).filter((s): s is string => s != null && s !== "");
 }
 
-/** Home Train today CTA — goal-oriented prefs and/or saved sport-mode form. */
+/** Home Train today CTA — requires an active gym and a resolvable default preset. */
 export function canUseTrainToday(
-  manualPreferences: ManualPreferences,
-  sportForm: SportFormSnapshot | null | undefined,
-  hasActiveGym: boolean
+  hasActiveGym: boolean,
+  resolvedDefault: ResolvedDefaultTrainTodayPreset | null
 ): boolean {
-  if (!hasActiveGym) return false;
-  return manualPreferences.primaryFocus.length >= 1 || sportSlugsFromForm(sportForm).length >= 1;
+  return hasActiveGym && resolvedDefault != null;
 }
 
 function bodyTargetFromBias(bias: "upper" | "lower" | "full"): ManualPreferences["targetBody"] {
@@ -110,6 +132,47 @@ export function buildTrainTodayGenerationParams(
   };
 }
 
+/** Build generation params from the Home default preset (goal or sport). */
+export function resolveTrainTodayFromPreset(
+  resolved: ResolvedDefaultTrainTodayPreset
+): TrainTodayGenerationParams {
+  if (resolved.kind === "goal") {
+    return buildTrainTodayGenerationParams(resolved.preset.preferences, null);
+  }
+  return buildTrainTodayGenerationParams(EMPTY_MANUAL_PREFERENCES, resolved.preset.sportForm);
+}
+
+function goalPresetDetail(preset: PreferencePreset): string {
+  const goals = preset.preferences.primaryFocus;
+  if (goals.length === 0) return "No goals set";
+  if (goals.length === 1) return goals[0]!;
+  return `${goals[0]} +${goals.length - 1} more`;
+}
+
+function sportPresetDetail(preset: SportPreset): string {
+  const sports = sportSlugsFromForm(preset.sportForm);
+  if (sports.length === 0) return "No sports set";
+  return sports
+    .slice(0, 2)
+    .map((s) => s.replace(/_/g, " "))
+    .join(" · ");
+}
+
+export function trainTodaySubtitleFromPreset(
+  resolved: ResolvedDefaultTrainTodayPreset | null,
+  gymName: string | null
+): string {
+  if (!resolved) return gymName ? `No default preset · ${gymName}` : "No default preset";
+  const detail =
+    resolved.kind === "goal"
+      ? goalPresetDetail(resolved.preset)
+      : sportPresetDetail(resolved.preset);
+  const parts = [resolved.preset.name, detail];
+  if (gymName) parts.push(gymName);
+  return parts.join(" · ");
+}
+
+/** @deprecated Prefer resolve + canUseTrainToday(hasGym, resolved). Kept for call-site migration. */
 export function trainTodaySubtitle(
   manualPreferences: ManualPreferences,
   sportForm: SportFormSnapshot | null | undefined,
@@ -132,4 +195,12 @@ export function trainTodaySubtitle(
   }
   if (gymName) parts.push(gymName);
   return parts.join(" · ") || "Saved preferences";
+}
+
+export function resolveTrainTodayDefault(
+  ref: DefaultTrainTodayPresetRef | null,
+  goalPresets: PreferencePreset[],
+  sportPresets: SportPreset[]
+): ResolvedDefaultTrainTodayPreset | null {
+  return resolveDefaultTrainTodayPreset(ref, goalPresets, sportPresets);
 }

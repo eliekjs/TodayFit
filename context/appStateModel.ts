@@ -21,6 +21,7 @@ export const defaultManualPreferences: ManualPreferences = {
   targetModifier: [],
   durationMinutes: null,
   energyLevel: null,
+  volumePreference: null,
   injuries: [],
   upcoming: [],
   subFocusByGoal: {},

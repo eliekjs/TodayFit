@@ -146,6 +146,20 @@ describe("isRecoveryPrimaryFriendlyExercise", () => {
     expect(isRecoveryPrimaryFriendlyExercise(ex)).toBe(false);
   });
 
+  it("allows classic spinal mobility on recovery primary even when warmup-tagged", () => {
+    const ex = {
+      id: "cat_camel",
+      name: "Cat Camel",
+      modality: "mobility",
+      difficulty: 2,
+      exercise_role: "mobility",
+      warmup_relevance: "high",
+      cooldown_relevance: "low",
+      mobility_targets: ["thoracic_spine"],
+    } as Exercise;
+    expect(isRecoveryPrimaryFriendlyExercise(ex)).toBe(true);
+  });
+
   it("allows stretch-first cooldown movements", () => {
     const ex = {
       id: "figure_4_glute_stretch",

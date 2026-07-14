@@ -55,9 +55,10 @@ export function resolveEffectiveEquipment(
  * Drops the legacy explicit `machine` toggle — it is implied at generation time.
  */
 export function normalizeStoredGymEquipment(
-  equipment: readonly EquipmentKey[]
+  equipment: readonly string[]
 ): EquipmentKey[] {
   return equipment.filter(
-    (key) => !isHiddenGymEquipment(key) && !RETIRED_GYM_EQUIPMENT_SET.has(key)
+    (key): key is EquipmentKey =>
+      !RETIRED_GYM_EQUIPMENT_SET.has(key) && !isHiddenGymEquipment(key as EquipmentKey)
   );
 }

@@ -44,7 +44,7 @@ Do **not** use these as acceptance targets. Failures for anti-personas are accep
 | **P06** | Casey — Physique + performance | Goal · one day | Hypertrophy + athletic sub-goals | P1 |
 | **P07** | Alex — Traveling athlete | Either · one day | Hotel gym equipment | P0 |
 | **P08** | Taylor — Joint-health focus | Goal · one day | Joint-health sub-goal | P1 |
-| **P09** | Chris — Train-today habitual | Goal · one day | Saved prefs, one-tap home | P1 |
+| **P09** | Chris — Train-today habitual | Goal · one day | Default preset, one-tap home | P1 |
 | **P10** | Drew — Managing injury | Sport · one day | Injury status + types | P0 |
 
 ---
@@ -306,30 +306,30 @@ npx tsx scripts/jointHealthUserSim.ts
 
 ## P09 — Chris (train-today habitual)
 
-**Story:** Same goals and gym most days. Uses **Train today** on the home screen for speed; expects output consistent with saved `manualPreferences`.
+**Story:** Same goals and gym most days. Saves that setup as a **default preset** and uses **Train today** on the home screen for speed; expects output consistent with that preset.
 
-**Typical path:** Home → Train today → workout (no re-entry through full preferences).
+**Typical path:** Home → Train today (default preset) → workout (no re-entry through full preferences). Switch default from the home block or Presets when the habit changes.
 
 ### Inputs (fixture)
 
 | Dimension | Value |
 |-----------|--------|
-| Mode | `goal_day` (implicit) |
-| `manualPreferences` | At least one `primaryFocus`; duration defaults to 45 if unset |
+| Mode | `goal_day` (implicit via default goal preset) |
+| Default preset | Goal preset whose `preferences` match saved intent; duration defaults to 45 if unset |
 | Gym | Active gym profile |
 | History | Optional—personalization may bias exercise names |
 
 ### Success criteria
 
-- Generation completes without requiring sport-mode setup.
-- Output reflects saved primary (and secondary) goals.
-- Duration within tolerance of saved or default 45 min.
+- Generation completes without requiring preference re-entry.
+- Output reflects the default preset’s primary (and secondary) goals.
+- Duration within tolerance of preset or default 45 min.
 - No regression vs full preferences flow for the same inputs.
 
 ### Reproduce
 
 - UI smoke: [qa/ui-flow-pass-checklist.md](./qa/ui-flow-pass-checklist.md) Phase B (Train today).
-- Code path: `app/(tabs)/index.tsx` → `runTrainToday` → `generateWorkoutAsync`.
+- Code path: `app/(tabs)/index.tsx` → default preset → `runTrainToday` → `generateWorkoutAsync`.
 
 ---
 

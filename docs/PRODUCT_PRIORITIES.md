@@ -6,6 +6,8 @@
 
 **Source:** TodayFit base document (Feb 2026), reconciled with the codebase as of mid-2026.
 
+**Ship bar:** [SHIP_SPEC.md](./SHIP_SPEC.md) · **Gap register:** [SHIP_GAP_REGISTER.md](./SHIP_GAP_REGISTER.md)
+
 ---
 
 ## Product thesis (unchanged)
@@ -36,14 +38,14 @@ TodayFit is a **training decision engine**: reduce cognitive load while aligning
 | **Scoring engine** | Filter → score → assemble | Constraint resolution, sub-focus profiles, sport profiles, tag scoring | `logic/workoutGeneration/`, `docs/SUB_FOCUS_ARCHITECTURE.md` |
 | **Regeneration** | Full / block / exercise swap | Workout regenerate, per-exercise swap in execute | `app/(tabs)/manual/workout.tsx`, `execute.tsx` |
 | **Presets** | Saved preferences | Goal presets + Sport presets; home quick-apply | `PreferencePreset`, `SportPreset` |
-| **Train today** | Quick daily session | One-tap from home using saved goals + active gym | `runTrainToday` in `index.tsx` |
+| **Train today** | Quick daily session | One-tap from home using **default preset** + active gym | `runTrainToday` in `index.tsx` |
 | **History** | — | Workout history, saved workouts, execution progress feed personalization | `docs/PHASE11_HISTORY_AND_PERSONALIZATION.md` |
-| **Auth / sync** | User profile | Supabase auth; remote gym, prefs, presets, history | `context/loadRemoteAppState.ts` |
 
 ### Partially built
 
 | Area | Spec vision | Gap | Priority to close |
 |------|-------------|-----|-------------------|
+| **Auth / sync** | User profile + cloud save | Email/password auth + session storage + RLS verified. Account wipe deletion in-app; apply `delete_own_account` SQL for hard auth.users delete. See [SHIP_SPEC.md](./SHIP_SPEC.md) / [docs/ship/phase1-PROOF.md](./ship/phase1-PROOF.md). | P1 — dashboard SQL apply residual |
 | **Upcoming events** | Region + demand type + days-away buckets | Simple chips: Long Run, Ski Day, Climbing Day, etc. | P2 — deepen event→body-region load management |
 | **Onboarding** | Multi-step goals → equipment → constraints | Welcome screen only; setup happens in-flow | P2 — optional first-run wizard |
 | **Superset preference** | Yes / Neutral / Minimal explicit toggle | Influenced via workout style, block format logic | P2 |
@@ -141,7 +143,7 @@ When judging whether a **feature is working**, use this matrix with the linked p
 | Injury filter | Constraints / sport injuries | No flagged joint stress | P10 | Manual + sport injury chips |
 | Joint health goal | Primary focus | Activation → strength → mobility arc | P08 | `jointHealthUserSim.ts` |
 | Climbing profile | `rock_climbing` | Pull/grip/scap; no leg-press dominance | P04 | `sportProfileEngine.test.ts` |
-| Train today | Home CTA | Fast session from saved prefs | P09 | UI checklist Phase B |
+| Train today | Home CTA | Fast session from default preset | P09 | UI checklist Phase B |
 | Presets | Presets screen | One-tap restore of complex setup | P05 | Save/apply preset E2E |
 
 ---

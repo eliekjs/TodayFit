@@ -644,6 +644,7 @@ export function manualPreferencesToGenerateWorkoutInput(
     secondary_goals: secondary_goals.length ? secondary_goals : undefined,
     focus_body_parts: normalizedFocusBodyParts,
     energy_level: preferences.energyLevel ?? "medium",
+    volume_preference: preferences.volumePreference ?? "standard",
     available_equipment,
     injuries_or_constraints,
     recent_history,

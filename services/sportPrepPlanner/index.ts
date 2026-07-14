@@ -1263,6 +1263,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         bodyRegionBias,
         workoutTier: input.workoutTier ?? "intermediate",
         includeCreativeVariations: input.includeCreativeVariations === true,
+        volumePreference: input.manualPreferences?.volumePreference ?? null,
         subFocusByGoal: effectiveSubFocusByGoal,
         ...(input.goalSubFocusPctByGoal &&
         Object.keys(input.goalSubFocusPctByGoal).length > 0
@@ -2021,6 +2022,10 @@ export async function regenerateDay(
         bodyRegionBias,
         workoutTier: resolvedWorkoutTier,
         includeCreativeVariations: resolvedIncludeCreative,
+        volumePreference:
+          input.dailyPreferences?.volumePreference ??
+          input.manualPreferences?.volumePreference ??
+          null,
         ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
           ? {
               subFocusByGoal: dayFocusOverrides.exclusive && dayFocusOverrides.focusLabels?.length
@@ -2167,6 +2172,10 @@ export async function regenerateDay(
       bodyRegionBias,
       workoutTier: resolvedWorkoutTier,
       includeCreativeVariations: resolvedIncludeCreative,
+      volumePreference:
+        input.dailyPreferences?.volumePreference ??
+        input.manualPreferences?.volumePreference ??
+        null,
       ...(input.subFocusByGoal && Object.keys(input.subFocusByGoal).length > 0
         ? {
             subFocusByGoal: dayFocusOverrides.exclusive && dayFocusOverrides.focusLabels?.length

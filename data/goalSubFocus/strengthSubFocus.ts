@@ -98,15 +98,44 @@ export function exerciseHasStrengthSubFocusSlug(exercise: ExerciseForStrengthSub
 
   // Intent: overhead press / vertical press
   if (norm === "overhead_press") {
+    const id = toSlug(exercise.id ?? "");
+    // Prefer explicit OHP / vertical-press identity over generic push+shoulders (bench/push-up false positives).
+    if (
+      id.includes("overhead_press") ||
+      id.includes("ohp") ||
+      id.includes("military_press") ||
+      id.includes("push_press") ||
+      id.includes("shoulder_press") ||
+      id.includes("z_press") ||
+      (id.includes("landmine") && id.includes("press") && !id.includes("bench"))
+    ) {
+      return true;
+    }
+    if (id.includes("bench") || id.includes("floor_press") || id.includes("push_up") || id.includes("pushup")) {
+      return false;
+    }
     return (
       movementPattern === "push" &&
-      (family === "upper_push" || finePatterns.includes("vertical_push") || pairing === "shoulders" || muscles.has("shoulders"))
+      (finePatterns.includes("vertical_push") || family === "upper_push") &&
+      (pairing === "shoulders" || muscles.has("shoulders")) &&
+      !muscles.has("chest")
     );
   }
 
   // Intent: pull-up / horizontal or vertical pull
   if (norm === "pull") {
-    return movementPattern === "pull" || family === "upper_pull" || finePatterns.includes("vertical_pull") || finePatterns.includes("horizontal_pull") || muscles.has("lats") || muscles.has("biceps") || muscles.has("back");
+    if (movementPattern === "hinge" || movementPattern === "squat") return false;
+    const id = toSlug(exercise.id ?? "");
+    if (id.includes("deadlift") || id.includes("rdl") || id.includes("good_morning")) return false;
+    return (
+      movementPattern === "pull" ||
+      family === "upper_pull" ||
+      finePatterns.includes("vertical_pull") ||
+      finePatterns.includes("horizontal_pull") ||
+      muscles.has("lats") ||
+      (muscles.has("back") && movementPattern === "pull") ||
+      muscles.has("biceps")
+    );
   }
 
   if (CALISTHENICS_STYLE_STRENGTH_SUB_SET.has(norm)) {

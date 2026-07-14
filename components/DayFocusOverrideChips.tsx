@@ -10,6 +10,11 @@ import { PrimaryButton } from "./Button";
 const GOAL_OPTIONS = ["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const;
 const BODY_OPTIONS = ["upper", "lower", "full", "pull", "push", "core"] as const;
 const ENERGY_OPTIONS = ["low", "medium", "high"] as const;
+const VOLUME_OPTIONS = [
+  { value: "conservative", label: "Conservative" },
+  { value: "standard", label: "Standard" },
+  { value: "high_volume", label: "High volume" },
+] as const;
 
 export type DayFocusOverrideChipsProps = {
   dailyPrefsOverride: DailyWorkoutPreferences | null;
@@ -168,6 +173,22 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
             onPress={() =>
               onOverrideChange({
                 energyLevel: dailyPrefsOverride?.energyLevel === e ? undefined : e,
+              })
+            }
+          />
+        ))}
+      </View>
+      <View style={[styles.chipGroup, { marginBottom: 8 }]}>
+        <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Volume: </Text>
+        {VOLUME_OPTIONS.map((opt) => (
+          <Chip
+            key={opt.value}
+            label={opt.label}
+            selected={dailyPrefsOverride?.volumePreference === opt.value}
+            onPress={() =>
+              onOverrideChange({
+                volumePreference:
+                  dailyPrefsOverride?.volumePreference === opt.value ? undefined : opt.value,
               })
             }
           />

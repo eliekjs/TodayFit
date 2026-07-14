@@ -34,6 +34,8 @@ import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualP
 import {
   PRIMARY_FOCUS_OPTIONS,
   ENERGY_LEVELS,
+  VOLUME_PREFERENCE_OPTIONS,
+  volumePreferenceDisplayLabel,
   TARGET_OPTIONS,
   MODIFIERS_BY_TARGET,
   CONSTRAINT_OPTIONS,
@@ -517,6 +519,7 @@ export default function ManualPreferencesScreen() {
 
   type ManualAdvNestedKey =
     | "energy"
+    | "volume"
     | "goalWeights"
     | "subGoals"
     | "avoid"
@@ -579,6 +582,9 @@ export default function ManualPreferencesScreen() {
       ? manualPreferences.energyLevel.charAt(0).toUpperCase() +
         manualPreferences.energyLevel.slice(1)
       : "Default (medium)";
+  const manualAdvVolumeSummary = volumePreferenceDisplayLabel(
+    manualPreferences.volumePreference
+  );
   const gw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
   const gw2 = manualPreferences.goalMatchSecondaryPct ?? 30;
   const gw3 = manualPreferences.goalMatchTertiaryPct ?? 20;
@@ -1062,7 +1068,7 @@ export default function ManualPreferencesScreen() {
             <CollapsiblePreferenceSection
               nested
               title="How hard to train"
-              subtitle="Low, medium, or high affects sets and conditioning length."
+              subtitle="Low, medium, or high affects how hard the session feels (sets and conditioning length)."
               summary={manualAdvEnergySummary}
               expanded={manualAdvNestedOpen.energy === true}
               onToggle={() => toggleManualAdvNested("energy")}
@@ -1079,6 +1085,35 @@ export default function ManualPreferencesScreen() {
                       const next = level.toLowerCase() as "low" | "medium" | "high";
                       updateManualPreferences({
                         energyLevel: manualPreferences.energyLevel === next ? null : next,
+                      });
+                    }}
+                  />
+                ))}
+              </View>
+            </CollapsiblePreferenceSection>
+
+            <CollapsiblePreferenceSection
+              nested
+              title="Volume preference"
+              subtitle="Conservative, standard, or high volume adjusts sets and reps on top of your goal and energy."
+              summary={manualAdvVolumeSummary}
+              expanded={manualAdvNestedOpen.volume === true}
+              onToggle={() => toggleManualAdvNested("volume")}
+            >
+              <View style={styles.chipGroup}>
+                {VOLUME_PREFERENCE_OPTIONS.map((opt) => (
+                  <Chip
+                    key={opt.value}
+                    label={opt.label}
+                    selected={
+                      (manualPreferences.volumePreference ?? "standard") === opt.value
+                    }
+                    onPress={() => {
+                      updateManualPreferences({
+                        volumePreference:
+                          (manualPreferences.volumePreference ?? "standard") === opt.value
+                            ? null
+                            : opt.value,
                       });
                     }}
                   />

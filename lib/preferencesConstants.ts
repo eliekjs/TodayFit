@@ -36,6 +36,24 @@ export const DURATIONS = [20, 30, 45, 60, 75] as const;
 /** Core: energy level (single select). */
 export const ENERGY_LEVELS = ["Low", "Medium", "High"] as const;
 
+/** Advanced: volume preference (single select) — set/rep density dial. */
+export const VOLUME_PREFERENCE_OPTIONS = [
+  { value: "conservative", label: "Conservative" },
+  { value: "standard", label: "Standard" },
+  { value: "high_volume", label: "High volume" },
+] as const;
+
+export type VolumePreferenceOptionValue =
+  (typeof VOLUME_PREFERENCE_OPTIONS)[number]["value"];
+
+export function volumePreferenceDisplayLabel(
+  value: VolumePreferenceOptionValue | null | undefined
+): string {
+  if (value == null || value === "standard") return "Standard";
+  const found = VOLUME_PREFERENCE_OPTIONS.find((o) => o.value === value);
+  return found?.label ?? "Standard";
+}
+
 /** Targets: body target (single select). */
 export const TARGET_OPTIONS: TargetBody[] = ["Upper", "Lower", "Full"];
 

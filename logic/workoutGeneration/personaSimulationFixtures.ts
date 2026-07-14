@@ -5,17 +5,44 @@ import type { SportGoalContext } from "../../lib/dailyGeneratorAdapter";
 
 export type PersonaTestPriority = "P0" | "P1";
 
+export type PersonaFixtureMode = "sport_day" | "goal_day" | "goal_week";
+
+/** Weekly scenario metadata for multi-goal dedicate-days personas (P05). */
+export type PersonaWeeklyScenarioMeta = {
+  scenarioId: "A" | "B" | "C";
+  label: string;
+  /** Day-of-week indices with training (0=Mon). */
+  trainingDays: number[];
+  goalDistributionStyle: "dedicate_days";
+};
+
 export type PersonaFixture = {
   id: string;
   name: string;
   testPriority: PersonaTestPriority;
-  mode: "sport_day" | "goal_day";
+  mode: PersonaFixtureMode;
   defaultSeed: number;
   manualPreferences: ManualPreferences;
   sportGoalContext?: SportGoalContext;
   gymTemplate: "your_gym" | "hotel_gym" | "home_gym";
   successCriteria: string[];
   failureSignals: string[];
+  /** Present when mode is `goal_week`. */
+  weeklyScenario?: PersonaWeeklyScenarioMeta;
+};
+
+/**
+ * Day-level prefs for a dedicated week day under a multi-goal P05 plan.
+ * Used when single-day sims need a representative session from the week.
+ */
+export type PersonaWeeklyDayFixture = {
+  personaId: string;
+  scenarioId: "A" | "B" | "C";
+  dayKey: string;
+  primaryFocusLabel: string;
+  subFocusDisplayNames: string[];
+  manualPreferences: ManualPreferences;
+  defaultSeed: number;
 };
 
 const BASE_SPORT_PREFS = {
@@ -165,6 +192,54 @@ export const PERSONA_FIXTURES: PersonaFixture[] = [
     failureSignals: [
       "Leg-press family dominance",
       "Heavy lower-only hypertrophy",
+    ],
+  },
+  {
+    id: "P05",
+    name: "Jordan — multi-goal week planner",
+    testPriority: "P0",
+    mode: "goal_week",
+    defaultSeed: 88001,
+    /**
+     * Scenario A modernized onto PRIMARY_FOCUS_OPTIONS: legacy "Power & Explosiveness"
+     * folds into Athletic Performance (Speed/Sprint + Vertical jump = power-related).
+     * Single-day sims use these multi-goal prefs with dedicate_days; weekly gate uses
+     * PERSONA_WEEKLY_FIXTURES / day representatives.
+     */
+    manualPreferences: {
+      primaryFocus: ["Build Muscle (Hypertrophy)", "Athletic Performance"],
+      subFocusByGoal: {
+        "Build Muscle (Hypertrophy)": ["Glutes"],
+        "Athletic Performance": ["Speed / Sprint", "Vertical jump"],
+      },
+      targetBody: null,
+      targetModifier: [],
+      durationMinutes: 45,
+      energyLevel: "medium",
+      injuries: ["No restrictions"],
+      upcoming: [],
+      workoutStyle: [],
+      workoutTier: "intermediate",
+      goalMatchPrimaryPct: 50,
+      goalMatchSecondaryPct: 30,
+      goalMatchTertiaryPct: 20,
+      goalDistributionStyle: "dedicate_days",
+    },
+    gymTemplate: "your_gym",
+    weeklyScenario: {
+      scenarioId: "A",
+      label: "Hypertrophy + Athletic Performance (power via athletic subs)",
+      trainingDays: [0, 1, 3, 4],
+      goalDistributionStyle: "dedicate_days",
+    },
+    successCriteria: [
+      "Each sub-goal appears across the week (coverage ≥3 matches where implemented)",
+      "Day titles / blocks reflect dedicated goal for that day",
+      "Primary sub-goal dominates within each day",
+    ],
+    failureSignals: [
+      "Everything crammed into each session",
+      "Duplicate main compound lifts across week where avoidance is wired",
     ],
   },
   {
@@ -328,6 +403,126 @@ export function gymForPersona(fixture: PersonaFixture): GymProfile {
 /** Run a specific persona by ID (for canonical fixture runs). */
 export function getPersonaById(id: string): PersonaFixture | undefined {
   return PERSONA_FIXTURES.find((p) => p.id === id);
+}
+
+const P05_WEEK_BASE: Omit<ManualPreferences, "primaryFocus" | "subFocusByGoal"> = {
+  targetBody: null,
+  targetModifier: [],
+  durationMinutes: 45,
+  energyLevel: "medium",
+  injuries: ["No restrictions"],
+  upcoming: [],
+  workoutStyle: [],
+  workoutTier: "intermediate",
+  goalMatchPrimaryPct: 50,
+  goalMatchSecondaryPct: 30,
+  goalMatchTertiaryPct: 20,
+  goalDistributionStyle: "dedicate_days",
+};
+
+/**
+ * Weekly-oriented fixtures for P05 (Jordan). Scenario A uses current PRIMARY_FOCUS_OPTIONS
+ * (power via Athletic Performance). Scenarios B/C retain weekly-sim legacy labels where the
+ * weekly harness still exercises migration paths.
+ */
+export const PERSONA_WEEKLY_FIXTURES: PersonaWeeklyDayFixture[] = [
+  {
+    personaId: "P05",
+    scenarioId: "A",
+    dayKey: "hypertrophy_glutes",
+    primaryFocusLabel: "Build Muscle (Hypertrophy)",
+    subFocusDisplayNames: ["Glutes"],
+    defaultSeed: 88001,
+    manualPreferences: {
+      ...P05_WEEK_BASE,
+      primaryFocus: ["Build Muscle (Hypertrophy)"],
+      subFocusByGoal: { "Build Muscle (Hypertrophy)": ["Glutes"] },
+      targetBody: "Lower",
+    },
+  },
+  {
+    personaId: "P05",
+    scenarioId: "A",
+    dayKey: "athletic_speed",
+    primaryFocusLabel: "Athletic Performance",
+    subFocusDisplayNames: ["Speed / Sprint"],
+    defaultSeed: 88011,
+    manualPreferences: {
+      ...P05_WEEK_BASE,
+      primaryFocus: ["Athletic Performance"],
+      subFocusByGoal: { "Athletic Performance": ["Speed / Sprint"] },
+      targetBody: "Lower",
+    },
+  },
+  {
+    personaId: "P05",
+    scenarioId: "A",
+    dayKey: "athletic_vertical_jump",
+    primaryFocusLabel: "Athletic Performance",
+    subFocusDisplayNames: ["Vertical jump"],
+    defaultSeed: 88021,
+    manualPreferences: {
+      ...P05_WEEK_BASE,
+      primaryFocus: ["Athletic Performance"],
+      subFocusByGoal: { "Athletic Performance": ["Vertical jump"] },
+      targetBody: "Lower",
+    },
+  },
+  {
+    personaId: "P05",
+    scenarioId: "B",
+    dayKey: "strength_squat",
+    primaryFocusLabel: "Build Strength",
+    subFocusDisplayNames: ["Squat"],
+    defaultSeed: 88002,
+    manualPreferences: {
+      ...P05_WEEK_BASE,
+      primaryFocus: ["Build Strength"],
+      subFocusByGoal: { "Build Strength": ["Squat"] },
+      targetBody: "Lower",
+    },
+  },
+  {
+    personaId: "P05",
+    scenarioId: "C",
+    dayKey: "calisthenics_handstand",
+    primaryFocusLabel: "Calisthenics",
+    subFocusDisplayNames: ["Handstand"],
+    defaultSeed: 88003,
+    manualPreferences: {
+      ...P05_WEEK_BASE,
+      primaryFocus: ["Calisthenics"],
+      subFocusByGoal: { Calisthenics: ["Handstand"] },
+      targetBody: "Upper",
+    },
+  },
+];
+
+export function weeklyFixturesForPersona(personaId: string): PersonaWeeklyDayFixture[] {
+  return PERSONA_WEEKLY_FIXTURES.filter((f) => f.personaId === personaId);
+}
+
+/** Prefer athletic power day when single-day loops draw P05. */
+export function dayRepresentativeForWeeklyPersona(
+  fixture: PersonaFixture
+): PersonaWeeklyDayFixture | undefined {
+  if (fixture.mode !== "goal_week") return undefined;
+  const scenarioId = fixture.weeklyScenario?.scenarioId ?? "A";
+  const days = PERSONA_WEEKLY_FIXTURES.filter(
+    (d) => d.personaId === fixture.id && d.scenarioId === scenarioId
+  );
+  return (
+    days.find((d) => d.dayKey === "athletic_vertical_jump") ??
+    days.find((d) => d.dayKey.includes("athletic")) ??
+    days[0]
+  );
+}
+
+/** Prefs to use for single-day generation when the persona is weekly-oriented. */
+export function singleDayPrefsForPersona(fixture: PersonaFixture): ManualPreferences {
+  if (fixture.mode !== "goal_week") return fixture.manualPreferences;
+  const day = dayRepresentativeForWeeklyPersona(fixture);
+  return day?.manualPreferences ?? fixture.manualPreferences;
 }
 
 /** P0 personas weighted 3×, P1 personas 1×. */

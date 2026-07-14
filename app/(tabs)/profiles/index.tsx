@@ -16,7 +16,6 @@ import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
-import { getSupabase } from "../../../lib/db";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Chip } from "../../../components/Chip";
@@ -41,7 +40,7 @@ export default function GymProfilesScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { from } = useLocalSearchParams<{ from?: string }>();
-  const { email, displayName } = useAuth();
+  const { email, displayName, userId, signOut, deleteAccount } = useAuth();
   const {
     gymProfiles,
     activeGymProfileId,
@@ -115,7 +114,28 @@ export default function GymProfilesScreen() {
   };
 
   const onSignOut = () => {
-    getSupabase()?.auth.signOut();
+    void signOut().then(({ error }) => {
+      if (error) Alert.alert("Sign out failed", error);
+    });
+  };
+
+  const onDeleteAccount = () => {
+    Alert.alert(
+      "Delete account?",
+      "This permanently deletes your synced gyms, presets, and history. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void deleteAccount().then(({ error }) => {
+              if (error) Alert.alert("Could not delete account", error);
+            });
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -159,7 +179,7 @@ export default function GymProfilesScreen() {
           Profile
         </Text>
         <Card title="Account">
-          {(displayName ?? email) ? (
+          {userId && (displayName ?? email) ? (
             <>
               {displayName != null && displayName !== "" && (
                 <>
@@ -173,24 +193,38 @@ export default function GymProfilesScreen() {
                   <Text style={[styles.profileInfoValue, { color: theme.text }]}>{email}</Text>
                 </>
               )}
+              <PrimaryButton
+                label="Sign out"
+                variant="ghost"
+                onPress={onSignOut}
+                style={styles.signOutButton}
+              />
+              <PrimaryButton
+                label="Delete account"
+                variant="ghost"
+                onPress={onDeleteAccount}
+                style={styles.signOutButton}
+              />
             </>
           ) : (
-            <Text style={{ fontSize: 13, color: theme.textMuted }}>
-              Sign in to see your profile and sync data.
-            </Text>
+            <>
+              <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 12 }}>
+                Sign in to sync gyms, presets, and history. Guest progress stays on this device only
+                for this session.
+              </Text>
+              <PrimaryButton
+                label="Sign in"
+                variant="secondary"
+                onPress={() => router.push("/welcome")}
+              />
+            </>
           )}
-          <PrimaryButton
-            label="Sign out"
-            variant="ghost"
-            onPress={onSignOut}
-            style={styles.signOutButton}
-          />
         </Card>
 
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
           Membership
         </Text>
-        <Card title="Membership" subtitle="Free plan. More plans coming soon." />
+        <Card title="Membership" subtitle="Free plan." />
 
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
           Gyms

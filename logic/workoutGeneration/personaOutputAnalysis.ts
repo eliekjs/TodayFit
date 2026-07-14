@@ -11,12 +11,17 @@ import type { Exercise, WorkoutSession } from "../workoutGeneration/types";
 import type { GeneratedWorkout } from "../../lib/types";
 import type { GymProfile } from "../../data/gymProfiles";
 import type { PersonaFixture } from "./personaSimulationFixtures";
+import { singleDayPrefsForPersona } from "./personaSimulationFixtures";
 import { multiSportBlendCheck } from "./personaMultiSportSignals";
 import {
   expectationsForPersona,
   personaStory,
   type PersonaExpectation,
 } from "./personaExpectationContracts";
+import {
+  buildAssignmentReasoningFromSession,
+  buildWeightedAlignmentChecks,
+} from "./weightedAlignmentScoring";
 
 export type AnalysisCheck = {
   id: string;
@@ -63,8 +68,11 @@ const INTENT_LABEL_PATTERNS =
   /\b(strength|power|unilateral|bilateral|posterior|anterior|plyometric|mobility|stability|conditioning|endurance|hypertrophy)\b/i;
 
 function workoutToSession(workout: GeneratedWorkout): WorkoutSession {
+  const title = Array.isArray(workout.focus)
+    ? workout.focus.filter(Boolean).join(" · ") || "Workout"
+    : String(workout.focus ?? "Workout");
   return {
-    title: workout.focus,
+    title,
     blocks: workout.blocks.map((b) => ({
       block_type: b.block_type,
       title: b.title,
@@ -78,12 +86,12 @@ function workoutToSession(workout: GeneratedWorkout): WorkoutSession {
         reps: item.reps,
         time_seconds: item.time_seconds,
         rest_seconds: item.rest_seconds,
+        coaching_cues: item.coaching_cues ?? "",
         reasoning_tags: item.reasoning_tags ?? [],
         session_intent_links: item.session_intent_links,
       })),
     })),
-    estimated_duration_minutes: workout.durationMinutes,
-    notes: workout.notes,
+    estimated_duration_minutes: workout.durationMinutes ?? 45,
   };
 }
 
@@ -232,9 +240,10 @@ function evaluateExpectations(
         break;
       }
       case "hotel_equipment_only": {
+        const allowed = new Set(gym.equipment.map(String));
         const bad = allItems.filter((it) => {
           const ex = poolById.get(it.exercise_id);
-          return ex?.equipment_required.some((eq) => !gym.equipment.includes(eq));
+          return ex?.equipment_required.some((eq) => !allowed.has(String(eq)));
         });
         pass = bad.length === 0;
         evidence = pass ? "All exercises hotel-feasible" : `${bad.length} infeasible: ${bad.map((i) => i.exercise_name).slice(0, 3).join(", ")}`;
@@ -289,6 +298,41 @@ function evaluateExpectations(
         pass = workout.blocks.length >= 3;
         evidence = pass ? "Session generated from saved prefs" : "Empty or trivial session";
         break;
+      case "p05_dedicated_day_primary_dominates": {
+        const primary = resolvedInput.primary_goal;
+        const working = allItems.filter(
+          (it) => !["warmup", "cooldown", "mobility", "recovery"].includes(it.block_type)
+        );
+        const primaryHits = working.filter((it) => {
+          const links = it.session_intent_links;
+          if (links?.matched_intents?.some((l) => (l.parent_slug ?? l.slug) === primary || l.slug === primary)) {
+            return true;
+          }
+          if (links?.goals?.some((g) => g === primary || g.includes(primary))) {
+            return true;
+          }
+          const tags = (it.reasoning_tags ?? []).join(" ").toLowerCase();
+          return tags.includes(primary.replace(/_/g, " ")) || tags.includes(primary);
+        }).length;
+        const share = primaryHits / Math.max(1, working.length);
+        pass = working.length === 0 || share >= 0.25 || workout.blocks.some((b) => /athletic|power|hypertrophy|strength|glute|sprint|jump/i.test(b.title ?? ""));
+        evidence = `primary=${primary} tagged_share=${share.toFixed(2)} blocks=${workout.blocks.map((b) => b.title).slice(0, 4).join(" | ")}`;
+        break;
+      }
+      case "p05_athletic_power_not_zone2": {
+        const zone2 = allItems.filter(
+          (it) =>
+            it.block_type === "conditioning" &&
+            /zone\s*2|aerobic base|tempo run|tempo jog|cruise interval|long run|steady.?state/i.test(
+              it.exercise_name
+            )
+        );
+        pass = zone2.length === 0;
+        evidence = pass
+          ? "No steady Zone 2 on athletic/power day"
+          : `Zone 2 found: ${zone2.map((i) => i.exercise_name).join(", ")}`;
+        break;
+      }
       default:
         pass = true;
         evidence = "Not evaluated for this persona run";
@@ -417,6 +461,18 @@ function buildTransferChecks(
     category: "transfer",
   });
 
+  const assignments = buildAssignmentReasoningFromSession(resolvedInput, session, pool);
+  for (const wa of buildWeightedAlignmentChecks(resolvedInput, assignments)) {
+    checks.push({
+      id: wa.id,
+      pass: wa.pass,
+      detail: wa.detail,
+      weight: wa.weight,
+      tier: "P1",
+      category: "structure",
+    });
+  }
+
   return checks;
 }
 
@@ -460,6 +516,10 @@ function buildNarrative(
   if (failedChecks.length) {
     failParts.push(`Transfer failures: ${failedChecks.join(", ")}`);
   }
+  const weightedFails = failedChecks.filter((id) => id.startsWith("weighted_alignment"));
+  if (weightedFails.length) {
+    failParts.push(`Weighted alignment drift: ${weightedFails.join(", ")}`);
+  }
   const main = highlights.mainWork.slice(0, 4).join(", ") || "none";
   const tone =
     band === "high"
@@ -479,8 +539,9 @@ export function analyzePersonaOutput(
   seed: number,
   sportGoalContext?: import("../../lib/dailyGeneratorAdapter").SportGoalContext
 ): PersonaOutputAnalysis {
+  const dayPrefs = singleDayPrefsForPersona(fixture);
   const resolvedInput = manualPreferencesToGenerateWorkoutInput(
-    fixture.manualPreferences,
+    dayPrefs,
     gym,
     seed,
     undefined,

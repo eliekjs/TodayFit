@@ -83,6 +83,8 @@ export default function SavedPresetsScreen() {
     updateSportPreset,
     applyPreferencePreset,
     applySportPreset,
+    defaultTrainTodayPreset,
+    setDefaultTrainTodayPreset,
     activeSessionDraft,
     beginSessionFlow,
     replaceSessionFlow,
@@ -322,6 +324,28 @@ export default function SavedPresetsScreen() {
             <Text style={[styles.subheadline, { color: theme.textMuted }]}>
               Use this preset for a single day, or for a full week plan.
             </Text>
+            {kind != null && selectedPresetId != null ? (
+              defaultTrainTodayPreset?.kind === kind &&
+              defaultTrainTodayPreset.id === selectedPresetId ? (
+                <Text style={[styles.defaultBadge, { color: theme.primary }]}>
+                  Default for Train today
+                </Text>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.setDefaultBtn,
+                    { borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
+                  ]}
+                  onPress={() =>
+                    setDefaultTrainTodayPreset({ kind, id: selectedPresetId })
+                  }
+                >
+                  <Text style={[styles.setDefaultBtnText, { color: theme.primary }]}>
+                    Set as Train today default
+                  </Text>
+                </Pressable>
+              )
+            ) : null}
             <View style={styles.scopeButtons}>
               <Pressable
                 style={({ pressed }) => [styles.scopeButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
@@ -443,6 +467,23 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: -8,
     marginBottom: 4,
+  },
+  defaultBadge: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  setDefaultBtn: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+  },
+  setDefaultBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
   backLinkWrap: {
     flexDirection: "row",

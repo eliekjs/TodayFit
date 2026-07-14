@@ -17,8 +17,8 @@ Manual / automated-adjacent checklist for exercising the **web** (`npm run web:d
 
 | Step | Action | Pass? | Notes |
 |------|--------|:-----:|-------|
-| A1 | Open `/welcome` | ☐ | Copy: preview hint + “Continue to app”; social rows still shortcuts |
-| A2 | Tap primary CTA → lands on `/` (Today hub) | ☐ | AsyncStorage persists `hasEntered` |
+| A1 | Open `/welcome` | ☐ | Login/Sign up fields editable when Supabase configured; **Continue as guest** available; no fake Google/Apple |
+| A2 | Log in or guest → lands on `/` (Today hub) | ☐ | AsyncStorage persists `hasEntered`; signed-in users hydrate remote state |
 | A3 | Reload `/` → should skip welcome if persisted | ☐ | |
 
 ---

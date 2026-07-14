@@ -14,10 +14,11 @@
  * Exercise-specific overrides (e.g. calves 15–25, isolation 10–20) live in exercises.rep_range_min/max.
  */
 
-import type { BlockFormat } from "../types";
+import type { BlockFormat, VolumePreference } from "../types";
 import type { Exercise } from "../../logic/workoutGeneration/types";
 
 export type EnergyLevel = "low" | "medium" | "high";
+export type { VolumePreference };
 
 /** Sprint / agility / COD drills must never receive long steady-state cardio prescriptions. */
 const SPRINT_OR_AGILITY_DRILL_CUES = [
@@ -517,6 +518,32 @@ export function scaleRepsByEnergy(
 }
 
 /**
+ * User volume dial on top of goal + energy.
+ * Conservative: −1 set and −1 rep bucket. High volume: +1 set and +1 rep bucket (capped).
+ * Power/quality work can pass `lockReps: true` so only sets change.
+ */
+export function applyVolumePreference(
+  reps: number,
+  sets: number,
+  preference: VolumePreference | null | undefined,
+  goalRange: { min: number; max: number },
+  options?: { lockReps?: boolean }
+): { reps: number; sets: number } {
+  const pref = preference ?? "standard";
+  if (pref === "standard") return { reps, sets };
+
+  const shift = pref === "high_volume" ? 1 : -1;
+  let nextReps = reps;
+  if (!options?.lockReps) {
+    const idx = repBucketIndex(reps);
+    const newIdx = Math.max(0, Math.min(ALLOWED_REP_TARGETS.length - 1, idx + shift));
+    nextReps = clampRepsToGoalRange(ALLOWED_REP_TARGETS[newIdx]!, goalRange);
+  }
+  const nextSets = Math.max(1, Math.min(6, sets + shift));
+  return { reps: nextReps, sets: nextSets };
+}
+
+/**
  * Energy-aware set count from goal set range (low → min, medium → mid, high → max + 1 capped at 6).
  */
 export function resolveSetsFromRange(
@@ -536,12 +563,15 @@ export function resolveVolumePrescription(
   goalRange: { min: number; max: number },
   setRange: { min: number; max: number },
   energy: EnergyLevel,
-  repSelection: RepSelectionStrategy
+  repSelection: RepSelectionStrategy,
+  volumePreference?: VolumePreference | null,
+  options?: { lockReps?: boolean }
 ): { reps: number; baseSets: number } {
   const baseReps = selectRepsFromRange(goalRange, repSelection);
   const reps = scaleRepsByEnergy(baseReps, energy, goalRange);
   const baseSets = resolveSetsFromRange(setRange, energy);
-  return { reps, baseSets };
+  const adjusted = applyVolumePreference(reps, baseSets, volumePreference, goalRange, options);
+  return { reps: adjusted.reps, baseSets: adjusted.sets };
 }
 
 /**
