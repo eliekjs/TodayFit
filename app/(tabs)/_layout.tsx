@@ -35,6 +35,8 @@ export default function TabsLayout() {
     <Tabs
       tabBar={(props: BottomTabBarProps) => <FilteredTabBar {...props} />}
       screenOptions={{
+        /** Web keeps visited tab scenes mounted; freeze inactive ones to cut re-render cost. */
+        freezeOnBlur: Platform.OS === "web",
         sceneStyle: {
           backgroundColor: "transparent",
         },
@@ -50,7 +52,10 @@ export default function TabsLayout() {
           paddingBottom: insets.bottom,
           paddingTop: 12,
           ...(Platform.OS === "android" && { elevation: 8 }),
-          boxShadow: "0 -8px 24px rgba(44,38,32,0.08)",
+          // Avoid always-on blurry box-shadow on web — hairline border is enough.
+          ...(Platform.OS === "web"
+            ? null
+            : { boxShadow: "0 -8px 24px rgba(44,38,32,0.08)" }),
         },
         tabBarLabelStyle: {
           fontSize: 12,

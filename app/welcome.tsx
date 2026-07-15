@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
@@ -31,17 +31,24 @@ const INPUT_BG = "rgba(255,253,248,0.92)";
 export default function WelcomeScreen() {
   const router = useRouter();
   const { setHasEntered } = useWelcome();
+  const params = useLocalSearchParams<{ email?: string; resetDone?: string }>();
   const {
     isAuthConfigured,
     signInWithPassword,
     signUpWithPassword,
-    resetPasswordForEmail,
   } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(
+    typeof params.email === "string" ? params.email : ""
+  );
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [formInfo, setFormInfo] = useState<string | null>(
+    params.resetDone === "1"
+      ? "Password updated. Log in with your new password."
+      : null
+  );
 
   const enterAsGuest = () => {
     setHasEntered();
@@ -99,28 +106,13 @@ export default function WelcomeScreen() {
     }
   };
 
-  const onForgotPassword = async () => {
+  const onForgotPassword = () => {
     setFormError(null);
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setFormError("Enter your email above, then tap Forgot password.");
-      return;
-    }
-    if (!isAuthConfigured) {
-      setFormError("Auth is not configured on this build.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const { error } = await resetPasswordForEmail(trimmed);
-      if (error) {
-        setFormError(error);
-        return;
-      }
-      Alert.alert("Reset email sent", "Check your inbox for a password reset link.");
-    } finally {
-      setBusy(false);
-    }
+    setFormInfo(null);
+    router.push({
+      pathname: "/auth/forgot-password",
+      params: email.trim() ? { email: email.trim() } : undefined,
+    });
   };
 
   return (
@@ -209,6 +201,7 @@ export default function WelcomeScreen() {
                 </Text>
               )}
 
+              {formInfo ? <Text style={styles.infoText}>{formInfo}</Text> : null}
               {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
               {isLogin && (
@@ -369,6 +362,13 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     color: "#9b2c2c",
+    textAlign: "center",
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  infoText: {
+    fontSize: 13,
+    color: CLEAN_MUTED,
     textAlign: "center",
     marginBottom: 12,
     lineHeight: 18,

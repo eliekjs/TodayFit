@@ -129,6 +129,7 @@ export type ManualPreferences = {
    * do not bleed into that session.
    */
   weekSubFocusPrimaryLabels?: string[];
+  /** Optional single workout style label (`WORKOUT_STYLE_OPTIONS`); empty = none. Array for legacy storage. */
   workoutStyle: string[];
   /** Preferred Zone 2 cardio modalities (e.g. "bike", "treadmill", "rower", "stair_climber"). Empty = any. Used for body recomp / endurance finisher. */
   preferredZone2Cardio?: string[];
@@ -250,6 +251,14 @@ export type ExerciseDefinition = {
    * Explicit experience tiers for generator filtering. When omitted, tiers are inferred from tags/metadata.
    */
   workout_levels?: WorkoutTierPreference[];
+  /** Legacy single movement pattern (squat, hinge, push, pull, …) for swap similarity. */
+  movement_pattern?: string;
+  /** Ontology primary movement family when present. */
+  primary_movement_family?: string;
+  /** Curated same-slot substitute slugs (ontology C.17). */
+  swap_candidates?: string[];
+  /** When true, reps are per side; used for swap similarity. */
+  unilateral?: boolean;
 };
 
 /** @deprecated Legacy: use WorkoutItem in blocks. */

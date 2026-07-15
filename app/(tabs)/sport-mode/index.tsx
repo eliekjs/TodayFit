@@ -364,7 +364,7 @@ export default function AdaptiveModeScreen() {
   }, [isOneDay]);
 
   useEffect(() => {
-    void prefetchWorkoutGenerationStack();
+    void prefetchWorkoutGenerationStack({ includeCatalog: true });
     void loadSportPrepPlannerModule();
   }, []);
 
@@ -2216,7 +2216,9 @@ export default function AdaptiveModeScreen() {
             }
             dismissedIds={dismissedConflictIds}
             currentPrefs={manualPreferences}
-            requireResolution={dailyResolveMode}
+            resolutionRequiredIds={
+              dailyResolveMode ? dailyBodyFocusConflicts.map((c) => c.id) : []
+            }
             onDismiss={(id) => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               setDismissedConflictIds((prev) => [...prev, id]);

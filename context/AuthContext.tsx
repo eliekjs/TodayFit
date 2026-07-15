@@ -10,7 +10,7 @@ type AuthContextValue = {
   isLoading: boolean;
   /** True when Supabase env is configured (auth API available). */
   isAuthConfigured: boolean;
-  /** True after a recovery deep link established a session ready for password update. */
+  /** True after recovery OTP/deep link established a session ready for password update. */
   isPasswordRecovery: boolean;
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
   signUpWithPassword: (
@@ -18,7 +18,10 @@ type AuthContextValue = {
     password: string
   ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signOut: () => Promise<{ error: string | null }>;
+  /** Sends Supabase recovery email (includes 6-digit code when template uses {{ .Token }}). */
   resetPasswordForEmail: (email: string) => Promise<{ error: string | null }>;
+  /** Verifies the 6-digit recovery code from email; creates a short-lived recovery session. */
+  verifyRecoveryOtp: (email: string, token: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
   clearPasswordRecovery: () => void;
   /** Deletes app rows for the user via RPC (or wipe fallback), then signs out. */
@@ -179,10 +182,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) {
       return { error: "Password reset is not configured." };
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(emailInput.trim(), {
+    const trimmed = emailInput.trim().toLowerCase();
+    if (!trimmed.includes("@")) {
+      return { error: "Enter a valid email address." };
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
       redirectTo: passwordResetRedirectUrl(),
     });
-    return { error: error ? authErrorMessage(error, "Could not send reset email.") : null };
+    // Avoid account enumeration: rate-limit and "user not found" still look like success to the client.
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (
+        msg.includes("rate") ||
+        msg.includes("security") ||
+        msg.includes("after") ||
+        msg.includes("seconds")
+      ) {
+        return { error: authErrorMessage(error, "Too many attempts. Try again shortly.") };
+      }
+      // Most other send failures (including unknown emails) → generic OK for security.
+      console.warn("[resetPasswordForEmail]", error.message);
+    }
+    return { error: null };
+  }, []);
+
+  const verifyRecoveryOtp = useCallback(async (emailInput: string, token: string) => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { error: "Password reset is not configured." };
+    }
+    const trimmedEmail = emailInput.trim().toLowerCase();
+    const trimmedToken = token.replace(/\s/g, "");
+    if (!/^\d{6,8}$/.test(trimmedToken)) {
+      return { error: "Enter the 6-digit code from your email." };
+    }
+    const { error } = await supabase.auth.verifyOtp({
+      email: trimmedEmail,
+      token: trimmedToken,
+      type: "recovery",
+    });
+    if (error) {
+      return { error: authErrorMessage(error, "Invalid or expired code. Request a new one.") };
+    }
+    setIsPasswordRecovery(true);
+    return { error: null };
   }, []);
 
   const updatePassword = useCallback(async (password: string) => {
@@ -265,6 +308,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUpWithPassword,
     signOut,
     resetPasswordForEmail,
+    verifyRecoveryOtp,
     updatePassword,
     clearPasswordRecovery,
     deleteAccount,

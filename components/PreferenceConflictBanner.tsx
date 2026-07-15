@@ -1,6 +1,7 @@
 /**
  * PreferenceConflictBanner: shows the top 1–2 preference conflicts with inline resolution buttons.
- * Conflicts are advisory only — user can always dismiss and proceed.
+ * Conflicts are advisory only — user can always dismiss and proceed (unless an id is in
+ * `resolutionRequiredIds`, used for daily body-focus resolve mode).
  */
 
 import React from "react";
@@ -32,14 +33,28 @@ type Props = {
   onDismiss: (id: string) => void;
   onApplyResolution: (patch: Partial<ManualPreferences>) => void;
   /**
-   * When true, hide the dismiss (✕) control — used for daily "focus & resolve" so
-   * body-region conflicts must be resolved or the user switches to spread.
+   * Conflict ids that must be resolved (no ✕ dismiss) — typically body-focus conflicts in
+   * daily "focus & resolve" mode. Advisory cards (opposing goals, etc.) stay dismissible.
+   */
+  resolutionRequiredIds?: string[];
+  /**
+   * @deprecated Prefer `resolutionRequiredIds` so only body-focus cards lock. When true and
+   * `resolutionRequiredIds` is omitted, every visible card hides ✕ (legacy).
    */
   requireResolution?: boolean;
 };
 
-const HIGH_COLOR = "#f59e0b";    // amber — high severity
-const MEDIUM_COLOR = "#3b82f6";  // blue — medium severity
+const HIGH_COLOR = "#f59e0b"; // amber — high severity
+const MEDIUM_COLOR = "#3b82f6"; // blue — medium severity
+
+function patchIsAcknowledgeOnly(patch: Partial<ManualPreferences>): boolean {
+  return Object.keys(patch).length === 0;
+}
+
+function animateLayout() {
+  if (Platform.OS === "web") return;
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+}
 
 export function PreferenceConflictBanner({
   conflicts,
@@ -47,9 +62,14 @@ export function PreferenceConflictBanner({
   currentPrefs,
   onDismiss,
   onApplyResolution,
+  resolutionRequiredIds,
   requireResolution = false,
 }: Props) {
   const theme = useTheme();
+  const requiredIds =
+    resolutionRequiredIds ??
+    (requireResolution ? conflicts.map((c) => c.id) : []);
+  const requiredSet = new Set(requiredIds);
 
   const visible = conflicts
     .filter((c) => !dismissedIds.includes(c.id))
@@ -61,6 +81,7 @@ export function PreferenceConflictBanner({
     <View style={styles.container}>
       {visible.map((conflict) => {
         const accentColor = conflict.severity === "high" ? HIGH_COLOR : MEDIUM_COLOR;
+        const mustResolve = requiredSet.has(conflict.id);
         return (
           <View
             key={conflict.id}
@@ -77,20 +98,22 @@ export function PreferenceConflictBanner({
             <View style={styles.body}>
               <View style={styles.headerRow}>
                 <Text style={[styles.severityLabel, { color: accentColor }]}>
-                  {requireResolution
+                  {mustResolve
                     ? "Needs alignment"
                     : conflict.severity === "high"
                       ? "Heads up"
                       : "Note"}
                 </Text>
-                {!requireResolution ? (
+                {!mustResolve ? (
                   <Pressable
                     hitSlop={12}
                     onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      animateLayout();
                       onDismiss(conflict.id);
                     }}
                     style={styles.dismissBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Dismiss ${conflict.id}`}
                   >
                     <Text style={[styles.dismissText, { color: theme.textMuted }]}>✕</Text>
                   </Pressable>
@@ -107,12 +130,18 @@ export function PreferenceConflictBanner({
                     const isPrimary = idx === 0;
                     return (
                       <Pressable
-                        key={res.label}
+                        key={`${conflict.id}:${res.label}`}
                         onPress={() => {
-                          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                          animateLayout();
                           const patch = res.apply(currentPrefs ?? ({} as ManualPreferences));
+                          // Acknowledge-only: dismiss just this card.
+                          // Real preference changes: apply and let the detector drop resolved
+                          // cards — never dismiss siblings / unrelated advisories.
+                          if (patchIsAcknowledgeOnly(patch)) {
+                            onDismiss(conflict.id);
+                            return;
+                          }
                           onApplyResolution(patch);
-                          onDismiss(conflict.id);
                         }}
                         style={({ pressed }) => [
                           styles.resolutionBtn,
@@ -124,6 +153,8 @@ export function PreferenceConflictBanner({
                             opacity: pressed ? 0.75 : 1,
                           },
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={res.label}
                       >
                         <Text
                           style={[

@@ -15,8 +15,9 @@ function PasswordRecoveryRedirect() {
   React.useEffect(() => {
     if (!isPasswordRecovery) return;
     const path = segments.join("/");
-    if (path !== "auth/reset-password") {
-      router.replace("/auth/reset-password");
+    // Code-based flow owns password reset; deep-link recovery lands on the same screen.
+    if (path !== "auth/forgot-password") {
+      router.replace("/auth/forgot-password");
     }
   }, [isPasswordRecovery, router, segments]);
   return null;

@@ -386,6 +386,23 @@ describe("opposing goals", () => {
     expect(opposingConflicts[0]!.severity).toBe("medium");
   });
 
+  it("offers keep-only and keep-both resolutions", () => {
+    const prefs = basePrefs({
+      primaryFocus: ["Build Muscle (Hypertrophy)", "Recovery"],
+    });
+    const conflict = detectPreferenceConflicts(prefs).find((c) =>
+      c.id.startsWith("opposing_goals")
+    )!;
+    expect(conflict.resolutions.map((r) => r.label)).toEqual([
+      "Keep only Build Muscle",
+      "Keep both anyway",
+    ]);
+    const keepBoth = conflict.resolutions.find((r) => r.label === "Keep both anyway")!;
+    expect(keepBoth.apply(prefs)).toEqual({});
+    const keepOnly = conflict.resolutions.find((r) => r.label.startsWith("Keep only"))!;
+    expect(keepOnly.apply(prefs).primaryFocus).toEqual(["Build Muscle (Hypertrophy)"]);
+  });
+
   it("does not flag Build Strength without a paired opposing goal", () => {
     const prefs = basePrefs({
       primaryFocus: ["Build Strength", "Improve Endurance"],
@@ -393,5 +410,31 @@ describe("opposing goals", () => {
     const conflicts = detectPreferenceConflicts(prefs);
     const opposingConflicts = conflicts.filter((c) => c.id.startsWith("opposing_goals"));
     expect(opposingConflicts).toHaveLength(0);
+  });
+});
+
+describe("clear body sub-goals does not scrub opposing-goal conflict", () => {
+  it("after clearing lower-body subs, opposing goals still detect", () => {
+    const prefs = basePrefs({
+      targetBody: "Upper",
+      primaryFocus: ["Build Muscle (Hypertrophy)", "Recovery"],
+      energyLevel: "medium",
+      subFocusByGoal: {
+        "Build Muscle (Hypertrophy)": ["Glutes", "Back"],
+      },
+    });
+    const before = detectPreferenceConflicts(prefs);
+    expect(before.map((c) => c.id)).toEqual(
+      expect.arrayContaining([
+        "body_vs_subgoal_upper_lower",
+        expect.stringMatching(/^opposing_goals/),
+      ])
+    );
+    const body = before.find((c) => c.id === "body_vs_subgoal_upper_lower")!;
+    const clear = body.resolutions.find((r) => r.label.startsWith("Clear"))!;
+    const next = { ...prefs, ...clear.apply(prefs) };
+    const after = detectPreferenceConflicts(next);
+    expect(after.map((c) => c.id)).not.toContain("body_vs_subgoal_upper_lower");
+    expect(after.some((c) => c.id.startsWith("opposing_goals"))).toBe(true);
   });
 });

@@ -80,66 +80,32 @@ const STYLE_POLICIES: Record<WorkoutStyleLabel, WorkoutStylePolicy> = {
   },
 };
 
-const CIRCUIT_PREFER_LABELS = new Set<WorkoutStyleLabel>([
-  "Functional / Athletic",
-  "Calisthenics Focus",
-  "CrossFit-style / HIIT",
-  "Cardio Emphasis",
-  "Mixed Strength + Conditioning",
-]);
-
 function isWorkoutStyleLabel(value: string): value is WorkoutStyleLabel {
   return (WORKOUT_STYLE_LABELS as readonly string[]).includes(value);
 }
 
+/**
+ * Normalize style labels. UI is single-select; if legacy prefs have multiple,
+ * keep the first valid label only.
+ */
 export function normalizeWorkoutStyleLabels(styles: string[] | undefined): WorkoutStyleLabel[] {
   if (!styles?.length) return [];
-  const out: WorkoutStyleLabel[] = [];
-  const seen = new Set<string>();
   for (const raw of styles) {
     const trimmed = raw.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    if (!isWorkoutStyleLabel(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
+    if (!trimmed || !isWorkoutStyleLabel(trimmed)) continue;
+    return [trimmed];
   }
-  return out;
+  return [];
 }
 
 /**
- * Merge multiple user-selected styles: take the strongest cardio/format bias, combine flags.
+ * Resolve policy for the selected style (at most one).
  * Empty selection → neutral (no change to generator defaults).
  */
 export function resolveWorkoutStylePolicy(styles: string[] | undefined): WorkoutStylePolicy {
   const labels = normalizeWorkoutStyleLabels(styles);
   if (labels.length === 0) return { ...NEUTRAL };
-  if (labels.length === 1) return { ...STYLE_POLICIES[labels[0]!] };
-
-  let merged: WorkoutStylePolicy = { ...NEUTRAL };
-  for (const label of labels) {
-    const p = STYLE_POLICIES[label];
-    merged.cardioShareBoost = Math.max(merged.cardioShareBoost, p.cardioShareBoost);
-    merged.targetCardioExerciseShareBoost = Math.max(
-      merged.targetCardioExerciseShareBoost,
-      p.targetCardioExerciseShareBoost
-    );
-    merged.preferCircuitSuperset = merged.preferCircuitSuperset || p.preferCircuitSuperset;
-    merged.preferStraightSetsMain = merged.preferStraightSetsMain || p.preferStraightSetsMain;
-    merged.conditioningForward = merged.conditioningForward || p.conditioningForward;
-  }
-
-  const prefersCircuit = labels.some((l) => CIRCUIT_PREFER_LABELS.has(l));
-  if (prefersCircuit) {
-    merged.preferStraightSetsMain = false;
-    merged.preferCircuitSuperset = true;
-    merged.wantsSupersets = true;
-  } else if (labels.includes("Compound Strength")) {
-    merged.wantsSupersets = false;
-    merged.preferStraightSetsMain = true;
-    merged.preferCircuitSuperset = false;
-  }
-
-  return merged;
+  return { ...STYLE_POLICIES[labels[0]!] };
 }
 
 function clamp01(value: number): number {
@@ -200,15 +166,12 @@ export function applyWorkoutStyleToPolicy(
 
 /** Style labels that nudge session feel toward sports training (Slice A companion). */
 export function workoutStyleFeelScoreBoost(styles: string[] | undefined): number {
-  const labels = normalizeWorkoutStyleLabels(styles);
-  if (labels.length === 0) return 0;
-  let boost = 0;
-  if (labels.some((l) => l === "Functional / Athletic")) boost = Math.max(boost, 0.12);
-  if (labels.some((l) => l === "CrossFit-style / HIIT" || l === "Mixed Strength + Conditioning")) {
-    boost = Math.max(boost, 0.1);
-  }
-  if (labels.some((l) => l === "Cardio Emphasis")) boost = Math.max(boost, 0.08);
-  return boost;
+  const label = normalizeWorkoutStyleLabels(styles)[0];
+  if (!label) return 0;
+  if (label === "Functional / Athletic") return 0.12;
+  if (label === "CrossFit-style / HIIT" || label === "Mixed Strength + Conditioning") return 0.1;
+  if (label === "Cardio Emphasis") return 0.08;
+  return 0;
 }
 
 export function buildStylePrefsWorkoutFields(

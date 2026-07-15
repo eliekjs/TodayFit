@@ -59,7 +59,9 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
   const supabase = requireClient();
   let query = supabase
     .from("exercises")
-    .select("id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, is_active, aliases")
+    .select(
+      "id, slug, name, description, primary_muscles, secondary_muscles, equipment, modalities, is_active, aliases, movement_pattern, primary_movement_family, swap_candidates, unilateral"
+    )
     .eq("is_active", true);
 
   if (filters?.equipment?.length) {
@@ -142,6 +144,10 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
     equipment: string[];
     modalities: string[];
     aliases?: string[] | null;
+    movement_pattern?: string | null;
+    primary_movement_family?: string | null;
+    swap_candidates?: string[] | null;
+    unilateral?: boolean | null;
   }>) {
     if (filters?.injuries?.length) {
       const contra = contraByExerciseId.get(row.id) ?? [];
@@ -163,6 +169,10 @@ export async function listExercises(filters?: ExerciseFilters): Promise<Exercise
       regressions: regressionsByExerciseId.get(row.id) ?? [],
     };
     if (row.aliases?.length) def.aliases = row.aliases;
+    if (row.movement_pattern) def.movement_pattern = row.movement_pattern;
+    if (row.primary_movement_family) def.primary_movement_family = row.primary_movement_family;
+    if (row.swap_candidates?.length) def.swap_candidates = row.swap_candidates;
+    if (row.unilateral === true) def.unilateral = true;
     result.push(def);
   }
   return result;
@@ -264,6 +274,13 @@ export async function getExercise(idOrSlug: string): Promise<ExerciseDefinition 
   };
   const desc = (row as { description?: string | null }).description?.trim();
   if (desc) def.description = desc;
+  const mp = (row as { movement_pattern?: string | null }).movement_pattern;
+  if (mp) def.movement_pattern = mp;
+  const family = (row as { primary_movement_family?: string | null }).primary_movement_family;
+  if (family) def.primary_movement_family = family;
+  const swaps = (row as { swap_candidates?: string[] | null }).swap_candidates;
+  if (swaps?.length) def.swap_candidates = swaps;
+  if ((row as { unilateral?: boolean | null }).unilateral === true) def.unilateral = true;
   return def;
 }
 

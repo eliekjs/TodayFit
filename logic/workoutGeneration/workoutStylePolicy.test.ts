@@ -8,9 +8,9 @@ import {
 import { CARDIO_POLICY_BY_PRIMARY_GOAL } from "./cardioIntentPolicyConfig";
 
 describe("normalizeWorkoutStyleLabels", () => {
-  it("drops unknown labels and dedupes", () => {
+  it("drops unknown labels and keeps only the first valid style", () => {
     expect(
-      normalizeWorkoutStyleLabels(["Functional / Athletic", "bogus", "Functional / Athletic"])
+      normalizeWorkoutStyleLabels(["bogus", "Functional / Athletic", "Compound Strength"])
     ).toEqual(["Functional / Athletic"]);
   });
 });
@@ -35,10 +35,11 @@ describe("resolveWorkoutStylePolicy", () => {
     expect(p.preferCircuitSuperset).toBe(true);
   });
 
-  it("Compound + Functional yields athletic merge", () => {
+  it("keeps only the first style when multiple are provided (legacy prefs)", () => {
     const p = resolveWorkoutStylePolicy(["Compound Strength", "Functional / Athletic"]);
-    expect(p.preferCircuitSuperset).toBe(true);
-    expect(p.wantsSupersets).toBe(true);
+    expect(p.preferStraightSetsMain).toBe(true);
+    expect(p.wantsSupersets).toBe(false);
+    expect(p.preferCircuitSuperset).toBe(false);
   });
 });
 

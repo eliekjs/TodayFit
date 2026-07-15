@@ -22,15 +22,21 @@ export type ExerciseLike = {
   unilateral?: boolean;
   /** When set, used to filter candidates by energy (e.g. low energy → exclude high-only). */
   energy_fit?: ("low" | "medium" | "high")[];
+  /** Curated same-slot substitute slugs (ontology C.17). */
+  swap_candidates?: string[];
+  /** Ontology primary movement family when present. */
+  primary_movement_family?: string;
 };
 
 export type SubstituteReason =
+  | "curated_swap"
   | "regression"
   | "progression"
   | "same_pattern_and_muscles"
   | "same_pattern"
   | "same_muscles"
-  | "same_modality";
+  | "same_modality"
+  | "same_family";
 
 export type RankedSubstitute = {
   exercise: ExerciseLike;
@@ -49,6 +55,12 @@ export type SubstitutionOptions = {
   preferProgressions?: boolean;
   /** Session energy level: candidates incompatible with this are excluded (e.g. low → no high-only). */
   energyLevel?: "low" | "medium" | "high";
+  /**
+   * When true, keep candidates in the same similarity cluster as the target
+   * (e.g. deadlift family). Default false — used when packing a session to avoid near-dupes.
+   * Swap UI should pass true so near-duplicates can surface as good substitutes.
+   */
+  allowSameCluster?: boolean;
 };
 
 /** Domain for modality: conditioning vs mobility/recovery vs strength/power. Used to avoid cross-domain swaps. */
@@ -67,9 +79,24 @@ function energyCompatible(
   return fit.includes(sessionEnergy);
 }
 
+function normSlug(id: string): string {
+  return id.toLowerCase();
+}
+
+function equipmentOverlapCount(a: string[], b: string[]): number {
+  if (!a.length || !b.length) return 0;
+  const bSet = new Set(b.map((e) => e.toLowerCase()));
+  let n = 0;
+  for (const eq of a) {
+    if (bSet.has(eq.toLowerCase())) n += 1;
+  }
+  return n;
+}
+
 /**
  * Score how well a candidate substitutes for the target (higher = better).
- * Uses movement pattern, muscle groups, progressions/regressions, and difficulty proximity.
+ * Uses movement pattern, muscle groups, progressions/regressions, curated swaps,
+ * equipment overlap, and difficulty proximity.
  */
 function substituteScore(
   target: ExerciseLike,
@@ -77,15 +104,22 @@ function substituteScore(
   reason: SubstituteReason
 ): number {
   let score = 0;
-  const patternMatch = target.movement_pattern === candidate.movement_pattern;
+  const patternMatch =
+    Boolean(target.movement_pattern) &&
+    Boolean(candidate.movement_pattern) &&
+    target.movement_pattern === candidate.movement_pattern;
   const musclesOverlap =
     target.muscle_groups.some((m) => candidate.muscle_groups.includes(m)) ||
     candidate.muscle_groups.some((m) => target.muscle_groups.includes(m));
   const musclesSame =
+    target.muscle_groups.length > 0 &&
     target.muscle_groups.length === candidate.muscle_groups.length &&
     target.muscle_groups.every((m) => candidate.muscle_groups.includes(m));
 
   switch (reason) {
+    case "curated_swap":
+      score = 110;
+      break;
     case "regression":
     case "progression":
       score = 100;
@@ -95,6 +129,9 @@ function substituteScore(
       break;
     case "same_pattern":
       score = 70;
+      break;
+    case "same_family":
+      score = 65;
       break;
     case "same_muscles":
       score = 60;
@@ -108,6 +145,24 @@ function substituteScore(
 
   if (reason === "same_pattern" && musclesOverlap && !musclesSame) score += 5;
   if (reason === "same_muscles" && patternMatch) score += 10;
+  if (reason === "curated_swap" && patternMatch) score += 5;
+  if (reason === "curated_swap" && musclesOverlap) score += 5;
+
+  const familyMatch =
+    Boolean(target.primary_movement_family) &&
+    target.primary_movement_family === candidate.primary_movement_family;
+  if (familyMatch && reason !== "same_family" && reason !== "curated_swap") score += 8;
+
+  const eqOverlap = equipmentOverlapCount(target.equipment_required, candidate.equipment_required);
+  if (eqOverlap > 0) score += Math.min(10, eqOverlap * 4);
+
+  if (
+    target.unilateral != null &&
+    candidate.unilateral != null &&
+    target.unilateral === candidate.unilateral
+  ) {
+    score += 3;
+  }
 
   const targetDiff = target.difficulty ?? 3;
   const candDiff = candidate.difficulty ?? 3;
@@ -135,13 +190,17 @@ export function getSubstitutes(
   const preferRegressions = options.preferRegressions ?? false;
   const preferProgressions = options.preferProgressions ?? false;
   const energyLevel = options.energyLevel;
+  const allowSameCluster = options.allowSameCluster === true;
 
-  const targetId = target.id.toLowerCase();
+  const targetId = normSlug(target.id);
   const targetCluster = getSimilarExerciseClusterId({ id: target.id });
+  const curated = new Set((target.swap_candidates ?? []).map(normSlug));
 
   const candidates = candidatePool.filter((c) => {
     if (c.id === target.id || excludeIds.has(c.id)) return false;
-    if (getSimilarExerciseClusterId({ id: c.id }) === targetCluster) return false;
+    if (!allowSameCluster && getSimilarExerciseClusterId({ id: c.id }) === targetCluster) {
+      return false;
+    }
     if (energyLevel && !energyCompatible(c.energy_fit, energyLevel)) return false;
     return true;
   });
@@ -150,22 +209,36 @@ export function getSubstitutes(
   const scored: RankedSubstitute[] = [];
 
   for (const c of candidates) {
-    const cid = c.id.toLowerCase();
-    let reason: SubstituteReason = "same_modality";
+    const cid = normSlug(c.id);
+    let reason: SubstituteReason | null = null;
 
-    const targetRegressions = (target.regressions ?? []).map((r) => r.toLowerCase());
-    const targetProgressions = (target.progressions ?? []).map((p) => p.toLowerCase());
-    const cRegressions = (c.regressions ?? []).map((r) => r.toLowerCase());
-    const cProgressions = (c.progressions ?? []).map((p) => p.toLowerCase());
-    if (targetRegressions.includes(cid) || cProgressions.includes(targetId)) {
+    const targetRegressions = (target.regressions ?? []).map(normSlug);
+    const targetProgressions = (target.progressions ?? []).map(normSlug);
+    const cRegressions = (c.regressions ?? []).map(normSlug);
+    const cProgressions = (c.progressions ?? []).map(normSlug);
+
+    if (curated.has(cid)) {
+      reason = "curated_swap";
+    } else if (targetRegressions.includes(cid) || cProgressions.includes(targetId)) {
       reason = "regression";
     } else if (targetProgressions.includes(cid) || cRegressions.includes(targetId)) {
       reason = "progression";
-    } else if (target.movement_pattern === c.movement_pattern) {
+    } else if (
+      target.movement_pattern &&
+      c.movement_pattern &&
+      target.movement_pattern === c.movement_pattern
+    ) {
       const sameMuscles =
+        target.muscle_groups.length > 0 &&
         target.muscle_groups.length === c.muscle_groups.length &&
         target.muscle_groups.every((m) => c.muscle_groups.includes(m));
       reason = sameMuscles ? "same_pattern_and_muscles" : "same_pattern";
+    } else if (
+      target.primary_movement_family &&
+      c.primary_movement_family &&
+      target.primary_movement_family === c.primary_movement_family
+    ) {
+      reason = "same_family";
     } else if (target.muscle_groups.some((m) => c.muscle_groups.includes(m))) {
       reason = "same_muscles";
     } else if (target.modality && c.modality && target.modality === c.modality) {
@@ -175,7 +248,7 @@ export function getSubstitutes(
     }
 
     const cDomain = modalityDomain(c.modality);
-    if (reason === "same_muscles" || reason === "same_modality") {
+    if (reason === "same_muscles" || reason === "same_modality" || reason === "same_family") {
       if (targetDomain !== cDomain) continue;
     }
 
@@ -185,7 +258,7 @@ export function getSubstitutes(
     scored.push({ exercise: c, score, reason });
   }
 
-  scored.sort((a, b) => b.score - a.score);
+  scored.sort((a, b) => b.score - a.score || a.exercise.name.localeCompare(b.exercise.name));
   return scored.slice(0, maxResults);
 }
 

@@ -104,7 +104,11 @@ export const CONSTRAINT_OPTIONS_LOWER: readonly string[] = [
   "No restrictions",
 ];
 
-/** Refinements – Style (optional multi-select). Hypertrophy Bias omitted; use Build Muscle (Hypertrophy) goal instead. */
+/**
+ * Refinements – Style (optional single-select).
+ * Hypertrophy / bodybuilding intentionally omitted — use Build Muscle (Hypertrophy) goal
+ * (or Bodybuilding as a sport in Sport Mode), not a format style tag.
+ */
 export const WORKOUT_STYLE_OPTIONS: WorkoutStyleKey[] = [
   "Compound Strength",
   "Functional / Athletic",

@@ -379,6 +379,10 @@ function detectOpposingGoalsConflict(prefs: ManualPreferences): PreferenceConfli
               })(),
             }),
           },
+          {
+            label: "Keep both anyway",
+            apply: () => ({}),
+          },
         ],
       };
     }
@@ -444,6 +448,17 @@ function detectCalisthenicsNoBodyweightConflict(
       {
         label: "Keep Calisthenics",
         apply: () => ({}),
+      },
+      {
+        label: "Remove Calisthenics",
+        apply: (p) => ({
+          primaryFocus: p.primaryFocus.filter((g) => g !== "Calisthenics"),
+          subFocusByGoal: (() => {
+            const next = { ...p.subFocusByGoal };
+            delete next.Calisthenics;
+            return next;
+          })(),
+        }),
       },
     ],
   };

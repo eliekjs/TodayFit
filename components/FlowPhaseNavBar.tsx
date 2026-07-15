@@ -143,7 +143,7 @@ export function FlowPhaseNavBar({
             paddingBottom: (compact ? 6 : 10) + bottomInset,
           },
           Platform.select({
-            web: { boxShadow: "0 -4px 16px rgba(0,0,0,0.2)" },
+            web: null,
             default: {
               shadowColor: "#000",
               shadowOffset: { width: 0, height: -2 },

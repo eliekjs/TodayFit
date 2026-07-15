@@ -120,7 +120,11 @@ function normalizeManualPreferencesPayload(raw: unknown): ManualPreferences {
     upcoming: asStringArray(prefs.upcoming) ?? DEFAULT_MANUAL_PREFERENCES.upcoming,
     subFocusByGoal,
     subFocusPctByGoal,
-    workoutStyle: asStringArray(prefs.workoutStyle) ?? DEFAULT_MANUAL_PREFERENCES.workoutStyle,
+    // Style is single-select; clamp legacy multi-select presets to the first value.
+    workoutStyle: (() => {
+      const styles = asStringArray(prefs.workoutStyle) ?? DEFAULT_MANUAL_PREFERENCES.workoutStyle;
+      return styles.length <= 1 ? styles : [styles[0]!];
+    })(),
     preferredZone2Cardio: asStringArray(prefs.preferredZone2Cardio) ?? DEFAULT_MANUAL_PREFERENCES.preferredZone2Cardio,
     goalMatchPrimaryPct: asNumber(prefs.goalMatchPrimaryPct) ?? DEFAULT_MANUAL_PREFERENCES.goalMatchPrimaryPct,
     goalMatchSecondaryPct:

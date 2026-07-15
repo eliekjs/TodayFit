@@ -32,19 +32,22 @@ function energyFitFromTags(tags: string[] | undefined): ("low" | "medium" | "hig
   return out.length ? out : undefined;
 }
 
-/** Map ExerciseDefinition to ExerciseLike for getSubstitutes (movement_pattern not on def, use empty). */
+/** Map ExerciseDefinition to ExerciseLike for getSubstitutes similarity ranking. */
 function definitionToExerciseLike(def: ExerciseDefinition): ExerciseLike {
   const tags = Array.isArray(def.tags) ? def.tags : [];
   const energy_fit = energyFitFromTags(tags);
   return {
     id: def.id,
     name: def.name,
-    movement_pattern: "",
+    movement_pattern: def.movement_pattern ?? "",
     muscle_groups: def.muscles,
     equipment_required: def.equipment,
     modality: def.modalities?.[0],
     progressions: def.progressions,
     regressions: def.regressions,
+    unilateral: def.unilateral,
+    swap_candidates: def.swap_candidates,
+    primary_movement_family: def.primary_movement_family,
     tags: def.contraindications?.length ? { contraindications: def.contraindications } : undefined,
     energy_fit,
   };
@@ -343,6 +346,7 @@ async function expandSwapCandidatesList(
       maxResults: 40,
       excludeIds: existingIds,
       energyLevel: options?.energyLevel,
+      allowSameCluster: true,
     });
     for (const s of substitutes) {
       if (existingIds.has(s.exercise.id)) continue;
@@ -357,10 +361,11 @@ async function expandSwapCandidatesList(
 }
 
 /**
- * When the generator recorded the slot-specific candidate pool, build the swap list directly from
+ * When the generator recorded the slot-specific candidate pool, build the swap list from
  * those IDs so swaps respect the same tier/equipment/injury/goal constraints as generation.
- * Progressions/regressions of the target exercise are placed first (similarity-preferred order);
- * remaining pool IDs follow in stable iteration order. The current exercise is excluded.
+ * Candidates are ranked by similarity to the exercise being swapped (curated swap_candidates,
+ * progressions/regressions, movement pattern/family, muscles, equipment). Unscored pool
+ * members append after ranked ones so pagination can still cycle the full pool.
  * Returns an empty array when the DB is not configured or no pool IDs resolve to known exercises.
  */
 async function buildSwapCandidatesFromPool(
@@ -372,28 +377,37 @@ async function buildSwapCandidatesFromPool(
   poolSet.delete(exerciseId);
   if (poolSet.size === 0 || !isDbConfigured()) return [];
   try {
-    const [progRes, poolDefs] = await Promise.all([
-      getProgressionsRegressions(exerciseId),
-      listExercises(),
-    ]);
-    const nameMap = new Map(poolDefs.map((d) => [d.id, d.name]));
+    const [targetDef, poolDefs] = await Promise.all([getExercise(exerciseId), listExercises()]);
+    if (!targetDef) return [];
+
+    const byId = buildSlugToDefMap(poolDefs, targetDef);
+    const poolDefsInSet: ExerciseDefinition[] = [];
+    for (const id of poolSet) {
+      const def = byId.get(id);
+      if (def) poolDefsInSet.push(def);
+    }
+    if (poolDefsInSet.length === 0) return [];
+
+    const target = definitionToExerciseLike(targetDef);
+    const ranked = getSubstitutes(target, poolDefsInSet.map(definitionToExerciseLike), {
+      maxResults: poolDefsInSet.length,
+      excludeIds: new Set([exerciseId]),
+      energyLevel: options.energyLevel,
+      allowSameCluster: true,
+    });
+
     const candidates: ProgressionsRegressionsOption[] = [];
     const seen = new Set<string>([exerciseId]);
-    // Progressions/regressions that are also in the pool sort first (higher similarity).
-    for (const o of [...progRes.regressions, ...progRes.progressions]) {
-      if (seen.has(o.id) || !poolSet.has(o.id)) continue;
-      const name = nameMap.get(o.id) ?? o.name;
-      candidates.push({ id: o.id, name });
-      seen.add(o.id);
+    for (const s of ranked) {
+      if (seen.has(s.exercise.id)) continue;
+      candidates.push({ id: s.exercise.id, name: s.exercise.name });
+      seen.add(s.exercise.id);
     }
-    // Remaining pool IDs in stable order.
-    for (const id of poolSet) {
-      if (seen.has(id)) continue;
-      const name = nameMap.get(id);
-      if (name) {
-        candidates.push({ id, name });
-        seen.add(id);
-      }
+    // Keep remaining eligible pool members (no similarity reason) so "Show different" can cycle them.
+    for (const def of poolDefsInSet) {
+      if (seen.has(def.id)) continue;
+      candidates.push({ id: def.id, name: def.name });
+      seen.add(def.id);
     }
     return candidates;
   } catch {
@@ -511,6 +525,7 @@ async function fillToAtLeastThree(
       maxResults: MIN_SUGGESTIONS,
       excludeIds: existingIds,
       energyLevel: options?.energyLevel,
+      allowSameCluster: true,
     });
     const need = MIN_SUGGESTIONS - combined.length;
     const extra = substitutes
@@ -555,7 +570,11 @@ export async function getProgressionsRegressionsForExercise(
           }
           poolForSubs = filterExerciseDefsForSwap(options, poolForSubs);
           const pool = poolForSubs.map(definitionToExerciseLike);
-          const substitutes = getSubstitutes(target, pool, { maxResults: 5, energyLevel: options?.energyLevel });
+          const substitutes = getSubstitutes(target, pool, {
+            maxResults: 5,
+            energyLevel: options?.energyLevel,
+            allowSameCluster: true,
+          });
           const similar = substitutes.map((s) => ({ id: s.exercise.id, name: s.exercise.name }));
           return fillToAtLeastThree({ progressions: [], regressions: similar }, exerciseId, options);
         } catch {

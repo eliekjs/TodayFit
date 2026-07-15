@@ -51,7 +51,10 @@ export function CollapsiblePreferenceSection({
   const theme = useTheme();
 
   const handlePress = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    // LayoutAnimation is expensive / poorly supported on RN Web and can jank preference screens.
+    if (Platform.OS !== "web") {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
     onToggle();
   };
 

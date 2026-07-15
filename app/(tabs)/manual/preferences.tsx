@@ -138,7 +138,8 @@ export default function ManualPreferencesScreen() {
   const generationCancelledRef = useRef(false);
 
   useEffect(() => {
-    void prefetchWorkoutGenerationStack();
+    // Closer to Generate: warm catalog on idle (web skips catalog from Today home prefetch).
+    void prefetchWorkoutGenerationStack({ includeCatalog: true });
   }, []);
 
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
@@ -443,15 +444,14 @@ export default function ManualPreferencesScreen() {
     }
   };
 
-  const toggleFromArray =
-    (key: "workoutStyle") =>
-    (value: string) => {
-      const current = manualPreferences[key] as string[];
-      const exists = current.includes(value);
-      updateManualPreferences({
-        [key]: exists ? current.filter((v) => v !== value) : [...current, value],
-      });
-    };
+  /** Style is optional single-select (tap again to clear). */
+  const toggleWorkoutStyle = (value: string) => {
+    const current = manualPreferences.workoutStyle;
+    const selected = current[0] === value;
+    updateManualPreferences({
+      workoutStyle: selected ? [] : [value],
+    });
+  };
 
   const hasGeneratedWeekPlan =
     isWeek && manualWeekPlan != null && manualWeekPlan.days.length > 0;
@@ -609,11 +609,7 @@ export default function ManualPreferencesScreen() {
     return `${inj[0]}, +${inj.length - 1}`;
   })();
   const manualAdvStyleSummary =
-    manualPreferences.workoutStyle.length === 0
-      ? "None"
-      : manualPreferences.workoutStyle.length === 1
-        ? manualPreferences.workoutStyle[0]
-        : `${manualPreferences.workoutStyle[0]} +${manualPreferences.workoutStyle.length - 1}`;
+    manualPreferences.workoutStyle[0] ?? "None";
   const manualAdvUpcomingSummary =
     manualPreferences.upcoming.length === 0
       ? "None"
@@ -1021,7 +1017,9 @@ export default function ManualPreferencesScreen() {
           }
           dismissedIds={dismissedConflictIds}
           currentPrefs={manualPreferences}
-          requireResolution={dailyResolveMode}
+          resolutionRequiredIds={
+            dailyResolveMode ? dailyBodyFocusConflicts.map((c) => c.id) : []
+          }
           onDismiss={(id) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setDismissedConflictIds((prev) => [...prev, id]);
@@ -1312,7 +1310,7 @@ export default function ManualPreferencesScreen() {
             <CollapsiblePreferenceSection
               nested
               title="Style"
-              subtitle="Optional workout style tags."
+              subtitle="Optional. Pick one workout style."
               summary={manualAdvStyleSummary}
               expanded={manualAdvNestedOpen.style === true}
               onToggle={() => toggleManualAdvNested("style")}
@@ -1322,8 +1320,8 @@ export default function ManualPreferencesScreen() {
                   <Chip
                     key={opt}
                     label={opt}
-                    selected={manualPreferences.workoutStyle.includes(opt)}
-                    onPress={() => toggleFromArray("workoutStyle")(opt)}
+                    selected={manualPreferences.workoutStyle[0] === opt}
+                    onPress={() => toggleWorkoutStyle(opt)}
                   />
                 ))}
               </View>

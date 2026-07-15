@@ -3,7 +3,7 @@ import { getSwapSuggestionsPage } from "./exerciseProgressions";
 import type { ExerciseDefinition } from "./types";
 
 // ---------------------------------------------------------------------------
-// Module mocks
+// Module mocks — use real getSubstitutes so pool ranking is similarity-based
 // ---------------------------------------------------------------------------
 
 vi.mock("./db", () => ({
@@ -16,14 +16,14 @@ vi.mock("./db/exerciseRepository", () => ({
   listExercises: vi.fn(),
 }));
 
-vi.mock("./generation/exerciseSubstitution", () => ({
-  getSubstitutes: vi.fn(() => []),
-}));
-
-vi.mock("./workoutRules", () => ({
-  isCooldownEligibleEquipment: vi.fn(() => true),
-  isWarmupEligibleEquipment: vi.fn(() => true),
-}));
+vi.mock("./workoutRules", async () => {
+  const actual = await vi.importActual<typeof import("./workoutRules")>("./workoutRules");
+  return {
+    ...actual,
+    isCooldownEligibleEquipment: vi.fn(() => true),
+    isWarmupEligibleEquipment: vi.fn(() => true),
+  };
+});
 
 vi.mock("./workoutLevel", () => ({
   exerciseMatchesWorkoutTier: vi.fn(
@@ -61,20 +61,60 @@ function makeDef(id: string, opts: Partial<ExerciseDefinition> = {}): ExerciseDe
 }
 
 const ALL_EXERCISES: ExerciseDefinition[] = [
-  makeDef("squat"),
-  makeDef("deadlift"),
-  makeDef("lunge"),
-  makeDef("leg_press"),
-  makeDef("front_squat"),
-  makeDef("goblet_squat"),
-  makeDef("bench_press"),
-  makeDef("row"),
-  makeDef("advanced_snatch", { workout_levels: ["advanced"] }),
+  makeDef("squat", {
+    movement_pattern: "squat",
+    muscles: ["quads", "glutes"],
+    primary_movement_family: "squat",
+    swap_candidates: ["front_squat", "goblet_squat"],
+    regressions: ["goblet_squat"],
+  }),
+  makeDef("deadlift", {
+    movement_pattern: "hinge",
+    muscles: ["hamstrings", "glutes"],
+    primary_movement_family: "hinge",
+  }),
+  makeDef("lunge", {
+    movement_pattern: "squat",
+    muscles: ["quads", "glutes"],
+    primary_movement_family: "lunge",
+  }),
+  makeDef("leg_press", {
+    movement_pattern: "squat",
+    muscles: ["quads", "glutes"],
+    primary_movement_family: "squat",
+    equipment: ["machine"],
+  }),
+  makeDef("front_squat", {
+    movement_pattern: "squat",
+    muscles: ["quads", "glutes"],
+    primary_movement_family: "squat",
+  }),
+  makeDef("goblet_squat", {
+    movement_pattern: "squat",
+    muscles: ["quads", "glutes"],
+    primary_movement_family: "squat",
+    equipment: ["dumbbell"],
+  }),
+  makeDef("bench_press", {
+    movement_pattern: "push",
+    muscles: ["chest", "triceps"],
+    primary_movement_family: "horizontal_push",
+  }),
+  makeDef("row", {
+    movement_pattern: "pull",
+    muscles: ["back"],
+    primary_movement_family: "horizontal_pull",
+  }),
+  makeDef("advanced_snatch", {
+    workout_levels: ["advanced"],
+    movement_pattern: "hinge",
+    muscles: ["hamstrings"],
+  }),
 ];
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetExercise.mockResolvedValue(makeDef("squat"));
+  mockGetExercise.mockResolvedValue(ALL_EXERCISES[0]);
   mockGetProgressionsRegressions.mockResolvedValue({ progressions: [], regressions: [] });
   mockListExercises.mockResolvedValue(ALL_EXERCISES);
 });
@@ -93,46 +133,68 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     );
 
     const ids = suggestions.map((s) => s.id);
-    // All returned suggestions must come from the pool
     for (const id of ids) {
       expect(pool).toContain(id);
     }
-    // The current exercise must not appear
     expect(ids).not.toContain("squat");
-    // Results from outside the pool must not appear
     expect(ids).not.toContain("bench_press");
     expect(ids).not.toContain("front_squat");
-    // Pool has 3 items → 1 page of 3
     expect(numPages).toBe(1);
     expect(suggestions.length).toBe(3);
   });
 
-  it("places progressions/regressions that are in the pool first", async () => {
-    mockGetProgressionsRegressions.mockResolvedValue({
-      progressions: [],
-      regressions: [{ id: "goblet_squat", name: "Goblet Squat" }],
-    });
-
-    const pool = ["goblet_squat", "deadlift", "lunge"];
+  it("ranks curated swap_candidates and same-pattern pool members ahead of dissimilar ones", async () => {
+    const pool = ["deadlift", "front_squat", "bench_press", "goblet_squat", "lunge"];
     const { suggestions } = await getSwapSuggestionsPage(
       "squat",
       { swapPoolExerciseIds: pool, workoutTier: "intermediate" },
       0
     );
 
-    // goblet_squat is in both regressions and pool → should be first
+    const ids = suggestions.map((s) => s.id);
+    // Curated: front_squat + goblet_squat should land in the first page before bench/deadlift
+    expect(ids[0]).toBe("front_squat");
+    expect(ids).toContain("goblet_squat");
+    expect(ids.indexOf("front_squat")).toBeLessThan(ids.indexOf("bench_press") === -1 ? 99 : ids.indexOf("bench_press"));
+  });
+
+  it("places progressions/regressions that are in the pool first when no curated list", async () => {
+    mockGetExercise.mockResolvedValue(
+      makeDef("squat", {
+        movement_pattern: "squat",
+        muscles: ["quads"],
+        regressions: ["goblet_squat"],
+        modalities: ["strength"],
+      })
+    );
+    mockGetProgressionsRegressions.mockResolvedValue({
+      progressions: [],
+      regressions: [{ id: "goblet_squat", name: "Goblet Squat" }],
+    });
+
+    const pool = ["goblet_squat", "deadlift", "bench_press"];
+    const { suggestions } = await getSwapSuggestionsPage(
+      "squat",
+      { swapPoolExerciseIds: pool, workoutTier: "intermediate" },
+      0
+    );
+
     expect(suggestions[0]?.id).toBe("goblet_squat");
-    // remaining pool IDs must all appear
     const ids = suggestions.map((s) => s.id);
     expect(ids).toContain("deadlift");
-    expect(ids).toContain("lunge");
   });
 
   it("does not include out-of-pool exercises even when they are progressions/regressions", async () => {
-    mockGetProgressionsRegressions.mockResolvedValue({
-      progressions: [{ id: "front_squat", name: "Front Squat" }],
-      regressions: [{ id: "goblet_squat", name: "Goblet Squat" }],
-    });
+    mockGetExercise.mockResolvedValue(
+      makeDef("squat", {
+        movement_pattern: "squat",
+        muscles: ["quads"],
+        progressions: ["front_squat"],
+        regressions: ["goblet_squat"],
+        swap_candidates: ["front_squat", "goblet_squat"],
+        modalities: ["strength"],
+      })
+    );
 
     const pool = ["deadlift", "lunge"];
     const { suggestions } = await getSwapSuggestionsPage(
@@ -157,7 +219,6 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     );
 
     const ids = suggestions.map((s) => s.id);
-    // advanced_snatch has workout_levels: ["advanced"] only — must be excluded for beginner
     expect(ids).not.toContain("advanced_snatch");
     expect(ids).toContain("deadlift");
     expect(ids).toContain("lunge");
@@ -176,7 +237,6 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     );
 
     const ids = suggestions.map((s) => s.id);
-    // Empty pool → fall back → progressions/regressions should appear
     expect(ids.some((id) => ["front_squat", "goblet_squat"].includes(id))).toBe(true);
   });
 
@@ -193,14 +253,18 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     );
 
     const ids = suggestions.map((s) => s.id);
-    // Out-of-pool exercises appear when no pool restriction
     expect(ids.some((id) => ["front_squat", "goblet_squat"].includes(id))).toBe(true);
   });
 
   it("paginates correctly across pool items", async () => {
-    // Pool with 7 items → ceil(7/3) = 3 pages
     const pool = ["ex_a", "ex_b", "ex_c", "ex_d", "ex_e", "ex_f", "ex_g"];
-    const extraDefs = pool.map((id) => makeDef(id));
+    const extraDefs = pool.map((id) =>
+      makeDef(id, {
+        movement_pattern: "squat",
+        muscles: ["quads"],
+        modalities: ["strength"],
+      })
+    );
     mockListExercises.mockResolvedValue([...ALL_EXERCISES, ...extraDefs]);
 
     const page0 = await getSwapSuggestionsPage(
@@ -228,11 +292,39 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
       ...page1.suggestions.map((s) => s.id),
       ...page2.suggestions.map((s) => s.id),
     ];
-    // All 7 pool IDs should appear across the 3 pages (last page has 1 item)
     for (const id of pool) {
       expect(all).toContain(id);
     }
-    // No duplicates across pages
     expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("different target exercises in the same pool surface different top suggestions", async () => {
+    const pool = ["front_squat", "goblet_squat", "deadlift", "bench_press", "row", "lunge"];
+
+    const squatPage = await getSwapSuggestionsPage(
+      "squat",
+      { swapPoolExerciseIds: pool, workoutTier: "intermediate" },
+      0
+    );
+
+    mockGetExercise.mockResolvedValue(
+      makeDef("bench_press", {
+        movement_pattern: "push",
+        muscles: ["chest", "triceps"],
+        primary_movement_family: "horizontal_push",
+        swap_candidates: ["row"],
+        modalities: ["strength"],
+        equipment: ["barbell"],
+      })
+    );
+
+    const pressPage = await getSwapSuggestionsPage(
+      "bench_press",
+      { swapPoolExerciseIds: pool, workoutTier: "intermediate" },
+      0
+    );
+
+    expect(squatPage.suggestions[0]?.id).not.toBe(pressPage.suggestions[0]?.id);
+    expect(["front_squat", "goblet_squat", "lunge"]).toContain(squatPage.suggestions[0]?.id);
   });
 });
