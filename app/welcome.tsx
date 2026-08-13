@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,15 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { useWelcome } from "../context/WelcomeContext";
 import { useAuth } from "../context/AuthContext";
+import { AUTH_COPY } from "../lib/authCopy";
 
 const CLEAN_BG = "#f7f3ec";
 const CLEAN_CARD = "#fffdf8";
@@ -30,12 +29,17 @@ const INPUT_BG = "rgba(255,253,248,0.92)";
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { setHasEntered } = useWelcome();
   const params = useLocalSearchParams<{ email?: string; resetDone?: string }>();
   const {
     isAuthConfigured,
     signInWithPassword,
     signUpWithPassword,
+    resendConfirmationEmail,
+    authLinkError,
+    clearAuthLinkError,
+    emailJustConfirmed,
+    clearEmailJustConfirmed,
+    userId,
   } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState(
@@ -43,20 +47,36 @@ export default function WelcomeScreen() {
   );
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formInfo, setFormInfo] = useState<string | null>(
-    params.resetDone === "1"
-      ? "Password updated. Log in with your new password."
-      : null
+    params.resetDone === "1" ? AUTH_COPY.passwordUpdated : null
   );
 
-  const enterAsGuest = () => {
-    setHasEntered();
-    router.replace("/");
-  };
+  useEffect(() => {
+    if (authLinkError) {
+      setFormError(authLinkError);
+      setFormInfo(null);
+      clearAuthLinkError();
+    }
+  }, [authLinkError, clearAuthLinkError]);
+
+  useEffect(() => {
+    if (!emailJustConfirmed) return;
+    setFormError(null);
+    setNeedsConfirmation(false);
+    if (userId) {
+      clearEmailJustConfirmed();
+      router.replace("/");
+      return;
+    }
+    setIsLogin(true);
+    setFormInfo(AUTH_COPY.emailConfirmed);
+    clearEmailJustConfirmed();
+  }, [emailJustConfirmed, userId, clearEmailJustConfirmed, router]);
 
   const enterAfterAuth = () => {
-    setHasEntered();
     router.replace("/");
   };
 
@@ -64,25 +84,30 @@ export default function WelcomeScreen() {
     setFormError(null);
     const trimmed = email.trim();
     if (!trimmed || !password) {
-      setFormError("Enter email and password.");
+      setFormError(AUTH_COPY.enterEmailPassword);
       return;
     }
     if (password.length < 6) {
-      setFormError("Password must be at least 6 characters.");
+      setFormError(AUTH_COPY.passwordTooShort);
       return;
     }
     if (!isAuthConfigured) {
-      setFormError("Auth is not configured on this build. Continue as guest, or set Supabase env.");
+      setFormError(AUTH_COPY.authUnavailable);
       return;
     }
     setBusy(true);
     try {
       if (isLogin) {
-        const { error } = await signInWithPassword(trimmed, password);
+        const { error, emailNotConfirmed } = await signInWithPassword(trimmed, password);
         if (error) {
           setFormError(error);
+          if (emailNotConfirmed) {
+            setNeedsConfirmation(true);
+            setFormInfo(AUTH_COPY.checkEmailConfirm(trimmed));
+          }
           return;
         }
+        setNeedsConfirmation(false);
         enterAfterAuth();
         return;
       }
@@ -92,12 +117,10 @@ export default function WelcomeScreen() {
         return;
       }
       if (needsEmailConfirmation) {
-        Alert.alert(
-          "Check your email",
-          "We sent a confirmation link. After confirming, come back and log in.",
-          [{ text: "OK" }]
-        );
         setIsLogin(true);
+        setNeedsConfirmation(true);
+        setFormInfo(AUTH_COPY.checkEmailConfirm(trimmed));
+        setFormError(null);
         return;
       }
       enterAfterAuth();
@@ -106,9 +129,35 @@ export default function WelcomeScreen() {
     }
   };
 
+  const onResendConfirmation = async () => {
+    setFormError(null);
+    const trimmed = email.trim();
+    if (!trimmed.includes("@")) {
+      setFormError(AUTH_COPY.enterSignupEmailForResend);
+      return;
+    }
+    if (!isAuthConfigured) {
+      setFormError(AUTH_COPY.authUnavailable);
+      return;
+    }
+    setResendBusy(true);
+    try {
+      const { error } = await resendConfirmationEmail(trimmed);
+      if (error) {
+        setFormError(error);
+        return;
+      }
+      setNeedsConfirmation(true);
+      setFormInfo(AUTH_COPY.confirmationResent);
+    } finally {
+      setResendBusy(false);
+    }
+  };
+
   const onForgotPassword = () => {
     setFormError(null);
     setFormInfo(null);
+    setNeedsConfirmation(false);
     router.push({
       pathname: "/auth/forgot-password",
       params: email.trim() ? { email: email.trim() } : undefined,
@@ -133,7 +182,7 @@ export default function WelcomeScreen() {
               <View style={styles.logoBox}>
                 <Ionicons name="barbell" size={36} color="#fffdf8" />
               </View>
-              <Text style={styles.brandName}>TodayFit</Text>
+              <Text style={styles.brandName}>SeshLogic</Text>
               <Text style={styles.tagline}>Your intelligent training partner</Text>
             </View>
 
@@ -156,6 +205,7 @@ export default function WelcomeScreen() {
                   onPress={() => {
                     setIsLogin(false);
                     setFormError(null);
+                    // Keep confirmation hint if they just signed up and switched tabs.
                   }}
                   style={[styles.toggleBtn, !isLogin && styles.toggleBtnActive]}
                   accessibilityRole="button"
@@ -195,19 +245,29 @@ export default function WelcomeScreen() {
               />
 
               {!isAuthConfigured && (
-                <Text style={styles.previewHint}>
-                  Supabase is not configured in this build. You can still continue as a guest —
-                  sign-in will not sync data until env is set.
-                </Text>
+                <Text style={styles.previewHint}>{AUTH_COPY.welcomePreviewHint}</Text>
               )}
 
               {formInfo ? <Text style={styles.infoText}>{formInfo}</Text> : null}
               {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
+              {isLogin && needsConfirmation ? (
+                <Pressable
+                  onPress={onResendConfirmation}
+                  disabled={busy || resendBusy}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resend confirmation email"
+                >
+                  <Text style={styles.forgotLink}>
+                    {resendBusy ? "Sending…" : "Resend confirmation email"}
+                  </Text>
+                </Pressable>
+              ) : null}
+
               {isLogin && (
                 <Pressable
                   onPress={onForgotPassword}
-                  disabled={busy}
+                  disabled={busy || resendBusy}
                   accessibilityRole="button"
                   accessibilityLabel="Forgot password"
                 >
@@ -218,7 +278,7 @@ export default function WelcomeScreen() {
               <Pressable
                 style={({ pressed }) => [styles.primaryBtnWrap, { opacity: pressed || busy ? 0.85 : 1 }]}
                 onPress={onSubmit}
-                disabled={busy}
+                disabled={busy || resendBusy}
                 accessibilityRole="button"
                 accessibilityLabel={isLogin ? "Log in" : "Sign up"}
               >
@@ -235,25 +295,6 @@ export default function WelcomeScreen() {
                   )}
                 </LinearGradient>
               </Pressable>
-
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <Pressable
-                style={({ pressed }) => [styles.socialBtn, { opacity: pressed ? 0.9 : 1 }]}
-                onPress={enterAsGuest}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel="Continue as guest"
-              >
-                <Text style={styles.socialBtnText}>Continue as guest</Text>
-              </Pressable>
-              <Text style={styles.guestHint}>
-                Guest sessions are not saved to the cloud. Sign in to keep presets, gyms, and history.
-              </Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -382,7 +423,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   primaryBtnWrap: {
-    marginBottom: 20,
+    marginBottom: 4,
   },
   primaryBtn: {
     paddingVertical: 16,
@@ -395,40 +436,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fffdf8",
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: CLEAN_BORDER,
-  },
-  dividerText: {
-    fontSize: 13,
-    color: CLEAN_MUTED,
-  },
-  socialBtn: {
-    backgroundColor: CLEAN_CARD,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: CLEAN_BORDER,
-  },
-  socialBtnText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: CLEAN_TEXT,
-  },
-  guestHint: {
-    fontSize: 12,
-    color: CLEAN_MUTED,
-    textAlign: "center",
-    lineHeight: 17,
   },
 });

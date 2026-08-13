@@ -195,7 +195,14 @@ export type FocusBodyPart =
   | "quad"
   | "posterior"
   | "core"
-  | "full_body";
+  | "full_body"
+  /** Muscle-day emphasis tags (additive on region; used for scoring / wanted muscles). */
+  | "chest"
+  | "back"
+  | "shoulders"
+  | "arms"
+  | "glutes"
+  | "legs";
 
 export type EnergyLevel = "low" | "medium" | "high";
 

@@ -28,8 +28,9 @@ export function isLowerOnlyFocusBodyParts(focus: FocusBodyPart[] | undefined): b
   if (!focus?.length) return false;
   const parts = focus.map((f) => norm(String(f)));
   if (parts.some((p) => p === "full_body")) return false;
-  if (parts.some((p) => p.startsWith("upper"))) return false;
-  return parts.some((p) => p === "lower");
+  if (parts.some((p) => p.startsWith("upper") || p === "chest" || p === "back" || p === "shoulders" || p === "arms"))
+    return false;
+  return parts.some((p) => p === "lower" || p === "quad" || p === "posterior" || p === "glutes" || p === "legs");
 }
 
 /** True when the session's body-part focus is exclusively core (no upper/lower/full_body mixed in). */

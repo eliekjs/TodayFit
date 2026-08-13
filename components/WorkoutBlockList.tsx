@@ -6,6 +6,7 @@ import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock }
 import { formatExerciseDisplayCue } from "../lib/exerciseDisplayCue";
 import { buildBlockGoalBadgeLabel, getBlockDisplayTitle } from "../lib/blockGoalDisplay";
 import { ExerciseSetupModal } from "./ExerciseSetupModal";
+import { EditPrescriptionModal, type PrescriptionEdit } from "./EditPrescriptionModal";
 
 function BlockGoalBadge({
   block,
@@ -59,6 +60,9 @@ export type WorkoutBlockListProps = {
     blockType: BlockType,
     swapPoolExerciseIds?: string[]
   ) => void;
+  /** When true, show an Edit sets/reps button per exercise. */
+  showEditPrescription?: boolean;
+  onEditPrescription?: (exerciseId: string, edit: PrescriptionEdit) => void;
   showTags?: boolean;
   /** Optional notes per exercise id (e.g. from completed workout history). */
   exerciseNotes?: Record<string, string>;
@@ -72,6 +76,8 @@ export function WorkoutBlockList({
   workout,
   showSwap = false,
   onSwap,
+  showEditPrescription = false,
+  onEditPrescription,
   showTags = false,
   exerciseNotes,
   exercisePerformance,
@@ -82,6 +88,7 @@ export function WorkoutBlockList({
     exerciseName: string;
     setupText: string;
   } | null>(null);
+  const [editItem, setEditItem] = React.useState<WorkoutItem | null>(null);
 
   return (
     <>
@@ -110,6 +117,7 @@ export function WorkoutBlockList({
               theme,
               showSwap,
               onSwap,
+              showEditPrescription,
               showTags,
               showCompletionLog ? exerciseNotes : undefined,
               showCompletionLog ? exercisePerformance : undefined,
@@ -117,7 +125,8 @@ export function WorkoutBlockList({
                 const setupText = formatExerciseDisplayCue(item);
                 if (!setupText) return;
                 setSetupModal({ exerciseName: item.exercise_name, setupText });
-              }
+              },
+              (item) => setEditItem(item)
             )}
           </View>
         );
@@ -127,6 +136,17 @@ export function WorkoutBlockList({
         exerciseName={setupModal?.exerciseName ?? ""}
         setupText={setupModal?.setupText ?? null}
         onClose={() => setSetupModal(null)}
+      />
+      <EditPrescriptionModal
+        visible={editItem != null}
+        exerciseName={editItem?.exercise_name ?? ""}
+        item={editItem}
+        onClose={() => setEditItem(null)}
+        onSave={(edit) => {
+          if (editItem == null || onEditPrescription == null) return;
+          onEditPrescription(editItem.exercise_id, edit);
+          setEditItem(null);
+        }}
       />
     </>
   );
@@ -159,10 +179,12 @@ function renderBlockContent(
         swapPoolExerciseIds?: string[]
       ) => void)
     | undefined,
+  showEditPrescription: boolean,
   showTags: boolean,
   exerciseNotes: Record<string, string> | undefined,
   exercisePerformance: Record<string, { sets: SetLogRow[] }> | undefined,
-  onSetupPress: (item: WorkoutItem) => void
+  onSetupPress: (item: WorkoutItem) => void,
+  onEditPress: (item: WorkoutItem) => void
 ) {
   const pairs = getSupersetPairsForBlock(block);
   const noteFor = (exerciseId: string) =>
@@ -209,6 +231,40 @@ function renderBlockContent(
       </Pressable>
     );
   };
+  const actionButtonsFor = (item: WorkoutItem) => (
+    <View style={styles.actionCol}>
+      {setupButtonFor(item)}
+      {showEditPrescription && (
+        <Pressable
+          onPress={() => onEditPress(item)}
+          style={[styles.swapBtn, { borderColor: theme.border }]}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit sets and reps for ${item.exercise_name}`}
+        >
+          <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>
+            Edit sets/reps
+          </Text>
+        </Pressable>
+      )}
+      {showSwap && onSwap && (
+        <Pressable
+          onPress={() =>
+            onSwap(
+              item.exercise_id,
+              item.exercise_name,
+              blockType,
+              block.goal_intent?.swap_pool_exercise_ids
+            )
+          }
+          style={[styles.swapBtn, { borderColor: theme.border }]}
+        >
+          <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>
+            Swap exercise
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
   if (pairs && pairs.length > 0) {
     return (
       <>
@@ -257,24 +313,7 @@ function renderBlockContent(
                     {noteFor(item.exercise_id)}
                     {performanceFor(item)}
                   </View>
-                  {setupButtonFor(item)}
-                  {showSwap && onSwap && (
-                    <Pressable
-                      onPress={() =>
-                        onSwap(
-                          item.exercise_id,
-                          item.exercise_name,
-                          blockType,
-                          block.goal_intent?.swap_pool_exercise_ids
-                        )
-                      }
-                      style={[styles.swapBtn, { borderColor: theme.border }]}
-                    >
-                      <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>
-                        Swap exercise
-                      </Text>
-                    </Pressable>
-                  )}
+                  {actionButtonsFor(item)}
                 </View>
               ))}
             </View>
@@ -312,24 +351,7 @@ function renderBlockContent(
             {noteFor(item.exercise_id)}
             {performanceFor(item)}
           </View>
-          {setupButtonFor(item)}
-          {showSwap && onSwap && (
-            <Pressable
-              onPress={() =>
-                onSwap(
-                  item.exercise_id,
-                  item.exercise_name,
-                  blockType,
-                  block.goal_intent?.swap_pool_exercise_ids
-                )
-              }
-              style={[styles.swapBtn, { borderColor: theme.border }]}
-            >
-              <Text style={[styles.swapBtnText, { color: theme.textMuted }]}>
-                Swap exercise
-              </Text>
-            </Pressable>
-          )}
+          {actionButtonsFor(item)}
         </View>
       ))}
     </>
@@ -367,6 +389,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     paddingVertical: 8,
     gap: 8,
+  },
+  actionCol: {
+    gap: 6,
+    alignItems: "flex-end",
   },
   supersetLetter: {
     fontSize: 14,

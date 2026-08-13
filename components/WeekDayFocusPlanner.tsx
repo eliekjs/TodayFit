@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { Theme } from "../lib/theme";
-import type { GoalDistributionStyle } from "../lib/types";
+import type { GoalDistributionStyle, WeeklyBodyFocusMode } from "../lib/types";
 import type { DayBodyFocusChoice, DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
 import type {
   DaySessionFocusConflict,
@@ -10,6 +10,7 @@ import type {
 import { dayHasUnresolvedSessionFocusConflict } from "../lib/daySessionFocusConflict";
 import { DaySessionFocusConflictBanner } from "./DaySessionFocusConflictBanner";
 import { FocusDistributionNote } from "./FocusDistributionNote";
+import { WeeklyBodyFocusModeNote } from "./WeeklyBodyFocusModeNote";
 
 type Props = {
   theme: Theme;
@@ -31,6 +32,10 @@ type Props = {
   onChangeGoalDistributionStyle?: (value: GoalDistributionStyle) => void;
   /** When true, show the weekly distribution note (default: when onChange is provided). */
   showGoalDistributionNote?: boolean;
+  /** When true, show Region | Pattern | Muscle control (sport + goal weeks). */
+  showBodyFocusModeNote?: boolean;
+  weeklyBodyFocusMode?: WeeklyBodyFocusMode | null;
+  onChangeWeeklyBodyFocusMode?: (value: WeeklyBodyFocusMode) => void;
   onSelectBody?: (dayIndex: number, bodyId: DayBodyFocusChoiceId) => void;
   onSelect: (dayIndex: number, presetId: string) => void;
   onApplyDayResolution?: (dayIndex: number, resolution: DaySessionFocusResolution) => void;
@@ -200,6 +205,9 @@ export function WeekDayFocusPlanner({
   goalDistributionStyle,
   onChangeGoalDistributionStyle,
   showGoalDistributionNote,
+  showBodyFocusModeNote,
+  weeklyBodyFocusMode,
+  onChangeWeeklyBodyFocusMode,
   onSelectBody,
   onSelect,
   onApplyDayResolution,
@@ -228,6 +236,13 @@ export function WeekDayFocusPlanner({
           value={goalDistributionStyle}
           required
           onChange={onChangeGoalDistributionStyle}
+        />
+      ) : null}
+
+      {showBodyFocusModeNote && onChangeWeeklyBodyFocusMode ? (
+        <WeeklyBodyFocusModeNote
+          value={weeklyBodyFocusMode}
+          onChange={onChangeWeeklyBodyFocusMode}
         />
       ) : null}
 

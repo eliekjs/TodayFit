@@ -1,0 +1,188 @@
+/**
+ * User-facing volume dial copy: which rep counts the user wants, with a
+ * goal-based recommended range.
+ */
+
+import { getGoalRules } from "./generation/prescriptionRules";
+import { PRIMARY_FOCUS_TO_GOAL_SLUG } from "./goalSlugMapping";
+import type { VolumePreference } from "./types";
+
+/** Map app / UI goal keys → GOAL_TRAINING_RULES keys. */
+const GOAL_SLUG_TO_RULE_KEY: Record<string, string> = {
+  strength: "strength",
+  muscle: "hypertrophy",
+  hypertrophy: "hypertrophy",
+  physique: "body_recomp",
+  body_recomp: "body_recomp",
+  endurance: "endurance",
+  conditioning: "conditioning",
+  mobility: "mobility",
+  recovery: "recovery",
+  recovery_mobility: "recovery_mobility",
+  resilience: "recovery_mobility",
+  joint_health: "joint_health",
+  athletic_performance: "athletic_performance",
+  power: "power",
+  calisthenics: "calisthenics",
+};
+
+const RULE_KEY_GOAL_LABEL: Record<string, string> = {
+  strength: "strength",
+  hypertrophy: "building muscle",
+  body_recomp: "body recomp",
+  endurance: "endurance",
+  conditioning: "conditioning",
+  mobility: "mobility",
+  recovery: "recovery",
+  recovery_mobility: "recovery & mobility",
+  joint_health: "joint health",
+  athletic_performance: "athletic performance",
+  power: "power",
+  calisthenics: "calisthenics",
+};
+
+export type VolumePreferenceOptionCopy = {
+  value: VolumePreference;
+  /** Short chip / summary label (rep-count framing). */
+  label: string;
+  /** One-line explanation with goal-specific rep guidance. */
+  description: string;
+};
+
+const FALLBACK_RULE_KEY = "hypertrophy";
+
+/**
+ * Resolve a training-rule key from primary-focus labels and/or goal bias slugs.
+ * Uses the first resolvable primary focus; falls back to hypertrophy.
+ */
+export function resolveVolumeRuleKey(args: {
+  primaryFocus?: string[] | null;
+  goalBias?: string | null;
+  goalSlugs?: string[] | null;
+}): string {
+  const bias = args.goalBias?.trim().toLowerCase();
+  if (bias && GOAL_SLUG_TO_RULE_KEY[bias]) return GOAL_SLUG_TO_RULE_KEY[bias]!;
+
+  for (const slug of args.goalSlugs ?? []) {
+    const key = GOAL_SLUG_TO_RULE_KEY[slug.trim().toLowerCase()];
+    if (key) return key;
+  }
+
+  for (const label of args.primaryFocus ?? []) {
+    const slug = PRIMARY_FOCUS_TO_GOAL_SLUG[label];
+    if (slug) {
+      const key = GOAL_SLUG_TO_RULE_KEY[slug];
+      if (key) return key;
+    }
+    const asSlug = label.trim().toLowerCase().replace(/\s+/g, "_");
+    if (GOAL_SLUG_TO_RULE_KEY[asSlug]) return GOAL_SLUG_TO_RULE_KEY[asSlug]!;
+  }
+
+  return FALLBACK_RULE_KEY;
+}
+
+export function formatRepRange(min: number, max: number): string {
+  if (min === max) return `${min}`;
+  return `${min}–${max}`;
+}
+
+/** Soften a range toward the low or high end for conservative / high-volume copy. */
+function biasedRepRange(
+  min: number,
+  max: number,
+  bias: "low" | "high"
+): { min: number; max: number } {
+  if (min === max) return { min, max };
+  const span = max - min;
+  if (bias === "low") {
+    const softMax = Math.max(min, Math.round(min + span * 0.4));
+    return { min, max: softMax };
+  }
+  const softMin = Math.min(max, Math.round(min + span * 0.6));
+  return { min: softMin, max };
+}
+
+/**
+ * Build the three volume options with rep-count framing and a goal-recommended range.
+ */
+export function volumePreferenceOptionsForGoals(args: {
+  primaryFocus?: string[] | null;
+  goalBias?: string | null;
+  goalSlugs?: string[] | null;
+}): VolumePreferenceOptionCopy[] {
+  const ruleKey = resolveVolumeRuleKey(args);
+  const rules = getGoalRules(ruleKey);
+  const { min, max } = rules.repRange;
+  const recommended = formatRepRange(min, max);
+  const goalPhrase = RULE_KEY_GOAL_LABEL[ruleKey] ?? "your goals";
+  const low = biasedRepRange(min, max, "low");
+  const high = biasedRepRange(min, max, "high");
+
+  // Mobility / time-based: talk about density rather than classic hypertophy reps.
+  if (ruleKey === "mobility" || (min === 1 && max === 1)) {
+    return [
+      {
+        value: "conservative",
+        label: "Fewer sets",
+        description: "Shorter holds and fewer rounds — lighter session density.",
+      },
+      {
+        value: "standard",
+        label: "Standard density",
+        description: `Recommended for ${goalPhrase}: controlled holds and easy rounds.`,
+      },
+      {
+        value: "high_volume",
+        label: "More sets",
+        description: "Extra rounds and longer holds when you want more volume.",
+      },
+    ];
+  }
+
+  return [
+    {
+      value: "conservative",
+      label: "Lower reps",
+      description: `Fewer sets · aim ~${formatRepRange(low.min, low.max)} reps (low end of ${recommended}).`,
+    },
+    {
+      value: "standard",
+      label: "Goal rep range",
+      description: `Recommended for ${goalPhrase}: ${recommended} reps.`,
+    },
+    {
+      value: "high_volume",
+      label: "Higher reps",
+      description: `More sets · aim ~${formatRepRange(high.min, high.max)} reps (high end of ${recommended}).`,
+    },
+  ];
+}
+
+export function volumePreferenceDisplayLabel(
+  value: VolumePreference | null | undefined,
+  args?: {
+    primaryFocus?: string[] | null;
+    goalBias?: string | null;
+    goalSlugs?: string[] | null;
+  }
+): string {
+  const options = volumePreferenceOptionsForGoals(args ?? {});
+  const pref = value ?? "standard";
+  return options.find((o) => o.value === pref)?.label ?? "Goal rep range";
+}
+
+/** Section subtitle under Volume preference. */
+export function volumePreferenceSectionSubtitle(args: {
+  primaryFocus?: string[] | null;
+  goalBias?: string | null;
+  goalSlugs?: string[] | null;
+}): string {
+  const ruleKey = resolveVolumeRuleKey(args);
+  const rules = getGoalRules(ruleKey);
+  const recommended = formatRepRange(rules.repRange.min, rules.repRange.max);
+  const goalPhrase = RULE_KEY_GOAL_LABEL[ruleKey] ?? "your goals";
+  if (ruleKey === "mobility" || (rules.repRange.min === 1 && rules.repRange.max === 1)) {
+    return `Pick how dense you want holds and rounds. Recommended for ${goalPhrase}: controlled, easy density.`;
+  }
+  return `Pick the rep counts you want. Recommended for ${goalPhrase}: ${recommended} reps.`;
+}

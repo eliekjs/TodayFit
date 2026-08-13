@@ -621,6 +621,9 @@ const SPECIFIC_FOCUS_TO_MODIFIER: Record<string, string[]> = {
   posterior: ["Posterior"],
   shoulders: ["Push"],
   back: ["Pull"],
+  chest: ["Push"],
+  arms: [],
+  legs: [],
   push: ["Push"],
   pull: ["Pull"],
   core: [],
@@ -1206,6 +1209,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       slot.dayBias
         ? { targetBody: slot.dayBias.targetBody, targetModifier: slot.dayBias.targetModifier }
         : undefined;
+    const specificBodyFocus =
+      slot.specificBodyFocus?.length
+        ? (slot.specificBodyFocus as import("../../lib/types").SpecificBodyFocusKey[])
+        : undefined;
     const effectiveGoalSlugs = dayFocusParams?.exclusive
       ? dayFocusParams.orderedGoalSlugs
       : dayFocusParams?.orderedGoalSlugs.length
@@ -1261,6 +1268,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
+        ...(specificBodyFocus?.length ? { specificBodyFocus } : {}),
         workoutTier: input.workoutTier ?? "intermediate",
         includeCreativeVariations: input.includeCreativeVariations === true,
         volumePreference: input.manualPreferences?.volumePreference ?? null,
@@ -2020,6 +2028,9 @@ export async function regenerateDay(
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
+        ...(input.dailyPreferences?.specificBodyFocus?.length
+          ? { specificBodyFocus: [...input.dailyPreferences.specificBodyFocus] }
+          : {}),
         workoutTier: resolvedWorkoutTier,
         includeCreativeVariations: resolvedIncludeCreative,
         volumePreference:
@@ -2170,6 +2181,9 @@ export async function regenerateDay(
       recentLoad: input.recentLoad,
       injuries: input.injuries,
       bodyRegionBias,
+      ...(input.dailyPreferences?.specificBodyFocus?.length
+        ? { specificBodyFocus: [...input.dailyPreferences.specificBodyFocus] }
+        : {}),
       workoutTier: resolvedWorkoutTier,
       includeCreativeVariations: resolvedIncludeCreative,
       volumePreference:

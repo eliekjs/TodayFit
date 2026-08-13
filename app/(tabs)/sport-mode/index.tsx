@@ -24,6 +24,7 @@ import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePre
 import { GymProfileSelectionPanel } from "../../../components/GymProfileSelectionPanel";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
+import { VolumePreferencePicker } from "../../../components/VolumePreferencePicker";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { ExperienceLevelToggle } from "../../../components/ExperienceLevelToggle";
@@ -45,8 +46,8 @@ import {
   goalSubFocusPctPayloadForAdaptiveGoals,
   collectInvalidConditioningSubFocusSelections,
   subFocusChoicesForManualPrimaryGoal,
-  VOLUME_PREFERENCE_OPTIONS,
   volumePreferenceDisplayLabel,
+  volumePreferenceSectionSubtitle,
 } from "../../../lib/preferencesConstants";
 import {
   equalIntegerPctsForLabels,
@@ -1042,7 +1043,12 @@ export default function AdaptiveModeScreen() {
       ? [
           {
             id: "volume",
-            label: `Volume: ${volumePreferenceDisplayLabel(manualPreferences.volumePreference)}`,
+            label: `Volume: ${volumePreferenceDisplayLabel(manualPreferences.volumePreference, {
+              goalSlugs: filledAdaptiveGoals,
+              primaryFocus: filledAdaptiveGoals
+                .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+                .filter((label): label is string => !!label),
+            })}`,
           },
         ]
       : []),
@@ -2171,30 +2177,29 @@ export default function AdaptiveModeScreen() {
             <CollapsiblePreferenceSection
               nested
               title="Volume preference"
-              subtitle="Conservative, standard, or high volume adjusts sets and reps on top of your goal and energy."
-              summary={volumePreferenceDisplayLabel(manualPreferences.volumePreference)}
+              subtitle={volumePreferenceSectionSubtitle({
+                goalSlugs: filledAdaptiveGoals,
+                primaryFocus: filledAdaptiveGoals
+                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+                  .filter((label): label is string => !!label),
+              })}
+              summary={volumePreferenceDisplayLabel(manualPreferences.volumePreference, {
+                goalSlugs: filledAdaptiveGoals,
+                primaryFocus: filledAdaptiveGoals
+                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+                  .filter((label): label is string => !!label),
+              })}
               expanded={adaptiveAdvNestedOpen.volumePreference === true}
               onToggle={() => toggleAdaptiveAdvNested("volumePreference")}
             >
-              <View style={styles.chipGroup}>
-                {VOLUME_PREFERENCE_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt.value}
-                    label={opt.label}
-                    selected={
-                      (manualPreferences.volumePreference ?? "standard") === opt.value
-                    }
-                    onPress={() => {
-                      updateManualPreferences({
-                        volumePreference:
-                          (manualPreferences.volumePreference ?? "standard") === opt.value
-                            ? null
-                            : opt.value,
-                      });
-                    }}
-                  />
-                ))}
-              </View>
+              <VolumePreferencePicker
+                value={manualPreferences.volumePreference}
+                goalSlugs={filledAdaptiveGoals}
+                primaryFocus={filledAdaptiveGoals
+                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+                  .filter((label): label is string => !!label)}
+                onChange={(next) => updateManualPreferences({ volumePreference: next })}
+              />
             </CollapsiblePreferenceSection>
           </View>
         )}

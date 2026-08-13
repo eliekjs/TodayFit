@@ -20,6 +20,8 @@ import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Chip } from "../../../components/Chip";
 import { PrimaryButton } from "../../../components/Button";
+import { DeleteAccountConfirmModal } from "../../../components/DeleteAccountConfirmModal";
+import { AUTH_COPY } from "../../../lib/authCopy";
 import {
   EQUIPMENT_BY_CATEGORY,
   getDefaultEquipmentForTemplate,
@@ -52,6 +54,9 @@ export default function GymProfilesScreen() {
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAddSpaceTypes, setShowAddSpaceTypes] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -73,7 +78,11 @@ export default function GymProfilesScreen() {
         ? profile.equipment.filter((e) => e !== key)
         : [...profile.equipment, key]
     );
-    updateGymProfile(profileId, { equipment: next });
+    updateGymProfile(profileId, { equipment: next }, {
+      onIdRemapped: (newId) => {
+        setExpandedId((prev) => (prev === profileId ? newId : prev));
+      },
+    });
   };
 
   const defaultNameForTemplate = (template: GymProfileTemplate): string => {
@@ -115,32 +124,50 @@ export default function GymProfilesScreen() {
 
   const onSignOut = () => {
     void signOut().then(({ error }) => {
-      if (error) Alert.alert("Sign out failed", error);
+      if (error) {
+        Alert.alert("Sign out failed", error);
+        return;
+      }
+      Alert.alert(AUTH_COPY.signedOut, undefined, [
+        { text: "OK", onPress: () => router.replace("/welcome") },
+      ]);
     });
   };
 
   const onDeleteAccount = () => {
-    Alert.alert(
-      "Delete account?",
-      "This permanently deletes your synced gyms, presets, and history. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            void deleteAccount().then(({ error }) => {
-              if (error) Alert.alert("Could not delete account", error);
-            });
-          },
-        },
-      ]
-    );
+    setDeleteError(null);
+    setDeleteConfirmOpen(true);
+  };
+
+  const onConfirmDeleteAccount = () => {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    void deleteAccount().then(({ error }) => {
+      setDeleteBusy(false);
+      if (error) {
+        setDeleteError(error);
+        return;
+      }
+      setDeleteConfirmOpen(false);
+      router.replace("/welcome");
+    });
   };
 
   return (
     <AppScreenWrapper>
       <StatusBar style="dark" />
+      <DeleteAccountConfirmModal
+        visible={deleteConfirmOpen}
+        email={email}
+        busy={deleteBusy}
+        error={deleteError}
+        onCancel={() => {
+          if (deleteBusy) return;
+          setDeleteConfirmOpen(false);
+          setDeleteError(null);
+        }}
+        onConfirm={onConfirmDeleteAccount}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -209,13 +236,12 @@ export default function GymProfilesScreen() {
           ) : (
             <>
               <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 12 }}>
-                Sign in to sync gyms, presets, and history. Guest progress stays on this device only
-                for this session.
+                Sign in to use SeshLogic and sync gyms, presets, and history.
               </Text>
               <PrimaryButton
                 label="Sign in"
                 variant="secondary"
-                onPress={() => router.push("/welcome")}
+                onPress={() => router.replace("/welcome")}
               />
             </>
           )}
@@ -287,7 +313,17 @@ export default function GymProfilesScreen() {
                       <TextInput
                         value={profile.name}
                         onChangeText={(name) =>
-                          updateGymProfile(profile.id, { name: name.trim() || profile.name })
+                          updateGymProfile(
+                            profile.id,
+                            { name: name.trim() || profile.name },
+                            {
+                              onIdRemapped: (newId) => {
+                                setExpandedId((prev) =>
+                                  prev === profile.id ? newId : prev
+                                );
+                              },
+                            }
+                          )
                         }
                         placeholder="Gym name"
                         placeholderTextColor={theme.textMuted}

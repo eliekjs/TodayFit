@@ -13,7 +13,7 @@ import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
-import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import { replaceExerciseInWorkout, updateExercisePrescriptionInWorkout } from "../../../lib/workoutUtils";
 import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
@@ -230,6 +230,16 @@ export default function ManualWorkoutScreen() {
     setSwapModal(null);
   };
 
+  const onEditPrescription = (
+    exerciseId: string,
+    edit: { sets: number; reps?: number; time_seconds?: number }
+  ) => {
+    if (generatedWorkout == null) return;
+    setGeneratedWorkout(
+      updateExercisePrescriptionInWorkout(generatedWorkout, exerciseId, edit)
+    );
+  };
+
   if (isRegenerating) {
     return (
       <GenerationLoadingScreen
@@ -259,6 +269,8 @@ export default function ManualWorkoutScreen() {
           onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds) =>
             setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds })
           }
+          showEditPrescription
+          onEditPrescription={onEditPrescription}
         />
 
         <View style={styles.footer}>

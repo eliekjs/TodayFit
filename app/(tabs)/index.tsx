@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppState } from "../../context/AppStateContext";
 import { useTheme } from "../../lib/theme";
-import { useWelcome } from "../../context/WelcomeContext";
+import { useAuth } from "../../context/AuthContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
 import {
@@ -137,7 +137,7 @@ function sportDetail(preset: SportPreset): string {
 export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { hasEntered, isHydrated } = useWelcome();
+  const { userId, isLoading: authLoading } = useAuth();
   const {
     activeSessionDraft,
     beginSessionFlow,
@@ -285,10 +285,10 @@ export default function HomeScreen() {
     );
   };
 
-  if (!isHydrated) {
+  if (authLoading) {
     return null;
   }
-  if (!hasEntered) {
+  if (!userId) {
     return <Redirect href="/welcome" />;
   }
 

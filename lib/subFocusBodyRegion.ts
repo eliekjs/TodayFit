@@ -100,8 +100,16 @@ export function isLowerBodySubFocusSlug(slug: string): boolean {
 export function dayBodyFocusToRegion(bodyId: DayBodyFocusChoiceId): DayBodyRegion {
   switch (bodyId) {
     case "upper":
+    case "push":
+    case "pull":
+    case "chest":
+    case "back":
+    case "shoulders":
+    case "arms":
       return "upper";
     case "lower":
+    case "legs":
+    case "glutes":
       return "lower";
     case "core":
       return "core";
@@ -137,7 +145,7 @@ export function dayRegionLabel(region: DayBodyRegion): string {
 
 export function bodyFocusIdForSubFocusRegion(
   region: SubFocusBodyRegion
-): DayBodyFocusChoiceId {
+): Extract<DayBodyFocusChoiceId, "upper" | "lower" | "core"> {
   if (region === "upper") return "upper";
   if (region === "lower") return "lower";
   return "core";

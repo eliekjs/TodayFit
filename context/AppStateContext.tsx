@@ -22,6 +22,7 @@ import type {
 import { useAuth } from "./AuthContext";
 import { formatRemoteLoadError } from "./formatRemoteLoadError";
 import { isDbConfigured } from "../lib/db";
+import { isCloudGymProfileId } from "../lib/gymProfileId";
 import * as GymProfileRepo from "../lib/db/gymProfileRepository";
 import * as PreferencesRepo from "../lib/db/preferencesRepository";
 import * as SportPresetsRepo from "../lib/db/sportPresetsRepository";
@@ -139,7 +140,11 @@ type AppStateContextValue = {
     profile: Omit<GymProfile, "id" | "isActive">,
     options?: { setActive?: boolean; onCreated?: (id: string) => void }
   ) => void;
-  updateGymProfile: (id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => void;
+  updateGymProfile: (
+    id: string,
+    update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>,
+    options?: { onIdRemapped?: (newId: string) => void }
+  ) => void;
   removeGymProfile: (id: string) => void;
   addPreferencePreset: (preset: Omit<PreferencePreset, "id">) => void;
   updatePreferencePreset: (id: string, update: Partial<Pick<PreferencePreset, "name" | "preferences">>) => void;
@@ -237,6 +242,34 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setSavedWeeks(savedWeeks);
   }, []);
 
+  /** First signed-in session with no cloud gyms: persist the local default so edits can save. */
+  const seedDefaultGymProfileIfEmpty = useCallback(
+    async (userIdForSeed: string): Promise<boolean> => {
+      const existing = await GymProfileRepo.listProfiles(userIdForSeed);
+      if (userEditedDuringRemoteLoadRef.current) return false;
+      if (existing.length > 0) {
+        setGymProfiles(existing);
+        const active = existing.find((p) => p.isActive) ?? existing[0];
+        setActiveGymProfileId(active?.id ?? null);
+        return true;
+      }
+      const template = initialGymProfiles[0];
+      if (!template) return false;
+      const created = await GymProfileRepo.upsertProfile(userIdForSeed, {
+        name: template.name,
+        equipment: template.equipment,
+        dumbbellMaxWeight: template.dumbbellMaxWeight,
+        isActive: true,
+      });
+      if (userEditedDuringRemoteLoadRef.current) return false;
+      await GymProfileRepo.setActiveProfile(userIdForSeed, created.id);
+      setGymProfiles([{ ...created, isActive: true }]);
+      setActiveGymProfileId(created.id);
+      return true;
+    },
+    []
+  );
+
   const touchPersistedStateDuringRemoteLoad = useCallback(() => {
     if (remoteLoadInProgressRef.current) {
       userEditedDuringRemoteLoadRef.current = true;
@@ -271,6 +304,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const [gymProfiles, setGymProfiles] = useState<GymProfile[]>(initialGymProfiles);
+  const gymProfilesRef = useRef(gymProfiles);
+  gymProfilesRef.current = gymProfiles;
+  const localGymCreateInFlightRef = useRef<Map<string, Promise<string>>>(new Map());
   const [activeGymProfileId, setActiveGymProfileId] = useState<string | null>(
     initialGymProfiles[0]?.id ?? null
   );
@@ -725,6 +761,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
 
         applyRemoteData(data);
+        if (!data.profiles.length) {
+          try {
+            await seedDefaultGymProfileIfEmpty(startedUserId);
+          } catch (seedError) {
+            console.error("[AppStateSeedDefaultGym]", seedError);
+          }
+        }
+        if (seq !== remoteLoadSeqRef.current || userIdRef.current !== startedUserId) return;
         setRemoteSyncStatus("ready");
         setRemoteSyncError(null);
         setRemoteSyncSkippedMerge(false);
@@ -743,7 +787,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
       }
     })();
-  }, [userId, persist, authLoading, reloadToken, applyRemoteData]);
+  }, [userId, persist, authLoading, reloadToken, applyRemoteData, seedDefaultGymProfileIfEmpty]);
 
   const setActiveGymProfile = useCallback((id: string) => {
     if (persist && userId) touchPersistedStateDuringRemoteLoad();
@@ -803,14 +847,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           if (setActive) {
             await GymProfileRepo.setActiveProfile(userId, p.id);
           }
+          let localWhileCreating: GymProfile | undefined;
           setGymProfiles((prev) => {
+            localWhileCreating = prev.find((item) => item.id === optimisticId);
             const withoutOptimistic = prev.filter((item) => item.id !== optimisticId);
+            const merged: GymProfile = {
+              ...p,
+              // Keep equipment/name edits made while the create request was in flight.
+              name: localWhileCreating?.name ?? p.name,
+              equipment: localWhileCreating?.equipment ?? p.equipment,
+              dumbbellMaxWeight:
+                localWhileCreating?.dumbbellMaxWeight ?? p.dumbbellMaxWeight,
+              isActive: setActive,
+            };
             return [
               ...withoutOptimistic.map((item) => ({
                 ...item,
                 isActive: setActive ? item.id === p.id : item.isActive,
               })),
-              { ...p, isActive: setActive },
+              merged,
             ];
           });
           if (setActive) {
@@ -818,6 +873,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           }
           if (p.id !== optimisticId) {
             options?.onCreated?.(p.id);
+          }
+          const local = localWhileCreating;
+          const equipmentChanged =
+            local != null &&
+            JSON.stringify(local.equipment) !== JSON.stringify(profile.equipment);
+          const nameChanged = local != null && local.name !== profile.name;
+          const weightChanged =
+            local != null && local.dumbbellMaxWeight !== profile.dumbbellMaxWeight;
+          if (equipmentChanged || nameChanged || weightChanged) {
+            await GymProfileRepo.upsertProfile(userId, {
+              id: p.id,
+              name: local!.name,
+              equipment: local!.equipment,
+              dumbbellMaxWeight: local!.dumbbellMaxWeight,
+              isActive: setActive,
+            });
           }
         },
         rollback: () => {
@@ -837,33 +908,98 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     activeGymProfileId,
   ]);
 
-  const updateGymProfile = useCallback((id: string, update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>) => {
-    const previousSnapshot = gymProfiles.find((p) => p.id === id);
-    const profileToPersist =
-      previousSnapshot != null ? { ...previousSnapshot, ...update } : undefined;
+  const updateGymProfile = useCallback((
+    id: string,
+    update: Partial<Pick<GymProfile, "name" | "equipment" | "dumbbellMaxWeight">>,
+    options?: { onIdRemapped?: (newId: string) => void }
+  ) => {
+    const previousSnapshot = gymProfilesRef.current.find((p) => p.id === id);
     setGymProfiles((profiles) =>
       profiles.map((p) => (p.id === id ? { ...p, ...update } : p))
     );
-    if (persist && userId && profileToPersist && previousSnapshot != null) {
-      touchPersistedStateDuringRemoteLoad();
-      void persistWithHandling({
-        operation: "updateGymProfile",
-        action: () =>
-          GymProfileRepo.upsertProfile(userId, {
-            id,
-            name: profileToPersist.name,
-            equipment: profileToPersist.equipment,
-            dumbbellMaxWeight: profileToPersist.dumbbellMaxWeight,
-            isActive: profileToPersist.isActive,
-          }),
-        rollback: () =>
-          setGymProfiles((prev) =>
-            prev.map((p) => (p.id === id ? previousSnapshot : p))
-          ),
-        onFailure: notifySaveFailed,
-      });
+    if (!persist || !userId || previousSnapshot == null) {
+      return;
     }
-  }, [userId, persist, gymProfiles, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
+    // Optimistic add still in flight — keep local edits; addGymProfile merges + persists them.
+    if (id.startsWith("profile_")) {
+      return;
+    }
+    touchPersistedStateDuringRemoteLoad();
+    const cloudId = isCloudGymProfileId(id) ? id : undefined;
+
+    void persistWithHandling({
+      operation: "updateGymProfile",
+      action: async () => {
+        const latestFor = (profileId: string) =>
+          gymProfilesRef.current.find((p) => p.id === profileId) ?? {
+            ...previousSnapshot,
+            ...update,
+          };
+
+        if (cloudId) {
+          const latest = latestFor(cloudId);
+          await GymProfileRepo.upsertProfile(userId, {
+            id: cloudId,
+            name: latest.name,
+            equipment: latest.equipment,
+            dumbbellMaxWeight: latest.dumbbellMaxWeight,
+            isActive: latest.isActive,
+          });
+          return;
+        }
+
+        // Local template id (e.g. your_gym): create once, remap, then sync latest fields.
+        let createPromise = localGymCreateInFlightRef.current.get(id);
+        if (!createPromise) {
+          createPromise = (async () => {
+            const snapshot = latestFor(id);
+            const saved = await GymProfileRepo.upsertProfile(userId, {
+              name: snapshot.name,
+              equipment: snapshot.equipment,
+              dumbbellMaxWeight: snapshot.dumbbellMaxWeight,
+              isActive: snapshot.isActive,
+            });
+            setGymProfiles((prev) =>
+              prev.map((p) =>
+                p.id === id
+                  ? {
+                      ...p,
+                      id: saved.id,
+                    }
+                  : p
+              )
+            );
+            setActiveGymProfileId((active) => (active === id ? saved.id : active));
+            options?.onIdRemapped?.(saved.id);
+            if (snapshot.isActive) {
+              await GymProfileRepo.setActiveProfile(userId, saved.id);
+            }
+            return saved.id;
+          })();
+          localGymCreateInFlightRef.current.set(id, createPromise);
+        }
+
+        try {
+          const newId = await createPromise;
+          const latest = latestFor(newId);
+          await GymProfileRepo.upsertProfile(userId, {
+            id: newId,
+            name: latest.name,
+            equipment: latest.equipment,
+            dumbbellMaxWeight: latest.dumbbellMaxWeight,
+            isActive: latest.isActive,
+          });
+        } finally {
+          localGymCreateInFlightRef.current.delete(id);
+        }
+      },
+      rollback: () =>
+        setGymProfiles((prev) =>
+          prev.map((p) => (p.id === id || (cloudId != null && p.id === cloudId) ? previousSnapshot : p))
+        ),
+      onFailure: notifySaveFailed,
+    });
+  }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const removeGymProfile = useCallback((id: string) => {
     const profilesSnapshot = gymProfiles;

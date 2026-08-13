@@ -6,15 +6,12 @@ import type { DailyWorkoutPreferences } from "../lib/types";
 import type { DayFocusPreset } from "../lib/weekDaySessionFocus";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./Button";
+import { VolumePreferencePicker } from "./VolumePreferencePicker";
+import { volumePreferenceSectionSubtitle } from "../lib/volumePreferenceCopy";
 
 const GOAL_OPTIONS = ["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const;
 const BODY_OPTIONS = ["upper", "lower", "full", "pull", "push", "core"] as const;
 const ENERGY_OPTIONS = ["low", "medium", "high"] as const;
-const VOLUME_OPTIONS = [
-  { value: "conservative", label: "Conservative" },
-  { value: "standard", label: "Standard" },
-  { value: "high_volume", label: "High volume" },
-] as const;
 
 export type DayFocusOverrideChipsProps = {
   dailyPrefsOverride: DailyWorkoutPreferences | null;
@@ -178,21 +175,23 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
           />
         ))}
       </View>
-      <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-        <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Volume: </Text>
-        {VOLUME_OPTIONS.map((opt) => (
-          <Chip
-            key={opt.value}
-            label={opt.label}
-            selected={dailyPrefsOverride?.volumePreference === opt.value}
-            onPress={() =>
-              onOverrideChange({
-                volumePreference:
-                  dailyPrefsOverride?.volumePreference === opt.value ? undefined : opt.value,
-              })
-            }
-          />
-        ))}
+      <View style={{ marginBottom: 8, gap: 6 }}>
+        <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Volume</Text>
+        <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
+          {volumePreferenceSectionSubtitle({
+            goalBias: dailyPrefsOverride?.goalBias ?? null,
+          })}
+        </Text>
+        <VolumePreferencePicker
+          value={dailyPrefsOverride?.volumePreference}
+          goalBias={dailyPrefsOverride?.goalBias ?? null}
+          allowDeselect
+          onChange={(next) =>
+            onOverrideChange({
+              volumePreference: next ?? undefined,
+            })
+          }
+        />
       </View>
     </>
   );

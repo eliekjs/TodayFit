@@ -27,8 +27,12 @@ describe("upperHypertrophySessionGate", () => {
   it("detects upper-only focus body parts", () => {
     expect(isUpperOnlyFocusBodyParts(["upper_push"])).toBe(true);
     expect(isUpperOnlyFocusBodyParts(["upper_push", "upper_pull"])).toBe(true);
+    expect(isUpperOnlyFocusBodyParts(["upper_push", "chest"])).toBe(true);
+    expect(isUpperOnlyFocusBodyParts(["upper_pull", "back"])).toBe(true);
+    expect(isUpperOnlyFocusBodyParts(["upper_push", "upper_pull", "arms"])).toBe(true);
     expect(isUpperOnlyFocusBodyParts(["full_body"])).toBe(false);
     expect(isUpperOnlyFocusBodyParts(["lower"])).toBe(false);
+    expect(isUpperOnlyFocusBodyParts(["lower", "glutes"])).toBe(false);
     expect(isUpperOnlyFocusBodyParts(undefined)).toBe(false);
   });
 

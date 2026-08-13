@@ -41,9 +41,20 @@ export type SpecificBodyFocusKey =
   | "posterior"
   | "shoulders"
   | "back"
+  | "chest"
+  | "arms"
+  | "legs"
   | "push"
   | "pull"
   | "core";
+
+/**
+ * Weekly body-focus vocabulary on the “Focus for each day” screen.
+ * - region: Upper / Lower / Full / Core
+ * - pattern: Push / Pull / Legs (+ Core)
+ * - muscle: Chest / Back / Shoulders / Arms / Legs / Glutes / Core
+ */
+export type WeeklyBodyFocusMode = "region" | "pattern" | "muscle";
 
 /** User’s preferred workout difficulty / complexity (manual + adaptive). */
 export type WorkoutTierPreference = "beginner" | "intermediate" | "advanced";
@@ -146,6 +157,11 @@ export type ManualPreferences = {
   sessionFocusDistribution?: SessionFocusDistributionStyle;
   /** Weekly programming: auto upper/lower/full structure vs manual (future). */
   weeklyBodyEmphasisStyle?: WeeklyBodyEmphasisStyle;
+  /**
+   * Weekly body-focus vocabulary on the session-focus screen
+   * (Region | Pattern | Muscle) — available for sport and goal weeks.
+   */
+  weeklyBodyFocusMode?: WeeklyBodyFocusMode;
   /** Weekly programming: auto-apply specific body-part focus to relevant days vs manual (future). */
   specificBodyPartBehavior?: SpecificBodyPartBehavior;
   /**

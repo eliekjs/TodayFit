@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../../context/AuthContext";
+import { AUTH_COPY } from "../../lib/authCopy";
 
 const CLEAN_BG = "#f7f3ec";
 const CLEAN_CARD = "#fffdf8";
@@ -74,11 +75,11 @@ export default function ForgotPasswordScreen() {
     setInfo(null);
     const trimmed = email.trim().toLowerCase();
     if (!trimmed.includes("@")) {
-      setError("Enter a valid email address.");
+      setError(AUTH_COPY.invalidEmail);
       return;
     }
     if (!isAuthConfigured) {
-      setError("Auth is not configured on this build.");
+      setError(AUTH_COPY.authUnavailable);
       return;
     }
     setBusy(true);
@@ -89,9 +90,7 @@ export default function ForgotPasswordScreen() {
         return;
       }
       setEmail(trimmed);
-      setInfo(
-        "If an account exists for that email, we sent a reset code. Check inbox and spam."
-      );
+      setInfo(AUTH_COPY.resetCodeSent);
       setStep("code");
     } finally {
       setBusy(false);
@@ -118,11 +117,11 @@ export default function ForgotPasswordScreen() {
     setError(null);
     setInfo(null);
     if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
+      setError(AUTH_COPY.passwordTooShort);
       return;
     }
     if (password !== confirm) {
-      setError("Passwords do not match.");
+      setError(AUTH_COPY.passwordsMismatch);
       return;
     }
     setBusy(true);
@@ -167,10 +166,10 @@ export default function ForgotPasswordScreen() {
               </Text>
               <Text style={styles.subtitle}>
                 {step === "email"
-                  ? "We'll email you a one-time code. You stay signed out until the reset finishes."
+                  ? AUTH_COPY.resetEmailStepSubtitle
                   : step === "code"
-                    ? `Enter the 6-digit code we sent to ${email}.`
-                    : "After you save, you'll log in again with your new password."}
+                    ? AUTH_COPY.resetCodeStepSubtitle(email)
+                    : AUTH_COPY.resetPasswordStepSubtitle}
               </Text>
 
               {step === "email" && (

@@ -4,7 +4,11 @@
  */
 
 import type { AdaptiveSetup } from "../context/appStateModel";
-import type { ManualPreferences, SpecificBodyFocusKey } from "./types";
+import type {
+  ManualPreferences,
+  SpecificBodyFocusKey,
+  WeeklyBodyFocusMode,
+} from "./types";
 import type { SportGoalContext } from "./dailyGeneratorAdapter";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
 import { getSportDefinition } from "../data/sportSubFocus";
@@ -20,7 +24,20 @@ export type DayFocusPreset = {
   subtitle: string;
 };
 
-export type DayBodyFocusChoiceId = "upper" | "lower" | "full" | "core";
+/** Region / Pattern / Muscle day-body choice ids used by the week focus planner. */
+export type DayBodyFocusChoiceId =
+  | "upper"
+  | "lower"
+  | "full"
+  | "core"
+  | "push"
+  | "pull"
+  | "legs"
+  | "chest"
+  | "back"
+  | "shoulders"
+  | "arms"
+  | "glutes";
 
 export type DayBodyFocusChoice = {
   id: DayBodyFocusChoiceId;
@@ -31,6 +48,245 @@ export type DayBodyFocusChoice = {
   specificBodyFocus?: SpecificBodyFocusKey[];
   recommended?: boolean;
 };
+
+/**
+ * Goals that reinforce Pattern/Muscle days via hypertrophy sub-focus tags
+ * when Build Muscle / Body Recomp are among primary goals.
+ * The Region | Pattern | Muscle control itself is always available for any goal
+ * (and sport weeks).
+ */
+export const WEEKLY_BODY_FOCUS_MODE_UNLOCK_GOALS = [
+  "Build Muscle (Hypertrophy)",
+  "Body Recomp (fat loss & muscle gain)",
+  "Body Recomposition",
+] as const;
+
+/** Always true — Pattern/Muscle are available for sport and goal week planning. */
+export function isWeeklyBodyFocusModeUnlocked(
+  _primaryFocus?: readonly string[] | null | undefined
+): boolean {
+  return true;
+}
+
+export function resolveWeeklyBodyFocusMode(
+  mode: WeeklyBodyFocusMode | null | undefined,
+  _primaryFocus?: readonly string[] | null | undefined
+): WeeklyBodyFocusMode {
+  return mode ?? "region";
+}
+
+/** True when day prefs should inject hypertrophy muscle sub-focus for this choice. */
+export function shouldApplyHypertrophySubFocusForBodyChoice(
+  primaryFocus: readonly string[] | null | undefined
+): boolean {
+  if (!primaryFocus?.length) return false;
+  return primaryFocus.some((g) =>
+    (WEEKLY_BODY_FOCUS_MODE_UNLOCK_GOALS as readonly string[]).includes(g)
+  );
+}
+
+const PATTERN_CHOICE_IDS: DayBodyFocusChoiceId[] = ["push", "pull", "legs", "core"];
+const MUSCLE_CHOICE_IDS: DayBodyFocusChoiceId[] = [
+  "chest",
+  "back",
+  "shoulders",
+  "arms",
+  "legs",
+  "glutes",
+  "core",
+];
+
+/** Ids available in each week/day body-focus vocabulary. */
+export function dayBodyChoiceIdsForMode(
+  mode: WeeklyBodyFocusMode
+): DayBodyFocusChoiceId[] {
+  if (mode === "pattern") return [...PATTERN_CHOICE_IDS];
+  if (mode === "muscle") return [...MUSCLE_CHOICE_IDS];
+  return ["full", "lower", "core", "upper"];
+}
+
+/** User-facing copy for region / pattern / muscle day body picks. */
+export const BODY_CHOICE_COPY: Record<DayBodyFocusChoiceId, { label: string; subtitle: string }> = {
+  lower: {
+    label: "Lower body",
+    subtitle: "Leg strength, hips, ankles, and lower-body durability.",
+  },
+  core: {
+    label: "Core",
+    subtitle: "Trunk control, bracing, rotation control, and sport transfer.",
+  },
+  full: {
+    label: "Full body",
+    subtitle: "Balanced support without overcommitting to one region.",
+  },
+  upper: {
+    label: "Upper body",
+    subtitle: "Push, pull, shoulders, back, and upper-body strength.",
+  },
+  push: {
+    label: "Push",
+    subtitle: "Chest, shoulders, and triceps-dominant pressing.",
+  },
+  pull: {
+    label: "Pull",
+    subtitle: "Back and biceps-dominant pulling.",
+  },
+  legs: {
+    label: "Legs",
+    subtitle: "Quads, glutes, hamstrings, and lower-body volume.",
+  },
+  chest: {
+    label: "Chest",
+    subtitle: "Pecs and press emphasis with supporting accessories.",
+  },
+  back: {
+    label: "Back",
+    subtitle: "Lats, upper back, and pulling accessories.",
+  },
+  shoulders: {
+    label: "Shoulders",
+    subtitle: "Delts and overhead pressing emphasis.",
+  },
+  arms: {
+    label: "Arms",
+    subtitle: "Biceps, triceps, and arm accessories.",
+  },
+  glutes: {
+    label: "Glutes",
+    subtitle: "Hip extension and glute-dominant lower work.",
+  },
+};
+
+/** Maps a day body choice to hypertrophy sub-focus slugs for Build Muscle / Body Recomp. */
+export function muscleSubFocusSlugsForBodyChoice(
+  choiceId: DayBodyFocusChoiceId
+): string[] {
+  switch (choiceId) {
+    case "chest":
+      return ["chest"];
+    case "back":
+    case "pull":
+      return ["back"];
+    case "shoulders":
+      return ["shoulders"];
+    case "arms":
+      return ["arms"];
+    case "glutes":
+      return ["glutes"];
+    case "legs":
+    case "lower":
+      return ["legs"];
+    case "push":
+      return ["chest", "shoulders"];
+    case "core":
+      return ["core"];
+    default:
+      return [];
+  }
+}
+
+/**
+ * When weekly mode is pattern/muscle, reinforce the day's muscle slug(s) onto
+ * Build Muscle / Body Recomp entries in subFocusByGoal for that session.
+ */
+export function applyBodyChoiceSubFocusToPrefs(
+  prefs: ManualPreferences,
+  choiceId: DayBodyFocusChoiceId
+): ManualPreferences {
+  const slugs = muscleSubFocusSlugsForBodyChoice(choiceId);
+  if (slugs.length === 0) return prefs;
+  const next = { ...prefs.subFocusByGoal };
+  let changed = false;
+  for (const goalLabel of prefs.primaryFocus) {
+    const entry = GOAL_SUB_FOCUS_OPTIONS_LABELS[goalLabel];
+    if (!entry) continue;
+    const names = slugs
+      .map((slug) => entry.find((s) => s.slug === slug)?.name)
+      .filter((n): n is string => Boolean(n));
+    if (names.length === 0) continue;
+    next[goalLabel] = names;
+    changed = true;
+  }
+  if (!changed) return prefs;
+  return { ...prefs, subFocusByGoal: next };
+}
+
+/** Display names for unlock goals — resolved lazily to avoid circular imports at top. */
+const GOAL_SUB_FOCUS_OPTIONS_LABELS: Record<string, { slug: string; name: string }[]> = {
+  "Build Muscle (Hypertrophy)": [
+    { slug: "glutes", name: "Glutes" },
+    { slug: "back", name: "Back" },
+    { slug: "chest", name: "Chest" },
+    { slug: "arms", name: "Arms" },
+    { slug: "shoulders", name: "Shoulders" },
+    { slug: "legs", name: "Legs" },
+    { slug: "core", name: "Core" },
+  ],
+  "Body Recomp (fat loss & muscle gain)": [
+    { slug: "glutes", name: "Glutes" },
+    { slug: "back", name: "Back" },
+    { slug: "chest", name: "Chest" },
+    { slug: "arms", name: "Arms" },
+    { slug: "shoulders", name: "Shoulders" },
+    { slug: "legs", name: "Legs" },
+    { slug: "core", name: "Core" },
+  ],
+  "Body Recomposition": [
+    { slug: "glutes", name: "Glutes" },
+    { slug: "back", name: "Back" },
+    { slug: "chest", name: "Chest" },
+    { slug: "arms", name: "Arms" },
+    { slug: "shoulders", name: "Shoulders" },
+    { slug: "legs", name: "Legs" },
+    { slug: "core", name: "Core" },
+  ],
+};
+
+/**
+ * Auto day sequence for Pattern mode (PPL-ish).
+ * 3 → Push/Pull/Legs; 4 → Push/Pull/Legs/Push; 5–6 → PPL×2 truncated; 7 → +Core.
+ */
+export function getPatternBodyFocusDistribution(
+  gymDaysPerWeek: number
+): DayBodyFocusChoiceId[] {
+  const n = Math.max(1, Math.min(7, gymDaysPerWeek));
+  const base: DayBodyFocusChoiceId[] = ["push", "pull", "legs", "push", "pull", "legs", "core"];
+  return base.slice(0, n);
+}
+
+/**
+ * Auto day sequence for Muscle mode (bro-ish rotation).
+ * Chest → Back → Shoulders → Arms → Legs; Glutes at 6; Core at 7.
+ */
+export function getMuscleBodyFocusDistribution(
+  gymDaysPerWeek: number
+): DayBodyFocusChoiceId[] {
+  const n = Math.max(1, Math.min(7, gymDaysPerWeek));
+  const base: DayBodyFocusChoiceId[] = [
+    "chest",
+    "back",
+    "shoulders",
+    "arms",
+    "legs",
+    "glutes",
+    "core",
+  ];
+  return base.slice(0, n);
+}
+
+export function getBodyFocusDistributionForMode(
+  mode: WeeklyBodyFocusMode,
+  gymDaysPerWeek: number,
+  regionFallback: Array<{
+    targetBody: "Upper" | "Lower" | "Full";
+    targetModifier: string[];
+    specificBodyFocus?: SpecificBodyFocusKey[];
+  }>
+): DayBodyFocusChoiceId[] {
+  if (mode === "pattern") return getPatternBodyFocusDistribution(gymDaysPerWeek);
+  if (mode === "muscle") return getMuscleBodyFocusDistribution(gymDaysPerWeek);
+  return regionFallback.map((b) => bodyChoiceIdForBias(b.targetBody, b.specificBodyFocus));
+}
 
 const EMPHASIS_GOAL_WEIGHTS: [number, number, number] = [1, 0, 0];
 
@@ -163,23 +419,37 @@ export function bodyFocusLineFromBias(bias: {
   targetModifier?: string[];
   specificBodyFocus?: readonly string[];
 }): string {
-  const choiceId = bodyChoiceIdForBias(bias.targetBody, bias.specificBodyFocus);
-  if (choiceId === "core") return "Core";
-  return bodyLine(bias.targetBody, bias.targetModifier ?? []);
+  const choiceId = bodyChoiceIdForBias(bias.targetBody, bias.specificBodyFocus, bias.targetModifier);
+  if (choiceId === "upper" || choiceId === "lower" || choiceId === "full") {
+    return bodyLine(bias.targetBody, bias.targetModifier ?? []);
+  }
+  return BODY_CHOICE_COPY[choiceId]?.label ?? choiceId;
 }
 
-/** Short body emphasis for day headers (e.g. "Upper", "Core", "Lower (Push)"). */
+/** Short body emphasis for day headers (e.g. "Upper", "Core", "Chest", "Push"). */
 export function bodyFocusEmphasisLabel(bias: {
   targetBody: "Upper" | "Lower" | "Full";
   targetModifier?: string[];
   specificBodyFocus?: readonly string[];
 }): string {
-  const choiceId = bodyChoiceIdForBias(bias.targetBody, bias.specificBodyFocus);
+  const choiceId = bodyChoiceIdForBias(bias.targetBody, bias.specificBodyFocus, bias.targetModifier);
+  if (
+    choiceId === "core" ||
+    choiceId === "push" ||
+    choiceId === "pull" ||
+    choiceId === "legs" ||
+    choiceId === "chest" ||
+    choiceId === "back" ||
+    choiceId === "shoulders" ||
+    choiceId === "arms" ||
+    choiceId === "glutes"
+  ) {
+    return BODY_CHOICE_COPY[choiceId]?.label ?? choiceId;
+  }
   const mod =
     (bias.targetModifier?.length ?? 0) > 0
       ? ` (${bias.targetModifier!.join(" · ")})`
       : "";
-  if (choiceId === "core") return "Core";
   return `${bias.targetBody}${mod}`;
 }
 
@@ -197,17 +467,53 @@ export function dayBodyFocusChoiceToBias(
       return { targetBody: "Lower", targetModifier: [] };
     case "core":
       return { targetBody: "Full", targetModifier: [], specificBodyFocus: ["core"] };
+    case "push":
+      return { targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["push"] };
+    case "pull":
+      return { targetBody: "Upper", targetModifier: ["Pull"], specificBodyFocus: ["pull"] };
+    case "legs":
+      return { targetBody: "Lower", targetModifier: [], specificBodyFocus: ["legs"] };
+    case "chest":
+      return { targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["chest"] };
+    case "back":
+      return { targetBody: "Upper", targetModifier: ["Pull"], specificBodyFocus: ["back"] };
+    case "shoulders":
+      return { targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["shoulders"] };
+    case "arms":
+      return { targetBody: "Upper", targetModifier: [], specificBodyFocus: ["arms"] };
+    case "glutes":
+      return { targetBody: "Lower", targetModifier: ["Posterior"], specificBodyFocus: ["glutes"] };
     case "full":
     default:
       return { targetBody: "Full", targetModifier: [] };
   }
 }
 
-function bodyChoiceIdForBias(
+/**
+ * Prefer specific muscle/pattern keys when present; else region from targetBody.
+ * Modifiers alone (Upper + Push) stay as region "upper" so Region-mode titles
+ * keep "Upper (Push)" rather than collapsing to a Pattern "Push" day.
+ */
+export function bodyChoiceIdForBias(
   targetBody: "Upper" | "Lower" | "Full",
-  specificBodyFocus?: readonly string[]
+  specificBodyFocus?: readonly string[],
+  _targetModifier?: readonly string[]
 ): DayBodyFocusChoiceId {
-  if (specificBodyFocus?.includes("core")) return "core";
+  const specific = specificBodyFocus ?? [];
+  const priority: DayBodyFocusChoiceId[] = [
+    "chest",
+    "arms",
+    "shoulders",
+    "back",
+    "glutes",
+    "legs",
+    "push",
+    "pull",
+    "core",
+  ];
+  for (const id of priority) {
+    if (specific.includes(id)) return id;
+  }
   if (targetBody === "Upper") return "upper";
   if (targetBody === "Lower") return "lower";
   return "full";
@@ -302,7 +608,30 @@ export function buildDayBodyFocusChoicesForDay(opts: {
   slotIndex: number;
   fallbackTargetBody: "Upper" | "Lower" | "Full";
   fallbackTargetModifier?: string[];
+  /** Weekly body-focus vocabulary; defaults to region. */
+  mode?: WeeklyBodyFocusMode;
+  /** When set, mark this id recommended (from mode template). */
+  templateChoiceId?: DayBodyFocusChoiceId;
 }): DayBodyFocusChoice[] {
+  const mode = resolveWeeklyBodyFocusMode(opts.mode);
+
+  if (mode === "pattern") {
+    return PATTERN_CHOICE_IDS.map((id) => ({
+      id,
+      ...BODY_CHOICE_COPY[id],
+      ...dayBodyFocusChoiceToBias(id),
+      recommended: opts.templateChoiceId === id || (!opts.templateChoiceId && id === "push"),
+    }));
+  }
+  if (mode === "muscle") {
+    return MUSCLE_CHOICE_IDS.map((id) => ({
+      id,
+      ...BODY_CHOICE_COPY[id],
+      ...dayBodyFocusChoiceToBias(id),
+      recommended: opts.templateChoiceId === id || (!opts.templateChoiceId && id === "chest"),
+    }));
+  }
+
   const recommendedIds = recommendedBodyChoiceIds(opts);
   const recommended = new Set(recommendedIds);
   const fallbackId = bodyChoiceIdForBias(opts.fallbackTargetBody);
@@ -312,27 +641,9 @@ export function buildDayBodyFocusChoicesForDay(opts: {
     fallbackId,
     ...all,
   ].filter((id, idx, arr): id is DayBodyFocusChoiceId => arr.indexOf(id) === idx);
-  const copy: Record<DayBodyFocusChoiceId, { label: string; subtitle: string }> = {
-    lower: {
-      label: "Lower body",
-      subtitle: "Leg strength, hips, ankles, and lower-body durability.",
-    },
-    core: {
-      label: "Core",
-      subtitle: "Trunk control, bracing, rotation control, and sport transfer.",
-    },
-    full: {
-      label: "Full body",
-      subtitle: "Balanced support without overcommitting to one region.",
-    },
-    upper: {
-      label: "Upper body",
-      subtitle: "Push, pull, shoulders, back, and upper-body strength.",
-    },
-  };
   return orderedIds.map((id) => ({
     id,
-    ...copy[id],
+    ...BODY_CHOICE_COPY[id],
     ...dayBodyFocusChoiceToBias(id),
     recommended: recommended.has(id),
   }));
@@ -771,11 +1082,17 @@ export function buildBodyFocusSummary(
   const mod = fallback.targetModifier?.filter(Boolean) ?? [];
   const choiceId = bodyChoiceIdForBias(
     fallback.targetBody as "Upper" | "Lower" | "Full",
-    fallback.specificBodyFocus
+    fallback.specificBodyFocus,
+    fallback.targetModifier
   );
-  const label = choiceId === "core" ? "Core" : `${fallback.targetBody} body`;
+  if (choiceId !== "upper" && choiceId !== "lower" && choiceId !== "full") {
+    return {
+      label: BODY_CHOICE_COPY[choiceId]?.label ?? choiceId,
+      subtitle: null,
+    };
+  }
   return {
-    label,
+    label: `${fallback.targetBody} body`,
     subtitle: mod.length > 0 ? mod.join(" · ") : null,
   };
 }

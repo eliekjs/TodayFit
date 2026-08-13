@@ -8,6 +8,8 @@ import type { PruningRecommendation } from "./valueFilterTypes";
 export type GeneratorEligibilityState =
   | "eligible_core"
   | "eligible_niche"
+  /** Valid near-duplicates / variations held out of v1 / pilot (not used unless allow_phase2_exercises). */
+  | "eligible_phase2"
   | "excluded_merged"
   | "excluded_removed"
   | "excluded_review"
@@ -22,6 +24,8 @@ export type PruningGateFeatureFlags = {
   enable_pruning_gating: boolean;
   /** When true (and gating on), `eligible_niche` exercises are included in the gated pool. */
   allow_niche_exercises: boolean;
+  /** When true (and gating on), `eligible_phase2` exercises are included in the gated pool. */
+  allow_phase2_exercises: boolean;
   /** When true (and gating on), `excluded_review` exercises are included in the gated pool. */
   allow_review_exercises: boolean;
 };
@@ -29,6 +33,7 @@ export type PruningGateFeatureFlags = {
 export const DEFAULT_PRUNING_GATE_FLAGS: PruningGateFeatureFlags = {
   enable_pruning_gating: false,
   allow_niche_exercises: true,
+  allow_phase2_exercises: false,
   allow_review_exercises: false,
 };
 

@@ -276,6 +276,7 @@ describe("mainWorkPrimaryForIntentEntry", () => {
       modality: "strength",
       movement_pattern: "squat",
       muscle_groups: ["quads"],
+      equipment_required: ["barbell"],
       tags: {
         sport_tags: ["volleyball"],
         goal_tags: ["power"],

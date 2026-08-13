@@ -1072,7 +1072,65 @@ function focusBodyPartToMuscles(focus: string): string[] {
   if (f === "lower" || f === "lower_body") return ["legs", "quads", "glutes", "hamstrings", "calves"];
   if (f === "core") return ["core"];
   if (f === "full_body") return ["legs", "quads", "glutes", "hamstrings", "calves", "core", "chest", "triceps", "shoulders", "lats", "biceps", "upper_back"];
+  // Muscle-day emphasis tags (Pattern/Muscle week modes)
+  if (f === "chest") return ["chest"];
+  if (f === "back") return ["lats", "upper_back", "back"];
+  if (f === "shoulders") return ["shoulders"];
+  if (f === "arms") return ["biceps", "triceps"];
+  if (f === "glutes") return ["glutes"];
+  if (f === "legs") return ["legs", "quads", "glutes", "hamstrings", "calves"];
+  if (f === "quad") return ["quads", "legs"];
+  if (f === "posterior") return ["glutes", "hamstrings"];
   return [];
+}
+
+/** Muscle emphasis keys that narrow scoring preference beyond the region gate. */
+const MUSCLE_EMPHASIS_FOCUS_KEYS = new Set([
+  "chest",
+  "back",
+  "shoulders",
+  "arms",
+  "glutes",
+  "legs",
+]);
+
+function muscleEmphasisWantedMuscles(focusSet: Set<string>): Set<string> | null {
+  const wanted = new Set<string>();
+  for (const key of MUSCLE_EMPHASIS_FOCUS_KEYS) {
+    if (!focusSet.has(key)) continue;
+    for (const m of focusBodyPartToMuscles(key)) wanted.add(m);
+  }
+  return wanted.size > 0 ? wanted : null;
+}
+
+function exerciseMatchesMuscleEmphasis(
+  exercise: {
+    muscle_groups: string[];
+    primary_muscle_groups?: string[];
+    secondary_muscle_groups?: string[];
+    pairing_category?: string | null;
+    movement_pattern?: string | null;
+  },
+  focusSet: Set<string>
+): boolean {
+  const wanted = muscleEmphasisWantedMuscles(focusSet);
+  if (!wanted) return false;
+  const primary =
+    exercise.primary_muscle_groups ??
+    exercise.muscle_groups.filter((m) => !exercise.secondary_muscle_groups?.includes(m));
+  if (primary.some((m) => wanted.has(m.toLowerCase()))) return true;
+  if (exercise.muscle_groups.some((m) => wanted.has(m.toLowerCase()))) return true;
+  const pairing = (exercise.pairing_category ?? "").toLowerCase().replace(/\s/g, "_");
+  if (focusSet.has("chest") && pairing === "chest") return true;
+  if (focusSet.has("back") && (pairing === "back" || pairing === "lats")) return true;
+  if (focusSet.has("shoulders") && pairing === "shoulders") return true;
+  if (focusSet.has("arms") && (pairing === "biceps" || pairing === "triceps" || pairing === "arms"))
+    return true;
+  if (focusSet.has("glutes") && (pairing === "glutes" || pairing === "posterior_chain")) return true;
+  const pattern = (exercise.movement_pattern ?? "").toLowerCase();
+  if (focusSet.has("legs") && (pattern === "squat" || pattern === "hinge" || pattern === "lunge"))
+    return true;
+  return false;
 }
 
 export interface ScoreExerciseOptions {
@@ -1259,7 +1317,12 @@ export function scoreExercise(
   let primaryMuscleMatchBonus = 0;
   let bodyPartEmphasisBonus = 0;
   if (focusParts.length) {
-    const wantedMuscles = new Set(focusParts.flatMap(focusBodyPartToMuscles));
+    const focusSet = new Set(focusParts.map((f) => f.toLowerCase().replace(/\s/g, "_")));
+    const muscleEmphasis = muscleEmphasisWantedMuscles(focusSet);
+    // When a muscle-day tag is present, score against that muscle set; otherwise use full region muscles.
+    const wantedMuscles = muscleEmphasis
+      ? muscleEmphasis
+      : new Set(focusParts.flatMap(focusBodyPartToMuscles));
     const primaryMuscles = exercise.primary_muscle_groups ?? exercise.muscle_groups.filter((m) => !exercise.secondary_muscle_groups?.includes(m));
     const matchInPrimary = primaryMuscles.length > 0 && primaryMuscles.some((m) => wantedMuscles.has(m));
     const matchInAny = exercise.muscle_groups.some((m) => wantedMuscles.has(m));
@@ -1271,7 +1334,6 @@ export function scoreExercise(
       primaryMuscleMatchBonus += 0.5;
     }
     // Quad/Posterior emphasis: when Lower is selected with modifier, prefer matching pattern/category
-    const focusSet = new Set(focusParts.map((f) => f.toLowerCase().replace(/\s/g, "_")));
     const patternFocus = (exercise.movement_pattern ?? "").toLowerCase();
     const pairing = (exercise.pairing_category ?? "").toLowerCase().replace(/\s/g, "_");
     if (focusSet.has("quad") && (patternFocus === "squat" || pairing === "quads")) {
@@ -1279,6 +1341,12 @@ export function scoreExercise(
     }
     if (focusSet.has("posterior") && (patternFocus === "hinge" || pairing === "posterior_chain")) {
       bodyPartEmphasisBonus += 0.8;
+    }
+    // Pattern/Muscle week modes: chest/back/shoulders/arms/glutes/legs preference
+    if (muscleEmphasis && exerciseMatchesMuscleEmphasis(exercise, focusSet)) {
+      bodyPartEmphasisBonus += matchInPrimary ? 1.2 : 0.7;
+    } else if (muscleEmphasis) {
+      bodyPartEmphasisBonus -= 0.6;
     }
     applyToTotal(bodyPartFocusScore, "generic");
     applyToTotal(primaryMuscleMatchBonus, "generic");
@@ -7731,8 +7799,26 @@ function bodyFocusShortLabel(focus: FocusBodyPart[] | undefined): string {
   if (!focus?.length || focus.some((f) => f.toLowerCase().replace(/\s/g, "_") === "full_body")) {
     return "";
   }
+  const parts = focus.map((f) => f.toLowerCase().replace(/\s/g, "_"));
+  const muscleLabel: Record<string, string> = {
+    chest: "Chest",
+    back: "Back",
+    shoulders: "Shoulders",
+    arms: "Arms",
+    glutes: "Glutes",
+    legs: "Legs",
+    push: "Push",
+    pull: "Pull",
+    core: "Core",
+  };
+  for (const key of ["chest", "back", "shoulders", "arms", "glutes", "legs"] as const) {
+    if (parts.includes(key)) return muscleLabel[key]!;
+  }
+  if (parts.includes("upper_push") && !parts.includes("upper_pull")) return "Push";
+  if (parts.includes("upper_pull") && !parts.includes("upper_push")) return "Pull";
   if (isUpperOnlyFocusBodyParts(focus)) return "Upper Body";
-  if (focus.some((f) => f.toLowerCase().replace(/\s/g, "_") === "lower")) return "Lower Body";
+  if (parts.some((f) => f === "lower" || f === "quad" || f === "posterior")) return "Lower Body";
+  if (parts.every((f) => f === "core")) return "Core";
   return "";
 }
 

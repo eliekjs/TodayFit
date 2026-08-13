@@ -41,7 +41,7 @@ import {
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
-import { collectWorkoutExerciseIds, replaceExerciseInWorkout } from "../../../lib/workoutUtils";
+import { collectWorkoutExerciseIds, replaceExerciseInWorkout, updateExercisePrescriptionInWorkout } from "../../../lib/workoutUtils";
 import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   getSwapSuggestionsPage,
@@ -986,6 +986,30 @@ export default function AdaptiveWeekPlanScreen() {
     setSwapModal(null);
   };
 
+  const onEditPrescription = (
+    exerciseId: string,
+    edit: { sets: number; reps?: number; time_seconds?: number }
+  ) => {
+    if (!sportPrepWeekPlan || !selectedDay || !selectedWorkout) return;
+    const updatedWorkout = updateExercisePrescriptionInWorkout(
+      normalizeGeneratedWorkout(selectedWorkout),
+      exerciseId,
+      edit
+    );
+    const norm = normalizeGeneratedWorkout(updatedWorkout);
+    setSportPrepWeekPlan({
+      ...sportPrepWeekPlan,
+      guestWorkouts: {
+        ...(sportPrepWeekPlan.guestWorkouts ?? {}),
+        [selectedDay.id]: norm,
+        [selectedDay.date]: norm,
+      },
+      todayWorkout:
+        sportPrepWeekPlan.today?.id === selectedDay.id ? norm : sportPrepWeekPlan.todayWorkout,
+    });
+    setSelectedWorkout(norm);
+  };
+
   const onRegenerate = async () => {
     if (!sportPrepWeekPlan || !selectedDay) return;
     if (isSportDesignatedPlannedDay(selectedDay)) {
@@ -1121,7 +1145,7 @@ export default function AdaptiveWeekPlanScreen() {
   const onSaveDay = async () => {
     if (!selectedDay || !selectedWorkout || !userId || !isDbConfigured()) {
       if (!userId || !isDbConfigured()) {
-        setError("Sign in and enable sync to save days.");
+        setError("Sign in and enable sync to save this day for later.");
       }
       return;
     }
@@ -1361,6 +1385,8 @@ export default function AdaptiveWeekPlanScreen() {
               onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds) =>
                 setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds })
               }
+              showEditPrescription
+              onEditPrescription={onEditPrescription}
             />
 
           <View style={styles.footer}>
@@ -1414,7 +1440,7 @@ export default function AdaptiveWeekPlanScreen() {
             />
             {userId && isDbConfigured() && selectedWorkout ? (
               <PrimaryButton
-                label={savingDay ? "Saving…" : "Save this day"}
+                label={savingDay ? "Saving…" : "Save day for later"}
                 variant="secondary"
                 onPress={onSaveDay}
                 disabled={savingDay}

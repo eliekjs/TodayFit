@@ -17,6 +17,11 @@ import {
 } from "../../lib/dailyGeneratorAdapter";
 import type { SessionIntentContract } from "../../logic/workoutGeneration/sessionIntentContract";
 import type { Exercise } from "../../logic/workoutGeneration/types";
+import {
+  applyBodyChoiceSubFocusToPrefs,
+  bodyChoiceIdForBias,
+  shouldApplyHypertrophySubFocusForBodyChoice,
+} from "../../lib/weekDaySessionFocus";
 
 export type { SessionIntentContract };
 
@@ -57,6 +62,8 @@ export type SportGoalOptions = {
   injuries?: string[];
   /** Body-region bias for this session (emphasis; generator uses as targetBody/targetModifier). */
   bodyRegionBias?: { targetBody: TargetBody | null; targetModifier: string[] };
+  /** Pattern/Muscle day picks (chest, push, glutes, …) → focus_body_parts via adapter. */
+  specificBodyFocus?: import("../../lib/types").SpecificBodyFocusKey[];
   /** Experience tier for exercise pool filtering (default intermediate when omitted). */
   workoutTier?: WorkoutTierPreference;
   /** When true, allow exercises tagged as creative/complex variations. */
@@ -134,6 +141,9 @@ export async function buildWorkoutForSessionIntent(
     primaryFocus: intent.focus,
     targetBody: bodyBias?.targetBody ?? null,
     targetModifier: bodyBias?.targetModifier ?? [],
+    ...(options?.specificBodyFocus?.length
+      ? { specificBodyFocus: [...options.specificBodyFocus] }
+      : {}),
     durationMinutes: intent.durationMinutes,
     energyLevel: intent.energyLevel,
     volumePreference: options?.volumePreference ?? intent.volumePreference ?? null,
@@ -264,8 +274,21 @@ export async function buildWorkoutForSessionIntent(
   ]);
   preferredNames = resolvedPreferredNames;
 
+  let sessionPreferences = basePreferences;
+  if (
+    sessionPreferences.specificBodyFocus?.length &&
+    shouldApplyHypertrophySubFocusForBodyChoice(sessionPreferences.primaryFocus)
+  ) {
+    const choiceId = bodyChoiceIdForBias(
+      (sessionPreferences.targetBody ?? "Full") as "Upper" | "Lower" | "Full",
+      sessionPreferences.specificBodyFocus,
+      sessionPreferences.targetModifier
+    );
+    sessionPreferences = applyBodyChoiceSubFocusToPrefs(sessionPreferences, choiceId);
+  }
+
   const workout = await generateWorkoutAsync(
-    basePreferences,
+    sessionPreferences,
     gymProfile,
     resolvedSeed,
     preferredNames,

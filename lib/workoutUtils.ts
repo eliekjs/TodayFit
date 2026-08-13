@@ -122,6 +122,40 @@ export function replaceExerciseInWorkout(
     };
   };
 
+  return mapWorkoutItems(workout, updateItem);
+}
+
+/**
+ * Update sets / reps / time for one exercise across blocks and superset pairs.
+ */
+export function updateExercisePrescriptionInWorkout(
+  workout: GeneratedWorkout,
+  exerciseId: string,
+  patch: { sets: number; reps?: number; time_seconds?: number }
+): GeneratedWorkout {
+  const updateItem = (item: WorkoutItem): WorkoutItem => {
+    if (item.exercise_id !== exerciseId) return item;
+    const next: WorkoutItem = {
+      ...item,
+      sets: Math.max(1, Math.min(12, Math.round(patch.sets))),
+    };
+    if (patch.time_seconds != null && patch.time_seconds > 0) {
+      next.time_seconds = Math.max(1, Math.round(patch.time_seconds));
+      delete next.reps;
+    } else if (patch.reps != null) {
+      next.reps = Math.max(1, Math.min(50, Math.round(patch.reps)));
+      delete next.time_seconds;
+    }
+    return next;
+  };
+
+  return mapWorkoutItems(workout, updateItem);
+}
+
+function mapWorkoutItems(
+  workout: GeneratedWorkout,
+  updateItem: (item: WorkoutItem) => WorkoutItem
+): GeneratedWorkout {
   const updateBlock = (block: WorkoutBlock): WorkoutBlock => {
     if (block.supersetPairs && block.supersetPairs.length > 0) {
       return {
@@ -129,6 +163,7 @@ export function replaceExerciseInWorkout(
         supersetPairs: block.supersetPairs.map((pair) =>
           pair.map(updateItem) as [WorkoutItem, WorkoutItem]
         ),
+        items: block.items.map(updateItem),
       };
     }
     return {

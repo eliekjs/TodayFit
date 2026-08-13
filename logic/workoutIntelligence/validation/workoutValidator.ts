@@ -15,6 +15,7 @@ import { getSupersetPairingScore } from "../supersetPairing";
 import type { ExerciseWithQualities } from "../types";
 import {
   isAccessoryEligible,
+  isRecoveryCooldownEligible,
   isSprintMechanicsDrill,
 } from "../../workoutGeneration/blockSelectionEligibility";
 import { hardBanLegPressFamily } from "../../workoutGeneration/sportProfileBanPredicates";
@@ -168,6 +169,14 @@ function usedExerciseIds(workout: ValidatableWorkout): Set<string> {
   return ids;
 }
 
+/**
+ * Strict cooldown candidacy shared with block assembly (`buildCooldownStretchPool`):
+ * excludes activation/prehab/isolation work so repairs don't reintroduce what the builder rejects.
+ */
+function isStrictCooldownRepairCandidate(ex: ExerciseWithQualities): boolean {
+  return isRecoveryCooldownEligible(ex as unknown as Exercise);
+}
+
 /** Find a replacement exercise: allowed by injuries, matches body-part, not already in workout, same block-role appropriateness. */
 function findReplacement(
   currentId: string,
@@ -178,6 +187,8 @@ function findReplacement(
   options: { forMainWork?: boolean; forCooldown?: boolean; forWarmup?: boolean }
 ): ExerciseWithQualities | null {
   const isMain = WORKING_BLOCK_TYPES.has(blockType);
+  // Cooldown swaps prefer true recovery/stretch work; weaker mobility-only candidates are a last resort.
+  let cooldownFallback: ExerciseWithQualities | null = null;
 
   for (const ex of exercisesById.values()) {
     if (ex.id === currentId || usedIds.has(ex.id)) continue;
@@ -187,7 +198,15 @@ function findReplacement(
     }
     const role = ex.exercise_role?.toLowerCase().replace(/\s/g, "_");
     if (options.forMainWork && role && MAIN_WORK_EXCLUDED_ROLES.has(role)) continue;
-    if (options.forCooldown && !isMobilityOrStretchExercise(ex)) continue;
+    if (options.forCooldown) {
+      if (!isMobilityOrStretchExercise(ex)) continue;
+      if (!isStrictCooldownRepairCandidate(ex)) {
+        if (cooldownFallback == null && isEligibleBlockRepairCandidate(ex, blockType)) {
+          cooldownFallback = ex;
+        }
+        continue;
+      }
+    }
     if (options.forWarmup) {
       const mod = (ex.modality ?? "").toLowerCase();
       if (mod !== "mobility" && mod !== "recovery") continue;
@@ -195,7 +214,7 @@ function findReplacement(
     if (!isEligibleBlockRepairCandidate(ex, blockType)) continue;
     return ex;
   }
-  return null;
+  return cooldownFallback;
 }
 
 /**
@@ -373,10 +392,15 @@ export function validateWorkoutAgainstConstraints(
     }
 
     if (cooldownBlockIndex === -1) {
-      const pool = exercises.filter((ex) => {
+      const eligible = exercises.filter((ex) => {
         const q = asQualities(ex);
         return isMobilityOrStretchExercise(q) && !usedIds.has(ex.id);
       });
+      // Prefer true recovery/stretch work; mobility-only (e.g. activation/prehab) fills last.
+      const pool = [
+        ...eligible.filter((ex) => isStrictCooldownRepairCandidate(asQualities(ex))),
+        ...eligible.filter((ex) => !isStrictCooldownRepairCandidate(asQualities(ex))),
+      ];
       const need = constraints.min_cooldown_mobility_exercises;
       const toAdd = pool.slice(0, need).map((ex) => ({
         exercise_id: ex.id,
@@ -417,10 +441,15 @@ export function validateWorkoutAgainstConstraints(
         constraints
       );
       if (!check.satisfied && check.missing_mobility_count != null && check.missing_mobility_count > 0) {
-        const pool = exercises.filter((ex) => {
+        const eligible = exercises.filter((ex) => {
           const q = asQualities(ex);
           return isMobilityOrStretchExercise(q) && !usedIds.has(ex.id);
         });
+        // Prefer true recovery/stretch work; mobility-only (e.g. activation/prehab) fills last.
+        const pool = [
+          ...eligible.filter((ex) => isStrictCooldownRepairCandidate(asQualities(ex))),
+          ...eligible.filter((ex) => !isStrictCooldownRepairCandidate(asQualities(ex))),
+        ];
         const need = check.missing_mobility_count;
         const toAdd = pool.slice(0, need).map((ex) => ({
           exercise_id: ex.id,

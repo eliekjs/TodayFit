@@ -20,6 +20,7 @@ export type { PruningGateSessionDebug } from "./pruningGateDebugTypes";
 const EMPTY_EXCLUDED = (): CountsByEligibilityState => ({
   eligible_core: 0,
   eligible_niche: 0,
+  eligible_phase2: 0,
   excluded_merged: 0,
   excluded_removed: 0,
   excluded_review: 0,
@@ -41,6 +42,7 @@ export function mergePruningGateFlags(input: GenerateWorkoutInput | undefined): 
   return {
     enable_pruning_gating: p?.enable_pruning_gating ?? DEFAULT_PRUNING_GATE_FLAGS.enable_pruning_gating,
     allow_niche_exercises: p?.allow_niche_exercises ?? DEFAULT_PRUNING_GATE_FLAGS.allow_niche_exercises,
+    allow_phase2_exercises: p?.allow_phase2_exercises ?? DEFAULT_PRUNING_GATE_FLAGS.allow_phase2_exercises,
     allow_review_exercises: p?.allow_review_exercises ?? DEFAULT_PRUNING_GATE_FLAGS.allow_review_exercises,
   };
 }

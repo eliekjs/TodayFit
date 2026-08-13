@@ -5,6 +5,7 @@ import {
 } from "../../data/sportSubFocus/canonicalSportSlug";
 import { isRemoteFetchError } from "./isRemoteFetchError";
 import { listBundledSportsForPrep } from "./localSportsCatalog";
+import { filterPilotSports } from "../pilotCatalog";
 import type {
   Sport,
   SportCategory,
@@ -15,7 +16,7 @@ import type {
 
 /** Drop legacy catalog slugs so the picker shows one row per canonical sport. */
 export function filterSportsForPrepPicker(sports: Sport[]): Sport[] {
-  return sports.filter((s) => !isLegacySportCatalogSlug(s.slug ?? ""));
+  return filterPilotSports(sports.filter((s) => !isLegacySportCatalogSlug(s.slug ?? "")));
 }
 
 /**

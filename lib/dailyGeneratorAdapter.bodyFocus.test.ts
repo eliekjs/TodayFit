@@ -125,6 +125,69 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
     );
     expect(input.focus_body_parts).toEqual(["core"]);
   });
+
+  it("maps Pattern/Muscle specificBodyFocus to region + muscle emphasis tags", () => {
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
+        { ...BASE, targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["chest"] },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["upper_push", "chest"]);
+
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
+        { ...BASE, targetBody: "Upper", targetModifier: ["Pull"], specificBodyFocus: ["back"] },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["upper_pull", "back"]);
+
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
+        { ...BASE, targetBody: "Upper", specificBodyFocus: ["arms"] },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["upper_push", "upper_pull", "arms"]);
+
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
+        { ...BASE, targetBody: "Lower", specificBodyFocus: ["legs"] },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["lower", "legs"]);
+
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
+        {
+          ...BASE,
+          targetBody: "Lower",
+          targetModifier: ["Posterior"],
+          specificBodyFocus: ["glutes"],
+        },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["lower", "posterior", "glutes"]);
+
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
+        { ...BASE, targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["push"] },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["upper_push"]);
+
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
+        { ...BASE, targetBody: "Upper", targetModifier: ["Pull"], specificBodyFocus: ["pull"] },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["upper_pull"]);
+  });
 });
 
 describe("manualPreferencesToGenerateWorkoutInput regeneration avoid ids", () => {

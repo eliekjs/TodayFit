@@ -81,7 +81,7 @@ function run() {
   const on = applyPruningGateToExercisePool(pool, {
     flags: mergePruningGateFlags({
       ...baseInput(),
-      pruning_gate: { enable_pruning_gating: true, allow_niche_exercises: true, allow_review_exercises: false },
+      pruning_gate: { enable_pruning_gating: true, allow_niche_exercises: true, allow_phase2_exercises: false, allow_review_exercises: false },
     }),
     eligibilityById: map,
     includeIdLists: false,
@@ -93,7 +93,7 @@ function run() {
   const noNiche = applyPruningGateToExercisePool(pool, {
     flags: mergePruningGateFlags({
       ...baseInput(),
-      pruning_gate: { enable_pruning_gating: true, allow_niche_exercises: false, allow_review_exercises: false },
+      pruning_gate: { enable_pruning_gating: true, allow_niche_exercises: false, allow_phase2_exercises: false, allow_review_exercises: false },
     }),
     eligibilityById: map,
     includeIdLists: false,
@@ -103,7 +103,7 @@ function run() {
 
   const gated = resolveGatedExercisePoolForGeneration(pool, {
     ...baseInput(),
-    pruning_gate: { enable_pruning_gating: true, allow_niche_exercises: true, allow_review_exercises: false },
+    pruning_gate: { enable_pruning_gating: true, allow_niche_exercises: true, allow_phase2_exercises: false, allow_review_exercises: false },
     pruning_gate_eligibility_by_id: Object.fromEntries(map),
   });
   assert(gated.pool.length === 2, "resolveGated matches manual apply");

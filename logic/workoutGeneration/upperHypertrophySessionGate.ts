@@ -21,12 +21,23 @@ const UPPER_MUSCLE_MARKERS = new Set(["chest", "lats", "biceps", "triceps", "sho
 /**
  * True when `focus_body_parts` are exclusively upper-region or core (no lower / full_body).
  * Empty or missing focus does not qualify — unknown intent keeps legacy remainder behavior.
+ * Muscle-day tags (chest/back/shoulders/arms) count as upper emphasis, not lower.
  */
 export function isUpperOnlyFocusBodyParts(focus: FocusBodyPart[] | undefined): boolean {
   if (!focus?.length) return false;
   const parts = focus.map((f) => norm(String(f)));
-  if (parts.some((p) => p === "lower" || p === "full_body")) return false;
-  return parts.every((p) => p === "upper_push" || p === "upper_pull" || p === "core");
+  if (parts.some((p) => p === "lower" || p === "full_body" || p === "quad" || p === "posterior" || p === "glutes" || p === "legs"))
+    return false;
+  const upperOrCore = new Set([
+    "upper_push",
+    "upper_pull",
+    "core",
+    "chest",
+    "back",
+    "shoulders",
+    "arms",
+  ]);
+  return parts.every((p) => upperOrCore.has(p));
 }
 
 export function hypertrophyMuscleSubFocusRequestsLowerBody(slugs: string[]): boolean {

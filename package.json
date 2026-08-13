@@ -48,6 +48,9 @@
     "curation:generator-eligibility-preview": "npx tsx scripts/exerciseLibraryCuration/runGeneratorEligibilityPreview.ts",
     "curation:sync-supabase": "npx tsx scripts/exerciseLibraryCuration/syncCurationToSupabase.ts",
     "curation:verify-supabase": "npx tsx scripts/exerciseLibraryCuration/verifySupabaseCurationSync.ts",
+    "pilot:exercise-scope": "npx tsx scripts/pilotCatalog/applyPilotExerciseScope.ts",
+    "pilot:exercise-scope:apply": "npx tsx scripts/pilotCatalog/applyPilotExerciseScope.ts --apply",
+    "pilot:verify-eligibility-drift": "npx tsx scripts/pilotCatalog/verifyEligibilityBundleDrift.ts",
     "sync:exercise-descriptions": "npx tsx scripts/syncExerciseDescriptionsToSupabase.ts",
     "sync:exercise-descriptions:dry": "DESCRIPTION_SYNC_DRY_RUN=1 npx tsx scripts/syncExerciseDescriptionsToSupabase.ts",
     "test:pruning-gate": "npx tsx logic/workoutGeneration/pruningGatePool.test.ts"

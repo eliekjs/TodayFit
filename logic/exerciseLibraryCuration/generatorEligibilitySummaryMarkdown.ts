@@ -69,6 +69,7 @@ export function formatGeneratorEligibilityPreviewMarkdown(artifact: GeneratorEli
   for (const k of [
     "eligible_core",
     "eligible_niche",
+    "eligible_phase2",
     "excluded_merged",
     "excluded_removed",
     "excluded_review",

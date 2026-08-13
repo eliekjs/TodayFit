@@ -8,19 +8,40 @@ import { WelcomeProvider } from "../context/WelcomeContext";
 import { RemoteSyncBanner } from "../components/RemoteSyncBanner";
 import { GeometricPatternBackground } from "../components/GeometricPatternBackground";
 
-function PasswordRecoveryRedirect() {
-  const { isPasswordRecovery } = useAuth();
+function isPublicAuthRoute(segments: string[]): boolean {
+  const root = segments[0];
+  return root === "welcome" || root === "auth";
+}
+
+/** Require a signed-in session for all app routes; login/signup/reset stay public. */
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { userId, isLoading, isPasswordRecovery } = useAuth();
   const router = useRouter();
   const segments = useSegments();
+
   React.useEffect(() => {
-    if (!isPasswordRecovery) return;
-    const path = segments.join("/");
-    // Code-based flow owns password reset; deep-link recovery lands on the same screen.
-    if (path !== "auth/forgot-password") {
+    if (isLoading) return;
+    const onPublicAuth = isPublicAuthRoute(segments as string[]);
+
+    if (isPasswordRecovery && segments.join("/") !== "auth/forgot-password") {
       router.replace("/auth/forgot-password");
+      return;
     }
-  }, [isPasswordRecovery, router, segments]);
-  return null;
+
+    if (!userId && !onPublicAuth) {
+      router.replace("/welcome");
+      return;
+    }
+
+    if (userId && segments[0] === "welcome" && !isPasswordRecovery) {
+      router.replace("/");
+    }
+  }, [userId, isLoading, isPasswordRecovery, router, segments]);
+
+  // Avoid flashing app chrome before session is known.
+  if (isLoading) return null;
+
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
@@ -29,14 +50,15 @@ export default function RootLayout() {
       <AuthProvider>
         <AppStateProvider>
           <WelcomeProvider>
-            <View style={styles.root}>
-              <GeometricPatternBackground />
-              <RemoteSyncBanner />
-              <PasswordRecoveryRedirect />
-              <View style={styles.stack}>
-                <Slot />
+            <AuthGate>
+              <View style={styles.root}>
+                <GeometricPatternBackground />
+                <RemoteSyncBanner />
+                <View style={styles.stack}>
+                  <Slot />
+                </View>
               </View>
-            </View>
+            </AuthGate>
           </WelcomeProvider>
         </AppStateProvider>
       </AuthProvider>

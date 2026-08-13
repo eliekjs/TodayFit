@@ -63,52 +63,52 @@ function makeDef(id: string, opts: Partial<ExerciseDefinition> = {}): ExerciseDe
 const ALL_EXERCISES: ExerciseDefinition[] = [
   makeDef("squat", {
     movement_pattern: "squat",
-    muscles: ["quads", "glutes"],
+    muscles: ["legs"],
     primary_movement_family: "squat",
     swap_candidates: ["front_squat", "goblet_squat"],
     regressions: ["goblet_squat"],
   }),
   makeDef("deadlift", {
     movement_pattern: "hinge",
-    muscles: ["hamstrings", "glutes"],
+    muscles: ["legs"],
     primary_movement_family: "hinge",
   }),
   makeDef("lunge", {
     movement_pattern: "squat",
-    muscles: ["quads", "glutes"],
+    muscles: ["legs"],
     primary_movement_family: "lunge",
   }),
   makeDef("leg_press", {
     movement_pattern: "squat",
-    muscles: ["quads", "glutes"],
+    muscles: ["legs"],
     primary_movement_family: "squat",
     equipment: ["machine"],
   }),
   makeDef("front_squat", {
     movement_pattern: "squat",
-    muscles: ["quads", "glutes"],
+    muscles: ["legs"],
     primary_movement_family: "squat",
   }),
   makeDef("goblet_squat", {
     movement_pattern: "squat",
-    muscles: ["quads", "glutes"],
+    muscles: ["legs"],
     primary_movement_family: "squat",
-    equipment: ["dumbbell"],
+    equipment: ["dumbbells"],
   }),
   makeDef("bench_press", {
     movement_pattern: "push",
-    muscles: ["chest", "triceps"],
+    muscles: ["push"],
     primary_movement_family: "horizontal_push",
   }),
   makeDef("row", {
     movement_pattern: "pull",
-    muscles: ["back"],
+    muscles: ["pull"],
     primary_movement_family: "horizontal_pull",
   }),
   makeDef("advanced_snatch", {
     workout_levels: ["advanced"],
     movement_pattern: "hinge",
-    muscles: ["hamstrings"],
+    muscles: ["legs"],
   }),
 ];
 
@@ -162,7 +162,7 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     mockGetExercise.mockResolvedValue(
       makeDef("squat", {
         movement_pattern: "squat",
-        muscles: ["quads"],
+        muscles: ["legs"],
         regressions: ["goblet_squat"],
         modalities: ["strength"],
       })
@@ -188,7 +188,7 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     mockGetExercise.mockResolvedValue(
       makeDef("squat", {
         movement_pattern: "squat",
-        muscles: ["quads"],
+        muscles: ["legs"],
         progressions: ["front_squat"],
         regressions: ["goblet_squat"],
         swap_candidates: ["front_squat", "goblet_squat"],
@@ -261,7 +261,7 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     const extraDefs = pool.map((id) =>
       makeDef(id, {
         movement_pattern: "squat",
-        muscles: ["quads"],
+        muscles: ["legs"],
         modalities: ["strength"],
       })
     );
@@ -310,7 +310,7 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     mockGetExercise.mockResolvedValue(
       makeDef("bench_press", {
         movement_pattern: "push",
-        muscles: ["chest", "triceps"],
+        muscles: ["push"],
         primary_movement_family: "horizontal_push",
         swap_candidates: ["row"],
         modalities: ["strength"],

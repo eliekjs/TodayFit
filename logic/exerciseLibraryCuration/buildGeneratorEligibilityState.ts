@@ -23,6 +23,7 @@ import { filterExerciseIdsByEligibility } from "./filterExercisesByEligibility";
 const EMPTY_COUNTS = (): CountsByEligibilityState => ({
   eligible_core: 0,
   eligible_niche: 0,
+  eligible_phase2: 0,
   excluded_merged: 0,
   excluded_removed: 0,
   excluded_review: 0,
@@ -213,11 +214,13 @@ export function buildGeneratorEligibilityPreview(params: {
   const gatedDefault: PruningGateFeatureFlags = params.flagsForGatedDefault ?? {
     enable_pruning_gating: true,
     allow_niche_exercises: true,
+    allow_phase2_exercises: false,
     allow_review_exercises: false,
   };
   const gatedPermissive: PruningGateFeatureFlags = params.flagsForGatedPermissive ?? {
     enable_pruning_gating: true,
     allow_niche_exercises: true,
+    allow_phase2_exercises: true,
     allow_review_exercises: true,
   };
 
@@ -230,6 +233,7 @@ export function buildGeneratorEligibilityPreview(params: {
   const poolBaseline = filterExerciseIdsByEligibility(allIds, map, {
     enable_pruning_gating: false,
     allow_niche_exercises: true,
+    allow_phase2_exercises: true,
     allow_review_exercises: true,
   }).length;
 

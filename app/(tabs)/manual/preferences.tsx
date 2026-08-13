@@ -24,6 +24,7 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
+import { VolumePreferencePicker } from "../../../components/VolumePreferencePicker";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { backLabelForPhase } from "../../../lib/sessionFlowNav";
@@ -34,9 +35,8 @@ import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualP
 import {
   PRIMARY_FOCUS_OPTIONS,
   ENERGY_LEVELS,
-  VOLUME_PREFERENCE_OPTIONS,
   volumePreferenceDisplayLabel,
-  TARGET_OPTIONS,
+  volumePreferenceSectionSubtitle,
   MODIFIERS_BY_TARGET,
   CONSTRAINT_OPTIONS,
   CONSTRAINT_OPTIONS_UPPER,
@@ -48,6 +48,7 @@ import {
   collectInvalidConditioningSubFocusSelections,
   subFocusChoicesForManualPrimaryGoal,
 } from "../../../lib/preferencesConstants";
+import { filterPilotPrimaryFocusLabels } from "../../../lib/pilotCatalog";
 import { isAthleticUmbrellaPrimaryLabel } from "../../../data/goalSubFocus/athleticSubFocusArchetypes";
 import {
   equalIntegerPctsForLabels,
@@ -59,10 +60,25 @@ import {
   computeDeclaredIntentSplitFromPrefs,
   buildWorkoutIntentTitle,
 } from "../../../lib/workoutIntentSplit";
-import type { TargetBody } from "../../../lib/types";
+import type { WeeklyBodyFocusMode } from "../../../lib/types";
 import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
 import { FocusDistributionNote } from "../../../components/FocusDistributionNote";
+import { WeeklyBodyFocusModeNote } from "../../../components/WeeklyBodyFocusModeNote";
+import { BodyFocusOverrideModal } from "../../../components/BodyFocusOverrideModal";
+import {
+  applyDayBodyChoiceToManualPreferences,
+  mapBodyResolutionToMode,
+  summarizeBodyChoiceVsSubFocusConflict,
+} from "../../../lib/bodyFocusModeOverride";
+import {
+  BODY_CHOICE_COPY,
+  bodyChoiceIdForBias,
+  dayBodyChoiceIdsForMode,
+  dayBodyFocusChoiceToBias,
+  resolveWeeklyBodyFocusMode,
+  type DayBodyFocusChoiceId,
+} from "../../../lib/weekDaySessionFocus";
 import {
   canProceedWithDailyFocusDistribution,
   getDailyBodyFocusConflicts,
@@ -143,6 +159,11 @@ export default function ManualPreferencesScreen() {
   }, []);
 
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
+  const [pendingDayBody, setPendingDayBody] = useState<{
+    choiceId: DayBodyFocusChoiceId;
+    message: string;
+    nextMode?: WeeklyBodyFocusMode;
+  } | null>(null);
 
   useEffect(() => {
     if (isWeek) return;
@@ -248,13 +269,24 @@ export default function ManualPreferencesScreen() {
     : rankedGoals.length > 1
       ? `${rankedGoals[0]} +${rankedGoals.length - 1} more`
       : rankedGoals[0];
-  const bodySummary = !manualPreferences.targetBody
-    ? "Tap to choose"
-    : manualPreferences.targetBody === "Full"
-      ? "Full body"
-      : manualPreferences.targetModifier.length > 0
-        ? `${manualPreferences.targetBody} (${manualPreferences.targetModifier[0]})`
-        : manualPreferences.targetBody;
+  const bodySummary = (() => {
+    if (!manualPreferences.targetBody && !manualPreferences.specificBodyFocus?.length) {
+      return "Tap to choose";
+    }
+    const id = bodyChoiceIdForBias(
+      manualPreferences.targetBody ?? "Full",
+      manualPreferences.specificBodyFocus,
+      manualPreferences.targetModifier
+    );
+    if (id !== "upper" && id !== "lower" && id !== "full") {
+      return BODY_CHOICE_COPY[id]?.label ?? id;
+    }
+    if (manualPreferences.targetBody === "Full") return "Full body";
+    if (manualPreferences.targetModifier.length > 0) {
+      return `${manualPreferences.targetBody} (${manualPreferences.targetModifier[0]})`;
+    }
+    return manualPreferences.targetBody ?? "Tap to choose";
+  })();
   const gymSummary =
     activeProfile != null
       ? `${activeProfile.name} · ${summarizeGymProfileEquipment(activeProfile).itemCount} items`
@@ -390,23 +422,97 @@ export default function ManualPreferencesScreen() {
     }
   };
 
-  const setTargetBody = (target: TargetBody | null) => {
-    const current = manualPreferences.injuries.filter((i) => i !== "No restrictions");
-    const upperOnly = ["Shoulder", "Elbow", "Wrist", "Core"];
-    const lowerOnly = ["Lower Back", "Hip", "Knee", "Ankle", "Core"];
-    let nextInjuries = current;
-    if (target === "Upper") {
-      nextInjuries = current.filter((i) => upperOnly.includes(i));
-    } else if (target === "Lower") {
-      nextInjuries = current.filter((i) => lowerOnly.includes(i));
-    }
-    if (manualPreferences.injuries.includes("No restrictions")) nextInjuries = ["No restrictions"];
-    updateManualPreferences({
-      targetBody: target,
-      targetModifier: [],
-      injuries: nextInjuries,
-    });
-  };
+  const bodyFocusMode = resolveWeeklyBodyFocusMode(manualPreferences.weeklyBodyFocusMode);
+  const selectedDayBodyId = bodyChoiceIdForBias(
+    manualPreferences.targetBody ?? "Full",
+    manualPreferences.specificBodyFocus,
+    manualPreferences.targetModifier
+  );
+  const dayBodyChoiceIds = dayBodyChoiceIdsForMode(bodyFocusMode);
+
+  const applyDayBodyChoice = useCallback(
+    (
+      choiceId: DayBodyFocusChoiceId,
+      alignSubFocus: boolean,
+      nextMode?: WeeklyBodyFocusMode
+    ) => {
+      const bias = dayBodyFocusChoiceToBias(choiceId);
+      const current = manualPreferences.injuries.filter((i) => i !== "No restrictions");
+      const upperOnly = ["Shoulder", "Elbow", "Wrist", "Core"];
+      const lowerOnly = ["Lower Back", "Hip", "Knee", "Ankle", "Core"];
+      let nextInjuries = current;
+      if (bias.targetBody === "Upper") {
+        nextInjuries = current.filter((i) => upperOnly.includes(i));
+      } else if (bias.targetBody === "Lower") {
+        nextInjuries = current.filter((i) => lowerOnly.includes(i));
+      }
+      if (manualPreferences.injuries.includes("No restrictions")) nextInjuries = ["No restrictions"];
+
+      const bodyPatch = applyDayBodyChoiceToManualPreferences(manualPreferences, choiceId);
+      let nextSubFocus = manualPreferences.subFocusByGoal;
+      if (alignSubFocus) {
+        const conflicting = summarizeBodyChoiceVsSubFocusConflict(
+          choiceId,
+          manualPreferences
+        );
+        if (conflicting) {
+          const names = new Set(conflicting.displayNames);
+          const cleaned: Record<string, string[]> = {};
+          for (const [goal, list] of Object.entries(manualPreferences.subFocusByGoal ?? {})) {
+            cleaned[goal] = list.filter((n) => !names.has(n));
+          }
+          nextSubFocus = cleaned;
+        }
+      }
+      updateManualPreferences({
+        ...bodyPatch,
+        injuries: nextInjuries,
+        ...(nextMode ? { weeklyBodyFocusMode: nextMode } : {}),
+        ...(alignSubFocus ? { subFocusByGoal: nextSubFocus } : {}),
+      });
+      setPendingDayBody(null);
+    },
+    [manualPreferences, updateManualPreferences]
+  );
+
+  const handleSelectDayBodyChoice = useCallback(
+    (choiceId: DayBodyFocusChoiceId) => {
+      const conflict = summarizeBodyChoiceVsSubFocusConflict(choiceId, manualPreferences);
+      if (conflict) {
+        setPendingDayBody({ choiceId, message: conflict.message });
+        return;
+      }
+      applyDayBodyChoice(choiceId, false);
+    },
+    [manualPreferences, applyDayBodyChoice]
+  );
+
+  const handleChangeDayBodyFocusMode = useCallback(
+    (mode: WeeklyBodyFocusMode) => {
+      if (mode === bodyFocusMode) return;
+      const mapped = mapBodyResolutionToMode(selectedDayBodyId, mode);
+      const allowed = dayBodyChoiceIdsForMode(mode);
+      const choiceId = allowed.includes(mapped) ? mapped : allowed[0]!;
+      const trialPrefs = {
+        ...manualPreferences,
+        weeklyBodyFocusMode: mode,
+        ...applyDayBodyChoiceToManualPreferences(manualPreferences, choiceId),
+      };
+      const conflict = summarizeBodyChoiceVsSubFocusConflict(choiceId, trialPrefs);
+      if (conflict) {
+        setPendingDayBody({
+          choiceId,
+          nextMode: mode,
+          message: `Switching to ${mode} focus maps this session to ${
+            BODY_CHOICE_COPY[choiceId]?.label ?? choiceId
+          }. ${conflict.message}`,
+        });
+        return;
+      }
+      applyDayBodyChoice(choiceId, false, mode);
+    },
+    [bodyFocusMode, selectedDayBodyId, manualPreferences, applyDayBodyChoice]
+  );
 
   const toggleTargetModifier = (modifier: string) => {
     const current = manualPreferences.targetModifier;
@@ -583,8 +689,12 @@ export default function ManualPreferencesScreen() {
         manualPreferences.energyLevel.slice(1)
       : "Default (medium)";
   const manualAdvVolumeSummary = volumePreferenceDisplayLabel(
-    manualPreferences.volumePreference
+    manualPreferences.volumePreference,
+    { primaryFocus: manualPreferences.primaryFocus }
   );
+  const manualAdvVolumeSubtitle = volumePreferenceSectionSubtitle({
+    primaryFocus: manualPreferences.primaryFocus,
+  });
   const gw1 = manualPreferences.goalMatchPrimaryPct ?? 50;
   const gw2 = manualPreferences.goalMatchSecondaryPct ?? 30;
   const gw3 = manualPreferences.goalMatchTertiaryPct ?? 20;
@@ -812,7 +922,7 @@ export default function ManualPreferencesScreen() {
             </View>
           )}
           <View style={styles.chipGroup}>
-            {PRIMARY_FOCUS_OPTIONS.map((option) => (
+            {filterPilotPrimaryFocusLabels(PRIMARY_FOCUS_OPTIONS).map((option) => (
               <Chip
                 key={option}
                 label={option}
@@ -965,7 +1075,7 @@ export default function ManualPreferencesScreen() {
         {!isWeek ? (
           <CollapsiblePreferenceSection
             title="Body emphasis"
-            subtitle="Main strength work follows upper, lower, or full body. Optional modifiers narrow push/pull or quad/posterior."
+            subtitle="Choose Region, Pattern (push/pull/legs), or Muscle days. Session main work follows your pick."
             summary={bodySummary}
             expanded={sectionBodyOpen}
             onToggle={() => {
@@ -973,17 +1083,24 @@ export default function ManualPreferencesScreen() {
               setSectionBodyOpen((v) => !v);
             }}
           >
+            <WeeklyBodyFocusModeNote
+              value={bodyFocusMode}
+              onChange={handleChangeDayBodyFocusMode}
+            />
+            <Text style={[styles.modifierLabel, { color: theme.textMuted, marginTop: 10 }]}>
+              Body focus this session
+            </Text>
             <View style={styles.chipGroup}>
-              {TARGET_OPTIONS.map((opt) => (
+              {dayBodyChoiceIds.map((id) => (
                 <Chip
-                  key={opt}
-                  label={opt}
-                  selected={manualPreferences.targetBody === opt}
-                  onPress={() => setTargetBody(opt)}
+                  key={id}
+                  label={BODY_CHOICE_COPY[id]?.label ?? id}
+                  selected={selectedDayBodyId === id}
+                  onPress={() => handleSelectDayBodyChoice(id)}
                 />
               ))}
             </View>
-            {modifierOptions.length > 0 && (
+            {bodyFocusMode === "region" && modifierOptions.length > 0 && (
               <>
                 <Text style={[styles.modifierLabel, { color: theme.textMuted }]}>
                   Optional modifier
@@ -1002,6 +1119,22 @@ export default function ManualPreferencesScreen() {
             )}
           </CollapsiblePreferenceSection>
         ) : null}
+
+        <BodyFocusOverrideModal
+          visible={pendingDayBody != null}
+          title="Body focus conflicts with sub-goals"
+          message={pendingDayBody?.message ?? ""}
+          confirmLabel="Override sub-goals"
+          onCancel={() => setPendingDayBody(null)}
+          onConfirm={() => {
+            if (!pendingDayBody) return;
+            applyDayBodyChoice(
+              pendingDayBody.choiceId,
+              true,
+              pendingDayBody.nextMode
+            );
+          }}
+        />
 
         <PreferenceConflictBanner
           conflicts={
@@ -1093,30 +1226,16 @@ export default function ManualPreferencesScreen() {
             <CollapsiblePreferenceSection
               nested
               title="Volume preference"
-              subtitle="Conservative, standard, or high volume adjusts sets and reps on top of your goal and energy."
+              subtitle={manualAdvVolumeSubtitle}
               summary={manualAdvVolumeSummary}
               expanded={manualAdvNestedOpen.volume === true}
               onToggle={() => toggleManualAdvNested("volume")}
             >
-              <View style={styles.chipGroup}>
-                {VOLUME_PREFERENCE_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt.value}
-                    label={opt.label}
-                    selected={
-                      (manualPreferences.volumePreference ?? "standard") === opt.value
-                    }
-                    onPress={() => {
-                      updateManualPreferences({
-                        volumePreference:
-                          (manualPreferences.volumePreference ?? "standard") === opt.value
-                            ? null
-                            : opt.value,
-                      });
-                    }}
-                  />
-                ))}
-              </View>
+              <VolumePreferencePicker
+                value={manualPreferences.volumePreference}
+                primaryFocus={manualPreferences.primaryFocus}
+                onChange={(next) => updateManualPreferences({ volumePreference: next })}
+              />
             </CollapsiblePreferenceSection>
 
             {hasPrimaryFocus && (

@@ -14,11 +14,21 @@ import {
   dayBodyFocusChoiceToBias,
   defaultBodyFocusChoiceIdForDay,
   defaultPresetIdForWeekDay,
+  getBodyFocusDistributionForMode,
+  resolveWeeklyBodyFocusMode,
   sportGoalPrioritySectionNote,
   type DayBodyFocusChoice,
   type DayBodyFocusChoiceId,
   type DayFocusPreset,
 } from "../../../lib/weekDaySessionFocus";
+import {
+  buildSubFocusOverrideAligningToBody,
+  mapBodyResolutionToMode,
+  modeChangeOverrideMessage,
+  modeChangeWouldOverrideDayBodyPicks,
+  summarizeBodyChoiceVsSubFocusConflict,
+} from "../../../lib/bodyFocusModeOverride";
+import { BodyFocusOverrideModal } from "../../../components/BodyFocusOverrideModal";
 import { getBodyEmphasisDistribution } from "../../../services/sportPrepPlanner/weeklyEmphasis";
 import { Redirect, useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -36,7 +46,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
-import type { BodyEmphasisKey, GoalDistributionStyle } from "../../../lib/types";
+import type { BodyEmphasisKey, GoalDistributionStyle, WeeklyBodyFocusMode } from "../../../lib/types";
 import {
   canProceedWithWeeklyGoalDistribution,
   shouldShowWeeklyGoalDistributionNote,
@@ -120,6 +130,16 @@ export default function AdaptiveScheduleScreen() {
   const [resolvedConflictIdsByDay, setResolvedConflictIdsByDay] = useState<Record<number, string>>(
     {}
   );
+  const [pendingModeChange, setPendingModeChange] = useState<{
+    mode: WeeklyBodyFocusMode;
+    bodyIds: DayBodyFocusChoiceId[];
+    message: string;
+  } | null>(null);
+  const [pendingBodySelect, setPendingBodySelect] = useState<{
+    dayIdx: number;
+    bodyId: DayBodyFocusChoiceId;
+    message: string;
+  } | null>(null);
   const sessionHydratedRef = useRef(false);
 
   useEffect(() => {
@@ -224,6 +244,8 @@ export default function AdaptiveScheduleScreen() {
     });
   }, []);
 
+  const bodyFocusMode = resolveWeeklyBodyFocusMode(manualPreferences.weeklyBodyFocusMode);
+
   const sessionFocusMeta = useMemo(() => {
     if (gymTrainingDays.length === 0) {
       return {
@@ -234,11 +256,11 @@ export default function AdaptiveScheduleScreen() {
     }
     const n = gymTrainingDays.length;
     const bd = getBodyEmphasisDistribution(n);
+    const templateIds = getBodyFocusDistributionForMode(bodyFocusMode, n, bd);
     const labels = gymTrainingDays.map((dow, i) => {
-      const b = bd[i]!;
       const bodyChoice = dayBodyFocusChoiceIds[i]
         ? dayBodyFocusChoiceToBias(dayBodyFocusChoiceIds[i]!)
-        : b;
+        : dayBodyFocusChoiceToBias(templateIds[i]!);
       return buildGymDayFocusCardLabel(
         dow,
         i,
@@ -255,12 +277,14 @@ export default function AdaptiveScheduleScreen() {
         slotIndex: i,
         fallbackTargetBody: bd[i]!.targetBody,
         fallbackTargetModifier: bd[i]!.targetModifier,
+        mode: bodyFocusMode,
+        templateChoiceId: templateIds[i],
       })
     );
     const presets = gymTrainingDays.map((_, i) => {
       const bodyChoice = dayBodyFocusChoiceIds[i]
         ? dayBodyFocusChoiceToBias(dayBodyFocusChoiceIds[i]!)
-        : bd[i]!;
+        : dayBodyFocusChoiceToBias(templateIds[i]!);
       return buildDayFocusPresetsForDay({
         manualPreferences,
         adaptiveSetup,
@@ -270,7 +294,7 @@ export default function AdaptiveScheduleScreen() {
       });
     });
     return { labels, bodyOptions, presets };
-  }, [gymTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusChoiceIds]);
+  }, [gymTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusChoiceIds, bodyFocusMode]);
 
   const daySessionFocusConflicts = useMemo(() => {
     if (gymTrainingDays.length === 0) return [];
@@ -361,9 +385,15 @@ export default function AdaptiveScheduleScreen() {
     (dayIdx: number, resolution: DaySessionFocusResolution) => {
       const conflict = daySessionFocusConflicts[dayIdx];
       if (!conflict) return;
+      const mapped: DaySessionFocusResolution = resolution.bodyFocusId
+        ? {
+            ...resolution,
+            bodyFocusId: mapBodyResolutionToMode(resolution.bodyFocusId, bodyFocusMode),
+          }
+        : resolution;
       applyDaySessionFocusResolution({
         dayIndex: dayIdx,
-        resolution,
+        resolution: mapped,
         conflict,
         subFocusByGoal: manualPreferences.subFocusByGoal ?? {},
         setBodyFocusId: (idx, id) => {
@@ -393,25 +423,129 @@ export default function AdaptiveScheduleScreen() {
         },
       });
     },
-    [daySessionFocusConflicts, manualPreferences.subFocusByGoal]
+    [daySessionFocusConflicts, manualPreferences.subFocusByGoal, bodyFocusMode]
+  );
+
+  const reseedBodyFocusForMode = useCallback(
+    (mode: WeeklyBodyFocusMode) => {
+      const n = gymTrainingDays.length;
+      if (n === 0) return [] as DayBodyFocusChoiceId[];
+      const bd = getBodyEmphasisDistribution(n);
+      const templateIds = getBodyFocusDistributionForMode(mode, n, bd);
+      return gymTrainingDays.map((_, i) => {
+        const choices = buildDayBodyFocusChoicesForDay({
+          manualPreferences,
+          adaptiveSetup,
+          slotIndex: i,
+          fallbackTargetBody: bd[i]!.targetBody,
+          fallbackTargetModifier: bd[i]!.targetModifier,
+          mode,
+          templateChoiceId: templateIds[i],
+        });
+        const fromTemplate = templateIds[i];
+        if (fromTemplate && choices.some((c) => c.id === fromTemplate)) return fromTemplate;
+        return defaultBodyFocusChoiceIdForDay(choices, { slotIndex: i });
+      });
+    },
+    [gymTrainingDays, manualPreferences, adaptiveSetup]
+  );
+
+  const applyWeeklyBodyFocusMode = useCallback(
+    (mode: WeeklyBodyFocusMode, bodyIds: DayBodyFocusChoiceId[]) => {
+      updateManualPreferences({ weeklyBodyFocusMode: mode });
+      setDayBodyFocusChoiceIds(bodyIds);
+      setDaySubFocusOverrides({});
+      setResolvedConflictIdsByDay({});
+      setPendingModeChange(null);
+    },
+    [updateManualPreferences]
+  );
+
+  const handleChangeWeeklyBodyFocusMode = useCallback(
+    (mode: WeeklyBodyFocusMode) => {
+      if (mode === bodyFocusMode) return;
+      const bodyIds = reseedBodyFocusForMode(mode);
+      if (modeChangeWouldOverrideDayBodyPicks(dayBodyFocusChoiceIds, bodyIds)) {
+        setPendingModeChange({
+          mode,
+          bodyIds,
+          message: modeChangeOverrideMessage(bodyFocusMode, mode, bodyIds),
+        });
+        return;
+      }
+      applyWeeklyBodyFocusMode(mode, bodyIds);
+    },
+    [
+      bodyFocusMode,
+      reseedBodyFocusForMode,
+      dayBodyFocusChoiceIds,
+      applyWeeklyBodyFocusMode,
+    ]
+  );
+
+  const applyDayBodySelect = useCallback(
+    (dayIdx: number, id: DayBodyFocusChoiceId, alignSubFocus: boolean) => {
+      setResolvedConflictIdsByDay((prev) => {
+        if (prev[dayIdx] == null) return prev;
+        const next = { ...prev };
+        delete next[dayIdx];
+        return next;
+      });
+      setDayBodyFocusChoiceIds((prev) => {
+        const next = [...prev];
+        next[dayIdx] = id;
+        return next;
+      });
+      setDaySubFocusOverrides((prev) => {
+        if (alignSubFocus) {
+          const patch = buildSubFocusOverrideAligningToBody(
+            id,
+            manualPreferences,
+            prev[dayIdx]
+          );
+          if (!patch) {
+            if (prev[dayIdx] == null) return prev;
+            const next = { ...prev };
+            delete next[dayIdx];
+            return next;
+          }
+          return { ...prev, [dayIdx]: patch };
+        }
+        if (prev[dayIdx] == null) return prev;
+        const next = { ...prev };
+        delete next[dayIdx];
+        return next;
+      });
+      setPendingBodySelect(null);
+    },
+    [manualPreferences]
+  );
+
+  const handleSelectDayBody = useCallback(
+    (dayIdx: number, id: DayBodyFocusChoiceId) => {
+      const conflict = summarizeBodyChoiceVsSubFocusConflict(
+        id,
+        manualPreferences,
+        daySubFocusOverrides[dayIdx]
+      );
+      if (conflict) {
+        setPendingBodySelect({
+          dayIdx,
+          bodyId: id,
+          message: conflict.message,
+        });
+        return;
+      }
+      applyDayBodySelect(dayIdx, id, false);
+    },
+    [manualPreferences, daySubFocusOverrides, applyDayBodySelect]
   );
 
   const initSessionFocusStep = useCallback(() => {
     if (gymTrainingDays.length === 0) return;
     const n = gymTrainingDays.length;
-    const bd = getBodyEmphasisDistribution(n);
-    const bodyOptions = gymTrainingDays.map((_, i) =>
-      buildDayBodyFocusChoicesForDay({
-        manualPreferences,
-        adaptiveSetup,
-        slotIndex: i,
-        fallbackTargetBody: bd[i]!.targetBody,
-        fallbackTargetModifier: bd[i]!.targetModifier,
-      })
-    );
-    const bodyIds = bodyOptions.map((choices, i) =>
-      defaultBodyFocusChoiceIdForDay(choices, { slotIndex: i })
-    );
+    const mode = resolveWeeklyBodyFocusMode(manualPreferences.weeklyBodyFocusMode);
+    const bodyIds = reseedBodyFocusForMode(mode);
     const p1 = manualPreferences.goalMatchPrimaryPct ?? 50;
     const p2 = manualPreferences.goalMatchSecondaryPct ?? 30;
     const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
@@ -444,7 +578,7 @@ export default function AdaptiveScheduleScreen() {
     setDaySubFocusOverrides({});
     setResolvedConflictIdsByDay({});
     setWeekSetupStep("sessionFocus");
-  }, [gymTrainingDays, manualPreferences, adaptiveSetup]);
+  }, [gymTrainingDays, manualPreferences, adaptiveSetup, reseedBodyFocusForMode]);
 
   /** Always show per-day body + goal priority before generating (initial or regenerate). */
   const enterSessionFocusForGeneration = useCallback(() => {
@@ -704,14 +838,10 @@ export default function AdaptiveScheduleScreen() {
               onChangeGoalDistributionStyle={(value: GoalDistributionStyle) =>
                 updateManualPreferences({ goalDistributionStyle: value })
               }
-              onSelectBody={(dayIdx, id) => {
-                clearDayConflictState(dayIdx);
-                setDayBodyFocusChoiceIds((prev) => {
-                  const next = [...prev];
-                  next[dayIdx] = id;
-                  return next;
-                });
-              }}
+              showBodyFocusModeNote
+              weeklyBodyFocusMode={bodyFocusMode}
+              onChangeWeeklyBodyFocusMode={handleChangeWeeklyBodyFocusMode}
+              onSelectBody={handleSelectDayBody}
               onSelect={(dayIdx, id) => {
                 clearDayConflictState(dayIdx);
                 setDayFocusChoiceIds((prev) => {
@@ -722,6 +852,32 @@ export default function AdaptiveScheduleScreen() {
               }}
               onApplyDayResolution={handleApplyDayResolution}
               onBack={() => setWeekSetupStep("pickDays")}
+            />
+            <BodyFocusOverrideModal
+              visible={pendingModeChange != null}
+              title="Change body-focus style?"
+              message={pendingModeChange?.message ?? ""}
+              confirmLabel="Override days"
+              onCancel={() => setPendingModeChange(null)}
+              onConfirm={() => {
+                if (!pendingModeChange) return;
+                applyWeeklyBodyFocusMode(pendingModeChange.mode, pendingModeChange.bodyIds);
+              }}
+            />
+            <BodyFocusOverrideModal
+              visible={pendingBodySelect != null}
+              title="Body focus conflicts with sub-goals"
+              message={pendingBodySelect?.message ?? ""}
+              confirmLabel="Override sub-goals"
+              onCancel={() => setPendingBodySelect(null)}
+              onConfirm={() => {
+                if (!pendingBodySelect) return;
+                applyDayBodySelect(
+                  pendingBodySelect.dayIdx,
+                  pendingBodySelect.bodyId,
+                  true
+                );
+              }}
             />
             {error ? (
               <Text style={[styles.errorText, { color: theme.danger, paddingHorizontal: 20 }]}>

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import * as Linking from "expo-linking";
 import { getSupabase } from "../lib/db";
 import { isDbConfigured } from "../lib/db/supabaseEnv";
+import { AUTH_COPY, isEmailNotConfirmedMessage, mapAuthError } from "../lib/authCopy";
 
 type AuthContextValue = {
   userId: string | null;
@@ -12,11 +13,22 @@ type AuthContextValue = {
   isAuthConfigured: boolean;
   /** True after recovery OTP/deep link established a session ready for password update. */
   isPasswordRecovery: boolean;
-  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  /** Last failed auth deep-link / email-link consume error (cleared when read or dismissed). */
+  authLinkError: string | null;
+  clearAuthLinkError: () => void;
+  /** Set after a confirm-email deep link establishes a session. */
+  emailJustConfirmed: boolean;
+  clearEmailJustConfirmed: () => void;
+  signInWithPassword: (
+    email: string,
+    password: string
+  ) => Promise<{ error: string | null; emailNotConfirmed?: boolean }>;
   signUpWithPassword: (
     email: string,
     password: string
   ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
+  /** Resends the signup confirmation email. */
+  resendConfirmationEmail: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<{ error: string | null }>;
   /** Sends Supabase recovery email (includes 6-digit code when template uses {{ .Token }}). */
   resetPasswordForEmail: (email: string) => Promise<{ error: string | null }>;
@@ -37,13 +49,15 @@ function displayNameFromUser(user: { user_metadata?: Record<string, unknown> }):
   return typeof name === "string" && name.trim() ? name.trim() : null;
 }
 
-function authErrorMessage(error: { message?: string } | null | undefined, fallback: string): string {
-  const msg = error?.message?.trim();
-  return msg && msg.length > 0 ? msg : fallback;
+function authErrorMessage(
+  error: { message?: string } | null | undefined,
+  context: Parameters<typeof mapAuthError>[1],
+  fallback?: string
+): string {
+  return mapAuthError(error?.message, context, fallback);
 }
 
 function passwordResetRedirectUrl(): string {
-  // Prefer Expo Linking URL so web + native redirect allowlists can share one pattern.
   try {
     return Linking.createURL("auth/reset-password");
   } catch {
@@ -51,17 +65,37 @@ function passwordResetRedirectUrl(): string {
   }
 }
 
-async function consumeAuthUrl(url: string): Promise<"recovery" | "session" | null> {
+function emailConfirmRedirectUrl(): string {
+  try {
+    return Linking.createURL("welcome");
+  } catch {
+    return "todayfit://welcome";
+  }
+}
+
+type ConsumeResult =
+  | { kind: "recovery" | "session" }
+  | { kind: "error"; message: string }
+  | { kind: null };
+
+async function consumeAuthUrl(url: string): Promise<ConsumeResult> {
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { kind: null };
   try {
     const parsed = Linking.parse(url);
     const query = (parsed.queryParams ?? {}) as Record<string, string | string[] | undefined>;
     const code = typeof query.code === "string" ? query.code : undefined;
     if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) return null;
-      return query.type === "recovery" || url.includes("type=recovery") ? "recovery" : "session";
+      if (error) {
+        return {
+          kind: "error",
+          message: authErrorMessage(error, "link", AUTH_COPY.linkInvalidOrExpired),
+        };
+      }
+      return {
+        kind: query.type === "recovery" || url.includes("type=recovery") ? "recovery" : "session",
+      };
     }
     // Implicit/hash style tokens (some email clients)
     const hash = url.includes("#") ? url.split("#")[1] : "";
@@ -74,13 +108,21 @@ async function consumeAuthUrl(url: string): Promise<"recovery" | "session" | nul
         access_token: accessToken,
         refresh_token: refreshToken,
       });
-      if (error) return null;
-      return type === "recovery" ? "recovery" : "session";
+      if (error) {
+        return {
+          kind: "error",
+          message: authErrorMessage(error, "link", AUTH_COPY.linkInvalidOrExpired),
+        };
+      }
+      return { kind: type === "recovery" ? "recovery" : "session" };
     }
   } catch {
-    return null;
+    return {
+      kind: "error",
+      message: AUTH_COPY.linkOpenFailed,
+    };
   }
-  return null;
+  return { kind: null };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -89,7 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [authLinkError, setAuthLinkError] = useState<string | null>(null);
+  const [emailJustConfirmed, setEmailJustConfirmed] = useState(false);
   const isAuthConfigured = isDbConfigured();
+
+  const clearAuthLinkError = useCallback(() => setAuthLinkError(null), []);
+  const clearEmailJustConfirmed = useCallback(() => setEmailJustConfirmed(false), []);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -120,8 +167,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleUrl = (url: string | null) => {
       if (!url) return;
-      void consumeAuthUrl(url).then((kind) => {
-        if (kind === "recovery") setIsPasswordRecovery(true);
+      void consumeAuthUrl(url).then((result) => {
+        if (result.kind === "recovery") {
+          setIsPasswordRecovery(true);
+          setAuthLinkError(null);
+        } else if (result.kind === "session") {
+          setEmailJustConfirmed(true);
+          setAuthLinkError(null);
+        } else if (result.kind === "error") {
+          setAuthLinkError(result.message);
+        }
       });
     };
     void Linking.getInitialURL().then(handleUrl);
@@ -136,32 +191,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithPassword = useCallback(async (emailInput: string, password: string) => {
     const supabase = getSupabase();
     if (!supabase) {
-      return { error: "Sign-in is not configured. Add Supabase env vars." };
+      return { error: AUTH_COPY.authUnavailable };
     }
     const { error } = await supabase.auth.signInWithPassword({
       email: emailInput.trim(),
       password,
     });
-    return { error: error ? authErrorMessage(error, "Could not sign in.") : null };
+    if (!error) return { error: null };
+    if (isEmailNotConfirmedMessage(error.message)) {
+      return {
+        error: AUTH_COPY.emailNotConfirmed,
+        emailNotConfirmed: true,
+      };
+    }
+    return { error: authErrorMessage(error, "signIn") };
   }, []);
 
   const signUpWithPassword = useCallback(async (emailInput: string, password: string) => {
     const supabase = getSupabase();
     if (!supabase) {
       return {
-        error: "Sign-up is not configured. Add Supabase env vars.",
+        error: AUTH_COPY.authUnavailable,
         needsEmailConfirmation: false,
       };
     }
     const { data, error } = await supabase.auth.signUp({
       email: emailInput.trim(),
       password,
+      options: {
+        emailRedirectTo: emailConfirmRedirectUrl(),
+      },
     });
     if (error) {
-      return { error: authErrorMessage(error, "Could not sign up."), needsEmailConfirmation: false };
+      return { error: authErrorMessage(error, "signUp"), needsEmailConfirmation: false };
     }
     const needsEmailConfirmation = Boolean(data.user) && !data.session;
     return { error: null, needsEmailConfirmation };
+  }, []);
+
+  const resendConfirmationEmail = useCallback(async (emailInput: string) => {
+    const supabase = getSupabase();
+    if (!supabase) {
+      return { error: AUTH_COPY.authUnavailable };
+    }
+    const trimmed = emailInput.trim().toLowerCase();
+    if (!trimmed.includes("@")) {
+      return { error: AUTH_COPY.invalidEmail };
+    }
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: trimmed,
+      options: {
+        emailRedirectTo: emailConfirmRedirectUrl(),
+      },
+    });
+    if (error) {
+      return { error: authErrorMessage(error, "resend") };
+    }
+    return { error: null };
   }, []);
 
   const signOut = useCallback(async () => {
@@ -174,22 +261,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: null };
     }
     const { error } = await supabase.auth.signOut();
-    return { error: error ? authErrorMessage(error, "Could not sign out.") : null };
+    return { error: error ? authErrorMessage(error, "signOut") : null };
   }, []);
 
   const resetPasswordForEmail = useCallback(async (emailInput: string) => {
     const supabase = getSupabase();
     if (!supabase) {
-      return { error: "Password reset is not configured." };
+      return { error: AUTH_COPY.authUnavailable };
     }
     const trimmed = emailInput.trim().toLowerCase();
     if (!trimmed.includes("@")) {
-      return { error: "Enter a valid email address." };
+      return { error: AUTH_COPY.invalidEmail };
     }
     const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
       redirectTo: passwordResetRedirectUrl(),
     });
-    // Avoid account enumeration: rate-limit and "user not found" still look like success to the client.
+    // Avoid account enumeration: rate-limit shown; unknown emails still look like success.
     if (error) {
       const msg = error.message.toLowerCase();
       if (
@@ -198,9 +285,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         msg.includes("after") ||
         msg.includes("seconds")
       ) {
-        return { error: authErrorMessage(error, "Too many attempts. Try again shortly.") };
+        return { error: authErrorMessage(error, "resetSend") };
       }
-      // Most other send failures (including unknown emails) → generic OK for security.
       console.warn("[resetPasswordForEmail]", error.message);
     }
     return { error: null };
@@ -209,12 +295,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyRecoveryOtp = useCallback(async (emailInput: string, token: string) => {
     const supabase = getSupabase();
     if (!supabase) {
-      return { error: "Password reset is not configured." };
+      return { error: AUTH_COPY.authUnavailable };
     }
     const trimmedEmail = emailInput.trim().toLowerCase();
     const trimmedToken = token.replace(/\s/g, "");
     if (!/^\d{6,8}$/.test(trimmedToken)) {
-      return { error: "Enter the 6-digit code from your email." };
+      return { error: AUTH_COPY.enterResetCode };
     }
     const { error } = await supabase.auth.verifyOtp({
       email: trimmedEmail,
@@ -222,7 +308,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       type: "recovery",
     });
     if (error) {
-      return { error: authErrorMessage(error, "Invalid or expired code. Request a new one.") };
+      return { error: authErrorMessage(error, "resetVerify") };
     }
     setIsPasswordRecovery(true);
     return { error: null };
@@ -231,14 +317,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updatePassword = useCallback(async (password: string) => {
     const supabase = getSupabase();
     if (!supabase) {
-      return { error: "Password update is not configured." };
+      return { error: AUTH_COPY.authUnavailable };
     }
     if (password.length < 6) {
-      return { error: "Password must be at least 6 characters." };
+      return { error: AUTH_COPY.passwordTooShort };
     }
     const { error } = await supabase.auth.updateUser({ password });
     if (!error) setIsPasswordRecovery(false);
-    return { error: error ? authErrorMessage(error, "Could not update password.") : null };
+    return { error: error ? authErrorMessage(error, "updatePassword") : null };
   }, []);
 
   const clearPasswordRecovery = useCallback(() => {
@@ -248,52 +334,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) {
-      return { error: "Account deletion is not configured." };
+      return { error: AUTH_COPY.authUnavailable };
     }
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      return { error: "Not signed in." };
+      return { error: AUTH_COPY.notSignedIn };
     }
-    const { error: rpcError } = await supabase.rpc("delete_own_account");
-    if (!rpcError) {
-      setIsPasswordRecovery(false);
-      await supabase.auth.signOut();
-      return { error: null };
-    }
-    // Fallback until delete_own_account migration is applied: wipe owned rows, then signs out.
-    try {
-      const uid = user.id;
-      const tables = [
-        "workouts",
-        "preference_presets",
-        "sport_presets",
-        "user_preferences",
-        "gym_profiles",
-        "weekly_plan_instances",
-        "user_sport_profiles",
-        "sport_events",
-        "user_training_plans",
-        "user_goals",
-      ] as const;
-      for (const table of tables) {
-        const { error } = await supabase.from(table).delete().eq("user_id", uid);
-        if (error && !/does not exist|schema cache/i.test(error.message)) {
-          // Continue wiping other tables; report first hard failure at end if nothing wiped.
-          console.warn(`[deleteAccount] ${table}:`, error.message);
-        }
+
+    // Prefer Edge Function (service-role Admin API) — RPC alone often cannot delete auth.users.
+    const { data: fnData, error: fnError } = await supabase.functions.invoke("delete-own-account", {
+      method: "POST",
+      body: {},
+    });
+    const fnPayload = (fnData ?? null) as { ok?: boolean; error?: string } | null;
+    const fnFailed =
+      Boolean(fnError) ||
+      Boolean(fnPayload?.error) ||
+      fnPayload?.ok !== true;
+
+    if (fnFailed) {
+      const { error: rpcError } = await supabase.rpc("delete_own_account");
+      if (rpcError) {
+        return {
+          error: mapAuthError(
+            fnPayload?.error || fnError?.message || rpcError.message,
+            "delete",
+            AUTH_COPY.couldNotDeleteAccount
+          ),
+        };
       }
-    } catch (e) {
-      return {
-        error:
-          e instanceof Error
-            ? e.message
-            : "Could not delete account data. Apply delete_own_account migration.",
-      };
     }
+
     setIsPasswordRecovery(false);
-    await supabase.auth.signOut();
+    setUserId(null);
+    setEmail(null);
+    setDisplayName(null);
+    await supabase.auth.signOut({ scope: "local" });
     return { error: null };
   }, []);
 
@@ -304,8 +382,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     isAuthConfigured,
     isPasswordRecovery,
+    authLinkError,
+    clearAuthLinkError,
+    emailJustConfirmed,
+    clearEmailJustConfirmed,
     signInWithPassword,
     signUpWithPassword,
+    resendConfirmationEmail,
     signOut,
     resetPasswordForEmail,
     verifyRecoveryOtp,

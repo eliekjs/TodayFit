@@ -24,6 +24,8 @@ export function exercisePassesPruningGate(
       return true;
     case "eligible_niche":
       return flags.allow_niche_exercises;
+    case "eligible_phase2":
+      return flags.allow_phase2_exercises === true;
     case "excluded_review":
       return flags.allow_review_exercises;
     case "excluded_merged":

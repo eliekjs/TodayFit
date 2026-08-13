@@ -1,6 +1,9 @@
 import { getSupabase } from "./client";
 import type { GymProfile } from "../../data/gymProfiles";
 import type { EquipmentKey } from "../types";
+import { isCloudGymProfileId } from "../gymProfileId";
+
+export { isCloudGymProfileId } from "../gymProfileId";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -104,23 +107,29 @@ export type UpsertProfileParams = {
 
 /**
  * Create or update a gym profile and its equipment.
+ * Local template ids (e.g. `your_gym`) and optimistic ids are not UUIDs — those always insert.
  */
 export async function upsertProfile(userId: string, params: UpsertProfileParams): Promise<GymProfile> {
   const supabase = requireClient();
+  const cloudId = params.id != null && isCloudGymProfileId(params.id) ? params.id : undefined;
 
-  if (params.id) {
-    const { error: updateError } = await supabase
+  if (cloudId) {
+    const { data: updatedRows, error: updateError } = await supabase
       .from("gym_profiles")
       .update({
         name: params.name,
         dumbbell_max_weight: params.dumbbellMaxWeight ?? null,
         is_active: params.isActive ?? false,
       })
-      .eq("id", params.id)
-      .eq("user_id", userId);
+      .eq("id", cloudId)
+      .eq("user_id", userId)
+      .select("id");
     if (updateError) throw new Error(updateError.message);
-    await setEquipment(params.id, params.equipment);
-    const profile = await listProfiles(userId).then((list) => list.find((p) => p.id === params.id));
+    if (!updatedRows?.length) {
+      throw new Error("Gym profile not found for update");
+    }
+    await setEquipment(cloudId, params.equipment);
+    const profile = await listProfiles(userId).then((list) => list.find((p) => p.id === cloudId));
     if (!profile) throw new Error("Profile not found after update");
     return profile;
   }
@@ -148,7 +157,11 @@ export async function upsertProfile(userId: string, params: UpsertProfileParams)
  */
 export async function setEquipment(gymProfileId: string, equipmentSlugs: string[]): Promise<void> {
   const supabase = requireClient();
-  await supabase.from("gym_profile_equipment").delete().eq("gym_profile_id", gymProfileId);
+  const { error: deleteError } = await supabase
+    .from("gym_profile_equipment")
+    .delete()
+    .eq("gym_profile_id", gymProfileId);
+  if (deleteError) throw new Error(deleteError.message);
   if (equipmentSlugs.length) {
     const rows = equipmentSlugs.map((equipment_slug) => ({
       gym_profile_id: gymProfileId,

@@ -4,7 +4,12 @@
  * and WorkoutSession → GeneratedWorkout.
  */
 
-import type { ManualPreferences, GeneratedWorkout, ExerciseDefinition, BodyPartFocusKey } from "./types";
+import type {
+  ManualPreferences,
+  GeneratedWorkout,
+  ExerciseDefinition,
+  SpecificBodyFocusKey,
+} from "./types";
 import type { GymProfile } from "../data/gymProfiles";
 import { resolveEffectiveEquipment } from "./gymEquipment";
 import { resolveExerciseEquipmentRequired } from "./equipmentResolution";
@@ -18,6 +23,7 @@ import {
 } from "./preferencesConstants";
 import { getAvoidTagSlugsFromUpcoming } from "./filterTagRules";
 import { primaryFocusLabelToPrimaryGoal } from "./goalRegistry";
+import { resolvePrimaryAndSecondaryGoalsFromFocus } from "./recoveryGoalRanking";
 import { getExerciseTagsForGoalSubFocuses } from "../data/goalSubFocus";
 import { buildMergedGoalSubFocusSlugWeights, sanitizeSubFocusPctMaps } from "./subFocusWeights";
 import { filterSubFocusSlugsForBodyFocus } from "../logic/workoutGeneration/bodyFocusSubFocusFilter";
@@ -390,6 +396,57 @@ function bodyPartFocusToGeneratorFocus(keys: string[]): FocusBodyPart[] {
   return out;
 }
 
+/**
+ * Map specific body-focus keys (Pattern/Muscle day picks) to generator focus_body_parts.
+ * Region tags gate movement families; muscle tags drive scoring via focusBodyPartToMuscles.
+ */
+export function specificBodyFocusToGeneratorFocus(
+  keys: readonly SpecificBodyFocusKey[] | null | undefined
+): FocusBodyPart[] {
+  if (!keys?.length) return [];
+  // Prefer the first key (week planner sets one primary specific focus per day).
+  const key = keys[0]!;
+  switch (key) {
+    case "core":
+      return ["core"];
+    case "push":
+      return ["upper_push"];
+    case "pull":
+      return ["upper_pull"];
+    case "chest":
+      return ["upper_push", "chest"];
+    case "back":
+      return ["upper_pull", "back"];
+    case "shoulders":
+      return ["upper_push", "shoulders"];
+    case "arms":
+      // Bi + tri span push and pull families.
+      return ["upper_push", "upper_pull", "arms"];
+    case "legs":
+      return ["lower", "legs"];
+    case "glutes":
+      return ["lower", "posterior", "glutes"];
+    case "quad":
+      return ["lower", "quad"];
+    case "posterior":
+      return ["lower", "posterior"];
+    default:
+      return [];
+  }
+}
+
+/** Prefer specificBodyFocus mapping; else targetBody + modifiers; else empty. */
+function resolveGeneratorFocusBodyParts(preferences: ManualPreferences): FocusBodyPart[] {
+  const fromSpecific = specificBodyFocusToGeneratorFocus(preferences.specificBodyFocus);
+  if (fromSpecific.length > 0) return fromSpecific;
+
+  const bodyPartFromTarget = deriveBodyPartFocus(
+    preferences.targetBody,
+    preferences.targetModifier
+  );
+  return bodyPartFocusToGeneratorFocus(bodyPartFromTarget);
+}
+
 /** Normalize constraint/injury label to slug (e.g. "Lower Back" → "lower_back"). */
 function injuryLabelToSlug(label: string): string {
   return label.toLowerCase().replace(/\s/g, "_").replace(/^no_restrictions$/, "");
@@ -436,23 +493,21 @@ export function manualPreferencesToGenerateWorkoutInput(
 ): GenerateWorkoutInput {
   preferences = normalizeAthleticGoalPreferences(preferences);
   const durationMinutes = clampDuration(preferences.durationMinutes);
-  // "Core" day focus is stored as targetBody="Full" + specificBodyFocus=["core"] (Core is not a
-  // TargetBody value). Same precedence as the UI (see bodyChoiceIdForBias in weekDaySessionFocus.ts):
-  // core overrides targetBody so the generator actually restricts to core work instead of full body.
-  // Other specificBodyFocus values (glutes, quad, posterior, shoulders, back, push, pull) already
-  // reach the generator via targetModifier upstream (see SPECIFIC_FOCUS_TO_MODIFIER in sportPrepPlanner),
-  // so only "core" needs this direct override here.
-  const bodyPartFromTarget = preferences.specificBodyFocus?.includes("core")
-    ? (["Core"] as BodyPartFocusKey[])
-    : deriveBodyPartFocus(preferences.targetBody, preferences.targetModifier);
+  // Pattern/Muscle day picks set specificBodyFocus (chest, push, glutes, …). Those map directly
+  // to focus_body_parts (region gate + muscle emphasis tags). Region-only days still use
+  // targetBody + targetModifier. Core remains a Full/any override via specificBodyFocus=["core"].
+  const bodyPartFromTargetOrSpecific = resolveGeneratorFocusBodyParts(preferences);
   const subFocusByGoalSanitized = normalizeSubFocusByGoalAgainstConditioningPolicy(
     preferences.subFocusByGoal ?? {}
   );
   const subFocus = deriveSubFocus(preferences.primaryFocus, subFocusByGoalSanitized);
-  const bodyPartFromSubFocus = deriveBodyPartFocusFromSubFocus(subFocus);
-  const bodyPartFocus =
-    bodyPartFromTarget.length > 0 ? bodyPartFromTarget : bodyPartFromSubFocus;
-  const focus_body_parts_raw = bodyPartFocusToGeneratorFocus(bodyPartFocus);
+  const bodyPartFromSubFocus = bodyPartFocusToGeneratorFocus(
+    deriveBodyPartFocusFromSubFocus(subFocus)
+  );
+  const focus_body_parts_raw =
+    bodyPartFromTargetOrSpecific.length > 0
+      ? bodyPartFromTargetOrSpecific
+      : bodyPartFromSubFocus;
   // Spread mode: allow all body regions in the session so conflicting sub-goals/goals can appear.
   const focus_body_parts =
     preferences.sessionFocusDistribution === "spread" &&
@@ -475,18 +530,32 @@ export function manualPreferencesToGenerateWorkoutInput(
   const avoid_tags = getAvoidTagSlugsFromUpcoming(preferences.upcoming ?? []);
 
   const firstFocusLabel = preferences.primaryFocus?.[0];
-  const primary_goal =
-    firstFocusLabel != null && firstFocusLabel !== ""
-      ? primaryFocusLabelToGoal(firstFocusLabel)
-      : sportGoalContext?.sport_slugs?.length
-        // No explicit fitness goal selected; use "strength" as a neutral prescription template.
-        // Sport sub-focus quality weights (via sport_weight = 1.0) drive exercise selection.
-        ? "strength"
-        : primaryFocusLabelToGoal("Build Strength");
-  let secondary_goals = preferences.primaryFocus
-    .slice(1, 3)
-    .map(primaryFocusLabelToGoal)
-    .filter((g) => g !== primary_goal);
+  const hasExplicitFitnessFocus =
+    firstFocusLabel != null &&
+    firstFocusLabel !== "" &&
+    firstFocusLabel !== "Sport preparation";
+
+  let primary_goal: PrimaryGoal;
+  let secondary_goals: PrimaryGoal[];
+  if (hasExplicitFitnessFocus) {
+    const resolved = resolvePrimaryAndSecondaryGoalsFromFocus(
+      preferences.primaryFocus,
+      primaryFocusLabelToGoal
+    );
+    primary_goal = resolved.primary_goal;
+    secondary_goals = resolved.secondary_goals;
+  } else if (sportGoalContext?.sport_slugs?.length) {
+    // No explicit fitness goal selected; use "strength" as a neutral prescription template.
+    // Sport sub-focus quality weights (via sport_weight = 1.0) drive exercise selection.
+    primary_goal = "strength";
+    secondary_goals = preferences.primaryFocus
+      .slice(1, 3)
+      .map(primaryFocusLabelToGoal)
+      .filter((g) => g !== primary_goal);
+  } else {
+    primary_goal = primaryFocusLabelToGoal("Build Strength");
+    secondary_goals = [];
+  }
   const userDeclaredSecondaryGoals = [...secondary_goals];
   if (shouldAppendEnduranceSecondaryFromSportSubFocus(primary_goal, secondary_goals, sportGoalContext)) {
     secondary_goals = [...secondary_goals, "endurance"];
@@ -562,7 +631,7 @@ export function manualPreferencesToGenerateWorkoutInput(
         : hashString(
             JSON.stringify({
               p: preferences.primaryFocus,
-              b: bodyPartFocus,
+              b: normalizedFocusBodyParts,
               d: durationMinutes,
               primary_goal,
               subFocusByGoal,

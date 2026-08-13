@@ -1,3 +1,4 @@
+import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 /**
@@ -5,6 +6,18 @@ import { defineConfig } from "vitest/config";
  * Vitest only runs suites that import from `vitest`. When you add a new Vitest suite, add its glob here.
  */
 export default defineConfig({
+  define: {
+    // React Native / Expo modules reference this build-time global.
+    __DEV__: false,
+  },
+  resolve: {
+    alias: {
+      // react-native ships Flow syntax that Rollup cannot parse in node tests.
+      "react-native": path.resolve(__dirname, "test/stubs/react-native.ts"),
+      // expo-secure-store pulls native runtime init; node tests only need the API shape.
+      "expo-secure-store": path.resolve(__dirname, "test/stubs/expo-secure-store.ts"),
+    },
+  },
   test: {
     environment: "node",
     include: [
@@ -12,10 +25,14 @@ export default defineConfig({
       "lib/db/**/*.test.ts",
       "lib/weekDaySessionFocus.test.ts",
       "lib/weekDaySessionFocus.bodyFocus.test.ts",
+      "lib/weekDaySessionFocus.bodyFocusMode.test.ts",
+      "lib/bodyFocusModeOverride.test.ts",
       "lib/workoutIntentSplit.test.ts",
       "lib/subFocusWeights.test.ts",
       "lib/goalRegistry.test.ts",
+      "lib/recoveryGoalRanking.test.ts",
       "lib/preferencesConstants.conditioningSubFocusPolicy.test.ts",
+      "lib/volumePreferenceCopy.test.ts",
       "lib/preferenceConflictDetector.test.ts",
       "lib/daySessionFocusConflict.test.ts",
       "lib/sportModeOneDayValidation.test.ts",
@@ -33,11 +50,14 @@ export default defineConfig({
       "lib/dailyGeneratorAdapter.goalMatchPreset.test.ts",
       "lib/energyLevelMapping.test.ts",
       "lib/gymEquipment.test.ts",
+      "lib/gymProfileId.test.ts",
+      "lib/pilotCatalog/trimCorePool.test.ts",
       "lib/buildAppTrainingHistory.test.ts",
       "lib/workoutCompletionLog.test.ts",
       "lib/sessionExerciseRedundancy.test.ts",
       "lib/exerciseDescriptionsCurated.test.ts",
       "lib/workoutUtils.exerciseDescription.test.ts",
+      "lib/workoutUtils.prescription.test.ts",
       "lib/prefetchWorkoutGeneration.test.ts",
       "data/sportSubFocus/speedAgilitySubFocusShared.test.ts",
       "data/sportSubFocus/verticalJumpSubFocusShared.test.ts",
