@@ -18,8 +18,9 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
 import { defaultManualPreferences } from "../../../context/appStateModel";
-import { cleanFlowPalette, useTheme } from "../../../lib/theme";
+import { cleanFlowPalette, themeRadius, useTheme } from "../../../lib/theme";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
+import { SectionLabel } from "../../../components/SectionLabel";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { Chip } from "../../../components/Chip";
@@ -41,14 +42,15 @@ import {
   CONSTRAINT_OPTIONS,
   CONSTRAINT_OPTIONS_UPPER,
   CONSTRAINT_OPTIONS_LOWER,
-  WORKOUT_STYLE_OPTIONS,
-  UPCOMING_OPTIONS,
   normalizeGoalMatchPct,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
   collectInvalidConditioningSubFocusSelections,
   subFocusChoicesForManualPrimaryGoal,
 } from "../../../lib/preferencesConstants";
-import { filterPilotPrimaryFocusLabels } from "../../../lib/pilotCatalog";
+import {
+  filterPilotPrimaryFocusLabels,
+  PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS,
+} from "../../../lib/pilotCatalog";
 import { isAthleticUmbrellaPrimaryLabel } from "../../../data/goalSubFocus/athleticSubFocusArchetypes";
 import {
   equalIntegerPctsForLabels,
@@ -104,7 +106,6 @@ if (
 
 const MAX_GOALS = MAX_RANKED_GOALS;
 const MAX_SUB_GOALS_PER_GOAL = MAX_SUB_GOALS_PER_PARENT;
-const MAX_UPCOMING = 3;
 
 const DEFAULT_SESSION_MINUTES = 45 as const;
 
@@ -206,6 +207,14 @@ export default function ManualPreferencesScreen() {
       if (!isWeek && manualPreferences.targetBody == null) {
         updates.targetBody = "Full";
       }
+      // Style / Upcoming advanced options are temporarily hidden; clear so they
+      // don't keep shaping generation until we reintroduce the UI.
+      if (manualPreferences.workoutStyle.length > 0) {
+        updates.workoutStyle = [];
+      }
+      if (manualPreferences.upcoming.length > 0) {
+        updates.upcoming = [];
+      }
       if (Object.keys(updates).length > 0) {
         updateManualPreferences(updates);
       }
@@ -219,6 +228,8 @@ export default function ManualPreferencesScreen() {
       isWeek,
       manualPreferences.durationMinutes,
       manualPreferences.targetBody,
+      manualPreferences.workoutStyle.length,
+      manualPreferences.upcoming.length,
       updateManualPreferences,
       setManualGoalPreferencesScope,
       beginSessionFlow,
@@ -537,28 +548,6 @@ export default function ManualPreferencesScreen() {
     updateManualPreferences({ injuries: next });
   };
 
-  const toggleUpcoming = (option: string) => {
-    const current = manualPreferences.upcoming;
-    const exists = current.includes(option);
-    if (exists) {
-      updateManualPreferences({
-        upcoming: current.filter((v) => v !== option),
-      });
-    } else {
-      if (current.length >= MAX_UPCOMING) return;
-      updateManualPreferences({ upcoming: [...current, option] });
-    }
-  };
-
-  /** Style is optional single-select (tap again to clear). */
-  const toggleWorkoutStyle = (value: string) => {
-    const current = manualPreferences.workoutStyle;
-    const selected = current[0] === value;
-    updateManualPreferences({
-      workoutStyle: selected ? [] : [value],
-    });
-  };
-
   const hasGeneratedWeekPlan =
     isWeek && manualWeekPlan != null && manualWeekPlan.days.length > 0;
 
@@ -628,9 +617,7 @@ export default function ManualPreferencesScreen() {
     | "volume"
     | "goalWeights"
     | "subGoals"
-    | "avoid"
-    | "style"
-    | "upcoming";
+    | "avoid";
   const [manualAdvNestedOpen, setManualAdvNestedOpen] = useState<
     Partial<Record<ManualAdvNestedKey, boolean>>
   >({});
@@ -718,12 +705,6 @@ export default function ManualPreferencesScreen() {
     if (inj.length <= 2) return inj.join(", ");
     return `${inj[0]}, +${inj.length - 1}`;
   })();
-  const manualAdvStyleSummary =
-    manualPreferences.workoutStyle[0] ?? "None";
-  const manualAdvUpcomingSummary =
-    manualPreferences.upcoming.length === 0
-      ? "None"
-      : `${manualPreferences.upcoming.length} picked`;
 
   if (isGenerating) {
     return (
@@ -802,8 +783,9 @@ export default function ManualPreferencesScreen() {
             ? "Two quick choices, then pick your training days. Fine-tune anytime in Advanced options."
             : "A few quick choices. You can fine-tune later."}
         </Text>
+        <SectionLabel style={{ marginTop: 20 }}>Session</SectionLabel>
         <ExperienceLevelToggle
-          marginTop={16}
+          marginTop={8}
           workoutTier={manualPreferences.workoutTier ?? "intermediate"}
           includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
           onChange={(patch) => updateManualPreferences(patch)}
@@ -1031,7 +1013,7 @@ export default function ManualPreferencesScreen() {
                 </View>
               );
             })}
-            {subGoalsTotalCount > 0 ? (
+            {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && subGoalsTotalCount > 0 ? (
               <Pressable
                 onPress={() =>
                   openAdvancedAndScroll({
@@ -1124,9 +1106,13 @@ export default function ManualPreferencesScreen() {
           visible={pendingDayBody != null}
           title="Body focus conflicts with sub-goals"
           message={pendingDayBody?.message ?? ""}
-          confirmLabel="Override sub-goals"
+          confirmLabel="Use Full body"
+          secondaryConfirmLabel="Drop conflicting sub-goals"
           onCancel={() => setPendingDayBody(null)}
           onConfirm={() => {
+            applyDayBodyChoice("full", false, "region");
+          }}
+          onSecondaryConfirm={() => {
             if (!pendingDayBody) return;
             applyDayBodyChoice(
               pendingDayBody.choiceId,
@@ -1161,6 +1147,7 @@ export default function ManualPreferencesScreen() {
         />
 
         <View ref={advancedSectionRef} collapsable={false}>
+        <SectionLabel style={{ marginTop: 8 }}>Optional</SectionLabel>
         {/* ——— Advanced options (collapsible) ——— */}
         <Pressable
           style={[
@@ -1238,7 +1225,7 @@ export default function ManualPreferencesScreen() {
               />
             </CollapsiblePreferenceSection>
 
-            {hasPrimaryFocus && (
+            {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && hasPrimaryFocus && (
               <CollapsiblePreferenceSection
                 nested
                 title="Goal match %"
@@ -1327,7 +1314,9 @@ export default function ManualPreferencesScreen() {
               </CollapsiblePreferenceSection>
             )}
 
-            {hasPrimaryFocus && subGoalsTotalCount > 0 ? (
+            {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS &&
+            hasPrimaryFocus &&
+            subGoalsTotalCount > 0 ? (
               <View ref={subFocusWeightsSectionRef} collapsable={false}>
                 <CollapsiblePreferenceSection
                   nested
@@ -1424,99 +1413,6 @@ export default function ManualPreferencesScreen() {
                   />
                 ))}
               </View>
-            </CollapsiblePreferenceSection>
-
-            <CollapsiblePreferenceSection
-              nested
-              title="Style"
-              subtitle="Optional. Pick one workout style."
-              summary={manualAdvStyleSummary}
-              expanded={manualAdvNestedOpen.style === true}
-              onToggle={() => toggleManualAdvNested("style")}
-            >
-              <View style={styles.chipGroup}>
-                {WORKOUT_STYLE_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt}
-                    label={opt}
-                    selected={manualPreferences.workoutStyle[0] === opt}
-                    onPress={() => toggleWorkoutStyle(opt)}
-                  />
-                ))}
-              </View>
-            </CollapsiblePreferenceSection>
-
-            <CollapsiblePreferenceSection
-              nested
-              title="Upcoming (1–3 days)"
-              subtitle="Protect big days. Pick up to 3, ranked."
-              summary={manualAdvUpcomingSummary}
-              expanded={manualAdvNestedOpen.upcoming === true}
-              onToggle={() => toggleManualAdvNested("upcoming")}
-            >
-            {manualPreferences.upcoming.length > 0 && (
-              <View style={styles.chipGroup}>
-                {manualPreferences.upcoming.map((u, idx) => (
-                  <Pressable
-                    key={u}
-                    style={styles.rankedChipWrap}
-                    onPress={() => toggleUpcoming(u)}
-                  >
-                    <View
-                      style={[
-                        styles.rankBadge,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.chipSelectedBorder,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.rankBadgeText,
-                          { color: theme.chipSelectedText },
-                        ]}
-                      >
-                        {idx + 1}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.rankedChipInner,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.chipSelectedBorder,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.rankedChipLabel,
-                          { color: theme.chipSelectedText },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {u}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-            <View style={styles.chipGroup}>
-              {UPCOMING_OPTIONS.filter(
-                (u) => !manualPreferences.upcoming.includes(u)
-              ).map((u) => (
-                <Chip
-                  key={u}
-                  label={u}
-                  selected={false}
-                  onPress={() => toggleUpcoming(u)}
-                />
-              ))}
-            </View>
             </CollapsiblePreferenceSection>
           </View>
         )}
@@ -1792,7 +1688,7 @@ const styles = StyleSheet.create({
   },
   goalRow: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     padding: 12,
     marginTop: 10,
   },
@@ -1863,7 +1759,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
   },
   advancedFiltersTitle: {
     fontSize: 16,
@@ -1877,7 +1773,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     gap: 20,
   },
@@ -1950,7 +1846,7 @@ const styles = StyleSheet.create({
   },
   savePresetInput: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.control,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
@@ -1980,7 +1876,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1.5,
   },
   profileRowText: {

@@ -8,8 +8,11 @@ import type {
   ManualPreferences,
   GeneratedWorkout,
   ExerciseDefinition,
-  SpecificBodyFocusKey,
 } from "./types";
+import {
+  resolveSessionBodyContractFromManual,
+  specificBodyFocusToGeneratorFocus,
+} from "./sessionBodyContract";
 import type { GymProfile } from "../data/gymProfiles";
 import { resolveEffectiveEquipment } from "./gymEquipment";
 import { resolveExerciseEquipmentRequired } from "./equipmentResolution";
@@ -177,8 +180,12 @@ function applyBodyEmphasisToMergedGoalSubFocus(
   goal_sub_focus: Record<string, string[]>;
   goal_sub_focus_weights: Record<string, number[]>;
 } {
-  // Spread mode: keep all selected sub-focuses even when they conflict with body emphasis.
-  if (sessionFocusDistribution === "spread") {
+  // Spread keeps conflicting sub-goal slugs in the input, but only when the session is
+  // already full-body. Region/Pattern/Muscle days keep their hard body contract.
+  if (
+    sessionFocusDistribution === "spread" &&
+    focusBodyParts.some((p) => String(p).toLowerCase().replace(/\s/g, "_") === "full_body")
+  ) {
     return { goal_sub_focus: goalSubFocus, goal_sub_focus_weights: goalSubFocusWeights };
   }
   const outFocus = { ...goalSubFocus };
@@ -396,49 +403,12 @@ function bodyPartFocusToGeneratorFocus(keys: string[]): FocusBodyPart[] {
   return out;
 }
 
-/**
- * Map specific body-focus keys (Pattern/Muscle day picks) to generator focus_body_parts.
- * Region tags gate movement families; muscle tags drive scoring via focusBodyPartToMuscles.
- */
-export function specificBodyFocusToGeneratorFocus(
-  keys: readonly SpecificBodyFocusKey[] | null | undefined
-): FocusBodyPart[] {
-  if (!keys?.length) return [];
-  // Prefer the first key (week planner sets one primary specific focus per day).
-  const key = keys[0]!;
-  switch (key) {
-    case "core":
-      return ["core"];
-    case "push":
-      return ["upper_push"];
-    case "pull":
-      return ["upper_pull"];
-    case "chest":
-      return ["upper_push", "chest"];
-    case "back":
-      return ["upper_pull", "back"];
-    case "shoulders":
-      return ["upper_push", "shoulders"];
-    case "arms":
-      // Bi + tri span push and pull families.
-      return ["upper_push", "upper_pull", "arms"];
-    case "legs":
-      return ["lower", "legs"];
-    case "glutes":
-      return ["lower", "posterior", "glutes"];
-    case "quad":
-      return ["lower", "quad"];
-    case "posterior":
-      return ["lower", "posterior"];
-    default:
-      return [];
-  }
-}
+export { specificBodyFocusToGeneratorFocus };
 
-/** Prefer specificBodyFocus mapping; else targetBody + modifiers; else empty. */
+/** Mode-aware focus: Muscle chest is a hard gate; Region leftover chest clamps to Upper. */
 function resolveGeneratorFocusBodyParts(preferences: ManualPreferences): FocusBodyPart[] {
-  const fromSpecific = specificBodyFocusToGeneratorFocus(preferences.specificBodyFocus);
-  if (fromSpecific.length > 0) return fromSpecific;
+  const contract = resolveSessionBodyContractFromManual(preferences);
+  if (contract.focusBodyParts.length > 0) return contract.focusBodyParts;
 
   const bodyPartFromTarget = deriveBodyPartFocus(
     preferences.targetBody,
@@ -493,9 +463,8 @@ export function manualPreferencesToGenerateWorkoutInput(
 ): GenerateWorkoutInput {
   preferences = normalizeAthleticGoalPreferences(preferences);
   const durationMinutes = clampDuration(preferences.durationMinutes);
-  // Pattern/Muscle day picks set specificBodyFocus (chest, push, glutes, …). Those map directly
-  // to focus_body_parts (region gate + muscle emphasis tags). Region-only days still use
-  // targetBody + targetModifier. Core remains a Full/any override via specificBodyFocus=["core"].
+  // Session body contract (Region / Pattern / Muscle) is the hard gate. Spread must not
+  // rewrite it to full_body — that was dropping Chest/Push days into mixed sessions.
   const bodyPartFromTargetOrSpecific = resolveGeneratorFocusBodyParts(preferences);
   const subFocusByGoalSanitized = normalizeSubFocusByGoalAgainstConditioningPolicy(
     preferences.subFocusByGoal ?? {}
@@ -504,17 +473,10 @@ export function manualPreferencesToGenerateWorkoutInput(
   const bodyPartFromSubFocus = bodyPartFocusToGeneratorFocus(
     deriveBodyPartFocusFromSubFocus(subFocus)
   );
-  const focus_body_parts_raw =
+  const focus_body_parts =
     bodyPartFromTargetOrSpecific.length > 0
       ? bodyPartFromTargetOrSpecific
       : bodyPartFromSubFocus;
-  // Spread mode: allow all body regions in the session so conflicting sub-goals/goals can appear.
-  const focus_body_parts =
-    preferences.sessionFocusDistribution === "spread" &&
-    focus_body_parts_raw.length > 0 &&
-    !focus_body_parts_raw.includes("full_body")
-      ? (["full_body"] as FocusBodyPart[])
-      : focus_body_parts_raw;
   const normalizedFocusBodyParts: FocusBodyPart[] =
     focus_body_parts.length > 0 ? focus_body_parts : ["full_body"];
 

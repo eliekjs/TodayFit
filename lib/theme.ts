@@ -1,7 +1,14 @@
 import React, { createContext, useContext } from "react";
-import { Platform, useColorScheme } from "react-native";
+import { Platform, TextStyle, useColorScheme } from "react-native";
 
 const IS_NATIVE = Platform.OS !== "web";
+
+/**
+ * Flip to `false` to restore the previous gold/cream v1 look (palette and
+ * radii). Ethos styling should read this flag or the derived tokens so the
+ * visual pass can be redacted in one place.
+ */
+export const ETHOS_VISUAL_LANGUAGE = true;
 
 // TodayFit: dark teal chrome, frosted cards, teal primary / blue secondary — soft fills muted for legibility
 const todayFitPalette = {
@@ -27,6 +34,7 @@ const todayFitPalette = {
   chipSelectedText: "#ccfbf1",
   chipSelectedBorder: "#14b8a6",
   danger: "#f87171",
+  onPrimary: "#f8fafc",
 };
 
 // Slightly heavier frost + contrast for system dark mode
@@ -79,7 +87,8 @@ type ThemeOverrideProviderProps = {
   children: React.ReactNode;
 };
 
-export const cleanFlowPalette: Theme = {
+/** Previous v1 gold/cream palette. Restored when `ETHOS_VISUAL_LANGUAGE` is false. */
+export const cleanFlowGoldPalette: Theme = {
   background: "#f7f3ec",
   card: "#fffdf8",
   cardOpaque: "#fffdf8",
@@ -98,6 +107,50 @@ export const cleanFlowPalette: Theme = {
   chipSelectedText: "#5f3d0e",
   chipSelectedBorder: "#b7791f",
   danger: "#b91c1c",
+  onPrimary: "#fffdf8",
+};
+
+/** Ethos-inspired cream + muted petrol teal. */
+export const cleanFlowEthosPalette: Theme = {
+  background: "#F7F5F1",
+  card: "#FFFEFA",
+  cardOpaque: "#FFFEFA",
+  sectionSurface: "#FFFEFA",
+  border: "rgba(28,25,23,0.10)",
+  borderStrong: "rgba(28,25,23,0.16)",
+  text: "#1C1917",
+  textMuted: "rgba(28,25,23,0.62)",
+  primary: "#0F6F73",
+  primarySolid: "#0B5B5E",
+  primarySoft: "rgba(15,111,115,0.12)",
+  secondary: "#D7E8E8",
+  secondarySoft: "rgba(15,111,115,0.09)",
+  chipBackground: "#FFFEFA",
+  chipSelectedBackground: "rgba(15,111,115,0.14)",
+  chipSelectedText: "#0B5B5E",
+  chipSelectedBorder: "#0F6F73",
+  danger: "#b91c1c",
+  onPrimary: "#FFFEFA",
+};
+
+export const cleanFlowPalette: Theme = ETHOS_VISUAL_LANGUAGE
+  ? cleanFlowEthosPalette
+  : cleanFlowGoldPalette;
+
+export const themeRadius = {
+  card: ETHOS_VISUAL_LANGUAGE ? 22 : 16,
+  modal: ETHOS_VISUAL_LANGUAGE ? 20 : 16,
+  control: 999,
+  button: ETHOS_VISUAL_LANGUAGE ? 999 : 12,
+} as const;
+
+export const themeType = {
+  label: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.85,
+    textTransform: "uppercase",
+  } satisfies TextStyle,
 };
 
 export function ThemeOverrideProvider({ theme, children }: ThemeOverrideProviderProps) {

@@ -36,10 +36,34 @@ export function modeChangeWouldOverrideDayBodyPicks(
 
 export type SubFocusConflictSummary = {
   displayNames: string[];
+  alignedNames: string[];
   dayRegion: DayBodyRegion;
   dayBodyLabel: string;
+  /** True when selected sub-goals include both upper and lower (keep both via Full body). */
+  spansBothRegions: boolean;
   message: string;
 };
+
+function formatNameList(names: string[], max = 3): string {
+  const shown = names.slice(0, max);
+  const extra = names.length > max ? "…" : "";
+  return `${shown.join(", ")}${extra}`;
+}
+
+/** Copy for mixed vs one-sided body vs sub-goal tension. Prefers Full body to keep mixed picks. */
+export function bodyVsSubFocusConflictMessage(opts: {
+  dayBodyLabel: string;
+  opposingNames: string[];
+  alignedNames: string[];
+  opposingRegion: "upper-body" | "lower-body";
+}): string {
+  const opposingList = formatNameList(opts.opposingNames);
+  if (opts.alignedNames.length > 0) {
+    const alignedList = formatNameList(opts.alignedNames);
+    return `Your sub-goals mix ${alignedList} with ${opposingList}, but this session is ${opts.dayBodyLabel}. Use Full body to keep both, or drop the ${opts.opposingRegion} picks so they match ${opts.dayBodyLabel}.`;
+  }
+  return `Your sub-goals (${opposingList}) are ${opts.opposingRegion}, but this session is ${opts.dayBodyLabel}. Use Full body to keep those sub-goals, or drop them so the session stays ${opts.dayBodyLabel}.`;
+}
 
 /** Sub-goals that conflict with a proposed day body choice (region-level). */
 export function summarizeBodyChoiceVsSubFocusConflict(
@@ -56,6 +80,7 @@ export function summarizeBodyChoiceVsSubFocusConflict(
     ...(subFocusByGoalOverride ?? {}),
   };
   const conflictingNames: string[] = [];
+  const alignedNames: string[] = [];
   for (const [goalLabel, displayNames] of Object.entries(subFocusByGoal)) {
     for (const name of displayNames) {
       const slug = resolveSubFocusSlugFromDisplayName(goalLabel, name);
@@ -64,32 +89,43 @@ export function summarizeBodyChoiceVsSubFocusConflict(
       if (!region) continue;
       if (subFocusRegionConflictsWithDay(region, dayRegion)) {
         conflictingNames.push(name);
+      } else if (region === "upper" || region === "lower") {
+        alignedNames.push(name);
       }
     }
   }
   if (conflictingNames.length === 0) return null;
 
-  const unique = [...new Set(conflictingNames)];
+  const uniqueConflicting = [...new Set(conflictingNames)];
+  const uniqueAligned = [...new Set(alignedNames)];
   const dayBodyLabel = bodyChoiceDisplayLabel(bodyChoiceId);
   const opposing = dayRegion === "upper" ? "lower-body" : "upper-body";
   return {
-    displayNames: unique,
+    displayNames: uniqueConflicting,
+    alignedNames: uniqueAligned,
     dayRegion,
     dayBodyLabel,
-    message: `Your sub-goals (${unique.slice(0, 3).join(", ")}${
-      unique.length > 3 ? "…" : ""
-    }) are ${opposing}, but this day would be ${dayBodyLabel}. Override those sub-goals for this day so they match ${dayBodyLabel}, or cancel and keep your current picks.`,
+    spansBothRegions: uniqueAligned.length > 0,
+    message: bodyVsSubFocusConflictMessage({
+      dayBodyLabel,
+      opposingNames: uniqueConflicting,
+      alignedNames: uniqueAligned,
+      opposingRegion: opposing,
+    }),
   };
 }
 
 /**
  * Map region-style resolution body ids (upper/lower/full) into the active
  * week body-focus vocabulary so "Switch to Lower" lands on Legs in muscle/pattern mode.
+ * Full body stays Full — Pattern/Muscle have no full-day chip; callers should switch
+ * weeklyBodyFocusMode to "region" when applying it.
  */
 export function mapBodyResolutionToMode(
   bodyId: DayBodyFocusChoiceId,
   mode: WeeklyBodyFocusMode
 ): DayBodyFocusChoiceId {
+  if (bodyId === "full" || bodyId === "core") return bodyId;
   if (mode === "region") return bodyId;
   if (mode === "pattern") {
     switch (bodyId) {
@@ -98,8 +134,6 @@ export function mapBodyResolutionToMode(
       case "lower":
       case "glutes":
         return "legs";
-      case "full":
-        return "push";
       case "chest":
       case "shoulders":
       case "arms":
@@ -110,7 +144,6 @@ export function mapBodyResolutionToMode(
         return bodyId;
     }
   }
-  // muscle
   switch (bodyId) {
     case "upper":
     case "push":
@@ -120,8 +153,6 @@ export function mapBodyResolutionToMode(
     case "lower":
     case "legs":
       return "legs";
-    case "full":
-      return "chest";
     default:
       return bodyId;
   }
@@ -185,6 +216,7 @@ export function applyDayBodyChoiceToManualPreferences(
   return {
     targetBody: bias.targetBody,
     targetModifier: bias.targetModifier,
+    // Always write the key so switching Region ← Muscle clears leftover chest/back tags.
     specificBodyFocus: bias.specificBodyFocus,
   };
 }

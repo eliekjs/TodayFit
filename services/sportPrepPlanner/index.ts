@@ -37,6 +37,7 @@ import {
 } from "../../lib/weekDaySessionFocus";
 import type { ManualPreferences } from "../../lib/types";
 import { mergeDaySubFocusOverride } from "../../lib/daySessionFocusConflict";
+import { sessionBiasFromDailyBodyOverride } from "../../lib/sessionBodyContract";
 import {
   buildSportDesignatedPlannedDay,
   getSportsOnCalendarDay,
@@ -359,43 +360,17 @@ function intentKeyFromDailyPreferences(prefs: DailyPrefs | null | undefined): In
 function bodyRegionBiasFromDailyPreferences(
   prefs: DailyPrefs | null | undefined
 ): { targetBody: "Upper" | "Lower" | "Full"; targetModifier: string[] } | undefined {
-  if (!prefs?.bodyRegionBias) return undefined;
-  let targetBody: "Upper" | "Lower" | "Full";
-  let targetModifier: string[] = [];
-  switch (prefs.bodyRegionBias) {
-    case "upper":
-      targetBody = "Upper";
-      break;
-    case "lower":
-      targetBody = "Lower";
-      break;
-    case "full":
-      targetBody = "Full";
-      break;
-    case "pull":
-      targetBody = "Upper";
-      targetModifier = ["Pull"];
-      break;
-    case "push":
-      targetBody = "Upper";
-      targetModifier = ["Push"];
-      break;
-    case "core":
-      targetBody = "Full";
-      break;
-    default:
-      return undefined;
-  }
-  const bodyKey = targetBody.toLowerCase() as "upper" | "lower" | "full";
-  const specific = prefs.specificBodyFocus ?? [];
-  for (const k of specific) {
-    if (!isSpecificFocusRelevantForBody(k, bodyKey)) continue;
-    const mods = SPECIFIC_FOCUS_TO_MODIFIER[k];
-    if (mods?.length && !targetModifier.some((m) => mods.includes(m))) {
-      targetModifier = [...targetModifier, ...mods];
-    }
-  }
-  return { targetBody, targetModifier };
+  const bias = sessionBiasFromDailyBodyOverride(prefs);
+  if (!bias) return undefined;
+  return { targetBody: bias.targetBody, targetModifier: bias.targetModifier };
+}
+
+function specificBodyFocusFromDailyPreferences(
+  prefs: DailyPrefs | null | undefined
+): import("../../lib/types").SpecificBodyFocusKey[] | undefined {
+  const fromOverride = sessionBiasFromDailyBodyOverride(prefs)?.specificBodyFocus;
+  if (fromOverride?.length) return fromOverride;
+  return prefs?.specificBodyFocus?.length ? [...prefs.specificBodyFocus] : undefined;
 }
 
 
@@ -966,6 +941,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
     const firstGymIdx = daySlots.findIndex((slot) => slot.type === "gym");
     if (firstGymIdx >= 0) {
       const slot = daySlots[firstGymIdx] as Extract<DaySlot, { type: "gym" }>;
+      const setupSpecific = specificBodyFocusFromDailyPreferences(input.dailyPreferences);
       daySlots[firstGymIdx] = {
         ...slot,
         dayBias: {
@@ -973,6 +949,7 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           targetBody: setupBodyOverride.targetBody,
           targetModifier: setupBodyOverride.targetModifier,
         },
+        ...(setupSpecific?.length ? { specificBodyFocus: setupSpecific } : {}),
       };
     }
   }
@@ -1290,6 +1267,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           : input.manualPreferences?.sessionFocusDistribution
             ? { sessionFocusDistribution: input.manualPreferences.sessionFocusDistribution }
             : {}),
+        ...(input.manualPreferences?.weeklyBodyFocusMode
+          ? { weeklyBodyFocusMode: input.manualPreferences.weeklyBodyFocusMode }
+          : {}),
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -2028,9 +2008,11 @@ export async function regenerateDay(
         recentLoad: input.recentLoad,
         injuries: input.injuries,
         bodyRegionBias,
-        ...(input.dailyPreferences?.specificBodyFocus?.length
-          ? { specificBodyFocus: [...input.dailyPreferences.specificBodyFocus] }
-          : {}),
+        ...(specificBodyFocusFromDailyPreferences(input.dailyPreferences)?.length
+          ? { specificBodyFocus: specificBodyFocusFromDailyPreferences(input.dailyPreferences) }
+          : input.dailyPreferences?.specificBodyFocus?.length
+            ? { specificBodyFocus: [...input.dailyPreferences.specificBodyFocus] }
+            : {}),
         workoutTier: resolvedWorkoutTier,
         includeCreativeVariations: resolvedIncludeCreative,
         volumePreference:
@@ -2060,6 +2042,9 @@ export async function regenerateDay(
           : {}),
         ...(dayFocusOverrides.goalWeightsOverride?.length
           ? { goalWeightsOverride: dayFocusOverrides.goalWeightsOverride }
+          : {}),
+        ...(input.manualPreferences?.weeklyBodyFocusMode
+          ? { weeklyBodyFocusMode: input.manualPreferences.weeklyBodyFocusMode }
           : {}),
         regenerationAvoidExerciseIds:
           input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
@@ -2181,9 +2166,11 @@ export async function regenerateDay(
       recentLoad: input.recentLoad,
       injuries: input.injuries,
       bodyRegionBias,
-      ...(input.dailyPreferences?.specificBodyFocus?.length
-        ? { specificBodyFocus: [...input.dailyPreferences.specificBodyFocus] }
-        : {}),
+      ...(specificBodyFocusFromDailyPreferences(input.dailyPreferences)?.length
+        ? { specificBodyFocus: specificBodyFocusFromDailyPreferences(input.dailyPreferences) }
+        : input.dailyPreferences?.specificBodyFocus?.length
+          ? { specificBodyFocus: [...input.dailyPreferences.specificBodyFocus] }
+          : {}),
       workoutTier: resolvedWorkoutTier,
       includeCreativeVariations: resolvedIncludeCreative,
       volumePreference:
@@ -2213,6 +2200,9 @@ export async function regenerateDay(
         : {}),
       ...(dayFocusOverrides.goalWeightsOverride?.length
         ? { goalWeightsOverride: dayFocusOverrides.goalWeightsOverride }
+        : {}),
+      ...(input.manualPreferences?.weeklyBodyFocusMode
+        ? { weeklyBodyFocusMode: input.manualPreferences.weeklyBodyFocusMode }
         : {}),
       regenerationAvoidExerciseIds:
         input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,

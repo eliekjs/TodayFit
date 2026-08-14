@@ -13,7 +13,11 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useTheme } from "../../../lib/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { themeRadius, useTheme } from "../../../lib/theme";
+import { SectionLabel } from "../../../components/SectionLabel";
+import { PillTabs } from "../../../components/PillTabs";
+import { IconWell } from "../../../components/IconWell";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { Card } from "../../../components/Card";
@@ -53,6 +57,7 @@ export default function GymProfilesScreen() {
   } = useAppState();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [profileTab, setProfileTab] = useState<"account" | "gyms">("account");
   const [showAddSpaceTypes, setShowAddSpaceTypes] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -202,63 +207,71 @@ export default function GymProfilesScreen() {
           </View>
         )}
 
-        <Text style={[styles.sectionTitle, styles.profileInfoSectionTitle, { color: theme.text }]}>
-          Profile
-        </Text>
-        <Card title="Account">
-          {userId && (displayName ?? email) ? (
-            <>
-              {displayName != null && displayName !== "" && (
+        <PillTabs
+          tabs={[
+            { key: "account", label: "Account", icon: "person-outline" },
+            { key: "gyms", label: "Gyms", icon: "barbell-outline" },
+          ]}
+          value={profileTab}
+          onChange={setProfileTab}
+          style={{ marginBottom: 8 }}
+        />
+
+        {profileTab === "account" ? (
+          <>
+            <SectionLabel>Account</SectionLabel>
+            <Card title="Profile">
+              {userId && (displayName ?? email) ? (
                 <>
-                  <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Name</Text>
-                  <Text style={[styles.profileInfoValue, { color: theme.text }]}>{displayName}</Text>
+                  {displayName != null && displayName !== "" && (
+                    <>
+                      <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Name</Text>
+                      <Text style={[styles.profileInfoValue, { color: theme.text }]}>{displayName}</Text>
+                    </>
+                  )}
+                  {email != null && email !== "" && (
+                    <>
+                      <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Email</Text>
+                      <Text style={[styles.profileInfoValue, { color: theme.text }]}>{email}</Text>
+                    </>
+                  )}
+                  <PrimaryButton
+                    label="Sign out"
+                    variant="ghost"
+                    onPress={onSignOut}
+                    style={styles.signOutButton}
+                  />
+                  <PrimaryButton
+                    label="Delete account"
+                    variant="ghost"
+                    onPress={onDeleteAccount}
+                    style={styles.signOutButton}
+                  />
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 12 }}>
+                    Sign in to use SeshLogic and sync gyms, presets, and history.
+                  </Text>
+                  <PrimaryButton
+                    label="Sign in"
+                    variant="secondary"
+                    onPress={() => router.replace("/welcome")}
+                  />
                 </>
               )}
-              {email != null && email !== "" && (
-                <>
-                  <Text style={[styles.profileInfoLabel, { color: theme.textMuted }]}>Email</Text>
-                  <Text style={[styles.profileInfoValue, { color: theme.text }]}>{email}</Text>
-                </>
-              )}
-              <PrimaryButton
-                label="Sign out"
-                variant="ghost"
-                onPress={onSignOut}
-                style={styles.signOutButton}
-              />
-              <PrimaryButton
-                label="Delete account"
-                variant="ghost"
-                onPress={onDeleteAccount}
-                style={styles.signOutButton}
-              />
-            </>
-          ) : (
-            <>
-              <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 12 }}>
-                Sign in to use SeshLogic and sync gyms, presets, and history.
-              </Text>
-              <PrimaryButton
-                label="Sign in"
-                variant="secondary"
-                onPress={() => router.replace("/welcome")}
-              />
-            </>
-          )}
-        </Card>
+            </Card>
 
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Membership
-        </Text>
-        <Card title="Membership" subtitle="Free plan." />
-
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Gyms
-        </Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-          Workouts use equipment from your active profile.
-        </Text>
-        <View style={styles.profileList}>
+            <SectionLabel style={{ marginTop: 16 }}>Plan</SectionLabel>
+            <Card title="Membership" subtitle="Free plan." />
+          </>
+        ) : (
+          <>
+            <SectionLabel>Equipment</SectionLabel>
+            <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
+              Workouts use equipment from your active profile.
+            </Text>
+            <View style={styles.profileList}>
           {gymProfiles.map((profile) => {
             const isActive = profile.id === activeGymProfileId;
             const isExpanded = expandedId === profile.id;
@@ -274,6 +287,7 @@ export default function GymProfilesScreen() {
                     },
                   ]}
                 >
+                  <IconWell name="barbell-outline" size={18} wellSize={36} />
                   <Pressable
                     onPress={() => selectProfile(profile.id)}
                     style={styles.profileHeaderMain}
@@ -298,9 +312,11 @@ export default function GymProfilesScreen() {
                     hitSlop={8}
                     style={styles.expandButton}
                   >
-                    <Text style={{ color: theme.textMuted, fontSize: 20, fontWeight: "600" }}>
-                      {isExpanded ? "−" : "+"}
-                    </Text>
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={theme.textMuted}
+                    />
                   </Pressable>
                 </View>
 
@@ -447,6 +463,8 @@ export default function GymProfilesScreen() {
             </>
           )}
         </View>
+          </>
+        )}
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -460,15 +478,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     paddingBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    marginTop: 24,
-    marginBottom: 4,
-  },
-  profileInfoSectionTitle: {
-    marginTop: 0,
+    gap: 4,
   },
   profileInfoLabel: {
     fontSize: 12,
@@ -489,7 +499,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   profileList: {
-    marginTop: 20,
+    marginTop: 8,
     gap: 12,
   },
   profileBlock: {
@@ -499,9 +509,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
-    paddingLeft: 14,
-    paddingRight: 10,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    gap: 10,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
   },
   profileHeaderMain: {
@@ -526,8 +536,8 @@ const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderBottomWidth: 1,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    borderBottomLeftRadius: themeRadius.card,
+    borderBottomRightRadius: themeRadius.card,
     marginTop: -1,
     gap: 16,
   },
@@ -542,7 +552,7 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,

@@ -2,7 +2,7 @@
 
 **Status:** Active — update as items close. Created 2026-08-02.
 **Goal:** Closed, invite-only pilot (6–12 sport-literate testers, 10–14 days, signed-in required).
-**Related:** [SHIP_SPEC.md](./SHIP_SPEC.md), [SHIP_GAP_REGISTER.md](./SHIP_GAP_REGISTER.md), [AUTH_UX_IMPROVEMENT_PLAN.md](./AUTH_UX_IMPROVEMENT_PLAN.md), [PRODUCT_PRIORITIES.md](./PRODUCT_PRIORITIES.md)
+**Related:** [SHIP_SPEC.md](./SHIP_SPEC.md), [SHIP_GAP_REGISTER.md](./SHIP_GAP_REGISTER.md), [AUTH_UX_IMPROVEMENT_PLAN.md](./AUTH_UX_IMPROVEMENT_PLAN.md), [PRODUCT_PRIORITIES.md](./PRODUCT_PRIORITIES.md), [PILOT_WEB_AND_SECURITY.md](./PILOT_WEB_AND_SECURITY.md)
 
 **Status values:** `open` · `in_progress` · `decided` · `blocked` · `done` · `out_of_scope`
 
@@ -26,9 +26,9 @@ None of the catalog pools are chosen yet. We prepare evidence; Ellie decides.
 | D2 | **Pilot goals pool** | Per-goal maturity report: sub-goal fidelity (65-contract audit results by goal), weekly coverage | **decided (2026-08-13):** 6 goals incl. Recovery & Mobility; drop Calisthenics + Joint Health |
 | D3 | **Pilot exercise pool** | Catalog breakdown + trim to ~1000 core | **decided + applied (2026-08-12):** 1000 core / 1540 phase2 / niche+review gated off |
 | D4 | Week mode required for pilot (manual week vs sport week vs both) | Week-flow gap list (below) with per-mode fix cost | open |
-| D5 | Platforms (iOS only vs + Android vs + web) | Who the testers are and what they carry | open |
-| D6 | Build distribution (TestFlight vs Expo dev build vs web link) | Effort estimate per option | open |
-| D7 | Guest entry in pilot build (hide vs keep with honest copy) | — | open |
+| D5 | Platforms (iOS only vs + Android vs + web) | Who the testers are and what they carry | **proposed (2026-08-14):** web + iOS — invite-gated web first; iOS/TestFlight when Apple sign-in (2.10) is ready. Confirm to mark decided. |
+| D6 | Build distribution (TestFlight vs Expo dev build vs web link) | Effort estimate per option | **proposed (2026-08-14):** Cloudflare Pages on the new domain + Access PIN (see `docs/PILOT_WEB_AND_SECURITY.md`). TestFlight secondary. |
+| D7 | Guest entry in pilot build (hide vs keep with honest copy) | — | **proposed decided:** hide — Welcome has no guest CTA; `AuthGate` requires a session |
 | D8 | Pilot Supabase environment (current project vs separate pilot project) | Risk notes: test data mixing, migration drift | open |
 | D9 | Crash reporting in pilot build (Sentry yes/no) | Half-day wiring estimate | open |
 | D10 | App name | — | **decided (2026-08-12): SeshLogic** — see Phase 2.5 |
@@ -91,9 +91,9 @@ The working tree has a large uncommitted batch and **typecheck is currently red*
 
 | # | Item | Status |
 |---|------|--------|
-| 2.6 | Custom SMTP + verified sending domain (From: SeshLogic — pending R4 domain) | open |
+| 2.6 | Custom SMTP + verified sending domain (From: SeshLogic — pending R4 hostname + Resend) | open |
 | 2.7 | Confirm + reset email templates applied (script or dashboard paste) | open |
-| 2.8 | Password-reset redirect URL in Supabase Auth allowlist | open |
+| 2.8 | Password-reset redirect URL in Supabase Auth allowlist (set `PUBLIC_APP_ORIGIN`, re-run `configureSupabaseAuth.ts`) | open |
 | 2.9 | Apply `delete_own_account` migration (`npm run ship:apply-delete-account`) | open |
 
 **Exit:** Real-inbox smoke test passes: signup, confirm, wrong password, reset, resend, delete (account fully gone, can't log back in). Plus Apple sign-in round trip on device (2.10).
@@ -109,7 +109,7 @@ Rename the user-visible brand only. **Do not rename** the Expo `slug`, URL `sche
 | R1 | `app.json` display `name` → SeshLogic (keep `slug: todayfit`, `scheme: todayfit`) | eng | done (2026-08-12) |
 | R2 | In-app strings: welcome screen, profiles sign-in copy (auth copy map had no brand strings) | eng | done (2026-08-12) |
 | R3 | Auth email branding in `scripts/configureSupabaseAuth.ts` (subjects + bodies) — **must re-run the script / re-apply templates with 2.7 to take effect on Supabase** | eng | script updated (2026-08-12); apply pending 2.7 |
-| R4 | Pick + register domain / sender address for auth emails (feeds 2.6) | Ellie | open |
+| R4 | Pick + register domain / sender address for auth emails (feeds 2.6) | Ellie | **in_progress (2026-08-14):** domain purchased; hostname + DNS still needed — `docs/PILOT_WEB_AND_SECURITY.md` |
 | R5 | Docs sweep (PRODUCT_VOICE, tester brief) — non-blocking | eng | open |
 
 ---
@@ -164,12 +164,12 @@ Core finding: week generation works in-session, but the **active week lives in m
 
 | # | Item | Status |
 |---|------|--------|
-| 6.1 | Distribution set up per D6 (e.g. EAS build + TestFlight invite flow) — testers can actually install | open |
+| 6.1 | Distribution set up per D6 (Cloudflare Pages + Access + custom domain) — testers can actually open the app | in_progress (playbook + export/host files 2026-08-14; DNS/Access still Ellie) |
 | 6.2 | Crash reporting wired per D9 (release build only) | open |
 | 6.3 | Feature freeze: tag `pilot-rc1`; only pilot-blocker fixes after tag | open |
 | 6.4 | Device performance spot check: generate day + week on a mid-tier phone; loading UX acceptable | open |
 | 6.5 | Native smoke on pilot paths (auth, goal day, sport day, gym switch, train today, week continue incl. kill-app, delete on test account) | open |
-| 6.6 | Private privacy note for testers (what we store, how to delete) — store-grade hosting not required for closed pilot | open |
+| 6.6 | Private privacy note for testers (what we store, how to delete) — store-grade hosting not required for closed pilot | **done** — `docs/PILOT_TESTER_PRIVACY.md` |
 
 ---
 
@@ -217,3 +217,4 @@ OAuth (Google — Apple moved into Phase 2 on 2026-08-12) · billing/membership 
 | 2026-08-12 (eve+) | Wrote `docs/PRIORITY_SPORT_MAPPING_PLAN.md`: Phase 0 shared aerobic fix → Wave A snow → Wave B trail/xc/soccer → Wave C surfing → flip on when pools clear. |
 | 2026-08-12 (late) | **Priority 7 flipped on:** enrichment + Zone-2 staples + snowboard/xc/surfing engines; Your Gym pools clear; research note `docs/research/priority-sports-mapping-2026-08.md`; DB + `PILOT_SPORT_SLUGS` now 19 sports. |
 | 2026-08-13 | **D2 decided:** 6 pilot goals incl. Recovery & Mobility (drop Calisthenics + Joint Health). Recovery+training combo demotes Recovery to secondary cooldown (`lib/recoveryGoalRanking.ts`). Goal chips filtered via `PILOT_PRIMARY_FOCUS_LABELS`. |
+| 2026-08-14 | Domain purchased (R4 in progress). Proposed D5=web+iOS, D6=invite-gated Cloudflare Pages, D7=hide guest (already AuthGate). Playbook `docs/PILOT_WEB_AND_SECURITY.md`; tester privacy note 6.6; web export `single` + noindex; auth redirect helper reads `PUBLIC_APP_ORIGIN`. |

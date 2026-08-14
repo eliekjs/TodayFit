@@ -77,13 +77,35 @@ describe("detectDaySessionFocusConflict", () => {
     });
     expect(conflict).not.toBeNull();
     expect(conflict!.conflicting.map((c) => c.slug)).toContain("knee_health");
-    expect(conflict!.resolutions.some((r) => r.label === "Switch to Full body")).toBe(true);
+    expect(conflict!.resolutions.some((r) => r.id === "switch_full_body")).toBe(true);
+    expect(conflict!.resolutions[0]?.id).toBe("switch_full_body");
     expect(conflict!.resolutions.some((r) => r.label === "Switch to Lower body")).toBe(true);
     expect(
       conflict!.resolutions.some((r) =>
         r.label.includes("Shoulder Health") && r.label.includes("Upper body")
       )
     ).toBe(true);
+  });
+
+  it("recommends Full body first when a day mixes bench and squat-style sub-goals", () => {
+    const prefs = basePrefs({
+      primaryFocus: ["Build Strength"],
+      subFocusByGoal: {
+        "Build Strength": ["Squat", "Bench / Press"],
+      },
+    });
+    const conflict = detectDaySessionFocusConflict({
+      bodyFocusId: "upper",
+      focusPresetId: "single_goal",
+      manualPreferences: prefs,
+      adaptiveSetup: null,
+    });
+    expect(conflict).not.toBeNull();
+    expect(conflict!.message).toMatch(/Use Full body to keep both/);
+    expect(conflict!.resolutions[0]?.id).toBe("switch_full_body");
+    expect(conflict!.resolutions[0]?.bodyFocusId).toBe("full");
+    expect(conflict!.resolutions[0]?.label).toMatch(/Bench \/ Press/);
+    expect(conflict!.resolutions[0]?.label).toMatch(/Squat/);
   });
 
   it("no conflict for shoulder health on upper day", () => {
@@ -123,12 +145,11 @@ describe("detectDaySessionFocusConflict", () => {
       ],
     });
     expect(conflict).not.toBeNull();
+    expect(conflict!.resolutions[0]?.id).toBe("switch_full_body");
+    expect(conflict!.resolutions[0]?.label).toMatch(/Full body/);
     expect(
       conflict!.resolutions.some((r) => r.label.includes("Shoulder Health"))
     ).toBe(true);
-    expect(conflict!.resolutions[0]?.subFocusByGoalPatch).toEqual({
-      "Strength Training for Joint Health": ["Shoulder Health"],
-    });
   });
 
   it("offers emphasize other goal when it has upper subs", () => {

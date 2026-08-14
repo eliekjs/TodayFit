@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { Theme } from "../lib/theme";
+import { themeRadius } from "../lib/theme";
 import type { GoalDistributionStyle, WeeklyBodyFocusMode } from "../lib/types";
 import type { DayBodyFocusChoice, DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
 import type {
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   card: {
-    borderRadius: 14,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     padding: 14,
     marginBottom: 4,
@@ -410,7 +411,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
   },
   radioOuter: {

@@ -6,6 +6,7 @@
 
 import {
   DEFAULT_PRUNING_GATE_FLAGS,
+  type GeneratorEligibilityState,
   type PruningGateFeatureFlags,
 } from "../logic/exerciseLibraryCuration/generatorEligibilityTypes";
 import type { WorkoutTierPreference } from "./types";
@@ -60,4 +61,20 @@ export function getGenerationPruningGateFlags(
       tierDefaults.allow_review_exercises ??
       DEFAULT_PRUNING_GATE_FLAGS.allow_review_exercises,
   };
+}
+
+/**
+ * Eligibility states to request from Supabase for the generator catalog.
+ * `null` means fetch all active rows (gating off). Pilot defaults to core-only so we
+ * skip downloading phase2/niche rows that the pruning gate would discard anyway.
+ */
+export function eligibilityStatesForCatalogFetch(
+  flags: PruningGateFeatureFlags = getGenerationPruningGateFlags()
+): GeneratorEligibilityState[] | null {
+  if (!flags.enable_pruning_gating) return null;
+  const states: GeneratorEligibilityState[] = ["eligible_core"];
+  if (flags.allow_niche_exercises) states.push("eligible_niche");
+  if (flags.allow_phase2_exercises) states.push("eligible_phase2");
+  if (flags.allow_review_exercises) states.push("excluded_review");
+  return states;
 }

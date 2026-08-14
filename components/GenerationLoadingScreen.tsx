@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { AppScreenWrapper } from "./AppScreenWrapper";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 
 type Props = {
   message: string;
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   panel: {
     width: "100%",
     maxWidth: 360,
-    borderRadius: 16,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     paddingVertical: 36,
     paddingHorizontal: 24,
@@ -96,10 +96,10 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   title: {
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: "700",
     textAlign: "center",
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 14,
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
     paddingVertical: 9,
     paddingHorizontal: 20,
-    borderRadius: 20,
+    borderRadius: themeRadius.control,
     borderWidth: 1,
   },
   backButtonText: {

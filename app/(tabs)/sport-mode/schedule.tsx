@@ -35,7 +35,7 @@ import { StatusBar } from "expo-status-bar";
 import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
-import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
+import { SectionLabel } from "../../../components/SectionLabel";
 import { Chip } from "../../../components/Chip";
 import { DurationSlider } from "../../../components/DurationSlider";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
@@ -391,6 +391,9 @@ export default function AdaptiveScheduleScreen() {
             bodyFocusId: mapBodyResolutionToMode(resolution.bodyFocusId, bodyFocusMode),
           }
         : resolution;
+      if (mapped.bodyFocusId === "full" && bodyFocusMode !== "region") {
+        updateManualPreferences({ weeklyBodyFocusMode: "region" });
+      }
       applyDaySessionFocusResolution({
         dayIndex: dayIdx,
         resolution: mapped,
@@ -423,7 +426,7 @@ export default function AdaptiveScheduleScreen() {
         },
       });
     },
-    [daySessionFocusConflicts, manualPreferences.subFocusByGoal, bodyFocusMode]
+    [daySessionFocusConflicts, manualPreferences.subFocusByGoal, bodyFocusMode, updateManualPreferences]
   );
 
   const reseedBodyFocusForMode = useCallback(
@@ -868,9 +871,17 @@ export default function AdaptiveScheduleScreen() {
               visible={pendingBodySelect != null}
               title="Body focus conflicts with sub-goals"
               message={pendingBodySelect?.message ?? ""}
-              confirmLabel="Override sub-goals"
+              confirmLabel="Use Full body"
+              secondaryConfirmLabel="Drop conflicting sub-goals"
               onCancel={() => setPendingBodySelect(null)}
               onConfirm={() => {
+                if (!pendingBodySelect) return;
+                if (bodyFocusMode !== "region") {
+                  updateManualPreferences({ weeklyBodyFocusMode: "region" });
+                }
+                applyDayBodySelect(pendingBodySelect.dayIdx, "full", false);
+              }}
+              onSecondaryConfirm={() => {
                 if (!pendingBodySelect) return;
                 applyDayBodySelect(
                   pendingBodySelect.dayIdx,
@@ -928,6 +939,7 @@ export default function AdaptiveScheduleScreen() {
           <Text style={[styles.errorText, { color: theme.danger }]}>{error}</Text>
         ) : null}
 
+        <SectionLabel style={{ marginTop: 16 }}>Session</SectionLabel>
         <CollapsiblePreferenceSection
           title="Gym days"
           subtitle="Which days do you want gym workouts?"
@@ -952,6 +964,8 @@ export default function AdaptiveScheduleScreen() {
         </CollapsiblePreferenceSection>
 
         {selectedSportSlugs.length > 0 ? (
+          <>
+          <SectionLabel style={{ marginTop: 12 }}>Optional</SectionLabel>
           <CollapsiblePreferenceSection
             title="Sport days (optional)"
             subtitle="Optional: add sport days to help plan your week, or leave this blank. Overlap with gym days is fine."
@@ -986,6 +1000,7 @@ export default function AdaptiveScheduleScreen() {
               );
             })}
           </CollapsiblePreferenceSection>
+          </>
         ) : null}
 
         <CollapsiblePreferenceSection

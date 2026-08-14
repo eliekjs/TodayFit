@@ -36,11 +36,11 @@ export const DURATIONS = [20, 30, 45, 60, 75] as const;
 /** Core: energy level (single select). */
 export const ENERGY_LEVELS = ["Low", "Medium", "High"] as const;
 
-/** Advanced: volume preference (single select) — set/rep density dial. */
+/** Advanced: volume preference (single select) — Strength Focused / Balanced / High Volume. */
 export const VOLUME_PREFERENCE_OPTIONS = [
-  { value: "conservative", label: "Lower reps" },
-  { value: "standard", label: "Goal rep range" },
-  { value: "high_volume", label: "Higher reps" },
+  { value: "conservative", label: "Strength Focused" },
+  { value: "standard", label: "Balanced" },
+  { value: "high_volume", label: "High Volume" },
 ] as const;
 
 export type VolumePreferenceOptionValue =

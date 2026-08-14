@@ -11,7 +11,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
-import { useTheme } from "../../../lib/theme";
+import { themeRadius, useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { backLabelForPhase } from "../../../lib/sessionFlowNav";
@@ -31,7 +31,7 @@ import {
   type SetLogRow,
 } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { formatExerciseDisplayCue } from "../../../lib/exerciseDisplayCue";
+import { formatExerciseDisplayCue, withResolvedExerciseDescription } from "../../../lib/exerciseDisplayCue";
 import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
@@ -138,6 +138,7 @@ export default function ExecuteScreen() {
   );
 
   const [progress, setProgress] = useState<Record<string, ExerciseExecutionProgress>>({});
+  const [, setCuratedReady] = useState(false);
 
   const manualProgressRef = useRef(manualSessionProgress);
   manualProgressRef.current = manualSessionProgress;
@@ -147,7 +148,13 @@ export default function ExecuteScreen() {
   const lastPersistWorkoutIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    void ensureCuratedDescriptionsLoaded();
+    let cancelled = false;
+    void ensureCuratedDescriptionsLoaded().then(() => {
+      if (!cancelled) setCuratedReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -380,7 +387,9 @@ export default function ExecuteScreen() {
               completed: false,
               setsCompleted: 0,
             };
-            const setupText = formatExerciseDisplayCue(exercise);
+            const setupText = formatExerciseDisplayCue(
+              withResolvedExerciseDescription(exercise, getCuratedExerciseDescription)
+            );
             const isRounds = isTimeBasedPrescription(exercise);
             return (
               <View
@@ -401,15 +410,14 @@ export default function ExecuteScreen() {
                     style={[
                       styles.checkbox,
                       {
-                        borderColor: theme.border,
-                        backgroundColor: state.completed
-                          ? theme.primary
-                          : "transparent",
+                        borderColor: state.completed ? theme.primary : theme.borderStrong,
+                        backgroundColor: state.completed ? theme.primary : "transparent",
+                        borderStyle: state.completed ? "solid" : "dashed",
                       },
                     ]}
                   >
                     {state.completed && (
-                      <Text style={styles.checkboxMark}>✓</Text>
+                      <Text style={[styles.checkboxMark, { color: theme.onPrimary }]}>✓</Text>
                     )}
                   </Pressable>
                   <View style={{ flex: 1 }}>
@@ -550,9 +558,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   exerciseCard: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     gap: 4,
   },
@@ -568,24 +576,24 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1,
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 1,
   },
   checkboxMark: {
-    color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
   },
   exerciseName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
   },
   exerciseMeta: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 2,
   },
   setupButton: {

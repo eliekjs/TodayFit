@@ -15,6 +15,9 @@ type Props = {
   cancelLabel?: string;
   onCancel: () => void;
   onConfirm: () => void;
+  /** Optional extra action (e.g. drop conflicting sub-goals while keeping the new body pick). */
+  secondaryConfirmLabel?: string;
+  onSecondaryConfirm?: () => void;
 };
 
 export function BodyFocusOverrideModal({
@@ -25,6 +28,8 @@ export function BodyFocusOverrideModal({
   cancelLabel = "Cancel",
   onCancel,
   onConfirm,
+  secondaryConfirmLabel,
+  onSecondaryConfirm,
 }: Props) {
   const theme = useTheme();
   if (!visible) return null;
@@ -53,6 +58,14 @@ export function BodyFocusOverrideModal({
               style={{ flex: 1 }}
             />
           </View>
+          {secondaryConfirmLabel && onSecondaryConfirm ? (
+            <PrimaryButton
+              label={secondaryConfirmLabel}
+              variant="secondary"
+              compact
+              onPress={onSecondaryConfirm}
+            />
+          ) : null}
         </Pressable>
       </Pressable>
     </Modal>

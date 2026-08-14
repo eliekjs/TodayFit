@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import type { ExecutionProgress, GeneratedWorkout } from "../lib/types";
 import {
   buildWorkoutLogExercises,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   emptyBox: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     padding: 14,
   },
   emptyText: {
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   exerciseCard: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     padding: 12,
     gap: 8,
   },

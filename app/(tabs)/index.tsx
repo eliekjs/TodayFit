@@ -11,9 +11,13 @@ import {
 import { useRouter, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useAppState } from "../../context/AppStateContext";
-import { useTheme } from "../../lib/theme";
+import { themeRadius, useTheme } from "../../lib/theme";
+import { SectionLabel } from "../../components/SectionLabel";
+import { PillTabs } from "../../components/PillTabs";
+import { IconWell } from "../../components/IconWell";
+import { LinkPill } from "../../components/LinkPill";
+import { ChecklistRow } from "../../components/ChecklistRow";
 import { useAuth } from "../../context/AuthContext";
 import { AppScreenWrapper } from "../../components/AppScreenWrapper";
 import { GenerationLoadingScreen } from "../../components/GenerationLoadingScreen";
@@ -35,78 +39,35 @@ import {
   trainTodaySubtitleFromPreset,
 } from "../../lib/trainToday";
 
-type ActionCardProps = {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  title: string;
-  subtitle: string;
-  oneDayFlow: SessionFlow;
-  weekFlow: SessionFlow;
-  oneDayHref: string;
-  weekHref: string;
-  oneDayLabel?: string;
-  weekLabel?: string;
-  variant: "build" | "help";
-  theme: ReturnType<typeof useTheme>;
-  onNavigateFlow: (flow: SessionFlow, href: string) => void;
-};
+type BuilderMode = "goal" | "sport";
 
-function ActionCard({
-  icon,
-  title,
-  subtitle,
-  oneDayFlow,
-  weekFlow,
-  oneDayHref,
-  weekHref,
-  oneDayLabel = "One day",
-  weekLabel = "This week",
-  variant,
+function ReadyRing({
+  done,
+  total,
   theme,
-  onNavigateFlow,
-}: ActionCardProps) {
-  const accent = theme.primary;
-  const accentSoft = theme.primarySoft;
-
+}: {
+  done: number;
+  total: number;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  const complete = total > 0 && done >= total;
   return (
     <View
       style={[
-        styles.actionCard,
+        styles.readyRing,
         {
-          backgroundColor: theme.card,
-          borderColor: accentSoft,
+          borderColor: complete ? theme.primary : theme.border,
+          backgroundColor: complete ? theme.primarySoft : "transparent",
         },
       ]}
     >
-      <View style={[styles.actionCardIcon, { backgroundColor: accentSoft }]}>
-        <Ionicons name={icon} size={22} color={accent} />
-      </View>
-      <Text style={[styles.actionCardTitle, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.actionCardSubtitle, { color: theme.textMuted }]}>
-        {subtitle}
-      </Text>
-      <View style={styles.subButtons}>
-        <Pressable
-          style={({ pressed }) => [styles.subButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
-          onPress={() => onNavigateFlow(oneDayFlow, oneDayHref)}
-        >
-          <LinearGradient
-            colors={[theme.primary, theme.primarySolid]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.subButton}
-          >
-            <Text style={styles.subButtonText}>{oneDayLabel}</Text>
-          </LinearGradient>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.subButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
-          onPress={() => onNavigateFlow(weekFlow, weekHref)}
-        >
-          <View style={[styles.subButton, styles.subButtonSecondary]}>
-            <Text style={[styles.subButtonText, { color: theme.text }]}>{weekLabel}</Text>
-          </View>
-        </Pressable>
-      </View>
+      {complete ? (
+        <Ionicons name="checkmark" size={26} color={theme.primary} />
+      ) : (
+        <Text style={[styles.readyRingText, { color: theme.primary }]}>
+          {done}/{total}
+        </Text>
+      )}
     </View>
   );
 }
@@ -156,6 +117,7 @@ export default function HomeScreen() {
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
   const [flowConflict, setFlowConflict] = useState<SessionFlowConflict | null>(null);
   const [switchOpen, setSwitchOpen] = useState(false);
+  const [builderMode, setBuilderMode] = useState<BuilderMode>("goal");
   const trainTodayCancelledRef = useRef(false);
 
   useEffect(() => {
@@ -393,71 +355,120 @@ export default function HomeScreen() {
             { backgroundColor: theme.card, borderColor: theme.border },
           ]}
         >
-          <Text style={[styles.trainTodayTitle, { color: theme.text }]}>Train today</Text>
-          <Text style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}>
-            {trainTodayLabel}
-          </Text>
+          <View style={styles.trainTodayHero}>
+            <View style={styles.trainTodayCopy}>
+              <SectionLabel>Today</SectionLabel>
+              <Text style={[styles.trainTodayTitle, { color: theme.text }]}>
+                Train today
+              </Text>
+              <Text style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}>
+                {trainTodayLabel}
+              </Text>
+            </View>
+            <ReadyRing
+              done={[activeProfile != null, hasPresets, resolvedDefault != null].filter(Boolean).length}
+              total={3}
+              theme={theme}
+            />
+          </View>
           {canTrainToday ? (
             <Pressable
               style={({ pressed }) => [styles.trainTodayButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
               onPress={onTrainToday}
             >
-              <LinearGradient
-                colors={[theme.primary, theme.primarySolid]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.trainTodayButton}
+              <View
+                style={[
+                  styles.trainTodayButton,
+                  { backgroundColor: theme.primary },
+                ]}
               >
-                <Text style={styles.trainTodayButtonText}>Build today&apos;s workout</Text>
-              </LinearGradient>
+                <Text style={[styles.trainTodayButtonText, { color: theme.onPrimary }]}>
+                  Build today&apos;s workout
+                </Text>
+              </View>
             </Pressable>
           ) : (
-            <Text style={[styles.trainTodayHint, { color: theme.textMuted }]}>
-              Save a goal or sport setup as a preset to enable one-tap Train today.
-            </Text>
+            <View style={styles.readyList}>
+              <Text style={[styles.trainTodayHint, { color: theme.textMuted }]}>
+                Finish these to unlock one-tap Train today.
+              </Text>
+              <ChecklistRow label="Gym profile" done={activeProfile != null} />
+              <ChecklistRow label="Saved preset" done={hasPresets} />
+              <ChecklistRow
+                label="Default for Train today"
+                done={resolvedDefault != null}
+              />
+            </View>
           )}
           {hasPresets ? (
-            <Pressable
-              style={({ pressed }) => [styles.switchRow, { opacity: pressed ? 0.85 : 1 }]}
+            <LinkPill
+              icon="swap-horizontal-outline"
+              label="Switch preset"
               onPress={() => setSwitchOpen(true)}
-            >
-              <Text style={[styles.switchLabel, { color: theme.primary }]}>Switch preset</Text>
-              <Ionicons name="swap-horizontal" size={16} color={theme.primary} />
-            </Pressable>
+            />
           ) : null}
-          <Pressable
-            style={({ pressed }) => [styles.manageRow, { opacity: pressed ? 0.85 : 1 }]}
+          <LinkPill
+            icon="settings-outline"
+            label="Manage presets"
             onPress={() => router.push("/presets")}
-          >
-            <Text style={[styles.manageLabel, { color: theme.textMuted }]}>Manage presets</Text>
-            <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
-          </Pressable>
+          />
         </View>
 
-        <ActionCard
-          icon="barbell-outline"
-          title="Goal-Oriented Training"
-          subtitle="Build workouts tailored to one or multiple goals (strength, physique, etc.)"
-          oneDayFlow="goal_day"
-          weekFlow="goal_week"
-          oneDayHref="/manual/preferences"
-          weekHref="/manual/preferences?scope=week"
-          variant="build"
-          theme={theme}
-          onNavigateFlow={onNavigateFlow}
+        <SectionLabel>Build a session</SectionLabel>
+        <PillTabs
+          tabs={[
+            { key: "goal", label: "Goal-Oriented", icon: "barbell-outline" },
+            { key: "sport", label: "Sport-Focused", icon: "sparkles-outline" },
+          ]}
+          value={builderMode}
+          onChange={setBuilderMode}
         />
-        <ActionCard
-          icon="sparkles-outline"
-          title="Sport-Focused Training"
-          subtitle="Gym work that complements your sport."
-          oneDayFlow="sport_day"
-          weekFlow="sport_week"
-          oneDayHref="/sport-mode?scope=day"
-          weekHref="/sport-mode"
-          variant="help"
-          theme={theme}
-          onNavigateFlow={onNavigateFlow}
-        />
+        <View
+          style={[
+            styles.builderCard,
+            { backgroundColor: theme.card, borderColor: theme.border },
+          ]}
+        >
+          <View style={styles.builderHeader}>
+            <IconWell
+              name={builderMode === "goal" ? "barbell-outline" : "sparkles-outline"}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.builderTitle, { color: theme.text }]}>
+                {builderMode === "goal"
+                  ? "Goal-Oriented Training"
+                  : "Sport-Focused Training"}
+              </Text>
+              <Text style={[styles.builderSubtitle, { color: theme.textMuted }]}>
+                {builderMode === "goal"
+                  ? "Gym work for strength, physique, and other goals."
+                  : "Gym work that complements your sport."}
+              </Text>
+            </View>
+          </View>
+          <LinkPill
+            icon="today-outline"
+            label="One day"
+            onPress={() => {
+              if (builderMode === "goal") {
+                onNavigateFlow("goal_day", "/manual/preferences");
+                return;
+              }
+              onNavigateFlow("sport_day", "/sport-mode?scope=day");
+            }}
+          />
+          <LinkPill
+            icon="calendar-outline"
+            label="This week"
+            onPress={() => {
+              if (builderMode === "goal") {
+                onNavigateFlow("goal_week", "/manual/preferences?scope=week");
+                return;
+              }
+              onNavigateFlow("sport_week", "/sport-mode");
+            }}
+          />
+        </View>
       </ScrollView>
     </AppScreenWrapper>
   );
@@ -476,10 +487,20 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   trainTodayCard: {
-    borderRadius: 18,
+    borderRadius: themeRadius.card,
     padding: 20,
     borderWidth: 1,
-    gap: 10,
+    gap: 12,
+  },
+  trainTodayHero: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  trainTodayCopy: {
+    flex: 1,
+    gap: 4,
   },
   trainTodayTitle: {
     fontSize: 20,
@@ -493,12 +514,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   trainTodayButton: {
-    borderRadius: 12,
+    borderRadius: themeRadius.control,
     paddingVertical: 14,
     alignItems: "center",
   },
   trainTodayButtonText: {
-    color: "#fffdf8",
     fontSize: 16,
     fontWeight: "700",
   },
@@ -506,23 +526,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
-  switchRow: {
-    flexDirection: "row",
+  readyList: {
+    gap: 8,
+  },
+  readyRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
     alignItems: "center",
-    gap: 6,
-    marginTop: 2,
+    justifyContent: "center",
   },
-  switchLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  manageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  manageLabel: {
+  readyRingText: {
     fontSize: 13,
+    fontWeight: "700",
+  },
+  builderCard: {
+    borderRadius: themeRadius.card,
+    padding: 20,
+    borderWidth: 1,
+    gap: 16,
+  },
+  builderHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  builderTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+  },
+  builderSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+    lineHeight: 20,
   },
   modalBackdrop: {
     flex: 1,
@@ -535,7 +572,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 400,
     maxHeight: "70%",
-    borderRadius: 16,
+    borderRadius: themeRadius.modal,
     borderWidth: 1,
     padding: 18,
     gap: 12,
@@ -553,7 +590,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     paddingVertical: 12,
     paddingHorizontal: 14,
     marginBottom: 8,
@@ -569,58 +606,5 @@ const styles = StyleSheet.create({
   modalClose: {
     alignItems: "center",
     paddingVertical: 6,
-  },
-  actionCard: {
-    borderRadius: 22,
-    paddingVertical: 24,
-    paddingHorizontal: 20,
-    gap: 12,
-    borderWidth: 1,
-    backgroundColor: "#fffdf8",
-  },
-  actionCardIcon: {
-    alignSelf: "center",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  actionCardTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  actionCardSubtitle: {
-    fontSize: 14,
-    textAlign: "center",
-    opacity: 0.9,
-  },
-  subButtons: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 10,
-    justifyContent: "center",
-  },
-  subButtonWrap: {
-    minWidth: 118,
-  },
-  subButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  subButtonSecondary: {
-    backgroundColor: "#fffdf8",
-    borderWidth: 1,
-    borderColor: "rgba(44,38,32,0.12)",
-  },
-  subButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#fffdf8",
   },
 });

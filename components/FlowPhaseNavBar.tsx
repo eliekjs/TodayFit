@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import type { FlowNavAction } from "../lib/sessionFlowNav";
 
 export type FlowPhaseNavBarProps = {
@@ -102,16 +102,24 @@ export function FlowPhaseNavBar({
           ]}
         >
           {forward.loading ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <ActivityIndicator size="small" color={theme.onPrimary} />
           ) : (
             <>
               <Text
-                style={[styles.forwardLabel, compact && styles.forwardLabelCompact]}
+                style={[
+                  styles.forwardLabel,
+                  compact && styles.forwardLabelCompact,
+                  { color: theme.onPrimary },
+                ]}
                 numberOfLines={1}
               >
                 {forward.label}
               </Text>
-              <Ionicons name="chevron-forward" size={compact ? 16 : 18} color="#fff" />
+              <Ionicons
+                name="chevron-forward"
+                size={compact ? 16 : 18}
+                color={theme.onPrimary}
+              />
             </>
           )}
         </Pressable>
@@ -202,7 +210,7 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 12,
     paddingVertical: 11,
-    borderRadius: 12,
+    borderRadius: themeRadius.control,
     borderWidth: 1,
     minWidth: 96,
     maxWidth: "38%",
@@ -210,7 +218,7 @@ const styles = StyleSheet.create({
   backBtnCompact: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: themeRadius.control,
     minWidth: 88,
   },
   backSpacer: {
@@ -232,17 +240,16 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 16,
     paddingVertical: 11,
-    borderRadius: 12,
+    borderRadius: themeRadius.control,
     minHeight: 44,
   },
   forwardBtnCompact: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: themeRadius.control,
     minHeight: 40,
   },
   forwardLabel: {
-    color: "#fff",
     fontSize: 15,
     fontWeight: "600",
     flexShrink: 1,

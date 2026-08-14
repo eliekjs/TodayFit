@@ -1,4 +1,6 @@
 import type { WorkoutItem } from "./types";
+import { listGoalPrescriptionCoachingCues } from "./generation/prescriptionRules";
+import { BODY_RECOMP_CUES } from "./workoutRules";
 
 /** Max sentences for in-app exercise help copy (catalog + display). */
 export const MAX_EXERCISE_DESCRIPTION_SENTENCES = 4;
@@ -8,6 +10,9 @@ export const MAX_EXERCISE_DESCRIPTION_SENTENCE_CHARS = 140;
 
 /** Session prescription fallbacks — not exercise-specific setup copy. */
 const GENERIC_PRESCRIPTION_COACHING_CUES = new Set([
+  ...listGoalPrescriptionCoachingCues(),
+  BODY_RECOMP_CUES.strength,
+  BODY_RECOMP_CUES.cardio,
   "Controlled, full range of motion. Breathe steadily.",
   "Controlled, full range of motion.",
   "Focus on form and control. Quality over weight.",
@@ -15,22 +20,34 @@ const GENERIC_PRESCRIPTION_COACHING_CUES = new Set([
   "Explosive intent. Quality over volume.",
   "Steady effort. Keep heart rate in target zone.",
   "Controlled tempo. Muscular balance.",
+  /** Legacy wording; keep so older sessions still hide this cue. */
   "Heavy, controlled. Full lockout.",
+  "Heavy load, controlled tempo. Full lockout.",
   "Moderate load. Squeeze at peak contraction.",
+  "Moderate load. Controlled tempo.",
   "Controlled tempo.",
   "Slow, controlled breathing.",
   "Mobility, breathing, stability. Light band work.",
+  "Explosive, controlled.",
+  "High intensity. Rest 45 s between rounds.",
+  "Short interval rounds with recovery between efforts.",
 ]);
 
 export function isGenericPrescriptionCoachingCue(text: string | null | undefined): boolean {
   const normalized = text?.trim();
   if (!normalized) return false;
   if (GENERIC_PRESCRIPTION_COACHING_CUES.has(normalized)) return true;
-  return /^Controlled, full range of motion/i.test(normalized);
+  if (/^Controlled, full range of motion/i.test(normalized)) return true;
+  // Zone-2 / steady cardio cues often append HR guidance to a base prescription line.
+  if (/^Steady(?:, lower-intensity)? effort\b/i.test(normalized)) return true;
+  if (/^Lower intensity\. Focus on time under tension/i.test(normalized)) return true;
+  return false;
 }
 
 /**
- * User-facing line under an exercise row: curated description first, else session prescription cue.
+ * User-facing setup help: catalog description first, else a non-generic prescription cue.
+ * Callers that have curated copy should set `item.exercise_description` (or pass it via
+ * {@link withResolvedExerciseDescription}) before calling this.
  */
 export function formatExerciseDisplayCue(item: WorkoutItem): string | null {
   const desc = item.exercise_description?.trim();
@@ -38,6 +55,18 @@ export function formatExerciseDisplayCue(item: WorkoutItem): string | null {
   const cues = item.coaching_cues?.trim();
   if (cues && !isGenericPrescriptionCoachingCue(cues)) return cues;
   return null;
+}
+
+/** Prefer item description, then curated slug copy (when loaded). */
+export function withResolvedExerciseDescription(
+  item: WorkoutItem,
+  curatedLookup: (slug: string) => string | undefined
+): WorkoutItem {
+  const existing = item.exercise_description?.trim();
+  if (existing && !isGeneratedExerciseDescriptionStub(existing)) return item;
+  const curated = curatedLookup(item.exercise_id)?.trim();
+  if (!curated) return item;
+  return { ...item, exercise_description: curated };
 }
 
 /** Old DB backfills used terse, machine-generated stubs that are not useful as coaching copy. */

@@ -60,6 +60,11 @@ import {
   isAllowedSteadyStateConditioning,
   type EnergyLevel,
 } from "../../lib/generation/prescriptionRules";
+import {
+  inferStrengthVolumeRole,
+  getVolumeRoleSpec,
+  type StrengthVolumeRole,
+} from "../../lib/generation/volumeRoleRanges";
 import { getBestSubstitute } from "../../lib/generation/exerciseSubstitution";
 import { resolveWorkoutConstraints } from "../workoutIntelligence/constraints/resolveWorkoutConstraints";
 import type { ResolvedWorkoutConstraints } from "../workoutIntelligence/constraints/constraintTypes";
@@ -163,6 +168,12 @@ import {
   filterSubFocusSlugsForBodyFocus,
 } from "./bodyFocusSubFocusFilter";
 import { isUpperOnlyFocusBodyParts } from "./upperHypertrophySessionGate";
+import {
+  canonSplitMuscleSlug,
+  matchesMuscleSplitEmphasis,
+  muscleSplitEmphasisFromFocusParts,
+  splitFocusPartToMuscles,
+} from "../../lib/splitMuscleMatching";
 import { allocateSlotsBySubFocusWeights } from "./slotAllocationHelpers";
 import {
   annotateSessionIntentLinksOnBlocks,
@@ -187,6 +198,7 @@ import {
   buildBlockIntentProfile,
   hypertrophyPrimaryExcludesConditioning,
 } from "./blockIntentProfile";
+import { applySessionBlockPresentation } from "./sessionBlockPresentation";
 import {
   buildConditioningIntentPool,
   conditioningPickAvoidIds,
@@ -1065,72 +1077,7 @@ function getExerciseTagSlugs(exercise: Exercise): Set<string> {
 
 /** Map focus_body_parts to canonical muscle slugs (ExRx-style; for body-part scoring and primary-match bonus). */
 function focusBodyPartToMuscles(focus: string): string[] {
-  const f = focus.toLowerCase().replace(/\s/g, "_");
-  if (f === "upper_push") return ["chest", "triceps", "shoulders"];
-  if (f === "upper_pull") return ["lats", "biceps", "upper_back"];
-  if (f === "upper_body") return ["chest", "triceps", "shoulders", "lats", "biceps", "upper_back"];
-  if (f === "lower" || f === "lower_body") return ["legs", "quads", "glutes", "hamstrings", "calves"];
-  if (f === "core") return ["core"];
-  if (f === "full_body") return ["legs", "quads", "glutes", "hamstrings", "calves", "core", "chest", "triceps", "shoulders", "lats", "biceps", "upper_back"];
-  // Muscle-day emphasis tags (Pattern/Muscle week modes)
-  if (f === "chest") return ["chest"];
-  if (f === "back") return ["lats", "upper_back", "back"];
-  if (f === "shoulders") return ["shoulders"];
-  if (f === "arms") return ["biceps", "triceps"];
-  if (f === "glutes") return ["glutes"];
-  if (f === "legs") return ["legs", "quads", "glutes", "hamstrings", "calves"];
-  if (f === "quad") return ["quads", "legs"];
-  if (f === "posterior") return ["glutes", "hamstrings"];
-  return [];
-}
-
-/** Muscle emphasis keys that narrow scoring preference beyond the region gate. */
-const MUSCLE_EMPHASIS_FOCUS_KEYS = new Set([
-  "chest",
-  "back",
-  "shoulders",
-  "arms",
-  "glutes",
-  "legs",
-]);
-
-function muscleEmphasisWantedMuscles(focusSet: Set<string>): Set<string> | null {
-  const wanted = new Set<string>();
-  for (const key of MUSCLE_EMPHASIS_FOCUS_KEYS) {
-    if (!focusSet.has(key)) continue;
-    for (const m of focusBodyPartToMuscles(key)) wanted.add(m);
-  }
-  return wanted.size > 0 ? wanted : null;
-}
-
-function exerciseMatchesMuscleEmphasis(
-  exercise: {
-    muscle_groups: string[];
-    primary_muscle_groups?: string[];
-    secondary_muscle_groups?: string[];
-    pairing_category?: string | null;
-    movement_pattern?: string | null;
-  },
-  focusSet: Set<string>
-): boolean {
-  const wanted = muscleEmphasisWantedMuscles(focusSet);
-  if (!wanted) return false;
-  const primary =
-    exercise.primary_muscle_groups ??
-    exercise.muscle_groups.filter((m) => !exercise.secondary_muscle_groups?.includes(m));
-  if (primary.some((m) => wanted.has(m.toLowerCase()))) return true;
-  if (exercise.muscle_groups.some((m) => wanted.has(m.toLowerCase()))) return true;
-  const pairing = (exercise.pairing_category ?? "").toLowerCase().replace(/\s/g, "_");
-  if (focusSet.has("chest") && pairing === "chest") return true;
-  if (focusSet.has("back") && (pairing === "back" || pairing === "lats")) return true;
-  if (focusSet.has("shoulders") && pairing === "shoulders") return true;
-  if (focusSet.has("arms") && (pairing === "biceps" || pairing === "triceps" || pairing === "arms"))
-    return true;
-  if (focusSet.has("glutes") && (pairing === "glutes" || pairing === "posterior_chain")) return true;
-  const pattern = (exercise.movement_pattern ?? "").toLowerCase();
-  if (focusSet.has("legs") && (pattern === "squat" || pattern === "hinge" || pattern === "lunge"))
-    return true;
-  return false;
+  return splitFocusPartToMuscles(focus);
 }
 
 export interface ScoreExerciseOptions {
@@ -1318,14 +1265,19 @@ export function scoreExercise(
   let bodyPartEmphasisBonus = 0;
   if (focusParts.length) {
     const focusSet = new Set(focusParts.map((f) => f.toLowerCase().replace(/\s/g, "_")));
-    const muscleEmphasis = muscleEmphasisWantedMuscles(focusSet);
-    // When a muscle-day tag is present, score against that muscle set; otherwise use full region muscles.
-    const wantedMuscles = muscleEmphasis
-      ? muscleEmphasis
-      : new Set(focusParts.flatMap(focusBodyPartToMuscles));
-    const primaryMuscles = exercise.primary_muscle_groups ?? exercise.muscle_groups.filter((m) => !exercise.secondary_muscle_groups?.includes(m));
+    const muscleEmphasis = muscleSplitEmphasisFromFocusParts(focusParts);
+    const wantedMuscles = new Set(
+      muscleEmphasis
+        ? splitFocusPartToMuscles(muscleEmphasis)
+        : focusParts.flatMap(focusBodyPartToMuscles)
+    );
+    const primaryMuscles = (
+      exercise.primary_muscle_groups ??
+      exercise.muscle_groups.filter((m) => !exercise.secondary_muscle_groups?.includes(m))
+    ).map(canonSplitMuscleSlug);
+    const allMuscles = exercise.muscle_groups.map(canonSplitMuscleSlug);
     const matchInPrimary = primaryMuscles.length > 0 && primaryMuscles.some((m) => wantedMuscles.has(m));
-    const matchInAny = exercise.muscle_groups.some((m) => wantedMuscles.has(m));
+    const matchInAny = allMuscles.some((m) => wantedMuscles.has(m));
     if (matchInAny) {
       bodyPartFocusScore += WEIGHT_BODY_PART;
     }
@@ -1342,11 +1294,13 @@ export function scoreExercise(
     if (focusSet.has("posterior") && (patternFocus === "hinge" || pairing === "posterior_chain")) {
       bodyPartEmphasisBonus += 0.8;
     }
-    // Pattern/Muscle week modes: chest/back/shoulders/arms/glutes/legs preference
-    if (muscleEmphasis && exerciseMatchesMuscleEmphasis(exercise, focusSet)) {
-      bodyPartEmphasisBonus += matchInPrimary ? 1.2 : 0.7;
-    } else if (muscleEmphasis) {
-      bodyPartEmphasisBonus -= 0.6;
+    // Muscle-mode days: require primary/pairing match so bench does not count as an arms exercise.
+    if (muscleEmphasis) {
+      if (matchesMuscleSplitEmphasis(exercise, muscleEmphasis)) {
+        bodyPartEmphasisBonus += matchInPrimary ? 1.2 : 0.7;
+      } else {
+        bodyPartEmphasisBonus -= 0.6;
+      }
     }
     applyToTotal(bodyPartFocusScore, "generic");
     applyToTotal(primaryMuscleMatchBonus, "generic");
@@ -1962,7 +1916,8 @@ function getPrescription(
   primaryGoal?: PrimaryGoal,
   isAccessory?: boolean,
   fatigueVolumeScale?: number,
-  userLevel?: UserLevel
+  userLevel?: UserLevel,
+  volumeRole?: StrengthVolumeRole
 ): { sets: number; reps?: number; time_seconds?: number; rest_seconds: number; coaching_cues: string } {
   const sessionInput = getActiveBlockFillInput();
   const rxCtx = sessionInput
@@ -1978,13 +1933,20 @@ function getPrescription(
   const feel = getActiveSessionPrescriptionFeel();
   const rules = adjustGoalRulesForSessionFeel(getGoalRules(goal), feel);
   const volumePreference = sessionInput?.volume_preference ?? "standard";
+  const resolvedVolumeRole =
+    volumeRole ??
+    inferStrengthVolumeRole({
+      blockType,
+      isAccessory: isAccessory ?? false,
+    });
   const strengthVolumeContext =
     goal === "strength" ||
     blockType === "main_strength" ||
     blockType === "main_hypertrophy" ||
     (isAccessory ?? false);
   const scaleSets = (s: number) => {
-    const minSets = strengthVolumeContext ? 3 : 1;
+    const minSets =
+      resolvedVolumeRole === "accessory" ? 2 : strengthVolumeContext ? 3 : 1;
     let n = fatigueVolumeScale != null && fatigueVolumeScale < 1
       ? Math.max(minSets, Math.round(s * fatigueVolumeScale))
       : s;
@@ -2056,8 +2018,27 @@ function getPrescription(
     intensity: "light" | "intense",
     cue: string
   ) => {
-    const repRange = getEffectiveRepRange(exercise, goalRepRange);
-    const { reps, baseSets } = resolveVolumePrescription(repRange, setRange, energyLevel, repSelection, volumePreference);
+    const roleSpec = resolvedVolumeRole
+      ? getVolumeRoleSpec(volumePreference, resolvedVolumeRole)
+      : null;
+    let tableReps = roleSpec?.reps ?? goalRepRange;
+    const tableSets = roleSpec?.sets ?? setRange;
+    // Goblet squats / DB RDLs stay in 8–12 when the volume table does not overlap.
+    if (roleSpec && exerciseUsesOnlyDumbbellsOrKettlebells(exercise)) {
+      const kb = { min: 8, max: 12 };
+      const overlapMin = Math.max(tableReps.min, kb.min);
+      const overlapMax = Math.min(tableReps.max, kb.max);
+      tableReps = overlapMin <= overlapMax ? { min: overlapMin, max: overlapMax } : kb;
+    }
+    const repRange = getEffectiveRepRange(exercise, tableReps);
+    const { reps, baseSets } = resolveVolumePrescription(
+      repRange,
+      tableSets,
+      energyLevel,
+      roleSpec ? "mid" : repSelection,
+      volumePreference,
+      { volumeRole: resolvedVolumeRole }
+    );
     return {
       sets: scaleSets(baseSets),
       reps,
@@ -5435,7 +5416,7 @@ function buildMainStrength(
         {
           exercise_id: exA.id,
           exercise_name: exA.name,
-          sets: Math.max(3, Math.min(pA.sets ?? 3, accessoryItemSetsCap)),
+          sets: Math.max(2, Math.min(pA.sets ?? 3, accessoryItemSetsCap)),
           reps: pA.reps,
           rest_seconds: pA.rest_seconds,
           coaching_cues: pA.coaching_cues,
@@ -5445,7 +5426,7 @@ function buildMainStrength(
         {
           exercise_id: exB.id,
           exercise_name: exB.name,
-          sets: Math.max(3, Math.min(pB.sets ?? 3, accessoryItemSetsCap)),
+          sets: Math.max(2, Math.min(pB.sets ?? 3, accessoryItemSetsCap)),
           reps: pB.reps,
           rest_seconds: pB.rest_seconds,
           coaching_cues: pB.coaching_cues,
@@ -5472,7 +5453,7 @@ function buildMainStrength(
           accessoryItems.push({
             exercise_id: coreCandidate.id,
             exercise_name: coreCandidate.name,
-            sets: Math.max(3, Math.min(pCore.sets ?? 3, accessoryItemSetsCap)),
+            sets: Math.max(2, Math.min(pCore.sets ?? 3, accessoryItemSetsCap)),
             reps: pCore.reps,
             rest_seconds: pCore.rest_seconds,
             coaching_cues: pCore.coaching_cues,
@@ -5863,7 +5844,7 @@ function pickConditioningExercise(
     candidatePool,
     preferredModalities,
     rng,
-    undefined,
+    preferredSubFocusSlugs,
     pickContext
   );
 }
@@ -6946,7 +6927,8 @@ function pickJointHealthSupportCandidates(pool: Exercise[]): Exercise[] {
 function pickBestFromPool(
   pool: Exercise[],
   rng: () => number,
-  pickContext?: ConditioningPickContext
+  pickContext?: ConditioningPickContext,
+  preferredSubFocusSlugs?: string[]
 ): Exercise | undefined {
   if (!pool.length) return undefined;
   const timeRank = (tc: Exercise["time_cost"]) => (tc === "low" ? 0 : tc === "medium" ? 1 : 2);
@@ -6956,8 +6938,8 @@ function pickBestFromPool(
   const topN = Math.min(sorted.length, Math.max(3, Math.min(10, Math.ceil(sorted.length / 3))));
   const top = sorted.slice(0, topN);
   return (
-    pickConditioningExerciseWithVariety(top, undefined, rng, undefined, pickContext) ??
-    top[Math.floor(rng() * top.length)]
+    pickConditioningExerciseWithVariety(top, undefined, rng, preferredSubFocusSlugs, pickContext) ??
+    (preferredSubFocusSlugs?.length ? undefined : top[Math.floor(rng() * top.length)])
   );
 }
 
@@ -7000,7 +6982,7 @@ function buildZone2SustainedMain(
   });
   const pickPool = pool.length ? pool : exercises.filter((e) => e.modality === "conditioning" && isExerciseAvailableForSession(e.id, used));
 
-  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used));
+  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used), ["zone2_aerobic_base"]);
   if (!c) return [];
   used.add(c.id);
 
@@ -7155,7 +7137,7 @@ function buildThresholdIntervalsMain(
     overlayFilter: conditioningProfile.overlayFilter,
   });
   const pickPool = pool.length ? pool : exercises.filter((e) => e.modality === "conditioning" && isExerciseAvailableForSession(e.id, used));
-  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used));
+  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used), ["threshold_tempo"]);
   if (!c) return [];
   used.add(c.id);
 
@@ -7215,7 +7197,7 @@ function buildHillsRepeatsMain(
   const hillBiasedPool = pickBase.filter((e) => isHillBiasExercise(e) || exerciseHasSubFocusSlug(e, "hills"));
   const pickPool = hillBiasedPool.length ? hillBiasedPool : pickBase;
 
-  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used));
+  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used), ["hills"]);
   if (!c) return [];
   used.add(c.id);
 
@@ -7767,9 +7749,9 @@ function blockTitleForGoal(
   }
   const base: Record<string, string> = {
     warmup: "Activation",
-    main_strength: "Main strength",
-    main_hypertrophy: "Main hypertrophy",
-    power: "Power block",
+    main_strength: isSecondaryGoalBlock ? "Secondary Strength" : "Primary Strength",
+    main_hypertrophy: "Hypertrophy",
+    power: "Power / Speed",
     accessory: "Accessory",
     conditioning: "Conditioning",
     cooldown: "Cooldown",
@@ -11211,7 +11193,7 @@ export function generateWorkoutSession(
         if (chosen.length > 0) {
           const strengthItems: WorkoutItem[] = chosen.map((e) => {
             used.add(e.id);
-            const p = getPrescription(e, "main_strength", input.energy_level, "strength", false, fatigueVolumeScale, input.style_prefs?.user_level);
+            const p = getPrescription(e, "main_strength", input.energy_level, "strength", false, fatigueVolumeScale, input.style_prefs?.user_level, "secondary");
             return {
               exercise_id: e.id,
               exercise_name: e.name,
@@ -12572,6 +12554,11 @@ export function generateWorkoutSession(
   annotateSessionIntentLinksOnBlocks(mergedBlocks, input, sessionIntentExerciseById);
 
   mergedBlocks = ensureCooldownIsLastBlock(mergedBlocks);
+
+  applySessionBlockPresentation(
+    mergedBlocks,
+    sessionIntentExerciseById as Map<string, { muscle_groups?: string[]; pairing_category?: string; modality?: string; tags?: { attribute_tags?: string[] } }>
+  );
 
   const session: WorkoutSession = {
     title: sessionTitle(input),

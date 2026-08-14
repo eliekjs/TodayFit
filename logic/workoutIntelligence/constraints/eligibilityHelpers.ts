@@ -11,6 +11,7 @@ import {
   useDifferentBarbellStations,
 } from "../supersetPairing";
 import { normalizedMuscleSlugSet } from "../../../lib/ontology/muscleSlugs";
+import { matchesMuscleSplitEmphasis } from "../../../lib/splitMuscleMatching";
 
 const VALID_MOVEMENT_FAMILIES: MovementFamily[] = [
   "upper_push", "upper_pull", "lower_body", "core", "mobility", "conditioning",
@@ -244,6 +245,10 @@ export function matchesBodyPartFocus(
     const lowerAllowed = constraints.allowed_movement_families!.includes("lower_body");
     if (lowerAllowed && families.includes("lower_body") && !matchesLowerBodyEmphasis(exercise, emphasis))
       return false;
+  }
+  const muscleEmphasis = constraints.allowed_muscle_emphasis;
+  if (muscleEmphasis) {
+    if (!matchesMuscleSplitEmphasis(exercise, muscleEmphasis)) return false;
   }
   return true;
 }

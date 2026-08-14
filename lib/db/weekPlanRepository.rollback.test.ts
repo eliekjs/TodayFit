@@ -128,4 +128,48 @@ describe("manual plan rollback behavior", () => {
     expect(workoutsDeleteEqIdMock).toHaveBeenCalledWith("id", "w-3");
     expect(workoutsDeleteEqUserMock).toHaveBeenCalledWith("user_id", "user-2");
   });
+
+  it("stores the chosen name on week and day saves", async () => {
+    const dayInsertMock = vi.fn().mockResolvedValue({ error: null });
+    const capturedSnapshots: Record<string, unknown>[] = [];
+    const instanceInsertMock = vi.fn((row: { goals_snapshot: Record<string, unknown> }) => {
+      capturedSnapshots.push(row.goals_snapshot);
+      return {
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: "instance-named" }, error: null }),
+        }),
+      };
+    });
+
+    getSupabaseMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "weekly_plan_instances") {
+          return { insert: instanceInsertMock };
+        }
+        if (table === "weekly_plan_days") {
+          return { insert: dayInsertMock };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+    saveGeneratedWorkoutMock.mockResolvedValue("w-named");
+
+    await saveManualWeek(
+      "user-3",
+      "2026-04-20",
+      [{ date: "2026-04-20", workout: makeWorkout("generated-d") }],
+      { name: "Peak week", source: "adaptive" }
+    );
+    await saveManualDay("user-3", "2026-04-22", makeWorkout("generated-e"), {
+      name: "Speed day",
+      source: "manual",
+    });
+
+    expect(capturedSnapshots[0]).toEqual({ source: "adaptive", name: "Peak week" });
+    expect(capturedSnapshots[1]).toEqual({
+      source: "manual",
+      name: "Speed day",
+      singleDay: true,
+    });
+  });
 });

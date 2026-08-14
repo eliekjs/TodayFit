@@ -43,7 +43,7 @@ const RULE_KEY_GOAL_LABEL: Record<string, string> = {
 
 export type VolumePreferenceOptionCopy = {
   value: VolumePreference;
-  /** Short chip / summary label (rep-count framing). */
+  /** Short chip / summary label. */
   label: string;
   /** One-line explanation with goal-specific rep guidance. */
   description: string;
@@ -86,24 +86,27 @@ export function formatRepRange(min: number, max: number): string {
   return `${min}–${max}`;
 }
 
-/** Soften a range toward the low or high end for conservative / high-volume copy. */
-function biasedRepRange(
-  min: number,
-  max: number,
-  bias: "low" | "high"
-): { min: number; max: number } {
-  if (min === max) return { min, max };
-  const span = max - min;
-  if (bias === "low") {
-    const softMax = Math.max(min, Math.round(min + span * 0.4));
-    return { min, max: softMax };
-  }
-  const softMin = Math.min(max, Math.round(min + span * 0.6));
-  return { min: softMin, max };
-}
+const STRENGTH_VOLUME_OPTIONS: VolumePreferenceOptionCopy[] = [
+  {
+    value: "conservative",
+    label: "Strength Focused",
+    description: "Primary 3–5 × 3–6 · Secondary ~3 × 5–8 · Accessory 2–3 × 8–12",
+  },
+  {
+    value: "standard",
+    label: "Balanced",
+    description: "Primary 3–4 × 5–8 · Secondary ~3 × 8–10 · Accessory 2–3 × 10–15",
+  },
+  {
+    value: "high_volume",
+    label: "High Volume",
+    description: "Primary 3–4 × 6–10 · Secondary 3–4 × 8–12 · Accessory 3–4 × 12–15+",
+  },
+];
 
 /**
- * Build the three volume options with rep-count framing and a goal-recommended range.
+ * Build the three volume options. Strength / muscle / mixed sessions use programming
+ * profiles; mobility / time-based goals keep density language.
  */
 export function volumePreferenceOptionsForGoals(args: {
   primaryFocus?: string[] | null;
@@ -113,49 +116,29 @@ export function volumePreferenceOptionsForGoals(args: {
   const ruleKey = resolveVolumeRuleKey(args);
   const rules = getGoalRules(ruleKey);
   const { min, max } = rules.repRange;
-  const recommended = formatRepRange(min, max);
   const goalPhrase = RULE_KEY_GOAL_LABEL[ruleKey] ?? "your goals";
-  const low = biasedRepRange(min, max, "low");
-  const high = biasedRepRange(min, max, "high");
 
-  // Mobility / time-based: talk about density rather than classic hypertophy reps.
   if (ruleKey === "mobility" || (min === 1 && max === 1)) {
     return [
       {
         value: "conservative",
-        label: "Fewer sets",
+        label: "Strength Focused",
         description: "Shorter holds and fewer rounds — lighter session density.",
       },
       {
         value: "standard",
-        label: "Standard density",
+        label: "Balanced",
         description: `Recommended for ${goalPhrase}: controlled holds and easy rounds.`,
       },
       {
         value: "high_volume",
-        label: "More sets",
+        label: "High Volume",
         description: "Extra rounds and longer holds when you want more volume.",
       },
     ];
   }
 
-  return [
-    {
-      value: "conservative",
-      label: "Lower reps",
-      description: `Fewer sets · aim ~${formatRepRange(low.min, low.max)} reps (low end of ${recommended}).`,
-    },
-    {
-      value: "standard",
-      label: "Goal rep range",
-      description: `Recommended for ${goalPhrase}: ${recommended} reps.`,
-    },
-    {
-      value: "high_volume",
-      label: "Higher reps",
-      description: `More sets · aim ~${formatRepRange(high.min, high.max)} reps (high end of ${recommended}).`,
-    },
-  ];
+  return STRENGTH_VOLUME_OPTIONS;
 }
 
 export function volumePreferenceDisplayLabel(
@@ -168,7 +151,7 @@ export function volumePreferenceDisplayLabel(
 ): string {
   const options = volumePreferenceOptionsForGoals(args ?? {});
   const pref = value ?? "standard";
-  return options.find((o) => o.value === pref)?.label ?? "Goal rep range";
+  return options.find((o) => o.value === pref)?.label ?? "Balanced";
 }
 
 /** Section subtitle under Volume preference. */
@@ -179,10 +162,8 @@ export function volumePreferenceSectionSubtitle(args: {
 }): string {
   const ruleKey = resolveVolumeRuleKey(args);
   const rules = getGoalRules(ruleKey);
-  const recommended = formatRepRange(rules.repRange.min, rules.repRange.max);
-  const goalPhrase = RULE_KEY_GOAL_LABEL[ruleKey] ?? "your goals";
   if (ruleKey === "mobility" || (rules.repRange.min === 1 && rules.repRange.max === 1)) {
-    return `Pick how dense you want holds and rounds. Recommended for ${goalPhrase}: controlled, easy density.`;
+    return `How dense holds and rounds should feel. High Volume is extra density, not a hypertrophy goal.`;
   }
-  return `Pick the rep counts you want. Recommended for ${goalPhrase}: ${recommended} reps.`;
+  return "How much strength work to do. High Volume is a volume preference, not a Build Muscle goal. Power, conditioning, and support work keep their own prescriptions.";
 }

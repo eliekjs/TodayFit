@@ -125,6 +125,11 @@ export interface ResolvedWorkoutConstraints {
    * knee-dominant (quad) vs hip-dominant (posterior) emphasis. Undefined = any lower exercise.
    */
   allowed_lower_body_emphasis?: "quad" | "posterior" | null;
+  /**
+   * Muscle-mode day emphasis (chest/back/shoulders/arms/glutes). Working exercises must
+   * match this split in addition to allowed_movement_families.
+   */
+  allowed_muscle_emphasis?: import("../../../lib/splitMuscleMatching").MuscleSplitEmphasis | null;
   /** Secondary goal mobility: min mobility/stretch exercises in cooldown. */
   min_cooldown_mobility_exercises: number;
   /** Superset pairing rules (forbidden pairs, preferred pairs). */

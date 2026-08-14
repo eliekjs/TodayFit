@@ -60,4 +60,4 @@ export {
 } from "./preferencesRepository";
 
 export { saveManualWeek, saveManualDay, listWeeklyPlanInstances, listSavedWeeks, deleteSavedWeek, getWeeklyPlanWithWorkouts } from "./weekPlanRepository";
-export type { SavedWeekSummary, WeeklyPlanWithWorkouts } from "./weekPlanRepository";
+export type { SavedWeekSummary, WeeklyPlanWithWorkouts, SaveManualPlanOptions } from "./weekPlanRepository";

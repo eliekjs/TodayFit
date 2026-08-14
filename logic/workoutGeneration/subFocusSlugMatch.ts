@@ -29,6 +29,7 @@ import {
   normalizeSubFocusSlug,
 } from "../../data/sportSubFocus/subFocusIntentRegistry";
 import type { Exercise } from "./types";
+import { matchesMuscleSplitEmphasis, type MuscleSplitEmphasis } from "../../lib/splitMuscleMatching";
 
 function tagToSlug(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -40,14 +41,8 @@ function exerciseHasGoalIntentSlug(exercise: Exercise, slug: string): boolean {
   return attrs.includes(norm);
 }
 
-/** Hypertrophy sub-focus: keep in sync with dailyGenerator scoreExercise. */
+/** Hypertrophy sub-focus: keep in sync with split muscle matching (week Pattern/Muscle days). */
 const HYPERTROPHY_SUB_FOCUS_MATCH_SLUGS: Record<string, string[]> = {
-  glutes: ["glutes", "hamstrings", "legs", "posterior_chain"],
-  back: ["back", "lats", "upper_back", "pull"],
-  chest: ["chest", "pecs", "push"],
-  arms: ["biceps", "triceps"],
-  shoulders: ["shoulders", "push"],
-  legs: ["legs", "quads", "glutes", "hamstrings", "calves"],
   core: ["core", "core_stability"],
   balanced: [],
 };
@@ -66,6 +61,17 @@ export function exerciseMatchesHypertrophySubFocusSlug(exercise: Exercise, slug:
       }
     }
     return regions.size >= 2;
+  }
+
+  if (
+    norm === "chest" ||
+    norm === "back" ||
+    norm === "shoulders" ||
+    norm === "arms" ||
+    norm === "glutes" ||
+    norm === "legs"
+  ) {
+    return matchesMuscleSplitEmphasis(exercise, norm as MuscleSplitEmphasis);
   }
 
   const matchSet = new Set(

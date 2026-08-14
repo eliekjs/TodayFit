@@ -12,11 +12,13 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useAppState } from "../../../context/AppStateContext";
-import { useTheme } from "../../../lib/theme";
+import { themeRadius, useTheme } from "../../../lib/theme";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
+import { PillTabs } from "../../../components/PillTabs";
+import { LinkPill } from "../../../components/LinkPill";
+import { IconWell } from "../../../components/IconWell";
 import {
   SessionFlowConflictModal,
   type SessionFlowConflict,
@@ -90,9 +92,9 @@ export default function SavedPresetsScreen() {
     replaceSessionFlow,
   } = useAppState();
 
-  const initialKind: WorkoutPresetKind | null =
-    params.kind === "goal" || params.kind === "sport" ? params.kind : null;
-  const [kind, setKind] = useState<WorkoutPresetKind | null>(initialKind);
+  const initialKind: WorkoutPresetKind =
+    params.kind === "sport" ? "sport" : "goal";
+  const [kind, setKind] = useState<WorkoutPresetKind>(initialKind);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [blockingIssues, setBlockingIssues] = useState<{
     scope: Scope;
@@ -107,12 +109,10 @@ export default function SavedPresetsScreen() {
   const selectedPreset =
     kind === "goal"
       ? preferencePresets.find((p) => p.id === selectedPresetId) ?? null
-      : kind === "sport"
-        ? sportPresets.find((p) => p.id === selectedPresetId) ?? null
-        : null;
+      : sportPresets.find((p) => p.id === selectedPresetId) ?? null;
 
   const goToScope = (scope: Scope) => {
-    if (!kind || !selectedPresetId) return;
+    if (!selectedPresetId) return;
 
     if (kind === "sport") {
       const preset = sportPresets.find((p) => p.id === selectedPresetId);
@@ -128,7 +128,7 @@ export default function SavedPresetsScreen() {
   };
 
   const proceedWithPreset = (scope: Scope) => {
-    if (!kind || !selectedPresetId) return;
+    if (!selectedPresetId) return;
     const flow =
       kind === "goal"
         ? scope === "week"
@@ -185,7 +185,7 @@ export default function SavedPresetsScreen() {
     ]);
   };
 
-  const summaries = kind === "goal" ? goalSummaries : kind === "sport" ? sportSummaries : [];
+  const summaries = kind === "goal" ? goalSummaries : sportSummaries;
 
   return (
     <AppScreenWrapper>
@@ -217,44 +217,25 @@ export default function SavedPresetsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {kind == null && (
+        {selectedPresetId == null && (
           <>
             <Text style={[styles.headline, { color: theme.text }]}>
-              Choose a saved preset
+              Saved presets
             </Text>
             <Text style={[styles.subheadline, { color: theme.textMuted }]}>
-              Pick goal-oriented or sport-focused presets, then a preset, then day or week.
+              Goal-oriented or sport-focused setups you can reuse for a day or a week.
             </Text>
-            <KindCard
-              icon="barbell-outline"
-              title="Goal-Oriented Presets"
-              subtitle="Saved filter sets for strength, physique, and other goals."
-              count={goalSummaries.length}
-              theme={theme}
-              onPress={() => setKind("goal")}
+            <PillTabs
+              tabs={[
+                { key: "goal", label: "Goal-Oriented", icon: "barbell-outline" },
+                { key: "sport", label: "Sport-Focused", icon: "sparkles-outline" },
+              ]}
+              value={kind}
+              onChange={(next) => {
+                setKind(next);
+                setSelectedPresetId(null);
+              }}
             />
-            <KindCard
-              icon="sparkles-outline"
-              title="Sport-Focused Presets"
-              subtitle="Saved sport, goal, and intensity setups."
-              count={sportSummaries.length}
-              theme={theme}
-              onPress={() => setKind("sport")}
-            />
-          </>
-        )}
-
-        {kind != null && selectedPresetId == null && (
-          <>
-            <Pressable onPress={() => setKind(null)} style={styles.backLinkWrap}>
-              <Ionicons name="chevron-back" size={16} color={theme.primary} />
-              <Text style={[styles.backLinkText, { color: theme.primary }]}>
-                Goal vs sport
-              </Text>
-            </Pressable>
-            <Text style={[styles.headline, { color: theme.text }]}>
-              {kind === "goal" ? "Goal-oriented presets" : "Sport-focused presets"}
-            </Text>
             {summaries.length === 0 ? (
               <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <Text style={[styles.emptyText, { color: theme.textMuted }]}>
@@ -279,6 +260,11 @@ export default function SavedPresetsScreen() {
                       { backgroundColor: theme.card, borderColor: theme.border },
                     ]}
                   >
+                    <IconWell
+                      name={kind === "goal" ? "barbell-outline" : "sparkles-outline"}
+                      size={18}
+                      wellSize={36}
+                    />
                     <View style={styles.presetRowMain}>
                       <TextInput
                         value={s.name}
@@ -312,7 +298,7 @@ export default function SavedPresetsScreen() {
           </>
         )}
 
-        {kind != null && selectedPreset != null && (
+        {selectedPreset != null && (
           <>
             <Pressable onPress={() => setSelectedPresetId(null)} style={styles.backLinkWrap}>
               <Ionicons name="chevron-back" size={16} color={theme.primary} />
@@ -324,51 +310,30 @@ export default function SavedPresetsScreen() {
             <Text style={[styles.subheadline, { color: theme.textMuted }]}>
               Use this preset for a single day, or for a full week plan.
             </Text>
-            {kind != null && selectedPresetId != null ? (
-              defaultTrainTodayPreset?.kind === kind &&
-              defaultTrainTodayPreset.id === selectedPresetId ? (
+            {defaultTrainTodayPreset?.kind === kind &&
+            defaultTrainTodayPreset.id === selectedPresetId ? (
                 <Text style={[styles.defaultBadge, { color: theme.primary }]}>
                   Default for Train today
                 </Text>
               ) : (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.setDefaultBtn,
-                    { borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
-                  ]}
+                <LinkPill
+                  icon="star-outline"
+                  label="Set as Train today default"
                   onPress={() =>
-                    setDefaultTrainTodayPreset({ kind, id: selectedPresetId })
+                    setDefaultTrainTodayPreset({ kind, id: selectedPresetId! })
                   }
-                >
-                  <Text style={[styles.setDefaultBtnText, { color: theme.primary }]}>
-                    Set as Train today default
-                  </Text>
-                </Pressable>
-              )
-            ) : null}
-            <View style={styles.scopeButtons}>
-              <Pressable
-                style={({ pressed }) => [styles.scopeButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
-                onPress={() => goToScope("day")}
-              >
-                <LinearGradient
-                  colors={[theme.primary, theme.primarySolid]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.scopeButton}
-                >
-                  <Text style={styles.scopeButtonText}>One day</Text>
-                </LinearGradient>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.scopeButtonWrap, { opacity: pressed ? 0.9 : 1 }]}
-                onPress={() => goToScope("week")}
-              >
-                <View style={[styles.scopeButton, styles.scopeButtonSecondary, { borderColor: theme.border }]}>
-                  <Text style={[styles.scopeButtonText, { color: theme.text }]}>This week</Text>
-                </View>
-              </Pressable>
-            </View>
+                />
+              )}
+            <LinkPill
+              icon="today-outline"
+              label="One day"
+              onPress={() => goToScope("day")}
+            />
+            <LinkPill
+              icon="calendar-outline"
+              label="This week"
+              onPress={() => goToScope("week")}
+            />
           </>
         )}
       </ScrollView>
@@ -416,39 +381,6 @@ export default function SavedPresetsScreen() {
   );
 }
 
-function KindCard({
-  icon,
-  title,
-  subtitle,
-  count,
-  theme,
-  onPress,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  title: string;
-  subtitle: string;
-  count: number;
-  theme: ReturnType<typeof useTheme>;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.kindCard,
-        { backgroundColor: theme.card, borderColor: theme.primarySoft, opacity: pressed ? 0.92 : 1 },
-      ]}
-    >
-      <View style={[styles.kindCardIcon, { backgroundColor: theme.primarySoft }]}>
-        <Ionicons name={icon} size={22} color={theme.primary} />
-      </View>
-      <Text style={[styles.kindCardTitle, { color: theme.text }]}>{title}</Text>
-      <Text style={[styles.kindCardSubtitle, { color: theme.textMuted }]}>{subtitle}</Text>
-      <Text style={[styles.kindCardCount, { color: theme.primary }]}>
-        {count} saved preset{count === 1 ? "" : "s"}
-      </Text>
-    </Pressable>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -459,8 +391,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   headline: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "700",
+    letterSpacing: -0.3,
   },
   subheadline: {
     fontSize: 14,
@@ -473,18 +406,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 4,
   },
-  setDefaultBtn: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 4,
-  },
-  setDefaultBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
   backLinkWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -495,40 +416,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  kindCard: {
-    borderRadius: 22,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
-    gap: 8,
-    borderWidth: 1,
-  },
-  kindCardIcon: {
-    alignSelf: "center",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  kindCardTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  kindCardSubtitle: {
-    fontSize: 14,
-    textAlign: "center",
-    opacity: 0.9,
-  },
-  kindCardCount: {
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 4,
-  },
   emptyCard: {
-    borderRadius: 16,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     padding: 18,
   },
@@ -542,10 +431,10 @@ const styles = StyleSheet.create({
   presetRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 14,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     gap: 10,
   },
   presetRowMain: {
@@ -554,7 +443,7 @@ const styles = StyleSheet.create({
   },
   presetNameInput: {
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: themeRadius.control,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 15,
@@ -566,30 +455,6 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 4,
-  },
-  scopeButtons: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-    justifyContent: "center",
-  },
-  scopeButtonWrap: {
-    flex: 1,
-  },
-  scopeButton: {
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scopeButtonSecondary: {
-    backgroundColor: "#fffdf8",
-    borderWidth: 1,
-  },
-  scopeButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#fffdf8",
   },
   modalBackdrop: {
     flex: 1,

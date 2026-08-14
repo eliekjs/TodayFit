@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import type { ManualPreferences } from "../lib/types";
 import type { PreferenceConflict } from "../lib/preferenceConflictDetector";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 
 if (
   Platform.OS === "android" &&
@@ -187,14 +187,14 @@ const styles = StyleSheet.create({
   },
   card: {
     flexDirection: "row",
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     overflow: "hidden",
   },
   accentBar: {
     width: 4,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    borderTopLeftRadius: themeRadius.card,
+    borderBottomLeftRadius: themeRadius.card,
   },
   body: {
     flex: 1,

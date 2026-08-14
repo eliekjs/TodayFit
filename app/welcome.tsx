@@ -13,21 +13,14 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
 import { AUTH_COPY } from "../lib/authCopy";
-
-const CLEAN_BG = "#f7f3ec";
-const CLEAN_CARD = "#fffdf8";
-const CLEAN_TEXT = "#231f1a";
-const CLEAN_MUTED = "rgba(35,31,26,0.66)";
-const CLEAN_BORDER = "rgba(44,38,32,0.12)";
-const CLEAN_ACCENT = "#b7791f";
-const CLEAN_ACCENT_DARK = "#9c6417";
-const INPUT_BG = "rgba(255,253,248,0.92)";
+import { themeRadius, useTheme } from "../lib/theme";
+import { PillTabs } from "../components/PillTabs";
+import { IconWell } from "../components/IconWell";
 
 export default function WelcomeScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string; resetDone?: string }>();
   const {
@@ -165,7 +158,7 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
@@ -179,48 +172,49 @@ export default function WelcomeScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.hero}>
-              <View style={styles.logoBox}>
-                <Ionicons name="barbell" size={36} color="#fffdf8" />
-              </View>
-              <Text style={styles.brandName}>SeshLogic</Text>
-              <Text style={styles.tagline}>Your intelligent training partner</Text>
+              <IconWell name="barbell-outline" size={32} wellSize={72} />
+              <Text style={[styles.brandName, { color: theme.text }]}>
+                SeshLogic
+              </Text>
+              <Text style={[styles.tagline, { color: theme.textMuted }]}>
+                Your intelligent training partner
+              </Text>
             </View>
 
-            <View style={styles.authCard}>
-              <View style={styles.toggleRow}>
-                <Pressable
-                  onPress={() => {
-                    setIsLogin(true);
-                    setFormError(null);
-                  }}
-                  style={[styles.toggleBtn, isLogin && styles.toggleBtnActive]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isLogin }}
-                >
-                  <Text style={[styles.toggleText, isLogin && styles.toggleTextActive]}>
-                    Login
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    setIsLogin(false);
-                    setFormError(null);
-                    // Keep confirmation hint if they just signed up and switched tabs.
-                  }}
-                  style={[styles.toggleBtn, !isLogin && styles.toggleBtnActive]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: !isLogin }}
-                >
-                  <Text style={[styles.toggleText, !isLogin && styles.toggleTextActive]}>
-                    Sign Up
-                  </Text>
-                </Pressable>
-              </View>
+            <View
+              style={[
+                styles.authCard,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  borderRadius: themeRadius.card,
+                },
+              ]}
+            >
+              <PillTabs
+                tabs={[
+                  { key: "login", label: "Login", icon: "log-in-outline" },
+                  { key: "signup", label: "Sign up", icon: "person-add-outline" },
+                ]}
+                value={isLogin ? "login" : "signup"}
+                onChange={(key) => {
+                  setIsLogin(key === "login");
+                  setFormError(null);
+                }}
+                style={{ marginBottom: 20 }}
+              />
 
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    color: theme.text,
+                  },
+                ]}
                 placeholder="Email"
-                placeholderTextColor={CLEAN_MUTED}
+                placeholderTextColor={theme.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -232,9 +226,17 @@ export default function WelcomeScreen() {
                 accessibilityLabel="Email"
               />
               <TextInput
-                style={[styles.input, styles.inputLast]}
+                style={[
+                  styles.input,
+                  styles.inputLast,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    color: theme.text,
+                  },
+                ]}
                 placeholder="Password"
-                placeholderTextColor={CLEAN_MUTED}
+                placeholderTextColor={theme.textMuted}
                 secureTextEntry
                 textContentType={isLogin ? "password" : "newPassword"}
                 autoComplete={isLogin ? "password" : "new-password"}
@@ -245,11 +247,17 @@ export default function WelcomeScreen() {
               />
 
               {!isAuthConfigured && (
-                <Text style={styles.previewHint}>{AUTH_COPY.welcomePreviewHint}</Text>
+                <Text style={[styles.previewHint, { color: theme.textMuted }]}>
+                  {AUTH_COPY.welcomePreviewHint}
+                </Text>
               )}
 
-              {formInfo ? <Text style={styles.infoText}>{formInfo}</Text> : null}
-              {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
+              {formInfo ? (
+                <Text style={[styles.infoText, { color: theme.textMuted }]}>{formInfo}</Text>
+              ) : null}
+              {formError ? (
+                <Text style={[styles.errorText, { color: theme.danger }]}>{formError}</Text>
+              ) : null}
 
               {isLogin && needsConfirmation ? (
                 <Pressable
@@ -258,7 +266,7 @@ export default function WelcomeScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Resend confirmation email"
                 >
-                  <Text style={styles.forgotLink}>
+                  <Text style={[styles.forgotLink, { color: theme.primarySolid }]}>
                     {resendBusy ? "Sending…" : "Resend confirmation email"}
                   </Text>
                 </Pressable>
@@ -271,29 +279,32 @@ export default function WelcomeScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Forgot password"
                 >
-                  <Text style={styles.forgotLink}>Forgot password?</Text>
+                  <Text style={[styles.forgotLink, { color: theme.primarySolid }]}>
+                    Forgot password?
+                  </Text>
                 </Pressable>
               )}
 
               <Pressable
-                style={({ pressed }) => [styles.primaryBtnWrap, { opacity: pressed || busy ? 0.85 : 1 }]}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  {
+                    backgroundColor: theme.primary,
+                    opacity: pressed || busy ? 0.85 : 1,
+                  },
+                ]}
                 onPress={onSubmit}
                 disabled={busy || resendBusy}
                 accessibilityRole="button"
                 accessibilityLabel={isLogin ? "Log in" : "Sign up"}
               >
-                <LinearGradient
-                  colors={[CLEAN_ACCENT, CLEAN_ACCENT_DARK]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.primaryBtn}
-                >
-                  {busy ? (
-                    <ActivityIndicator color="#fffdf8" />
-                  ) : (
-                    <Text style={styles.primaryBtnText}>{isLogin ? "Log in" : "Create account"}</Text>
-                  )}
-                </LinearGradient>
+                {busy ? (
+                  <ActivityIndicator color={theme.onPrimary} />
+                ) : (
+                  <Text style={[styles.primaryBtnText, { color: theme.onPrimary }]}>
+                    {isLogin ? "Log in" : "Create account"}
+                  </Text>
+                )}
               </Pressable>
             </View>
           </ScrollView>
@@ -306,7 +317,6 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: CLEAN_BG,
   },
   safe: {
     flex: 1,
@@ -322,72 +332,29 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
     marginBottom: 28,
-  },
-  logoBox: {
-    width: 72,
-    height: 72,
-    borderRadius: 18,
-    backgroundColor: CLEAN_ACCENT,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    boxShadow: "0 8px 20px rgba(44,38,32,0.12)",
-    elevation: 4,
+    gap: 12,
   },
   brandName: {
     fontSize: 28,
     fontWeight: "800",
-    color: CLEAN_TEXT,
     letterSpacing: -0.5,
-    marginBottom: 6,
+    marginBottom: 2,
   },
   tagline: {
     fontSize: 16,
-    color: CLEAN_MUTED,
     textAlign: "center",
   },
   authCard: {
-    backgroundColor: CLEAN_CARD,
-    borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: CLEAN_BORDER,
     overflow: "hidden",
   },
-  toggleRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 20,
-  },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 999,
-    alignItems: "center",
-    backgroundColor: "transparent",
-  },
-  toggleBtnActive: {
-    backgroundColor: CLEAN_BG,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-    elevation: 2,
-  },
-  toggleText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: CLEAN_MUTED,
-  },
-  toggleTextActive: {
-    color: CLEAN_TEXT,
-  },
   input: {
-    backgroundColor: INPUT_BG,
     borderWidth: 1,
-    borderColor: CLEAN_BORDER,
-    borderRadius: 12,
+    borderRadius: 999,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: CLEAN_TEXT,
     marginBottom: 12,
   },
   inputLast: {
@@ -395,21 +362,18 @@ const styles = StyleSheet.create({
   },
   previewHint: {
     fontSize: 13,
-    color: CLEAN_MUTED,
     textAlign: "center",
     marginBottom: 14,
     lineHeight: 18,
   },
   errorText: {
     fontSize: 13,
-    color: "#9b2c2c",
     textAlign: "center",
     marginBottom: 12,
     lineHeight: 18,
   },
   infoText: {
     fontSize: 13,
-    color: CLEAN_MUTED,
     textAlign: "center",
     marginBottom: 12,
     lineHeight: 18,
@@ -419,22 +383,18 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     textAlign: "center",
     marginBottom: 16,
-    color: CLEAN_ACCENT_DARK,
     fontWeight: "600",
-  },
-  primaryBtnWrap: {
-    marginBottom: 4,
   },
   primaryBtn: {
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 52,
+    marginBottom: 4,
   },
   primaryBtnText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#fffdf8",
   },
 });

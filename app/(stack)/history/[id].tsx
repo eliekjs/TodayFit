@@ -9,7 +9,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useAppState } from "../../../context/AppStateContext";
-import { useTheme } from "../../../lib/theme";
+import { themeRadius, useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.control,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,

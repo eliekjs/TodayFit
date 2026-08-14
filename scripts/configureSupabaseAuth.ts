@@ -1,22 +1,28 @@
 /**
- * Configure TodayFit Auth settings on the hosted Supabase project via Management API:
+ * Configure SeshLogic Auth settings on the hosted Supabase project via Management API:
  * - Email provider + confirm email required
- * - Site URL + redirect allowlist (password reset + welcome)
+ * - Site URL + redirect allowlist (password reset + welcome + hosted web origin)
  * - Confirm signup + Reset password email templates (reset includes {{ .Token }})
  *
  * Does NOT configure custom SMTP (needs your provider credentials in the dashboard).
  *
  * Auth: SUPABASE_ACCESS_TOKEN from https://supabase.com/dashboard/account/tokens
  * Optional: SUPABASE_PROJECT_REF (defaults to todayfit production ref)
+ * Optional: PUBLIC_APP_ORIGIN or EXPO_PUBLIC_APP_ORIGIN (https://your-domain)
  *
  * Usage: SUPABASE_ACCESS_TOKEN=sbp_… npx tsx scripts/configureSupabaseAuth.ts
  */
+import {
+  buildAuthRedirectAllowlist,
+  resolvePilotWebOriginFromEnv,
+} from "../lib/authRedirectAllowlist";
 import { loadDotEnvFromRepoRoot } from "./dotenvLocal";
 
 loadDotEnvFromRepoRoot();
 
 const PROJECT_REF =
   (process.env.SUPABASE_PROJECT_REF ?? "zwbrgxhehaufkypeiewh").trim();
+const WEB_ORIGIN = resolvePilotWebOriginFromEnv();
 
 const CONFIRM_SUBJECT = "Confirm your SeshLogic email";
 const CONFIRM_HTML = `<h2>Confirm your SeshLogic email</h2>
@@ -32,17 +38,7 @@ const RECOVERY_HTML = `<h2>Reset your SeshLogic password</h2>
 <p><a href="{{ .ConfirmationURL }}">Or open the reset link</a></p>`;
 
 /** Comma-separated allowlist; wildcards supported by Supabase Auth. */
-const REDIRECT_ALLOWLIST = [
-  "todayfit://**",
-  "todayfit://auth/reset-password",
-  "todayfit://welcome",
-  "exp://**/--/auth/reset-password",
-  "exp://**/--/welcome",
-  "http://localhost:8081/**",
-  "http://127.0.0.1:8081/**",
-  "http://localhost:19006/**",
-  "http://127.0.0.1:19006/**",
-].join(",");
+const REDIRECT_ALLOWLIST = buildAuthRedirectAllowlist(WEB_ORIGIN).join(",");
 
 async function main() {
   const token = (process.env.SUPABASE_ACCESS_TOKEN ?? "").trim();
@@ -62,8 +58,8 @@ async function main() {
     mailer_autoconfirm: false, // Confirm email ON (users must verify before login)
     password_min_length: 6,
 
-    // URL config — mobile deep links + local Expo web
-    site_url: "todayfit://welcome",
+    // URL config — hosted web origin when set; native deep links stay on the allowlist
+    site_url: WEB_ORIGIN ?? "todayfit://welcome",
     uri_allow_list: REDIRECT_ALLOWLIST,
 
     // Email templates

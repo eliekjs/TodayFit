@@ -16,6 +16,10 @@
 
 import type { BlockFormat, VolumePreference } from "../types";
 import type { Exercise } from "../../logic/workoutGeneration/types";
+import {
+  resolveRoleVolumePrescription,
+  type StrengthVolumeRole,
+} from "./volumeRoleRanges";
 
 export type EnergyLevel = "low" | "medium" | "high";
 export type { VolumePreference };
@@ -429,6 +433,22 @@ export function getGoalRules(goal: string): GoalTrainingRule {
 }
 
 /**
+ * Session-level prescription cue strings from goal rules (not exercise-specific setup copy).
+ * Used by the UI denylist so these never appear as "setup" help text.
+ */
+export function listGoalPrescriptionCoachingCues(): string[] {
+  const out = new Set<string>();
+  for (const rule of Object.values(GOAL_TRAINING_RULES)) {
+    const style = rule.cueStyle;
+    if (style.strength?.trim()) out.add(style.strength.trim());
+    if (style.cardio?.trim()) out.add(style.cardio.trim());
+    if (style.mobility?.trim()) out.add(style.mobility.trim());
+  }
+  out.add("Controlled tempo.");
+  return [...out];
+}
+
+/**
  * Apply energy-level scaling to sets (low: -25%, high: +25%).
  * Prefer {@link resolveSetsFromRange} in the daily generator path to avoid double-scaling.
  */
@@ -518,9 +538,8 @@ export function scaleRepsByEnergy(
 }
 
 /**
- * User volume dial on top of goal + energy.
- * Conservative: −1 set and −1 rep bucket. High volume: +1 set and +1 rep bucket (capped).
- * Power/quality work can pass `lockReps: true` so only sets change.
+ * Legacy ±1 set/rep nudge when no strength-volume role table applies (e.g. power lockReps).
+ * Strength / accessory work uses `VOLUME_ROLE_RANGES` via `resolveVolumePrescription`.
  */
 export function applyVolumePreference(
   reps: number,
@@ -558,6 +577,8 @@ export function resolveSetsFromRange(
 
 /**
  * Resolve baseline reps and sets from goal rules before fatigue / beginner caps.
+ * When `volumeRole` is set, uses the Strength Focused / Balanced / High Volume tables
+ * (energy picks low / mid / high inside the band). Power can pass `lockReps`.
  */
 export function resolveVolumePrescription(
   goalRange: { min: number; max: number },
@@ -565,8 +586,15 @@ export function resolveVolumePrescription(
   energy: EnergyLevel,
   repSelection: RepSelectionStrategy,
   volumePreference?: VolumePreference | null,
-  options?: { lockReps?: boolean }
+  options?: { lockReps?: boolean; volumeRole?: StrengthVolumeRole }
 ): { reps: number; baseSets: number } {
+  if (options?.volumeRole && !options.lockReps) {
+    const picked = resolveRoleVolumePrescription(options.volumeRole, volumePreference, energy);
+    return {
+      reps: clampRepsToGoalRange(picked.reps, goalRange),
+      baseSets: picked.baseSets,
+    };
+  }
   const baseReps = selectRepsFromRange(goalRange, repSelection);
   const reps = scaleRepsByEnergy(baseReps, energy, goalRange);
   const baseSets = resolveSetsFromRange(setRange, energy);

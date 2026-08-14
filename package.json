@@ -12,6 +12,7 @@
     "web": "expo start --web",
     "web:dev": "node scripts/run-web.js",
     "web:dev:clear": "node scripts/run-web.js --clear",
+    "web:export": "expo export --platform web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

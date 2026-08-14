@@ -5,13 +5,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBar } from "@react-navigation/bottom-tabs";
 import type { BottomTabBarProps, BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 import { useIsFocused } from "@react-navigation/native";
-import { Header, getHeaderTitle } from "@react-navigation/elements";
+import { Header, getHeaderTitle, PlatformPressable } from "@react-navigation/elements";
 import type { HeaderOptions } from "@react-navigation/elements";
 import { useTheme } from "../../lib/theme";
 import {
   navigateToManualGoalPreferences,
 } from "../../lib/manualGoalPreferencesHref";
 import { sportReviewBackRoute } from "../../lib/sessionFlowNav";
+import { isAlreadyOnTabHome, tabBarHomeHref } from "../../lib/tabBarHome";
 import { useAppState } from "../../context/AppStateContext";
 import { PrimaryButton } from "../../components/Button";
 
@@ -43,9 +44,11 @@ export function FocusAwareTabHeader({ layout, options, route }: TabHeaderProps) 
 }
 
 export function FilteredTabBar(props: BottomTabBarProps) {
-  const { state } = props;
+  const router = useRouter();
+  const { state, descriptors } = props;
   const filteredRoutes = state.routes.filter((r) => isTabVisible(String(r.name)));
   const currentRoute = state.routes[state.index];
+  const currentName = String(currentRoute?.name ?? "");
   const filteredIndex = filteredRoutes.findIndex((r) => r.key === currentRoute?.key);
   /** Flow screens (manual/*, sport-mode/*) are not tab routes; highlight Today, not Library. */
   const todayFilteredIndex = filteredRoutes.findIndex((r) => String(r.name) === "index");
@@ -60,7 +63,36 @@ export function FilteredTabBar(props: BottomTabBarProps) {
     routes: filteredRoutes,
     index: activeIndex,
   };
-  return <BottomTabBar {...props} state={filteredState} />;
+
+  const patchedDescriptors = { ...descriptors };
+  for (const route of filteredRoutes) {
+    const desc = patchedDescriptors[route.key];
+    if (!desc) continue;
+    const href = tabBarHomeHref(String(route.name));
+    const originalButton = desc.options.tabBarButton;
+    patchedDescriptors[route.key] = {
+      ...desc,
+      options: {
+        ...desc.options,
+        tabBarButton: (buttonProps) => {
+          const goHome = (e?: { preventDefault?: () => void }) => {
+            e?.preventDefault?.();
+            if (isAlreadyOnTabHome(currentName, href)) return;
+            router.replace(href);
+          };
+          const nextProps = {
+            ...buttonProps,
+            href,
+            onPress: goHome,
+          };
+          if (originalButton) return originalButton(nextProps);
+          return <PlatformPressable {...nextProps} />;
+        },
+      },
+    };
+  }
+
+  return <BottomTabBar {...props} state={filteredState} descriptors={patchedDescriptors} />;
 }
 
 export const TAB_ICON_SIZE = 24;

@@ -7,6 +7,7 @@ import { BLOCKED_EXERCISE_IDS } from "./workoutRules";
 import {
   formatExerciseDisplayCue,
   isGenericPrescriptionCoachingCue,
+  withResolvedExerciseDescription,
 } from "./exerciseDisplayCue";
 import {
   ensureCuratedDescriptionsLoaded,
@@ -15,6 +16,7 @@ import {
 import { buildExerciseDescriptionMap, attachExerciseDescriptionsToSession } from "./workoutUtils";
 import type { WorkoutItem } from "./types";
 import type { Exercise } from "../logic/workoutGeneration/types";
+import { listGoalPrescriptionCoachingCues } from "./generation/prescriptionRules";
 
 const P0_SLUGS = ["ankle_dorsiflexion_stretch", "ankle_circles", "banded_ankle_mob"] as const;
 const P1_SLUGS = [
@@ -156,5 +158,39 @@ describe("exercise descriptions on workout items", () => {
 
     expect(formatExerciseDisplayCue(item)).toBeNull();
     expect(isGenericPrescriptionCoachingCue(item.coaching_cues)).toBe(true);
+  });
+
+  it("formatExerciseDisplayCue hides strength goal prescription cue used as false setup copy", () => {
+    const item: WorkoutItem = {
+      exercise_id: "v_squat",
+      exercise_name: "V-Squat",
+      sets: 3,
+      reps: 6,
+      rest_seconds: 75,
+      coaching_cues: "Heavy load, controlled tempo. Full lockout.",
+    };
+    expect(isGenericPrescriptionCoachingCue(item.coaching_cues)).toBe(true);
+    expect(formatExerciseDisplayCue(item)).toBeNull();
+  });
+
+  it("withResolvedExerciseDescription fills curated setup when item description is missing", () => {
+    const item: WorkoutItem = {
+      exercise_id: "goblet_squat",
+      exercise_name: "Goblet Squat",
+      sets: 3,
+      reps: 8,
+      rest_seconds: 60,
+      coaching_cues: "Heavy load, controlled tempo. Full lockout.",
+    };
+    const resolved = withResolvedExerciseDescription(item, getCuratedExerciseDescription);
+    expect(resolved.exercise_description).toMatch(/goblet|chest|squat/i);
+    expect(formatExerciseDisplayCue(resolved)).toMatch(/goblet|chest|squat/i);
+    expect(formatExerciseDisplayCue(resolved)).not.toMatch(/Full lockout/i);
+  });
+
+  it("treats every goal cueStyle string as a generic prescription cue", () => {
+    for (const cue of listGoalPrescriptionCoachingCues()) {
+      expect(isGenericPrescriptionCoachingCue(cue), cue).toBe(true);
+    }
   });
 });

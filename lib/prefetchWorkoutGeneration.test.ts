@@ -42,16 +42,14 @@ describe("prefetchWorkoutGenerationStack", () => {
     expect(getExercisePoolForManualGeneration).not.toHaveBeenCalled();
   });
 
-  it("warms catalog when includeCatalog is true", async () => {
+  it("starts catalog immediately when includeCatalog is true", async () => {
+    vi.useRealTimers();
     vi.doMock("react-native", () => ({ Platform: { OS: "web" } }));
     const { prefetchWorkoutGenerationStack } = await import("./prefetchWorkoutGeneration");
 
     prefetchWorkoutGenerationStack({ includeCatalog: true });
-    await vi.runAllTimersAsync();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(getExercisePoolForManualGeneration).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(getExercisePoolForManualGeneration).toHaveBeenCalled();
+    });
   });
 });

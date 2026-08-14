@@ -9,11 +9,11 @@ import {
 import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../../../lib/theme";
+import { themeRadius, useTheme } from "../../../lib/theme";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { useAppState } from "../../../context/AppStateContext";
-import { useAuth } from "../../../context/AuthContext";
 import { PrimaryButton } from "../../../components/Button";
+import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { backLabelForPhase, phaseLabelAfter } from "../../../lib/sessionFlowNav";
 import { Card } from "../../../components/Card";
@@ -22,9 +22,14 @@ import { AdjustFocusModal, type FocusSection } from "../../../components/AdjustF
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { DiscardSessionLink } from "../../navigation/tabFlowChrome";
-import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
-import { isDbConfigured } from "../../../lib/db";
+import {
+  saveDayButtonLabel,
+  saveWeekButtonLabel,
+  savedDayFingerprint,
+  savedWeekFingerprint,
+} from "../../../lib/saveNamedPlan";
+import { useNamedPlanSave } from "../../../lib/useNamedPlanSave";
 import { preferredExerciseNamesForManualPreferences } from "../../../lib/manualPreferredExerciseNames";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { composeRunGenerationSeed } from "../../../lib/generationSeed";
@@ -70,6 +75,7 @@ import {
   type DayBodyFocusChoiceId,
   type DayFocusPreset,
 } from "../../../lib/weekDaySessionFocus";
+import { sessionBiasFromDailyBodyOverride } from "../../../lib/sessionBodyContract";
 import {
   buildSubFocusOverrideAligningToBody,
   mapBodyResolutionToMode,
@@ -164,13 +170,20 @@ export default function ManualWeekScreen() {
     setManualGoalPreferencesScope,
     workoutHistory,
     savedWorkouts,
-    addSavedWeek,
     manualSessionProgress,
     beginSessionFlow,
     updateActiveSessionDraft,
     activeSessionDraft,
   } = useAppState();
-  const { userId } = useAuth();
+  const {
+    dialog: saveDialog,
+    busy: saveBusy,
+    isSaved,
+    requestSaveDay,
+    requestSaveWeek,
+    confirmSave,
+    cancelSave,
+  } = useNamedPlanSave();
   const goBackToWeekPreferences = useCallback(() => {
     navigateToManualGoalPreferences(router, "week", { replace: true });
   }, [router]);
@@ -191,7 +204,6 @@ export default function ManualWeekScreen() {
   );
 
   const [generating, setGenerating] = useState(false);
-  const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
   /** Override preferences for the selected day when regenerating (goal, body, energy). */
@@ -472,6 +484,9 @@ export default function ManualWeekScreen() {
             bodyFocusId: mapBodyResolutionToMode(resolution.bodyFocusId, bodyFocusMode),
           }
         : resolution;
+      if (mapped.bodyFocusId === "full" && bodyFocusMode !== "region") {
+        updateManualPreferences({ weeklyBodyFocusMode: "region" });
+      }
       applyDaySessionFocusResolution({
         dayIndex: dayIdx,
         resolution: mapped,
@@ -504,7 +519,7 @@ export default function ManualWeekScreen() {
         },
       });
     },
-    [daySessionFocusConflicts, manualPreferences.subFocusByGoal, bodyFocusMode]
+    [daySessionFocusConflicts, manualPreferences.subFocusByGoal, bodyFocusMode, updateManualPreferences]
   );
 
   const applyWeeklyBodyFocusMode = useCallback(
@@ -1183,14 +1198,15 @@ export default function ManualWeekScreen() {
         const focusLabel = goalBiasToPrimaryFocus(dailyPrefsOverride.goalBias);
         if (focusLabel) dayPrefs = { ...dayPrefs, primaryFocus: [focusLabel] };
       }
-      if (dailyPrefsOverride.bodyRegionBias) {
-        const b = dailyPrefsOverride.bodyRegionBias;
-        if (b === "upper" || b === "lower" || b === "full") {
-          dayPrefs = { ...dayPrefs, targetBody: b.charAt(0).toUpperCase() + b.slice(1) as "Upper" | "Lower" | "Full", targetModifier: [], specificBodyFocus: undefined };
-        } else if (b === "pull" || b === "push") {
-          dayPrefs = { ...dayPrefs, targetBody: "Upper", targetModifier: [b.charAt(0).toUpperCase() + b.slice(1)], specificBodyFocus: undefined };
-        } else if (b === "core") {
-          dayPrefs = { ...dayPrefs, targetBody: "Full", targetModifier: [], specificBodyFocus: ["core"] };
+      if (dailyPrefsOverride.bodyRegionBias || dailyPrefsOverride.specificBodyFocus?.length) {
+        const fromChoice = sessionBiasFromDailyBodyOverride(dailyPrefsOverride);
+        if (fromChoice) {
+          dayPrefs = {
+            ...dayPrefs,
+            targetBody: fromChoice.targetBody,
+            targetModifier: fromChoice.targetModifier,
+            specificBodyFocus: fromChoice.specificBodyFocus,
+          };
         }
       }
       if (dailyPrefsOverride.energyLevel) dayPrefs = { ...dayPrefs, energyLevel: dailyPrefsOverride.energyLevel };
@@ -1270,32 +1286,23 @@ export default function ManualWeekScreen() {
   const onSaveWeek = () => {
     const weekPlan = manualWeekPlan;
     if (!weekPlan) return;
-    addSavedWeek({
-      savedAt: new Date().toISOString(),
+    requestSaveWeek({
       weekStartDate: weekPlan.weekStartDate,
       days: weekPlan.days,
       source: "manual",
     });
-    setManualWeekPlan(null);
-    router.replace("/library");
   };
 
-  const onSaveDay = async () => {
-    if (!selectedSession || !userId || !isDbConfigured()) {
-      if (!userId || !isDbConfigured()) {
-        setError("Sign in and enable sync to save this day for later.");
-      }
-      return;
-    }
-    setError(null);
-    setSavingDay(true);
-    try {
-      await saveManualDay(userId, selectedSession.date, selectedSession.workout);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSavingDay(false);
-    }
+  const onSaveDay = () => {
+    const weekPlan = manualWeekPlan;
+    if (!selectedSession || !weekPlan) return;
+    requestSaveDay({
+      date: selectedSession.date,
+      workout: selectedSession.workout,
+      weekStartDate: weekPlan.weekStartDate,
+      source: "manual",
+      displayTitle: selectedSession.displayTitle,
+    });
   };
 
   if (generating) {
@@ -1399,9 +1406,17 @@ export default function ManualWeekScreen() {
                 visible={pendingBodySelect != null}
                 title="Body focus conflicts with sub-goals"
                 message={pendingBodySelect?.message ?? ""}
-                confirmLabel="Override sub-goals"
+                confirmLabel="Use Full body"
+                secondaryConfirmLabel="Drop conflicting sub-goals"
                 onCancel={() => setPendingBodySelect(null)}
                 onConfirm={() => {
+                  if (!pendingBodySelect) return;
+                  if (bodyFocusMode !== "region") {
+                    updateManualPreferences({ weeklyBodyFocusMode: "region" });
+                  }
+                  applyDayBodySelect(pendingBodySelect.dayIdx, "full", false);
+                }}
+                onSecondaryConfirm={() => {
                   if (!pendingBodySelect) return;
                   applyDayBodySelect(
                     pendingBodySelect.dayIdx,
@@ -1501,7 +1516,13 @@ export default function ManualWeekScreen() {
   const weekOverviewContent = (
     <View>
       {daySlots.map((slot) => (
-        <View key={slot.date}>
+        <View
+          key={slot.date}
+          style={[
+            styles.dayCard,
+            { borderColor: theme.border, backgroundColor: theme.card },
+          ]}
+        >
           <View style={[styles.dayHeaderRow, { borderBottomColor: theme.border }]}>
             <Text style={[styles.dayHeaderText, { color: theme.text }]}>
               {formatDayOfWeek(slot.date)}
@@ -1688,13 +1709,23 @@ export default function ManualWeekScreen() {
               selectedDayFocusPresetId={selectedDayFocusPresetId}
               sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}
               expandSignal={focusEditorExpandSignal}
+              weeklyBodyFocusMode={bodyFocusMode}
             />
-            {userId && isDbConfigured() ? (
+            {selectedDay ? (
               <PrimaryButton
-                label={savingDay ? "Saving…" : "Save day for later"}
+                label={saveDayButtonLabel({
+                  saved: isSaved(
+                    savedDayFingerprint(selectedDay.date, selectedDay.workout.id)
+                  ),
+                  busy: saveBusy && saveDialog?.kind === "day",
+                })}
                 variant="secondary"
                 onPress={onSaveDay}
-                disabled={savingDay}
+                disabled={
+                  saveBusy ||
+                  saveDialog != null ||
+                  isSaved(savedDayFingerprint(selectedDay.date, selectedDay.workout.id))
+                }
                 style={{ marginTop: 8 }}
               />
             ) : null}
@@ -1707,9 +1738,17 @@ export default function ManualWeekScreen() {
       )}
 
       <PrimaryButton
-        label="Save week for later"
+        label={saveWeekButtonLabel({
+          saved: isSaved(savedWeekFingerprint(plan.weekStartDate, plan.days)),
+          busy: saveBusy && saveDialog?.kind === "week",
+        })}
         onPress={onSaveWeek}
         variant="secondary"
+        disabled={
+          saveBusy ||
+          saveDialog != null ||
+          isSaved(savedWeekFingerprint(plan.weekStartDate, plan.days))
+        }
         style={styles.saveWeekBtn}
       />
 
@@ -1767,6 +1806,16 @@ export default function ManualWeekScreen() {
         onMoreSuggestions={() => setSwapSuggestionPage((p) => p + 1)}
         loadingMoreSuggestions={swapLoading && swapSuggestionPage > 0}
       />
+      {saveDialog ? (
+        <SaveNamedPlanModal
+          visible
+          kind={saveDialog.kind}
+          defaultName={saveDialog.defaultName}
+          busy={saveBusy}
+          onCancel={cancelSave}
+          onSave={confirmSave}
+        />
+      ) : null}
     </AppScreenWrapper>
   );
 }
@@ -1796,14 +1845,20 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
+  dayCard: {
+    borderWidth: 1,
+    borderRadius: themeRadius.card,
+    padding: 12,
+    marginBottom: 10,
+  },
   dayHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 0,
     borderBottomWidth: 1,
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: 0,
+    marginBottom: 8,
   },
   dayHeaderText: {
     fontSize: 15,

@@ -130,7 +130,7 @@ describe("day body focus choice mapping", () => {
     expect(bodyFocusEmphasisLabel(dayBodyFocusChoiceToBias("push"))).toBe("Push");
     expect(
       formatDayTitle("Build Muscle (Hypertrophy)", "upper", ["chest"])
-    ).toBe("Build Muscle (Hypertrophy) - Upper Body (Chest Focus)");
+    ).toBe("Build Muscle (Hypertrophy) - Chest");
   });
 
   it("exposes muscle options when mode is muscle", () => {

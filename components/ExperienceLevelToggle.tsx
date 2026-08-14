@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import { Chip } from "./Chip";
 import type { WorkoutTierPreference } from "../lib/types";
 
@@ -43,7 +43,7 @@ export function ExperienceLevelToggle({
           backgroundColor: theme.cardOpaque,
           borderColor: theme.borderStrong,
           borderWidth: 1,
-          borderRadius: 16,
+          borderRadius: themeRadius.card,
           padding: 16,
         },
       ]}

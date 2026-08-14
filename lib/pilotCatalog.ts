@@ -71,3 +71,9 @@ export function isPilotPrimaryFocusLabel(label: string | null | undefined): bool
 export function filterPilotPrimaryFocusLabels(labels: readonly string[]): string[] {
   return labels.filter((l) => isPilotPrimaryFocusLabel(l));
 }
+
+/**
+ * Pilot: hide goal / sub-goal / sport match-% editors in Advanced options.
+ * Defaults still drive generation; flip to false when reintroducing the UI.
+ */
+export const PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS = true;

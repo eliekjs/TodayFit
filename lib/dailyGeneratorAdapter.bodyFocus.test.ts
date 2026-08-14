@@ -42,7 +42,7 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
     expect(input.goal_sub_focus?.power).toEqual(["upper_body_power"]);
   });
 
-  it("spread mode keeps mismatched power sub-focuses and expands to full_body", () => {
+  it("spread mode keeps mismatched power sub-focuses but does not rewrite body focus to full_body", () => {
     const input = manualPreferencesToGenerateWorkoutInput(
       {
         ...BASE,
@@ -57,10 +57,9 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
       undefined,
       3
     );
-    expect(input.focus_body_parts).toEqual(["full_body"]);
-    expect(input.goal_sub_focus?.power).toEqual(
-      expect.arrayContaining(["upper_body_power", "lower_body_power_plyos"])
-    );
+    expect(input.focus_body_parts).toEqual(["upper_push", "upper_pull"]);
+    expect(input.focus_body_parts?.includes("full_body")).toBe(false);
+    expect(input.goal_sub_focus?.power).toEqual(["upper_body_power"]);
   });
 
   it("maps Lower to lower focus", () => {
@@ -174,6 +173,14 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
 
     expect(
       manualPreferencesToGenerateWorkoutInput(
+        { ...BASE, targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["shoulders"] },
+        undefined,
+        1
+      ).focus_body_parts
+    ).toEqual(["upper_push", "upper_pull", "shoulders"]);
+
+    expect(
+      manualPreferencesToGenerateWorkoutInput(
         { ...BASE, targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["push"] },
         undefined,
         1
@@ -187,6 +194,57 @@ describe("manualPreferencesToGenerateWorkoutInput body region from targetBody", 
         1
       ).focus_body_parts
     ).toEqual(["upper_pull"]);
+  });
+});
+
+describe("session body contract by week mode", () => {
+  it("keeps Chest as a hard muscle gate even when spread is on", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      {
+        ...BASE,
+        weeklyBodyFocusMode: "muscle",
+        targetBody: "Upper",
+        targetModifier: ["Push"],
+        specificBodyFocus: ["chest"],
+        sessionFocusDistribution: "spread",
+      },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["upper_push", "chest"]);
+    expect(input.focus_body_parts?.includes("full_body")).toBe(false);
+  });
+
+  it("does not treat Pattern Push as a Chest day", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      {
+        ...BASE,
+        weeklyBodyFocusMode: "pattern",
+        targetBody: "Upper",
+        targetModifier: ["Push"],
+        specificBodyFocus: ["push"],
+      },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["upper_push"]);
+    expect(input.focus_body_parts?.includes("chest")).toBe(false);
+  });
+
+  it("clamps leftover Chest tags to Upper when mode is Region", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      {
+        ...BASE,
+        weeklyBodyFocusMode: "region",
+        targetBody: "Upper",
+        targetModifier: ["Push"],
+        specificBodyFocus: ["chest"],
+      },
+      undefined,
+      1
+    );
+    expect(input.focus_body_parts).toEqual(["upper_push"]);
+    expect(input.focus_body_parts?.includes("chest")).toBe(false);
   });
 });
 

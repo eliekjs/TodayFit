@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { GymProfile } from "../data/gymProfiles";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import { summarizeGymProfileEquipment } from "../lib/gymProfileDisplay";
 import { PrimaryButton } from "./Button";
 
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: "45%",
     maxWidth: "100%",
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,

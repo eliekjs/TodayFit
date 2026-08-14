@@ -30,12 +30,12 @@ export function PrimaryButton({
 
   const backgroundByVariant: Record<ButtonVariant, string> = {
     primary: theme.primary,
-    secondary: theme.secondarySoft,
+    secondary: theme.cardOpaque,
     ghost: "transparent",
   };
 
   const textColorByVariant: Record<ButtonVariant, string> = {
-    primary: "#FFFFFF",
+    primary: theme.onPrimary,
     secondary: theme.text,
     ghost: theme.text,
   };
@@ -51,7 +51,7 @@ export function PrimaryButton({
         {
           backgroundColor: backgroundByVariant[variant],
           opacity: disabled ? 0.45 : pressed ? 0.85 : 1,
-          borderColor: variant === "ghost" ? theme.border : "transparent",
+          borderColor: variant === "primary" ? "transparent" : theme.border,
         },
         style,
       ]}

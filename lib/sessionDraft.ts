@@ -190,8 +190,8 @@ export function shouldShowSessionResumeBanner(pathname: string): boolean {
 }
 
 /** Height of the floating session banner (for content inset). */
-/** Flush strip under nav header: title row + phase row. */
-export const SESSION_BANNER_HEIGHT = 52;
+/** Flush strip under nav header: continue title + details. */
+export const SESSION_BANNER_HEIGHT = 58;
 
 export function createSessionDraft(params: {
   flow: SessionFlow;

@@ -10,9 +10,11 @@ import { PrimaryButton } from "../../../../components/Button";
 import { getWeeklyPlanWithWorkouts, listWeeklyPlanInstances } from "../../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../../lib/db";
 import {
+  cloneWorkoutForRedo,
   savedWeekToManualWeekPlan,
   savedWeekToSportPrepWeekPlan,
 } from "../../../../lib/savedWeekUtils";
+import { isSavedDayPlan } from "../../../../lib/saveNamedPlan";
 import type { SavedWeek } from "../../../../lib/types";
 
 export default function SavedWeekDetailScreen() {
@@ -20,7 +22,7 @@ export default function SavedWeekDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userId } = useAuth();
-  const { savedWeeks, setSportPrepWeekPlan, setManualWeekPlan } = useAppState();
+  const { savedWeeks, setSportPrepWeekPlan, setManualWeekPlan, setGeneratedWorkout, setResumeProgress, setManualExecutionStarted } = useAppState();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,11 @@ export default function SavedWeekDetailScreen() {
             })
             .filter((day): day is NonNullable<typeof day> => day != null),
           source,
+          name:
+            typeof summary?.goals_snapshot?.name === "string"
+              ? summary.goals_snapshot.name
+              : undefined,
+          singleDay: summary?.goals_snapshot?.singleDay === true,
         };
         openSavedWeek(savedWeek);
       })
@@ -88,6 +95,19 @@ export default function SavedWeekDetailScreen() {
     };
 
     function openSavedWeek(week: SavedWeek) {
+      if (isSavedDayPlan(week)) {
+        const day = week.days[0];
+        if (!day) {
+          setError("Day not found.");
+          setLoading(false);
+          return;
+        }
+        setGeneratedWorkout(cloneWorkoutForRedo(day.workout));
+        setResumeProgress(null);
+        setManualExecutionStarted(true);
+        router.replace("/manual/execute");
+        return;
+      }
       if (week.source === "manual") {
         setManualWeekPlan(savedWeekToManualWeekPlan(week));
         router.replace("/manual/week");
@@ -96,7 +116,7 @@ export default function SavedWeekDetailScreen() {
       setSportPrepWeekPlan(savedWeekToSportPrepWeekPlan(week));
       router.replace("/sport-mode/recommendation");
     }
-  }, [id, userId, savedWeeks, setSportPrepWeekPlan, setManualWeekPlan, router]);
+  }, [id, userId, savedWeeks, setSportPrepWeekPlan, setManualWeekPlan, setGeneratedWorkout, setResumeProgress, setManualExecutionStarted, router]);
 
   if (loading) {
     return (

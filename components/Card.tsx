@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform, type ViewStyle } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import { PrimaryButton } from "./Button";
 
 type Props = {
@@ -68,8 +68,8 @@ export function Card({
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: themeRadius.card,
+    padding: 20,
   },
   headerRow: {
     flexDirection: "row",

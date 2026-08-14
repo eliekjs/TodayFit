@@ -9,7 +9,7 @@ import {
   UIManager,
   type ViewStyle,
 } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 
 if (
   Platform.OS === "android" &&
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   wrapperSurface: {
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     overflow: "hidden",
   },
   header: {

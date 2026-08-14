@@ -116,7 +116,7 @@ describe("body region vs sub-goal mismatch", () => {
     expect(conflicts.map((c) => c.id)).not.toContain("body_vs_subgoal_lower_upper");
   });
 
-  it("resolution 'Switch to Full body' applies correct patch", () => {
+  it("resolution 'Use Full body' applies correct patch", () => {
     const prefs = basePrefs({
       targetBody: "Upper",
       primaryFocus: ["Build Muscle (Hypertrophy)"],
@@ -124,9 +124,10 @@ describe("body region vs sub-goal mismatch", () => {
     });
     const conflicts = detectPreferenceConflicts(prefs);
     const conflict = conflicts.find((c) => c.id === "body_vs_subgoal_upper_lower")!;
-    const switchRes = conflict.resolutions.find((r) => r.label === "Switch to Full body")!;
+    const switchRes = conflict.resolutions.find((r) => r.label.startsWith("Use Full body"))!;
     const patch = switchRes.apply(prefs);
     expect(patch.targetBody).toBe("Full");
+    expect(patch.weeklyBodyFocusMode).toBe("region");
   });
 
   it("resolution 'Clear lower-body sub-goals' removes conflicting subs", () => {
@@ -158,8 +159,8 @@ describe("body region vs sub-goal mismatch", () => {
     const conflicts = detectPreferenceConflicts(prefs);
     const conflict = conflicts.find((c) => c.id === "body_vs_subgoal_upper_lower")!;
     expect(conflict).toBeDefined();
-    expect(conflict.message).toContain("different body regions");
-    expect(conflict.resolutions[0]!.label).toBe("Switch to Full body");
+    expect(conflict.message).toMatch(/Full body to keep both/i);
+    expect(conflict.resolutions[0]!.label).toBe("Use Full body (keep both)");
     const patch = conflict.resolutions[0]!.apply(prefs);
     expect(patch.targetBody).toBe("Full");
   });

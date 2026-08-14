@@ -38,6 +38,17 @@ describe("body focus mode override helpers", () => {
     expect(mapBodyResolutionToMode("upper", "muscle")).toBe("chest");
     expect(mapBodyResolutionToMode("pull", "muscle")).toBe("back");
     expect(mapBodyResolutionToMode("full", "region")).toBe("full");
+    expect(mapBodyResolutionToMode("full", "pattern")).toBe("full");
+    expect(mapBodyResolutionToMode("full", "muscle")).toBe("full");
+  });
+
+  it("recommends Full body when sub-goals mix upper and lower", () => {
+    const summary = summarizeBodyChoiceVsSubFocusConflict("upper", basePrefs);
+    expect(summary).not.toBeNull();
+    expect(summary!.spansBothRegions).toBe(true);
+    expect(summary!.alignedNames).toContain("Bench / Press");
+    expect(summary!.displayNames).toContain("Squat");
+    expect(summary!.message).toMatch(/Use Full body to keep both/);
   });
 
   it("flags legs-day vs upper sub-goals", () => {

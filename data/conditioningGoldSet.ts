@@ -36,8 +36,8 @@ export const CONDITIONING_GOLD_SET_IDS: string[] = [
   "treadmill_hill_sprints",
   "stair_climber_repeats",
   "sled_push",
-  "walking_lunge",
   // HIIT / intervals
+  "treadmill_sprint_intervals",
   "kb_swing",
   "jump_rope",
   "box_jump",
@@ -63,7 +63,7 @@ export const CONDITIONING_GOLD_SET_DIRECT_TAGS: Record<
   treadmill_hill_sprints: ["hills"],
   stair_climber_repeats: ["hills"],
   sled_push: ["hills", "intervals_hiit"],
-  walking_lunge: ["hills", "intervals_hiit"],
+  treadmill_sprint_intervals: ["intervals_hiit"],
   kb_swing: ["intervals_hiit"],
   jump_rope: ["intervals_hiit"],
   box_jump: ["intervals_hiit"],
@@ -85,7 +85,7 @@ export const CONDITIONING_GOLD_SET_OVERLAY_FAMILY: Record<string, string> = {
   treadmill_hill_sprints: "lower_body",
   stair_climber_repeats: "lower_body",
   sled_push: "lower_body",
-  walking_lunge: "lower_body",
+  treadmill_sprint_intervals: "lower_body",
   kb_swing: "full_body", // hinge + core
   jump_rope: "lower_body",
   box_jump: "lower_body",

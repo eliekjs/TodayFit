@@ -40,6 +40,10 @@ import type {
   SupersetPairingRule,
   MovementDistributionRule,
 } from "./constraintTypes";
+import {
+  muscleSplitEmphasisFromFocusParts,
+  type MuscleSplitEmphasis,
+} from "../../../lib/splitMuscleMatching";
 
 /** Map body_region_focus strings to MovementFamily. */
 const BODY_FOCUS_TO_FAMILY: Record<string, MovementFamily> = {
@@ -52,7 +56,20 @@ const BODY_FOCUS_TO_FAMILY: Record<string, MovementFamily> = {
   core: "core",
   mobility: "mobility",
   conditioning: "conditioning",
+  chest: "upper_push",
+  back: "upper_pull",
+  glutes: "lower_body",
+  legs: "lower_body",
+  quad: "lower_body",
+  posterior: "lower_body",
 };
+
+function addMuscleSplitFamilies(key: string, families: Set<MovementFamily>): void {
+  if (key === "shoulders" || key === "arms") {
+    families.add("upper_push");
+    families.add("upper_pull");
+  }
+}
 
 const GOAL_ENGINE_CONDITIONING_SUB_FOCUS_SLUGS = new Set([
   "zone2_aerobic_base",
@@ -137,6 +154,8 @@ export function resolveWorkoutConstraints(
   // 3) Body-part strictness → hard_include + movement_distribution
   const bodyFocus = input.body_region_focus ?? [];
   let allowedLowerBodyEmphasis: "quad" | "posterior" | null | undefined = undefined;
+  const allowedMuscleEmphasis: MuscleSplitEmphasis | null =
+    muscleSplitEmphasisFromFocusParts(bodyFocus);
   if (bodyFocus.length > 0) {
     const families = new Set<MovementFamily>();
     let quadModifier = false;
@@ -153,6 +172,7 @@ export function resolveWorkoutConstraints(
         families.add("lower_body");
         continue;
       }
+      addMuscleSplitFamilies(key, families);
       if (key === "upper_body") {
         families.add("upper_push");
         families.add("upper_pull");
@@ -194,7 +214,9 @@ export function resolveWorkoutConstraints(
         };
       }
       if (allowedMovementFamilies.includes("lower_body")) {
-        if (quadModifier && !posteriorModifier) allowedLowerBodyEmphasis = "quad";
+        if (allowedMuscleEmphasis === "glutes") {
+          allowedLowerBodyEmphasis = null;
+        } else if (quadModifier && !posteriorModifier) allowedLowerBodyEmphasis = "quad";
         else if (posteriorModifier && !quadModifier) allowedLowerBodyEmphasis = "posterior";
         else allowedLowerBodyEmphasis = null;
       }
@@ -299,6 +321,7 @@ export function resolveWorkoutConstraints(
     excluded_contraindication_keys: excludedContraindicationKeys,
     allowed_movement_families: allowedMovementFamilies,
     allowed_lower_body_emphasis: allowedLowerBodyEmphasis,
+    allowed_muscle_emphasis: allowedMuscleEmphasis,
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
     allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,

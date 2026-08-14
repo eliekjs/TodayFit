@@ -17,8 +17,9 @@ import {
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { StatusBar } from "expo-status-bar";
-import { useTheme } from "../../../lib/theme";
+import { themeRadius, useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
+import { SectionLabel } from "../../../components/SectionLabel";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { CollapsiblePreferenceSection } from "../../../components/CollapsiblePreferenceSection";
 import { GymProfileSelectionPanel } from "../../../components/GymProfileSelectionPanel";
@@ -55,6 +56,7 @@ import {
   redistributeSubFocusPctsOnRemoval,
 } from "../../../lib/subFocusWeights";
 import { SubFocusWeightsEditor } from "../../../components/SubFocusWeightsEditor";
+import { PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS } from "../../../lib/pilotCatalog";
 import { listSportsForPrep, getQualitiesForSport, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
 import type { SportQuality } from "../../../lib/db/types";
@@ -1096,8 +1098,9 @@ export default function AdaptiveModeScreen() {
           </Text>
         </Card>
 
+        <SectionLabel style={{ marginTop: 20 }}>Session</SectionLabel>
         <ExperienceLevelToggle
-          marginTop={16}
+          marginTop={8}
           workoutTier={manualPreferences.workoutTier ?? "intermediate"}
           includeCreativeVariations={manualPreferences.includeCreativeVariations === true}
           onChange={(patch) => updateManualPreferences(patch)}
@@ -1159,7 +1162,8 @@ export default function AdaptiveModeScreen() {
           </Text>
         ) : null}
 
-        <Card title="Workout priorities" style={{ marginTop: 16 }}>
+        <SectionLabel style={{ marginTop: 20 }}>Priorities</SectionLabel>
+        <Card title="Workout priorities" style={{ marginTop: 8 }}>
           <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 12 }}>
             This ranked stack drives how Sport Mode builds your workout.
           </Text>
@@ -1636,7 +1640,7 @@ export default function AdaptiveModeScreen() {
               />
             ))}
           </View>
-          {adaptiveSubGoalsTotalCount > 0 ? (
+          {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && adaptiveSubGoalsTotalCount > 0 ? (
             <Pressable
               onPress={() =>
                 openAdaptiveAdvancedAndScroll({
@@ -1742,7 +1746,8 @@ export default function AdaptiveModeScreen() {
               },
             ]}
           >
-            {selectedSportSlugs.length > 0 &&
+            {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS &&
+            selectedSportSlugs.length > 0 &&
             rankedGoals.filter((g): g is string => g != null).length > 0 ? (
               <CollapsiblePreferenceSection
                 nested
@@ -1804,7 +1809,7 @@ export default function AdaptiveModeScreen() {
                 </View>
               </CollapsiblePreferenceSection>
             ) : null}
-            {filledAdaptiveGoals.length > 0 ? (
+            {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && filledAdaptiveGoals.length > 0 ? (
             <CollapsiblePreferenceSection
               nested
               title="Goal match %"
@@ -2011,7 +2016,7 @@ export default function AdaptiveModeScreen() {
                                 />
                               ))}
                           </View>
-                          {selectedSubs.length > 0 ? (
+                          {selectedSubs.length > 0 && !PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS ? (
                             <SubFocusWeightsEditor
                               theme={theme}
                               goalLabel={manualLabel}
@@ -2043,7 +2048,7 @@ export default function AdaptiveModeScreen() {
               </View>
             ) : null}
 
-            {selectedSportSlugs.length === 2 ? (
+            {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && selectedSportSlugs.length === 2 ? (
               <CollapsiblePreferenceSection
                 nested
                 title="Sport focus %"
@@ -2264,12 +2269,15 @@ export default function AdaptiveModeScreen() {
             : null
         }
       >
+        <SectionLabel style={{ marginTop: 16 }}>Optional</SectionLabel>
         <Pressable
           onPress={() => openAdaptiveAdvancedAndScroll()}
           style={styles.advancedLinkWrap}
         >
           <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-            Advanced options (sport %, goal weights, intensity, injuries…)
+            {PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS
+              ? "Advanced options (intensity, injuries…)"
+              : "Advanced options (sport %, goal weights, intensity, injuries…)"}
           </Text>
         </Pressable>
         <Pressable onPress={onSaveSportPreset} style={styles.savePresetWrap}>
@@ -2500,7 +2508,7 @@ const styles = StyleSheet.create({
   },
   goalRow: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     padding: 12,
     marginTop: 10,
   },
@@ -2572,7 +2580,7 @@ const styles = StyleSheet.create({
   priorityRankBadge: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: themeRadius.control,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -2624,7 +2632,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
   },
   advancedFiltersTitle: {
     fontSize: 16,
@@ -2638,7 +2646,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     marginTop: 12,
   },
@@ -2709,7 +2717,7 @@ const styles = StyleSheet.create({
   },
   presetModalInput: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: themeRadius.control,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,

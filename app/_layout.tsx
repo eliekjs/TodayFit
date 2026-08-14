@@ -1,5 +1,6 @@
 import React from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
+import Head from "expo-router/head";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, StyleSheet } from "react-native";
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -47,6 +48,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      <Head>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
       <AuthProvider>
         <AppStateProvider>
           <WelcomeProvider>

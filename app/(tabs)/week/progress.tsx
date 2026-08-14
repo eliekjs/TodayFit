@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../../../lib/theme";
+import { themeRadius, useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
+import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
 import { Card } from "../../../components/Card";
+import { SectionLabel } from "../../../components/SectionLabel";
 import { getTodayLocalDateString } from "../../../lib/dateUtils";
 import {
   buildWeekProgressSnapshot,
@@ -18,17 +20,31 @@ import {
   type WeekProgressDay,
 } from "../../../lib/weekProgress";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
+import {
+  saveDayButtonLabel,
+  saveWeekButtonLabel,
+  savedDayFingerprint,
+  savedPlanDaysFromSportPrep,
+  savedWeekFingerprint,
+} from "../../../lib/saveNamedPlan";
+import { useNamedPlanSave } from "../../../lib/useNamedPlanSave";
 
 function DayRow({
   day,
   isNext,
   isToday,
   theme,
+  saveLabel,
+  saveDisabled,
+  onSave,
 }: {
   day: WeekProgressDay;
   isNext: boolean;
   isToday: boolean;
   theme: ReturnType<typeof useTheme>;
+  saveLabel?: string;
+  saveDisabled?: boolean;
+  onSave?: () => void;
 }) {
   const isComplete = day.status === "completed";
   const isSkipped = day.status === "skipped";
@@ -47,13 +63,14 @@ function DayRow({
         style={[
           styles.statusCircle,
           {
-            borderColor: isComplete ? theme.primary : theme.border,
-            backgroundColor: isComplete ? theme.primary : "transparent",
-          },
-        ]}
+          borderColor: isComplete ? theme.primary : theme.borderStrong,
+          backgroundColor: isComplete ? theme.primary : "transparent",
+          borderStyle: isComplete || isSkipped ? "solid" : "dashed",
+        },
+      ]}
       >
         {isComplete ? (
-          <Ionicons name="checkmark" size={16} color="#fff" />
+          <Ionicons name="checkmark" size={16} color={theme.onPrimary} />
         ) : isSkipped ? (
           <Ionicons name="remove" size={14} color={theme.textMuted} />
         ) : null}
@@ -80,6 +97,16 @@ function DayRow({
           <Text style={[styles.skippedLabel, { color: theme.textMuted }]}>Skipped</Text>
         ) : null}
       </View>
+      {onSave && saveLabel ? (
+        <PrimaryButton
+          label={saveLabel}
+          variant="secondary"
+          compact
+          onPress={onSave}
+          disabled={saveDisabled}
+          style={styles.daySaveBtn}
+        />
+      ) : null}
     </View>
   );
 }
@@ -98,6 +125,15 @@ export default function WeekProgressScreen() {
     setManualSessionProgress,
     setManualExecutionStarted,
   } = useAppState();
+  const {
+    dialog: saveDialog,
+    busy: saveBusy,
+    isSaved,
+    requestSaveDay,
+    requestSaveWeek,
+    confirmSave,
+    cancelSave,
+  } = useNamedPlanSave();
 
   const snapshot = useMemo(
     () => buildWeekProgressSnapshot({ manualWeekPlan, sportPrepWeekPlan }),
@@ -174,29 +210,100 @@ export default function WeekProgressScreen() {
     : snapshot.isWeekComplete
       ? "Week complete"
       : "View full week";
+  const saveSource = snapshot.flow === "goal_week" ? "manual" : "adaptive";
+  const weekSaveDays =
+    snapshot.flow === "goal_week"
+      ? (manualWeekPlan?.days ?? [])
+      : sportPrepWeekPlan
+        ? savedPlanDaysFromSportPrep(sportPrepWeekPlan)
+        : [];
+  const weekSaveFingerprint = savedWeekFingerprint(snapshot.weekStartDate, weekSaveDays);
+
+  const onSaveDay = (day: WeekProgressDay) => {
+    if (!day.workout) return;
+    requestSaveDay({
+      date: day.date,
+      workout: day.workout,
+      weekStartDate: snapshot.weekStartDate,
+      source: saveSource,
+      displayTitle: day.title,
+    });
+  };
+
+  const onSaveWeek = () => {
+    requestSaveWeek({
+      weekStartDate: snapshot.weekStartDate,
+      days: weekSaveDays,
+      source: saveSource,
+    });
+  };
 
   return (
     <AppScreenWrapper>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.heading, { color: theme.text }]}>This week</Text>
-        <Text style={[styles.subheading, { color: theme.textMuted }]}>
+        <SectionLabel>This week</SectionLabel>
+        <Text
+          style={[
+            styles.heading,
+            { color: theme.text },
+          ]}
+        >
           {formatWeekRangeLabel(snapshot.weekStartDate)}
         </Text>
         <Text style={[styles.progressSummary, { color: theme.textMuted }]}>
           {snapshot.completedCount} of {snapshot.totalCount} workouts complete
         </Text>
 
+        <View style={styles.heatmap}>
+          {snapshot.days.map((day) => {
+            const filled = day.status === "completed";
+            const letter = formatWeekDayLong(day.date).charAt(0);
+            return (
+              <View key={`heat-${day.id}`} style={styles.heatmapCellWrap}>
+                <Text style={[styles.heatmapLabel, { color: theme.textMuted }]}>{letter}</Text>
+                <View
+                  style={[
+                    styles.heatmapCell,
+                    {
+                      backgroundColor: filled ? theme.primary : theme.secondarySoft,
+                    },
+                  ]}
+                />
+              </View>
+            );
+          })}
+        </View>
+
         <View style={styles.dayList}>
-          {snapshot.days.map((day) => (
-            <DayRow
-              key={day.id}
-              day={day}
-              isNext={nextDay?.id === day.id}
-              isToday={day.date === todayIso}
-              theme={theme}
-            />
-          ))}
+          {snapshot.days.map((day) => {
+            const fingerprint =
+              day.status === "completed" && day.workout
+                ? savedDayFingerprint(day.date, day.workout.id)
+                : null;
+            return (
+              <DayRow
+                key={day.id}
+                day={day}
+                isNext={nextDay?.id === day.id}
+                isToday={day.date === todayIso}
+                theme={theme}
+                saveLabel={
+                  fingerprint
+                    ? saveDayButtonLabel({
+                        saved: isSaved(fingerprint),
+                        busy: saveBusy && saveDialog?.fingerprint === fingerprint,
+                        compact: true,
+                      })
+                    : undefined
+                }
+                saveDisabled={
+                  !fingerprint || saveBusy || saveDialog != null || isSaved(fingerprint)
+                }
+                onSave={fingerprint ? () => onSaveDay(day) : undefined}
+              />
+            );
+          })}
         </View>
 
         {snapshot.isWeekComplete ? (
@@ -228,8 +335,32 @@ export default function WeekProgressScreen() {
             variant="secondary"
             onPress={() => router.push(snapshot.fullWeekRoute as never)}
           />
+          <PrimaryButton
+            label={saveWeekButtonLabel({
+              saved: isSaved(weekSaveFingerprint),
+              busy: saveBusy && saveDialog?.kind === "week",
+            })}
+            variant="secondary"
+            onPress={onSaveWeek}
+            disabled={
+              weekSaveDays.length === 0 ||
+              saveBusy ||
+              saveDialog != null ||
+              isSaved(weekSaveFingerprint)
+            }
+          />
         </View>
       </ScrollView>
+      {saveDialog ? (
+        <SaveNamedPlanModal
+          visible
+          kind={saveDialog.kind}
+          defaultName={saveDialog.defaultName}
+          busy={saveBusy}
+          onCancel={cancelSave}
+          onSave={confirmSave}
+        />
+      ) : null}
     </AppScreenWrapper>
   );
 }
@@ -256,8 +387,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   heading: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "700",
+    letterSpacing: -0.3,
   },
   subheading: {
     fontSize: 15,
@@ -265,7 +397,29 @@ const styles = StyleSheet.create({
   },
   progressSummary: {
     fontSize: 14,
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  heatmap: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  heatmapCellWrap: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
+  },
+  heatmapLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+  },
+  heatmapCell: {
+    width: "100%",
+    height: 18,
+    borderRadius: 8,
   },
   dayList: {
     gap: 10,
@@ -273,10 +427,10 @@ const styles = StyleSheet.create({
   },
   dayRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 12,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
   },
   statusCircle: {
@@ -291,6 +445,10 @@ const styles = StyleSheet.create({
   dayTextCol: {
     flex: 1,
     gap: 4,
+  },
+  daySaveBtn: {
+    minWidth: 76,
+    paddingHorizontal: 10,
   },
   dayTitleRow: {
     flexDirection: "row",

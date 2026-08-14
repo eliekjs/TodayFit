@@ -9,6 +9,7 @@ import { useTheme } from "../../../lib/theme";
 import { Card } from "../../../components/Card";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
+import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import {
   phaseLabelAfter,
@@ -20,6 +21,14 @@ import { GenerationLoadingScreen } from "../../../components/GenerationLoadingSc
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
+import {
+  saveDayButtonLabel,
+  saveWeekButtonLabel,
+  savedDayFingerprint,
+  savedPlanDaysFromSportPrep,
+  savedWeekFingerprint,
+} from "../../../lib/saveNamedPlan";
+import { useNamedPlanSave } from "../../../lib/useNamedPlanSave";
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { ChangeDayFocusModal } from "../../../components/ChangeDayFocusModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
@@ -39,7 +48,6 @@ import {
   goalSubFocusPctPayloadForAdaptiveGoals,
 } from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
-import { saveManualDay } from "../../../lib/db/weekPlanRepository";
 import { isDbConfigured } from "../../../lib/db";
 import { collectWorkoutExerciseIds, replaceExerciseInWorkout, updateExercisePrescriptionInWorkout } from "../../../lib/workoutUtils";
 import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
@@ -58,6 +66,7 @@ import {
 } from "../../../lib/workoutIntentSplit";
 import {
   adaptiveSetupFromPlanContext,
+  bodyChoiceIdForBias,
   buildBodyFocusSummary,
   buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
@@ -156,6 +165,15 @@ export default function AdaptiveWeekPlanScreen() {
     workoutHistory,
     savedWorkouts,
   } = useAppState();
+  const {
+    dialog: saveDialog,
+    busy: saveBusy,
+    isSaved,
+    requestSaveDay,
+    requestSaveWeek,
+    confirmSave,
+    cancelSave,
+  } = useNamedPlanSave();
 
   const [selectedSession, setSelectedSession] = useState<PlannedDay | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<GeneratedWorkout | null>(null);
@@ -178,7 +196,6 @@ export default function AdaptiveWeekPlanScreen() {
   );
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isMovingSession, setIsMovingSession] = useState(false);
-  const [savingDay, setSavingDay] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAdjustFocusModal, setShowAdjustFocusModal] = useState(false);
   const [showChangeFocusModal, setShowChangeFocusModal] = useState(false);
@@ -682,8 +699,9 @@ export default function AdaptiveWeekPlanScreen() {
     const bodyKey = session.dayLevelFocus?.dayBodyEmphasis ?? "full";
     const targetBody =
       bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
-    const specificBodyFocus: SpecificBodyFocusKey[] | undefined = session.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
-      ? ["core"]
+    const specificBodyFocus: SpecificBodyFocusKey[] | undefined = session.dayLevelFocus
+      ?.daySpecificBodyFocuses?.length
+      ? (session.dayLevelFocus.daySpecificBodyFocuses as SpecificBodyFocusKey[])
       : undefined;
     const adaptive = adaptiveSetupFromPlanContext({
       goalSlugs: plan.goalSlugs,
@@ -895,8 +913,9 @@ export default function AdaptiveWeekPlanScreen() {
     const targetBody =
       bodyKey === "upper" ? "Upper" : bodyKey === "lower" ? "Lower" : "Full";
     const targetModifier = snapshotBody?.targetModifier ?? [];
-    const specificBodyFocus: SpecificBodyFocusKey[] | undefined = day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
-      ? ["core"]
+    const specificBodyFocus: SpecificBodyFocusKey[] | undefined = day.dayLevelFocus
+      ?.daySpecificBodyFocuses?.length
+      ? (day.dayLevelFocus.daySpecificBodyFocuses as SpecificBodyFocusKey[])
       : undefined;
     const bodyOptions =
       gymIndex >= 0
@@ -909,11 +928,13 @@ export default function AdaptiveWeekPlanScreen() {
           })
         : [];
     const selectedBodyId: DayBodyFocusChoiceId | undefined =
-      day.dayLevelFocus?.daySpecificBodyFocuses?.includes("core")
-        ? "core"
-        : bodyKey === "upper" || bodyKey === "lower" || bodyKey === "full"
-          ? bodyKey
-          : undefined;
+      gymIndex >= 0
+        ? bodyChoiceIdForBias(
+            targetBody,
+            specificBodyFocus,
+            targetModifier
+          )
+        : undefined;
     const bodyFocus = buildBodyFocusSummary(
       bodyOptions.find((o) => o.id === selectedBodyId),
       gymIndex >= 0
@@ -1142,23 +1163,39 @@ export default function AdaptiveWeekPlanScreen() {
     }
   };
 
-  const onSaveDay = async () => {
-    if (!selectedDay || !selectedWorkout || !userId || !isDbConfigured()) {
-      if (!userId || !isDbConfigured()) {
-        setError("Sign in and enable sync to save this day for later.");
-      }
-      return;
-    }
-    setError(null);
-    setSavingDay(true);
-    try {
-      await saveManualDay(userId, selectedDay.date, selectedWorkout);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSavingDay(false);
-    }
+  const onSaveDay = () => {
+    if (!selectedDay || !selectedWorkout || !sportPrepWeekPlan) return;
+    requestSaveDay({
+      date: selectedDay.date,
+      workout: selectedWorkout,
+      weekStartDate: sportPrepWeekPlan.weekStartDate,
+      source: "adaptive",
+      displayTitle:
+        selectedDay.dayLevelFocus?.displayTitle?.trim() ||
+        selectedDay.title?.trim() ||
+        selectedDay.intentLabel?.trim() ||
+        undefined,
+    });
   };
+
+  const onSaveWeek = () => {
+    if (!sportPrepWeekPlan) return;
+    requestSaveWeek({
+      weekStartDate: sportPrepWeekPlan.weekStartDate,
+      days: savedPlanDaysFromSportPrep(sportPrepWeekPlan),
+      source: "adaptive",
+    });
+  };
+
+  const sportSaveDays = savedPlanDaysFromSportPrep(sportPrepWeekPlan);
+  const weekSaveFingerprint = savedWeekFingerprint(
+    sportPrepWeekPlan.weekStartDate,
+    sportSaveDays
+  );
+  const selectedDaySaveFingerprint =
+    selectedDay && selectedWorkout
+      ? savedDayFingerprint(selectedDay.date, selectedWorkout.id)
+      : null;
 
   /** Treat plans with a single training session as "one-day" for display. */
   const isSingleSessionPlan = daySlotsWithSessions.length === 1;
@@ -1252,15 +1289,21 @@ export default function AdaptiveWeekPlanScreen() {
             ? "Tweak focus or regenerate below."
             : "Tap a session to view it. Use Change focus to adjust body/priority, then regenerate."}
         </Text>
-        {userId && sportPrepWeekPlan.weeklyPlanInstanceId ? (
-          <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
-            Week saved — find it in Library
-          </Text>
-        ) : !userId ? (
-          <Text style={[styles.savedWeekBadge, { color: theme.textMuted }]}>
-            Sign in to save this week to History.
-          </Text>
-        ) : null}
+        <PrimaryButton
+          label={saveWeekButtonLabel({
+            saved: isSaved(weekSaveFingerprint),
+            busy: saveBusy && saveDialog?.kind === "week",
+          })}
+          variant="secondary"
+          onPress={onSaveWeek}
+          disabled={
+            sportSaveDays.length === 0 ||
+            saveBusy ||
+            saveDialog != null ||
+            isSaved(weekSaveFingerprint)
+          }
+          style={{ marginTop: 12 }}
+        />
       </Card>
 
       {error ? (
@@ -1432,18 +1475,26 @@ export default function AdaptiveWeekPlanScreen() {
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
               helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}
               regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
+              weeklyBodyFocusMode={manualPreferences.weeklyBodyFocusMode}
               showChips={!!(
                 selectedDay.generatedWorkoutId ||
                 guestWorkoutsById[selectedDay.id] ||
                 guestWorkoutsById[selectedDay.date]
               )}
             />
-            {userId && isDbConfigured() && selectedWorkout ? (
+            {selectedWorkout && selectedDaySaveFingerprint ? (
               <PrimaryButton
-                label={savingDay ? "Saving…" : "Save day for later"}
+                label={saveDayButtonLabel({
+                  saved: isSaved(selectedDaySaveFingerprint),
+                  busy: saveBusy && saveDialog?.kind === "day",
+                })}
                 variant="secondary"
                 onPress={onSaveDay}
-                disabled={savingDay}
+                disabled={
+                  saveBusy ||
+                  saveDialog != null ||
+                  isSaved(selectedDaySaveFingerprint)
+                }
                 style={{ marginTop: 8 }}
               />
             ) : null}
@@ -1507,6 +1558,7 @@ export default function AdaptiveWeekPlanScreen() {
         }}
         helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}
         regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
+        weeklyBodyFocusMode={manualPreferences.weeklyBodyFocusMode}
       />
       <SwapExerciseModal
         visible={swapModal != null}
@@ -1527,6 +1579,16 @@ export default function AdaptiveWeekPlanScreen() {
         onApply={handleAdjustFocusApply}
         title="Adjust focus areas and days"
       />
+      {saveDialog ? (
+        <SaveNamedPlanModal
+          visible
+          kind={saveDialog.kind}
+          defaultName={saveDialog.defaultName}
+          busy={saveBusy}
+          onCancel={cancelSave}
+          onSave={confirmSave}
+        />
+      ) : null}
     </>
   );
 

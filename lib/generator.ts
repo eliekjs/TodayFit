@@ -67,6 +67,7 @@ import {
 } from "./dailyGeneratorAdapter";
 import type { AppHistorySources } from "./buildAppTrainingHistory";
 import { buildAppTrainingHistory } from "./buildAppTrainingHistory";
+import { ensureCuratedDescriptionsLoaded } from "./exerciseDescriptionsCurated";
 
 function exerciseConflictsWithInjuries(ex: Exercise, injurySlugs: string[]): boolean {
   if (!injurySlugs.length) return false;
@@ -111,9 +112,11 @@ async function loadMergedExercisePoolForGenerator(injurySlugs: string[]): Promis
   }
 
   try {
-    const activeCount = await countActiveCatalogExercises();
+    const [activeCount, fromDb] = await Promise.all([
+      countActiveCatalogExercises(),
+      listExercisesForGenerator({ injuries: injurySlugs }),
+    ]);
     const dbAuthoritative = isDbCatalogAuthoritative(activeCount);
-    const fromDb = await listExercisesForGenerator({ injuries: injurySlugs });
     for (const e of fromDb) {
       if (!isBlockedExercise({ id: e.id, name: e.name })) byId.set(e.id, e);
     }
@@ -997,11 +1000,15 @@ export async function generateWorkoutAsync(
   sportGoalContext?: import("./dailyGeneratorAdapter").SportGoalContext,
   options?: GenerateWorkoutAsyncOptions
 ): Promise<GeneratedWorkout> {
+  // Curated setup copy must be loaded before session attach, or items fall back to
+  // generic prescription cues (e.g. "Heavy load, controlled tempo. Full lockout.").
   const sessionSeed = seedExtra ?? createWorkoutGenerationEntropy();
   const injurySlugs = injurySlugsFromManualPreferences(preferences);
-
-  const pool =
-    options?.exercisePool ?? (await loadMergedExercisePoolForGenerator(injurySlugs));
+  const poolPromise =
+    options?.exercisePool != null
+      ? Promise.resolve(options.exercisePool)
+      : loadMergedExercisePoolForGenerator(injurySlugs);
+  const [, pool] = await Promise.all([ensureCuratedDescriptionsLoaded(), poolPromise]);
 
   if (pool.length === 0) {
     throw new Error(

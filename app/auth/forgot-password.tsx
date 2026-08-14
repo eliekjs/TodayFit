@@ -15,13 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "../../context/AuthContext";
 import { AUTH_COPY } from "../../lib/authCopy";
-
-const CLEAN_BG = "#f7f3ec";
-const CLEAN_CARD = "#fffdf8";
-const CLEAN_TEXT = "#231f1a";
-const CLEAN_MUTED = "rgba(35,31,26,0.66)";
-const CLEAN_BORDER = "rgba(44,38,32,0.12)";
-const CLEAN_ACCENT = "#b7791f";
+import { themeRadius, useTheme } from "../../lib/theme";
 
 type Step = "email" | "code" | "password";
 
@@ -35,6 +29,7 @@ type Step = "email" | "code" | "password";
  * For reliable delivery in production, point Auth → SMTP to Resend/SendGrid/etc.
  */
 export default function ForgotPasswordScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();
   const {
@@ -142,7 +137,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <KeyboardAvoidingView
@@ -153,18 +148,32 @@ export default function ForgotPasswordScreen() {
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
           >
-            <View style={styles.card}>
-              <Text style={styles.stepLabel}>
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                  borderRadius: themeRadius.card,
+                },
+              ]}
+            >
+              <Text style={[styles.stepLabel, { color: theme.textMuted }]}>
                 {step === "email" ? "Step 1 of 3" : step === "code" ? "Step 2 of 3" : "Step 3 of 3"}
               </Text>
-              <Text style={styles.title}>
+              <Text
+                style={[
+                  styles.title,
+                  { color: theme.text },
+                ]}
+              >
                 {step === "email"
                   ? "Forgot password"
                   : step === "code"
                     ? "Enter reset code"
                     : "Choose a new password"}
               </Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.subtitle, { color: theme.textMuted }]}>
                 {step === "email"
                   ? AUTH_COPY.resetEmailStepSubtitle
                   : step === "code"
@@ -174,9 +183,16 @@ export default function ForgotPasswordScreen() {
 
               {step === "email" && (
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      backgroundColor: theme.card,
+                    },
+                  ]}
                   placeholder="Email"
-                  placeholderTextColor={CLEAN_MUTED}
+                  placeholderTextColor={theme.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
@@ -191,9 +207,16 @@ export default function ForgotPasswordScreen() {
 
               {step === "code" && (
                 <TextInput
-                  style={styles.input}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      backgroundColor: theme.card,
+                    },
+                  ]}
                   placeholder="6-digit code"
-                  placeholderTextColor={CLEAN_MUTED}
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="number-pad"
                   textContentType="oneTimeCode"
                   autoComplete="one-time-code"
@@ -208,9 +231,16 @@ export default function ForgotPasswordScreen() {
               {step === "password" && (
                 <>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      backgroundColor: theme.card,
+                    },
+                  ]}
                     placeholder="New password"
-                    placeholderTextColor={CLEAN_MUTED}
+                    placeholderTextColor={theme.textMuted}
                     secureTextEntry
                     textContentType="newPassword"
                     autoComplete="new-password"
@@ -220,9 +250,16 @@ export default function ForgotPasswordScreen() {
                     accessibilityLabel="New password"
                   />
                   <TextInput
-                    style={styles.input}
+                    style={[
+                    styles.input,
+                    {
+                      borderColor: theme.border,
+                      color: theme.text,
+                      backgroundColor: theme.card,
+                    },
+                  ]}
                     placeholder="Confirm password"
-                    placeholderTextColor={CLEAN_MUTED}
+                    placeholderTextColor={theme.textMuted}
                     secureTextEntry
                     textContentType="newPassword"
                     value={confirm}
@@ -233,11 +270,18 @@ export default function ForgotPasswordScreen() {
                 </>
               )}
 
-              {info ? <Text style={styles.info}>{info}</Text> : null}
-              {error ? <Text style={styles.error}>{error}</Text> : null}
+              {info ? (
+                <Text style={[styles.info, { color: theme.textMuted }]}>{info}</Text>
+              ) : null}
+              {error ? (
+                <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>
+              ) : null}
 
               <Pressable
-                style={[styles.primary, { opacity: busy ? 0.7 : 1 }]}
+                style={[
+                  styles.primary,
+                  { backgroundColor: theme.primary, opacity: busy ? 0.7 : 1 },
+                ]}
                 onPress={
                   step === "email"
                     ? onSendCode
@@ -256,9 +300,9 @@ export default function ForgotPasswordScreen() {
                 }
               >
                 {busy ? (
-                  <ActivityIndicator color="#fffdf8" />
+                  <ActivityIndicator color={theme.onPrimary} />
                 ) : (
-                  <Text style={styles.primaryText}>
+                  <Text style={[styles.primaryText, { color: theme.onPrimary }]}>
                     {step === "email"
                       ? "Email me a code"
                       : step === "code"
@@ -270,7 +314,7 @@ export default function ForgotPasswordScreen() {
 
               {step === "code" && (
                 <Pressable onPress={onSendCode} disabled={busy} accessibilityRole="button">
-                  <Text style={styles.link}>Resend code</Text>
+                  <Text style={[styles.link, { color: theme.primary }]}>Resend code</Text>
                 </Pressable>
               )}
 
@@ -285,12 +329,12 @@ export default function ForgotPasswordScreen() {
                   disabled={busy}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.link}>Back</Text>
+                  <Text style={[styles.link, { color: theme.primary }]}>Back</Text>
                 </Pressable>
               )}
 
               <Pressable onPress={goLogin} disabled={busy} accessibilityRole="button">
-                <Text style={styles.linkMuted}>Back to login</Text>
+                <Text style={[styles.linkMuted, { color: theme.textMuted }]}>Back to login</Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -301,63 +345,52 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CLEAN_BG },
+  container: { flex: 1 },
   safe: { flex: 1 },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
   card: {
-    backgroundColor: CLEAN_CARD,
-    borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: CLEAN_BORDER,
   },
   stepLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
-    color: CLEAN_MUTED,
     marginBottom: 8,
-    letterSpacing: 0.3,
+    letterSpacing: 0.85,
+    textTransform: "uppercase",
   },
   title: {
     fontSize: 22,
-    fontWeight: "800",
-    color: CLEAN_TEXT,
+    fontWeight: "700",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: CLEAN_MUTED,
     lineHeight: 20,
     marginBottom: 16,
   },
   input: {
     borderWidth: 1,
-    borderColor: CLEAN_BORDER,
-    borderRadius: 12,
+    borderRadius: 999,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: CLEAN_TEXT,
     marginBottom: 12,
-    backgroundColor: "rgba(255,253,248,0.92)",
   },
   info: {
-    color: CLEAN_MUTED,
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
     textAlign: "center",
   },
   error: {
-    color: "#9b2c2c",
     fontSize: 13,
     marginBottom: 12,
     textAlign: "center",
   },
   primary: {
-    backgroundColor: CLEAN_ACCENT,
-    borderRadius: 12,
+    borderRadius: 999,
     paddingVertical: 16,
     alignItems: "center",
     marginBottom: 14,
@@ -365,20 +398,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryText: {
-    color: "#fffdf8",
     fontWeight: "700",
     fontSize: 16,
   },
   link: {
     textAlign: "center",
-    color: CLEAN_ACCENT,
     fontWeight: "600",
     fontSize: 14,
     marginBottom: 10,
   },
   linkMuted: {
     textAlign: "center",
-    color: CLEAN_MUTED,
     fontWeight: "500",
     fontSize: 14,
     marginTop: 4,

@@ -154,33 +154,6 @@ function partitionRegionalSubFocusSlugs(slugs: Set<string>): {
   };
 }
 
-/** True when upper regional subs and lower regional subs come from different goals. */
-function subFocusRegionsSplitAcrossGoals(
-  prefs: ManualPreferences,
-  upperSlugs: Set<string>,
-  lowerSlugs: Set<string>
-): boolean {
-  if (upperSlugs.size === 0 || lowerSlugs.size === 0) return false;
-  const goalsWithUpper = new Set<string>();
-  const goalsWithLower = new Set<string>();
-  for (const [goalLabel, displayNames] of Object.entries(prefs.subFocusByGoal)) {
-    const entry = GOAL_SUB_FOCUS_OPTIONS[goalLabel];
-    if (!entry) continue;
-    const nameToSlug = new Map(entry.subFocuses.map((f) => [f.name, f.slug]));
-    for (const name of displayNames) {
-      const slug = nameToSlug.get(name);
-      if (!slug) continue;
-      if (upperSlugs.has(slug)) goalsWithUpper.add(goalLabel);
-      if (lowerSlugs.has(slug)) goalsWithLower.add(goalLabel);
-    }
-  }
-  if (goalsWithUpper.size === 0 || goalsWithLower.size === 0) return false;
-  for (const goal of goalsWithUpper) {
-    if (!goalsWithLower.has(goal)) return true;
-  }
-  return false;
-}
-
 /** Remove sub-focus display-name entries whose slugs are in the given set. */
 function removeConflictingSubFocuses(
   prefs: ManualPreferences,
@@ -217,24 +190,27 @@ function detectBodyRegionVsSubGoalConflict(
 
   const { upper: upperSlugs, lower: lowerSlugs } = partitionRegionalSubFocusSlugs(selectedSlugs);
   const spansUpperAndLower = upperSlugs.size > 0 && lowerSlugs.size > 0;
-  const splitAcrossGoals = subFocusRegionsSplitAcrossGoals(prefs, upperSlugs, lowerSlugs);
 
   if (targetBody === "Upper") {
     if (lowerSlugs.size === 0) return null;
     const names = conflictingSubFocusDisplayNames(prefs, lowerSlugs);
+    const alignedNames = conflictingSubFocusDisplayNames(prefs, upperSlugs);
     const message = spansUpperAndLower
-      ? splitAcrossGoals
-        ? `Your goals use sub-goals for different body regions (e.g. ${names}), but this session is set to Upper body.`
-        : `Your sub-goals span upper and lower body, but this session is set to Upper body. Lower-body picks like ${names} won't fully match.`
-      : `Your sub-goals (${names}) focus on lower body, but your session is set to Upper body.`;
+      ? `Your sub-goals mix ${alignedNames} with ${names}, but this session is Upper body. Use Full body to keep both (for example Bench and Legs), or clear the lower-body picks.`
+      : `Your sub-goals (${names}) focus on lower body, but your session is Upper body. Use Full body to keep them, or clear those sub-goals.`;
     return {
       id: "body_vs_subgoal_upper_lower",
       severity: "high",
       message,
       resolutions: [
         {
-          label: "Switch to Full body",
-          apply: () => ({ targetBody: "Full" as TargetBody, targetModifier: [] }),
+          label: spansUpperAndLower ? "Use Full body (keep both)" : "Use Full body (keep these sub-goals)",
+          apply: () => ({
+            targetBody: "Full" as TargetBody,
+            targetModifier: [],
+            specificBodyFocus: undefined,
+            weeklyBodyFocusMode: "region" as const,
+          }),
         },
         {
           label: "Clear lower-body sub-goals",
@@ -247,19 +223,23 @@ function detectBodyRegionVsSubGoalConflict(
   if (targetBody === "Lower") {
     if (upperSlugs.size === 0) return null;
     const names = conflictingSubFocusDisplayNames(prefs, upperSlugs);
+    const alignedNames = conflictingSubFocusDisplayNames(prefs, lowerSlugs);
     const message = spansUpperAndLower
-      ? splitAcrossGoals
-        ? `Your goals use sub-goals for different body regions (e.g. ${names}), but this session is set to Lower body.`
-        : `Your sub-goals span upper and lower body, but this session is set to Lower body. Upper-body picks like ${names} won't fully match.`
-      : `Your sub-goals (${names}) focus on upper body, but your session is set to Lower body.`;
+      ? `Your sub-goals mix ${alignedNames} with ${names}, but this session is Lower body. Use Full body to keep both (for example Legs and Bench), or clear the upper-body picks.`
+      : `Your sub-goals (${names}) focus on upper body, but your session is Lower body. Use Full body to keep them, or clear those sub-goals.`;
     return {
       id: "body_vs_subgoal_lower_upper",
       severity: "high",
       message,
       resolutions: [
         {
-          label: "Switch to Full body",
-          apply: () => ({ targetBody: "Full" as TargetBody, targetModifier: [] }),
+          label: spansUpperAndLower ? "Use Full body (keep both)" : "Use Full body (keep these sub-goals)",
+          apply: () => ({
+            targetBody: "Full" as TargetBody,
+            targetModifier: [],
+            specificBodyFocus: undefined,
+            weeklyBodyFocusMode: "region" as const,
+          }),
         },
         {
           label: "Clear upper-body sub-goals",

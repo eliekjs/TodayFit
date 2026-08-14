@@ -37,7 +37,7 @@ export type SessionIntent = {
   volumePreference?: VolumePreference | null;
   /** Optional rationale or notes for this session. */
   notes?: string;
-  /** Optional body-region bias for this session (emphasis, not strict filter). */
+  /** Optional body-region bias for this session (maps to the hard session body contract). */
   bodyRegionBias?: { targetBody: TargetBody | null; targetModifier: string[] };
 };
 
@@ -60,10 +60,12 @@ export type SportGoalOptions = {
   recentLoad?: string;
   /** Injury/constraint labels (e.g. "Knee", "Lower Back") so generation excludes contraindicated exercises. */
   injuries?: string[];
-  /** Body-region bias for this session (emphasis; generator uses as targetBody/targetModifier). */
+  /** Body-region bias for this session (maps to targetBody/targetModifier). */
   bodyRegionBias?: { targetBody: TargetBody | null; targetModifier: string[] };
-  /** Pattern/Muscle day picks (chest, push, glutes, …) → focus_body_parts via adapter. */
+  /** Pattern/Muscle day picks (chest, push, glutes, …) → hard focus_body_parts via adapter. */
   specificBodyFocus?: import("../../lib/types").SpecificBodyFocusKey[];
+  /** Region | Pattern | Muscle — required so Chest days stay muscle-gated in sport week gen. */
+  weeklyBodyFocusMode?: import("../../lib/types").WeeklyBodyFocusMode;
   /** Experience tier for exercise pool filtering (default intermediate when omitted). */
   workoutTier?: WorkoutTierPreference;
   /** When true, allow exercises tagged as creative/complex variations. */
@@ -160,6 +162,9 @@ export async function buildWorkoutForSessionIntent(
     ...(weekSubFocusPrimaryLabels ? { weekSubFocusPrimaryLabels } : {}),
     ...(options?.sessionFocusDistribution
       ? { sessionFocusDistribution: options.sessionFocusDistribution }
+      : {}),
+    ...(options?.weeklyBodyFocusMode
+      ? { weeklyBodyFocusMode: options.weeklyBodyFocusMode }
       : {}),
   };
 

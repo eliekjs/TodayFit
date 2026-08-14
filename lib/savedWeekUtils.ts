@@ -7,7 +7,7 @@ import {
 import type { GeneratedWorkout, ManualWeekPlan, SavedWeek } from "./types";
 import type { PlanWeekResult, PlannedDay } from "../services/sportPrepPlanner";
 
-function cloneWorkoutForRedo(workout: GeneratedWorkout): GeneratedWorkout {
+export function cloneWorkoutForRedo(workout: GeneratedWorkout): GeneratedWorkout {
   return {
     ...workout,
     id: `workout_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,

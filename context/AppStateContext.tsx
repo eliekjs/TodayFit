@@ -168,7 +168,7 @@ type AppStateContextValue = {
   addSavedWorkout: (item: Omit<SavedWorkout, "id">) => void;
   removeSavedWorkout: (id: string) => void;
   removeSavedWorkoutByWorkoutId: (workoutId: string) => void;
-  addSavedWeek: (item: Omit<SavedWeek, "id">) => void;
+  addSavedWeek: (item: Omit<SavedWeek, "id">) => Promise<boolean>;
   removeSavedWeek: (id: string) => void;
   setSportPrepWeekPlan: (plan: PlanWeekResult | null) => void;
   setManualWeekPlan: (plan: ManualWeekPlan | null) => void;
@@ -1329,27 +1329,46 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [userId, persist, savedWorkouts, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
-  const addSavedWeek = useCallback((item: Omit<SavedWeek, "id">) => {
+  const addSavedWeek = useCallback(async (item: Omit<SavedWeek, "id">): Promise<boolean> => {
     if (persist && userId) {
       touchPersistedStateDuringRemoteLoad();
-      void persistWithHandling({
+      return persistWithHandling({
         operation: "addSavedWeek",
         action: async () => {
+          const options = {
+            name: item.name,
+            source: item.source,
+          };
+          const firstDay = item.days[0];
+          if (item.singleDay) {
+            if (!firstDay) {
+              throw new Error("Cannot save a day without a workout.");
+            }
+            const rowId = await WeekPlanRepo.saveManualDay(
+              userId,
+              firstDay.date,
+              firstDay.workout,
+              options
+            );
+            setSavedWeeks((prev) => [...prev, { ...item, id: rowId }]);
+            return;
+          }
           const rowId = await WeekPlanRepo.saveManualWeek(
             userId,
             item.weekStartDate,
-            item.days
+            item.days,
+            options
           );
           setSavedWeeks((prev) => [...prev, { ...item, id: rowId }]);
         },
         onFailure: notifySaveFailed,
       });
-    } else {
-      setSavedWeeks((prev) => [
-        ...prev,
-        { ...item, id: `saved_week_${Date.now()}` },
-      ]);
     }
+    const localId = item.singleDay
+      ? `saved_day_${Date.now()}`
+      : `saved_week_${Date.now()}`;
+    setSavedWeeks((prev) => [...prev, { ...item, id: localId }]);
+    return true;
   }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 
   const removeSavedWeek = useCallback((id: string) => {

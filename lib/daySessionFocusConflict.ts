@@ -121,6 +121,12 @@ function formatSubFocusList(items: ResolvedSubFocus[], max = 2): string {
     .join(", ");
 }
 
+function fullBodyKeepLabel(aligned: ResolvedSubFocus[], conflicting: ResolvedSubFocus[]): string {
+  const keep = [...aligned, ...conflicting];
+  const names = formatSubFocusList(keep, 3);
+  return names.length > 0 ? `Use Full body (keep ${names})` : "Use Full body";
+}
+
 function subFocusPatchForDayRegion(opts: {
   goalLabel: string;
   dayRegion: "upper" | "lower";
@@ -158,6 +164,17 @@ function buildResolutions(opts: {
     seen.add(resolution.id);
     resolutions.push(resolution);
   };
+
+  const mixedRegions = aligned.length > 0 && conflicting.length > 0;
+  if (dayRegion !== "full") {
+    add({
+      id: "switch_full_body",
+      label: mixedRegions
+        ? fullBodyKeepLabel(aligned, conflicting)
+        : "Use Full body (keep these sub-goals)",
+      bodyFocusId: "full",
+    });
+  }
 
   const emphasizedAligned = emphasizedGoal
     ? aligned.filter((s) => s.goalLabel === emphasizedGoal)
@@ -238,19 +255,6 @@ function buildResolutions(opts: {
     }
   }
 
-  if (dayRegion !== "full") {
-    add({ id: "switch_full_body", label: "Switch to Full body", bodyFocusId: "full" });
-  }
-
-  const crossGoalConflict = new Set(conflicting.map((c) => c.goalLabel)).size > 1;
-  if (crossGoalConflict) {
-    const fullIdx = resolutions.findIndex((r) => r.id === "switch_full_body");
-    if (fullIdx > 0) {
-      const [fullRes] = resolutions.splice(fullIdx, 1);
-      resolutions.unshift(fullRes);
-    }
-  }
-
   if (conflicting.some((c) => c.region === "lower") && dayRegion === "upper") {
     add({ id: "switch_lower_body", label: "Switch to Lower body", bodyFocusId: "lower" });
   }
@@ -307,13 +311,17 @@ export function detectDaySessionFocusConflict(opts: {
     : null;
 
   const conflictNames = formatSubFocusList(conflicting);
+  const alignedNames = formatSubFocusList(aligned);
   const dayLabel = dayRegionLabel(dayRegion);
   const emphasizedNote =
     emphasizedGoal && conflicting.some((c) => c.goalLabel === emphasizedGoal)
       ? ` (${emphasizedGoal} is prioritized this day)`
       : "";
   const opposingRegion = dayRegion === "upper" ? "lower body" : "upper body";
-  const message = `Your sub-goals (${conflictNames}) focus on ${opposingRegion}, but this day is set to ${dayLabel}${emphasizedNote}. Pick how to align them before generating.`;
+  const message =
+    aligned.length > 0
+      ? `Your sub-goals mix ${alignedNames} with ${conflictNames}, but this day is ${dayLabel}${emphasizedNote}. Use Full body to keep both, or drop the ${opposingRegion} picks.`
+      : `Your sub-goals (${conflictNames}) focus on ${opposingRegion}, but this day is ${dayLabel}${emphasizedNote}. Use Full body to keep them, or pick how to align before generating.`;
 
   const resolutions = buildResolutions({
     dayRegion,

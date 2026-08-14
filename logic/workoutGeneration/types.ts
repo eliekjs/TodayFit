@@ -196,7 +196,7 @@ export type FocusBodyPart =
   | "posterior"
   | "core"
   | "full_body"
-  /** Muscle-day emphasis tags (additive on region; used for scoring / wanted muscles). */
+  /** Muscle-day tags: hard eligibility via allowed_muscle_emphasis, plus scoring. */
   | "chest"
   | "back"
   | "shoulders"

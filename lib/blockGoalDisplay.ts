@@ -39,14 +39,15 @@ function _humanizeGoalSlug(slug: string): string {
 
 const STRUCTURAL_BLOCK_TITLES: Record<string, string> = {
   warmup: "Activation",
-  main_strength: "Main strength",
-  main_hypertrophy: "Main hypertrophy",
-  power: "Power block",
+  main_strength: "Primary Strength",
+  main_hypertrophy: "Hypertrophy",
+  power: "Power / Speed",
   accessory: "Accessory",
   conditioning: "Conditioning",
   cooldown: "Cooldown",
   mobility: "Mobility",
   recovery: "Recovery",
+  core: "Core",
 };
 
 /** Strip internal "(secondary goal)" suffixes from stored block titles. */
@@ -104,6 +105,12 @@ export function getBlockDisplayTitle(block: WorkoutBlock): string {
   const structural = STRUCTURAL_BLOCK_TITLES[block.block_type];
   if (structural && /^main\b/i.test(title)) {
     return structural;
+  }
+  if (block.block_type === "power" && /^power\b/i.test(title)) {
+    return structural ?? title;
+  }
+  if (block.block_type === "main_strength" && /strength/i.test(title) && !/secondary/i.test(title)) {
+    return structural ?? title;
   }
   return title || structural || raw;
 }

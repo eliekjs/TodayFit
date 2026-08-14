@@ -4,13 +4,17 @@
  * when direct sub-focus tag matches are sparse.
  */
 
-import type { Exercise } from "./types";
-import type { GenerateWorkoutInput } from "./types";
+import type { Exercise, GenerateWorkoutInput } from "./types";
 import { isConditioningEligible } from "./blockSelectionEligibility";
 import {
   exerciseHasSubFocusSlug,
   filterPoolByOverlay,
 } from "../../data/goalSubFocus/conditioningSubFocus";
+import {
+  narrowToDefaultEngineCardioStaples,
+  resolveConditioningPickInput,
+  shouldRestrictToDefaultEngineCardioStaples,
+} from "./defaultEngineCardioFilter";
 
 /** When direct tag matches fall below this, merge signal-based fallbacks into the pool. */
 export const CONDITIONING_INTENT_MIN_DIRECT_POOL = 12;
@@ -260,11 +264,21 @@ export function pickConditioningExerciseWithVariety(
 ): Exercise | undefined {
   if (!pool.length) return undefined;
 
-  const eligiblePool = pool.filter((e) => isConditioningEligible(e, { input }));
+  const resolvedInput = resolveConditioningPickInput(input);
+  const eligiblePool = pool.filter((e) => isConditioningEligible(e, { input: resolvedInput }));
   if (!eligiblePool.length) return undefined;
 
   let candidatePool = eligiblePool.filter((e) => pickWeightForExercise(e, pickContext) > 0);
   if (!candidatePool.length) candidatePool = eligiblePool;
+
+  if (shouldRestrictToDefaultEngineCardioStaples(resolvedInput, preferredSubFocusSlugs)) {
+    candidatePool = narrowToDefaultEngineCardioStaples(
+      candidatePool,
+      resolvedInput,
+      preferredSubFocusSlugs
+    );
+    if (!candidatePool.length) return undefined;
+  }
 
   if (preferredSubFocusSlugs?.length) {
     const directMatch = candidatePool.filter((e) =>

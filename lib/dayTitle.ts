@@ -60,12 +60,8 @@ export function isSpecificFocusRelevantForBody(
 
 /**
  * Format a day title: Goal(s) - Body Emphasis (Specific Focus when relevant).
- * When multiple goals/focuses are passed, they are joined with " + " (e.g. "Strength + Hypertrophy - Upper Body").
- * Examples:
- * - "Sports Conditioning - Upper Body"
- * - "Strength + Hypertrophy - Upper Body"
- * - "Hypertrophy - Lower Body (Glute Focus)"
- * - "Strength - Full Body (Shoulder + Back Focus)"
+ * Pattern/Muscle identity keys (Chest, Push, …) replace the region label so the
+ * title matches the day's hard contract.
  */
 export function formatDayTitle(
   goalLabelOrLabels: string | string[],
@@ -74,12 +70,19 @@ export function formatDayTitle(
 ): string {
   const goalParts = Array.isArray(goalLabelOrLabels) ? goalLabelOrLabels : [goalLabelOrLabels];
   const goalLabel = goalParts.filter(Boolean).join(" + ") || "Workout";
-  const bodyLabel = BODY_EMPHASIS_LABELS[bodyEmphasis];
-  const base = `${goalLabel} - ${bodyLabel}`;
-  if (!specificFocusKeys?.length) return base;
-  const relevant = specificFocusKeys.filter((k) =>
+  const relevant = (specificFocusKeys ?? []).filter((k) =>
     isSpecificFocusRelevantForBody(k, bodyEmphasis)
   );
+  const identity = relevant.find((k) =>
+    ["chest", "back", "shoulders", "arms", "glutes", "legs", "push", "pull", "core"].includes(k)
+  );
+  if (identity) {
+    const identityLabel =
+      SPECIFIC_FOCUS_LABELS[identity] ?? identity.charAt(0).toUpperCase() + identity.slice(1);
+    return `${goalLabel} - ${identityLabel}`;
+  }
+  const bodyLabel = BODY_EMPHASIS_LABELS[bodyEmphasis];
+  const base = `${goalLabel} - ${bodyLabel}`;
   if (relevant.length === 0) return base;
   const focusParts = relevant
     .map((k) => SPECIFIC_FOCUS_LABELS[k] ?? k.charAt(0).toUpperCase() + k.slice(1))

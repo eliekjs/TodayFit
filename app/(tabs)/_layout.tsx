@@ -66,7 +66,7 @@ export default function TabsLayout() {
         tabBarShowLabel: true,
         tabBarItemStyle: {
           paddingVertical: 6,
-          borderRadius: 16,
+          borderRadius: 999,
         },
         headerTitleAlign: "center",
         ...(Platform.OS === "web"

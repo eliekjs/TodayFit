@@ -1,19 +1,25 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useTheme } from "../../../lib/theme";
+import { themeRadius, useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
+import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { WorkoutLibraryTitle } from "../../../components/WorkoutLibraryTitle";
+import { PillTabs } from "../../../components/PillTabs";
+import { SectionLabel } from "../../../components/SectionLabel";
 import { getCurrentWeekStartMonday } from "../../../lib/dateUtils";
 import { workoutLibraryDedupKey } from "../../../lib/workoutLibraryLabel";
 import {
+  cloneWorkoutForRedo,
   savedWeekToManualWeekPlan,
   savedWeekToSportPrepWeekPlan,
 } from "../../../lib/savedWeekUtils";
+import { isSavedDayPlan, savedPlanDaysFromSportPrep, savedPlanLibraryTitle } from "../../../lib/saveNamedPlan";
+import { useNamedPlanSave } from "../../../lib/useNamedPlanSave";
 import type { SavedWeek } from "../../../lib/types";
 import { summarizeWorkoutLog } from "../../../lib/workoutCompletionLog";
 
@@ -34,9 +40,15 @@ export default function LibraryScreen() {
     setManualWeekPlan,
     setSportPrepWeekPlan,
     setAdaptiveSetup,
-    addSavedWeek,
     reloadSavedWeeks,
   } = useAppState();
+  const {
+    dialog: saveDialog,
+    busy: saveBusy,
+    requestSaveWeek,
+    confirmSave,
+    cancelSave,
+  } = useNamedPlanSave();
 
   useFocusEffect(
     useCallback(() => {
@@ -68,6 +80,15 @@ export default function LibraryScreen() {
     router.push("/sport-mode/recommendation");
   };
 
+  const onRedoSavedDay = (dayPlan: SavedWeek) => {
+    const day = dayPlan.days[0];
+    if (!day) return;
+    setGeneratedWorkout(cloneWorkoutForRedo(day.workout));
+    setResumeProgress(null);
+    setManualExecutionStarted(true);
+    router.push("/manual/execute");
+  };
+
   const items = [...workoutHistory].sort((a, b) =>
     a.date.localeCompare(b.date)
   );
@@ -87,35 +108,61 @@ export default function LibraryScreen() {
     return `(${which})`;
   };
 
+  const savedDayPlans = savedWeeks.filter(isSavedDayPlan);
+  const savedWeekPlans = savedWeeks.filter((week) => !isSavedDayPlan(week));
   const hasAny =
     savedWorkouts.length > 0 || savedWeeks.length > 0 || items.length > 0;
+
+  type LibraryTab = "progress" | "days" | "weeks" | "saved" | "history";
+  const libraryTabs = useMemo(() => {
+    const tabs: { key: LibraryTab; label: string; icon: "play-circle-outline" | "bookmark-outline" | "today-outline" | "calendar-outline" | "time-outline" }[] = [];
+    if (hasStaleInProgress) tabs.push({ key: "progress", label: "In progress", icon: "play-circle-outline" });
+    if (savedDayPlans.length > 0) tabs.push({ key: "days", label: "Days", icon: "today-outline" });
+    if (savedWeekPlans.length > 0) tabs.push({ key: "weeks", label: "Weeks", icon: "calendar-outline" });
+    if (savedWorkouts.length > 0) tabs.push({ key: "saved", label: "Saved", icon: "bookmark-outline" });
+    if (items.length > 0) tabs.push({ key: "history", label: "History", icon: "time-outline" });
+    return tabs;
+  }, [hasStaleInProgress, savedWorkouts.length, savedDayPlans.length, savedWeekPlans.length, items.length]);
+
+  const [libraryTab, setLibraryTab] = useState<LibraryTab | null>(null);
+  const activeLibraryTab =
+    libraryTab && libraryTabs.some((t) => t.key === libraryTab)
+      ? libraryTab
+      : libraryTabs[0]?.key;
 
   const onMoveManualToLibrary = () => {
     if (!manualWeekPlan) {
       setManualWeekPlan(null);
       return;
     }
-    addSavedWeek({
-      savedAt: new Date().toISOString(),
+    requestSaveWeek({
       weekStartDate: manualWeekPlan.weekStartDate,
       days: manualWeekPlan.days,
       source: "manual",
+      onSaved: () => setManualWeekPlan(null),
     });
-    setManualWeekPlan(null);
   };
 
   const onMoveSportPrepToLibrary = () => {
-    setSportPrepWeekPlan(null);
-    setAdaptiveSetup(null);
-  };
-
-  const formatSavedWeekLabel = (week: SavedWeek) => {
-    const weekStart = new Date(week.weekStartDate + "T12:00:00");
-    return `Week of ${weekStart.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })}`;
+    if (!sportPrepWeekPlan) {
+      setAdaptiveSetup(null);
+      return;
+    }
+    const days = savedPlanDaysFromSportPrep(sportPrepWeekPlan);
+    if (days.length === 0) {
+      setSportPrepWeekPlan(null);
+      setAdaptiveSetup(null);
+      return;
+    }
+    requestSaveWeek({
+      weekStartDate: sportPrepWeekPlan.weekStartDate,
+      days,
+      source: "adaptive",
+      onSaved: () => {
+        setSportPrepWeekPlan(null);
+        setAdaptiveSetup(null);
+      },
+    });
   };
 
   return (
@@ -131,14 +178,25 @@ export default function LibraryScreen() {
               Nothing in your library yet
             </Text>
             <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
-              Save a workout for later from the execute screen, save a week
-              plan from manual or sport mode, or finish a session — they will
-              show up here.
+              Save a day or week while reviewing your plan, or finish a session
+              — named saves show up here so you can redo them.
             </Text>
           </View>
         )}
 
-        {hasStaleInProgress && (
+        {libraryTabs.length > 0 ? (
+          <>
+            <SectionLabel>Library</SectionLabel>
+            <PillTabs
+              tabs={libraryTabs}
+              value={activeLibraryTab ?? libraryTabs[0]!.key}
+              onChange={(key) => setLibraryTab(key)}
+              style={{ marginBottom: 16 }}
+            />
+          </>
+        ) : null}
+
+        {activeLibraryTab === "progress" && hasStaleInProgress && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               In progress
@@ -147,7 +205,7 @@ export default function LibraryScreen() {
               Past week still in progress. Open to continue or move to library.
             </Text>
             {manualStale && manualWeekPlan && (
-              <View style={[styles.savedCard, { borderColor: theme.border }]}>
+              <View style={[styles.savedCard, { borderColor: theme.border, backgroundColor: theme.card }]}>
                 <Text style={[styles.savedTitle, { color: theme.text }]}>
                   Week of {new Date(manualWeekPlan.weekStartDate + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} (Manual)
                 </Text>
@@ -158,16 +216,17 @@ export default function LibraryScreen() {
                     style={{ flex: 1 }}
                   />
                   <PrimaryButton
-                    label="Move to library"
+                    label={saveBusy ? "Saving…" : "Move to library"}
                     variant="secondary"
                     onPress={onMoveManualToLibrary}
+                    disabled={saveBusy}
                     style={{ flex: 1 }}
                   />
                 </View>
               </View>
             )}
             {sportPrepStale && sportPrepWeekPlan && (
-              <View style={[styles.savedCard, { borderColor: theme.border }]}>
+              <View style={[styles.savedCard, { borderColor: theme.border, backgroundColor: theme.card }]}>
                 <Text style={[styles.savedTitle, { color: theme.text }]}>
                   Week of {new Date(sportPrepWeekPlan.weekStartDate + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} (Adaptive)
                 </Text>
@@ -178,9 +237,10 @@ export default function LibraryScreen() {
                     style={{ flex: 1 }}
                   />
                   <PrimaryButton
-                    label="Move to library"
+                    label={saveBusy ? "Saving…" : "Move to library"}
                     variant="secondary"
                     onPress={onMoveSportPrepToLibrary}
+                    disabled={saveBusy}
                     style={{ flex: 1 }}
                   />
                 </View>
@@ -189,7 +249,7 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {savedWorkouts.length > 0 && (
+        {activeLibraryTab === "saved" && savedWorkouts.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Saved for later
@@ -207,7 +267,7 @@ export default function LibraryScreen() {
               return (
                 <View
                   key={saved.id}
-                  style={[styles.savedCard, { borderColor: theme.border }]}
+                  style={[styles.savedCard, { borderColor: theme.border, backgroundColor: theme.card }]}
                 >
                   <WorkoutLibraryTitle
                     date={saved.savedAt}
@@ -247,7 +307,50 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {savedWeeks.length > 0 && (
+        {activeLibraryTab === "days" && savedDayPlans.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              Saved days
+            </Text>
+            <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
+              Redo a saved session or discard it when you are done.
+            </Text>
+            {savedDayPlans.map((dayPlan) => {
+              const day = dayPlan.days[0];
+              return (
+                <View
+                  key={dayPlan.id}
+                  style={[styles.savedCard, { borderColor: theme.border, backgroundColor: theme.card }]}
+                >
+                  <Text style={[styles.savedTitle, { color: theme.text }]}>
+                    {savedPlanLibraryTitle(dayPlan)}
+                  </Text>
+                  <Text style={[styles.savedMeta, { color: theme.textMuted }]}>
+                    {dayPlan.source === "manual" ? "Manual" : "Adaptive"}
+                    {day?.workout.durationMinutes != null
+                      ? ` · ${day.workout.durationMinutes} min`
+                      : ""}
+                  </Text>
+                  <View style={styles.savedActions}>
+                    <PrimaryButton
+                      label="Redo day"
+                      onPress={() => onRedoSavedDay(dayPlan)}
+                      style={{ flex: 1 }}
+                    />
+                    <PrimaryButton
+                      label="Discard"
+                      variant="ghost"
+                      onPress={() => removeSavedWeek(dayPlan.id)}
+                      style={styles.discardBtn}
+                    />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {activeLibraryTab === "weeks" && savedWeekPlans.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Saved weeks
@@ -255,14 +358,14 @@ export default function LibraryScreen() {
             <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
               Redo a saved week plan or discard it when you are done.
             </Text>
-            {savedWeeks.map((week) => {
+            {savedWeekPlans.map((week) => {
               return (
                 <View
                   key={week.id}
-                  style={[styles.savedCard, { borderColor: theme.border }]}
+                  style={[styles.savedCard, { borderColor: theme.border, backgroundColor: theme.card }]}
                 >
                   <Text style={[styles.savedTitle, { color: theme.text }]}>
-                    {formatSavedWeekLabel(week)}
+                    {savedPlanLibraryTitle(week)}
                   </Text>
                   <Text style={[styles.savedMeta, { color: theme.textMuted }]}>
                     {week.source === "manual" ? "Manual" : "Adaptive"} ·{" "}
@@ -287,7 +390,7 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {items.length > 0 && (
+        {activeLibraryTab === "history" && items.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Completed
@@ -357,6 +460,16 @@ export default function LibraryScreen() {
           </View>
         )}
       </ScrollView>
+      {saveDialog ? (
+        <SaveNamedPlanModal
+          visible
+          kind={saveDialog.kind}
+          defaultName={saveDialog.defaultName}
+          busy={saveBusy}
+          onCancel={cancelSave}
+          onSave={confirmSave}
+        />
+      ) : null}
     </AppScreenWrapper>
   );
 }
@@ -380,8 +493,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   savedCard: {
-    padding: 14,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     marginBottom: 12,
     gap: 4,

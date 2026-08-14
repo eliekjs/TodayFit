@@ -2,7 +2,7 @@
 
 **Status:** In progress  
 **Voice source of truth:** [PRODUCT_VOICE.md](./PRODUCT_VOICE.md)  
-**Related:** [PASSWORD_RESET_SETUP.md](./PASSWORD_RESET_SETUP.md), [PRIVACY_AND_DELETION.md](./PRIVACY_AND_DELETION.md)
+**Related:** [PASSWORD_RESET_SETUP.md](./PASSWORD_RESET_SETUP.md), [PRIVACY_AND_DELETION.md](./PRIVACY_AND_DELETION.md), [PILOT_WEB_AND_SECURITY.md](./PILOT_WEB_AND_SECURITY.md)
 
 Implements the post-audit auth polish: branded email sending, productized errors, stronger templates, and in-app copy aligned to product voice.
 
@@ -11,7 +11,7 @@ Implements the post-audit auth polish: branded email sending, productized errors
 ## Goals
 
 1. Users never see “Supabase Auth” or raw API errors as the product voice.
-2. Confirm + reset emails look and sound like TodayFit.
+2. Confirm + reset emails look and sound like SeshLogic.
 3. Login / signup / reset / delete copy matches [PRODUCT_VOICE.md](./PRODUCT_VOICE.md).
 4. Custom SMTP + verified domain for production deliverability (human ops).
 
@@ -21,12 +21,12 @@ Implements the post-audit auth polish: branded email sending, productized errors
 
 ### You (Ellie) — required for email branding & deliverability
 
-Do these in order. Until SMTP is live, confirm/reset mail may still show a Supabase-ish From address even if subjects/bodies say TodayFit.
+Do these in order. Until SMTP is live, confirm/reset mail may still show a Supabase-ish From address even if subjects/bodies say SeshLogic. Full DNS + hosting steps: [PILOT_WEB_AND_SECURITY.md](./PILOT_WEB_AND_SECURITY.md).
 
 #### 1. Pick a sending domain
 
-- Prefer a domain you control (e.g. `todayfit.app` or `mail.yourdomain.com`).
-- Subdomain for mail is fine: `mail.todayfit.app`.
+- Prefer a domain you control (the one just registered for R4).
+- Subdomain for mail is fine: `mail.yourdomain.com`.
 
 #### 2. Create a transactional email account
 
@@ -45,7 +45,7 @@ Create an API key / SMTP credentials. You need:
 - Username  
 - Password / API key  
 - From email, e.g. `noreply@mail.yourdomain.com`  
-- From name: **`TodayFit`**
+- From name: **`SeshLogic`**
 
 #### 3. Verify the domain at the provider
 
@@ -66,11 +66,11 @@ Without this, mail stays untrusted and may look like spam.
 | Field | Value |
 |-------|--------|
 | Sender email | `noreply@…` (verified address) |
-| Sender name | `TodayFit` |
+| Sender name | `SeshLogic` |
 | Host / port / user / pass | From your provider |
 
 4. Save.
-5. Send a test: sign up with a fresh email you control; confirm From shows **TodayFit**, not Supabase Auth.
+5. Send a test: sign up with a fresh email you control; confirm From shows **SeshLogic**, not Supabase Auth.
 
 #### 5. Smoke-test after agent copy/template work
 
@@ -136,8 +136,8 @@ Follow **You (Ellie)** steps 1–5 above. Agent cannot complete From-name brandi
 
 | Check | Passes when |
 |-------|-------------|
-| From name | Inbox shows **TodayFit** (after SMTP) |
-| Subjects | “Confirm your TodayFit email” / “Reset your TodayFit password” |
+| From name | Inbox shows **SeshLogic** (after SMTP) |
+| Subjects | “Confirm your SeshLogic email” / “Reset your SeshLogic password” |
 | Login error | Never raw “Invalid login credentials” |
 | Confirm UX | Personalized email + resend; voice-aligned |
 | Reset UX | Code path works; anti-enumeration copy kept |

@@ -1,6 +1,8 @@
 export type EnergyLevel = "low" | "medium" | "high";
 
-/** User dial for session set/rep density on top of goal + energy. */
+/** User dial for session set/rep density on top of goal + energy.
+ * conservative = Strength Focused, standard = Balanced, high_volume = High Volume.
+ */
 export type VolumePreference = "conservative" | "standard" | "high_volume";
 
 /** Single body target: Upper / Lower / Full. Modifiers (Push, Pull, Quad, Posterior) are separate. */
@@ -62,7 +64,19 @@ export type WorkoutTierPreference = "beginner" | "intermediate" | "advanced";
 /** Per-workout preferences when editing a single day in a week (goal/body/energy/style bias). */
 export type DailyWorkoutPreferences = {
   goalBias?: "strength" | "hypertrophy" | "endurance" | "mobility" | "recovery" | "power";
-  bodyRegionBias?: "upper" | "lower" | "full" | "pull" | "push" | "core";
+  bodyRegionBias?:
+    | "upper"
+    | "lower"
+    | "full"
+    | "pull"
+    | "push"
+    | "core"
+    | "chest"
+    | "back"
+    | "shoulders"
+    | "arms"
+    | "glutes"
+    | "legs";
   /** Specific body-part emphasis for this day (e.g. glutes, shoulders). Only include when relevant to body region. */
   specificBodyFocus?: SpecificBodyFocusKey[];
   energyLevel?: EnergyLevel;
@@ -665,4 +679,8 @@ export type SavedWeek = {
   weekStartDate: string;
   days: ManualWeekPlan["days"];
   source: "manual" | "adaptive";
+  /** User-chosen name at save time. */
+  name?: string;
+  /** True when this is a single-day save, not a full week. */
+  singleDay?: boolean;
 };

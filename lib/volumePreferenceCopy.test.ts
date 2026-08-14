@@ -17,7 +17,7 @@ describe("volumePreferenceCopy", () => {
     expect(resolveVolumeRuleKey({ goalSlugs: ["muscle"] })).toBe("hypertrophy");
   });
 
-  it("formats recommended strength options around 5–8 reps", () => {
+  it("formats recommended strength options as Strength Focused / Balanced / High Volume", () => {
     const options = volumePreferenceOptionsForGoals({
       primaryFocus: ["Build Strength"],
     });
@@ -26,23 +26,24 @@ describe("volumePreferenceCopy", () => {
       "standard",
       "high_volume",
     ]);
-    expect(options[0]!.label).toBe("Lower reps");
-    expect(options[1]!.label).toBe("Goal rep range");
+    expect(options[0]!.label).toBe("Strength Focused");
+    expect(options[1]!.label).toBe("Balanced");
     expect(options[1]!.description).toContain("5–8");
-    expect(options[2]!.label).toBe("Higher reps");
+    expect(options[2]!.label).toBe("High Volume");
     expect(volumePreferenceSectionSubtitle({ primaryFocus: ["Build Strength"] })).toContain(
-      "5–8"
+      "volume preference"
     );
   });
 
-  it("formats hypertrophy recommendation as 8–15", () => {
+  it("keeps High Volume distinct from hypertrophy as a goal", () => {
     const options = volumePreferenceOptionsForGoals({
       primaryFocus: ["Build Muscle (Hypertrophy)"],
     });
-    expect(options[1]!.description).toContain("8–15");
+    expect(options[2]!.label).toBe("High Volume");
+    expect(options[2]!.description).toContain("12–15");
     expect(volumePreferenceDisplayLabel("standard", {
       primaryFocus: ["Build Muscle (Hypertrophy)"],
-    })).toBe("Goal rep range");
+    })).toBe("Balanced");
   });
 
   it("formatRepRange handles equal bounds", () => {

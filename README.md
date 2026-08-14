@@ -91,6 +91,7 @@ When no user is signed in, the app uses in-memory state (no persistence). Sign i
 | `npm run android` | Start with Android |
 | `npm run ios` | Start with iOS |
 | `npm run web` | Start for web |
+| `npm run web:export` | Production web export → `dist/` (pilot hosting: [docs/PILOT_WEB_AND_SECURITY.md](docs/PILOT_WEB_AND_SECURITY.md)) |
 | `npm run lint` | Run ESLint |
 | `npm run test:generator` | Run workout generator seed test |
 
@@ -98,6 +99,7 @@ When no user is signed in, the app uses in-memory state (no persistence). Sign i
 
 - **MIGRATION.md** — Migration order, entity list, verification checklist.
 - **docs/** — Development plans (e.g. sport prep, sub-focus).
+- **docs/PILOT_WEB_AND_SECURITY.md** — Closed-pilot web hosting, domain, and security setup.
 
 ## License
 

@@ -15,6 +15,7 @@ export type PrefetchWorkoutGenerationOptions = {
 let modulePrefetchPromise: Promise<void> | null = null;
 let catalogPrefetchPromise: Promise<void> | null = null;
 let idleScheduled = false;
+let idleGeneration = 0;
 let pendingOptions: PrefetchWorkoutGenerationOptions = {};
 
 function resolveIncludeCatalog(options: PrefetchWorkoutGenerationOptions): boolean {
@@ -75,10 +76,24 @@ function flushPendingPrefetch(): void {
   })();
 }
 
+function enqueueIdleFlush(): void {
+  const gen = ++idleGeneration;
+  idleScheduled = true;
+  runWhenIdle(() => {
+    if (gen !== idleGeneration) return;
+    flushPendingPrefetch();
+  });
+}
+
+function flushNow(): void {
+  idleGeneration += 1;
+  flushPendingPrefetch();
+}
+
 /**
  * Starts loading the generator bundle (and optionally the exercise catalog) before the user taps
- * Generate. Safe to call multiple times; work is coalesced and deferred until the browser/app is idle
- * so first paint / scroll stay responsive — especially on web.
+ * Generate. Safe to call multiple times; work is coalesced. Home defers until idle so first paint
+ * stays responsive. Preferences / sport setup pass `includeCatalog: true` and start immediately.
  */
 export function prefetchWorkoutGenerationStack(
   injurySlugsOrOptions: string[] | PrefetchWorkoutGenerationOptions = []
@@ -95,9 +110,10 @@ export function prefetchWorkoutGenerationStack(
     pendingOptions.injurySlugs = options.injurySlugs;
   }
 
-  if (!idleScheduled) {
-    idleScheduled = true;
-    runWhenIdle(flushPendingPrefetch);
+  if (options.includeCatalog === true) {
+    flushNow();
+  } else if (!idleScheduled) {
+    enqueueIdleFlush();
   }
 
   return modulePrefetchPromise ?? Promise.resolve();

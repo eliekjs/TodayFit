@@ -5,6 +5,10 @@ import type { Exercise } from "../../logic/workoutGeneration/types";
 import type { ExerciseRowWithOntology } from "./generatorExerciseAdapter";
 import { mapDbExerciseToGeneratorExercise } from "./generatorExerciseAdapter";
 import { isBlockedExercise } from "../workoutRules";
+import {
+  eligibilityStatesForCatalogFetch,
+  getGenerationPruningGateFlags,
+} from "../generationPruningGateConfig";
 
 function requireClient() {
   const supabase = getSupabase();
@@ -331,26 +335,43 @@ async function selectInChunks<T extends Record<string, unknown>>(
   ids: string[],
   chunkSize: number
 ): Promise<T[]> {
-  const out: T[] = [];
+  const chunks: string[][] = [];
   for (let i = 0; i < ids.length; i += chunkSize) {
     const chunk = ids.slice(i, i + chunkSize);
-    if (chunk.length === 0) continue;
-    const { data, error } = await supabase.from(table).select(columns).in(filterColumn, chunk);
-    if (error) throw new Error(error.message);
-    out.push(...((data ?? []) as unknown as T[]));
+    if (chunk.length > 0) chunks.push(chunk);
   }
-  return out;
+  if (chunks.length === 0) return [];
+  const parts = await Promise.all(
+    chunks.map(async (chunk) => {
+      const { data, error } = await supabase.from(table).select(columns).in(filterColumn, chunk);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as T[];
+    })
+  );
+  return parts.flat();
 }
 
-async function fetchAllActiveExerciseRowsForGenerator(supabase: SupabaseClient): Promise<ExerciseRowWithOntology[]> {
+export type GeneratorCatalogFetchOptions = {
+  /** When set, only these `curation_generator_eligibility_state` values are fetched. */
+  eligibilityStates?: string[] | null;
+};
+
+async function fetchActiveExercisePages(
+  supabase: SupabaseClient,
+  eligibilityStates?: string[] | null
+): Promise<ExerciseRowWithOntology[]> {
   const rows: ExerciseRowWithOntology[] = [];
   let from = 0;
   const page = GENERATOR_EXERCISE_PAGE_SIZE;
   for (;;) {
-    const { data, error } = await supabase
+    let query = supabase
       .from("exercises")
       .select(EXERCISE_SELECT_WITH_ONTOLOGY)
-      .eq("is_active", true)
+      .eq("is_active", true);
+    if (eligibilityStates?.length) {
+      query = query.in("curation_generator_eligibility_state", eligibilityStates);
+    }
+    const { data, error } = await query
       .order("id", { ascending: true })
       .range(from, from + page - 1);
     if (error) throw new Error(error.message);
@@ -362,6 +383,23 @@ async function fetchAllActiveExerciseRowsForGenerator(supabase: SupabaseClient):
   return rows;
 }
 
+async function fetchAllActiveExerciseRowsForGenerator(
+  supabase: SupabaseClient,
+  options?: GeneratorCatalogFetchOptions
+): Promise<ExerciseRowWithOntology[]> {
+  const states = options?.eligibilityStates;
+  try {
+    return await fetchActiveExercisePages(supabase, states);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const missingColumn = /curation_generator_eligibility_state|schema cache|column/i.test(msg);
+    if (states?.length && missingColumn) {
+      return fetchActiveExercisePages(supabase, null);
+    }
+    throw err;
+  }
+}
+
 export type ExerciseRelationMaps = {
   rows: ExerciseRowWithOntology[];
   tagsByExerciseId: Map<string, string[]>;
@@ -371,33 +409,48 @@ export type ExerciseRelationMaps = {
 };
 
 /**
- * Cached full catalog + relation maps for workout generation (many paginated Supabase calls).
+ * Cached catalog + relation maps for workout generation (paginated Supabase calls).
+ * Keyed by eligibility filter so generator (core-only) and full-catalog export do not share a stale pool.
  * Cleared on load failure so the next generate can retry. Call `clearGeneratorExerciseCatalogCache()` after
  * catalog migrations or in tests that need a fresh fetch in the same JS runtime.
  */
-let generatorRelationMapsPromise: Promise<ExerciseRelationMaps> | null = null;
+let generatorRelationMapsByKey: Map<string, Promise<ExerciseRelationMaps>> | null = null;
+
+function relationMapsCacheKey(eligibilityStates?: string[] | null): string {
+  return eligibilityStates?.length ? [...eligibilityStates].sort().join("|") : "*";
+}
 
 export function clearGeneratorExerciseCatalogCache(): void {
-  generatorRelationMapsPromise = null;
+  generatorRelationMapsByKey = null;
   listExercisesForGeneratorByFilterKey = null;
   cachedActiveCatalogExerciseCount = null;
 }
 
 function getCachedGeneratorRelationMaps(supabase: SupabaseClient): Promise<ExerciseRelationMaps> {
-  if (!generatorRelationMapsPromise) {
-    generatorRelationMapsPromise = loadActiveExercisesWithRelationMaps(supabase).catch((err) => {
-      generatorRelationMapsPromise = null;
-      throw err;
-    });
+  const eligibilityStates = eligibilityStatesForCatalogFetch(getGenerationPruningGateFlags());
+  const key = relationMapsCacheKey(eligibilityStates);
+  if (!generatorRelationMapsByKey) {
+    generatorRelationMapsByKey = new Map();
   }
-  return generatorRelationMapsPromise;
+  const existing = generatorRelationMapsByKey.get(key);
+  if (existing) return existing;
+  const promise = loadActiveExercisesWithRelationMaps(supabase, { eligibilityStates }).catch((err) => {
+    generatorRelationMapsByKey?.delete(key);
+    throw err;
+  });
+  generatorRelationMapsByKey.set(key, promise);
+  return promise;
 }
 
 /**
  * Active exercises plus tag / contraindication / progression maps (paginated + chunked queries).
+ * Pass `eligibilityStates` to skip rows the generator pruning gate would discard (pilot: core-only).
  */
-export async function loadActiveExercisesWithRelationMaps(supabase: SupabaseClient): Promise<ExerciseRelationMaps> {
-  const rows = await fetchAllActiveExerciseRowsForGenerator(supabase);
+export async function loadActiveExercisesWithRelationMaps(
+  supabase: SupabaseClient,
+  options?: GeneratorCatalogFetchOptions
+): Promise<ExerciseRelationMaps> {
+  const rows = await fetchAllActiveExerciseRowsForGenerator(supabase, options);
   if (!rows.length) {
     return {
       rows: [],

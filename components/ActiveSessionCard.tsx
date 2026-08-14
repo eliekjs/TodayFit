@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Platform, Modal } from "react-native
 import { useRouter, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import { useAppState } from "../context/AppStateContext";
 import { PrimaryButton } from "./Button";
 import {
@@ -16,40 +16,6 @@ import {
 
 function phaseIndex(phase: SessionPhase): number {
   return SESSION_PHASES.findIndex((p) => p.key === phase);
-}
-
-type PhaseStepRowProps = {
-  currentIdx: number;
-  primaryColor: string;
-  mutedColor: string;
-};
-
-function PhaseStepRow({ currentIdx, primaryColor, mutedColor }: PhaseStepRowProps) {
-  return (
-    <View style={styles.phaseRow}>
-      {SESSION_PHASES.map((step, idx) => {
-        const isPast = idx < currentIdx;
-        const isCurrent = idx === currentIdx;
-        return (
-          <React.Fragment key={step.key}>
-            {idx > 0 ? (
-              <Text style={[styles.phaseArrow, { color: "rgba(148,163,184,0.4)" }]}>→</Text>
-            ) : null}
-            <Text
-              style={[
-                styles.phaseLabel,
-                isCurrent && { color: primaryColor, fontWeight: "600" },
-                isPast && !isCurrent && { color: "rgba(45,212,191,0.55)" },
-                !isPast && !isCurrent && { color: mutedColor },
-              ]}
-            >
-              {step.label}
-            </Text>
-          </React.Fragment>
-        );
-      })}
-    </View>
-  );
 }
 
 const NAV_BAR_HEIGHT = Platform.select({ ios: 44, android: 56, web: 52, default: 44 }) ?? 44;
@@ -102,8 +68,8 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
         {
           top,
           height: SESSION_BANNER_HEIGHT,
-          backgroundColor: theme.cardOpaque,
-          borderBottomColor: theme.border,
+          backgroundColor: theme.primarySoft,
+          borderBottomColor: theme.primary,
         },
       ]}
     >
@@ -112,20 +78,19 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
           style={({ pressed }) => [styles.mainTap, { opacity: pressed ? 0.88 : 1 }]}
           onPress={() => router.push(resumeRoute as never)}
           accessibilityRole="button"
-          accessibilityLabel={`Continue in progress workout, ${details}, ${currentPhaseLabel} phase`}
+          accessibilityLabel={`Continue workout building, ${details}, ${currentPhaseLabel} phase`}
         >
+          <Ionicons name="play-circle" size={22} color={theme.primary} style={styles.leadIcon} />
           <View style={styles.textColumn}>
-            <Text style={[styles.titleLine, { color: theme.text }]} numberOfLines={1}>
-              <Text style={{ color: theme.textMuted }}>In progress workout: </Text>
-              {details}
+            <Text style={[styles.titleLine, { color: theme.primary }]} numberOfLines={1}>
+              Continue workout building
             </Text>
-            <PhaseStepRow
-              currentIdx={currentIdx}
-              primaryColor={theme.primary}
-              mutedColor={theme.textMuted}
-            />
+            <Text style={[styles.detailLine, { color: theme.text }]} numberOfLines={1}>
+              {details}
+              <Text style={{ color: theme.textMuted }}>{`  ·  ${currentPhaseLabel}`}</Text>
+            </Text>
           </View>
-          <Ionicons name="chevron-forward" size={14} color={theme.primary} style={styles.chevron} />
+          <Ionicons name="chevron-forward" size={16} color={theme.primary} style={styles.chevron} />
         </Pressable>
         <Pressable
           onPress={() => setConfirmOpen(true)}
@@ -183,7 +148,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 1,
     overflow: "hidden",
     ...(Platform.OS === "web" ? ({ pointerEvents: "auto" } as const) : null),
   },
@@ -196,10 +161,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingLeft: 16,
+    paddingLeft: 14,
     paddingVertical: 8,
-    gap: 8,
+    gap: 10,
     minWidth: 0,
+  },
+  leadIcon: {
+    flexShrink: 0,
   },
   discardTap: {
     paddingHorizontal: 12,
@@ -213,27 +181,19 @@ const styles = StyleSheet.create({
   },
   textColumn: {
     flex: 1,
-    gap: 3,
+    gap: 2,
     minWidth: 0,
   },
   titleLine: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  detailLine: {
     fontSize: 12,
     lineHeight: 16,
     fontWeight: "500",
-  },
-  phaseRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-  phaseLabel: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  phaseArrow: {
-    fontSize: 11,
-    marginHorizontal: 4,
-    lineHeight: 14,
   },
   chevron: {
     flexShrink: 0,
@@ -249,7 +209,7 @@ const styles = StyleSheet.create({
   modalSheet: {
     width: "100%",
     maxWidth: 360,
-    borderRadius: 16,
+    borderRadius: themeRadius.modal,
     borderWidth: 1,
     padding: 20,
     gap: 12,

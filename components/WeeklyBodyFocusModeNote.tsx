@@ -5,7 +5,7 @@
 
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import type { WeeklyBodyFocusMode } from "../lib/types";
 
 type Props = {
@@ -103,7 +103,7 @@ export function WeeklyBodyFocusModeNote({ value, onChange }: Props) {
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
-    borderRadius: 12,
+    borderRadius: themeRadius.card,
     borderWidth: 1,
     overflow: "hidden",
     marginTop: 16,

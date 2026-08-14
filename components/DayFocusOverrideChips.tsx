@@ -2,15 +2,16 @@ import React, { forwardRef, useEffect, useState } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
-import type { DailyWorkoutPreferences } from "../lib/types";
-import type { DayFocusPreset } from "../lib/weekDaySessionFocus";
+import type { DailyWorkoutPreferences, WeeklyBodyFocusMode } from "../lib/types";
+import type { DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
+import { BODY_CHOICE_COPY, dayBodyChoiceIdsForMode, resolveWeeklyBodyFocusMode } from "../lib/weekDaySessionFocus";
+import { dailyOverrideFromBodyChoice } from "../lib/sessionBodyContract";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./Button";
 import { VolumePreferencePicker } from "./VolumePreferencePicker";
 import { volumePreferenceSectionSubtitle } from "../lib/volumePreferenceCopy";
 
 const GOAL_OPTIONS = ["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const;
-const BODY_OPTIONS = ["upper", "lower", "full", "pull", "push", "core"] as const;
 const ENERGY_OPTIONS = ["low", "medium", "high"] as const;
 
 export type DayFocusOverrideChipsProps = {
@@ -36,6 +37,8 @@ export type DayFocusOverrideChipsProps = {
   expandSignal?: number;
   /** When true, skip the accordion and always show focus controls (e.g. inside a modal). */
   alwaysExpanded?: boolean;
+  /** Region | Pattern | Muscle — regen body chips follow the same vocabulary as planning. */
+  weeklyBodyFocusMode?: WeeklyBodyFocusMode | null;
 };
 
 export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps>(function DayFocusOverrideChips({
@@ -53,9 +56,15 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   sportGoalPriorityNote,
   expandSignal,
   alwaysExpanded = false,
+  weeklyBodyFocusMode,
 }, ref) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(alwaysExpanded);
+  const bodyMode = resolveWeeklyBodyFocusMode(weeklyBodyFocusMode);
+  const bodyChoiceIds = dayBodyChoiceIdsForMode(bodyMode);
+  const selectedBodyChoice =
+    (dailyPrefsOverride?.bodyRegionBias as DayBodyFocusChoiceId | undefined) ??
+    (dailyPrefsOverride?.specificBodyFocus?.[0] as DayBodyFocusChoiceId | undefined);
 
   useEffect(() => {
     if (alwaysExpanded) {
@@ -147,15 +156,17 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
       )}
       <View style={[styles.chipGroup, { marginBottom: 8 }]}>
         <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
-        {BODY_OPTIONS.map((b) => (
+        {bodyChoiceIds.map((b) => (
           <Chip
             key={b}
-            label={b.charAt(0).toUpperCase() + b.slice(1)}
-            selected={dailyPrefsOverride?.bodyRegionBias === b}
+            label={BODY_CHOICE_COPY[b]?.label ?? b}
+            selected={selectedBodyChoice === b}
             onPress={() =>
-              onOverrideChange({
-                bodyRegionBias: dailyPrefsOverride?.bodyRegionBias === b ? undefined : b,
-              })
+              onOverrideChange(
+                selectedBodyChoice === b
+                  ? { bodyRegionBias: undefined, specificBodyFocus: undefined }
+                  : dailyOverrideFromBodyChoice(b)
+              )
             }
           />
         ))}

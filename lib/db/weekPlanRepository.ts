@@ -20,14 +20,32 @@ export type SavedWeekSummary = {
   goals_snapshot: Record<string, unknown>;
 };
 
+export type SaveManualPlanOptions = {
+  name?: string;
+  source?: "manual" | "adaptive";
+};
+
+function goalsSnapshotForSave(
+  options: SaveManualPlanOptions | undefined,
+  extra?: Record<string, unknown>
+): Record<string, unknown> {
+  const name = options?.name?.trim();
+  return {
+    source: options?.source ?? "manual",
+    ...(name ? { name } : {}),
+    ...extra,
+  };
+}
+
 /**
- * Save a manually generated week: create weekly_plan_instance and 7 weekly_plan_days
- * with generated workouts. goals_snapshot stores { source: "manual" } for later distinction.
+ * Save a manually generated week: create weekly_plan_instance and weekly_plan_days
+ * with generated workouts. goals_snapshot stores source (and optional name) for Library.
  */
 export async function saveManualWeek(
   userId: string,
   weekStartDate: string,
-  days: { date: string; workout: GeneratedWorkout }[]
+  days: { date: string; workout: GeneratedWorkout }[],
+  options?: SaveManualPlanOptions
 ): Promise<string> {
   const supabase = requireClient();
 
@@ -37,7 +55,7 @@ export async function saveManualWeek(
       user_id: userId,
       week_start_date: weekStartDate,
       plan_id: null,
-      goals_snapshot: { source: "manual" },
+      goals_snapshot: goalsSnapshotForSave(options),
       rationale: null,
     })
     .select("id")
@@ -165,12 +183,13 @@ async function rollbackManualPlanPersistence(
 
 /**
  * Save a single day as its own plan (one weekly_plan_instance with one weekly_plan_day).
- * Stored with goals_snapshot { source: "manual", singleDay: true }. Appears in Library with other saved weeks.
+ * Stored with goals_snapshot { source, singleDay: true, name? }. Appears in Library as a saved day.
  */
 export async function saveManualDay(
   userId: string,
   date: string,
-  workout: GeneratedWorkout
+  workout: GeneratedWorkout,
+  options?: SaveManualPlanOptions
 ): Promise<string> {
   const supabase = requireClient();
   const weekStartDate = weekStartMonday(date);
@@ -181,7 +200,7 @@ export async function saveManualDay(
       user_id: userId,
       week_start_date: weekStartDate,
       plan_id: null,
-      goals_snapshot: { source: "manual", singleDay: true },
+      goals_snapshot: goalsSnapshotForSave(options, { singleDay: true }),
       rationale: null,
     })
     .select("id")
@@ -231,8 +250,10 @@ export async function listWeeklyPlanInstances(userId: string): Promise<SavedWeek
   }));
 }
 
-function isFullWeekSummary(summary: SavedWeekSummary): boolean {
-  return summary.goals_snapshot?.singleDay !== true;
+function snapshotName(snapshot: Record<string, unknown>): string | undefined {
+  return typeof snapshot.name === "string" && snapshot.name.trim()
+    ? snapshot.name.trim()
+    : undefined;
 }
 
 function savedWeekFromPlan(
@@ -259,14 +280,16 @@ function savedWeekFromPlan(
     weekStartDate: summary.week_start_date,
     days,
     source,
+    name: snapshotName(summary.goals_snapshot),
+    singleDay: summary.goals_snapshot?.singleDay === true,
   };
 }
 
 /**
- * List saved full-week plans with workouts (excludes single-day saves).
+ * List saved week and single-day plans with workouts.
  */
 export async function listSavedWeeks(userId: string): Promise<SavedWeek[]> {
-  const summaries = (await listWeeklyPlanInstances(userId)).filter(isFullWeekSummary);
+  const summaries = await listWeeklyPlanInstances(userId);
   if (summaries.length === 0) return [];
 
   const supabase = requireClient();

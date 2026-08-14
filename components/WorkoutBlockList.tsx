@@ -1,12 +1,27 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 import type { BlockType, GeneratedWorkout, SetLogRow, WorkoutBlock, WorkoutItem } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
-import { formatExerciseDisplayCue } from "../lib/exerciseDisplayCue";
+import {
+  formatExerciseDisplayCue,
+  withResolvedExerciseDescription,
+} from "../lib/exerciseDisplayCue";
+import {
+  ensureCuratedDescriptionsLoaded,
+  getCuratedExerciseDescription,
+} from "../lib/exerciseDescriptionsCurated";
 import { buildBlockGoalBadgeLabel, getBlockDisplayTitle } from "../lib/blockGoalDisplay";
 import { ExerciseSetupModal } from "./ExerciseSetupModal";
 import { EditPrescriptionModal, type PrescriptionEdit } from "./EditPrescriptionModal";
+
+function resolveSetupItem(item: WorkoutItem): WorkoutItem {
+  return withResolvedExerciseDescription(item, getCuratedExerciseDescription);
+}
+
+function setupCueFor(item: WorkoutItem): string | null {
+  return formatExerciseDisplayCue(resolveSetupItem(item));
+}
 
 function BlockGoalBadge({
   block,
@@ -40,7 +55,7 @@ const blockGoalStyles = StyleSheet.create({
   },
   badge: {
     borderWidth: 1,
-    borderRadius: 6,
+    borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
@@ -84,11 +99,22 @@ export function WorkoutBlockList({
   showCompletionLog = true,
 }: WorkoutBlockListProps) {
   const theme = useTheme();
+  const [, setCuratedReady] = React.useState(false);
   const [setupModal, setSetupModal] = React.useState<{
     exerciseName: string;
     setupText: string;
   } | null>(null);
   const [editItem, setEditItem] = React.useState<WorkoutItem | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void ensureCuratedDescriptionsLoaded().then(() => {
+      if (!cancelled) setCuratedReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -122,7 +148,7 @@ export function WorkoutBlockList({
               showCompletionLog ? exerciseNotes : undefined,
               showCompletionLog ? exercisePerformance : undefined,
               (item) => {
-                const setupText = formatExerciseDisplayCue(item);
+                const setupText = setupCueFor(item);
                 if (!setupText) return;
                 setSetupModal({ exerciseName: item.exercise_name, setupText });
               },
@@ -220,7 +246,7 @@ function renderBlockContent(
     );
   };
   const setupButtonFor = (item: WorkoutItem) => {
-    const cue = formatExerciseDisplayCue(item);
+    const cue = setupCueFor(item);
     if (!cue) return null;
     return (
       <Pressable
@@ -283,9 +309,12 @@ function renderBlockContent(
             </Text>
               );
             })()}
-            <View style={[styles.pairRow, { backgroundColor: theme.card ?? theme.background }]}>
+            <View style={[styles.pairRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
               {pair.map((item, pairIdx) => (
-                <View key={item.exercise_id} style={styles.exerciseRow}>
+                <View
+                  key={item.exercise_id}
+                  style={[styles.exerciseRow, { borderWidth: 0, paddingHorizontal: 0, marginBottom: 0 }]}
+                >
                   <Text style={[styles.supersetLetter, { color: theme.primary ?? theme.text }]}>
                     {String.fromCharCode(65 + pairIdx)}
                   </Text>
@@ -326,7 +355,13 @@ function renderBlockContent(
   return (
     <>
       {block.items.map((item) => (
-        <View key={item.exercise_id} style={styles.exerciseRow}>
+        <View
+          key={item.exercise_id}
+          style={[
+            styles.exerciseRow,
+            { borderColor: theme.border, backgroundColor: theme.card },
+          ]}
+        >
           <View style={{ flex: 1 }}>
             <Text style={[styles.exerciseName, { color: theme.text }]}>
               {item.exercise_name}
@@ -363,9 +398,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   supersetBlock: {
     marginBottom: 12,
@@ -380,15 +415,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   pairRow: {
-    borderRadius: 8,
-    padding: 8,
+    borderRadius: themeRadius.card,
+    padding: 12,
     gap: 8,
+    borderWidth: 1,
   },
   exerciseRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     gap: 8,
+    borderWidth: 1,
+    borderRadius: themeRadius.card,
+    marginBottom: 8,
   },
   actionCol: {
     gap: 6,
@@ -400,7 +440,7 @@ const styles = StyleSheet.create({
     minWidth: 20,
   },
   exerciseName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
   },
   exercisePrescription: {
