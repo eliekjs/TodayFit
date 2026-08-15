@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildGeneratedWorkoutMapFromRows } from "./workoutRepository";
+import {
+  buildGeneratedWorkoutMapFromRows,
+  serializeWorkoutItemPrescription,
+} from "./workoutRepository";
 
 describe("buildGeneratedWorkoutMapFromRows", () => {
   it("maps workouts, blocks, and items with stable sort and prescription defaults", () => {
@@ -49,7 +52,13 @@ describe("buildGeneratedWorkoutMapFromRows", () => {
         block_id: "b1",
         exercise_slug: "row",
         exercise_name: "Row",
-        prescription: { sets: 4, reps: 8, rest_seconds: 90, coaching_cues: "brace" },
+        prescription: {
+          sets: 4,
+          reps: 8,
+          rest_seconds: 90,
+          coaching_cues: "brace",
+          exercise_description: "Stand tall and row the handle to your ribs.",
+        },
         sort_order: 1,
       },
       {
@@ -83,10 +92,36 @@ describe("buildGeneratedWorkoutMapFromRows", () => {
       rest_seconds: 0,
       coaching_cues: "legacy cue",
     });
+    expect(w1.blocks[0]?.items[1]).toMatchObject({
+      exercise_id: "row",
+      coaching_cues: "brace",
+      exercise_description: "Stand tall and row the handle to your ribs.",
+    });
     expect(w1.blocks[1]?.items[0]).toMatchObject({
       exercise_id: "cat_camel",
       unilateral: true,
       time_seconds: 45,
+    });
+    expect(w1.blocks[1]?.items[0]?.exercise_description).toBeUndefined();
+  });
+
+  it("serializes catalog setup copy onto prescription jsonb for web reloads", () => {
+    expect(
+      serializeWorkoutItemPrescription({
+        exercise_id: "goblet_squat",
+        exercise_name: "Goblet Squat",
+        sets: 3,
+        reps: 8,
+        rest_seconds: 60,
+        coaching_cues: "Heavy load, controlled tempo. Full lockout.",
+        exercise_description: "Hold the bell at your chest and squat between your elbows.",
+      })
+    ).toMatchObject({
+      sets: 3,
+      reps: 8,
+      rest_seconds: 60,
+      coaching_cues: "Heavy load, controlled tempo. Full lockout.",
+      exercise_description: "Hold the bell at your chest and squat between your elbows.",
     });
   });
 });

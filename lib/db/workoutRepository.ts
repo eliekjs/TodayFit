@@ -75,21 +75,11 @@ export async function addBlocksAndExercises(
 
     for (let j = 0; j < blk.items.length; j++) {
       const item = blk.items[j];
-      const prescription: Record<string, unknown> = {
-        sets: item.sets,
-        rest_seconds: item.rest_seconds,
-        coaching_cues: item.coaching_cues,
-      };
-      if (item.reps != null) prescription.reps = item.reps;
-      if (item.time_seconds != null) prescription.time_seconds = item.time_seconds;
-      if (item.reasoning_tags?.length) prescription.reasoning_tags = item.reasoning_tags;
-      if (item.unilateral === true) prescription.unilateral = true;
-
       const { error: exError } = await supabase.from("workout_exercises").insert({
         workout_id: workoutId,
         block_id: blockRow.id,
         sort_order: j,
-        prescription,
+        prescription: serializeWorkoutItemPrescription(item),
         exercise_slug: item.exercise_id,
         exercise_name: item.exercise_name,
         notes: null,
@@ -128,10 +118,27 @@ type PrescriptionRow = {
   time_seconds?: number;
   rest_seconds?: number;
   coaching_cues?: string;
+  exercise_description?: string;
   reasoning_tags?: string[];
   text?: string;
   unilateral?: boolean;
 };
+
+/** Persist setup copy on the prescription jsonb so web reloads don't fall back to generic cues. */
+export function serializeWorkoutItemPrescription(item: WorkoutItem): Record<string, unknown> {
+  const prescription: Record<string, unknown> = {
+    sets: item.sets,
+    rest_seconds: item.rest_seconds,
+    coaching_cues: item.coaching_cues,
+  };
+  if (item.reps != null) prescription.reps = item.reps;
+  if (item.time_seconds != null) prescription.time_seconds = item.time_seconds;
+  if (item.reasoning_tags?.length) prescription.reasoning_tags = item.reasoning_tags;
+  if (item.unilateral === true) prescription.unilateral = true;
+  const desc = item.exercise_description?.trim();
+  if (desc) prescription.exercise_description = desc;
+  return prescription;
+}
 
 type WorkoutSummaryRow = {
   id: string;
@@ -264,6 +271,7 @@ function asEnergyLevel(value: unknown): GeneratedWorkout["energyLevel"] {
 
 function toWorkoutItem(row: ExerciseQueryRow): WorkoutItem {
   const p = (isRecord(row.prescription) ? row.prescription : {}) as PrescriptionRow;
+  const storedDesc = p.exercise_description?.trim();
   return {
     exercise_id: row.exercise_slug,
     exercise_name: row.exercise_name,
@@ -274,6 +282,7 @@ function toWorkoutItem(row: ExerciseQueryRow): WorkoutItem {
     coaching_cues: p.coaching_cues ?? (p.text as string) ?? "",
     reasoning_tags: p.reasoning_tags,
     ...(p.unilateral === true ? { unilateral: true } : {}),
+    ...(storedDesc ? { exercise_description: storedDesc } : {}),
   };
 }
 

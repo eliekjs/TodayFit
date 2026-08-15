@@ -5,6 +5,7 @@ import {
   getCuratedExerciseDescription,
   listCuratedExerciseDescriptionSlugs,
   resolveExerciseDescription,
+  unwrapCuratedDescriptionsSource,
   validateCuratedDescriptionsFile,
 } from "./exerciseDescriptionsCurated";
 
@@ -39,5 +40,29 @@ describe("exerciseDescriptions.curated.json", () => {
     );
     expect(resolved).toMatch(/bench|box/i);
     expect(resolved).not.toMatch(/Equipment:/);
+  });
+
+  it("unwraps JSON module shapes used by Metro native, Vite, and web asset URLs", () => {
+    const file = {
+      version: 1,
+      entries: {
+        goblet_squat: {
+          description: "Hold the bell at your chest and squat.",
+          sources: ["https://example.com"],
+          reviewed_at: "2026-08-15",
+        },
+      },
+    };
+
+    expect(unwrapCuratedDescriptionsSource(file)).toEqual(file);
+    expect(unwrapCuratedDescriptionsSource({ default: file })).toEqual(file);
+    expect(unwrapCuratedDescriptionsSource({ default: { default: file } })).toEqual(file);
+    expect(unwrapCuratedDescriptionsSource("/assets/exerciseDescriptions.curated.json")).toBe(
+      "/assets/exerciseDescriptions.curated.json"
+    );
+    expect(unwrapCuratedDescriptionsSource({ default: "/assets/descriptions.json" })).toBe(
+      "/assets/descriptions.json"
+    );
+    expect(() => unwrapCuratedDescriptionsSource({ hello: true })).toThrow(/not a valid catalog file/i);
   });
 });

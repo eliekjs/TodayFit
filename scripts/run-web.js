@@ -80,7 +80,9 @@ function pickAvailablePort() {
 }
 
 function runWeb() {
-  stopStaleExpoOnPort(preferredPorts[0]);
+  for (const port of preferredPorts) {
+    stopStaleExpoOnPort(port);
+  }
   const port = pickAvailablePort();
   const shouldClear = process.argv.includes("--clear");
   const expoArgs = ["expo", "start", "--web", "--port", String(port)];

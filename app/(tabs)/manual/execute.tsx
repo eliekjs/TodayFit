@@ -149,9 +149,13 @@ export default function ExecuteScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    void ensureCuratedDescriptionsLoaded().then(() => {
-      if (!cancelled) setCuratedReady(true);
-    });
+    void ensureCuratedDescriptionsLoaded()
+      .then(() => {
+        if (!cancelled) setCuratedReady(true);
+      })
+      .catch(() => {
+        /* Loader resets on failure so the next mount retries. */
+      });
     return () => {
       cancelled = true;
     };
