@@ -381,8 +381,6 @@ export default function SavedPresetsScreen() {
   );
 }
 
-}
-
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,

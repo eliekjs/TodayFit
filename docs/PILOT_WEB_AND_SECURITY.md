@@ -126,7 +126,7 @@ Tell the agent the **exact hostname** you want for the app (apex `seshlogic.com`
 
    | Field | Value |
    |-------|--------|
-   | Build command | `npx expo export --platform web` |
+   | Build command | `npm run web:export` (raises Node heap; `npx expo export --platform web` OOMs this bundle) |
    | Build output directory | `dist` |
    | Root | `/` (repo root) |
    | Node version | `22` |
