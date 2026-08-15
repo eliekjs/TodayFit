@@ -66,6 +66,7 @@ export default defineConfig({
       "lib/generationPruningGateConfig.test.ts",
       "lib/saveNamedPlan.test.ts",
       "lib/authRedirectAllowlist.test.ts",
+      "scripts/fixCloudflarePagesAssets.test.ts",
       "data/sportSubFocus/speedAgilitySubFocusShared.test.ts",
       "data/sportSubFocus/verticalJumpSubFocusShared.test.ts",
       "data/sportSubFocus/subFocusIntentRegistry.test.ts",

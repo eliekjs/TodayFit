@@ -201,6 +201,8 @@ npx expo serve dist         # preview the export locally
 
 Web output is `single` (one `index.html`) so history and saved-workout IDs still work on refresh behind `public/_redirects`.
 
+`web:export` also rewrites Expo icon-font paths. Cloudflare Pages skips any folder named `node_modules`, and Expo puts Ionicons at `dist/assets/node_modules/@expo/...`, so without that rewrite production icons 404.
+
 ---
 
 ## What not to do
