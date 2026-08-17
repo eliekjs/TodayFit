@@ -48,9 +48,11 @@ export const PRIMARY_FOCUS_TO_GOAL_SLUG: Record<string, string> = {
 export const GOAL_SLUG_TO_PRIMARY_FOCUS: Record<string, string> = {
   strength: "Build Strength",
   muscle: "Build Muscle (Hypertrophy)",
+  hypertrophy: "Build Muscle (Hypertrophy)",
   physique: "Body Recomp (fat loss & muscle gain)",
   endurance: "Improve Endurance",
   mobility: "Recovery & Mobility",
+  recovery: "Recovery & Mobility",
   recovery_mobility: "Recovery & Mobility",
   joint_health: "Strength Training for Joint Health",
   athletic_performance: "Athletic Performance",
@@ -62,3 +64,55 @@ export const GOAL_SLUG_TO_PRIMARY_FOCUS: Record<string, string> = {
   trail_running: "Improve Endurance",
   ski: "Athletic Performance",
 };
+
+/** Sport-mode / informal labels that should resolve to a canonical Manual primary-focus label. */
+const PRIMARY_FOCUS_LABEL_ALIASES: Record<string, string> = {
+  hypertrophy: "muscle",
+  recovery: "recovery_mobility",
+  "build visible muscle": "muscle",
+  "build muscle": "muscle",
+  "max strength": "strength",
+  "max strength foundation": "strength",
+  "endurance engine": "endurance",
+  "physique / body comp": "physique",
+  "recovery & mobility": "recovery_mobility",
+  "joint health strength": "joint_health",
+  "athletic performance": "athletic_performance",
+};
+
+function normGoalKey(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+}
+
+/**
+ * Normalize a stored goal slug, sport-mode id, or informal label to a Manual
+ * primary-focus label used by week day presets.
+ */
+export function canonicalizePrimaryFocusLabel(raw: string | null | undefined): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
+  const directSlug = PRIMARY_FOCUS_TO_GOAL_SLUG[trimmed];
+  if (directSlug) return GOAL_SLUG_TO_PRIMARY_FOCUS[directSlug] ?? trimmed;
+
+  const underscored = trimmed.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
+  if (GOAL_SLUG_TO_PRIMARY_FOCUS[underscored]) return GOAL_SLUG_TO_PRIMARY_FOCUS[underscored]!;
+
+  const spaced = normGoalKey(trimmed);
+  const aliased = PRIMARY_FOCUS_LABEL_ALIASES[spaced] ?? PRIMARY_FOCUS_LABEL_ALIASES[underscored];
+  if (aliased && GOAL_SLUG_TO_PRIMARY_FOCUS[aliased]) return GOAL_SLUG_TO_PRIMARY_FOCUS[aliased]!;
+
+  return trimmed;
+}
+
+/** Unique canonical labels, preserving first-seen order. */
+export function canonicalizePrimaryFocusLabels(
+  labels: readonly (string | null | undefined)[] | null | undefined
+): string[] {
+  const out: string[] = [];
+  for (const raw of labels ?? []) {
+    const next = canonicalizePrimaryFocusLabel(raw);
+    if (!next || out.includes(next)) continue;
+    out.push(next);
+  }
+  return out;
+}

@@ -163,7 +163,7 @@ export function volumePreferenceSectionSubtitle(args: {
   const ruleKey = resolveVolumeRuleKey(args);
   const rules = getGoalRules(ruleKey);
   if (ruleKey === "mobility" || (rules.repRange.min === 1 && rules.repRange.max === 1)) {
-    return `How dense holds and rounds should feel. High Volume is extra density, not a hypertrophy goal.`;
+    return "How long to hold and how many rounds to do.";
   }
-  return "How much strength work to do. High Volume is a volume preference, not a Build Muscle goal. Power, conditioning, and support work keep their own prescriptions.";
+  return "How many sets and reps to do.";
 }

@@ -73,12 +73,13 @@ export function formatDayTitle(
   const relevant = (specificFocusKeys ?? []).filter((k) =>
     isSpecificFocusRelevantForBody(k, bodyEmphasis)
   );
-  const identity = relevant.find((k) =>
+  const identities = relevant.filter((k) =>
     ["chest", "back", "shoulders", "arms", "glutes", "legs", "push", "pull", "core"].includes(k)
   );
-  if (identity) {
-    const identityLabel =
-      SPECIFIC_FOCUS_LABELS[identity] ?? identity.charAt(0).toUpperCase() + identity.slice(1);
+  if (identities.length > 0) {
+    const identityLabel = identities
+      .map((k) => SPECIFIC_FOCUS_LABELS[k] ?? k.charAt(0).toUpperCase() + k.slice(1))
+      .join(" + ");
     return `${goalLabel} - ${identityLabel}`;
   }
   const bodyLabel = BODY_EMPHASIS_LABELS[bodyEmphasis];

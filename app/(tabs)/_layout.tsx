@@ -7,7 +7,10 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../lib/theme";
 import { useAppState } from "../../context/AppStateContext";
 import { ActiveSessionBanner } from "../../components/ActiveSessionCard";
-import { WeekProgressBanner } from "../../components/WeekProgressBanner";
+import {
+  buildWeekProgressSnapshot,
+  remainingSessionCount,
+} from "../../lib/weekProgress";
 import {
   AdaptiveRecommendationBackButton,
   EditWorkoutBackButton,
@@ -20,6 +23,7 @@ import {
   ManualExecuteBackButton,
   ManualPreferencesBackButton,
   ManualWeekBackButton,
+  SportScheduleBackButton,
   TAB_ICON_SIZE,
   TAB_ICON_SIZE_ACTIVE,
 } from "../navigation/tabFlowChrome";
@@ -27,16 +31,22 @@ import {
 export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { savedWorkouts, savedWeeks } = useAppState();
+  const { savedWorkouts, savedWeeks, manualWeekPlan, sportPrepWeekPlan } = useAppState();
   const libraryBadgeCount = savedWorkouts.length + savedWeeks.length;
+  const workoutBadgeCount = remainingSessionCount(
+    buildWeekProgressSnapshot({ manualWeekPlan, sportPrepWeekPlan })
+  );
 
   return (
     <>
     <Tabs
       tabBar={(props: BottomTabBarProps) => <FilteredTabBar {...props} />}
       screenOptions={{
-        /** Web keeps visited tab scenes mounted; freeze inactive ones to cut re-render cost. */
-        freezeOnBlur: Platform.OS === "web",
+        /**
+         * Do not freeze inactive web scenes. AppScreenWrapper already unmounts unfocused
+         * content; freezeOnBlur snapshots stale UI (old chrome + generic setup copy).
+         */
+        freezeOnBlur: false,
         sceneStyle: {
           backgroundColor: "transparent",
         },
@@ -85,7 +95,37 @@ export default function TabsLayout() {
       }}
       initialRouteName="index"
     >
-      {/* ── 3 visible tabs: Library | Today (center, home) | Profile ── */}
+      {/* ── 4 visible tabs in workflow order: Create | Workout | Library | Profile ── */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Create",
+          tabBarLabel: "Create",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "add-circle" : "add-circle-outline"}
+              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
+              color={color}
+            />
+          ),
+          headerRight: () => <HeaderGymProfileButton />,
+        }}
+      />
+      <Tabs.Screen
+        name="workout/index"
+        options={{
+          title: "Your workouts",
+          tabBarLabel: "Workout",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "barbell" : "barbell-outline"}
+              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
+              color={color}
+            />
+          ),
+          tabBarBadge: workoutBadgeCount > 0 ? workoutBadgeCount : undefined,
+        }}
+      />
       <Tabs.Screen
         name="library/index"
         options={{
@@ -99,21 +139,6 @@ export default function TabsLayout() {
             />
           ),
           tabBarBadge: libraryBadgeCount > 0 ? libraryBadgeCount : undefined,
-        }}
-      />
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Today",
-          tabBarLabel: "Today",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "fitness" : "fitness-outline"}
-              size={focused ? TAB_ICON_SIZE_ACTIVE : TAB_ICON_SIZE}
-              color={color}
-            />
-          ),
-          headerRight: () => <HeaderGymProfileButton />,
         }}
       />
       <Tabs.Screen
@@ -152,7 +177,7 @@ export default function TabsLayout() {
         name="manual/workout"
         options={{
           href: null,
-          headerTitle: () => <FlowHeaderTitle title="Today's Workout" />,
+          headerTitle: () => <FlowHeaderTitle title="Your Workout" />,
           headerLeft: () => <EditWorkoutBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -176,14 +201,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="week/progress"
-        options={{
-          href: null,
-          title: "This week",
-          headerLeft: () => <HeaderBackButton />,
-        }}
-      />
-      <Tabs.Screen
         name="sport-mode/index"
         options={{
           href: null,
@@ -197,7 +214,7 @@ export default function TabsLayout() {
         options={{
           href: null,
           headerTitle: () => <FlowHeaderTitle title="Set your schedule" />,
-          headerLeft: () => <HeaderBackButton />,
+          headerLeft: () => <SportScheduleBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
       />
@@ -212,7 +229,6 @@ export default function TabsLayout() {
       />
     </Tabs>
     <ActiveSessionBanner />
-    <WeekProgressBanner />
     </>
   );
 }

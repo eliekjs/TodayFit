@@ -91,6 +91,11 @@ export type DailyWorkoutPreferences = {
    * Used in sport week mode and manual week regeneration to control sport vs goal weighting.
    */
   dayFocusPresetId?: string;
+  /**
+   * Region | Pattern | Muscle vocabulary for this day’s regen body chips.
+   * When set, overrides week-level `ManualPreferences.weeklyBodyFocusMode` for generation.
+   */
+  weeklyBodyFocusMode?: WeeklyBodyFocusMode;
 };
 
 /** How to distribute primary/secondary goals across the week. */

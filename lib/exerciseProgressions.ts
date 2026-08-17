@@ -1,6 +1,7 @@
 import type { BlockType, ExerciseDefinition, WorkoutTierPreference } from "./types";
 import { getSubstitutes } from "./generation/exerciseSubstitution";
 import type { ExerciseLike } from "./generation/exerciseSubstitution";
+import { diversifySwapSuggestionOrder } from "./generation/swapVariantDiversity";
 import { isCooldownEligibleEquipment, isWarmupEligibleEquipment } from "./workoutRules";
 import { isDbConfigured } from "./db";
 import { getExercise, getProgressionsRegressions, listExercises } from "./db/exerciseRepository";
@@ -462,6 +463,9 @@ export async function getSwapSuggestionsPage(
   }
 
   expanded = await applyTierFilterToCombined(exerciseId, options, expanded);
+  // Keep regressions / distinct cardio stimuli on page 1; same-machine pacing
+  // variants (Zone 2 vs intervals of the same piece) stay available on later pages.
+  expanded = diversifySwapSuggestionOrder(exerciseId, expanded);
 
   const numPages = Math.max(1, Math.ceil(expanded.length / SWAP_PAGE_SIZE));
   const safePage = ((page % numPages) + numPages) % numPages;

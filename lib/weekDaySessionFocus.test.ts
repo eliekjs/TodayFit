@@ -303,6 +303,19 @@ describe("weekDaySessionFocus", () => {
     expect(balanced?.subtitle).toContain("55% sport");
   });
 
+  it("buildPriorityFocusSummary includes day sub-goals under the goal label", () => {
+    const summary = buildPriorityFocusSummary(
+      { label: "Build Strength", subtitle: "" },
+      {
+        displayTitle: "Strength - Upper Body",
+        workoutFocus: ["Strength"],
+        subFocusNames: ["Bench / Press"],
+      }
+    );
+    expect(summary?.label).toBe("Build Strength");
+    expect(summary?.subtitle).toBe("Bench / Press");
+  });
+
   it("buildPriorityFocusSummary falls back to goals only from display title", () => {
     const summary = buildPriorityFocusSummary(null, {
       displayTitle: "Strength + Hypertrophy - Upper Body",

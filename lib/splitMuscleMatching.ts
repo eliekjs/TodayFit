@@ -13,6 +13,7 @@ export const MUSCLE_SPLIT_EMPHASIS_KEYS = [
   "arms",
   "glutes",
   "legs",
+  "core",
 ] as const;
 
 export type MuscleSplitEmphasis = (typeof MUSCLE_SPLIT_EMPHASIS_KEYS)[number];
@@ -83,17 +84,23 @@ function hasAny(set: Set<string>, keys: string[]): boolean {
   return keys.some((k) => set.has(k));
 }
 
+export function muscleSplitEmphasesFromFocusParts(
+  focusParts: readonly string[] | null | undefined
+): MuscleSplitEmphasis[] {
+  if (!focusParts?.length) return [];
+  const keys = new Set(focusParts.map(norm));
+  const found: MuscleSplitEmphasis[] = [];
+  for (const k of MUSCLE_SPLIT_EMPHASIS_KEYS) {
+    if (keys.has(k)) found.push(k);
+  }
+  return found;
+}
+
 export function muscleSplitEmphasisFromFocusParts(
   focusParts: readonly string[] | null | undefined
 ): MuscleSplitEmphasis | null {
-  if (!focusParts?.length) return null;
-  const keys = new Set(focusParts.map(norm));
-  for (const k of MUSCLE_SPLIT_EMPHASIS_KEYS) {
-    if (k === "legs") continue;
-    if (keys.has(k)) return k;
-  }
-  if (keys.has("legs")) return "legs";
-  return null;
+  const found = muscleSplitEmphasesFromFocusParts(focusParts);
+  return found.length === 1 ? found[0]! : null;
 }
 
 /**
@@ -174,9 +181,27 @@ export function matchesMuscleSplitEmphasis(
       if (pattern === "squat" || pattern === "hinge" || pattern === "lunge") return true;
       return false;
     }
+    case "core": {
+      if (hasAny(primary, ["core", "abs", "obliques"])) return true;
+      if (pair === "core") return true;
+      if (fine.has("anti_rotation") || fine.has("rotation") || fine.has("anti_extension")) return true;
+      if (pattern === "rotate") return true;
+      if (pattern === "carry" && hasAny(all, ["core", "abs", "obliques"])) return true;
+      if (/\b(plank|dead\s*bug|pallof|crunch|sit[\s_-]*up|hollow\s*hold)\b/.test(label)) return true;
+      return false;
+    }
     default:
       return false;
   }
+}
+
+/** True when the exercise matches at least one Muscle-day emphasis (combo days). */
+export function matchesAnyMuscleSplitEmphasis(
+  ex: MuscleSplitExerciseShape,
+  emphases: readonly MuscleSplitEmphasis[] | null | undefined
+): boolean {
+  if (!emphases?.length) return true;
+  return emphases.some((e) => matchesMuscleSplitEmphasis(ex, e));
 }
 
 /** Scoring muscle slugs for a focus_body_parts entry (includes aliases). */

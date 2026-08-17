@@ -4,7 +4,7 @@ import { themeRadius, useTheme } from "../lib/theme";
 import type { BlockType, GeneratedWorkout, SetLogRow, WorkoutBlock, WorkoutItem } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 import {
-  formatExerciseDisplayCue,
+  resolveExerciseSetupText,
   withResolvedExerciseDescription,
 } from "../lib/exerciseDisplayCue";
 import {
@@ -19,8 +19,8 @@ function resolveSetupItem(item: WorkoutItem): WorkoutItem {
   return withResolvedExerciseDescription(item, getCuratedExerciseDescription);
 }
 
-function setupCueFor(item: WorkoutItem): string | null {
-  return formatExerciseDisplayCue(resolveSetupItem(item));
+function setupCueFor(item: WorkoutItem): string {
+  return resolveExerciseSetupText(resolveSetupItem(item));
 }
 
 function BlockGoalBadge({

@@ -28,6 +28,7 @@ import {
 import { loadGeneratorModule } from "../../lib/loadGeneratorModule";
 import { prefetchWorkoutGenerationStack } from "../../lib/prefetchWorkoutGeneration";
 import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPreferredExerciseNames";
+import { formatItemList } from "../../lib/formatItemList";
 import type { SessionFlow, SportPreset, WorkoutPresetKind } from "../../lib/sessionDraft";
 import { navigateToSessionFlow } from "../../lib/sessionFlowNavigation";
 import { resolveDefaultTrainTodayPreset } from "../../lib/defaultTrainTodayPreset";
@@ -82,8 +83,7 @@ type PresetPickerRow = {
 function goalDetail(preset: PreferencePreset): string {
   const goals = preset.preferences.primaryFocus;
   if (goals.length === 0) return "No goals set";
-  if (goals.length === 1) return goals[0]!;
-  return `${goals[0]} +${goals.length - 1} more`;
+  return formatItemList(goals);
 }
 
 function sportDetail(preset: SportPreset): string {

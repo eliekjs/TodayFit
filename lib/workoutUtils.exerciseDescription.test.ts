@@ -7,6 +7,8 @@ import { BLOCKED_EXERCISE_IDS } from "./workoutRules";
 import {
   formatExerciseDisplayCue,
   isGenericPrescriptionCoachingCue,
+  isVagueExerciseSetupFallback,
+  resolveExerciseSetupText,
   withResolvedExerciseDescription,
 } from "./exerciseDisplayCue";
 import {
@@ -42,7 +44,7 @@ describe("exercise descriptions on workout items", () => {
     pool = EXERCISES.filter((d) => !BLOCKED_EXERCISE_IDS.has(d.id)).map(
       exerciseDefinitionToGeneratorExercise
     );
-  });
+  }, 60_000);
 
   it("attachExerciseDescriptionsToSession copies catalog description onto items", () => {
     const withDesc = pool.find((e) => e.id === "goblet_squat" && e.description);
@@ -186,6 +188,85 @@ describe("exercise descriptions on workout items", () => {
     expect(resolved.exercise_description).toMatch(/goblet|chest|squat/i);
     expect(formatExerciseDisplayCue(resolved)).toMatch(/goblet|chest|squat/i);
     expect(formatExerciseDisplayCue(resolved)).not.toMatch(/Full lockout/i);
+  });
+
+  it("resolves setup copy for DB slug aliases and previously missing catalog slugs", () => {
+    const plank: WorkoutItem = {
+      exercise_id: "plank_shoulder_tap",
+      exercise_name: "Plank Shoulder Tap",
+      sets: 3,
+      reps: 10,
+      rest_seconds: 45,
+      coaching_cues: "Controlled, full range of motion. Breathe steadily.",
+    };
+    const plankResolved = withResolvedExerciseDescription(plank, getCuratedExerciseDescription);
+    expect(resolveExerciseSetupText(plankResolved)).toMatch(/plank|tap/i);
+    expect(resolveExerciseSetupText(plankResolved)).not.toMatch(/Breathe steadily/i);
+
+    const chestPass: WorkoutItem = {
+      exercise_id: "medicine_ball_chest_pass",
+      exercise_name: "Medicine Ball Chest Pass",
+      sets: 4,
+      reps: 8,
+      rest_seconds: 60,
+      coaching_cues: "Explosive, controlled.",
+    };
+    const chestResolved = withResolvedExerciseDescription(chestPass, getCuratedExerciseDescription);
+    expect(resolveExerciseSetupText(chestResolved)).toMatch(/medicine ball|chest/i);
+
+    const treadmill: WorkoutItem = {
+      exercise_id: "treadmill_run",
+      exercise_name: "Treadmill Run",
+      sets: 1,
+      time_seconds: 600,
+      rest_seconds: 0,
+      coaching_cues: "Steady effort. Keep heart rate in target zone.",
+    };
+    const treadmillResolved = withResolvedExerciseDescription(
+      treadmill,
+      getCuratedExerciseDescription
+    );
+    expect(resolveExerciseSetupText(treadmillResolved)).toMatch(/treadmill|running speed/i);
+  });
+
+  it("resolveExerciseSetupText always returns setup copy, even without curated description", () => {
+    const item: WorkoutItem = {
+      exercise_id: "unknown_db_only_slug",
+      exercise_name: "Jump Rope",
+      sets: 1,
+      time_seconds: 60,
+      rest_seconds: 0,
+      coaching_cues: "Steady effort. Keep heart rate in target zone.",
+    };
+    expect(formatExerciseDisplayCue(item)).toBeNull();
+    expect(resolveExerciseSetupText(item)).toMatch(/Jump Rope/);
+    expect(resolveExerciseSetupText(item)).not.toMatch(/Steady effort/i);
+    expect(isVagueExerciseSetupFallback(resolveExerciseSetupText(item))).toBe(true);
+  });
+
+  it("resolves JM Press and other DB-core lifts to specific setup copy, not the vague fallback", () => {
+    for (const [id, name, re] of [
+      ["jm_press", "JM Press", /close grip|elbows|chin|upper chest/i],
+      ["arnold_press", "Arnold Press", /rotat|palms|overhead/i],
+      ["barbell_back_squat", "Barbell Back Squat", /squat|hips|knees/i],
+      ["skull_crusher", "Skull Crusher", /elbow|forehead|upper arms/i],
+    ] as const) {
+      const item: WorkoutItem = {
+        exercise_id: id,
+        exercise_name: name,
+        sets: 3,
+        reps: 8,
+        rest_seconds: 90,
+        coaching_cues: "Moderate load. Controlled tempo.",
+        exercise_description:
+          `${name} is a upper-body push exercise. Primarily targets triceps. Equipment: barbell, bench.`,
+      };
+      const resolved = withResolvedExerciseDescription(item, getCuratedExerciseDescription);
+      const setup = resolveExerciseSetupText(resolved);
+      expect(setup, id).toMatch(re);
+      expect(isVagueExerciseSetupFallback(setup), id).toBe(false);
+      expect(setup, id).not.toMatch(/equipment this movement uses/i);
+    }
   });
 
   it("treats every goal cueStyle string as a generic prescription cue", () => {

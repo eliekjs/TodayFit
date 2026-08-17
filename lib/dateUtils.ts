@@ -29,6 +29,35 @@ export function getCurrentWeekStartMonday(): string {
   return getWeekStartMonday(getTodayLocalDateString());
 }
 
+/**
+ * Monday (YYYY-MM-DD) for a newly initiated workout week.
+ * Mon–Sat: Monday of the calendar week containing `isoDate` (or today).
+ * Sunday: next Monday — so the first day is tomorrow, not last Monday of a week that ends today.
+ */
+export function getDesignatedWeekStartMonday(isoDate?: string): string {
+  const dayIso = isoDate ?? getTodayLocalDateString();
+  const d = parseLocalDate(dayIso);
+  if (d.getDay() === 0) {
+    d.setDate(d.getDate() + 1);
+    return getLocalDateString(d);
+  }
+  return getWeekStartMonday(dayIso);
+}
+
+/** Add (or subtract) whole calendar days to a YYYY-MM-DD in local timezone. */
+export function addDaysToIsoDate(isoDate: string, days: number): string {
+  const d = parseLocalDate(isoDate);
+  d.setDate(d.getDate() + days);
+  return getLocalDateString(d);
+}
+
+/** Whole-day difference: `toIso - fromIso` in local calendar days. */
+export function dayOffsetBetweenIsoDates(fromIso: string, toIso: string): number {
+  const from = parseLocalDate(fromIso);
+  const to = parseLocalDate(toIso);
+  return Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 /** Parse YYYY-MM-DD as a local date (noon avoids UTC midnight day-boundary issues). */
 export function parseLocalDate(isoDate: string): Date {
   return new Date(isoDate + "T12:00:00");

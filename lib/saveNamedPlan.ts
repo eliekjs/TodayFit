@@ -62,6 +62,11 @@ export function savedPlanLibraryTitle(plan: SavedWeek): string {
   return defaultSavedWeekName(plan.weekStartDate);
 }
 
+/** User-facing flow label for library cards (matches Goal / Sport product language). */
+export function savedPlanSourceLabel(source: SavedWeek["source"]): "Goal" | "Sport" {
+  return source === "manual" ? "Goal" : "Sport";
+}
+
 export function resolveSportPrepWorkout(
   plan: PlanWeekResult,
   date: string,

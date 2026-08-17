@@ -17,6 +17,7 @@ import {
 } from "../lib/exerciseDescriptionsCurated";
 import {
   isGeneratedExerciseDescriptionStub,
+  isVagueExerciseSetupFallback,
   validateExerciseDescriptionCopy,
 } from "../lib/exerciseDisplayCue";
 import { loadDotEnvFromRepoRoot } from "./dotenvLocal";
@@ -72,6 +73,10 @@ const GENERIC_PATTERNS: { id: string; re: RegExp }[] = [
   { id: "as_the_variation_requires", re: /as the variation requires/i },
   { id: "as_the_setup_requires", re: /as the setup requires/i },
   { id: "as_listed", re: /\bas listed\b/i },
+  { id: "the_listed", re: /\bthe listed\b/i },
+  { id: "ui_setup_fallback", re: /equipment this movement uses/i },
+  { id: "move_through_each_phase", re: /Move through each phase with control/i },
+  { id: "stable_base_generic", re: /with a stable base and the equipment/i },
 ];
 
 const FALLBACK_TEMPLATE_RE =
@@ -170,9 +175,16 @@ function auditEntry(position: number, slug: string): EntryAudit {
   if (!entry.sources?.length || entry.sources.some((u) => !/^https?:\/\//i.test(u))) {
     issues.push("invalid_sources");
   }
-  if (FALLBACK_TEMPLATE_RE.test(description)) issues.push("fallback_template");
+  if (FALLBACK_TEMPLATE_RE.test(description) || isVagueExerciseSetupFallback(description)) {
+    issues.push("fallback_template");
+  }
   if (GENERIC_PATTERNS.some((p) => p.re.test(description))) issues.push("generic_template");
-  if (/Set up in a stable stance with the listed equipment/i.test(description)) {
+  if (
+    /Set up in a stable stance with the listed equipment/i.test(description) ||
+    /\bthe listed\b/i.test(description) ||
+    /named by the (?:exercise|drill)/i.test(description) ||
+    isVagueExerciseSetupFallback(description)
+  ) {
     issues.push("vague_setup");
   }
   if (lowSlugSpecificity(slug, description)) issues.push("low_slug_specificity");
@@ -277,7 +289,7 @@ async function main() {
   const catalogSlugs = EXERCISES.map((e) => e.id);
   const catalogSet = new Set(catalogSlugs);
 
-  const fileValidation = validateCuratedDescriptionsFile(catalogSet);
+  const fileValidation = validateCuratedDescriptionsFile();
   const audits: EntryAudit[] = catalogSlugs.map((slug, i) => auditEntry(i + 1, slug));
 
   // Duplicate descriptions (exact text)

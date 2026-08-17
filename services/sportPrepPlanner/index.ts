@@ -1,5 +1,5 @@
 import { getSupabase, isDbConfigured } from "../../lib/db";
-import { getLocalDateString } from "../../lib/dateUtils";
+import { getDesignatedWeekStartMonday, getLocalDateString, getWeekStartMonday, parseLocalDate } from "../../lib/dateUtils";
 import type { AdaptiveScheduleLabels, EnergyLevel, GeneratedWorkout } from "../../lib/types";
 import { getWorkoutDescriptor } from "../../lib/workoutDescriptor";
 import type { GymProfile } from "../../data/gymProfiles";
@@ -61,7 +61,7 @@ export type SportDaysAllocation = Record<string, number>;
 export type PlanWeekInput = {
   /** When absent, plan is generated in memory only (no DB persist). */
   userId?: string | null;
-  weekStartDate?: string; // ISO date; defaults to current week (Monday)
+  weekStartDate?: string; // ISO date; defaults to designated initiation week (Mon–Sat this week; Sunday → next Monday)
   /** Null when the user did not select ranked goals (sport-only prep). */
   primaryGoalSlug: string | null;
   secondaryGoalSlug?: string | null;
@@ -303,15 +303,6 @@ const DEMAND_KEYS: IntentKey[] = [
   "recovery",
 ];
 
-function startOfWeekMonday(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun
-  const diff = (day + 6) % 7; // days since Monday
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - diff);
-  return d;
-}
-
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
@@ -371,6 +362,18 @@ function specificBodyFocusFromDailyPreferences(
   const fromOverride = sessionBiasFromDailyBodyOverride(prefs)?.specificBodyFocus;
   if (fromOverride?.length) return fromOverride;
   return prefs?.specificBodyFocus?.length ? [...prefs.specificBodyFocus] : undefined;
+}
+
+/** Prefer per-day regen mode override, else week-level ManualPreferences mode. */
+function weeklyBodyFocusModeForBuild(opts: {
+  dailyPreferences?: DailyPrefs | null;
+  manualPreferences?: { weeklyBodyFocusMode?: import("../../lib/types").WeeklyBodyFocusMode } | null;
+}): { weeklyBodyFocusMode: import("../../lib/types").WeeklyBodyFocusMode } | Record<string, never> {
+  const mode =
+    opts.dailyPreferences?.weeklyBodyFocusMode ??
+    opts.manualPreferences?.weeklyBodyFocusMode ??
+    undefined;
+  return mode ? { weeklyBodyFocusMode: mode } : {};
 }
 
 
@@ -869,9 +872,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
   }
 
   const today = new Date();
-  const baseDate = input.weekStartDate ? new Date(input.weekStartDate) : today;
-  const weekStart = startOfWeekMonday(baseDate);
-  const weekStartIso = toIsoDate(weekStart);
+  const weekStartIso = input.weekStartDate
+    ? getWeekStartMonday(input.weekStartDate.slice(0, 10))
+    : getDesignatedWeekStartMonday();
+  const weekStart = parseLocalDate(weekStartIso);
 
   const userGoalWeights: [number, number, number] | undefined =
     input.goalMatchPrimaryPct != null
@@ -1267,9 +1271,10 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           : input.manualPreferences?.sessionFocusDistribution
             ? { sessionFocusDistribution: input.manualPreferences.sessionFocusDistribution }
             : {}),
-        ...(input.manualPreferences?.weeklyBodyFocusMode
-          ? { weeklyBodyFocusMode: input.manualPreferences.weeklyBodyFocusMode }
-          : {}),
+        ...weeklyBodyFocusModeForBuild({
+          dailyPreferences: input.dailyPreferences,
+          manualPreferences: input.manualPreferences,
+        }),
       }
     );
     const bodyKey = (slot.dayBias?.targetBody ?? "Full").toLowerCase() as "upper" | "lower" | "full";
@@ -2043,9 +2048,10 @@ export async function regenerateDay(
         ...(dayFocusOverrides.goalWeightsOverride?.length
           ? { goalWeightsOverride: dayFocusOverrides.goalWeightsOverride }
           : {}),
-        ...(input.manualPreferences?.weeklyBodyFocusMode
-          ? { weeklyBodyFocusMode: input.manualPreferences.weeklyBodyFocusMode }
-          : {}),
+        ...weeklyBodyFocusModeForBuild({
+          dailyPreferences: input.dailyPreferences,
+          manualPreferences: input.manualPreferences,
+        }),
         regenerationAvoidExerciseIds:
           input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
         historySources: {
@@ -2201,9 +2207,10 @@ export async function regenerateDay(
       ...(dayFocusOverrides.goalWeightsOverride?.length
         ? { goalWeightsOverride: dayFocusOverrides.goalWeightsOverride }
         : {}),
-      ...(input.manualPreferences?.weeklyBodyFocusMode
-        ? { weeklyBodyFocusMode: input.manualPreferences.weeklyBodyFocusMode }
-        : {}),
+      ...weeklyBodyFocusModeForBuild({
+        dailyPreferences: input.dailyPreferences,
+        manualPreferences: input.manualPreferences,
+      }),
       regenerationAvoidExerciseIds:
         input.avoidRepeatingExerciseIds?.length ? input.avoidRepeatingExerciseIds : undefined,
       historySources: {

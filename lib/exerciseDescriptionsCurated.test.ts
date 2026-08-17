@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { EXERCISES } from "../data/exercisesMerged";
 import {
+  curatedSlugCandidates,
   ensureCuratedDescriptionsLoaded,
   getCuratedExerciseDescription,
   listCuratedExerciseDescriptionSlugs,
@@ -14,11 +14,16 @@ describe("exerciseDescriptions.curated.json", () => {
     await ensureCuratedDescriptionsLoaded();
   });
 
-  it("validates all entries against catalog slugs and copy rules", () => {
-    const known = new Set(EXERCISES.map((e) => e.id));
-    const result = validateCuratedDescriptionsFile(known);
+  it("validates all curated entries against copy rules", () => {
+    const result = validateCuratedDescriptionsFile();
     expect(result.errors).toEqual([]);
     expect(result.ok).toBe(true);
+  });
+
+  it("allows DB-only curated slugs that are not in the static catalog", () => {
+    expect(getCuratedExerciseDescription("jm_press")).toMatch(/close grip|elbows|chin|upper chest/i);
+    expect(getCuratedExerciseDescription("arnold_press")).toMatch(/rotat|palms|overhead/i);
+    expect(getCuratedExerciseDescription("skull_crusher")).toMatch(/elbow|forehead|upper arms/i);
   });
 
   it("includes high-visibility builtin exercises", () => {
@@ -31,6 +36,23 @@ describe("exerciseDescriptions.curated.json", () => {
     expect(slugs.has("half_kneeling_thoracic_opener")).toBe(true);
     expect(getCuratedExerciseDescription("face_pull")).toMatch(/cable|face/i);
     expect(getCuratedExerciseDescription("inchworm")).toMatch(/plank|hinge/i);
+    expect(getCuratedExerciseDescription("treadmill_run")).toMatch(/treadmill|running speed/i);
+    expect(getCuratedExerciseDescription("medicine_ball_chest_pass")).toMatch(/medicine ball|chest/i);
+    expect(getCuratedExerciseDescription("plank_shoulder_tap")).toMatch(/plank|tap/i);
+    expect(getCuratedExerciseDescription("plank_shoulder_tap")).toBe(
+      getCuratedExerciseDescription("plank_shoulder_taps")
+    );
+  });
+
+  it("tries singular and plural last-token slug variants", () => {
+    expect(curatedSlugCandidates("plank_shoulder_tap")).toEqual([
+      "plank_shoulder_tap",
+      "plank_shoulder_taps",
+    ]);
+    expect(curatedSlugCandidates("plank_shoulder_taps")).toEqual([
+      "plank_shoulder_taps",
+      "plank_shoulder_tap",
+    ]);
   });
 
   it("prefers curated copy over old generated stub copy", () => {

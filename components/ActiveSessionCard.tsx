@@ -1,11 +1,15 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Platform, Modal } from "react-native";
+import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { themeRadius, useTheme } from "../lib/theme";
+import { useTheme } from "../lib/theme";
 import { useAppState } from "../context/AppStateContext";
-import { PrimaryButton } from "./Button";
+import { DiscardConfirmModal } from "./DiscardConfirmModal";
+import {
+  discardActionLabel,
+  discardTargetFromFlow,
+} from "../lib/discardConfirmCopy";
 import {
   SESSION_PHASES,
   SESSION_BANNER_HEIGHT,
@@ -44,6 +48,7 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const top = topOffset ?? navHeaderBottom;
+  const discardTarget = discardTargetFromFlow(activeSessionDraft?.flow);
 
   const onDiscard = useCallback(() => {
     setConfirmOpen(false);
@@ -96,36 +101,18 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
           onPress={() => setConfirmOpen(true)}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Discard session"
+          accessibilityLabel={discardActionLabel(discardTarget)}
           style={({ pressed }) => [styles.discardTap, { opacity: pressed ? 0.7 : 1 }]}
         >
           <Text style={[styles.discardLabel, { color: theme.primary }]}>Discard</Text>
         </Pressable>
       </View>
-      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={() => setConfirmOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setConfirmOpen(false)}>
-          <Pressable
-            style={[styles.modalSheet, { backgroundColor: theme.cardOpaque, borderColor: theme.border }]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Discard session?</Text>
-            <Text style={[styles.modalBody, { color: theme.textMuted }]}>
-              This clears your current workout or week plan and returns to Today. Saved library items are not
-              deleted.
-            </Text>
-            <View style={styles.modalActions}>
-              <PrimaryButton
-                label="Keep working"
-                variant="secondary"
-                compact
-                onPress={() => setConfirmOpen(false)}
-                style={{ flex: 1 }}
-              />
-              <PrimaryButton label="Discard" compact onPress={onDiscard} style={{ flex: 1 }} />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <DiscardConfirmModal
+        visible={confirmOpen}
+        target={discardTarget}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={onDiscard}
+      />
     </View>
   );
 }
@@ -198,36 +185,6 @@ const styles = StyleSheet.create({
   chevron: {
     flexShrink: 0,
     opacity: 0.85,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalSheet: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: themeRadius.modal,
-    borderWidth: 1,
-    padding: 20,
-    gap: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  modalBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
   },
 });
 

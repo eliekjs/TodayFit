@@ -11,6 +11,7 @@ import {
   savedDayFingerprint,
   savedPlanDaysFromSportPrep,
   savedPlanLibraryTitle,
+  savedPlanSourceLabel,
   savedWeekFingerprint,
   wasPlanSavedThisSession,
 } from "./saveNamedPlan";
@@ -76,6 +77,11 @@ describe("saveNamedPlan labels", () => {
     expect(isSavedDayPlan(plan)).toBe(true);
     expect(savedPlanLibraryTitle(plan)).toBe("Heavy lower");
     expect(defaultSavedWeekName("2026-04-20")).toMatch(/Week of/);
+  });
+
+  it("maps saved plan source to Goal / Sport library labels", () => {
+    expect(savedPlanSourceLabel("manual")).toBe("Goal");
+    expect(savedPlanSourceLabel("adaptive")).toBe("Sport");
   });
 
   it("disables repeat saves via Saved labels", () => {

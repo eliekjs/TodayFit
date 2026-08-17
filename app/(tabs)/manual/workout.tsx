@@ -8,12 +8,25 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
-import { phaseLabelAfter } from "../../../lib/sessionFlowNav";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
+import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
+import { StartWorkoutPromptModal } from "../../../components/StartWorkoutPromptModal";
+import { useSaveAndExecute } from "../../../lib/useSaveAndExecute";
+import {
+  reviewAndAdjustHint,
+  saveAndExecuteHint,
+  saveAndExecuteLabel,
+} from "../../../lib/weekReviewCopy";
+import { ACTIVE_WEEK_ROUTE } from "../../../lib/weekProgress";
+import { savedDayFingerprint } from "../../../lib/saveNamedPlan";
+import { getDesignatedWeekStartMonday, getTodayLocalDateString } from "../../../lib/dateUtils";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { AddWorkoutBlockPanel } from "../../../components/AddWorkoutBlockPanel";
+import type { AddWorkoutBlockRequest } from "../../../components/AddWorkoutBlockPanel";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
+import { generateAndAppendWorkoutBlock } from "../../../lib/appendGeneratedBlock";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
-import { replaceExerciseInWorkout, updateExercisePrescriptionInWorkout } from "../../../lib/workoutUtils";
+import { replaceExerciseInWorkout, updateExercisePrescriptionInWorkout, collectWorkoutExerciseIds } from "../../../lib/workoutUtils";
 import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
@@ -25,7 +38,6 @@ import { buildManualPreferenceSummaryLines } from "../../../lib/workoutPreferenc
 import { buildWorkoutIntentTitle } from "../../../lib/workoutIntentSplit";
 import { manualGoalPreferencesHref } from "../../../lib/manualGoalPreferencesHref";
 import { composeRunGenerationSeed } from "../../../lib/generationSeed";
-import { collectWorkoutExerciseIds } from "../../../lib/workoutUtils";
 
 export default function ManualWorkoutScreen() {
   const {
@@ -44,6 +56,40 @@ export default function ManualWorkoutScreen() {
   const router = useRouter();
   const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
   const theme = useTheme();
+  const {
+    save: { dialog: saveDialog, busy: saveBusy, isSaved, confirmSave, cancelSave },
+    startTarget,
+    requestSaveAndExecute,
+    confirmStart,
+    dismissStart,
+  } = useSaveAndExecute();
+
+  const startWorkout = useCallback(() => {
+    setManualExecutionStarted(true);
+    router.push("/manual/execute");
+  }, [setManualExecutionStarted, router]);
+
+  /** Save this session to the library, then offer to train it now. */
+  const onSaveAndExecute = useCallback(() => {
+    if (!generatedWorkout) return;
+    const title = generatedWorkout.intentSplit
+      ? buildWorkoutIntentTitle(generatedWorkout.intentSplit)
+      : undefined;
+    requestSaveAndExecute({
+      kind: "day",
+      weekStartDate: getDesignatedWeekStartMonday(),
+      days: [
+        {
+          date: getTodayLocalDateString(),
+          workout: generatedWorkout,
+          displayTitle: title ?? undefined,
+        },
+      ],
+      source: "manual",
+      onStart: startWorkout,
+      onDecline: () => router.replace(ACTIVE_WEEK_ROUTE as never),
+    });
+  }, [generatedWorkout, requestSaveAndExecute, startWorkout, router]);
 
   const [swapModal, setSwapModal] = useState<{
     exerciseId: string;
@@ -56,6 +102,7 @@ export default function ManualWorkoutScreen() {
   const [swapSuggestionPage, setSwapSuggestionPage] = useState(0);
   const [swapNumPages, setSwapNumPages] = useState(1);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isAddingBlock, setIsAddingBlock] = useState(false);
   const [navBarHeight, setNavBarHeight] = useState(72);
   const generationCancelledRef = useRef(false);
 
@@ -63,15 +110,19 @@ export default function ManualWorkoutScreen() {
     useCallback(() => {
       generationCancelledRef.current = false;
       setIsRegenerating(false);
+      setIsAddingBlock(false);
       return () => {
         generationCancelledRef.current = true;
         setIsRegenerating(false);
+        setIsAddingBlock(false);
       };
     }, [])
   );
 
   useEffect(() => {
-    void ensureCuratedDescriptionsLoaded();
+    void ensureCuratedDescriptionsLoaded().catch(() => {
+      /* Loader resets on failure so the next mount retries. */
+    });
   }, []);
 
   useEffect(() => {
@@ -240,6 +291,35 @@ export default function ManualWorkoutScreen() {
     );
   };
 
+  const onAddBlock = async (request: AddWorkoutBlockRequest) => {
+    if (generatedWorkout == null || isAddingBlock) return;
+    setIsAddingBlock(true);
+    try {
+      const updated = await generateAndAppendWorkoutBlock({
+        workout: generatedWorkout,
+        basePreferences: generatedWorkout.generationPreferences ?? manualPreferences,
+        gymProfile: activeProfile,
+        blockType: request.blockType,
+        bodyChoiceId: request.bodyChoiceId,
+        historySources: {
+          workoutHistory,
+          savedWorkouts,
+          inProgressWorkout: generatedWorkout,
+          inProgressProgress: manualSessionProgress,
+          regenerationAvoidExerciseIds: collectWorkoutExerciseIds(generatedWorkout),
+        },
+      });
+      if (generationCancelledRef.current) return;
+      setGeneratedWorkout(updated);
+    } catch (e) {
+      if (generationCancelledRef.current) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Couldn't add block", msg);
+    } finally {
+      setIsAddingBlock(false);
+    }
+  };
+
   if (isRegenerating) {
     return (
       <GenerationLoadingScreen
@@ -261,7 +341,11 @@ export default function ManualWorkoutScreen() {
           title={workoutTitle ?? "Summary"}
           subtitle={summaryLines.join(" • ")}
           style={styles.summaryCard}
-        />
+        >
+          <Text style={{ fontSize: 13, color: theme.textMuted }}>
+            {reviewAndAdjustHint({ multipleDays: false })}
+          </Text>
+        </Card>
 
         <WorkoutBlockList
           workout={generatedWorkout}
@@ -272,6 +356,8 @@ export default function ManualWorkoutScreen() {
           showEditPrescription
           onEditPrescription={onEditPrescription}
         />
+
+        <AddWorkoutBlockPanel onAdd={onAddBlock} adding={isAddingBlock} />
 
         <View style={styles.footer}>
           <PrimaryButton
@@ -292,12 +378,18 @@ export default function ManualWorkoutScreen() {
         sticky
         onLayout={setNavBarHeight}
         forward={{
-          label: phaseLabelAfter("review") ?? "Start workout",
-          onPress: () => {
-            setManualExecutionStarted(true);
-            router.push("/manual/execute");
-          },
+          label: saveAndExecuteLabel({
+            multipleDays: false,
+            busy: saveBusy,
+            alreadySaved: isSaved(
+              savedDayFingerprint(getTodayLocalDateString(), generatedWorkout.id)
+            ),
+          }),
+          onPress: onSaveAndExecute,
+          disabled: saveBusy || saveDialog != null,
+          loading: saveBusy,
         }}
+        hint={saveAndExecuteHint({ multipleDays: false })}
       />
       </View>
 
@@ -312,6 +404,21 @@ export default function ManualWorkoutScreen() {
         moreSuggestionsAvailable={swapNumPages > 1}
         onMoreSuggestions={() => setSwapSuggestionPage((p) => p + 1)}
         loadingMoreSuggestions={swapLoading && swapSuggestionPage > 0}
+      />
+      {saveDialog ? (
+        <SaveNamedPlanModal
+          visible
+          kind={saveDialog.kind}
+          defaultName={saveDialog.defaultName}
+          busy={saveBusy}
+          onCancel={cancelSave}
+          onSave={confirmSave}
+        />
+      ) : null}
+      <StartWorkoutPromptModal
+        target={startTarget}
+        onStart={confirmStart}
+        onDismiss={dismissStart}
       />
     </AppScreenWrapper>
   );

@@ -46,6 +46,18 @@ function main() {
 
   const face = exerciseDefinitionToGeneratorExercise(find("face_pull"));
   assert(face.mobility_targets?.includes("shoulders"), "face_pull → shoulders mobility");
+
+  const tibDef = find("tibialis_raise");
+  const tib = exerciseDefinitionToGeneratorExercise(tibDef);
+  assert(tib.mobility_targets?.includes("calves"), "tibialis_raise → calves mobility (not thoracic-only)");
+  assert(
+    !(tib.mobility_targets?.length === 1 && tib.mobility_targets[0] === "thoracic_spine"),
+    "tibialis_raise must not be thoracic-only"
+  );
+
+  const cossack = exerciseDefinitionToGeneratorExercise(find("cossack_squat"));
+  assert(cossack.mobility_targets?.includes("hip_flexors") || cossack.mobility_targets?.includes("hamstrings"), "cossack → hip/hamstring mobility");
+
   console.log("  OK: face_pull → shoulders mobility");
 
   // merge does not overwrite curated arrays

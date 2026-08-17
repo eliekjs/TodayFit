@@ -30,8 +30,11 @@ describe("volumePreferenceCopy", () => {
     expect(options[1]!.label).toBe("Balanced");
     expect(options[1]!.description).toContain("5–8");
     expect(options[2]!.label).toBe("High Volume");
-    expect(volumePreferenceSectionSubtitle({ primaryFocus: ["Build Strength"] })).toContain(
-      "volume preference"
+    expect(volumePreferenceSectionSubtitle({ primaryFocus: ["Build Strength"] })).toBe(
+      "How many sets and reps to do."
+    );
+    expect(volumePreferenceSectionSubtitle({ goalBias: "mobility" })).toBe(
+      "How long to hold and how many rounds to do."
     );
   });
 

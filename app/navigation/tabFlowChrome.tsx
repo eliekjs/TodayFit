@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBar } from "@react-navigation/bottom-tabs";
@@ -11,17 +11,32 @@ import { useTheme } from "../../lib/theme";
 import {
   navigateToManualGoalPreferences,
 } from "../../lib/manualGoalPreferencesHref";
+import { weekSetupAtPickDays } from "../../lib/sessionDraft";
 import { sportReviewBackRoute } from "../../lib/sessionFlowNav";
-import { isAlreadyOnTabHome, tabBarHomeHref } from "../../lib/tabBarHome";
+import {
+  isAlreadyAtTabTarget,
+  tabBarHomeHref,
+  workoutTabTargetHref,
+  TAB_BAR_HOME_HREF,
+} from "../../lib/tabBarHome";
+import {
+  discardActionLabel,
+  discardTargetFromFlow,
+} from "../../lib/discardConfirmCopy";
 import { useAppState } from "../../context/AppStateContext";
-import { PrimaryButton } from "../../components/Button";
+import { DiscardConfirmModal } from "../../components/DiscardConfirmModal";
 
-/** Order defines tab bar left-to-right; index (Today) is center and app home. */
-const VISIBLE_TAB_NAMES = ["library", "index", "profiles"];
+/** Which route groups get a tab button; bar order follows the Tabs.Screen order in _layout. */
+const VISIBLE_TAB_NAMES = ["index", "workout", "library", "profiles"];
 
 function isTabVisible(routeName: string): boolean {
   const base = String(routeName).split("/")[0];
   return VISIBLE_TAB_NAMES.includes(base);
+}
+
+/** Executing a session reads as the Workout tab, not Create. */
+function isExecuteFlowScreen(routeName: string): boolean {
+  return routeName === "manual/execute";
 }
 
 type TabHeaderProps = {
@@ -45,19 +60,23 @@ export function FocusAwareTabHeader({ layout, options, route }: TabHeaderProps) 
 
 export function FilteredTabBar(props: BottomTabBarProps) {
   const router = useRouter();
+  const { generatedWorkout, manualExecutionStarted } = useAppState();
+  const hasActiveExecution = manualExecutionStarted && generatedWorkout != null;
   const { state, descriptors } = props;
   const filteredRoutes = state.routes.filter((r) => isTabVisible(String(r.name)));
   const currentRoute = state.routes[state.index];
   const currentName = String(currentRoute?.name ?? "");
   const filteredIndex = filteredRoutes.findIndex((r) => r.key === currentRoute?.key);
-  /** Flow screens (manual/*, sport-mode/*) are not tab routes; highlight Today, not Library. */
-  const todayFilteredIndex = filteredRoutes.findIndex((r) => String(r.name) === "index");
+  /**
+   * Flow screens (manual/*, sport-mode/*) are not tab routes. Executing a session belongs
+   * to the Workout tab; everything else in a build flow belongs to Create.
+   */
+  const fallbackName = isExecuteFlowScreen(currentName) ? "workout" : "index";
+  const fallbackIndex = filteredRoutes.findIndex(
+    (r) => String(r.name).split("/")[0] === fallbackName
+  );
   const activeIndex =
-    filteredIndex >= 0
-      ? filteredIndex
-      : todayFilteredIndex >= 0
-        ? todayFilteredIndex
-        : 0;
+    filteredIndex >= 0 ? filteredIndex : fallbackIndex >= 0 ? fallbackIndex : 0;
   const filteredState = {
     ...state,
     routes: filteredRoutes,
@@ -68,22 +87,27 @@ export function FilteredTabBar(props: BottomTabBarProps) {
   for (const route of filteredRoutes) {
     const desc = patchedDescriptors[route.key];
     if (!desc) continue;
-    const href = tabBarHomeHref(String(route.name));
+    const home = tabBarHomeHref(String(route.name));
+    /** Workout tab jumps back into a session already underway rather than its overview. */
+    const target =
+      home === TAB_BAR_HOME_HREF.workout
+        ? workoutTabTargetHref({ hasActiveExecution })
+        : home;
     const originalButton = desc.options.tabBarButton;
     patchedDescriptors[route.key] = {
       ...desc,
       options: {
         ...desc.options,
         tabBarButton: (buttonProps) => {
-          const goHome = (e?: { preventDefault?: () => void }) => {
+          const goToTab = (e?: { preventDefault?: () => void }) => {
             e?.preventDefault?.();
-            if (isAlreadyOnTabHome(currentName, href)) return;
-            router.replace(href);
+            if (isAlreadyAtTabTarget(currentName, target)) return;
+            router.replace(target as never);
           };
           const nextProps = {
             ...buttonProps,
-            href,
-            onPress: goHome,
+            href: target,
+            onPress: goToTab,
           };
           if (originalButton) return originalButton(nextProps);
           return <PlatformPressable {...nextProps} />;
@@ -131,10 +155,16 @@ export function AdaptiveRecommendationBackButton() {
 export function ManualWeekBackButton() {
   const router = useRouter();
   const theme = useTheme();
-  const { manualGoalPreferencesScope } = useAppState();
+  const { manualGoalPreferencesScope, activeSessionDraft, updateActiveSessionDraft } = useAppState();
   return (
     <Pressable
-      onPress={() => navigateToManualGoalPreferences(router, manualGoalPreferencesScope, { replace: true })}
+      onPress={() => {
+        const next = weekSetupAtPickDays(activeSessionDraft?.weekSetup);
+        if (next && next !== activeSessionDraft?.weekSetup) {
+          updateActiveSessionDraft({ weekSetup: next });
+        }
+        navigateToManualGoalPreferences(router, manualGoalPreferencesScope, { replace: true });
+      }}
       style={{ paddingLeft: 16 }}
     >
       <Ionicons name="chevron-back" size={24} color={theme.text} />
@@ -142,7 +172,28 @@ export function ManualWeekBackButton() {
   );
 }
 
-/** Back from goal filters to Today — explicit exit so history stack cannot bounce to week review. */
+/** Back from sport schedule to sport filters — reopen gym-day picking on the next forward. */
+export function SportScheduleBackButton() {
+  const router = useRouter();
+  const theme = useTheme();
+  const { activeSessionDraft, updateActiveSessionDraft } = useAppState();
+  return (
+    <Pressable
+      onPress={() => {
+        const next = weekSetupAtPickDays(activeSessionDraft?.weekSetup);
+        if (next && next !== activeSessionDraft?.weekSetup) {
+          updateActiveSessionDraft({ weekSetup: next });
+        }
+        router.replace("/sport-mode" as never);
+      }}
+      style={{ paddingLeft: 16 }}
+    >
+      <Ionicons name="chevron-back" size={24} color={theme.text} />
+    </Pressable>
+  );
+}
+
+/** Back from goal filters to Create — explicit exit so history stack cannot bounce to week review. */
 export function ManualPreferencesBackButton() {
   const router = useRouter();
   const theme = useTheme();
@@ -153,16 +204,18 @@ export function ManualPreferencesBackButton() {
   );
 }
 
-/** Back from execute: week overview if this session came from a week plan, else workout editor. */
+/** Back from execute: the active plan's overview if there is one, else the workout editor. */
 export function ManualExecuteBackButton() {
   const router = useRouter();
   const theme = useTheme();
-  const { manualWeekPlan } = useAppState();
+  const { manualWeekPlan, sportPrepWeekPlan } = useAppState();
+  const hasActivePlan = manualWeekPlan != null || sportPrepWeekPlan != null;
   return (
     <Pressable
       onPress={() => {
-        if (manualWeekPlan != null) router.push("/manual/week");
-        else router.push("/manual/workout");
+        router.replace(
+          (hasActivePlan ? TAB_BAR_HOME_HREF.workout : "/manual/workout") as never
+        );
       }}
       style={{ paddingLeft: 16 }}
     >
@@ -291,97 +344,41 @@ function useRestartFlow() {
   }, [router, discardActiveSession]);
 }
 
-type RestartConfirmModalProps = {
-  visible: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-};
-
-function RestartConfirmModal({ visible, onCancel, onConfirm }: RestartConfirmModalProps) {
-  const theme = useTheme();
-  if (!visible) return null;
-  return (
-    <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={restartModalStyles.backdrop} onPress={onCancel}>
-        <Pressable
-          style={[restartModalStyles.sheet, { backgroundColor: theme.cardOpaque, borderColor: theme.border }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Text style={[restartModalStyles.title, { color: theme.text }]}>Discard session?</Text>
-          <Text style={[restartModalStyles.body, { color: theme.textMuted }]}>
-            This clears your current workout or week plan and returns to Today. Saved library items are not
-            deleted.
-          </Text>
-          <View style={restartModalStyles.actions}>
-            <PrimaryButton label="Keep working" variant="secondary" compact onPress={onCancel} style={{ flex: 1 }} />
-            <PrimaryButton label="Discard" compact onPress={onConfirm} style={{ flex: 1 }} />
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
+function useActiveDiscardTarget() {
+  const { activeSessionDraft } = useAppState();
+  return discardTargetFromFlow(activeSessionDraft?.flow);
 }
 
-const restartModalStyles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  sheet: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    gap: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  body: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  actions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
-  },
-});
-
-/** Clears in-progress workout/week state and navigates to Today. */
+/** Clears in-progress workout/week state and navigates to Create. */
 export function RestartFlowButton({
   compact = false,
-  label = "Discard",
+  label,
 }: {
   compact?: boolean;
   label?: string;
 }) {
   const theme = useTheme();
   const restart = useRestartFlow();
+  const target = useActiveDiscardTarget();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const resolvedLabel = label ?? "Discard";
 
   return (
     <>
       <Pressable
         onPress={() => setConfirmOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel="Discard session"
+        accessibilityLabel={discardActionLabel(target)}
         hitSlop={8}
         style={{ paddingRight: compact ? 8 : 16, paddingLeft: compact ? 4 : 0 }}
       >
         <Text style={{ fontSize: compact ? 13 : 15, color: theme.primary, fontWeight: "600" }}>
-          {label}
+          {resolvedLabel}
         </Text>
       </Pressable>
-      <RestartConfirmModal
+      <DiscardConfirmModal
         visible={confirmOpen}
+        target={target}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
           setConfirmOpen(false);
@@ -396,17 +393,24 @@ export function RestartFlowButton({
 export function DiscardSessionLink({ style }: { style?: object }) {
   const theme = useTheme();
   const restart = useRestartFlow();
+  const target = useActiveDiscardTarget();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
     <>
-      <Pressable onPress={() => setConfirmOpen(true)} style={style}>
+      <Pressable
+        onPress={() => setConfirmOpen(true)}
+        style={style}
+        accessibilityRole="button"
+        accessibilityLabel={discardActionLabel(target)}
+      >
         <Text style={{ fontSize: 14, color: theme.textMuted, fontWeight: "500", textAlign: "center" }}>
-          Discard session
+          {discardActionLabel(target)}
         </Text>
       </Pressable>
-      <RestartConfirmModal
+      <DiscardConfirmModal
         visible={confirmOpen}
+        target={target}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
           setConfirmOpen(false);

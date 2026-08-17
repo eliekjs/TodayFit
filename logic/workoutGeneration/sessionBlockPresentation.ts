@@ -3,6 +3,8 @@
  * Does not change which blocks the generator builds — only names them after assembly.
  */
 
+import { isGenericStructuralTitle } from "../../lib/blockGoalDisplay";
+
 export type PresentationBlock = {
   block_type: string;
   title?: string;
@@ -19,36 +21,6 @@ type PresentationExercise = {
 const SUPPORT_TYPES = new Set(["cooldown", "mobility", "recovery", "core"]);
 
 const PRESERVED_TITLES = new Set(["calisthenics"]);
-
-const GENERIC_STRUCTURAL_TITLES = new Set([
-  "activation",
-  "warmup",
-  "main_strength",
-  "main strength",
-  "primary strength",
-  "secondary strength",
-  "main hypertrophy",
-  "hypertrophy",
-  "power block",
-  "power",
-  "accessory",
-  "conditioning",
-  "cooldown",
-  "mobility",
-  "recovery",
-  "core",
-]);
-
-function isGenericStructuralTitle(title: string): boolean {
-  const n = title.toLowerCase().trim();
-  if (!n) return true;
-  if (GENERIC_STRUCTURAL_TITLES.has(n)) return true;
-  if (/^block [a-z]+$/i.test(n)) return true;
-  if (/^main strength\b/i.test(n)) return true;
-  if (/^main hypertrophy\b/i.test(n)) return true;
-  if (/^power block\b/i.test(n)) return true;
-  return false;
-}
 
 function norm(value: string): string {
   return value.toLowerCase().replace(/[\s-]+/g, "_");
@@ -102,6 +74,60 @@ function uniquifyTitles(blocks: PresentationBlock[]): void {
     }
     used.add(title);
   }
+}
+
+/**
+ * Canonical session order. Missing blocks are skipped; relative order within a
+ * rank (e.g. two strength blocks) is preserved.
+ *
+ * 0 Activation → 1 Power/Speed → 2 Skill → 3 Primary Strength → 4 Secondary Strength
+ * → 5 Hypertrophy → 6 Accessory → 7 Conditioning → 8–11 Support (core / mobility /
+ * recovery / cooldown last).
+ */
+const SESSION_BLOCK_ORDER_RANK: Record<string, number> = {
+  warmup: 0,
+  prep: 0,
+  power: 1,
+  skill: 2,
+  main_strength: 3,
+  main_hypertrophy: 5,
+  accessory: 6,
+  conditioning: 7,
+  core: 8,
+  mobility: 9,
+  recovery: 10,
+  cooldown: 11,
+};
+
+function sessionBlockOrderRank(block: { block_type: string; title?: string }): number {
+  const type = block.block_type.toLowerCase().replace(/[\s-]+/g, "_");
+  const title = (block.title ?? "").toLowerCase();
+  if (type === "main_strength") {
+    return /secondary/i.test(title) ? 4 : 3;
+  }
+  const typeRank = SESSION_BLOCK_ORDER_RANK[type];
+  if (typeRank != null && typeRank >= 8) return typeRank;
+  if (
+    type === "accessory" &&
+    /prehab|sport support|stability|resilience|\bknee\b|\bmobility\b|\brecovery\b|\bcore\b|\bankle\b/.test(title)
+  ) {
+    if (/\bcore\b/.test(title)) return 8;
+    if (/\bmobility\b/.test(title)) return 9;
+    if (/\brecovery\b/.test(title)) return 10;
+    return 8;
+  }
+  return typeRank ?? 6;
+}
+
+export function orderSessionBlocks<T extends { block_type: string; title?: string }>(blocks: T[]): T[] {
+  return blocks
+    .map((block, index) => ({ block, index }))
+    .sort((a, b) => {
+      const rankDiff = sessionBlockOrderRank(a.block) - sessionBlockOrderRank(b.block);
+      if (rankDiff !== 0) return rankDiff;
+      return a.index - b.index;
+    })
+    .map(({ block }) => block);
 }
 
 /**

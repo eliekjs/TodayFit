@@ -1,0 +1,3236 @@
+[
+  {
+    "slug": "rower_steady",
+    "name": "Rower Steady State",
+    "equipment": [
+      "rower"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Rower Steady State is a conditioning exercise. Primarily targets biceps, legs, upper_back, core, lats. Equipment: rower.",
+    "is_active": true
+  },
+  {
+    "slug": "front_rack_lunge",
+    "name": "Front Rack Lunge",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Front Rack Lunge is a lower-body exercise. Primarily targets quads, glutes. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "quadruped_rockback",
+    "name": "Quadruped Rockback",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core",
+      "legs"
+    ],
+    "description": "Quadruped Rockback is a mobility exercise. Primarily targets core, legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "leg_swings_side",
+    "name": "Leg Swings (Side)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Leg Swings (Side) is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "elliptical_steady",
+    "name": "Elliptical Steady",
+    "equipment": [
+      "elliptical"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Elliptical Steady is a conditioning exercise. Primarily targets legs. Equipment: elliptical.",
+    "is_active": true
+  },
+  {
+    "slug": "thread_the_needle_stretch",
+    "name": "Thread the Needle (Stretch)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders",
+      "core"
+    ],
+    "description": "Thread the Needle (Stretch) is a mobility exercise. Primarily targets triceps, chest, shoulders, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "triceps_stretch_overhead",
+    "name": "Overhead Triceps Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Overhead Triceps Stretch is a mobility exercise. Primarily targets triceps, chest, shoulders. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "piriformis_stretch_seated",
+    "name": "Seated Piriformis Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Seated Piriformis Stretch is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "kneeling_hip_flexor_stretch",
+    "name": "Kneeling Hip Flexor Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Kneeling Hip Flexor Stretch is a mobility exercise. Primarily targets legs, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "band_pull_apart",
+    "name": "Band Pull-Apart",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "shoulders"
+    ],
+    "description": "Band Pull-Apart is a mobility exercise. Primarily targets upper_back, shoulders. Equipment: bands, resistance_band.",
+    "is_active": true
+  },
+  {
+    "slug": "foam_roll_glute",
+    "name": "Foam Roll Glute",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Foam Roll Glute is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "face_pull_band",
+    "name": "Band Face Pull",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "shoulders"
+    ],
+    "description": "Band Face Pull is a mobility exercise. Primarily targets upper_back, shoulders. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "wall_angel",
+    "name": "Wall Angel",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "shoulders",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Wall Angel is a mobility exercise. Primarily targets biceps, chest, triceps, shoulders, upper_back, lats. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "ytw",
+    "name": "Y-T-W Raise",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "shoulders"
+    ],
+    "description": "Y-T-W Raise is a upper-body pull exercise. Primarily targets upper_back, shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "sissy_squat",
+    "name": "Sissy Squat",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Sissy Squat is a lower-body exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "overhead_tricep_extension",
+    "name": "Overhead Tricep Extension",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "description": "Overhead Tricep Extension is a upper-body push exercise. Primarily targets triceps. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "stair_climber_steady",
+    "name": "Stair Climber Steady",
+    "equipment": [
+      "stair_climber"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Stair Climber Steady is a conditioning exercise. Primarily targets legs. Equipment: stair_climber.",
+    "is_active": true
+  },
+  {
+    "slug": "high_knee",
+    "name": "High Knees",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "High Knees is a conditioning exercise. Primarily targets legs, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "incline_db_press",
+    "name": "Incline Dumbbell Press",
+    "equipment": [
+      "dumbbells",
+      "bench"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Incline Dumbbell Press is a upper-body push exercise. Primarily targets chest. Equipment: dumbbells, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "stability_ball_hamstring_curl",
+    "name": "Stability Ball Hamstring Curl",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "hamstrings"
+    ],
+    "description": "Stability Ball Hamstring Curl is a lower-body exercise. Primarily targets hamstrings. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "tricep_pushdown",
+    "name": "Tricep Pushdown",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "description": "Tricep Pushdown is a upper-body push exercise. Primarily targets triceps. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "kb_goblet_squat",
+    "name": "Kettlebell Goblet Squat",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Kettlebell Goblet Squat is a lower-body exercise. Primarily targets legs, core. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "barbell_curl",
+    "name": "Barbell Curl",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "description": "Barbell Curl is a upper-body pull exercise. Primarily targets biceps. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "reverse_curl",
+    "name": "Reverse Curl",
+    "equipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "description": "Reverse Curl is a upper-body pull exercise. Primarily targets biceps. Equipment: barbell, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "weighted_pull_up",
+    "name": "Weighted Pull-up",
+    "equipment": [
+      "pullup_bar"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Weighted Pull-up is a upper-body pull exercise. Primarily targets lats. Equipment: pullup_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "lying_tricep_extension",
+    "name": "Lying Tricep Extension",
+    "equipment": [
+      "barbell",
+      "ez_bar"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "description": "Lying Tricep Extension is a upper-body push exercise. Primarily targets triceps. Equipment: barbell, ez_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "reverse_grip_pulldown",
+    "name": "Reverse-Grip Pulldown",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Reverse-Grip Pulldown is a upper-body pull exercise. Primarily targets lats. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "thread_the_needle",
+    "name": "Thread the Needle",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Thread the Needle is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "lizard_hip_flexor",
+    "name": "Lizard Hip Flexor Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Lizard Hip Flexor Stretch is a mobility exercise. Primarily targets legs, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "medball_slam",
+    "name": "Medicine Ball Slam",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core",
+      "legs"
+    ],
+    "description": "Medicine Ball Slam is a core exercise. Primarily targets core, legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "ski_erg_intervals",
+    "name": "Ski Erg Intervals",
+    "equipment": [
+      "ski_erg"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Ski Erg Intervals is a conditioning exercise. Primarily targets biceps, legs, upper_back, core, lats. Equipment: ski_erg.",
+    "is_active": true
+  },
+  {
+    "slug": "burpee_box_jump",
+    "name": "Burpee Box Jump",
+    "equipment": [
+      "bodyweight",
+      "plyo_box"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "legs",
+      "shoulders",
+      "core"
+    ],
+    "description": "Burpee Box Jump is a conditioning exercise. Primarily targets triceps, chest, legs, shoulders, core. Equipment: bodyweight, plyo_box.",
+    "is_active": true
+  },
+  {
+    "slug": "lateral_step_up",
+    "name": "Lateral Step-Up",
+    "equipment": [
+      "bench",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Lateral Step-Up is a lower-body exercise. Primarily targets quads, glutes. Equipment: bench, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "dead_bug_weighted",
+    "name": "Dead Bug (Weighted)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Dead Bug (Weighted) is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "jump_squat_light",
+    "name": "Jump Squat (Light)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Jump Squat (Light) is a lower-body exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "kb_snatch",
+    "name": "Kettlebell Snatch",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "legs",
+      "shoulders",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Kettlebell Snatch is a upper-body push exercise. Primarily targets biceps, chest, triceps, legs, shoulders, upper_back, lats. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "pause_front_squat",
+    "name": "Pause Front Squat",
+    "equipment": [
+      "barbell",
+      "squat_rack"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Pause Front Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: barbell, squat_rack.",
+    "is_active": true
+  },
+  {
+    "slug": "hollow_hold",
+    "name": "Hollow Hold",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Hollow Hold is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "wrist_curl",
+    "name": "Wrist Curl",
+    "equipment": [
+      "dumbbells",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "forearms"
+    ],
+    "description": "Wrist Curl is a upper-body pull exercise. Primarily targets forearms. Equipment: dumbbells, barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "sled_pull",
+    "name": "Sled Pull",
+    "equipment": [
+      "sled"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "legs",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Sled Pull is a conditioning exercise. Primarily targets biceps, legs, upper_back, lats. Equipment: sled.",
+    "is_active": true
+  },
+  {
+    "slug": "band_ohp",
+    "name": "Band Overhead Press",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Band Overhead Press is a upper-body push exercise. Primarily targets shoulders. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "wall_ball",
+    "name": "Wall Ball Shot",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "legs",
+      "shoulders",
+      "core"
+    ],
+    "description": "Wall Ball Shot is a lower-body exercise. Primarily targets triceps, chest, legs, shoulders, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "wall_sit",
+    "name": "Wall Sit",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Wall Sit is a lower-body exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "goblet_lateral_lunge",
+    "name": "Goblet Lateral Lunge",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Goblet Lateral Lunge is a lower-body exercise. Primarily targets legs. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "standing_calf_raise_single",
+    "name": "Single-Leg Calf Raise",
+    "equipment": [
+      "bodyweight",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Single-Leg Calf Raise is a lower-body exercise. Primarily targets legs. Equipment: bodyweight, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "lateral_box_step",
+    "name": "Lateral Box Step",
+    "equipment": [
+      "plyo_box"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Lateral Box Step is a lower-body exercise. Primarily targets legs. Equipment: plyo_box.",
+    "is_active": true
+  },
+  {
+    "slug": "trap_bar_carry",
+    "name": "Trap Bar Carry",
+    "equipment": [
+      "trap_bar"
+    ],
+    "primary_muscles": [
+      "core",
+      "legs"
+    ],
+    "description": "Trap Bar Carry is a core exercise. Primarily targets core, legs. Equipment: trap_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "treadmill_intervals",
+    "name": "Treadmill Intervals",
+    "equipment": [
+      "treadmill"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Treadmill Intervals is a conditioning exercise. Primarily targets legs. Equipment: treadmill.",
+    "is_active": true
+  },
+  {
+    "slug": "decline_bench",
+    "name": "Decline Bench Press",
+    "equipment": [
+      "barbell",
+      "bench"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Decline Bench Press is a upper-body push exercise. Primarily targets chest. Equipment: barbell, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "stair_climber",
+    "name": "Stair Climber",
+    "equipment": [
+      "stair_climber"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Stair Climber is a conditioning exercise. Primarily targets legs. Equipment: stair_climber.",
+    "is_active": true
+  },
+  {
+    "slug": "kb_sumo_deadlift",
+    "name": "Kettlebell Sumo Deadlift",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Kettlebell Sumo Deadlift is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "double_unders",
+    "name": "Double Unders",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Double Unders is a conditioning exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "rower",
+    "name": "Rower",
+    "equipment": [
+      "rower"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Rower is a conditioning exercise. Primarily targets legs, core. Equipment: rower.",
+    "is_active": true
+  },
+  {
+    "slug": "rollout_ab_wheel",
+    "name": "Ab Wheel Rollout",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Ab Wheel Rollout is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "scissor_kick",
+    "name": "Scissor Kick",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Scissor Kick is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "underhand_pulldown",
+    "name": "Underhand Lat Pulldown",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Underhand Lat Pulldown is a upper-body pull exercise. Primarily targets lats. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "db_shoulder_press",
+    "name": "Dumbbell Shoulder Press",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Dumbbell Shoulder Press is a upper-body push exercise. Primarily targets shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "db_curl",
+    "name": "Dumbbell Curl",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "description": "Dumbbell Curl is a upper-body pull exercise. Primarily targets biceps. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "pallof_hold",
+    "name": "Pallof Hold",
+    "equipment": [
+      "cable_machine",
+      "bands"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Pallof Hold is a core exercise. Primarily targets core. Equipment: cable_machine, bands.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_lateral_raise",
+    "name": "Cable Lateral Raise",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Cable Lateral Raise is a upper-body push exercise. Primarily targets triceps, chest, shoulders. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "windmill",
+    "name": "Windmill",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "core",
+      "legs"
+    ],
+    "description": "Windmill is a mobility exercise. Primarily targets core, legs. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "shoulder_cross_body_stretch",
+    "name": "Cross-Body Shoulder Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Cross-Body Shoulder Stretch is a mobility exercise. Primarily targets triceps, chest, shoulders. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "reverse_curl_ez",
+    "name": "Reverse Curl (EZ Bar)",
+    "equipment": [
+      "ez_bar"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Reverse Curl (EZ Bar) is a upper-body pull exercise. Primarily targets biceps, upper_back, lats. Equipment: ez_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "back_extension",
+    "name": "Back Extension",
+    "equipment": [
+      "bench",
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Back Extension is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: bench, bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "reverse_fly",
+    "name": "Reverse Fly",
+    "equipment": [
+      "dumbbells",
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "shoulders"
+    ],
+    "description": "Reverse Fly is a upper-body pull exercise. Primarily targets upper_back, shoulders. Equipment: dumbbells, cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "front_raise",
+    "name": "Front Raise",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Front Raise is a upper-body push exercise. Primarily targets shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "glute_bridge_hold",
+    "name": "Glute Bridge Hold",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Glute Bridge Hold is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "incline_treadmill_walk",
+    "name": "Incline Treadmill Walk",
+    "equipment": [
+      "treadmill"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Incline Treadmill Walk is a conditioning exercise. Primarily targets legs. Equipment: treadmill.",
+    "is_active": true
+  },
+  {
+    "slug": "assault_bike",
+    "name": "Assault Bike",
+    "equipment": [
+      "assault_bike"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Assault Bike is a conditioning exercise. Primarily targets legs, core. Equipment: assault_bike.",
+    "is_active": true
+  },
+  {
+    "slug": "leaning_lateral_raise",
+    "name": "Leaning Lateral Raise",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Leaning Lateral Raise is a upper-body push exercise. Primarily targets triceps, chest, shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "air_bike_sprint",
+    "name": "Air Bike Sprint",
+    "equipment": [
+      "assault_bike"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Air Bike Sprint is a conditioning exercise. Primarily targets legs. Equipment: assault_bike.",
+    "is_active": true
+  },
+  {
+    "slug": "turkish_get_up",
+    "name": "Turkish Get-Up",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "legs",
+      "shoulders",
+      "upper_back",
+      "core",
+      "lats"
+    ],
+    "description": "Turkish Get-Up is a lower-body exercise. Primarily targets biceps, chest, triceps, legs, shoulders, upper_back, core, lats. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "reclined_figure_four",
+    "name": "Reclined Figure-4 Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Reclined Figure-4 Stretch is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "seated_hamstring_stretch",
+    "name": "Seated Hamstring Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Seated Hamstring Stretch is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "calf_stretch_standing",
+    "name": "Standing Calf Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Standing Calf Stretch is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "band_shoulder_dislocation",
+    "name": "Band Shoulder Dislocation",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "shoulders",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Band Shoulder Dislocation is a mobility exercise. Primarily targets biceps, chest, triceps, shoulders, upper_back, lats. Equipment: bands, resistance_band.",
+    "is_active": true
+  },
+  {
+    "slug": "open_books",
+    "name": "Open Book (T-Spine)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Open Book (T-Spine) is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "hip_circles",
+    "name": "Hip Circles",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Hip Circles is a mobility exercise. Primarily targets legs, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "arm_circles",
+    "name": "Arm Circles",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Arm Circles is a mobility exercise. Primarily targets triceps, chest, shoulders. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "lat_stretch_kneeling",
+    "name": "Kneeling Lat Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Kneeling Lat Stretch is a mobility exercise. Primarily targets biceps, upper_back, lats. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "ski_erg",
+    "name": "Ski Erg",
+    "equipment": [
+      "ski_erg"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Ski Erg is a conditioning exercise. Primarily targets legs, core. Equipment: ski_erg.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_tricep_extension",
+    "name": "Cable Tricep Extension",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "description": "Cable Tricep Extension is a upper-body push exercise. Primarily targets triceps. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "hammer_curl",
+    "name": "Hammer Curl",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "description": "Hammer Curl is a upper-body pull exercise. Primarily targets biceps. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "spider_curl",
+    "name": "Spider Curl",
+    "equipment": [
+      "dumbbells",
+      "bench"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "description": "Spider Curl is a upper-body pull exercise. Primarily targets biceps. Equipment: dumbbells, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "back_extension_reverse_hyper",
+    "name": "Reverse Hyper (Back Extension)",
+    "equipment": [
+      "bench"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Reverse Hyper (Back Extension) is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: bench.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_curl",
+    "name": "Cable Curl",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "description": "Cable Curl is a upper-body pull exercise. Primarily targets biceps. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "seated_dumbbell_ohp",
+    "name": "Seated Dumbbell Overhead Press",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Seated Dumbbell Overhead Press is a upper-body push exercise. Primarily targets shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "db_tricep_kickback",
+    "name": "Dumbbell Tricep Kickback",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "description": "Dumbbell Tricep Kickback is a upper-body push exercise. Primarily targets triceps. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "waiters_carry",
+    "name": "Waiter Carry",
+    "equipment": [
+      "dumbbells",
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "core",
+      "shoulders"
+    ],
+    "description": "Waiter Carry is a core exercise. Primarily targets core, shoulders. Equipment: dumbbells, kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "pull_down_straight_arm",
+    "name": "Straight-Arm Pulldown",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Straight-Arm Pulldown is a upper-body pull exercise. Primarily targets lats. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "rower_intervals_30_30",
+    "name": "Rower 30/30 Intervals",
+    "equipment": [
+      "rower"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Rower 30/30 Intervals is a conditioning exercise. Primarily targets biceps, legs, upper_back, core, lats. Equipment: rower.",
+    "is_active": true
+  },
+  {
+    "slug": "reverse_plank",
+    "name": "Reverse Plank",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Reverse Plank is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "trx_chest_press",
+    "name": "TRX Chest Press",
+    "equipment": [
+      "trx"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "TRX Chest Press is a upper-body push exercise. Primarily targets chest. Equipment: trx.",
+    "is_active": true
+  },
+  {
+    "slug": "stability_ball_rollout",
+    "name": "Stability Ball Rollout",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Stability Ball Rollout is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "seated_forward_fold",
+    "name": "Seated Forward Fold",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Seated Forward Fold is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "band_ir_er",
+    "name": "Band Internal/External Rotation",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Band Internal/External Rotation is a core exercise. Primarily targets triceps, chest, shoulders. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "banded_ankle_mob",
+    "name": "Banded Ankle Mobility",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Banded Ankle Mobility is a mobility exercise. Primarily targets legs. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "sphinx_stretch",
+    "name": "Sphinx Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Sphinx Stretch is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "seated_hip_internal_rotation",
+    "name": "Seated Hip Internal Rotation",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Seated Hip Internal Rotation is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "ankle_dorsiflexion_stretch",
+    "name": "Ankle Dorsiflexion Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Ankle Dorsiflexion Stretch is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "pec_deck",
+    "name": "Pec Deck Fly",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Pec Deck Fly is a upper-body push exercise. Primarily targets chest. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "safety_bar_squat",
+    "name": "Safety Bar Squat",
+    "equipment": [
+      "barbell",
+      "squat_rack"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Safety Bar Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: barbell, squat_rack.",
+    "is_active": true
+  },
+  {
+    "slug": "inverted_row",
+    "name": "Inverted Row",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Inverted Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "rack_pull",
+    "name": "Rack Pull",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Rack Pull is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "treadmill_run",
+    "name": "Treadmill Run",
+    "equipment": [
+      "treadmill"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Treadmill Run is a conditioning exercise. Primarily targets legs. Equipment: treadmill.",
+    "is_active": true
+  },
+  {
+    "slug": "incline_cable_fly",
+    "name": "Incline Cable Fly",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Incline Cable Fly is a upper-body push exercise. Primarily targets chest. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "ab_wheel",
+    "name": "Ab Wheel Rollout",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Ab Wheel Rollout is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "lateral_raise",
+    "name": "Lateral Raise",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Lateral Raise is a upper-body push exercise. Primarily targets shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "suitcase_deadlift",
+    "name": "Suitcase Deadlift",
+    "equipment": [
+      "dumbbells",
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Suitcase Deadlift is a lower-body exercise. Primarily targets legs, core. Equipment: dumbbells, kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "elliptical",
+    "name": "Elliptical",
+    "equipment": [
+      "elliptical"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Elliptical is a conditioning exercise. Primarily targets legs. Equipment: elliptical.",
+    "is_active": true
+  },
+  {
+    "slug": "sled_drag",
+    "name": "Sled Drag",
+    "equipment": [
+      "sled"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "legs",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Sled Drag is a conditioning exercise. Primarily targets biceps, legs, upper_back, lats. Equipment: sled.",
+    "is_active": true
+  },
+  {
+    "slug": "wide_grip_pulldown",
+    "name": "Wide-Grip Lat Pulldown",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Wide-Grip Lat Pulldown is a upper-body pull exercise. Primarily targets lats. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "chest_supported_row",
+    "name": "Chest-Supported Row",
+    "equipment": [
+      "dumbbells",
+      "bench"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Chest-Supported Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: dumbbells, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "battle_ropes",
+    "name": "Battle Ropes",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "shoulders",
+      "upper_back",
+      "core",
+      "lats"
+    ],
+    "description": "Battle Ropes is a upper-body push exercise. Primarily targets biceps, chest, triceps, shoulders, upper_back, core, lats. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "ski_erg_steady",
+    "name": "Ski Erg Steady State",
+    "equipment": [
+      "ski_erg"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Ski Erg Steady State is a conditioning exercise. Primarily targets biceps, legs, upper_back, core, lats. Equipment: ski_erg.",
+    "is_active": true
+  },
+  {
+    "slug": "devils_press",
+    "name": "Devil's Press",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "legs",
+      "shoulders",
+      "core"
+    ],
+    "description": "Devil's Press is a upper-body push exercise. Primarily targets triceps, chest, legs, shoulders, core. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "jump_rope",
+    "name": "Jump Rope",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Jump Rope is a conditioning exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "back_extension_reverse",
+    "name": "Reverse Back Extension",
+    "equipment": [
+      "bench"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Reverse Back Extension is a lower-body exercise. Primarily targets legs. Equipment: bench.",
+    "is_active": true
+  },
+  {
+    "slug": "calf_raise",
+    "name": "Calf Raise",
+    "equipment": [
+      "dumbbells",
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "calves"
+    ],
+    "description": "Calf Raise is a lower-body exercise. Primarily targets calves. Equipment: dumbbells, bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "band_chest_press",
+    "name": "Band Chest Press",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Band Chest Press is a upper-body push exercise. Primarily targets chest. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "renegade_row",
+    "name": "Renegade Row",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Renegade Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "pull_up_commando",
+    "name": "Commando Pull-up",
+    "equipment": [
+      "pullup_bar"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Commando Pull-up is a upper-body pull exercise. Primarily targets lats. Equipment: pullup_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "heels_elevated_squat",
+    "name": "Heels Elevated Squat",
+    "equipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Heels Elevated Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: barbell, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "assault_bike_steady",
+    "name": "Assault Bike Steady",
+    "equipment": [
+      "assault_bike"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Assault Bike Steady is a conditioning exercise. Primarily targets legs. Equipment: assault_bike.",
+    "is_active": true
+  },
+  {
+    "slug": "double_kb_front_carry",
+    "name": "Double Kettlebell Front Carry",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "core",
+      "legs"
+    ],
+    "description": "Double Kettlebell Front Carry is a core exercise. Primarily targets core, legs. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "kb_clean",
+    "name": "Kettlebell Clean",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "legs",
+      "upper_back",
+      "core"
+    ],
+    "description": "Kettlebell Clean is a lower-body exercise. Primarily targets legs, upper_back, core. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "db_snatch",
+    "name": "Dumbbell Snatch",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs",
+      "shoulders",
+      "core"
+    ],
+    "description": "Dumbbell Snatch is a upper-body push exercise. Primarily targets legs, shoulders, core. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "superman",
+    "name": "Superman",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core",
+      "back"
+    ],
+    "description": "Superman is a core exercise. Primarily targets core, back. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "thruster",
+    "name": "Thruster",
+    "equipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs",
+      "shoulders",
+      "core"
+    ],
+    "description": "Thruster is a lower-body exercise. Primarily targets legs, shoulders, core. Equipment: barbell, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "band_row",
+    "name": "Band Row",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Band Row is a upper-body pull exercise. Primarily targets biceps, upper_back, lats. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "reverse_pec_deck",
+    "name": "Reverse Pec Deck",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "shoulders"
+    ],
+    "description": "Reverse Pec Deck is a upper-body pull exercise. Primarily targets upper_back, shoulders. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "db_shrug",
+    "name": "Dumbbell Shrug",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "upper_back"
+    ],
+    "description": "Dumbbell Shrug is a upper-body pull exercise. Primarily targets upper_back. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "zottman_curl",
+    "name": "Zottman Curl",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Zottman Curl is a upper-body pull exercise. Primarily targets biceps, upper_back, lats. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "goblet_split_squat",
+    "name": "Goblet Split Squat",
+    "equipment": [
+      "dumbbells",
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Goblet Split Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: dumbbells, kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "lat_pulldown_single_arm",
+    "name": "Single-Arm Lat Pulldown",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Single-Arm Lat Pulldown is a upper-body pull exercise. Primarily targets lats. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "hack_squat",
+    "name": "Hack Squat",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Hack Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "belt_squat",
+    "name": "Belt Squat",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Belt Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "plank_shoulder_tap",
+    "name": "Plank Shoulder Tap",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders",
+      "core"
+    ],
+    "description": "Plank Shoulder Tap is a upper-body push exercise. Primarily targets triceps, chest, shoulders, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_shrug",
+    "name": "Cable Shrug",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "upper_back"
+    ],
+    "description": "Cable Shrug is a upper-body pull exercise. Primarily targets upper_back. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_row_wide",
+    "name": "Wide-Grip Cable Row",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Wide-Grip Cable Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "drag_curl",
+    "name": "Drag Curl",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Drag Curl is a upper-body pull exercise. Primarily targets biceps, upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "jm_press",
+    "name": "JM Press",
+    "equipment": [
+      "barbell",
+      "bench"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "JM Press is a upper-body push exercise. Primarily targets triceps, chest, shoulders. Equipment: barbell, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "upright_row",
+    "name": "Upright Row",
+    "equipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "shoulders",
+      "upper_back"
+    ],
+    "description": "Upright Row is a upper-body pull exercise. Primarily targets shoulders, upper_back. Equipment: barbell, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "single_leg_hop",
+    "name": "Single-Leg Hop",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Single-Leg Hop is a lower-body exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "hang_clean",
+    "name": "Hang Clean",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "legs",
+      "upper_back",
+      "core"
+    ],
+    "description": "Hang Clean is a lower-body exercise. Primarily targets legs, upper_back, core. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "power_snatch",
+    "name": "Power Snatch",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "legs",
+      "shoulders",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Power Snatch is a lower-body exercise. Primarily targets biceps, chest, triceps, legs, shoulders, upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "pin_press",
+    "name": "Pin Press",
+    "equipment": [
+      "barbell",
+      "squat_rack"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Pin Press is a upper-body push exercise. Primarily targets chest. Equipment: barbell, squat_rack.",
+    "is_active": true
+  },
+  {
+    "slug": "prone_extension",
+    "name": "Prone Extension (Thoracic)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Prone Extension (Thoracic) is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "squat_clean",
+    "name": "Power Clean",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "legs",
+      "upper_back",
+      "core"
+    ],
+    "description": "Power Clean is a lower-body exercise. Primarily targets legs, upper_back, core. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "landmine_row",
+    "name": "Landmine Row",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Landmine Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "bear_hold",
+    "name": "Bear Hold",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Bear Hold is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "floor_press",
+    "name": "Floor Press",
+    "equipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Floor Press is a upper-body push exercise. Primarily targets chest. Equipment: barbell, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "hang_power_snatch",
+    "name": "Hang Power Snatch",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "legs",
+      "shoulders",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Hang Power Snatch is a lower-body exercise. Primarily targets biceps, chest, triceps, legs, shoulders, upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "t_bar_row",
+    "name": "T-Bar Row",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "T-Bar Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "row_calorie_burn",
+    "name": "Rower Calorie Burn",
+    "equipment": [
+      "rower"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Rower Calorie Burn is a conditioning exercise. Primarily targets biceps, legs, upper_back, core, lats. Equipment: rower.",
+    "is_active": true
+  },
+  {
+    "slug": "incline_bench_barbell",
+    "name": "Incline Barbell Bench",
+    "equipment": [
+      "barbell",
+      "bench"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Incline Barbell Bench is a upper-body push exercise. Primarily targets triceps, chest, shoulders. Equipment: barbell, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "deficit_reverse_lunge",
+    "name": "Deficit Reverse Lunge",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Deficit Reverse Lunge is a lower-body exercise. Primarily targets legs. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_crossover",
+    "name": "Cable Crossover",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Cable Crossover is a upper-body push exercise. Primarily targets chest. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "single_leg_hip_thrust",
+    "name": "Single-Leg Hip Thrust",
+    "equipment": [
+      "bodyweight",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Single-Leg Hip Thrust is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: bodyweight, barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "dead_bug_prep",
+    "name": "Dead Bug (Prep)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Dead Bug (Prep) is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "trx_row",
+    "name": "TRX Row",
+    "equipment": [
+      "trx"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "TRX Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: trx.",
+    "is_active": true
+  },
+  {
+    "slug": "box_step_up",
+    "name": "Box Step-Up",
+    "equipment": [
+      "plyo_box",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Box Step-Up is a lower-body exercise. Primarily targets legs. Equipment: plyo_box, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "medicine_ball_chest_pass",
+    "name": "Medicine Ball Chest Pass",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders",
+      "core"
+    ],
+    "description": "Medicine Ball Chest Pass is a upper-body push exercise. Primarily targets triceps, chest, shoulders, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_woodchop",
+    "name": "Cable Woodchop",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Cable Woodchop is a core exercise. Primarily targets core. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "clamshell",
+    "name": "Clamshell",
+    "equipment": [
+      "bodyweight",
+      "bands"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Clamshell is a core exercise. Primarily targets legs. Equipment: bodyweight, bands.",
+    "is_active": true
+  },
+  {
+    "slug": "bicycle_crunch",
+    "name": "Bicycle Crunch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Bicycle Crunch is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "dead_bug_band",
+    "name": "Dead Bug (Band)",
+    "equipment": [
+      "bands",
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Dead Bug (Band) is a core exercise. Primarily targets core. Equipment: bands, bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "front_rack_carry",
+    "name": "Front Rack Carry",
+    "equipment": [
+      "barbell",
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "core",
+      "legs"
+    ],
+    "description": "Front Rack Carry is a core exercise. Primarily targets core, legs. Equipment: barbell, kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "v_squat",
+    "name": "V-Squat",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "V-Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "cable_fly",
+    "name": "Cable Fly",
+    "equipment": [
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Cable Fly is a upper-body push exercise. Primarily targets chest. Equipment: cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "arnold_press",
+    "name": "Arnold Press",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Arnold Press is a upper-body push exercise. Primarily targets shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "arch_hold",
+    "name": "Arch Hold",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core",
+      "back"
+    ],
+    "description": "Arch Hold is a core exercise. Primarily targets core, back. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "clean_and_press",
+    "name": "Clean and Press",
+    "equipment": [
+      "kettlebells",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs",
+      "upper_back",
+      "core"
+    ],
+    "description": "Clean and Press is a lower-body exercise. Primarily targets legs, upper_back, core. Equipment: kettlebells, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "fire_hydrant",
+    "name": "Fire Hydrant",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Fire Hydrant is a core exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "kickback",
+    "name": "Kickback",
+    "equipment": [
+      "machine",
+      "cable_machine"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Kickback is a lower-body exercise. Primarily targets legs. Equipment: machine, cable_machine.",
+    "is_active": true
+  },
+  {
+    "slug": "bottoms_up_press",
+    "name": "Bottoms-Up Press",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Bottoms-Up Press is a upper-body push exercise. Primarily targets shoulders. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "hip_adduction",
+    "name": "Hip Adduction",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Hip Adduction is a upper-body push exercise. Primarily targets legs. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "leg_curl",
+    "name": "Leg Curl",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "hamstrings"
+    ],
+    "description": "Leg Curl is a lower-body exercise. Primarily targets hamstrings. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "concentration_curl",
+    "name": "Concentration Curl",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "description": "Concentration Curl is a upper-body pull exercise. Primarily targets biceps. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "hip_abduction",
+    "name": "Hip Abduction",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "glutes"
+    ],
+    "description": "Hip Abduction is a upper-body push exercise. Primarily targets glutes. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "kb_clean_single",
+    "name": "Single-Arm Kettlebell Clean",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "legs",
+      "upper_back",
+      "core",
+      "lats"
+    ],
+    "description": "Single-Arm Kettlebell Clean is a lower-body exercise. Primarily targets biceps, legs, upper_back, core, lats. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "dip_assisted",
+    "name": "Assisted Dip",
+    "equipment": [
+      "bodyweight",
+      "machine"
+    ],
+    "primary_muscles": [
+      "chest",
+      "triceps"
+    ],
+    "description": "Assisted Dip is a upper-body push exercise. Primarily targets chest, triceps. Equipment: bodyweight, machine.",
+    "is_active": true
+  },
+  {
+    "slug": "quadruped_rock",
+    "name": "Quadruped Rock (Hip)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Quadruped Rock (Hip) is a mobility exercise. Primarily targets legs, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "bulgarian_split_squat",
+    "name": "Bulgarian Split Squat",
+    "equipment": [
+      "dumbbells",
+      "bench"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Bulgarian Split Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: dumbbells, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "bottoms_up_kb_press",
+    "name": "Bottoms-Up Kettlebell Press",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Bottoms-Up Kettlebell Press is a upper-body push exercise. Primarily targets shoulders. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "single_arm_carry",
+    "name": "Single-Arm Farmer Carry",
+    "equipment": [
+      "dumbbells",
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "core",
+      "legs"
+    ],
+    "description": "Single-Arm Farmer Carry is a core exercise. Primarily targets core, legs. Equipment: dumbbells, kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "back_extension_45",
+    "name": "45° Back Extension",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "45° Back Extension is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "chinup",
+    "name": "Chin-up",
+    "equipment": [
+      "pullup_bar"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Chin-up is a upper-body pull exercise. Primarily targets lats. Equipment: pullup_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "skull_crusher",
+    "name": "Skull Crusher",
+    "equipment": [
+      "barbell",
+      "bench"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "description": "Skull Crusher is a upper-body push exercise. Primarily targets triceps. Equipment: barbell, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "bird_dog_prep",
+    "name": "Bird Dog (Prep)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Bird Dog (Prep) is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "kb_deadlift",
+    "name": "Kettlebell Deadlift",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Kettlebell Deadlift is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "leg_swings_front",
+    "name": "Leg Swings (Front-Back)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Leg Swings (Front-Back) is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "ring_pull_up",
+    "name": "Ring Pull-up",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Ring Pull-up is a upper-body pull exercise. Primarily targets lats. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "close_grip_bench",
+    "name": "Close-Grip Bench Press",
+    "equipment": [
+      "barbell",
+      "bench"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest"
+    ],
+    "description": "Close-Grip Bench Press is a upper-body push exercise. Primarily targets triceps, chest. Equipment: barbell, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "stiff_leg_deadlift",
+    "name": "Stiff-Leg Deadlift",
+    "equipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Stiff-Leg Deadlift is a lower-body exercise. Primarily targets legs. Equipment: barbell, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "good_morning",
+    "name": "Good Morning",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Good Morning is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "half_kneeling_landmine_press",
+    "name": "Half-Kneeling Landmine Press",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Half-Kneeling Landmine Press is a upper-body push exercise. Primarily targets shoulders. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "quadruped_hip_circle",
+    "name": "Quadruped Hip Circle",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Quadruped Hip Circle is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "foam_roll_quad",
+    "name": "Foam Roll Quad",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Foam Roll Quad is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "flutter_kick",
+    "name": "Flutter Kick",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Flutter Kick is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "dead_stop_row",
+    "name": "Dead Stop Row",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Dead Stop Row is a upper-body pull exercise. Primarily targets biceps, upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "seated_ohp",
+    "name": "Seated Overhead Press",
+    "equipment": [
+      "barbell",
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Seated Overhead Press is a upper-body push exercise. Primarily targets shoulders. Equipment: barbell, dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "meadows_row",
+    "name": "Meadows Row",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Meadows Row is a upper-body pull exercise. Primarily targets biceps, upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "banded_walk",
+    "name": "Banded Walk",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Banded Walk is a mobility exercise. Primarily targets legs. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "ankle_circles",
+    "name": "Ankle Circles",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Ankle Circles is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "lying_hip_rotation",
+    "name": "Lying Hip Rotation",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Lying Hip Rotation is a mobility exercise. Primarily targets legs, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "dead_bug_single_arm",
+    "name": "Dead Bug Single-Arm",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Dead Bug Single-Arm is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "hang_power_clean",
+    "name": "Hang Power Clean",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "legs",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Hang Power Clean is a lower-body exercise. Primarily targets biceps, legs, upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "push_jerk",
+    "name": "Push Jerk",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "legs",
+      "shoulders"
+    ],
+    "description": "Push Jerk is a lower-body exercise. Primarily targets triceps, chest, legs, shoulders. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "yates_row",
+    "name": "Yates Row",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Yates Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "squat_jerk",
+    "name": "Squat Jerk",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "legs",
+      "shoulders"
+    ],
+    "description": "Squat Jerk is a upper-body push exercise. Primarily targets triceps, chest, legs, shoulders. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "snatch_grip_high_pull",
+    "name": "Snatch-Grip High Pull",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "legs",
+      "upper_back",
+      "core"
+    ],
+    "description": "Snatch-Grip High Pull is a upper-body pull exercise. Primarily targets legs, upper_back, core. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "stair_climb",
+    "name": "Stair Climb",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Stair Climb is a conditioning exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "neutral_pull_up",
+    "name": "Neutral-Grip Pull-up",
+    "equipment": [
+      "pullup_bar"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "description": "Neutral-Grip Pull-up is a upper-body pull exercise. Primarily targets lats. Equipment: pullup_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "side_plank_raise",
+    "name": "Side Plank with Hip Raise",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Side Plank with Hip Raise is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "toes_to_bar",
+    "name": "Toes to Bar",
+    "equipment": [
+      "pullup_bar"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Toes to Bar is a upper-body pull exercise. Primarily targets core. Equipment: pullup_bar.",
+    "is_active": true
+  },
+  {
+    "slug": "landmine_press_one_arm",
+    "name": "One-Arm Landmine Press",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "One-Arm Landmine Press is a upper-body push exercise. Primarily targets shoulders. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "overhead_carry",
+    "name": "Overhead Carry",
+    "equipment": [
+      "dumbbells",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "shoulders"
+    ],
+    "description": "Overhead Carry is a core exercise. Primarily targets shoulders. Equipment: dumbbells, barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "barbell_row",
+    "name": "Barbell Row",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Barbell Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "barbell_back_squat",
+    "name": "Barbell Back Squat",
+    "equipment": [
+      "barbell",
+      "squat_rack"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Barbell Back Squat is a lower-body exercise. Primarily targets quads, glutes. Equipment: barbell, squat_rack.",
+    "is_active": true
+  },
+  {
+    "slug": "quad_stretch_side_lying",
+    "name": "Side-Lying Quad Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Side-Lying Quad Stretch is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "supine_twist",
+    "name": "Supine Spinal Twist",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Supine Spinal Twist is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "low_lunge_stretch",
+    "name": "Low Lunge Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Low Lunge Stretch is a mobility exercise. Primarily targets legs, core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "pec_stretch_wall",
+    "name": "Wall Pec Stretch",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Wall Pec Stretch is a mobility exercise. Primarily targets triceps, chest, shoulders. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "barbell_rdl",
+    "name": "Barbell Romanian Deadlift",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Barbell Romanian Deadlift is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "step_back_lunge",
+    "name": "Step-Back Lunge",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Step-Back Lunge is a lower-body exercise. Primarily targets legs. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "shrug",
+    "name": "Shrug",
+    "equipment": [
+      "dumbbells",
+      "barbell"
+    ],
+    "primary_muscles": [
+      "upper_back"
+    ],
+    "description": "Shrug is a upper-body pull exercise. Primarily targets upper_back. Equipment: dumbbells, barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "pallof_rotation",
+    "name": "Pallof Rotation",
+    "equipment": [
+      "cable_machine",
+      "bands"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Pallof Rotation is a core exercise. Primarily targets core. Equipment: cable_machine, bands.",
+    "is_active": true
+  },
+  {
+    "slug": "v_up",
+    "name": "V-Up",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "V-Up is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "barbell_deadlift",
+    "name": "Barbell Deadlift",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "description": "Barbell Deadlift is a lower-body exercise. Primarily targets glutes, hamstrings. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "single_arm_swing",
+    "name": "Single-Arm Kettlebell Swing",
+    "equipment": [
+      "kettlebells"
+    ],
+    "primary_muscles": [
+      "legs",
+      "core"
+    ],
+    "description": "Single-Arm Kettlebell Swing is a lower-body exercise. Primarily targets legs, core. Equipment: kettlebells.",
+    "is_active": true
+  },
+  {
+    "slug": "plank_to_push_up",
+    "name": "Plank to Push-up",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Plank to Push-up is a upper-body push exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "prone_y_raise",
+    "name": "Prone Y-Raise",
+    "equipment": [
+      "dumbbells"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "shoulders"
+    ],
+    "description": "Prone Y-Raise is a mobility exercise. Primarily targets upper_back, shoulders. Equipment: dumbbells.",
+    "is_active": true
+  },
+  {
+    "slug": "lateral_lunge_shift",
+    "name": "Lateral Lunge Shift",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "quads",
+      "glutes"
+    ],
+    "description": "Lateral Lunge Shift is a mobility exercise. Primarily targets quads, glutes. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "wrist_circles",
+    "name": "Wrist Circles",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "shoulders"
+    ],
+    "description": "Wrist Circles is a mobility exercise. Primarily targets triceps, chest, shoulders. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "foam_roll_t_spine",
+    "name": "Foam Roll T-Spine",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Foam Roll T-Spine is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "finger_extensions",
+    "name": "Finger Extensions",
+    "equipment": [
+      "bands"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Finger Extensions is a upper-body pull exercise. Primarily targets biceps, upper_back, lats. Equipment: bands.",
+    "is_active": true
+  },
+  {
+    "slug": "breathing_box",
+    "name": "Box Breathing",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Box Breathing is a mobility exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "ghr",
+    "name": "Glute-Ham Raise",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Glute-Ham Raise is a lower-body exercise. Primarily targets legs. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "body_saw",
+    "name": "Body Saw",
+    "equipment": [
+      "bodyweight",
+      "trx"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Body Saw is a core exercise. Primarily targets core. Equipment: bodyweight, trx.",
+    "is_active": true
+  },
+  {
+    "slug": "donkey_calf_raise",
+    "name": "Donkey Calf Raise",
+    "equipment": [
+      "machine"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Donkey Calf Raise is a lower-body exercise. Primarily targets legs. Equipment: machine.",
+    "is_active": true
+  },
+  {
+    "slug": "medball_rotational_throw",
+    "name": "Medicine Ball Rotational Throw",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "core"
+    ],
+    "description": "Medicine Ball Rotational Throw is a core exercise. Primarily targets core. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "db_fly",
+    "name": "Dumbbell Fly",
+    "equipment": [
+      "dumbbells",
+      "bench"
+    ],
+    "primary_muscles": [
+      "chest"
+    ],
+    "description": "Dumbbell Fly is a upper-body push exercise. Primarily targets chest. Equipment: dumbbells, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "seal_row",
+    "name": "Seal Row",
+    "equipment": [
+      "dumbbells",
+      "bench"
+    ],
+    "primary_muscles": [
+      "upper_back",
+      "lats"
+    ],
+    "description": "Seal Row is a upper-body pull exercise. Primarily targets upper_back, lats. Equipment: dumbbells, bench.",
+    "is_active": true
+  },
+  {
+    "slug": "reclined_hand_toe_hold",
+    "name": "Reclined Hand-to-Toe (Hamstring)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "legs"
+    ],
+    "description": "Reclined Hand-to-Toe (Hamstring) is a mobility exercise. Primarily targets legs. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "split_jerk",
+    "name": "Split Jerk",
+    "equipment": [
+      "barbell"
+    ],
+    "primary_muscles": [
+      "triceps",
+      "chest",
+      "legs",
+      "shoulders"
+    ],
+    "description": "Split Jerk is a upper-body push exercise. Primarily targets triceps, chest, legs, shoulders. Equipment: barbell.",
+    "is_active": true
+  },
+  {
+    "slug": "battle_rope_waves",
+    "name": "Battle Rope Waves",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "chest",
+      "triceps",
+      "shoulders",
+      "upper_back",
+      "core",
+      "lats"
+    ],
+    "description": "Battle Rope Waves is a upper-body push exercise. Primarily targets biceps, chest, triceps, shoulders, upper_back, core, lats. Equipment: bodyweight.",
+    "is_active": true
+  },
+  {
+    "slug": "scapular_slides",
+    "name": "Scapular Slides (Wall)",
+    "equipment": [
+      "bodyweight"
+    ],
+    "primary_muscles": [
+      "biceps",
+      "upper_back",
+      "lats"
+    ],
+    "description": "Scapular Slides (Wall) is a mobility exercise. Primarily targets biceps, upper_back, lats. Equipment: bodyweight.",
+    "is_active": true
+  }
+]

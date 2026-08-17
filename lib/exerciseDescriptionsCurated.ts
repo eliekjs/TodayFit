@@ -94,17 +94,57 @@ function requireSlugMap(): Map<string, CuratedExerciseDescriptionEntry> {
   return bySlug;
 }
 
+/**
+ * DB and generator slugs sometimes differ by a trailing plural on the last token
+ * (e.g. plank_shoulder_tap vs plank_shoulder_taps). Try both so setup copy still resolves.
+ */
+export function curatedSlugCandidates(slug: string): string[] {
+  const normalized = slug.trim();
+  if (!normalized) return [];
+  const candidates = [normalized];
+  const parts = normalized.split("_");
+  const last = parts[parts.length - 1];
+  if (!last || last.length < 3) return candidates;
+
+  let altLast: string | null = null;
+  if (last.endsWith("ies") && last.length > 4) {
+    altLast = `${last.slice(0, -3)}y`;
+  } else if (last.endsWith("y") && last.length > 3 && !/[aeiou]y$/i.test(last)) {
+    altLast = `${last.slice(0, -1)}ies`;
+  } else if (/(?:ches|shes|sses|xes|zes)$/i.test(last)) {
+    altLast = last.replace(/es$/i, "");
+  } else if (last.endsWith("s") && !last.endsWith("ss")) {
+    altLast = last.slice(0, -1);
+  } else {
+    altLast = `${last}s`;
+  }
+
+  if (altLast && altLast !== last) {
+    const alt = [...parts.slice(0, -1), altLast].join("_");
+    if (!candidates.includes(alt)) candidates.push(alt);
+  }
+  return candidates;
+}
+
+function lookupCuratedEntry(slug: string): CuratedExerciseDescriptionEntry | undefined {
+  if (!bySlug) return undefined;
+  for (const candidate of curatedSlugCandidates(slug)) {
+    const entry = bySlug.get(candidate);
+    if (entry) return entry;
+  }
+  return undefined;
+}
+
 /** Human-reviewed catalog copy keyed by exercise slug (repo source of truth for batch sync). */
 export function getCuratedExerciseDescription(slug: string): string | undefined {
-  const entry = bySlug?.get(slug);
-  const d = entry?.description?.trim();
+  const d = lookupCuratedEntry(slug)?.description?.trim();
   return d || undefined;
 }
 
 export function getCuratedExerciseDescriptionEntry(
   slug: string
 ): CuratedExerciseDescriptionEntry | undefined {
-  return bySlug?.get(slug);
+  return lookupCuratedEntry(slug);
 }
 
 export function resolveExerciseDescription(

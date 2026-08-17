@@ -7,6 +7,8 @@ import {
   bodyFocusEmphasisLabel,
   buildDayBodyFocusChoicesForDay,
   dayBodyFocusChoiceToBias,
+  mapBodyChoiceToModeVocab,
+  getBodyFocusDistributionForMode,
   getMuscleBodyFocusDistribution,
   getPatternBodyFocusDistribution,
   isWeeklyBodyFocusModeUnlocked,
@@ -54,9 +56,9 @@ describe("weekly body focus mode unlock", () => {
 });
 
 describe("pattern and muscle week templates", () => {
-  it("builds PPL-ish pattern weeks", () => {
+  it("builds PPL-ish pattern weeks and fills leftover days with full body", () => {
     expect(getPatternBodyFocusDistribution(3)).toEqual(["push", "pull", "legs"]);
-    expect(getPatternBodyFocusDistribution(4)).toEqual(["push", "pull", "legs", "push"]);
+    expect(getPatternBodyFocusDistribution(4)).toEqual(["push", "pull", "legs", "full"]);
     expect(getPatternBodyFocusDistribution(6)).toEqual([
       "push",
       "pull",
@@ -65,10 +67,19 @@ describe("pattern and muscle week templates", () => {
       "pull",
       "legs",
     ]);
-    expect(getPatternBodyFocusDistribution(7)).toContain("core");
+    expect(getPatternBodyFocusDistribution(7)).toEqual([
+      "push",
+      "pull",
+      "legs",
+      "push",
+      "pull",
+      "legs",
+      "full",
+    ]);
+    expect(getPatternBodyFocusDistribution(7)).not.toContain("core");
   });
 
-  it("builds bro-ish muscle weeks", () => {
+  it("builds bro-ish muscle weeks without a core-only day", () => {
     expect(getMuscleBodyFocusDistribution(5)).toEqual([
       "chest",
       "back",
@@ -83,6 +94,26 @@ describe("pattern and muscle week templates", () => {
       "arms",
       "legs",
       "glutes",
+    ]);
+    expect(getMuscleBodyFocusDistribution(7)).toEqual([
+      "chest",
+      "back",
+      "shoulders",
+      "arms",
+      "legs",
+      "glutes",
+      "full",
+    ]);
+  });
+
+  it("uses upper/lower rotations and fills leftover region days with full body", () => {
+    expect(getBodyFocusDistributionForMode("region", 1)).toEqual(["full"]);
+    expect(getBodyFocusDistributionForMode("region", 3)).toEqual(["upper", "lower", "full"]);
+    expect(getBodyFocusDistributionForMode("region", 4)).toEqual([
+      "upper",
+      "lower",
+      "upper",
+      "lower",
     ]);
   });
 });
@@ -131,6 +162,29 @@ describe("day body focus choice mapping", () => {
     expect(
       formatDayTitle("Build Muscle (Hypertrophy)", "upper", ["chest"])
     ).toBe("Build Muscle (Hypertrophy) - Chest");
+    expect(
+      formatDayTitle("Build Muscle (Hypertrophy)", "full", ["glutes", "shoulders"])
+    ).toBe("Build Muscle (Hypertrophy) - Glute + Shoulder");
+  });
+
+  it("does not invent Chest from Upper or Push when mapping into Muscle vocab", () => {
+    expect(mapBodyChoiceToModeVocab("upper", "muscle")).toBe("upper");
+    expect(mapBodyChoiceToModeVocab("push", "muscle")).toBe("push");
+    expect(mapBodyChoiceToModeVocab("pull", "muscle")).toBe("pull");
+    expect(mapBodyChoiceToModeVocab("chest", "muscle")).toBe("chest");
+    expect(mapBodyChoiceToModeVocab("back", "muscle")).toBe("back");
+  });
+
+  it("does not invent Push from Upper when mapping into Pattern vocab", () => {
+    expect(mapBodyChoiceToModeVocab("upper", "pattern")).toBe("upper");
+    expect(mapBodyChoiceToModeVocab("chest", "pattern")).toBe("push");
+    expect(mapBodyChoiceToModeVocab("back", "pattern")).toBe("pull");
+    expect(mapBodyChoiceToModeVocab("glutes", "pattern")).toBe("legs");
+  });
+
+  it("collapses leftover muscle picks to Region without inventing a side", () => {
+    expect(mapBodyChoiceToModeVocab("chest", "region")).toBe("upper");
+    expect(mapBodyChoiceToModeVocab("glutes", "region")).toBe("lower");
   });
 
   it("exposes muscle options when mode is muscle", () => {
@@ -149,9 +203,25 @@ describe("day body focus choice mapping", () => {
       "arms",
       "legs",
       "glutes",
+      "full",
       "core",
     ]);
     expect(choices.find((c) => c.id === "chest")?.recommended).toBe(true);
+  });
+
+  it("marks Shoulders recommended when Overhead Press is a selected sub-goal", () => {
+    const choices = buildDayBodyFocusChoicesForDay({
+      manualPreferences: {
+        ...basePrefs,
+        primaryFocus: ["Build Strength"],
+        subFocusByGoal: { "Build Strength": ["Overhead Press"] },
+      },
+      adaptiveSetup: null,
+      slotIndex: 0,
+      fallbackTargetBody: "Upper",
+      mode: "muscle",
+    });
+    expect(choices.find((c) => c.id === "shoulders")?.recommended).toBe(true);
   });
 
   it("reinforces hypertrophy sub-focus for muscle days", () => {

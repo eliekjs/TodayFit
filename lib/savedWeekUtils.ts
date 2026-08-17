@@ -1,9 +1,9 @@
 import {
-  getCurrentWeekStartMonday,
-  getLocalDateString,
+  addDaysToIsoDate,
+  dayOffsetBetweenIsoDates,
   getTodayLocalDateString,
-  parseLocalDate,
 } from "./dateUtils";
+import { defaultInitiatedWeekStartMonday } from "./weekDesignation";
 import type { GeneratedWorkout, ManualWeekPlan, SavedWeek } from "./types";
 import type { PlanWeekResult, PlannedDay } from "../services/sportPrepPlanner";
 
@@ -14,20 +14,13 @@ export function cloneWorkoutForRedo(workout: GeneratedWorkout): GeneratedWorkout
   };
 }
 
-/** Shift saved week dates to the current calendar week and assign fresh workout ids. */
+/** Shift saved week dates to the designated initiation week and assign fresh workout ids. */
 export function remapSavedWeekToCurrentWeek(saved: SavedWeek): ManualWeekPlan {
-  const currentStart = getCurrentWeekStartMonday();
-  const oldStart = parseLocalDate(saved.weekStartDate);
-  const newStart = parseLocalDate(currentStart);
+  const currentStart = defaultInitiatedWeekStartMonday();
   const days = saved.days.map(({ date, workout, displayTitle }) => {
-    const oldDate = parseLocalDate(date);
-    const dayOffset = Math.round(
-      (oldDate.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000)
-    );
-    const newDate = new Date(newStart);
-    newDate.setDate(newDate.getDate() + dayOffset);
+    const dayOffset = dayOffsetBetweenIsoDates(saved.weekStartDate, date);
     return {
-      date: getLocalDateString(newDate),
+      date: addDaysToIsoDate(currentStart, dayOffset),
       workout: cloneWorkoutForRedo(workout),
       displayTitle,
     };

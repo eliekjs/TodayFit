@@ -8,6 +8,7 @@ import {
   isSessionFlowScreen,
   shouldShowSessionResumeBanner,
   sessionFlowFromManualScope,
+  weekSetupAtPickDays,
 } from "./sessionDraft";
 import { sportReviewBackLabel, sportReviewBackRoute } from "./sessionFlowNav";
 import { defaultManualPreferences } from "../context/appStateModel";
@@ -59,6 +60,8 @@ describe("sessionDraft", () => {
       "Home gym"
     );
     expect(summary).toContain("Build muscle");
+    expect(summary).toContain("Get stronger");
+    expect(summary).not.toMatch(/\+\d/);
     expect(summary).toContain("45 min");
     expect(summary).toContain("Home gym");
   });
@@ -90,6 +93,19 @@ describe("sessionDraft", () => {
       },
     });
     expect(getSessionResumeRoute(draft)).toBe("/manual/week");
+  });
+
+  it("reopens weekday picking without clearing selected days", () => {
+    const ws = {
+      enteredWeekScreen: true,
+      step: "sessionFocus" as const,
+      selectedTrainingDays: [1, 3, 5],
+      dayFocusChoiceIds: ["goal_emphasis_0", "goal_emphasis_1", "balanced_goals"],
+      dayBodyFocusChoiceIds: ["glutes", "shoulders", "full"],
+    };
+    expect(weekSetupAtPickDays(ws)).toEqual({ ...ws, step: "pickDays" });
+    const alreadyAtPickDays = { ...ws, step: "pickDays" as const };
+    expect(weekSetupAtPickDays(alreadyAtPickDays)).toBe(alreadyAtPickDays);
   });
 
   it("routes sport review without a plan back to setup, not recommendation", () => {

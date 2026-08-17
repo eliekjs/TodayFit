@@ -56,6 +56,12 @@ import {
   redistributeSubFocusPctsOnRemoval,
 } from "../../../lib/subFocusWeights";
 import { SubFocusWeightsEditor } from "../../../components/SubFocusWeightsEditor";
+import { BodyFocusDeferredNote } from "../../../components/BodyFocusDeferredNote";
+import {
+  filterDeferredDayBodySubFocusChoices,
+  goalHasDeferredDayBodySubFocuses,
+  stripDeferredDayBodySubFocuses,
+} from "../../../lib/deferredDayBodySubFocus";
 import { PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS } from "../../../lib/pilotCatalog";
 import { listSportsForPrep, getQualitiesForSport, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
@@ -91,8 +97,9 @@ import {
   MAX_TOTAL_SUB_GOALS,
   countTotalSubGoalPicks,
 } from "../../../lib/selectionCaps";
-import { sessionFlowFromSportScope } from "../../../lib/sessionDraft";
+import { sessionFlowFromSportScope, weekSetupAtPickDays } from "../../../lib/sessionDraft";
 import { summarizeGymProfileEquipment } from "../../../lib/gymProfileDisplay";
+import { formatItemList } from "../../../lib/formatItemList";
 import {
   applySportFormSnapshot,
   buildSportFormSnapshot,
@@ -169,6 +176,8 @@ export default function AdaptiveModeScreen() {
     gymProfiles,
     setActiveGymProfile,
     beginSessionFlow,
+    updateActiveSessionDraft,
+    activeSessionDraft,
     consumeSportFormHydration,
     commitSportFormSnapshot,
     addSportPreset,
@@ -305,6 +314,12 @@ export default function AdaptiveModeScreen() {
       generationCancelledRef.current = false;
       setIsGeneratingOneDay(false);
       beginSessionFlow(sessionFlowFromSportScope(isOneDay));
+      if (!isOneDay) {
+        const next = weekSetupAtPickDays(activeSessionDraft?.weekSetup);
+        if (next && next !== activeSessionDraft?.weekSetup) {
+          updateActiveSessionDraft({ weekSetup: next });
+        }
+      }
       const snap = consumeSportFormHydration();
       if (snap) {
         applySportFormSnapshot(snap, {
@@ -349,6 +364,8 @@ export default function AdaptiveModeScreen() {
       commitSportFormSnapshot,
       updateManualPreferences,
       oneDayBodyBiasForSnapshot,
+      activeSessionDraft?.weekSetup,
+      updateActiveSessionDraft,
     ])
   );
 
@@ -387,6 +404,24 @@ export default function AdaptiveModeScreen() {
   useEffect(() => {
     setOneDayBodyBias(defaultOneDayBodyBias);
   }, [defaultOneDayBodyBias]);
+
+  useEffect(() => {
+    if (isOneDay) return;
+    const stripped = stripDeferredDayBodySubFocuses(
+      manualPreferences.subFocusByGoal,
+      manualPreferences.subFocusPctByGoal
+    );
+    if (!stripped.changed) return;
+    updateManualPreferences({
+      subFocusByGoal: stripped.subFocusByGoal,
+      subFocusPctByGoal: stripped.subFocusPctByGoal,
+    });
+  }, [
+    isOneDay,
+    manualPreferences.subFocusByGoal,
+    manualPreferences.subFocusPctByGoal,
+    updateManualPreferences,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -618,7 +653,20 @@ export default function AdaptiveModeScreen() {
             includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
             dailyPreferences: { bodyRegionBias: oneDayBodyBias },
             sessionFocusDistribution: manualPreferences.sessionFocusDistribution ?? undefined,
-            manualPreferences,
+            // One-day sport body chips are Region-only (Upper/Lower/Full). Don't let a leftover
+            // Muscle-week Chest pick or weeklyBodyFocusMode invent a chest day.
+            manualPreferences: {
+              ...manualPreferences,
+              weeklyBodyFocusMode: "region",
+              specificBodyFocus: undefined,
+              targetBody:
+                oneDayBodyBias === "upper"
+                  ? "Upper"
+                  : oneDayBodyBias === "lower"
+                    ? "Lower"
+                    : "Full",
+              targetModifier: [],
+            },
             adaptiveScheduleLabels: {
               intensityLevel,
               injuryStatus,
@@ -641,6 +689,10 @@ export default function AdaptiveModeScreen() {
     }
 
     setAdaptiveSetup(setup);
+    const next = weekSetupAtPickDays(activeSessionDraft?.weekSetup);
+    if (next && next !== activeSessionDraft?.weekSetup) {
+      updateActiveSessionDraft({ weekSetup: next });
+    }
     router.push("/sport-mode/schedule");
   };
 
@@ -719,6 +771,16 @@ export default function AdaptiveModeScreen() {
       const p3 = manualPreferences.goalMatchTertiaryPct ?? 20;
       updateManualPreferences(normalizeGoalMatchPct(p1, p2, p3, newCount));
     }
+  };
+
+  const promoteGoal = (goalId: string) => {
+    setRankedGoals((prev) => {
+      const filled = prev.filter((g): g is string => g != null);
+      if (!filled.includes(goalId) || filled[0] === goalId) return prev;
+      const rest = filled.filter((g) => g !== goalId);
+      const next = [goalId, ...rest];
+      return [next[0] ?? null, next[1] ?? null, next[2] ?? null];
+    });
   };
 
   const removeGoal = (goalId: string) => {
@@ -809,15 +871,14 @@ export default function AdaptiveModeScreen() {
   };
 
   const filledAdaptiveGoals = rankedGoals.filter((g): g is string => g != null);
-  const primaryGoalMeta = filledAdaptiveGoals[0]
-    ? ADAPTIVE_GOALS.find((g) => g.id === filledAdaptiveGoals[0])
-    : undefined;
   const adaptiveAdvAdditionalGoalsSummary =
     filledAdaptiveGoals.length === 0
       ? "None"
-      : filledAdaptiveGoals.length > 1
-        ? `${primaryGoalMeta?.label ?? filledAdaptiveGoals[0]} +${filledAdaptiveGoals.length - 1} more`
-        : primaryGoalMeta?.label ?? filledAdaptiveGoals[0];
+      : formatItemList(
+          filledAdaptiveGoals.map(
+            (id) => ADAPTIVE_GOALS.find((g) => g.id === id)?.label ?? id
+          )
+        );
   const sportSectionSummary = selectedSportSlugs.length === 0
     ? "Tap to choose"
     : [primarySport?.name, secondarySport?.name].filter(Boolean).join(" · ") || "Tap to choose";
@@ -1207,7 +1268,7 @@ export default function AdaptiveModeScreen() {
                                 {rankedSportEntries.length > 1 ? (
                                   <Text
                                     style={[styles.priorityCardSubLabel, { color: theme.textMuted }]}
-                                    numberOfLines={1}
+                                    numberOfLines={2}
                                   >
                                     {sport.label}
                                   </Text>
@@ -1404,7 +1465,6 @@ export default function AdaptiveModeScreen() {
                     >
                       <Text
                         style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                        numberOfLines={1}
                       >
                         {displayName}
                       </Text>
@@ -1533,7 +1593,6 @@ export default function AdaptiveModeScreen() {
                                   >
                                     <Text
                                       style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
-                                      numberOfLines={1}
                                     >
                                       {opt?.name ?? qSlug}
                                     </Text>
@@ -1581,46 +1640,59 @@ export default function AdaptiveModeScreen() {
           }}
           marginTop={8}
         >
+          {rankedGoals.filter((g): g is string => g != null).length > 1 ? (
+            <Text style={[styles.helperHint, { color: theme.textMuted }]}>
+              First is your main goal. Tap a selected goal to make it first.
+            </Text>
+          ) : null}
           {rankedGoals.filter((g): g is string => g != null).length > 0 && (
             <View style={styles.chipGroup}>
               {rankedGoals.filter((g): g is string => g != null).map((goalId, idx) => {
                 const goal = ADAPTIVE_GOALS.find((g) => g.id === goalId);
                 return (
                   <View key={goalId} style={styles.rankedChipWrap}>
-                    <View
-                      style={[
-                        styles.rankBadge,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.chipSelectedBorder,
-                        },
-                      ]}
+                    <Pressable
+                      onPress={() => promoteGoal(goalId)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${goal?.label ?? goalId}, rank ${idx + 1}. Tap to make first.`}
+                      style={styles.rankedChipPressable}
                     >
-                      <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
-                        {idx + 1}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.rankedChipInner,
-                        {
-                          backgroundColor: theme.chipSelectedBackground,
-                          borderWidth: 1,
-                          borderColor: theme.chipSelectedBorder,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                        numberOfLines={1}
+                      <View
+                        style={[
+                          styles.rankBadge,
+                          {
+                            backgroundColor: theme.chipSelectedBackground,
+                            borderWidth: 1,
+                            borderColor: theme.chipSelectedBorder,
+                          },
+                        ]}
                       >
-                        {goal?.label ?? goalId}
-                      </Text>
-                    </View>
+                        <Text style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}>
+                          {idx + 1}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.rankedChipInner,
+                          {
+                            backgroundColor: theme.chipSelectedBackground,
+                            borderWidth: 1,
+                            borderColor: theme.chipSelectedBorder,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                        >
+                          {goal?.label ?? goalId}
+                        </Text>
+                      </View>
+                    </Pressable>
                     <Pressable
                       hitSlop={8}
                       onPress={() => removeGoal(goalId)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${goal?.label ?? goalId}`}
                       style={styles.rankedChipRemove}
                     >
                       <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
@@ -1640,6 +1712,17 @@ export default function AdaptiveModeScreen() {
               />
             ))}
           </View>
+          {!isOneDay &&
+          filledAdaptiveGoals.some((goalId) => {
+            const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
+            if (!manualLabel) return false;
+            return goalHasDeferredDayBodySubFocuses(
+              manualLabel,
+              subFocusChoicesForManualPrimaryGoal(manualLabel)
+            );
+          }) ? (
+            <BodyFocusDeferredNote />
+          ) : null}
           {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && adaptiveSubGoalsTotalCount > 0 ? (
             <Pressable
               onPress={() =>
@@ -1921,13 +2004,32 @@ export default function AdaptiveModeScreen() {
                 expanded={adaptiveAdvNestedOpen.goalSubGoals === true}
                 onToggle={() => toggleAdaptiveAdvNested("goalSubGoals")}
               >
+                {!isOneDay &&
+                filledAdaptiveGoals.some((goalId) => {
+                  const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
+                  if (!manualLabel) return false;
+                  return goalHasDeferredDayBodySubFocuses(
+                    manualLabel,
+                    subFocusChoicesForManualPrimaryGoal(manualLabel)
+                  );
+                }) ? (
+                  <BodyFocusDeferredNote />
+                ) : null}
                 {filledAdaptiveGoals.map((goalId, goalIdx) => {
                   const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
                   const goalMeta = ADAPTIVE_GOALS.find((g) => g.id === goalId);
-                  const subOptions = manualLabel ? subFocusChoicesForManualPrimaryGoal(manualLabel) : [];
+                  const allSubOptions = manualLabel
+                    ? subFocusChoicesForManualPrimaryGoal(manualLabel)
+                    : [];
+                  const subOptions =
+                    !isOneDay && manualLabel
+                      ? filterDeferredDayBodySubFocusChoices(manualLabel, allSubOptions)
+                      : allSubOptions;
                   const selectedSubs =
                     manualLabel != null
-                      ? manualPreferences.subFocusByGoal[manualLabel] ?? []
+                      ? (manualPreferences.subFocusByGoal[manualLabel] ?? []).filter((sub) =>
+                          subOptions.includes(sub)
+                        )
                       : [];
                   const canAddSub =
                     selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
@@ -1994,7 +2096,6 @@ export default function AdaptiveModeScreen() {
                                   >
                                     <Text
                                       style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
-                                      numberOfLines={1}
                                     >
                                       {sub}
                                     </Text>
@@ -2038,7 +2139,11 @@ export default function AdaptiveModeScreen() {
                         </View>
                       ) : (
                         <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
-                          No sub-focus options for this goal.
+                          {!isOneDay &&
+                          manualLabel &&
+                          goalHasDeferredDayBodySubFocuses(manualLabel, allSubOptions)
+                            ? "Body parts for this goal are chosen per day on the next page."
+                            : "No sub-focus options for this goal."}
                         </Text>
                       )}
                     </View>
@@ -2076,7 +2181,7 @@ export default function AdaptiveModeScreen() {
                           justifyContent: "space-between",
                         }}
                       >
-                        <Text style={{ fontSize: 13, color: theme.textMuted }} numberOfLines={1}>
+                        <Text style={{ fontSize: 13, color: theme.textMuted, flex: 1, marginRight: 8 }}>
                           {idx === 0 ? "1st" : "2nd"} sport {sport ? `(${sport.name})` : ""}
                         </Text>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -2445,6 +2550,11 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
+  helperHint: {
+    fontSize: 13,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
   rankedSportRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -2455,8 +2565,15 @@ const styles = StyleSheet.create({
   rankedChipWrap: {
     flexDirection: "row",
     alignItems: "center",
+    maxWidth: "100%",
     marginRight: 8,
     marginBottom: 8,
+  },
+  rankedChipPressable: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+    maxWidth: "100%",
   },
   rankBadge: {
     minWidth: 22,
@@ -2477,7 +2594,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 999,
     minWidth: 80,
-    maxWidth: 260,
+    flexShrink: 1,
     gap: 6,
   },
   rankedChipLabel: {

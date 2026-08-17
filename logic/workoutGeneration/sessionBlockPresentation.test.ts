@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applySessionBlockPresentation,
+  orderSessionBlocks,
   resolveSupportBlockTitle,
 } from "./sessionBlockPresentation";
 
@@ -129,6 +130,56 @@ describe("sessionBlockPresentation", () => {
       "Controlled strength",
       "Stability & unilateral",
       "Mobility finisher",
+    ]);
+  });
+
+  it("orders blocks Activation → Power → Strength → Hypertrophy → Accessory → Conditioning → Support last", () => {
+    const blocks = [
+      { block_type: "cooldown", title: "Mobility", items: [] },
+      { block_type: "accessory", title: "Accessory", items: [] },
+      { block_type: "core", title: "Core", items: [] },
+      { block_type: "conditioning", title: "HIIT intervals", items: [] },
+      { block_type: "main_hypertrophy", title: "Hypertrophy", items: [] },
+      { block_type: "main_strength", title: "Secondary Strength", items: [] },
+      { block_type: "main_strength", title: "Primary Strength", items: [] },
+      { block_type: "power", title: "Power / Speed", items: [] },
+      { block_type: "warmup", title: "Activation", items: [] },
+    ];
+    const ordered = orderSessionBlocks(blocks);
+    expect(ordered.map((b) => b.title)).toEqual([
+      "Activation",
+      "Power / Speed",
+      "Primary Strength",
+      "Secondary Strength",
+      "Hypertrophy",
+      "Accessory",
+      "HIIT intervals",
+      "Core",
+      "Mobility",
+    ]);
+  });
+
+  it("keeps two strength blocks in original relative order", () => {
+    const blocks = [
+      { block_type: "main_strength", title: "Primary Strength", items: [] },
+      { block_type: "main_strength", title: "Secondary Strength", items: [] },
+    ];
+    expect(orderSessionBlocks(blocks).map((b) => b.title)).toEqual([
+      "Primary Strength",
+      "Secondary Strength",
+    ]);
+  });
+
+  it("moves support-titled accessory work after conditioning", () => {
+    const blocks = [
+      { block_type: "accessory", title: "Knee Resilience", items: [] },
+      { block_type: "conditioning", title: "Zone 2 sustained effort", items: [] },
+      { block_type: "cooldown", title: "Mobility", items: [] },
+    ];
+    expect(orderSessionBlocks(blocks).map((b) => b.title)).toEqual([
+      "Zone 2 sustained effort",
+      "Knee Resilience",
+      "Mobility",
     ]);
   });
 });

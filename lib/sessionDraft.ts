@@ -3,6 +3,7 @@ import type { ManualPreferences } from "./types";
 import { sportSetupRouteWhenNoPlan } from "./sessionFlowRoutes";
 import type { SessionFlow, SessionPhase } from "./sessionFlowTypes";
 export type { SessionFlow, SessionPhase } from "./sessionFlowTypes";
+import { formatItemList } from "./formatItemList";
 
 export type WeekSetupDraft = {
   /** User opened week builder (past preferences). */
@@ -11,7 +12,37 @@ export type WeekSetupDraft = {
   selectedTrainingDays: number[];
   dayFocusChoiceIds: string[];
   dayBodyFocusChoiceIds?: string[];
+  /** Fingerprint of goals/sub-focuses used to seed per-day recommendations. */
+  recommendationSeed?: string;
 };
+
+/** Keep selected days, but always re-open weekday picking after returning to filters. */
+export function weekSetupAtPickDays(
+  ws: WeekSetupDraft | null | undefined
+): WeekSetupDraft | null {
+  if (ws == null) return null;
+  if (ws.step === "pickDays") return ws;
+  return { ...ws, step: "pickDays" };
+}
+
+export function weekSetupDraftEqual(
+  a: WeekSetupDraft | null | undefined,
+  b: WeekSetupDraft | null | undefined
+): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  return (
+    a.enteredWeekScreen === b.enteredWeekScreen &&
+    a.step === b.step &&
+    a.selectedTrainingDays.length === b.selectedTrainingDays.length &&
+    a.selectedTrainingDays.every((d, i) => d === b.selectedTrainingDays[i]) &&
+    a.dayFocusChoiceIds.length === b.dayFocusChoiceIds.length &&
+    a.dayFocusChoiceIds.every((id, i) => id === b.dayFocusChoiceIds[i]) &&
+    (a.dayBodyFocusChoiceIds ?? []).length === (b.dayBodyFocusChoiceIds ?? []).length &&
+    (a.dayBodyFocusChoiceIds ?? []).every((id, i) => id === (b.dayBodyFocusChoiceIds ?? [])[i]) &&
+    (a.recommendationSeed ?? "") === (b.recommendationSeed ?? "")
+  );
+}
 
 /** Serialized sport-mode setup form (local UI state lifted for resume / last-edited). */
 export type SportFormSnapshot = {
@@ -101,9 +132,9 @@ export function buildSessionSummary(
   gymName?: string | null
 ): string {
   const parts: string[] = [];
-  const goals = prefs.primaryFocus.slice(0, 2);
+  const goals = prefs.primaryFocus;
   if (goals.length > 0) {
-    parts.push(goals.length > 1 ? `${goals[0]} +${goals.length - 1}` : goals[0]!);
+    parts.push(formatItemList(goals));
   } else if (flow.startsWith("sport")) {
     parts.push("Sport session");
   } else {

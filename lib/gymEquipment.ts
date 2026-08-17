@@ -35,12 +35,15 @@ export function isHiddenGymEquipment(key: EquipmentKey): boolean {
 /**
  * Expand a gym profile's stored equipment for workout filtering.
  * Adds generic `machine` when the user has any dedicated machine station selected.
+ * Always includes `bodyweight` so Activation / cooldown stretches are never wiped
+ * when a gym profile only lists free weights or machines.
  */
 export function resolveEffectiveEquipment(
   equipment: readonly EquipmentKey[]
 ): EquipmentKey[] {
   const expanded = expandProfileEquipmentForFiltering(equipment);
   const resolved = new Set<EquipmentKey>(expanded);
+  resolved.add("bodyweight");
   const hasDedicatedMachine = expanded.some((key) =>
     DEDICATED_MACHINE_SET.has(key)
   );

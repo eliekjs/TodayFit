@@ -5,16 +5,23 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Theme } from "../lib/theme";
-import type {
-  DaySessionFocusConflict,
-  DaySessionFocusResolution,
-} from "../lib/daySessionFocusConflict";
+
+type BannerResolution = {
+  id: string;
+  label: string;
+};
+
+type BannerConflict = {
+  id: string;
+  message: string;
+  resolutions: BannerResolution[];
+};
 
 type Props = {
   theme: Theme;
-  conflict: DaySessionFocusConflict;
+  conflict: BannerConflict;
   resolvedId?: string;
-  onApplyResolution: (resolution: DaySessionFocusResolution) => void;
+  onApplyResolution: (resolution: BannerResolution) => void;
 };
 
 const ACCENT = "#f59e0b";

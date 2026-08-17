@@ -9,6 +9,7 @@ import type { SportFormSnapshot, SportPreset } from "./sessionDraft";
 import type { ManualPreferences, PreferencePreset } from "./types";
 import {
   canUseTrainToday,
+  buildTrainTodayGenerationParams,
   resolveTrainTodayFromPreset,
   trainTodaySubtitleFromPreset,
 } from "./trainToday";
@@ -145,6 +146,25 @@ describe("resolveTrainTodayFromPreset", () => {
     expect(params.sportGoalContext?.sport_slugs).toContain("basketball");
     expect(params.prefs.durationMinutes).toBe(40);
     expect(params.prefs.targetBody).toBe("Lower");
+    expect(params.prefs.weeklyBodyFocusMode).toBe("region");
+    expect(params.prefs.specificBodyFocus).toBeUndefined();
+  });
+
+  it("does not let leftover Muscle Chest tags rewrite a Lower sport one-day", () => {
+    const params = buildTrainTodayGenerationParams(
+      {
+        ...basePrefs,
+        weeklyBodyFocusMode: "muscle",
+        targetBody: "Upper",
+        targetModifier: ["Push"],
+        specificBodyFocus: ["chest"],
+      },
+      sportForm({ oneDayBodyBias: "lower" })
+    );
+    expect(params.prefs.targetBody).toBe("Lower");
+    expect(params.prefs.weeklyBodyFocusMode).toBe("region");
+    expect(params.prefs.specificBodyFocus).toBeUndefined();
+    expect(params.prefs.targetModifier).toEqual([]);
   });
 
   it("canUseTrainToday requires gym + resolved default", () => {

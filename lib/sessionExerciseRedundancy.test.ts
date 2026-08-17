@@ -1,14 +1,16 @@
 /**
- * Session redundancy families — glute bridge / hip thrust max-one-per-workout.
+ * Session redundancy families — max-one-per-workout for programming-equivalent movements.
  * Run: npx vitest run lib/sessionExerciseRedundancy.test.ts
  */
 
 import { describe, expect, it } from "vitest";
 import {
   GLUTE_BRIDGE_HIP_THRUST_FAMILY,
+  KETTLEBELL_SWING_FAMILY,
   getSessionRedundancyFamilyId,
   isExerciseAvailableForSession,
   isGluteBridgeOrHipThrustSlug,
+  isKettlebellSwingSlug,
   sessionRedundancyFamilyAlreadyUsed,
 } from "./sessionExerciseRedundancy";
 import { getSimilarExerciseClusterId } from "./workoutRules";
@@ -34,10 +36,31 @@ describe("sessionExerciseRedundancy", () => {
     expect(getSessionRedundancyFamilyId("ff_miniband_hip_thrust")).toBe(GLUTE_BRIDGE_HIP_THRUST_FAMILY);
   });
 
-  it("does not group unrelated posterior chain exercises", () => {
+  it("groups kettlebell swing variants (two-hand, single-arm, double)", () => {
+    for (const slug of [
+      "kb_swing",
+      "kettlebell_swing",
+      "banded_kb_swing",
+      "ff_kettlebell_swing",
+      "ff_single_arm_kettlebell_swing",
+      "ff_double_kettlebell_swing",
+      "ff_alternating_single_arm_kettlebell_swing",
+      "ff_single_arm_kettlebell_staggered_stance_swing",
+    ]) {
+      expect(isKettlebellSwingSlug(slug)).toBe(true);
+      expect(getSessionRedundancyFamilyId(slug)).toBe(KETTLEBELL_SWING_FAMILY);
+      expect(getSimilarExerciseClusterId({ id: slug })).toBe(KETTLEBELL_SWING_FAMILY);
+    }
+  });
+
+  it("does not group club / bag swings or unrelated hinges with KB swings", () => {
+    expect(getSessionRedundancyFamilyId("ff_clubbell_hammer_swing")).toBeNull();
+    expect(getSessionRedundancyFamilyId("ff_bulgarian_bag_swing")).toBeNull();
+    expect(getSessionRedundancyFamilyId("ff_single_arm_indian_club_outer_heart_shaped_swing")).toBeNull();
     expect(getSessionRedundancyFamilyId("barbell_rdl")).toBeNull();
     expect(getSessionRedundancyFamilyId("back_extension")).toBeNull();
     expect(getSessionRedundancyFamilyId("leg_curl")).toBeNull();
+    expect(isKettlebellSwingSlug("kb_deadlift")).toBe(false);
   });
 
   it("blocks hip thrust when glute bridge is already in session", () => {
@@ -48,9 +71,19 @@ describe("sessionExerciseRedundancy", () => {
     expect(isExerciseAvailableForSession("barbell_rdl", used)).toBe(true);
   });
 
-  it("allows first pick from the family", () => {
+  it("blocks second KB swing variant when one is already in session", () => {
+    const used = new Set(["ff_single_arm_kettlebell_swing"]);
+    expect(sessionRedundancyFamilyAlreadyUsed(used, "ff_kettlebell_swing")).toBe(true);
+    expect(isExerciseAvailableForSession("kb_swing", used)).toBe(false);
+    expect(isExerciseAvailableForSession("ff_double_kettlebell_swing", used)).toBe(false);
+    expect(isExerciseAvailableForSession("barbell_rdl", used)).toBe(true);
+  });
+
+  it("allows first pick from each family", () => {
     const used = new Set<string>();
     expect(isExerciseAvailableForSession("glute_bridge", used)).toBe(true);
     expect(isExerciseAvailableForSession("hip_thrust", used)).toBe(true);
+    expect(isExerciseAvailableForSession("kb_swing", used)).toBe(true);
+    expect(isExerciseAvailableForSession("ff_single_arm_kettlebell_swing", used)).toBe(true);
   });
 });

@@ -1,6 +1,14 @@
 /**
- * Detect when switching weekly body-focus modes (or a per-day body pick)
- * would override user choices — used to drive confirm dialogs.
+ * Detect when a per-day body pick would override user choices.
+ *
+ * Prompt timing — wait until the user is done choosing how body focus works:
+ * - Do NOT prompt on Region/Pattern/Muscle switches. The new vocabulary reseeds
+ *   (or remaps) day chips; mixed sub-goals often land on other days after that.
+ * - Do NOT interrupt on body-chip taps either. Chips sit in the same setup step
+ *   as the mode control; the user may still pick Full, Legs, or another day.
+ * - DO reveal inline banners + generate gates once they try to generate with a
+ *   leftover mismatch (or, on one-day, after they opt into Focus & resolve and
+ *   then generate).
  */
 
 import type { ManualPreferences, WeeklyBodyFocusMode } from "./types";
@@ -13,6 +21,15 @@ import {
 } from "./subFocusBodyRegion";
 import type { DayBodyFocusChoiceId } from "./weekDaySessionFocus";
 import { BODY_CHOICE_COPY, dayBodyFocusChoiceToBias } from "./weekDaySessionFocus";
+
+export type BodyFocusPromptTrigger = "mode_change" | "body_pick" | "generate";
+
+/** Sub-goal vs body prompts belong at generate, not while body focus is still being chosen. */
+export function shouldPromptSubFocusConflictForTrigger(
+  trigger: BodyFocusPromptTrigger
+): boolean {
+  return trigger === "generate";
+}
 
 export const WEEKLY_BODY_FOCUS_MODE_LABELS: Record<WeeklyBodyFocusMode, string> = {
   region: "Region",
@@ -44,10 +61,8 @@ export type SubFocusConflictSummary = {
   message: string;
 };
 
-function formatNameList(names: string[], max = 3): string {
-  const shown = names.slice(0, max);
-  const extra = names.length > max ? "…" : "";
-  return `${shown.join(", ")}${extra}`;
+function formatNameList(names: string[]): string {
+  return names.join(", ");
 }
 
 /** Copy for mixed vs one-sided body vs sub-goal tension. Prefers Full body to keep mixed picks. */
@@ -118,8 +133,7 @@ export function summarizeBodyChoiceVsSubFocusConflict(
 /**
  * Map region-style resolution body ids (upper/lower/full) into the active
  * week body-focus vocabulary so "Switch to Lower" lands on Legs in muscle/pattern mode.
- * Full body stays Full — Pattern/Muscle have no full-day chip; callers should switch
- * weeklyBodyFocusMode to "region" when applying it.
+ * Full body stays Full in every vocabulary (leftover-day filler).
  */
 export function mapBodyResolutionToMode(
   bodyId: DayBodyFocusChoiceId,

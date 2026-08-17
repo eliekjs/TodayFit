@@ -4,12 +4,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
 import type { DailyWorkoutPreferences, WeeklyBodyFocusMode } from "../lib/types";
 import type { DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
-import { BODY_CHOICE_COPY, dayBodyChoiceIdsForMode, resolveWeeklyBodyFocusMode } from "../lib/weekDaySessionFocus";
-import { dailyOverrideFromBodyChoice } from "../lib/sessionBodyContract";
+import { BODY_CHOICE_COPY, dayBodyChoiceIdsForMode } from "../lib/weekDaySessionFocus";
+import {
+  dailyOverrideFromBodyChoice,
+  resolveDailyBodyFocusMode,
+} from "../lib/sessionBodyContract";
 import { Chip } from "./Chip";
 import { PrimaryButton } from "./Button";
 import { VolumePreferencePicker } from "./VolumePreferencePicker";
 import { volumePreferenceSectionSubtitle } from "../lib/volumePreferenceCopy";
+import { WeeklyBodyFocusModeToggle } from "./WeeklyBodyFocusModeToggle";
 
 const GOAL_OPTIONS = ["strength", "hypertrophy", "endurance", "mobility", "recovery", "power"] as const;
 const ENERGY_OPTIONS = ["low", "medium", "high"] as const;
@@ -31,13 +35,15 @@ export type DayFocusOverrideChipsProps = {
   /** When set, show session-focus presets (sport vs goal emphasis) instead of generic goal chips. */
   dayFocusPresets?: DayFocusPreset[];
   selectedDayFocusPresetId?: string;
+  /** Planned body chips for this day when the user has not set a regenerate override. */
+  plannedBodyChoiceIds?: DayBodyFocusChoiceId[];
   /** Shown once above session-focus presets (shared sport/goal focus explanation). */
   sportGoalPriorityNote?: string | null;
   /** Increment to open the focus controls from an external card/action. */
   expandSignal?: number;
   /** When true, skip the accordion and always show focus controls (e.g. inside a modal). */
   alwaysExpanded?: boolean;
-  /** Region | Pattern | Muscle — regen body chips follow the same vocabulary as planning. */
+  /** Region | Pattern | Muscle — week vocabulary; regen can override via chips toggle. */
   weeklyBodyFocusMode?: WeeklyBodyFocusMode | null;
 };
 
@@ -53,6 +59,7 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   regenerateLabel = "Regenerate this day",
   dayFocusPresets,
   selectedDayFocusPresetId,
+  plannedBodyChoiceIds,
   sportGoalPriorityNote,
   expandSignal,
   alwaysExpanded = false,
@@ -60,11 +67,20 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
 }, ref) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(alwaysExpanded);
-  const bodyMode = resolveWeeklyBodyFocusMode(weeklyBodyFocusMode);
+  const bodyMode = resolveDailyBodyFocusMode({
+    dailyOverride: dailyPrefsOverride,
+    weekMode: weeklyBodyFocusMode,
+  });
   const bodyChoiceIds = dayBodyChoiceIdsForMode(bodyMode);
-  const selectedBodyChoice =
+  const hasBodyOverride =
+    dailyPrefsOverride?.bodyRegionBias != null ||
+    (dailyPrefsOverride?.specificBodyFocus?.length ?? 0) > 0;
+  const overrideBodyChoice =
     (dailyPrefsOverride?.bodyRegionBias as DayBodyFocusChoiceId | undefined) ??
     (dailyPrefsOverride?.specificBodyFocus?.[0] as DayBodyFocusChoiceId | undefined);
+  const plannedBodySet = new Set(plannedBodyChoiceIds ?? []);
+  const isBodyChoiceSelected = (b: DayBodyFocusChoiceId) =>
+    hasBodyOverride ? overrideBodyChoice === b : plannedBodySet.has(b);
 
   useEffect(() => {
     if (alwaysExpanded) {
@@ -76,6 +92,22 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
   }, [expandSignal, alwaysExpanded]);
 
   const effectiveDayFocusPresetId = dailyPrefsOverride?.dayFocusPresetId ?? selectedDayFocusPresetId;
+
+  const onChangeBodyMode = (mode: WeeklyBodyFocusMode) => {
+    if (mode === bodyMode) return;
+    const nextAllowed = new Set(dayBodyChoiceIdsForMode(mode));
+    const keepBody =
+      hasBodyOverride &&
+      overrideBodyChoice != null &&
+      nextAllowed.has(overrideBodyChoice)
+        ? dailyOverrideFromBodyChoice(overrideBodyChoice, mode)
+        : {
+            bodyRegionBias: undefined,
+            specificBodyFocus: undefined,
+            weeklyBodyFocusMode: mode,
+          };
+    onOverrideChange(keepBody);
+  };
 
   const adjustFocusLink =
     showAdjustFocusLink && onAdjustFocusPress ? (
@@ -154,22 +186,29 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
           ))}
         </View>
       )}
-      <View style={[styles.chipGroup, { marginBottom: 8 }]}>
-        <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body: </Text>
-        {bodyChoiceIds.map((b) => (
-          <Chip
-            key={b}
-            label={BODY_CHOICE_COPY[b]?.label ?? b}
-            selected={selectedBodyChoice === b}
-            onPress={() =>
-              onOverrideChange(
-                selectedBodyChoice === b
-                  ? { bodyRegionBias: undefined, specificBodyFocus: undefined }
-                  : dailyOverrideFromBodyChoice(b)
-              )
-            }
-          />
-        ))}
+      <View style={{ marginBottom: 12, gap: 8 }}>
+        <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Body split</Text>
+        <WeeklyBodyFocusModeToggle value={bodyMode} onChange={onChangeBodyMode} />
+        <View style={styles.chipGroup}>
+          {bodyChoiceIds.map((b) => (
+            <Chip
+              key={b}
+              label={BODY_CHOICE_COPY[b]?.label ?? b}
+              selected={isBodyChoiceSelected(b)}
+              onPress={() =>
+                onOverrideChange(
+                  isBodyChoiceSelected(b) && hasBodyOverride
+                    ? {
+                        bodyRegionBias: undefined,
+                        specificBodyFocus: undefined,
+                        weeklyBodyFocusMode: bodyMode,
+                      }
+                    : dailyOverrideFromBodyChoice(b, bodyMode)
+                )
+              }
+            />
+          ))}
+        </View>
       </View>
       <View style={[styles.chipGroup, { marginBottom: 8 }]}>
         <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>Energy: </Text>

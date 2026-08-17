@@ -5,8 +5,10 @@ import { exerciseMatchesHypertrophySubFocusSlug } from "../logic/workoutGenerati
 import type { ExerciseWithQualities } from "../logic/workoutIntelligence/types";
 import type { Exercise } from "../logic/workoutGeneration/types";
 import {
+  matchesAnyMuscleSplitEmphasis,
   matchesMuscleSplitEmphasis,
   muscleSplitEmphasisFromFocusParts,
+  muscleSplitEmphasesFromFocusParts,
 } from "./splitMuscleMatching";
 
 function makeEx(
@@ -124,6 +126,27 @@ describe("split muscle matching", () => {
     expect(muscleSplitEmphasisFromFocusParts(["upper_push"])).toBeNull();
     expect(muscleSplitEmphasisFromFocusParts(["lower", "legs"])).toBe("legs");
     expect(muscleSplitEmphasisFromFocusParts(["lower", "glutes"])).toBe("glutes");
+    expect(muscleSplitEmphasisFromFocusParts(["core"])).toBe("core");
+    expect(muscleSplitEmphasesFromFocusParts(["chest", "back"])).toEqual(["chest", "back"]);
+    expect(muscleSplitEmphasisFromFocusParts(["chest", "back"])).toBeNull();
+  });
+
+  it("matches core via primary muscle, not via unknown-family default", () => {
+    const plank = makeEx({
+      id: "plank",
+      movement_pattern: "carry",
+      muscle_groups: ["core"],
+      primary_movement_family: "core",
+    });
+    const untagged = makeEx({
+      id: "mystery_move",
+      movement_pattern: "unknown",
+      muscle_groups: [],
+    });
+    expect(matchesMuscleSplitEmphasis(plank, "core")).toBe(true);
+    expect(matchesMuscleSplitEmphasis(untagged, "core")).toBe(false);
+    expect(matchesAnyMuscleSplitEmphasis(plank, ["core", "chest"])).toBe(true);
+    expect(matchesAnyMuscleSplitEmphasis(untagged, ["core"])).toBe(false);
   });
 });
 

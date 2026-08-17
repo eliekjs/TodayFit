@@ -29,7 +29,10 @@ import { primaryFocusLabelToPrimaryGoal } from "./goalRegistry";
 import { resolvePrimaryAndSecondaryGoalsFromFocus } from "./recoveryGoalRanking";
 import { getExerciseTagsForGoalSubFocuses } from "../data/goalSubFocus";
 import { buildMergedGoalSubFocusSlugWeights, sanitizeSubFocusPctMaps } from "./subFocusWeights";
-import { filterSubFocusSlugsForBodyFocus } from "../logic/workoutGeneration/bodyFocusSubFocusFilter";
+import {
+  ensureRegionalStrengthOverlay,
+  filterSubFocusSlugsForBodyFocus,
+} from "../logic/workoutGeneration/bodyFocusSubFocusFilter";
 import { SUB_FOCUS_TAG_MAP } from "../data/sportSubFocus/subFocusTagMap";
 import { getExerciseTagsForSubFocuses, normalizeSubFocusSlug } from "../data/sportSubFocus";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
@@ -190,7 +193,7 @@ function applyBodyEmphasisToMergedGoalSubFocus(
   }
   const outFocus = { ...goalSubFocus };
   const outWeights = { ...goalSubFocusWeights };
-  for (const goalKey of ["power", "athletic_performance", "conditioning"] as const) {
+  for (const goalKey of Object.keys(outFocus)) {
     const slugs = outFocus[goalKey];
     if (!slugs?.length) continue;
     const filtered = filterSubFocusSlugsForBodyFocus(slugs, focusBodyParts);
@@ -557,6 +560,12 @@ export function manualPreferencesToGenerateWorkoutInput(
     normalizedFocusBodyParts,
     preferences.sessionFocusDistribution
   ));
+  ({ goal_sub_focus, goal_sub_focus_weights } = ensureRegionalStrengthOverlay(
+    goal_sub_focus,
+    goal_sub_focus_weights,
+    normalizedFocusBodyParts,
+    primary_goal
+  ));
 
   // Goal weights from match percentages (normalize to sum 1)
   const p1 = (preferences.goalMatchPrimaryPct ?? 50) / 100;
@@ -655,7 +664,13 @@ export function manualPreferencesToGenerateWorkoutInput(
     ),
   };
 
-  const avoidIds = sportGoalContext?.regeneration_avoid_exercise_ids?.filter(Boolean) ?? [];
+  const avoidFromContext = sportGoalContext?.regeneration_avoid_exercise_ids?.filter(Boolean) ?? [];
+  const avoidFromHistory =
+    trainingHistory?.recent_sessions
+      ?.filter((s) => s.modality === "regeneration_penalty")
+      .flatMap((s) => s.exercise_ids ?? [])
+      .filter(Boolean) ?? [];
+  const avoidIds = [...new Set([...avoidFromContext, ...avoidFromHistory])];
   const recent_history:
     | import("../logic/workoutGeneration/types").RecentSessionSummary[]
     | undefined =

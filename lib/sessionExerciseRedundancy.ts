@@ -1,14 +1,19 @@
 /**
  * Session-level exercise redundancy families.
- * Max-one-per-workout rules for programming-equivalent movements (e.g. glute bridge vs hip thrust).
+ * Max-one-per-workout rules for programming-equivalent movements
+ * (e.g. glute bridge vs hip thrust; bilateral vs single-arm KB swing).
  */
 
 /** Cluster id shared with getSimilarExerciseClusterId in workoutRules.ts. */
 export const GLUTE_BRIDGE_HIP_THRUST_FAMILY = "glute_bridge_hip_thrust_family";
 
+/** Cluster id for kettlebell swing variants (two-hand, single-arm, double, etc.). */
+export const KETTLEBELL_SWING_FAMILY = "kettlebell_swing_family";
+
 /** Families where at most one member may appear in a single workout session. */
 export const SESSION_MAX_ONE_REDUNDANCY_FAMILIES = new Set<string>([
   GLUTE_BRIDGE_HIP_THRUST_FAMILY,
+  KETTLEBELL_SWING_FAMILY,
 ]);
 
 const EXPLICIT_GLUTE_BRIDGE_HIP_THRUST_SLUGS = new Set([
@@ -25,6 +30,12 @@ const EXPLICIT_GLUTE_BRIDGE_HIP_THRUST_SLUGS = new Set([
   "plate_hip_thrust",
 ]);
 
+const EXPLICIT_KETTLEBELL_SWING_SLUGS = new Set([
+  "kb_swing",
+  "kettlebell_swing",
+  "banded_kb_swing",
+]);
+
 function normalizeExerciseSlug(id: string): string {
   return id.toLowerCase().replace(/-/g, "_").replace(/\s+/g, "_");
 }
@@ -37,10 +48,23 @@ export function isGluteBridgeOrHipThrustSlug(slug: string): boolean {
 }
 
 /**
+ * True when slug names a kettlebell swing pattern (including ff_ / OTA variants).
+ * Excludes clubbell / indian-club / bag swings that only share the word "swing".
+ */
+export function isKettlebellSwingSlug(slug: string): boolean {
+  const norm = normalizeExerciseSlug(slug);
+  if (EXPLICIT_KETTLEBELL_SWING_SLUGS.has(norm)) return true;
+  if (/(?:^|_)kb_swing(?:_|$)/.test(norm)) return true;
+  const hasKb = norm.includes("kettlebell") || /(?:^|_)kb(?:_|$)/.test(norm);
+  return hasKb && norm.includes("swing");
+}
+
+/**
  * Returns a session redundancy family id when the exercise belongs to a max-one-per-session group.
  */
 export function getSessionRedundancyFamilyId(exerciseId: string): string | null {
   if (isGluteBridgeOrHipThrustSlug(exerciseId)) return GLUTE_BRIDGE_HIP_THRUST_FAMILY;
+  if (isKettlebellSwingSlug(exerciseId)) return KETTLEBELL_SWING_FAMILY;
   return null;
 }
 

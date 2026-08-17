@@ -10,6 +10,8 @@ export {
   GOAL_SLUG_TO_LABEL,
   GOAL_SLUG_TO_PRIMARY_FOCUS,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
+  canonicalizePrimaryFocusLabel,
+  canonicalizePrimaryFocusLabels,
 } from "./goalSlugMapping";
 
 /** Core: primary focus options (multi-select, suggest up to 2). */

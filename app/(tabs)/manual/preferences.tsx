@@ -63,15 +63,19 @@ import {
   buildWorkoutIntentTitle,
 } from "../../../lib/workoutIntentSplit";
 import type { WeeklyBodyFocusMode } from "../../../lib/types";
-import { detectPreferenceConflicts } from "../../../lib/preferenceConflictDetector";
+import { detectPreferenceConflicts, type PreferenceConflict } from "../../../lib/preferenceConflictDetector";
 import { PreferenceConflictBanner } from "../../../components/PreferenceConflictBanner";
 import { FocusDistributionNote } from "../../../components/FocusDistributionNote";
 import { WeeklyBodyFocusModeNote } from "../../../components/WeeklyBodyFocusModeNote";
-import { BodyFocusOverrideModal } from "../../../components/BodyFocusOverrideModal";
+import { BodyFocusDeferredNote } from "../../../components/BodyFocusDeferredNote";
+import {
+  filterDeferredDayBodySubFocusChoices,
+  goalHasDeferredDayBodySubFocuses,
+  stripDeferredDayBodySubFocuses,
+} from "../../../lib/deferredDayBodySubFocus";
 import {
   applyDayBodyChoiceToManualPreferences,
   mapBodyResolutionToMode,
-  summarizeBodyChoiceVsSubFocusConflict,
 } from "../../../lib/bodyFocusModeOverride";
 import {
   BODY_CHOICE_COPY,
@@ -87,10 +91,12 @@ import {
   isBodyFocusPreferenceConflict,
   shouldShowDailyFocusDistributionNote,
 } from "../../../lib/sessionFocusDistribution";
-import { sessionFlowFromManualScope } from "../../../lib/sessionDraft";
+import { sessionFlowFromManualScope, weekSetupAtPickDays } from "../../../lib/sessionDraft";
 import { navigateToManualWeek } from "../../../lib/manualGoalPreferencesHref";
 import { GymProfileSelectionPanel } from "../../../components/GymProfileSelectionPanel";
 import { summarizeGymProfileEquipment } from "../../../lib/gymProfileDisplay";
+import { formatItemList } from "../../../lib/formatItemList";
+import { detectUncoveredSubGoalsForDay } from "../../../lib/subGoalSplitCoverage";
 import {
   MAX_RANKED_GOALS,
   MAX_SUB_GOALS_PER_PARENT,
@@ -128,6 +134,8 @@ export default function ManualPreferencesScreen() {
     savedWorkouts,
     manualSessionProgress,
     beginSessionFlow,
+    updateActiveSessionDraft,
+    activeSessionDraft,
     manualWeekPlan,
   } = useAppState();
   const [refinementsOpen, setRefinementsOpen] = useState(false);
@@ -160,11 +168,8 @@ export default function ManualPreferencesScreen() {
   }, []);
 
   const [dismissedConflictIds, setDismissedConflictIds] = useState<string[]>([]);
-  const [pendingDayBody, setPendingDayBody] = useState<{
-    choiceId: DayBodyFocusChoiceId;
-    message: string;
-    nextMode?: WeeklyBodyFocusMode;
-  } | null>(null);
+  /** Body-vs-sub-goal banners wait until generate — not Region/Pattern/Muscle switches. */
+  const [revealBodyFocusConflicts, setRevealBodyFocusConflicts] = useState(false);
 
   useEffect(() => {
     if (isWeek) return;
@@ -185,6 +190,24 @@ export default function ManualPreferencesScreen() {
     updateManualPreferences,
   ]);
 
+  useEffect(() => {
+    if (!isWeek) return;
+    const stripped = stripDeferredDayBodySubFocuses(
+      manualPreferences.subFocusByGoal,
+      manualPreferences.subFocusPctByGoal
+    );
+    if (!stripped.changed) return;
+    updateManualPreferences({
+      subFocusByGoal: stripped.subFocusByGoal,
+      subFocusPctByGoal: stripped.subFocusPctByGoal,
+    });
+  }, [
+    isWeek,
+    manualPreferences.subFocusByGoal,
+    manualPreferences.subFocusPctByGoal,
+    updateManualPreferences,
+  ]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
       title: isWeek ? "Plan your week" : "Build workout",
@@ -199,7 +222,14 @@ export default function ManualPreferencesScreen() {
       setIsGenerating(false);
       setManualGoalPreferencesScope(isWeek ? "week" : "day");
       beginSessionFlow(sessionFlowFromManualScope(isWeek ? "week" : "day"));
+      if (isWeek) {
+        const next = weekSetupAtPickDays(activeSessionDraft?.weekSetup);
+        if (next && next !== activeSessionDraft?.weekSetup) {
+          updateActiveSessionDraft({ weekSetup: next });
+        }
+      }
       setDismissedConflictIds([]);
+      setRevealBodyFocusConflicts(false);
       const updates: Partial<typeof defaultManualPreferences> = {};
       if (manualPreferences.durationMinutes == null) {
         updates.durationMinutes = DEFAULT_SESSION_MINUTES;
@@ -233,6 +263,8 @@ export default function ManualPreferencesScreen() {
       updateManualPreferences,
       setManualGoalPreferencesScope,
       beginSessionFlow,
+      activeSessionDraft?.weekSetup,
+      updateActiveSessionDraft,
     ])
   );
 
@@ -265,11 +297,10 @@ export default function ManualPreferencesScreen() {
         gymEquipmentKeys: activeProfile?.equipment ?? [],
       })
     : [];
-  const canProceed =
-    (isWeek
-      ? hasGoal && hasDuration && hasGymProfile
-      : hasGoal && hasDuration && hasBodyEmphasis && hasGymProfile) &&
-    dailyFocusDistributionGate.ok;
+  const basicsReady = isWeek
+    ? hasGoal && hasDuration && hasGymProfile
+    : hasGoal && hasDuration && hasBodyEmphasis && hasGymProfile;
+  const canProceed = basicsReady && dailyFocusDistributionGate.ok;
 
   const durationSummary =
     manualPreferences.durationMinutes != null
@@ -277,9 +308,7 @@ export default function ManualPreferencesScreen() {
       : "Tap to choose";
   const goalSummary = !hasGoal
     ? "Tap to choose"
-    : rankedGoals.length > 1
-      ? `${rankedGoals[0]} +${rankedGoals.length - 1} more`
-      : rankedGoals[0];
+    : formatItemList(rankedGoals);
   const bodySummary = (() => {
     if (!manualPreferences.targetBody && !manualPreferences.specificBodyFocus?.length) {
       return "Tap to choose";
@@ -294,7 +323,7 @@ export default function ManualPreferencesScreen() {
     }
     if (manualPreferences.targetBody === "Full") return "Full body";
     if (manualPreferences.targetModifier.length > 0) {
-      return `${manualPreferences.targetBody} (${manualPreferences.targetModifier[0]})`;
+      return `${manualPreferences.targetBody} (${formatItemList(manualPreferences.targetModifier, ", ")})`;
     }
     return manualPreferences.targetBody ?? "Tap to choose";
   })();
@@ -442,11 +471,7 @@ export default function ManualPreferencesScreen() {
   const dayBodyChoiceIds = dayBodyChoiceIdsForMode(bodyFocusMode);
 
   const applyDayBodyChoice = useCallback(
-    (
-      choiceId: DayBodyFocusChoiceId,
-      alignSubFocus: boolean,
-      nextMode?: WeeklyBodyFocusMode
-    ) => {
+    (choiceId: DayBodyFocusChoiceId, nextMode?: WeeklyBodyFocusMode) => {
       const bias = dayBodyFocusChoiceToBias(choiceId);
       const current = manualPreferences.injuries.filter((i) => i !== "No restrictions");
       const upperOnly = ["Shoulder", "Elbow", "Wrist", "Core"];
@@ -460,69 +485,55 @@ export default function ManualPreferencesScreen() {
       if (manualPreferences.injuries.includes("No restrictions")) nextInjuries = ["No restrictions"];
 
       const bodyPatch = applyDayBodyChoiceToManualPreferences(manualPreferences, choiceId);
-      let nextSubFocus = manualPreferences.subFocusByGoal;
-      if (alignSubFocus) {
-        const conflicting = summarizeBodyChoiceVsSubFocusConflict(
-          choiceId,
-          manualPreferences
-        );
-        if (conflicting) {
-          const names = new Set(conflicting.displayNames);
-          const cleaned: Record<string, string[]> = {};
-          for (const [goal, list] of Object.entries(manualPreferences.subFocusByGoal ?? {})) {
-            cleaned[goal] = list.filter((n) => !names.has(n));
-          }
-          nextSubFocus = cleaned;
-        }
-      }
       updateManualPreferences({
         ...bodyPatch,
         injuries: nextInjuries,
         ...(nextMode ? { weeklyBodyFocusMode: nextMode } : {}),
-        ...(alignSubFocus ? { subFocusByGoal: nextSubFocus } : {}),
       });
-      setPendingDayBody(null);
     },
     [manualPreferences, updateManualPreferences]
   );
 
   const handleSelectDayBodyChoice = useCallback(
     (choiceId: DayBodyFocusChoiceId) => {
-      const conflict = summarizeBodyChoiceVsSubFocusConflict(choiceId, manualPreferences);
-      if (conflict) {
-        setPendingDayBody({ choiceId, message: conflict.message });
-        return;
-      }
-      applyDayBodyChoice(choiceId, false);
+      applyDayBodyChoice(choiceId);
     },
-    [manualPreferences, applyDayBodyChoice]
+    [applyDayBodyChoice]
   );
+
+  const uncoveredSubGoalPrompt = !isWeek
+    ? detectUncoveredSubGoalsForDay({
+        manualPreferences,
+        bodyChoiceId: selectedDayBodyId,
+        mode: bodyFocusMode,
+      })
+    : null;
+  const uncoveredSubGoalConflict: PreferenceConflict | null = uncoveredSubGoalPrompt
+    ? {
+        id: uncoveredSubGoalPrompt.id,
+        severity: "high",
+        message: uncoveredSubGoalPrompt.message,
+        resolutions: uncoveredSubGoalPrompt.resolutions.map((res) => ({
+          label: res.label,
+          apply: (prefs) => {
+            if (res.acknowledge || !res.bodyFocusId) return {};
+            return applyDayBodyChoiceToManualPreferences(prefs, res.bodyFocusId);
+          },
+        })),
+      }
+    : null;
 
   const handleChangeDayBodyFocusMode = useCallback(
     (mode: WeeklyBodyFocusMode) => {
       if (mode === bodyFocusMode) return;
+      // Apply the new vocabulary immediately. Sub-goal mismatches wait until generate.
       const mapped = mapBodyResolutionToMode(selectedDayBodyId, mode);
       const allowed = dayBodyChoiceIdsForMode(mode);
       const choiceId = allowed.includes(mapped) ? mapped : allowed[0]!;
-      const trialPrefs = {
-        ...manualPreferences,
-        weeklyBodyFocusMode: mode,
-        ...applyDayBodyChoiceToManualPreferences(manualPreferences, choiceId),
-      };
-      const conflict = summarizeBodyChoiceVsSubFocusConflict(choiceId, trialPrefs);
-      if (conflict) {
-        setPendingDayBody({
-          choiceId,
-          nextMode: mode,
-          message: `Switching to ${mode} focus maps this session to ${
-            BODY_CHOICE_COPY[choiceId]?.label ?? choiceId
-          }. ${conflict.message}`,
-        });
-        return;
-      }
-      applyDayBodyChoice(choiceId, false, mode);
+      setRevealBodyFocusConflicts(false);
+      applyDayBodyChoice(choiceId, mode);
     },
-    [bodyFocusMode, selectedDayBodyId, manualPreferences, applyDayBodyChoice]
+    [bodyFocusMode, selectedDayBodyId, applyDayBodyChoice]
   );
 
   const toggleTargetModifier = (modifier: string) => {
@@ -552,8 +563,25 @@ export default function ManualPreferencesScreen() {
     isWeek && manualWeekPlan != null && manualWeekPlan.days.length > 0;
 
   const onGenerate = async () => {
+    if (!basicsReady) return;
+    if (!isWeek && !dailyFocusDistributionGate.ok) {
+      setRevealBodyFocusConflicts(true);
+      return;
+    }
+    if (
+      !isWeek &&
+      uncoveredSubGoalConflict &&
+      !dismissedConflictIds.includes(uncoveredSubGoalConflict.id)
+    ) {
+      setRevealBodyFocusConflicts(true);
+      return;
+    }
     if (!canProceed) return;
     if (scope === "week") {
+      const next = weekSetupAtPickDays(activeSessionDraft?.weekSetup);
+      if (next && next !== activeSessionDraft?.weekSetup) {
+        updateActiveSessionDraft({ weekSetup: next });
+      }
       navigateToManualWeek(router, { replace: true });
       return;
     }
@@ -702,8 +730,7 @@ export default function ManualPreferencesScreen() {
   const manualAdvAvoidSummary = (() => {
     const inj = manualPreferences.injuries;
     if (inj.includes("No restrictions") || inj.length === 0) return "No restrictions";
-    if (inj.length <= 2) return inj.join(", ");
-    return `${inj[0]}, +${inj.length - 1}`;
+    return formatItemList(inj, ", ");
   })();
 
   if (isGenerating) {
@@ -796,7 +823,7 @@ export default function ManualPreferencesScreen() {
             variant="daily"
             value={manualPreferences.sessionFocusDistribution}
             needsResolution={
-              dailyResolveMode && dailyBodyFocusConflicts.length > 0
+              revealBodyFocusConflicts && dailyResolveMode && dailyBodyFocusConflicts.length > 0
             }
             onChange={(value) => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -852,49 +879,57 @@ export default function ManualPreferencesScreen() {
         >
           {rankedGoals.length > 1 ? (
             <Text style={[styles.helperHint, { color: theme.textMuted }]}>
-              Your main goal is first in the list. Tap a chip to make it primary, or remove extras with ×.
+              First is your main goal. Tap a selected goal to make it first.
             </Text>
           ) : null}
           {rankedGoals.length > 0 && (
             <View style={styles.chipGroup}>
               {rankedGoals.map((goal, idx) => (
                 <View key={goal} style={styles.rankedChipWrap}>
-                  <View
-                    style={[
-                      styles.rankBadge,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.chipSelectedBorder,
-                      },
-                    ]}
+                  <Pressable
+                    onPress={() => promoteGoalToPrimary(goal)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${goal}, rank ${idx + 1}. Tap to make first.`}
+                    style={styles.rankedChipPressable}
                   >
-                    <Text
-                      style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
+                    <View
+                      style={[
+                        styles.rankBadge,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.chipSelectedBorder,
+                        },
+                      ]}
                     >
-                      {idx + 1}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.rankedChipInner,
-                      {
-                        backgroundColor: theme.chipSelectedBackground,
-                        borderWidth: 1,
-                        borderColor: theme.chipSelectedBorder,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
-                      numberOfLines={1}
+                      <Text
+                        style={[styles.rankBadgeText, { color: theme.chipSelectedText }]}
+                      >
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.rankedChipInner,
+                        {
+                          backgroundColor: theme.chipSelectedBackground,
+                          borderWidth: 1,
+                          borderColor: theme.chipSelectedBorder,
+                        },
+                      ]}
                     >
-                      {goal}
-                    </Text>
-                  </View>
+                      <Text
+                        style={[styles.rankedChipLabel, { color: theme.chipSelectedText }]}
+                      >
+                        {goal}
+                      </Text>
+                    </View>
+                  </Pressable>
                   <Pressable
                     hitSlop={8}
                     onPress={() => togglePrimaryFocus(goal)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${goal}`}
                     style={styles.rankedChipRemove}
                   >
                     <Text style={[styles.rankedChipRemoveText, { color: theme.textMuted }]}>×</Text>
@@ -904,14 +939,17 @@ export default function ManualPreferencesScreen() {
             </View>
           )}
           <View style={styles.chipGroup}>
-            {filterPilotPrimaryFocusLabels(PRIMARY_FOCUS_OPTIONS).map((option) => (
-              <Chip
-                key={option}
-                label={option}
-                selected={manualPreferences.primaryFocus.includes(option)}
-                onPress={() => onGoalEssentialChipPress(option)}
-              />
-            ))}
+            {filterPilotPrimaryFocusLabels(PRIMARY_FOCUS_OPTIONS)
+              .filter((option) => !manualPreferences.primaryFocus.includes(option))
+              .map((option) => (
+                <Chip
+                  key={option}
+                  label={option}
+                  selected={false}
+                  disabled={manualPreferences.primaryFocus.length >= MAX_GOALS}
+                  onPress={() => onGoalEssentialChipPress(option)}
+                />
+              ))}
           </View>
         </CollapsiblePreferenceSection>
 
@@ -924,9 +962,20 @@ export default function ManualPreferencesScreen() {
                 (optional, up to {MAX_TOTAL_SUB_GOALS} total)
               </Text>
             </Text>
+            {isWeek &&
+            rankedGoals.some((goal) =>
+              goalHasDeferredDayBodySubFocuses(goal, subFocusChoicesForManualPrimaryGoal(goal))
+            ) ? (
+              <BodyFocusDeferredNote />
+            ) : null}
             {rankedGoals.map((goal, goalIdx) => {
-              const subOptions = subFocusChoicesForManualPrimaryGoal(goal);
-              const selectedSubs = manualPreferences.subFocusByGoal[goal] ?? [];
+              const allSubOptions = subFocusChoicesForManualPrimaryGoal(goal);
+              const subOptions = isWeek
+                ? filterDeferredDayBodySubFocusChoices(goal, allSubOptions)
+                : allSubOptions;
+              const selectedSubs = (manualPreferences.subFocusByGoal[goal] ?? []).filter((sub) =>
+                subOptions.includes(sub)
+              );
               const canAddSub =
                 selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
                 subGoalsTotalCount < MAX_TOTAL_SUB_GOALS;
@@ -988,7 +1037,6 @@ export default function ManualPreferencesScreen() {
                           >
                             <Text
                               style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
-                              numberOfLines={1}
                             >
                               {sub}
                             </Text>
@@ -1102,42 +1150,31 @@ export default function ManualPreferencesScreen() {
           </CollapsiblePreferenceSection>
         ) : null}
 
-        <BodyFocusOverrideModal
-          visible={pendingDayBody != null}
-          title="Body focus conflicts with sub-goals"
-          message={pendingDayBody?.message ?? ""}
-          confirmLabel="Use Full body"
-          secondaryConfirmLabel="Drop conflicting sub-goals"
-          onCancel={() => setPendingDayBody(null)}
-          onConfirm={() => {
-            applyDayBodyChoice("full", false, "region");
-          }}
-          onSecondaryConfirm={() => {
-            if (!pendingDayBody) return;
-            applyDayBodyChoice(
-              pendingDayBody.choiceId,
-              true,
-              pendingDayBody.nextMode
-            );
-          }}
-        />
-
         <PreferenceConflictBanner
           conflicts={
-            dailyResolveMode
-              ? [
-                  ...dailyBodyFocusConflicts,
-                  ...preferenceConflicts.filter((c) => !isBodyFocusPreferenceConflict(c)),
-                ]
-              : showDailyFocusDistribution &&
-                  manualPreferences.sessionFocusDistribution === "spread"
-                ? preferenceConflicts.filter((c) => !isBodyFocusPreferenceConflict(c))
-                : preferenceConflicts
+            [
+              ...(revealBodyFocusConflicts && uncoveredSubGoalConflict
+                ? [uncoveredSubGoalConflict]
+                : []),
+              ...(dailyResolveMode
+                ? [
+                    ...(revealBodyFocusConflicts ? dailyBodyFocusConflicts : []),
+                    ...preferenceConflicts.filter((c) => !isBodyFocusPreferenceConflict(c)),
+                  ]
+                : showDailyFocusDistribution &&
+                    manualPreferences.sessionFocusDistribution === "spread"
+                  ? preferenceConflicts.filter((c) => !isBodyFocusPreferenceConflict(c))
+                  : revealBodyFocusConflicts
+                    ? preferenceConflicts
+                    : preferenceConflicts.filter((c) => !isBodyFocusPreferenceConflict(c))),
+            ]
           }
           dismissedIds={dismissedConflictIds}
           currentPrefs={manualPreferences}
           resolutionRequiredIds={
-            dailyResolveMode ? dailyBodyFocusConflicts.map((c) => c.id) : []
+            revealBodyFocusConflicts && dailyResolveMode
+              ? dailyBodyFocusConflicts.map((c) => c.id)
+              : []
           }
           onDismiss={(id) => {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -1271,8 +1308,7 @@ export default function ManualPreferencesScreen() {
                         }}
                       >
                         <Text
-                          style={[styles.modifierLabel, { color: theme.text }]}
-                          numberOfLines={1}
+                          style={[styles.modifierLabel, { color: theme.text, flex: 1, marginRight: 8 }]}
                         >
                           {goal}
                         </Text>
@@ -1443,13 +1479,18 @@ export default function ManualPreferencesScreen() {
               ? "Next: Training days"
               : "Build workout",
           onPress: onGenerate,
-          disabled: !canProceed,
+          disabled: !basicsReady,
           loading: isGenerating,
         }}
         hint={
           !isWeek && !dailyFocusDistributionGate.ok
             ? dailyFocusDistributionGate.reason ?? null
-            : null
+            : !isWeek &&
+                revealBodyFocusConflicts &&
+                uncoveredSubGoalConflict &&
+                !dismissedConflictIds.includes(uncoveredSubGoalConflict.id)
+              ? "This split would drop a selected sub-goal. Pick a matching body focus, or continue without it."
+              : null
         }
       >
         <View style={styles.bottomBarRow}>
@@ -1640,13 +1681,15 @@ const styles = StyleSheet.create({
   rankedChipWrap: {
     flexDirection: "row",
     alignItems: "center",
+    maxWidth: "100%",
     marginRight: 8,
     marginBottom: 8,
   },
   rankedChipPressable: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
+    flexShrink: 1,
+    maxWidth: "100%",
   },
   rankedChipPct: {
     fontSize: 11,
@@ -1680,7 +1723,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    maxWidth: 220,
+    flexShrink: 1,
   },
   rankedChipLabel: {
     fontSize: 13,

@@ -39,16 +39,56 @@ function _humanizeGoalSlug(slug: string): string {
 
 const STRUCTURAL_BLOCK_TITLES: Record<string, string> = {
   warmup: "Activation",
+  prep: "Activation",
   main_strength: "Primary Strength",
   main_hypertrophy: "Hypertrophy",
   power: "Power / Speed",
   accessory: "Accessory",
+  skill: "Skill",
   conditioning: "Conditioning",
   cooldown: "Cooldown",
   mobility: "Mobility",
   recovery: "Recovery",
   core: "Core",
 };
+
+/** User-facing name for a block type (Activation, Primary Strength, …). */
+export function structuralBlockTitle(blockType: string): string {
+  return STRUCTURAL_BLOCK_TITLES[blockType] ?? blockType.replace(/_/g, " ");
+}
+
+const GENERIC_STRUCTURAL_TITLES = new Set([
+  "activation",
+  "warmup",
+  "main_strength",
+  "main strength",
+  "primary strength",
+  "secondary strength",
+  "main hypertrophy",
+  "hypertrophy",
+  "power block",
+  "power",
+  "power / speed",
+  "accessory",
+  "skill",
+  "conditioning",
+  "cooldown",
+  "mobility",
+  "recovery",
+  "core",
+]);
+
+/** True when the title is a generic six-block name, not a specific program title. */
+export function isGenericStructuralTitle(title: string): boolean {
+  const n = title.toLowerCase().trim();
+  if (!n) return true;
+  if (GENERIC_STRUCTURAL_TITLES.has(n)) return true;
+  if (/^block [a-z]+$/i.test(n)) return true;
+  if (/^main strength\b/i.test(n)) return true;
+  if (/^main hypertrophy\b/i.test(n)) return true;
+  if (/^power block\b/i.test(n)) return true;
+  return false;
+}
 
 /** Strip internal "(secondary goal)" suffixes from stored block titles. */
 export function stripSecondaryGoalTitleSuffix(title: string): string {
@@ -87,30 +127,29 @@ export function buildBlockGoalBadgeLabel(intent: WorkoutBlockGoalIntent): string
 }
 
 /**
- * Block title for display: structural block name only when a separate goal badge is shown.
- * Avoids duplicating sub-focus or goal text that already appears in the badge.
+ * Block title for display.
+ * Specific program titles (Calisthenics, HIIT, Zone 2, joint-health PT, etc.) win.
+ * Generic titles map onto the six-block structure. Goal badges stay separate.
  */
 export function getBlockDisplayTitle(block: WorkoutBlock): string {
   const raw = stripSecondaryGoalTitleSuffix(
     block.title ?? block.block_type.replace(/_/g, " ")
   );
   const badge = block.goal_intent ? buildBlockGoalBadgeLabel(block.goal_intent) : null;
-  if (!badge) return raw;
-
-  let title = raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
-  if (title === "Main") {
-    const structural = STRUCTURAL_BLOCK_TITLES[block.block_type];
-    if (structural) return structural;
-  }
+  const title = badge ? raw.replace(/\s*\([^)]*\)\s*$/, "").trim() : raw;
   const structural = STRUCTURAL_BLOCK_TITLES[block.block_type];
-  if (structural && /^main\b/i.test(title)) {
-    return structural;
+
+  if (block.block_type === "main_strength" && /secondary/i.test(title)) {
+    return "Secondary Strength";
   }
-  if (block.block_type === "power" && /^power\b/i.test(title)) {
-    return structural ?? title;
+
+  if (title && !isGenericStructuralTitle(title)) {
+    return title;
   }
-  if (block.block_type === "main_strength" && /strength/i.test(title) && !/secondary/i.test(title)) {
-    return structural ?? title;
-  }
-  return title || structural || raw;
+
+  if (title === "Main" && structural) return structural;
+  if (structural && /^main\b/i.test(title)) return structural;
+  if (block.block_type === "power" && /^power\b/i.test(title)) return structural ?? title;
+
+  return structural || title || raw;
 }

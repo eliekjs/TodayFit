@@ -8,7 +8,8 @@ import type { IntentEntry } from "./sessionIntentContract";
 import { getCanonicalSportSlug } from "../../data/sportSubFocus/canonicalSportSlug";
 import { getLegacyMovementPattern } from "../../lib/ontology/legacyMapping";
 import { MAIN_WORK_EXCLUDED_ROLES } from "./cooldownSelection";
-import { isCoreOnlyFocusBodyParts } from "./bodyFocusSubFocusFilter";
+import { isCoreOnlyFocusBodyParts, isLowerOnlyFocusBodyParts } from "./bodyFocusSubFocusFilter";
+import { isUpperOnlyFocusBodyParts } from "./upperHypertrophySessionGate";
 import {
   exerciseMatchesGoalSubFocusSlugUnified,
   exerciseMatchesSportSubFocusSlug,
@@ -156,6 +157,9 @@ function exerciseTagSet(ex: Exercise): Set<string> {
  * squat/hinge/push/pull(/rotate) set: otherwise limb compounds structurally crowd out core work
  * because core exercises (movement pattern rotate/carry) were never in the eligible main-work
  * pattern set to begin with, regardless of body-part focus or scoring bonuses.
+ *
+ * Exclusive lower / upper (or push / pull) days similarly restrict to that region's compounds
+ * so a strength + lower session trains squat and hinge, not a leftover press slot.
  */
 export function getMainWorkPatternSlugsForGoal(
   primary: PrimaryGoal,
@@ -163,6 +167,24 @@ export function getMainWorkPatternSlugsForGoal(
 ): Set<string> {
   if (isCoreOnlyFocusBodyParts(focusBodyParts)) {
     return new Set(["rotate", "carry"]);
+  }
+  const parts = (focusBodyParts ?? []).map((f) => String(f).toLowerCase().replace(/\s/g, "_"));
+  const mixedWithCore = parts.includes("core");
+  if (!mixedWithCore && isLowerOnlyFocusBodyParts(focusBodyParts)) {
+    return new Set(["squat", "hinge"]);
+  }
+  const pushOnly =
+    parts.includes("upper_push") &&
+    !parts.includes("upper_pull") &&
+    isUpperOnlyFocusBodyParts(focusBodyParts);
+  const pullOnly =
+    parts.includes("upper_pull") &&
+    !parts.includes("upper_push") &&
+    isUpperOnlyFocusBodyParts(focusBodyParts);
+  if (pushOnly) return new Set(["push"]);
+  if (pullOnly) return new Set(["pull"]);
+  if (!mixedWithCore && isUpperOnlyFocusBodyParts(focusBodyParts)) {
+    return new Set(["push", "pull"]);
   }
   if (primary === "hypertrophy" || primary === "body_recomp" || primary === "calisthenics") {
     return new Set(["push", "pull", "squat", "hinge", "rotate"]);

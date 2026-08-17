@@ -202,6 +202,74 @@ export type BuildMergedGoalSubFocusOpts = {
 };
 
 /**
+ * Resolve which `subFocusByGoal` keys to merge for a session.
+ * When `labelsForSubFocusMerge` is non-empty (exclusive or ranked day focus), only those labels
+ * are included — other goals' chips must not bleed in (e.g. Zone 2 on a strength-only day).
+ * Empty labels → legacy fallback: all non-empty keys.
+ * Exact key match preferred; otherwise match via `canonicalGoalSubFocusLabel` (legacy aliases).
+ */
+export function resolveSubFocusLabelsToMerge(
+  labelsForSubFocusMerge: string[],
+  subFocusByGoal: Record<string, string[]>
+): string[] {
+  const nonEmptyKeys = Object.keys(subFocusByGoal).filter(
+    (k) => (subFocusByGoal[k] ?? []).length > 0
+  );
+  if (labelsForSubFocusMerge.length === 0) return nonEmptyKeys;
+
+  const used = new Set<string>();
+  const out: string[] = [];
+  for (const label of labelsForSubFocusMerge) {
+    if ((subFocusByGoal[label] ?? []).length > 0 && !used.has(label)) {
+      used.add(label);
+      out.push(label);
+      continue;
+    }
+    const want = canonicalGoalSubFocusLabel(label).toLowerCase();
+    const aliasKey = nonEmptyKeys.find(
+      (k) => !used.has(k) && canonicalGoalSubFocusLabel(k).toLowerCase() === want
+    );
+    if (aliasKey) {
+      used.add(aliasKey);
+      out.push(aliasKey);
+    }
+  }
+  return out;
+}
+
+/**
+ * Keep only sub-focus (and optional pct) entries for the given focus labels.
+ * Used for exclusive day picks so earlier-page goals cannot drive generation.
+ */
+export function filterSubFocusMapsToFocusLabels(
+  subFocusByGoal: Record<string, string[]>,
+  focusLabels: string[],
+  subFocusPctByGoal?: Record<string, Record<string, number>>
+): {
+  subFocusByGoal: Record<string, string[]>;
+  subFocusPctByGoal?: Record<string, Record<string, number>>;
+} {
+  const keys = resolveSubFocusLabelsToMerge(focusLabels, subFocusByGoal);
+  const nextSub: Record<string, string[]> = {};
+  for (const k of keys) {
+    const subs = subFocusByGoal[k];
+    if (subs?.length) nextSub[k] = [...subs];
+  }
+  if (!subFocusPctByGoal || Object.keys(subFocusPctByGoal).length === 0) {
+    return { subFocusByGoal: nextSub };
+  }
+  const nextPct: Record<string, Record<string, number>> = {};
+  for (const k of keys) {
+    const rec = subFocusPctByGoal[k];
+    if (rec && Object.keys(rec).length > 0) nextPct[k] = { ...rec };
+  }
+  return {
+    subFocusByGoal: nextSub,
+    ...(Object.keys(nextPct).length > 0 ? { subFocusPctByGoal: nextPct } : {}),
+  };
+}
+
+/**
  * Mirrors dailyGenerator adapter merge order: walk labels, merge slug arrays with stable Set order,
  * then assign each goalSlug a weight vector aligned to merged slug order (normalized to sum 1).
  */
@@ -214,13 +282,7 @@ export function buildMergedGoalSubFocusSlugWeights(
   const { labelsForSubFocusMerge, subFocusByGoal, subFocusPctByGoal } = opts;
   const goal_sub_focus: Record<string, string[]> = {};
 
-  const labelsToMerge = new Set<string>();
-  for (const label of labelsForSubFocusMerge) {
-    if ((subFocusByGoal[label] ?? []).length > 0) labelsToMerge.add(label);
-  }
-  for (const label of Object.keys(subFocusByGoal)) {
-    if ((subFocusByGoal[label] ?? []).length > 0) labelsToMerge.add(label);
-  }
+  const labelsToMerge = resolveSubFocusLabelsToMerge(labelsForSubFocusMerge, subFocusByGoal);
 
   for (const label of labelsToMerge) {
     const subLabels = subFocusByGoal[label] ?? [];

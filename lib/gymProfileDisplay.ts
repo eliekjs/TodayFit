@@ -1,6 +1,7 @@
 import { EQUIPMENT_BY_CATEGORY, type GymProfile } from "../data/gymProfiles";
 import type { EquipmentKey } from "./types";
 import { isHiddenGymEquipment } from "./gymEquipment";
+import { formatItemList } from "./formatItemList";
 
 export function equipmentLabelForKey(key: string): string {
   for (const cat of EQUIPMENT_BY_CATEGORY) {
@@ -32,13 +33,9 @@ export function summarizeGymProfileEquipment(
     if (count > 0) categoryParts.push(`${cat.category} (${count})`);
   }
 
-  const maxLabels = 6;
-  const labels = equipment.slice(0, maxLabels).map(equipmentLabelForKey);
+  const labels = equipment.map(equipmentLabelForKey);
   const highlightLine =
-    labels.length > 0
-      ? labels.join(" · ") +
-        (equipment.length > maxLabels ? ` · +${equipment.length - maxLabels} more` : "")
-      : "No equipment selected yet";
+    labels.length > 0 ? formatItemList(labels) : "No equipment selected yet";
 
   return {
     itemCount: equipment.length,

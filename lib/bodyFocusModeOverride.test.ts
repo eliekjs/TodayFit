@@ -4,6 +4,7 @@ import {
   buildSubFocusOverrideAligningToBody,
   mapBodyResolutionToMode,
   modeChangeWouldOverrideDayBodyPicks,
+  shouldPromptSubFocusConflictForTrigger,
   summarizeBodyChoiceVsSubFocusConflict,
 } from "./bodyFocusModeOverride";
 
@@ -22,6 +23,12 @@ const basePrefs: ManualPreferences = {
 };
 
 describe("body focus mode override helpers", () => {
+  it("does not prompt sub-goal conflicts while choosing how body focus works", () => {
+    expect(shouldPromptSubFocusConflictForTrigger("mode_change")).toBe(false);
+    expect(shouldPromptSubFocusConflictForTrigger("body_pick")).toBe(false);
+    expect(shouldPromptSubFocusConflictForTrigger("generate")).toBe(true);
+  });
+
   it("detects when mode reseed would change day picks", () => {
     expect(modeChangeWouldOverrideDayBodyPicks(["upper", "lower"], ["push", "pull"])).toBe(
       true

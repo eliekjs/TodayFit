@@ -98,7 +98,6 @@ export function CollapsiblePreferenceSection({
         <View style={[styles.headerTextCol, styles.passThroughWrap]}>
           <Text
             style={[selectedValueStyle, { color: theme.text }, styles.headerLabelPassThrough]}
-            numberOfLines={2}
           >
             {summary}
           </Text>

@@ -44,26 +44,31 @@ import type {
   SessionFlow,
   SportFormSnapshot,
   SportPreset,
-  WeekSetupDraft,
 } from "../lib/sessionDraft";
-
-function weekSetupDraftEqual(
-  a: WeekSetupDraft | null | undefined,
-  b: WeekSetupDraft | null | undefined
-): boolean {
-  if (a === b) return true;
-  if (a == null || b == null) return false;
-  return (
-    a.enteredWeekScreen === b.enteredWeekScreen &&
-    a.step === b.step &&
-    a.selectedTrainingDays.length === b.selectedTrainingDays.length &&
-    a.selectedTrainingDays.every((d, i) => d === b.selectedTrainingDays[i]) &&
-    a.dayFocusChoiceIds.length === b.dayFocusChoiceIds.length &&
-    a.dayFocusChoiceIds.every((id, i) => id === b.dayFocusChoiceIds[i]) &&
-    (a.dayBodyFocusChoiceIds ?? []).length === (b.dayBodyFocusChoiceIds ?? []).length &&
-    (a.dayBodyFocusChoiceIds ?? []).every((id, i) => id === (b.dayBodyFocusChoiceIds ?? [])[i])
-  );
-}
+import {
+  createSessionDraft,
+  inferSessionPhase,
+  patchSessionDraft,
+  sessionFlowFromManualScope,
+  weekSetupDraftEqual,
+} from "../lib/sessionDraft";
+import {
+  loadLastEditedFiltersByMode,
+  persistModeFilterSnapshot,
+  type LastEditedFiltersByMode,
+} from "./sessionDraftStorage";
+import {
+  clearActiveWeekSnapshot,
+  loadActiveWeekSnapshot,
+  saveActiveWeekSnapshot,
+} from "./activeWeekStorage";
+import {
+  fallbackDefaultAfterRemoval,
+  loadDefaultTrainTodayPreset,
+  recoverDefaultTrainTodayPreset,
+  saveDefaultTrainTodayPreset,
+  type DefaultTrainTodayPresetRef,
+} from "../lib/defaultTrainTodayPreset";
 
 function isActiveSessionDraftPatchNoOp(
   prev: SessionDraft,
@@ -80,24 +85,6 @@ function isActiveSessionDraftPatchNoOp(
   }
   return true;
 }
-import {
-  createSessionDraft,
-  inferSessionPhase,
-  patchSessionDraft,
-  sessionFlowFromManualScope,
-} from "../lib/sessionDraft";
-import {
-  loadLastEditedFiltersByMode,
-  persistModeFilterSnapshot,
-  type LastEditedFiltersByMode,
-} from "./sessionDraftStorage";
-import {
-  fallbackDefaultAfterRemoval,
-  loadDefaultTrainTodayPreset,
-  recoverDefaultTrainTodayPreset,
-  saveDefaultTrainTodayPreset,
-  type DefaultTrainTodayPresetRef,
-} from "../lib/defaultTrainTodayPreset";
 
 /** Strip engine/cardio-conditioning sub-focus labels mismatched to primary goals; sync % maps. */
 function sanitizeManualPreferenceSubLayers(prefs: ManualPreferences): ManualPreferences {
@@ -387,6 +374,48 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [generatedWorkout?.id]);
 
+  /**
+   * The week being trained lives on the Workout tab, so it has to outlive the process.
+   * Hydrate before the first persist so an empty initial render cannot erase the snapshot.
+   */
+  const activeWeekHydratedRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void loadActiveWeekSnapshot().then((snapshot) => {
+      if (cancelled) return;
+      if (snapshot) {
+        // Seed the id first: the effect above would otherwise discard restored set logs.
+        prevGeneratedWorkoutIdRef.current = snapshot.generatedWorkout?.id ?? null;
+        setManualWeekPlan(snapshot.manualWeekPlan);
+        setSportPrepWeekPlan(snapshot.sportPrepWeekPlan);
+        setGeneratedWorkout(snapshot.generatedWorkout);
+        setManualSessionProgress(snapshot.manualSessionProgress);
+        setManualExecutionStarted(snapshot.manualExecutionStarted);
+      }
+      activeWeekHydratedRef.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeWeekHydratedRef.current) return;
+    void saveActiveWeekSnapshot({
+      manualWeekPlan,
+      sportPrepWeekPlan,
+      generatedWorkout,
+      manualSessionProgress,
+      manualExecutionStarted,
+    });
+  }, [
+    manualWeekPlan,
+    sportPrepWeekPlan,
+    generatedWorkout,
+    manualSessionProgress,
+    manualExecutionStarted,
+  ]);
+
   useEffect(() => {
     void loadLastEditedFiltersByMode().then((data) => {
       lastEditedFiltersByModeRef.current = data;
@@ -485,6 +514,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const discardActiveSession = useCallback(() => {
     clearSessionArtifacts();
     setActiveSessionDraft(null);
+    // Explicit clear covers a discard that lands before hydration has resolved.
+    activeWeekHydratedRef.current = true;
+    void clearActiveWeekSnapshot();
   }, [clearSessionArtifacts]);
 
   const startSessionForFlow = useCallback(

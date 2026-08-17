@@ -2,7 +2,6 @@ import type { ManualWeekPlan, GeneratedWorkout, WeekDayStatus } from "./types";
 import type { PlanWeekResult, PlannedDay } from "../services/sportPrepPlanner";
 import { isSportDesignatedPlannedDay } from "../services/sportPrepPlanner/sportDesignatedDay";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "./dateUtils";
-import { isSessionFlowScreen } from "./sessionDraft";
 import type { SessionFlow } from "./sessionFlowTypes";
 
 export type WeekProgressDay = {
@@ -28,8 +27,8 @@ export type WeekProgressSnapshot = {
   fullWeekRoute: string;
 };
 
-export const WEEK_PROGRESS_BANNER_HEIGHT = 56;
-export const WEEK_PROGRESS_ROUTE = "/week/progress";
+/** Workout tab — home for the week the user is currently training. */
+export const ACTIVE_WEEK_ROUTE = "/workout";
 
 function addDays(date: Date, n: number): Date {
   const d = new Date(date);
@@ -179,15 +178,32 @@ export function pickNextUpcomingDay(days: WeekProgressDay[]): WeekProgressDay | 
   return todayOrLater ?? planned[0] ?? null;
 }
 
-export function shouldShowWeekProgressBanner(
-  pathname: string,
-  snapshot: WeekProgressSnapshot | null
-): boolean {
+export type WeekDayToStart = {
+  day: WeekProgressDay;
+  /** True when the day falls on today, false when it is a later (or earlier leftover) session. */
+  isToday: boolean;
+};
+
+/**
+ * The session to offer right after a plan is saved: today's if there is one,
+ * otherwise the next one still outstanding.
+ */
+export function pickTodayOrNextDay(days: WeekProgressDay[]): WeekDayToStart | null {
+  const next = pickNextUpcomingDay(days);
+  if (!next) return null;
+  return { day: next, isToday: next.date === getTodayLocalDateString() };
+}
+
+/** True when the Workout tab has a week worth showing a badge for. */
+export function hasUnfinishedWeek(snapshot: WeekProgressSnapshot | null): boolean {
   if (!snapshot || snapshot.days.length === 0) return false;
-  if (snapshot.isWeekComplete) return false;
-  if (isSessionFlowScreen(pathname)) return false;
-  if (pathname.includes("/week/progress")) return false;
-  return true;
+  return !snapshot.isWeekComplete;
+}
+
+/** Remaining (not completed, not skipped) sessions — drives the Workout tab badge. */
+export function remainingSessionCount(snapshot: WeekProgressSnapshot | null): number {
+  if (!snapshot) return 0;
+  return snapshot.days.filter((d) => d.status === "planned").length;
 }
 
 export function markManualWeekDayByWorkoutId(

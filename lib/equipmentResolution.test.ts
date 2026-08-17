@@ -86,6 +86,12 @@ describe("resolveExerciseEquipmentRequired", () => {
 });
 
 describe("resolveEffectiveEquipment", () => {
+  it("always includes bodyweight even when the profile only lists free weights", () => {
+    const resolved = resolveEffectiveEquipment(["barbell", "dumbbells", "bench"]);
+    expect(resolved).toContain("bodyweight");
+    expect(resolved).toContain("barbell");
+  });
+
   it("adds machine when any dedicated machine station is selected", () => {
     for (const key of DEDICATED_MACHINE_EQUIPMENT) {
       const resolved = resolveEffectiveEquipment(["bodyweight", key]);

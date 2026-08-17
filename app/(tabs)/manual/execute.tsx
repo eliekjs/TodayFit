@@ -31,16 +31,16 @@ import {
   type SetLogRow,
 } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
-import { formatExerciseDisplayCue, withResolvedExerciseDescription } from "../../../lib/exerciseDisplayCue";
+import { resolveExerciseSetupText, withResolvedExerciseDescription } from "../../../lib/exerciseDisplayCue";
 import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
 import {
+  ACTIVE_WEEK_ROUTE,
   markManualWeekDayByWorkoutId,
   markSportWeekDayByWorkoutId,
-  WEEK_PROGRESS_ROUTE,
 } from "../../../lib/weekProgress";
 import { getBlockDisplayTitle } from "../../../lib/blockGoalDisplay";
 
@@ -340,7 +340,7 @@ export default function ExecuteScreen() {
     if (!isWeekFlow) {
       discardActiveSession();
     }
-    router.replace(isWeekFlow ? WEEK_PROGRESS_ROUTE : "/history/complete");
+    router.replace((isWeekFlow ? ACTIVE_WEEK_ROUTE : "/history/complete") as never);
   };
 
   const onSaveForLater = () => {
@@ -391,7 +391,7 @@ export default function ExecuteScreen() {
               completed: false,
               setsCompleted: 0,
             };
-            const setupText = formatExerciseDisplayCue(
+            const setupText = resolveExerciseSetupText(
               withResolvedExerciseDescription(exercise, getCuratedExerciseDescription)
             );
             const isRounds = isTimeBasedPrescription(exercise);

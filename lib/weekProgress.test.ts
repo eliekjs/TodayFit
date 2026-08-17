@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACTIVE_WEEK_ROUTE,
   buildManualWeekProgress,
   buildWeekProgressSnapshot,
+  hasUnfinishedWeek,
   markManualWeekDayByWorkoutId,
   pickNextUpcomingDay,
-  shouldShowWeekProgressBanner,
-  WEEK_PROGRESS_ROUTE,
+  pickTodayOrNextDay,
+  remainingSessionCount,
   type WeekProgressDay,
 } from "./weekProgress";
+import { getTodayLocalDateString } from "./dateUtils";
 import type { ManualWeekPlan, GeneratedWorkout } from "./types";
 
 function makeWorkout(id: string, focus: string[] = ["Strength"]): GeneratedWorkout {
@@ -150,10 +153,38 @@ describe("buildWeekProgressSnapshot", () => {
   });
 });
 
-describe("shouldShowWeekProgressBanner", () => {
+describe("pickTodayOrNextDay", () => {
+  it("flags today's session when the week has one", () => {
+    const todayIso = getTodayLocalDateString();
+    const target = pickTodayOrNextDay([
+      day({ date: "2026-01-01", status: "completed" }),
+      day({ date: todayIso, status: "planned", title: "Upper Push" }),
+    ]);
+    expect(target?.isToday).toBe(true);
+    expect(target?.day.title).toBe("Upper Push");
+  });
+
+  it("falls back to the next outstanding session when today has none", () => {
+    const target = pickTodayOrNextDay([
+      day({ date: "2999-03-01", status: "planned", title: "Lower" }),
+    ]);
+    expect(target?.isToday).toBe(false);
+    expect(target?.day.title).toBe("Lower");
+  });
+
+  it("returns null once every session is done", () => {
+    expect(pickTodayOrNextDay([day({ date: "2026-07-07", status: "completed" })])).toBeNull();
+  });
+});
+
+describe("Workout tab badge helpers", () => {
   const activeSnapshot = buildManualWeekProgress({
     weekStartDate: "2026-07-07",
-    days: [{ date: "2026-07-07", workout: makeWorkout("w1") }],
+    days: [
+      { date: "2026-07-07", status: "completed", workout: makeWorkout("w1") },
+      { date: "2026-07-09", workout: makeWorkout("w2") },
+      { date: "2026-07-11", status: "skipped", workout: makeWorkout("w3") },
+    ],
   });
 
   const completeSnapshot = buildManualWeekProgress({
@@ -161,23 +192,19 @@ describe("shouldShowWeekProgressBanner", () => {
     days: [{ date: "2026-07-07", status: "completed", workout: makeWorkout("w1") }],
   });
 
-  it("shows on Today tab when week is in progress", () => {
-    expect(shouldShowWeekProgressBanner("/", activeSnapshot)).toBe(true);
-    expect(shouldShowWeekProgressBanner("/library", activeSnapshot)).toBe(true);
+  it("counts only sessions still planned", () => {
+    expect(remainingSessionCount(activeSnapshot)).toBe(1);
+    expect(remainingSessionCount(completeSnapshot)).toBe(0);
+    expect(remainingSessionCount(null)).toBe(0);
   });
 
-  it("hides on flow screens and the progress page", () => {
-    expect(shouldShowWeekProgressBanner("/manual/week", activeSnapshot)).toBe(false);
-    expect(shouldShowWeekProgressBanner("/manual/execute", activeSnapshot)).toBe(false);
-    expect(shouldShowWeekProgressBanner("/sport-mode/recommendation", activeSnapshot)).toBe(false);
-    expect(shouldShowWeekProgressBanner(WEEK_PROGRESS_ROUTE, activeSnapshot)).toBe(false);
+  it("treats a finished or absent week as nothing to badge", () => {
+    expect(hasUnfinishedWeek(activeSnapshot)).toBe(true);
+    expect(hasUnfinishedWeek(completeSnapshot)).toBe(false);
+    expect(hasUnfinishedWeek(null)).toBe(false);
   });
 
-  it("hides when the week is fully complete", () => {
-    expect(shouldShowWeekProgressBanner("/", completeSnapshot)).toBe(false);
-  });
-
-  it("hides when there is no snapshot", () => {
-    expect(shouldShowWeekProgressBanner("/", null)).toBe(false);
+  it("routes the active week to the Workout tab", () => {
+    expect(ACTIVE_WEEK_ROUTE).toBe("/workout");
   });
 });

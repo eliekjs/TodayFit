@@ -1019,6 +1019,17 @@ export const EXERCISES_BUILTIN: ExerciseDefinition[] = [
     regressions: ["oh_press"],
     progressions: [],
   },
+  {
+    id: "medicine_ball_chest_pass",
+    name: "Medicine Ball Chest Pass",
+    muscles: ["push", "core"],
+    modalities: ["power", "conditioning"],
+    equipment: ["bodyweight"],
+    contraindications: ["shoulder"],
+    tags: ["medicine ball", "explosive", "chest", "plyometric"],
+    regressions: [],
+    progressions: ["rebound_chest_pass"],
+  },
 
   // ----- Pause variations -----
   {

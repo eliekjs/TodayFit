@@ -126,10 +126,13 @@ export interface ResolvedWorkoutConstraints {
    */
   allowed_lower_body_emphasis?: "quad" | "posterior" | null;
   /**
-   * Muscle-mode day emphasis (chest/back/shoulders/arms/glutes). Working exercises must
-   * match this split in addition to allowed_movement_families.
+   * Muscle-mode day emphasis (chest/back/shoulders/arms/glutes/legs/core).
+   * Working exercises must match this split in addition to allowed_movement_families.
+   * Prefer `allowed_muscle_emphases` when a combo day has more than one.
    */
   allowed_muscle_emphasis?: import("../../../lib/splitMuscleMatching").MuscleSplitEmphasis | null;
+  /** Combo Muscle days (e.g. Chest + Back): match any listed emphasis. */
+  allowed_muscle_emphases?: import("../../../lib/splitMuscleMatching").MuscleSplitEmphasis[];
   /** Secondary goal mobility: min mobility/stretch exercises in cooldown. */
   min_cooldown_mobility_exercises: number;
   /** Superset pairing rules (forbidden pairs, preferred pairs). */

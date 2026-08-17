@@ -70,7 +70,10 @@ export function inferPhase1Movement(input: ExerciseInferenceInput): Phase1Moveme
       addFine(patterns, "thoracic_mobility");
     } else if (/\b(shoulder|scap|face_pull|wall_slide|y_raise|t_raise)\b/.test(b)) {
       addFine(patterns, "shoulder_stability");
-    } else if (/\b(hip|pigeon|90_90|ankle|dowel)\b/.test(b)) {
+    } else if (/\b(cossack|tibialis|hip|pigeon|90_90|ankle|glute|leg_swing|quad|hamstring|calf|frog)\b/.test(b)) {
+      // Lower mobility/activation — leave fine patterns empty so Phase 5 can infer
+      // regional targets (avoid stamping thoracic_mobility → thoracic_spine).
+    } else if (/\b(dowel)\b/.test(b)) {
       addFine(patterns, "thoracic_mobility");
     } else {
       addFine(patterns, "thoracic_mobility");
@@ -78,7 +81,7 @@ export function inferPhase1Movement(input: ExerciseInferenceInput): Phase1Moveme
     return {
       primary_movement_family: "mobility",
       secondary_movement_families: secondaries,
-      movement_patterns: patterns.length ? patterns : ["thoracic_mobility"],
+      movement_patterns: patterns,
     };
   }
 

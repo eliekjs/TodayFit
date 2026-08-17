@@ -327,4 +327,144 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     expect(squatPage.suggestions[0]?.id).not.toBe(pressPage.suggestions[0]?.id);
     expect(["front_squat", "goblet_squat", "lunge"]).toContain(squatPage.suggestions[0]?.id);
   });
+
+  it("keeps a treadmill walk regression and distinct machines ahead of treadmill pacing variants", async () => {
+    const cardio = [
+      makeDef("treadmill_run", {
+        name: "Treadmill Run",
+        modalities: ["conditioning"],
+        equipment: ["treadmill"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+        regressions: ["treadmill_incline_walk"],
+      }),
+      makeDef("treadmill_incline_walk", {
+        name: "Incline Treadmill Walk",
+        modalities: ["conditioning"],
+        equipment: ["treadmill"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("treadmill_intervals", {
+        name: "Treadmill Intervals",
+        modalities: ["conditioning"],
+        equipment: ["treadmill"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("zone2_treadmill", {
+        name: "Zone 2 Treadmill / Run",
+        modalities: ["conditioning"],
+        equipment: ["treadmill"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("elliptical", {
+        name: "Elliptical",
+        modalities: ["conditioning"],
+        equipment: ["elliptical"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("rower", {
+        name: "Rower",
+        modalities: ["conditioning"],
+        equipment: ["rower"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+    ];
+    mockGetExercise.mockResolvedValue(cardio[0]);
+    mockListExercises.mockResolvedValue(cardio);
+
+    const { suggestions } = await getSwapSuggestionsPage(
+      "treadmill_run",
+      {
+        swapPoolExerciseIds: [
+          "treadmill_incline_walk",
+          "treadmill_intervals",
+          "zone2_treadmill",
+          "elliptical",
+          "rower",
+        ],
+        workoutTier: "intermediate",
+      },
+      0
+    );
+
+    const ids = suggestions.map((s) => s.id);
+    expect(ids[0]).toBe("treadmill_incline_walk");
+    expect(ids).not.toContain("treadmill_intervals");
+    expect(ids).not.toContain("zone2_treadmill");
+    expect(ids).toEqual(expect.arrayContaining(["elliptical", "rower"]));
+  });
+
+  it("does not lead bike swaps with other bike pacing variants when distinct machines exist", async () => {
+    const cardio = [
+      makeDef("zone2_bike", {
+        name: "Zone 2 Bike",
+        modalities: ["conditioning"],
+        equipment: ["assault_bike"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("assault_bike_steady", {
+        name: "Assault Bike Steady",
+        modalities: ["conditioning"],
+        equipment: ["assault_bike"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("assault_bike_intervals", {
+        name: "Assault Bike Intervals",
+        modalities: ["conditioning"],
+        equipment: ["assault_bike"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("rower", {
+        name: "Rower",
+        modalities: ["conditioning"],
+        equipment: ["rower"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("ski_erg", {
+        name: "Ski Erg",
+        modalities: ["conditioning"],
+        equipment: ["ski_erg"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+      makeDef("elliptical", {
+        name: "Elliptical",
+        modalities: ["conditioning"],
+        equipment: ["elliptical"],
+        muscles: ["legs"],
+        movement_pattern: "locomotion",
+      }),
+    ];
+    mockGetExercise.mockResolvedValue(cardio[0]);
+    mockListExercises.mockResolvedValue(cardio);
+
+    const { suggestions } = await getSwapSuggestionsPage(
+      "zone2_bike",
+      {
+        swapPoolExerciseIds: [
+          "assault_bike_steady",
+          "assault_bike_intervals",
+          "rower",
+          "ski_erg",
+          "elliptical",
+        ],
+        workoutTier: "intermediate",
+      },
+      0
+    );
+
+    const ids = suggestions.map((s) => s.id);
+    expect(ids).not.toContain("assault_bike_steady");
+    expect(ids).not.toContain("assault_bike_intervals");
+    expect(ids).toEqual(expect.arrayContaining(["rower", "ski_erg", "elliptical"]));
+  });
 });

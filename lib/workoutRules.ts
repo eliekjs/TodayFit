@@ -7,9 +7,11 @@ import { getSessionRedundancyFamilyId } from "./sessionExerciseRedundancy";
 
 export {
   GLUTE_BRIDGE_HIP_THRUST_FAMILY,
+  KETTLEBELL_SWING_FAMILY,
   getSessionRedundancyFamilyId,
   isExerciseAvailableForSession,
   isGluteBridgeOrHipThrustSlug,
+  isKettlebellSwingSlug,
   sessionRedundancyFamilyAlreadyUsed,
 } from "./sessionExerciseRedundancy";
 
@@ -134,7 +136,8 @@ const BATTLE_ROPE_FAMILY_IDS = new Set([
 /**
  * Returns a cluster id for "extremely similar" exercises. Same cluster => avoid 3+ in a row.
  * Deadlift variants (including RDL, trap bar, deficit, snatch grip) share "deadlift_family";
- * battle rope variants share "battle_rope_family"; others use their own id.
+ * battle rope variants share "battle_rope_family"; session max-one families (glute bridge/hip
+ * thrust, kettlebell swings) share their redundancy ids; others use their own id.
  */
 export function getSimilarExerciseClusterId(exercise: { id: string }): string {
   const id = exercise.id.toLowerCase().replace(/\s/g, "_");

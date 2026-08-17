@@ -179,6 +179,10 @@ export function inferPhase5MobilityStretchFromInput(
   if (b.includes("cossack")) {
     addMob(mobility, "hamstrings");
     addMob(mobility, "hip_flexors");
+    addMob(mobility, "glutes");
+  }
+  if (b.includes("tibialis") || b.includes("shin_raise") || /(^|_)toe_raise(_|$)/.test(b)) {
+    addMob(mobility, "calves");
   }
 
   // --- Tag hints (seed strings like "hip mobility") ---
@@ -191,8 +195,9 @@ export function inferPhase5MobilityStretchFromInput(
     if (t.includes("shoulder") && (t.includes("mobility") || t.includes("stability"))) addMob(mobility, "shoulders");
   }
 
-  // --- Pattern fallback (Phase 1 patterns) ---
-  if (patterns.has("thoracic_mobility")) {
+  // --- Pattern fallback (Phase 1 patterns) — only when nothing regional matched yet.
+  // Avoid stamping thoracic_spine onto lower drills that Phase 1 mislabeled thoracic_mobility.
+  if (mobility.size === 0 && stretch.size === 0 && patterns.has("thoracic_mobility")) {
     addMob(mobility, "thoracic_spine");
   }
   if (patterns.has("shoulder_stability")) {

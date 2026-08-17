@@ -3,6 +3,7 @@ import {
   buildMergedGoalSubFocusSlugWeights,
   commitSubFocusPctEdit,
   equalIntegerPctsForLabels,
+  filterSubFocusMapsToFocusLabels,
   normalizeSubFocusPctRecord,
   redistributeSubFocusPctsOnRemoval,
 } from "./subFocusWeights";
@@ -66,9 +67,9 @@ describe("subFocusWeights", () => {
     });
   });
 
-  it("buildMerged resolves adaptive display labels to canonical sub-focus keys", () => {
+  it("buildMerged resolves adaptive/legacy display labels via canonical match", () => {
     const { goal_sub_focus } = buildMergedGoalSubFocusSlugWeights({
-      labelsForSubFocusMerge: ["Build Strength"],
+      labelsForSubFocusMerge: ["Build Muscle (Hypertrophy)"],
       subFocusByGoal: {
         "Build muscle": ["Glutes"],
       },
@@ -76,9 +77,21 @@ describe("subFocusWeights", () => {
     expect(goal_sub_focus["muscle"]).toContain("glutes");
   });
 
-  it("buildMerged includes subFocusByGoal keys not listed in labelsForSubFocusMerge", () => {
+  it("buildMerged excludes other goals when labelsForSubFocusMerge is set (exclusive day)", () => {
     const { goal_sub_focus } = buildMergedGoalSubFocusSlugWeights({
       labelsForSubFocusMerge: ["Build Strength"],
+      subFocusByGoal: {
+        "Build Strength": ["Squat"],
+        "Improve Endurance": ["Zone 2 / Long steady"],
+      },
+    });
+    expect(goal_sub_focus["strength"]).toContain("squat");
+    expect(goal_sub_focus["endurance"]).toBeUndefined();
+  });
+
+  it("buildMerged includes all subFocusByGoal keys when labelsForSubFocusMerge is empty", () => {
+    const { goal_sub_focus } = buildMergedGoalSubFocusSlugWeights({
+      labelsForSubFocusMerge: [],
       subFocusByGoal: {
         "Build Strength": ["Squat"],
         "Improve Endurance": ["Hills"],
@@ -86,5 +99,21 @@ describe("subFocusWeights", () => {
     });
     expect(goal_sub_focus["strength"]).toContain("squat");
     expect(goal_sub_focus["endurance"]).toContain("hills");
+  });
+
+  it("filterSubFocusMapsToFocusLabels drops non-featured goals", () => {
+    const filtered = filterSubFocusMapsToFocusLabels(
+      {
+        "Build Strength": ["Squat"],
+        "Improve Endurance": ["Zone 2 / Long steady"],
+      },
+      ["Build Strength"],
+      {
+        "Build Strength": { Squat: 100 },
+        "Improve Endurance": { "Zone 2 / Long steady": 100 },
+      }
+    );
+    expect(filtered.subFocusByGoal).toEqual({ "Build Strength": ["Squat"] });
+    expect(filtered.subFocusPctByGoal).toEqual({ "Build Strength": { Squat: 100 } });
   });
 });

@@ -115,6 +115,11 @@ import {
   mergeSportBiasIntoWarmupFocusBodyParts,
   exerciseWarmupTargetsOverlap,
 } from "./ontologyScoring";
+import {
+  deriveMobilityRegionalFamilies,
+  mobilityRecoveryPassesBodyFocus,
+} from "./mobilityBodyFocusFamilies";
+import { filterByUnusedWarmupActivationFamilies } from "./warmupActivationFamilies";
 import { buildHistoryContextFromLegacy, type TrainingHistoryContext } from "./historyTypes";
 import {
   computeHistoryScoreComponents,
@@ -198,7 +203,7 @@ import {
   buildBlockIntentProfile,
   hypertrophyPrimaryExcludesConditioning,
 } from "./blockIntentProfile";
-import { applySessionBlockPresentation } from "./sessionBlockPresentation";
+import { applySessionBlockPresentation, orderSessionBlocks } from "./sessionBlockPresentation";
 import {
   buildConditioningIntentPool,
   conditioningPickAvoidIds,
@@ -564,6 +569,12 @@ function regenerationPenaltyExerciseIds(input: GenerateWorkoutInput): Set<string
       for (const id of h.exercise_ids) out.add(id);
     }
   }
+  // Week regenerate often passes avoid ids only via training_history (historySources), not recent_history.
+  for (const s of input.training_history?.recent_sessions ?? []) {
+    if (s.modality === "regeneration_penalty") {
+      for (const id of s.exercise_ids ?? []) out.add(id);
+    }
+  }
   return out;
 }
 
@@ -613,10 +624,22 @@ function getEffectiveFamiliesForExercise(e: Exercise): string[] {
   const primary = e.primary_movement_family?.toLowerCase().replace(/\s/g, "_");
   if (primary) {
     const secondaries = (e.secondary_movement_families ?? []).map((s) => s.toLowerCase().replace(/\s/g, "_"));
-    return [primary, ...secondaries].filter((x, i, a) => a.indexOf(x) === i);
+    const base = [primary, ...secondaries].filter((x, i, a) => a.indexOf(x) === i);
+    // Mobility/recovery are labeled "mobility" in Phase 1; append regional families so
+    // body-focus pool gates can still admit lower/upper activation drills.
+    if (primary === "mobility" || e.modality === "mobility" || e.modality === "recovery") {
+      for (const f of deriveMobilityRegionalFamilies(e)) {
+        if (!base.includes(f)) base.push(f);
+      }
+    }
+    return base;
   }
   const pattern = (e.movement_pattern ?? "").toLowerCase();
   const muscles = new Set((e.muscle_groups ?? []).map((m) => m.toLowerCase()));
+  if (e.modality === "mobility" || e.modality === "recovery") {
+    const regional = deriveMobilityRegionalFamilies(e);
+    return regional.length > 0 ? regional : ["core"];
+  }
   if (pattern === "push" || muscles.has("chest") || muscles.has("triceps") || muscles.has("push") || muscles.has("shoulders")) return ["upper_push"];
   if (pattern === "pull" || muscles.has("back") || muscles.has("biceps") || muscles.has("pull") || muscles.has("lats")) return ["upper_pull"];
   if (pattern === "squat" || pattern === "hinge" || pattern === "locomotion") {
@@ -627,20 +650,6 @@ function getEffectiveFamiliesForExercise(e: Exercise): string[] {
   if (pattern === "carry") return muscles.has("core") && !muscles.has("legs") ? ["core"] : ["lower_body"];
   if (pattern === "rotate") return ["core"];
   return ["lower_body"];
-}
-
-/**
- * When the user sets a body-part focus, mobility/recovery entries must match those movement
- * families or be core/trunk prep (common on upper/lower days). Conditioning stays unrestricted
- * so cardio/HIIT blocks still have options.
- */
-function mobilityRecoveryPassesBodyFocus(
-  families: string[],
-  allowedFamilies: NonNullable<ResolvedWorkoutConstraints["allowed_movement_families"]>
-): boolean {
-  if (families.some((f) => allowedFamilies.some((af) => af === f))) return true;
-  const hasNonCoreFocus = allowedFamilies.some((f) => f !== "core");
-  return hasNonCoreFocus && families.includes("core");
 }
 
 /**
@@ -673,10 +682,19 @@ export function filterByConstraintsForPool(
     const shape = toConstraintEligibilityShape(e);
     if (!isExerciseAllowedByInjuries(shape, constraints)) return false;
     if (!hasBodyFocus) return true;
-    if (e.modality === "conditioning") return true;
-    if (e.modality === "mobility" || e.modality === "recovery") {
+    if (e.modality === "conditioning") {
+      // Cardio machines stay available. Loaded "conditioning" moves (thrusters, swings)
+      // must still honor a Muscle-day hard gate so Chest days are not full of burpees.
+      const muscleGate =
+        constraints.allowed_muscle_emphasis ||
+        (constraints.allowed_muscle_emphases?.length ?? 0) > 0;
+      if (!muscleGate) return true;
       const families = getEffectiveFamiliesForExercise(e);
-      return mobilityRecoveryPassesBodyFocus(families, allowedFamilies!);
+      if (families.includes("conditioning")) return true;
+      return matchesBodyPartFocus(toExerciseWithQualities(e as GeneratorExercise), constraints);
+    }
+    if (e.modality === "mobility" || e.modality === "recovery") {
+      return mobilityRecoveryPassesBodyFocus(e, allowedFamilies!);
     }
     return matchesBodyPartFocus(toExerciseWithQualities(e as GeneratorExercise), constraints);
   });
@@ -748,6 +766,9 @@ export function filterByHardConstraints(
   const equipmentSet = new Set(
     input.available_equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"))
   );
+  // Bodyweight is always available for Activation / mobility prep (and bodyweight main work).
+  // Gym profiles often list only barbells/machines and omit bodyweight explicitly.
+  equipmentSet.add("bodyweight");
   const avoidTags = input.style_prefs?.avoid_tags ?? [];
   const userWorkoutTier = input.style_prefs?.user_level ?? "intermediate";
   const includeCreativeVariations = input.style_prefs?.include_creative_variations === true;
@@ -823,6 +844,7 @@ export function getHardConstraintRejectReason(
   const equipmentSet = new Set(
     input.available_equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"))
   );
+  equipmentSet.add("bodyweight");
   const avoidTags = input.style_prefs?.avoid_tags ?? [];
   const userWorkoutTier = input.style_prefs?.user_level ?? "intermediate";
   const includeCreativeVariations = input.style_prefs?.include_creative_variations === true;
@@ -2815,19 +2837,26 @@ function buildWarmup(
   fatigueState?: FatigueState,
   historyContext?: TrainingHistoryContext,
   strengthProfile?: SubFocusProfile | null,
-  preferredTargetsFromIntent: string[] = []
+  preferredTargetsFromIntent: string[] = [],
+  /** Injury-safe pool when body-focus or sport filters wipe mobility from `exercises`. */
+  fallbackPool: Exercise[] = []
 ): WorkoutBlock {
+  const collectWarmupBase = (src: Exercise[]) =>
+    src.filter(
+      (e) =>
+        (e.modality === "mobility" || e.modality === "recovery") &&
+        isExerciseAvailableForSession(e.id, used) &&
+        e.id !== "breathing_cooldown"
+    );
   // Activation and joint prep only (no conditioning in warmup).
-  const basePool = exercises.filter(
-    (e) =>
-      (e.modality === "mobility" || e.modality === "recovery") &&
-      isExerciseAvailableForSession(e.id, used) &&
-      e.id !== "breathing_cooldown"
-  );
+  let basePool = collectWarmupBase(exercises);
+  if (basePool.length === 0 && fallbackPool.length > 0) {
+    basePool = collectWarmupBase(fallbackPool);
+  }
   let pool = basePool.filter((e) => isWarmupEligibleEquipment(e.equipment_required));
   const speedPowerTemplate = resolveSpeedPowerSessionTemplate(input);
   if (speedPowerTemplate.warmupDecelPrep) {
-    const codPrepPool = exercises.filter((e) => {
+    const codPrepPool = [...exercises, ...fallbackPool].filter((e) => {
       if (!isExerciseAvailableForSession(e.id, used) || e.id === "breathing_cooldown") return false;
       if (!isWarmupEligibleEquipment(e.equipment_required)) return false;
       if (!(e.modality === "mobility" || e.modality === "recovery" || e.modality === "power")) {
@@ -2913,28 +2942,58 @@ function buildWarmup(
   const count = input.duration_minutes <= 25 ? 1 : input.duration_minutes <= 40 ? 2 : 3;
   const movementCounts = new Map<string, number>();
   const recentIds = new Set(input.recent_history?.flatMap((h) => h.exercise_ids) ?? []);
-  const warmupTargetCount = Math.min(count, finalPool.length || 2);
+  // Always aim for at least one activation pick when any candidate exists.
+  const warmupTargetCount = Math.max(1, Math.min(count, finalPool.length || count));
   // Keep warmup picks random across the full relevant pool; score bonuses still
   // prioritize primary intent targets without hard-locking the candidate set.
+  // Pick one-at-a-time with activation-family caps so the same pair (e.g. Cossack +
+  // Tibialis) cannot monopolize every lower-body Activation block.
   const candidatePoolForWarmup = finalPool;
+  const chosen: Exercise[] = [];
+  const warmupSelectOpts = {
+    blockType: "warmup" as const,
+    preferredWarmupCooldownTargets: preferredWarmupTargets,
+    sessionMovementPatternCounts: movementCounts,
+    sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
+    historyContext,
+    sessionUsedIds: used,
+  };
+  for (let i = 0; i < warmupTargetCount; i++) {
+    const familyFiltered = filterByUnusedWarmupActivationFamilies(
+      candidatePoolForWarmup.filter((e) => isExerciseAvailableForSession(e.id, used) && !chosen.some((c) => c.id === e.id)),
+      [...used, ...chosen.map((c) => c.id)]
+    );
+    const pickPool = familyFiltered.length > 0 ? familyFiltered : candidatePoolForWarmup;
+    const { exercises: picked } = selectExercises(
+      pickPool,
+      input,
+      recentIds,
+      movementCounts,
+      1,
+      rng,
+      fatigueState,
+      warmupSelectOpts
+    );
+    const next = picked[0];
+    if (!next) break;
+    chosen.push(next);
+    used.add(next.id);
+  }
 
-  const { exercises: chosen } = selectExercises(
-    candidatePoolForWarmup,
-    input,
-    recentIds,
-    movementCounts,
-    warmupTargetCount,
-    rng,
-    fatigueState,
-    {
-      blockType: "warmup",
-      preferredWarmupCooldownTargets: preferredWarmupTargets,
-      sessionMovementPatternCounts: movementCounts,
-      sessionHasBilateralLowerBody: (movementCounts.get("squat") ?? 0) + (movementCounts.get("hinge") ?? 0) > 0,
-      historyContext,
-      sessionUsedIds: used,
+  // Last-resort: never ship an empty Activation when warmup-eligible mobility exists anywhere.
+  if (chosen.length === 0) {
+    const rescueSources = [finalPool, equipmentPool, basePool, collectWarmupBase(fallbackPool)];
+    for (const rescue of rescueSources) {
+      const eligible = rescue.filter(
+        (e) => isWarmupEligibleEquipment(e.equipment_required) && isExerciseAvailableForSession(e.id, used)
+      );
+      if (eligible.length === 0) continue;
+      const pick = eligible[Math.floor(rng() * eligible.length)]!;
+      chosen.push(pick);
+      used.add(pick.id);
+      break;
     }
-  );
+  }
 
   const items: WorkoutItem[] = chosen.map((e) => {
     used.add(e.id);
@@ -6775,10 +6834,12 @@ function buildIntervalsHIITMain(
   });
   if (!pool.length) return [];
 
-  // Use conditioning duration minutes for a coherent time-based structure.
+  // Use a portion of the session fill budget for HIIT intervals; remaining time becomes steady cardio.
+  const sessionFill = getPrimaryConditioningFillTargetMinutes(input, 0);
   const condMins =
-    getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
-    Math.max(15, Math.round(input.duration_minutes / 2));
+    input.duration_minutes >= 45
+      ? Math.max(12, Math.round(sessionFill * 0.45))
+      : Math.max(10, Math.round(sessionFill * 0.65));
 
   const drillCount = input.duration_minutes >= 45 ? 2 : 1;
   const chosen: Exercise[] = [];
@@ -6847,13 +6908,96 @@ function buildIntervalsHIITMain(
       used,
       rng,
       conditioningProfile,
-      ["zone2_aerobic_base", "zone2_long_steady"]
+      ["zone2_aerobic_base", "zone2_long_steady"],
+      { fillRemainingSession: true }
     );
   }
   return blocks;
 }
 
+/** Endurance / conditioning primary days should fill the clock with cardio work. */
+function isCardioPrimaryGoal(goal: string | undefined): boolean {
+  return goal === "endurance" || goal === "conditioning";
+}
+
+/**
+ * Secondary goals that claim substantial non-conditioning main work (strength, power, hypertrophy, etc.).
+ * Mobility / recovery / joint-health secondaries do not compete for the main time budget.
+ */
+function hasCompetingNonCardioSecondaryGoals(input: GenerateWorkoutInput): boolean {
+  const nonCompeting = new Set([
+    "endurance",
+    "conditioning",
+    "mobility",
+    "recovery",
+    "recovery_mobility",
+    "joint_health",
+  ]);
+  return (input.secondary_goals ?? []).some((g) => !nonCompeting.has(String(g)));
+}
+
+/** Typical warmup + cooldown reserve so conditioning fill fits selected duration. */
+function getCardioPrimaryShellReserveMinutes(durationMinutes: number): number {
+  if (durationMinutes <= 20) return 8;
+  if (durationMinutes <= 30) return 10;
+  if (durationMinutes <= 45) return 12;
+  if (durationMinutes <= 60) return 14;
+  return 16;
+}
+
+/**
+ * Target total conditioning minutes when endurance/conditioning is the day's main (or only) goal.
+ * Fills session duration minus warmup/cooldown, and a reserve when competing secondary goals exist.
+ */
+function getPrimaryConditioningFillTargetMinutes(
+  input: GenerateWorkoutInput,
+  alreadyAllocatedMinutes = 0
+): number {
+  const duration = input.duration_minutes ?? 45;
+  const shell = getCardioPrimaryShellReserveMinutes(duration);
+  const competingReserve = hasCompetingNonCardioSecondaryGoals(input)
+    ? Math.min(22, Math.max(12, Math.round(duration * 0.28)))
+    : 0;
+  const fill = duration - shell - competingReserve - Math.max(0, alreadyAllocatedMinutes);
+  return Math.max(10, fill);
+}
+
+/**
+ * Split a conditioning time budget into multiple blocks so longer endurance sessions are not
+ * a single continuous piece. Prefers ~12–20 min chunks (2–4 blocks).
+ */
+function planConditioningBlockMinuteSplits(totalMinutes: number, sessionDuration: number): number[] {
+  if (totalMinutes <= 0) return [];
+  if (totalMinutes < 22) return [totalMinutes];
+
+  const idealChunk = sessionDuration >= 60 ? 18 : 15;
+  let count = Math.max(2, Math.min(4, Math.round(totalMinutes / idealChunk)));
+  if (totalMinutes >= 28) count = Math.max(2, count);
+  if (totalMinutes >= 50) count = Math.max(3, count);
+
+  const splits: number[] = [];
+  let remaining = totalMinutes;
+  for (let i = 0; i < count; i++) {
+    const left = count - i;
+    if (left === 1) {
+      splits.push(remaining);
+      break;
+    }
+    const maxForThis = remaining - 8 * (left - 1);
+    const target = Math.round(remaining / left);
+    const chunk = Math.max(8, Math.min(maxForThis, Math.min(25, target)));
+    splits.push(chunk);
+    remaining -= chunk;
+  }
+  return splits.filter((m) => m > 0);
+}
+
 function getConditioningIntentMainMinutes(input: GenerateWorkoutInput): number {
+  // Cardio-primary days: fill selected duration (leave a small accessory pocket on longer sessions).
+  if (isCardioPrimaryGoal(input.primary_goal)) {
+    const accessoryReserve = input.duration_minutes >= 45 ? 8 : 0;
+    return getPrimaryConditioningFillTargetMinutes(input, accessoryReserve);
+  }
   // Warm-up + cool-down take a chunk; reserve a clear, format-specific amount.
   if (input.duration_minutes === 20) return 12;
   if (input.duration_minutes === 30) return 20;
@@ -6973,35 +7117,51 @@ function buildZone2SustainedMain(
   fatigueVolumeScale?: number
 ): WorkoutBlock[] {
   const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
-  const mainMins = getConditioningIntentMainMinutes(input);
+  const totalMainMins = getConditioningIntentMainMinutes(input);
+  const minuteSplits = planConditioningBlockMinuteSplits(totalMainMins, input.duration_minutes ?? 45);
 
   const pool = buildConditioningIntentPool(exercises, {
     intentSlugs: ["zone2_aerobic_base"],
     used,
     overlayFilter: conditioningProfile.overlayFilter,
   });
-  const pickPool = pool.length ? pool : exercises.filter((e) => e.modality === "conditioning" && isExerciseAvailableForSession(e.id, used));
+  const pickPoolBase = pool.length
+    ? pool
+    : exercises.filter((e) => e.modality === "conditioning" && isExerciseAvailableForSession(e.id, used));
 
-  const c = pickBestFromPool(pickPool, rng, conditioningPickContext(input, used), ["zone2_aerobic_base"]);
-  if (!c) return [];
-  used.add(c.id);
+  const blocks: WorkoutBlock[] = [];
+  const pickCtx = conditioningPickContext(input, used);
 
-  if (!isTrueSteadyStateZone2Cardio(c)) {
-    const interval = getNonZone2ConditioningIntervalStructure(mainMins);
-    const p = getPrescription(
-      c,
-      "conditioning",
-      input.energy_level,
-      input.primary_goal,
-      undefined,
-      undefined,
-      input.style_prefs?.user_level
-    );
-    return [
-      {
+  for (let si = 0; si < minuteSplits.length; si++) {
+    const mainMins = minuteSplits[si]!;
+    const pickPool = pickPoolBase.filter((e) => isExerciseAvailableForSession(e.id, used));
+    if (!pickPool.length) break;
+
+    // Prefer variety picks; fall back to any remaining pool member so multi-block fill does not abort.
+    const c =
+      pickBestFromPool(pickPool, rng, pickCtx, ["zone2_aerobic_base"]) ??
+      pickBestFromPool(pickPool, rng, pickCtx);
+    if (!c) break;
+    used.add(c.id);
+
+    if (!isTrueSteadyStateZone2Cardio(c)) {
+      const interval = getNonZone2ConditioningIntervalStructure(mainMins);
+      const p = getPrescription(
+        c,
+        "conditioning",
+        input.energy_level,
+        input.primary_goal,
+        undefined,
+        undefined,
+        input.style_prefs?.user_level
+      );
+      blocks.push({
         block_type: "conditioning",
         format: "circuit",
-        title: `Conditioning intervals${overlayLabel ? ` (${overlayLabel})` : ""}`,
+        title:
+          si === 0
+            ? `Conditioning intervals${overlayLabel ? ` (${overlayLabel})` : ""}`
+            : `Conditioning intervals (${si + 1})${overlayLabel ? ` (${overlayLabel})` : ""}`,
         reasoning:
           "Selected modality is not true steady Zone 2, so conditioning is prescribed as short interval rounds.",
         items: [
@@ -7017,43 +7177,49 @@ function buildZone2SustainedMain(
           },
         ],
         estimated_minutes: mainMins,
-      },
-    ];
+      });
+      continue;
+    }
+
+    const sets = mainMins >= 30 ? 2 : 1;
+    const timePerSetSeconds = sets === 2 ? Math.floor((mainMins / 2) * 60) : Math.floor(mainMins * 60);
+    const restSeconds = sets === 2 ? 60 : 0;
+
+    const p = getPrescription(
+      c,
+      "conditioning",
+      input.energy_level,
+      input.primary_goal,
+      undefined,
+      undefined,
+      input.style_prefs?.user_level
+    );
+
+    blocks.push({
+      block_type: "conditioning",
+      format: "straight_sets",
+      title:
+        si === 0
+          ? `Zone 2 sustained effort${overlayLabel ? ` (${overlayLabel})` : ""}`
+          : `Zone 2 sustained effort (${si + 1})${overlayLabel ? ` (${overlayLabel})` : ""}`,
+      reasoning: "Sustained Zone 2 effort prescribed by time (no rep-based strength structure).",
+      items: [
+        {
+          exercise_id: c.id,
+          exercise_name: c.name,
+          sets,
+          time_seconds: timePerSetSeconds,
+          rest_seconds: restSeconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["conditioning", "zone2_sustained", ...(c.tags.goal_tags ?? [])],
+          unilateral: c.unilateral ?? false,
+        },
+      ],
+      estimated_minutes: mainMins,
+    });
   }
 
-  const sets = mainMins >= 30 ? 2 : 1;
-  const timePerSetSeconds = sets === 2 ? Math.floor((mainMins / 2) * 60) : Math.floor(mainMins * 60);
-  const restSeconds = sets === 2 ? 60 : 0;
-
-  const p = getPrescription(
-    c,
-    "conditioning",
-    input.energy_level,
-    input.primary_goal,
-    undefined,
-    undefined,
-    input.style_prefs?.user_level
-  );
-
-  const mainBlock: WorkoutBlock = {
-    block_type: "conditioning",
-    format: "straight_sets",
-    title: `Zone 2 sustained effort${overlayLabel ? ` (${overlayLabel})` : ""}`,
-    reasoning: "Sustained Zone 2 effort prescribed by time (no rep-based strength structure).",
-    items: [
-      {
-        exercise_id: c.id,
-        exercise_name: c.name,
-        sets,
-        time_seconds: timePerSetSeconds,
-        rest_seconds: restSeconds,
-        coaching_cues: p.coaching_cues,
-        reasoning_tags: ["conditioning", "zone2_sustained", ...(c.tags.goal_tags ?? [])],
-        unilateral: c.unilateral ?? false,
-      },
-    ],
-    estimated_minutes: mainMins,
-  };
+  if (!blocks.length) return [];
 
   // Optional accessory: short low-fatigue joint health/durability support.
   const accessoryBlocks: WorkoutBlock[] = [];
@@ -7091,7 +7257,6 @@ function buildZone2SustainedMain(
             input.style_prefs?.user_level
           );
 
-          // Ensure accessory stays light/short.
           const cappedSets = p.sets > 2 ? 2 : p.sets;
           return {
             exercise_id: ex.id,
@@ -7118,7 +7283,7 @@ function buildZone2SustainedMain(
     }
   }
 
-  return [mainBlock, ...accessoryBlocks];
+  return [...blocks, ...accessoryBlocks];
 }
 
 function buildThresholdIntervalsMain(
@@ -7129,7 +7294,10 @@ function buildThresholdIntervalsMain(
   conditioningProfile: SubFocusProfile
 ): WorkoutBlock[] {
   const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
-  const mainMins = getConditioningIntentMainMinutes(input);
+  const totalMainMins = getConditioningIntentMainMinutes(input);
+  const minuteSplits = planConditioningBlockMinuteSplits(totalMainMins, input.duration_minutes ?? 45);
+  const primaryMins = minuteSplits[0] ?? totalMainMins;
+  const remainderMins = minuteSplits.slice(1).reduce((sum, m) => sum + m, 0);
 
   const pool = buildConditioningIntentPool(exercises, {
     intentSlugs: ["threshold_tempo"],
@@ -7141,7 +7309,7 @@ function buildThresholdIntervalsMain(
   if (!c) return [];
   used.add(c.id);
 
-  const interval = getNonZone2ConditioningIntervalStructure(mainMins);
+  const interval = getNonZone2ConditioningIntervalStructure(primaryMins);
 
   const p = getPrescription(
     c,
@@ -7153,7 +7321,7 @@ function buildThresholdIntervalsMain(
     input.style_prefs?.user_level
   );
 
-  return [
+  const blocks: WorkoutBlock[] = [
     {
       block_type: "conditioning",
       format: "circuit",
@@ -7171,9 +7339,23 @@ function buildThresholdIntervalsMain(
           unilateral: c.unilateral ?? false,
         },
       ],
-      estimated_minutes: mainMins,
+      estimated_minutes: primaryMins,
     },
   ];
+
+  if (remainderMins >= 8) {
+    appendEnduranceTimeBasedCardioBlock(
+      blocks,
+      exercises,
+      input,
+      used,
+      rng,
+      conditioningProfile,
+      getConditioningIntentSlugs(conditioningProfile),
+      { totalMinutes: remainderMins, fillRemainingSession: false }
+    );
+  }
+  return blocks;
 }
 
 function buildHillsRepeatsMain(
@@ -7184,7 +7366,10 @@ function buildHillsRepeatsMain(
   conditioningProfile: SubFocusProfile
 ): WorkoutBlock[] {
   const overlayLabel = overlayEmphasisLabel(conditioningProfile.overlayFilter);
-  const mainMins = getConditioningIntentMainMinutes(input);
+  const totalMainMins = getConditioningIntentMainMinutes(input);
+  const minuteSplits = planConditioningBlockMinuteSplits(totalMainMins, input.duration_minutes ?? 45);
+  const primaryMins = minuteSplits[0] ?? totalMainMins;
+  const remainderMins = minuteSplits.slice(1).reduce((sum, m) => sum + m, 0);
 
   const pool = buildConditioningIntentPool(exercises, {
     intentSlugs: ["hills"],
@@ -7201,7 +7386,7 @@ function buildHillsRepeatsMain(
   if (!c) return [];
   used.add(c.id);
 
-  const interval = getNonZone2ConditioningIntervalStructure(mainMins);
+  const interval = getNonZone2ConditioningIntervalStructure(primaryMins);
 
   const p = getPrescription(
     c,
@@ -7213,7 +7398,7 @@ function buildHillsRepeatsMain(
     input.style_prefs?.user_level
   );
 
-  return [
+  const blocks: WorkoutBlock[] = [
     {
       block_type: "conditioning",
       format: "circuit",
@@ -7231,14 +7416,29 @@ function buildHillsRepeatsMain(
           unilateral: c.unilateral ?? false,
         },
       ],
-      estimated_minutes: mainMins,
+      estimated_minutes: primaryMins,
     },
   ];
+
+  if (remainderMins >= 8) {
+    appendEnduranceTimeBasedCardioBlock(
+      blocks,
+      exercises,
+      input,
+      used,
+      rng,
+      conditioningProfile,
+      getConditioningIntentSlugs(conditioningProfile),
+      { totalMinutes: remainderMins, fillRemainingSession: false }
+    );
+  }
+  return blocks;
 }
 
 /**
- * Append a time-based conditioning (cardio) block for endurance / conditioning primaries.
- * Shared by default endurance path and durability time-circuit path.
+ * Append time-based conditioning (cardio) block(s) for endurance / conditioning primaries.
+ * When cardio is the day's main/only goal, splits the remaining session budget into multiple
+ * conditioning blocks so longer durations are not a single short piece.
  */
 function appendEnduranceTimeBasedCardioBlock(
   blocks: WorkoutBlock[],
@@ -7247,7 +7447,16 @@ function appendEnduranceTimeBasedCardioBlock(
   used: Set<string>,
   rng: () => number,
   conditioningProfile: SubFocusProfile | null | undefined,
-  intentSlugs: string[]
+  intentSlugs: string[],
+  options?: {
+    /** Explicit total minutes across appended block(s). */
+    totalMinutes?: number;
+    /**
+     * Fill remaining session time after existing blocks (default: true for cardio primary goals).
+     * Produces multiple conditioning blocks when the budget is large enough.
+     */
+    fillRemainingSession?: boolean;
+  }
 ): void {
   let cardioPool = buildConditioningIntentPool(exercises, {
     intentSlugs: intentSlugs.length > 0 ? intentSlugs : [],
@@ -7257,76 +7466,127 @@ function appendEnduranceTimeBasedCardioBlock(
   if (!cardioPool.length) {
     cardioPool = exercises.filter((e) => e.modality === "conditioning" && isExerciseAvailableForSession(e.id, used));
   }
+  if (!cardioPool.length) return;
+
   const pickMult = input.sport_profile_session_composition?.conditioningPickerMinutesMultiplier ?? 1;
-  const condMinsRaw =
-    getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
-    input.style_prefs?.conditioning_minutes ??
-    (input.duration_minutes >= 60 ? 30 : 20);
-  const condMins = Math.max(3, Math.round(condMinsRaw * pickMult));
-  const addCardioBlock = cardioPool.length > 0 && condMins > 0;
-  if (!addCardioBlock) return;
+  const fillRemaining =
+    options?.fillRemainingSession ?? isCardioPrimaryGoal(input.primary_goal);
+
+  let totalMins: number;
+  if (options?.totalMinutes != null) {
+    totalMins = Math.max(3, Math.round(options.totalMinutes));
+  } else if (fillRemaining) {
+    const already = blocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 0), 0);
+    totalMins = getPrimaryConditioningFillTargetMinutes(input, already);
+  } else {
+    const condMinsRaw =
+      getConditioningDurationMinutes(input.primary_goal, input.energy_level) ??
+      input.style_prefs?.conditioning_minutes ??
+      (input.duration_minutes >= 60 ? 30 : 20);
+    totalMins = Math.max(3, Math.round(condMinsRaw * pickMult));
+  }
+
+  const splits =
+    fillRemaining || isCardioPrimaryGoal(input.primary_goal)
+      ? planConditioningBlockMinuteSplits(totalMins, input.duration_minutes ?? 45)
+      : [totalMins];
 
   const preferredIntentSlugs = intentSlugs.length > 0 ? intentSlugs : undefined;
-  const trueCardioPool = cardioPool.filter((e) => isTrueSteadyStateZone2Cardio(e));
-  const longAerobicPool =
-    condMins >= 10 && trueCardioPool.length > 0 ? trueCardioPool : cardioPool;
-  const c = pickConditioningExercise(
-    longAerobicPool,
-    input.style_prefs?.preferred_zone2_cardio,
-    rng,
-    longAerobicPool === trueCardioPool ? ["zone2_aerobic_base", "zone2_long_steady"] : preferredIntentSlugs,
-    conditioningPickContext(input, used)
-  );
-  if (!c) return;
-
-  used.add(c.id);
-  const p = getPrescription(
-    c,
-    "conditioning",
-    input.energy_level,
-    input.primary_goal,
-    undefined,
-    undefined,
-    input.style_prefs?.user_level
-  );
   const primaryIntent = conditioningProfile ? getPrimaryConditioningIntent(conditioningProfile) : undefined;
-  const interval = getConditioningStructureForExercise(
-    c,
-    condMins,
-    input.primary_goal,
-    primaryIntent
-  );
-  const conditioningProtocolTag = conditioningProtocolReasonTag(
-    getConditioningProtocolKind(c, primaryIntent)
-  );
-  const condFormat =
-    (interval.format as BlockFormat) ??
-    (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ??
-    "straight_sets";
-  const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
-  const estimatedMin =
-    isHighIntensityConditioning(c) || isExplosiveConditioning(c) || isSprintBurstConditioning(c)
-      ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
-      : condMins;
-  blocks.push({
-    block_type: "conditioning",
-    format: condFormat,
-    title: "Conditioning",
-    reasoning: interval.reasoning ?? "Steady cardio to support endurance.",
-    items: [
-      {
-        exercise_id: c.id,
-        exercise_name: c.name,
-        sets: interval.sets,
-        ...(interval.reps != null ? { reps: interval.reps } : { time_seconds: interval.time_seconds }),
-        rest_seconds: interval.rest_seconds,
-        coaching_cues: p.coaching_cues,
-        reasoning_tags: ["endurance", conditioningProtocolTag, ...(c.tags.goal_tags ?? [])],
-        unilateral: c.unilateral ?? false,
-      },
-    ],
-    estimated_minutes: Math.round(estimatedMin),
-  });
+  const pickCtx = conditioningPickContext(input, used);
+  let zone2TitleUsed = blocks.some((b) => (b.title ?? "").toLowerCase().includes("zone 2"));
+  let conditioningTitleIndex = blocks.filter((b) => b.block_type === "conditioning").length;
+
+  for (let i = 0; i < splits.length; i++) {
+    const condMins = splits[i]!;
+    const available = cardioPool.filter((e) => isExerciseAvailableForSession(e.id, used));
+    if (!available.length) break;
+
+    const trueCardioPool = available.filter((e) => isTrueSteadyStateZone2Cardio(e));
+    // Alternate steady Zone 2 with broader metabolic picks across blocks for variety.
+    const preferSteady = i === 0 || i % 2 === 0;
+    const longAerobicPool =
+      preferSteady && condMins >= 10 && trueCardioPool.length > 0 ? trueCardioPool : available;
+    const c = pickConditioningExercise(
+      longAerobicPool,
+      input.style_prefs?.preferred_zone2_cardio,
+      rng,
+      longAerobicPool === trueCardioPool ? ["zone2_aerobic_base", "zone2_long_steady"] : preferredIntentSlugs,
+      pickCtx
+    );
+    if (!c) break;
+
+    used.add(c.id);
+    const p = getPrescription(
+      c,
+      "conditioning",
+      input.energy_level,
+      input.primary_goal,
+      undefined,
+      undefined,
+      input.style_prefs?.user_level
+    );
+    const interval = getConditioningStructureForExercise(
+      c,
+      condMins,
+      input.primary_goal,
+      primaryIntent
+    );
+    const conditioningProtocolTag = conditioningProtocolReasonTag(
+      getConditioningProtocolKind(c, primaryIntent)
+    );
+    const condFormat =
+      (interval.format as BlockFormat) ??
+      (getGoalRules(input.primary_goal).conditioningFormats?.[0]) ??
+      "straight_sets";
+    const workSec = interval.time_seconds ?? (interval.reps != null ? 30 : 0);
+    // For duration-fill blocks, keep the budgeted minutes so multi-block sessions actually
+    // sum to the selected duration (interval structure still defines work/rest inside the block).
+    const estimatedMin =
+      fillRemaining || isCardioPrimaryGoal(input.primary_goal)
+        ? condMins
+        : isHighIntensityConditioning(c) || isExplosiveConditioning(c) || isSprintBurstConditioning(c)
+          ? interval.sets * ((workSec || 30) / 60 + interval.rest_seconds / 60)
+          : condMins;
+
+    const isZone2 = isTrueSteadyStateZone2Cardio(c);
+    let title: string;
+    if (isZone2 && !zone2TitleUsed) {
+      title = "Zone 2";
+      zone2TitleUsed = true;
+    } else if (conditioningTitleIndex === 0 && !isZone2) {
+      title = "Conditioning";
+    } else if (isZone2) {
+      title = `Zone 2 (${conditioningTitleIndex + 1})`;
+    } else {
+      title = `Conditioning (${conditioningTitleIndex + 1})`;
+    }
+    conditioningTitleIndex += 1;
+
+    blocks.push({
+      block_type: "conditioning",
+      format: condFormat,
+      title,
+      reasoning:
+        interval.reasoning ??
+        (splits.length > 1
+          ? "Multi-block conditioning to fill the selected session duration."
+          : "Steady cardio to support endurance."),
+      items: [
+        {
+          exercise_id: c.id,
+          exercise_name: c.name,
+          sets: interval.sets,
+          ...(interval.reps != null ? { reps: interval.reps } : { time_seconds: interval.time_seconds }),
+          rest_seconds: interval.rest_seconds,
+          coaching_cues: p.coaching_cues,
+          reasoning_tags: ["endurance", conditioningProtocolTag, ...(c.tags.goal_tags ?? [])],
+          unilateral: c.unilateral ?? false,
+        },
+      ],
+      estimated_minutes: Math.round(estimatedMin),
+    });
+  }
 }
 
 /** Time-under-tension / stability circuit for endurance `durability` intent (no rep-based strength supersets). */
@@ -7498,68 +7758,74 @@ function buildEnduranceMain(
       ? filterPoolByDirectSubFocus(availableForPairs, intentSlugs)
       : availableForPairs;
   const pairPoolEffective = pairPool.length >= 2 ? pairPool : availableForPairs;
-  const endurancePairPrefs = buildSupersetIntentPreferenceScores(pairPoolEffective, input);
-  const pairs = pickBestSupersetPairs(
-    pairPoolEffective,
-    supersetPairCount,
-    used,
-    rng,
-    endurancePairPrefs
-  ) as [Exercise, Exercise][];
-  if (pairs.length > 0) {
-    for (const [exA, exB] of pairs) {
-      used.add(exA.id);
-      used.add(exB.id);
-      if (sessionFatigueRegions) {
-        addExerciseFatigueRegionsToSession(sessionFatigueRegions, exA);
-        addExerciseFatigueRegionsToSession(sessionFatigueRegions, exB);
+  // When endurance/conditioning is primary, fill with conditioning blocks. Dedicated secondary
+  // strength (if any) is added later via prefer_strength_block — do not consume the cardio budget
+  // with in-main strength-support supersets.
+  const preferConditioningFillOnly = isCardioPrimaryGoal(input.primary_goal);
+  if (!preferConditioningFillOnly) {
+    const endurancePairPrefs = buildSupersetIntentPreferenceScores(pairPoolEffective, input);
+    const pairs = pickBestSupersetPairs(
+      pairPoolEffective,
+      supersetPairCount,
+      used,
+      rng,
+      endurancePairPrefs
+    ) as [Exercise, Exercise][];
+    if (pairs.length > 0) {
+      for (const [exA, exB] of pairs) {
+        used.add(exA.id);
+        used.add(exB.id);
+        if (sessionFatigueRegions) {
+          addExerciseFatigueRegionsToSession(sessionFatigueRegions, exA);
+          addExerciseFatigueRegionsToSession(sessionFatigueRegions, exB);
+        }
       }
+      const supportSets = Math.max(1, Math.round(2 * (fatigueVolumeScale ?? 1)));
+      const items: WorkoutItem[] = pairs.flatMap(([exA, exB]) => {
+        const pA = getPrescription(exA, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+        const pB = getPrescription(exB, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
+        return [
+          {
+            exercise_id: exA.id,
+            exercise_name: exA.name,
+            sets: supportSets,
+            reps: pA.reps ?? 10,
+            rest_seconds: 30,
+            coaching_cues: pA.coaching_cues,
+            reasoning_tags: ["conditioning", "strength", ...(exA.tags.goal_tags ?? [])],
+            unilateral: exA.unilateral ?? false,
+          },
+          {
+            exercise_id: exB.id,
+            exercise_name: exB.name,
+            sets: supportSets,
+            reps: pB.reps ?? 10,
+            rest_seconds: 30,
+            coaching_cues: pB.coaching_cues,
+            reasoning_tags: ["conditioning", "strength", ...(exB.tags.goal_tags ?? [])],
+            unilateral: exB.unilateral ?? false,
+          },
+        ];
+      });
+      const supersetPairs: [WorkoutItem, WorkoutItem][] = [];
+      for (let i = 0; i < pairs.length; i++) {
+        supersetPairs.push([items[2 * i], items[2 * i + 1]]);
+      }
+      const estimatedMinutes = Math.min(supersetPairCount * 8, Math.max(10, duration - 20));
+      blocks.push({
+        block_type: "accessory",
+        format: "superset",
+        title: "Strength support",
+        items,
+        supersetPairs,
+        estimated_minutes: estimatedMinutes,
+      });
     }
-    const supportSets = Math.max(1, Math.round(2 * (fatigueVolumeScale ?? 1)));
-    const items: WorkoutItem[] = pairs.flatMap(([exA, exB]) => {
-      const pA = getPrescription(exA, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
-      const pB = getPrescription(exB, "main_hypertrophy", input.energy_level, input.primary_goal, false, fatigueVolumeScale, input.style_prefs?.user_level);
-      return [
-        {
-          exercise_id: exA.id,
-          exercise_name: exA.name,
-          sets: supportSets,
-          reps: pA.reps ?? 10,
-          rest_seconds: 30,
-          coaching_cues: pA.coaching_cues,
-          reasoning_tags: ["conditioning", "strength", ...(exA.tags.goal_tags ?? [])],
-          unilateral: exA.unilateral ?? false,
-        },
-        {
-          exercise_id: exB.id,
-          exercise_name: exB.name,
-          sets: supportSets,
-          reps: pB.reps ?? 10,
-          rest_seconds: 30,
-          coaching_cues: pB.coaching_cues,
-          reasoning_tags: ["conditioning", "strength", ...(exB.tags.goal_tags ?? [])],
-          unilateral: exB.unilateral ?? false,
-        },
-      ];
-    });
-    const supersetPairs: [WorkoutItem, WorkoutItem][] = [];
-    for (let i = 0; i < pairs.length; i++) {
-      supersetPairs.push([items[2 * i], items[2 * i + 1]]);
-    }
-    const estimatedMinutes = Math.min(supersetPairCount * 8, Math.max(10, duration - 20));
-    blocks.push({
-      block_type: "accessory",
-      format: "superset",
-      title: "Strength support",
-      items,
-      supersetPairs,
-      estimated_minutes: estimatedMinutes,
-    });
   }
 
-  // Always add a time-based cardio block when we have candidates and duration budget (endurance /
+  // Fill remaining duration with one or more time-based conditioning blocks (endurance /
   // conditioning primary). Strength-support supersets alone are not sufficient — users expect
-  // explicit sustained or interval cardio prescription.
+  // explicit sustained or interval cardio that matches the selected session length.
   appendEnduranceTimeBasedCardioBlock(
     blocks,
     exercises,
@@ -7567,7 +7833,8 @@ function buildEnduranceMain(
     used,
     rng,
     conditioningProfile,
-    intentSlugs
+    intentSlugs,
+    { fillRemainingSession: true }
   );
   return blocks;
 }
@@ -8006,11 +8273,7 @@ function removeEmptyBlocks(blocks: WorkoutBlock[]): WorkoutBlock[] {
 }
 
 function ensureCooldownIsLastBlock(blocks: WorkoutBlock[]): WorkoutBlock[] {
-  const ordered = [...blocks];
-  const cooldowns = ordered.filter((b) => b.block_type === "cooldown");
-  if (cooldowns.length === 0) return ordered;
-  const nonCooldown = ordered.filter((b) => b.block_type !== "cooldown");
-  return [...nonCooldown, ...cooldowns];
+  return orderSessionBlocks(blocks);
 }
 
 function trimBlocksToDurationBudget(
@@ -8020,6 +8283,8 @@ function trimBlocksToDurationBudget(
     preserveConditioning?: boolean;
     preserveCooldown?: boolean;
     preserveJointHealth?: boolean;
+    /** When true, do not shrink conditioning blocks to a small share of the session (cardio-primary days). */
+    allowLargeConditioningShare?: boolean;
   }
 ): WorkoutBlock[] {
   if (!targetMinutes || targetMinutes <= 0) return blocks;
@@ -8052,21 +8317,23 @@ function trimBlocksToDurationBudget(
     trimmed.splice(i, 1);
   }
   running = sumMinutes();
-  for (let i = trimmed.length - 1; i >= 0 && running > hardCap; i--) {
-    const b = trimmed[i];
-    if (!b || b.block_type !== "conditioning") continue;
-    const est = b.estimated_minutes ?? 5;
-    const maxCond = Math.max(6, Math.floor(targetMinutes * 0.35));
-    if (est > maxCond) {
-      running -= est - maxCond;
-      b.estimated_minutes = maxCond;
+  if (!options?.allowLargeConditioningShare) {
+    for (let i = trimmed.length - 1; i >= 0 && running > hardCap; i--) {
+      const b = trimmed[i];
+      if (!b || b.block_type !== "conditioning") continue;
+      const est = b.estimated_minutes ?? 5;
+      const maxCond = Math.max(6, Math.floor(targetMinutes * 0.35));
+      if (est > maxCond) {
+        running -= est - maxCond;
+        b.estimated_minutes = maxCond;
+      }
     }
   }
   running = sumMinutes();
   for (let i = trimmed.length - 1; i >= 0 && running > hardCap; i--) {
     const b = trimmed[i];
     if (!b || b.block_type !== "conditioning") continue;
-    if (options?.preserveConditioning) {
+    if (options?.preserveConditioning || options?.allowLargeConditioningShare) {
       const conditioningCount = trimmed.filter((x) => x.block_type === "conditioning").length;
       if (conditioningCount <= 1) continue;
     }
@@ -8326,8 +8593,8 @@ function exerciseMatchesSelectedSubGoalWithFallback(
 
 /**
  * When the user selected ranked sub-focuses, ensure each selected intent slug has at least one
- * matching exercise (so dual picks like plyos + Olympic both appear). Picks from injury-safe +
- * equipment pool, ignoring body-part split, then inserts a short accessory/conditioning block.
+ * matching exercise (so dual picks like plyos + Olympic both appear). Honors the session body
+ * contract (Region / Pattern / Muscle) — never injects off-theme working work to satisfy a slug.
  */
 function ensureSelectedGoalSubFocusCoverage(
   mergedBlocks: WorkoutBlock[],
@@ -8342,7 +8609,12 @@ function ensureSelectedGoalSubFocusCoverage(
   historyContext: TrainingHistoryContext | undefined,
   sessionFatigueRegions: Map<string, number>
 ): void {
-  const exerciseById = new Map(guaranteePool.map((e) => [e.id, e]));
+  const fillConstraints = getActiveBlockFillConstraints();
+  const coveragePool = fillConstraints
+    ? filterByConstraintsForPool(guaranteePool, fillConstraints)
+    : guaranteePool;
+  if (coveragePool.length === 0) return;
+  const exerciseById = new Map(coveragePool.map((e) => [e.id, e]));
   const goalSubFocus = input.goal_sub_focus ?? {};
   const orderedGoalEntries = Object.entries(goalSubFocus).filter(([, slugs]) => (slugs?.length ?? 0) > 0);
   for (const [goalSlug, slugs] of orderedGoalEntries) {
@@ -8356,7 +8628,7 @@ function ensureSelectedGoalSubFocusCoverage(
     for (const slug of guaranteeSlugs) {
       if (sessionHasGoalSubFocusCoverage(mergedBlocks, exerciseById, goalSlug, [slug])) continue;
 
-      const strictMatchingPool = guaranteePool.filter(
+      const strictMatchingPool = coveragePool.filter(
         (e) =>
           isExerciseAvailableForSession(e.id, used) &&
           (!requiresConditioningModality || e.modality === "conditioning") &&
@@ -8365,7 +8637,7 @@ function ensureSelectedGoalSubFocusCoverage(
       const matchingPool =
         strictMatchingPool.length > 0
           ? strictMatchingPool
-          : guaranteePool.filter(
+          : coveragePool.filter(
               (e) =>
                 isExerciseAvailableForSession(e.id, used) &&
                 (!requiresConditioningModality || e.modality === "conditioning") &&
@@ -8470,6 +8742,10 @@ function ensureWeeklySubFocusSessionMinimums(
   const mins = input.weekly_sub_focus_session_minimums;
   if (!mins || Object.keys(mins).length === 0) return;
 
+  const fillConstraints = getActiveBlockFillConstraints();
+  const coveragePool = fillConstraints
+    ? filterByConstraintsForPool(guaranteePool, fillConstraints)
+    : guaranteePool;
   const exerciseById = new Map(guaranteePool.map((e) => [e.id, e]));
   const itemsToAdd: WorkoutItem[] = [];
 
@@ -8507,7 +8783,7 @@ function ensureWeeklySubFocusSessionMinimums(
 
     let toAdd = Math.max(0, minRequired - countMatching());
     while (toAdd > 0) {
-      const matchingPool = guaranteePool.filter(
+      const matchingPool = coveragePool.filter(
         (e) =>
           isExerciseAvailableForSession(e.id, used) &&
           exerciseMatchesGoalSubFocusSlugUnified(e, goalSlug, subSlug)
@@ -8757,9 +9033,19 @@ function ensureSelectedSportSubFocusCoverage(
     const matchingPool = sportIntentCandidatePool.filter(
       (e) => isExerciseAvailableForSession(e.id, used) && exerciseMatchesUserSportTagExercise(e, sportKey)
     );
-    if (matchingPool.length === 0) continue;
+    const fillConstraints = getActiveBlockFillConstraints();
+    const gatedMatchingPool = fillConstraints
+      ? matchingPool.filter((e) =>
+          isExerciseEligibleForBlock(e, {
+            blockType: blockTypeForPrescription(),
+            constraints: fillConstraints,
+            input,
+          })
+        )
+      : matchingPool;
+    if (gatedMatchingPool.length === 0) continue;
 
-    const picked = matchingPool[Math.floor(rng() * matchingPool.length)]!;
+    const picked = gatedMatchingPool[Math.floor(rng() * gatedMatchingPool.length)]!;
     used.add(picked.id);
     const p = getPrescription(
       picked,
@@ -10568,7 +10854,8 @@ export function generateWorkoutSession(
             fatigueState,
             historyContext,
             strengthProfileForWarmup,
-            blockIntentProfile.warmupPreferredTargets
+            blockIntentProfile.warmupPreferredTargets,
+            guaranteePool
           ),
         ];
 
@@ -11401,7 +11688,7 @@ export function generateWorkoutSession(
         if (explosiveCardio.length > 0) {
           cardioPool = explosiveCardio;
         } else {
-          const rescue = guaranteePool.filter(
+          const rescue = filterByConstraintsForPool(guaranteePool, constraints).filter(
             (e) =>
               isExerciseAvailableForSession(e.id, used) &&
               isConditioningBlockPoolCandidate(e, conditioningCtx) &&
@@ -11787,8 +12074,9 @@ export function generateWorkoutSession(
   // Phase 11: attach progress/maintain/regress/rotate and prescription influence
   attachRecommendationsToSession(mergedBlocks, filtered, historyContext, recentIds);
 
-  // Enforce main vs accessory set ratio: never more accessory than main; when doing accessory, 75% main / 25% accessory
-  if (primary !== "joint_health") {
+  // Enforce main vs accessory set ratio: never more accessory than main; when doing accessory, 75% main / 25% accessory.
+  // Cardio-primary days use conditioning as main work — do not strip intentional joint-health / support accessories.
+  if (primary !== "joint_health" && !isCardioPrimaryGoal(primary)) {
     enforceMainAccessoryRatioOnBlocks(mergedBlocks);
   }
 
@@ -11797,11 +12085,39 @@ export function generateWorkoutSession(
   }
   mergedBlocks = removeEmptyBlocks(mergedBlocks);
   mergedBlocks = ensureCooldownIsLastBlock(mergedBlocks);
+  // Always keep Activation for training sessions (empty warmups are stripped above).
+  if (!isRecoveryMobilityPrimaryGoal(primary) && primary !== "joint_health") {
+    const existingWarmup = mergedBlocks.find((b) => b.block_type === "warmup");
+    if (!existingWarmup || (existingWarmup.items?.length ?? 0) === 0) {
+      const rebuiltWarmup = buildWarmup(
+        filtered,
+        input,
+        used,
+        rng,
+        fatigueState,
+        historyContext,
+        strengthProfileForWarmup,
+        blockIntentProfile.warmupPreferredTargets,
+        guaranteePool
+      );
+      if (rebuiltWarmup.items.length > 0) {
+        if (existingWarmup) {
+          existingWarmup.items = rebuiltWarmup.items;
+          existingWarmup.title = rebuiltWarmup.title;
+          existingWarmup.reasoning = rebuiltWarmup.reasoning;
+          existingWarmup.estimated_minutes = rebuiltWarmup.estimated_minutes;
+        } else {
+          mergedBlocks.unshift(rebuiltWarmup);
+        }
+      }
+    }
+  }
   mergedBlocks = trimBlocksToDurationBudget(mergedBlocks, input.duration_minutes, {
-    preserveConditioning: constraints.required_conditioning_block,
+    preserveConditioning: constraints.required_conditioning_block || isCardioPrimaryGoal(primary),
     preserveCooldown:
       blockIntentProfile.requiresCooldownBlock || constraints.min_cooldown_mobility_exercises > 0,
     preserveJointHealth: primary === "joint_health",
+    allowLargeConditioningShare: isCardioPrimaryGoal(primary),
   });
   if (
     constraints.required_conditioning_block &&
@@ -12559,6 +12875,7 @@ export function generateWorkoutSession(
     mergedBlocks,
     sessionIntentExerciseById as Map<string, { muscle_groups?: string[]; pairing_category?: string; modality?: string; tags?: { attribute_tags?: string[] } }>
   );
+  mergedBlocks = orderSessionBlocks(mergedBlocks);
 
   const session: WorkoutSession = {
     title: sessionTitle(input),
@@ -12852,14 +13169,20 @@ function regenerateWithSubstitution(
   exercisePool: Exercise[]
 ): WorkoutSession {
   const gatedPool = resolveGatedExercisePoolForGeneration(exercisePool, input).pool;
-  const filtered = filterByHardConstraints(gatedPool, input);
+  const constraints = resolveWorkoutConstraints(inputToSelectionInput(input));
+  attachBlockFillContext(constraints, input);
+  const filtered = filterByConstraintsForPool(filterByHardConstraints(gatedPool, input), constraints);
   const poolById = new Map(gatedPool.map((e) => [e.id, e]));
   const usedInNewSession = new Set<string>();
 
   const blocks: WorkoutBlock[] = previousSession.blocks.map((block) => {
     const items: WorkoutItem[] = block.items.map((item) => {
       const original = poolById.get(item.exercise_id);
-      const candidatePool = filtered.filter((e) => isExerciseAvailableForSession(e.id, usedInNewSession));
+      const candidatePool = filtered.filter(
+        (e) =>
+          isExerciseAvailableForSession(e.id, usedInNewSession) &&
+          exerciseEligibleForWorkingBlock(e, block.block_type, constraints, input)
+      );
       const substitute = original
         ? getBestSubstitute(original, candidatePool, {
             excludeIds: usedInNewSession,

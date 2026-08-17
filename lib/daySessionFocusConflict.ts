@@ -7,7 +7,6 @@ import type { AdaptiveSetup } from "../context/appStateModel";
 import type { ManualPreferences } from "./types";
 import {
   bodyFocusIdForSubFocusRegion,
-  catalogSubFocusesMatchingDayRegion,
   dayBodyFocusToRegion,
   dayRegionLabel,
   getSubFocusBodyRegion,
@@ -127,24 +126,30 @@ function fullBodyKeepLabel(aligned: ResolvedSubFocus[], conflicting: ResolvedSub
   return names.length > 0 ? `Use Full body (keep ${names})` : "Use Full body";
 }
 
+function generalRegionMatchLabel(dayRegion: "upper" | "lower", goalLabel: string): string {
+  const region = dayRegionLabel(dayRegion);
+  const g = goalLabel.toLowerCase();
+  if (g.includes("strength") && !g.includes("joint")) {
+    return `Use ${region} strength for this day`;
+  }
+  if (g.includes("hypertrophy") || g.includes("muscle") || g.includes("recomp")) {
+    return `Use ${region} hypertrophy for this day`;
+  }
+  return `Use general ${region} for this day`;
+}
+
 function subFocusPatchForDayRegion(opts: {
   goalLabel: string;
   dayRegion: "upper" | "lower";
-  conflicting: ResolvedSubFocus[];
   aligned: ResolvedSubFocus[];
-}): Record<string, string[]> | null {
+}): Record<string, string[]> {
   const goalAligned = opts.aligned.filter((s) => s.goalLabel === opts.goalLabel);
   if (goalAligned.length > 0) {
     return { [opts.goalLabel]: goalAligned.map((s) => s.displayName) };
   }
-  const catalogMatches = catalogSubFocusesMatchingDayRegion(opts.goalLabel, opts.dayRegion);
-  if (catalogMatches.length === 0) return null;
-  const conflictingNames = new Set(
-    opts.conflicting.filter((c) => c.goalLabel === opts.goalLabel).map((c) => c.displayName)
-  );
-  const pick =
-    catalogMatches.find((m) => !conflictingNames.has(m.displayName)) ?? catalogMatches[0]!;
-  return { [opts.goalLabel]: [pick.displayName] };
+  // No matching sub-goal was selected — keep the day's body focus as a general
+  // region default instead of inventing a specific lift (e.g. Squat).
+  return { [opts.goalLabel]: [] };
 }
 
 function buildResolutions(opts: {
@@ -222,28 +227,28 @@ function buildResolutions(opts: {
         const patch = subFocusPatchForDayRegion({
           goalLabel,
           dayRegion,
-          conflicting,
           aligned,
         });
-        if (patch) {
-          const pickName = patch[goalLabel]![0]!;
-          add({
-            id: `match_day_${dayRegion}_${goalLabel}`,
-            label: `Use ${pickName} for this day (match ${dayRegionLabel(dayRegion)})`,
-            subFocusByGoalPatch: patch,
-          });
-        }
+        const pickName = patch[goalLabel]?.[0];
+        add({
+          id: `match_day_${dayRegion}_${goalLabel}`,
+          label: pickName
+            ? `Use ${pickName} for this day (match ${dayRegionLabel(dayRegion)})`
+            : generalRegionMatchLabel(dayRegion, goalLabel),
+          subFocusByGoalPatch: patch,
+        });
       }
     } else if (conflictingByGoal.size > 1) {
       const patch: Record<string, string[]> = {};
       for (const goalLabel of conflictingByGoal.keys()) {
-        const goalPatch = subFocusPatchForDayRegion({
-          goalLabel,
-          dayRegion,
-          conflicting,
-          aligned,
-        });
-        if (goalPatch) Object.assign(patch, goalPatch);
+        Object.assign(
+          patch,
+          subFocusPatchForDayRegion({
+            goalLabel,
+            dayRegion,
+            aligned,
+          })
+        );
       }
       if (Object.keys(patch).length > 0) {
         add({
@@ -357,6 +362,40 @@ export function dayHasUnresolvedSessionFocusConflict(
   resolvedId: string | undefined
 ): boolean {
   return conflict != null && resolvedId !== conflict.id;
+}
+
+/** True when some day this week is Full or matches the given region. */
+export function weekDayBodiesCoverRegion(
+  dayBodyIds: readonly DayBodyFocusChoiceId[],
+  region: "upper" | "lower"
+): boolean {
+  return dayBodyIds.some((id) => {
+    const dayRegion = dayBodyFocusToRegion(id);
+    return dayRegion === "full" || dayRegion === region;
+  });
+}
+
+/**
+ * Whether a detected per-day mismatch should actually be shown / block generate.
+ *
+ * Mixed sub-goals on a specialized day (Chest + Bench and Squat) are expected in
+ * a split as long as another day covers the other region. Prompting while the
+ * user is still switching Region/Pattern/Muscle would fire too early — the week
+ * template often adds that other day.
+ *
+ * One-sided days (Chest while every regional sub-goal is lower) stay a real
+ * mismatch for that day.
+ */
+export function shouldSurfaceDaySessionFocusConflict(opts: {
+  conflict: DaySessionFocusConflict | null;
+  weekDayBodyIds: readonly DayBodyFocusChoiceId[];
+}): boolean {
+  const { conflict, weekDayBodyIds } = opts;
+  if (!conflict) return false;
+  if (conflict.dayRegion !== "upper" && conflict.dayRegion !== "lower") return true;
+  if (conflict.aligned.length === 0) return true;
+  const opposing = conflict.dayRegion === "upper" ? "lower" : "upper";
+  return !weekDayBodiesCoverRegion(weekDayBodyIds, opposing);
 }
 
 /** Drop stale per-day resolution state when conflict is gone or conflict id changed. */

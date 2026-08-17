@@ -226,6 +226,11 @@ export function conditioningPickAvoidIds(input: GenerateWorkoutInput): Set<strin
       for (const id of h.exercise_ids) out.add(id);
     }
   }
+  for (const s of input.training_history?.recent_sessions ?? []) {
+    if (s.modality === "regeneration_penalty") {
+      for (const id of s.exercise_ids ?? []) out.add(id);
+    }
+  }
   return out;
 }
 

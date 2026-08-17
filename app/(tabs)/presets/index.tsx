@@ -30,7 +30,7 @@ import {
   validateSportFormForScope,
   type SportFormScopeIssue,
 } from "../../../lib/sportModeOneDayValidation";
-import type { PreferencePreset } from "../../../lib/types";
+import { formatItemList } from "../../../lib/formatItemList";
 
 type Scope = "day" | "week";
 
@@ -52,9 +52,7 @@ function goalPresetSummary(preset: PreferencePreset): PresetSummary {
   const detail =
     goals.length === 0
       ? "No goals set"
-      : goals.length === 1
-        ? goals[0]!
-        : `${goals[0]} +${goals.length - 1} more`;
+      : formatItemList(goals);
   return { id: preset.id, name: preset.name, savedAt: preset.savedAt, detail };
 }
 

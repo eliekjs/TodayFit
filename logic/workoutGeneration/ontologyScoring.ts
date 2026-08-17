@@ -398,10 +398,15 @@ export function computeOntologyScoreComponents(
 
 /** Preferred mobility/stretch targets from focus body parts (for warmup activation and cooldown relevance). */
 export const FOCUS_TO_WARMUP_TARGETS: Record<string, string[]> = {
+  upper: ["shoulders", "thoracic_spine", "pecs", "lats"],
+  upper_body: ["shoulders", "thoracic_spine", "pecs", "lats"],
   upper_push: ["shoulders", "thoracic_spine", "pecs"],
   upper_pull: ["lats", "shoulders", "thoracic_spine"],
   lower: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
   lower_body: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
+  /** Muscle-day / split slug — same lower activation targets as `lower`. */
+  legs: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
+  glutes: ["glutes", "hip_flexors", "hamstrings"],
   core: ["thoracic_spine", "low_back", "hip_flexors"],
   /** Full-body day: general activation for common areas used in compound work. */
   full_body: ["thoracic_spine", "shoulders", "hip_flexors", "glutes"],

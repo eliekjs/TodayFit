@@ -5,6 +5,8 @@ import {
   goalEmphasisLabelForPreset,
   mergeDaySubFocusOverride,
   reconcileDaySessionFocusConflictState,
+  shouldSurfaceDaySessionFocusConflict,
+  weekDayBodiesCoverRegion,
 } from "./daySessionFocusConflict";
 import type { ManualPreferences } from "./types";
 import {
@@ -81,9 +83,7 @@ describe("detectDaySessionFocusConflict", () => {
     expect(conflict!.resolutions[0]?.id).toBe("switch_full_body");
     expect(conflict!.resolutions.some((r) => r.label === "Switch to Lower body")).toBe(true);
     expect(
-      conflict!.resolutions.some((r) =>
-        r.label.includes("Shoulder Health") && r.label.includes("Upper body")
-      )
+      conflict!.resolutions.some((r) => r.label === "Use general Upper body for this day")
     ).toBe(true);
   });
 
@@ -261,7 +261,7 @@ describe("detectDaySessionFocusConflict", () => {
     expect(conflict!.conflicting.map((c) => c.slug)).toEqual(["glutes"]);
   });
 
-  it("offers switch sub-goal to match body on lower day with upper sub", () => {
+  it("offers general lower-body strength when no lower lift sub-goal was selected", () => {
     const prefs = basePrefs({
       primaryFocus: ["Build Strength"],
       subFocusByGoal: {
@@ -276,13 +276,12 @@ describe("detectDaySessionFocusConflict", () => {
     });
     expect(conflict).not.toBeNull();
     expect(
-      conflict!.resolutions.some((r) =>
-        r.label.includes("Squat") && r.label.includes("Lower body")
-      )
+      conflict!.resolutions.some((r) => r.label === "Use Lower body strength for this day")
     ).toBe(true);
+    expect(conflict!.resolutions.some((r) => r.label.includes("Squat"))).toBe(false);
     const matchDay = conflict!.resolutions.find((r) => r.id.startsWith("match_day_lower_"));
     expect(matchDay?.subFocusByGoalPatch).toEqual({
-      "Build Strength": ["Squat"],
+      "Build Strength": [],
     });
   });
 
@@ -307,8 +306,8 @@ describe("detectDaySessionFocusConflict", () => {
     const multi = conflict!.resolutions.find((r) => r.id === "match_day_upper_multi");
     expect(multi).toBeDefined();
     expect(multi!.subFocusByGoalPatch).toEqual({
-      "Strength Training for Joint Health": ["Shoulder Health"],
-      "Body Recomp (fat loss & muscle gain)": ["Back"],
+      "Strength Training for Joint Health": [],
+      "Body Recomp (fat loss & muscle gain)": [],
     });
     expect(conflict!.resolutions[0]?.id).toBe("switch_full_body");
   });
@@ -440,5 +439,72 @@ describe("reconcileDaySessionFocusConflictState", () => {
       resolvedId: conflict.id,
       subFocusOverride: { "Strength Training for Joint Health": ["Shoulder Health"] },
     });
+  });
+});
+
+describe("shouldSurfaceDaySessionFocusConflict", () => {
+  const mixedPrefs = basePrefs({
+    primaryFocus: ["Build Strength"],
+    subFocusByGoal: {
+      "Build Strength": ["Squat", "Bench / Press"],
+    },
+  });
+
+  it("treats a full-body or matching-region day as covering that region", () => {
+    expect(weekDayBodiesCoverRegion(["chest", "back", "legs"], "lower")).toBe(true);
+    expect(weekDayBodiesCoverRegion(["push", "pull", "full"], "lower")).toBe(true);
+    expect(weekDayBodiesCoverRegion(["chest", "back", "shoulders"], "lower")).toBe(false);
+  });
+
+  it("does not surface mixed Bench+Squat on a Chest day when the week also has Legs", () => {
+    const conflict = detectDaySessionFocusConflict({
+      bodyFocusId: "chest",
+      focusPresetId: "single_goal",
+      manualPreferences: mixedPrefs,
+      adaptiveSetup: null,
+    });
+    expect(conflict).not.toBeNull();
+    expect(
+      shouldSurfaceDaySessionFocusConflict({
+        conflict,
+        weekDayBodyIds: ["chest", "back", "legs"],
+      })
+    ).toBe(false);
+  });
+
+  it("surfaces mixed Bench+Squat when the week has no lower day", () => {
+    const conflict = detectDaySessionFocusConflict({
+      bodyFocusId: "chest",
+      focusPresetId: "single_goal",
+      manualPreferences: mixedPrefs,
+      adaptiveSetup: null,
+    });
+    expect(
+      shouldSurfaceDaySessionFocusConflict({
+        conflict,
+        weekDayBodyIds: ["chest", "back", "shoulders"],
+      })
+    ).toBe(true);
+  });
+
+  it("still surfaces a one-sided day even if another day covers the region", () => {
+    const prefs = basePrefs({
+      primaryFocus: ["Build Strength"],
+      subFocusByGoal: { "Build Strength": ["Squat"] },
+    });
+    const conflict = detectDaySessionFocusConflict({
+      bodyFocusId: "chest",
+      focusPresetId: "single_goal",
+      manualPreferences: prefs,
+      adaptiveSetup: null,
+    });
+    expect(conflict).not.toBeNull();
+    expect(conflict!.aligned).toHaveLength(0);
+    expect(
+      shouldSurfaceDaySessionFocusConflict({
+        conflict,
+        weekDayBodyIds: ["chest", "legs"],
+      })
+    ).toBe(true);
   });
 });

@@ -41,7 +41,7 @@ import type {
   MovementDistributionRule,
 } from "./constraintTypes";
 import {
-  muscleSplitEmphasisFromFocusParts,
+  muscleSplitEmphasesFromFocusParts,
   type MuscleSplitEmphasis,
 } from "../../../lib/splitMuscleMatching";
 
@@ -154,8 +154,9 @@ export function resolveWorkoutConstraints(
   // 3) Body-part strictness → hard_include + movement_distribution
   const bodyFocus = input.body_region_focus ?? [];
   let allowedLowerBodyEmphasis: "quad" | "posterior" | null | undefined = undefined;
+  const allowedMuscleEmphases = muscleSplitEmphasesFromFocusParts(bodyFocus);
   const allowedMuscleEmphasis: MuscleSplitEmphasis | null =
-    muscleSplitEmphasisFromFocusParts(bodyFocus);
+    allowedMuscleEmphases.length === 1 ? allowedMuscleEmphases[0]! : null;
   if (bodyFocus.length > 0) {
     const families = new Set<MovementFamily>();
     let quadModifier = false;
@@ -322,6 +323,7 @@ export function resolveWorkoutConstraints(
     allowed_movement_families: allowedMovementFamilies,
     allowed_lower_body_emphasis: allowedLowerBodyEmphasis,
     allowed_muscle_emphasis: allowedMuscleEmphasis,
+    allowed_muscle_emphases: allowedMuscleEmphases.length > 0 ? allowedMuscleEmphases : undefined,
     min_cooldown_mobility_exercises: minCooldownMobility,
     superset_pairing: supersetPairing,
     allowed_equipment: allowedEquipment.length ? allowedEquipment : undefined,

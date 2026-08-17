@@ -50,4 +50,29 @@ describe("regeneration variety", () => {
     const overlap = [...collectIds(second)].filter((id) => avoid.includes(id)).length;
     expect(overlap).toBeLessThan(avoid.length * 0.75);
   });
+
+  it("also avoids ids passed only on training_history regeneration_penalty sessions", () => {
+    const first = generateWorkoutSession(baseInput(), STUB_EXERCISES);
+    const avoid = [...collectIds(first)];
+    expect(avoid.length).toBeGreaterThan(4);
+
+    const second = generateWorkoutSession(
+      baseInput({
+        seed: 989_001,
+        training_history: {
+          recent_sessions: [
+            {
+              exercise_ids: avoid,
+              modality: "regeneration_penalty",
+              completed: true,
+            },
+          ],
+        },
+      }),
+      STUB_EXERCISES
+    );
+
+    const overlap = [...collectIds(second)].filter((id) => avoid.includes(id)).length;
+    expect(overlap).toBeLessThan(avoid.length * 0.75);
+  });
 });

@@ -9,6 +9,7 @@ import type {
   DaySessionFocusResolution,
 } from "../lib/daySessionFocusConflict";
 import { dayHasUnresolvedSessionFocusConflict } from "../lib/daySessionFocusConflict";
+import type { UncoveredSubGoalPrompt, UncoveredSubGoalResolution } from "../lib/subGoalSplitCoverage";
 import { DaySessionFocusConflictBanner } from "./DaySessionFocusConflictBanner";
 import { FocusDistributionNote } from "./FocusDistributionNote";
 import { WeeklyBodyFocusModeNote } from "./WeeklyBodyFocusModeNote";
@@ -19,9 +20,11 @@ type Props = {
   dayLabels: string[];
   bodyOptionsPerDay?: DayBodyFocusChoice[][];
   presetOptionsPerDay: DayFocusPreset[][];
-  selectedBodyIds?: DayBodyFocusChoiceId[];
+  selectedBodyIds?: DayBodyFocusChoiceId[][];
   /** Selected preset id per day (parallel arrays). */
   selectedIds: string[];
+  /** Per-day recommendation line (from first-page goals / sub-goals). */
+  recommendationSummaries?: string[];
   /** Detected body vs sub-goal conflicts per day (parallel to dayLabels). */
   conflictsPerDay?: (DaySessionFocusConflict | null)[];
   /** Resolution id applied per day, keyed by day index. */
@@ -40,6 +43,9 @@ type Props = {
   onSelectBody?: (dayIndex: number, bodyId: DayBodyFocusChoiceId) => void;
   onSelect: (dayIndex: number, presetId: string) => void;
   onApplyDayResolution?: (dayIndex: number, resolution: DaySessionFocusResolution) => void;
+  /** Week-level: selected splits don't cover a first-page sub-goal (e.g. Overhead Press). */
+  uncoveredSubGoalPrompt?: UncoveredSubGoalPrompt | null;
+  onApplyUncoveredResolution?: (resolution: UncoveredSubGoalResolution) => void;
   onBack: () => void;
 };
 
@@ -200,6 +206,7 @@ export function WeekDayFocusPlanner({
   presetOptionsPerDay,
   selectedBodyIds,
   selectedIds,
+  recommendationSummaries,
   conflictsPerDay,
   resolvedConflictIdsByDay,
   sportGoalPriorityNote,
@@ -212,6 +219,8 @@ export function WeekDayFocusPlanner({
   onSelectBody,
   onSelect,
   onApplyDayResolution,
+  uncoveredSubGoalPrompt,
+  onApplyUncoveredResolution,
   onBack,
 }: Props) {
   const showWeeklyDistribution =
@@ -222,8 +231,9 @@ export function WeekDayFocusPlanner({
     <View style={styles.scroll}>
       <Text style={[styles.screenTitle, { color: theme.text }]}>Focus for each day</Text>
       <Text style={[styles.screenSub, { color: theme.textMuted }]}>
-        Choose body focus and sport/goal for each day. What you select below is exclusive for that
-        day — it replaces the goals from earlier pages for that day.
+        We recommend a different body split for each day — as many unique days as your week
+        allows, with full body filling leftover days. You can still combine compatible areas
+        (like glutes + shoulders). Push and pull stay on separate days.
       </Text>
       {sportGoalPriorityNote ? (
         <Text style={[styles.screenNote, { color: theme.textMuted }]}>
@@ -247,15 +257,33 @@ export function WeekDayFocusPlanner({
         />
       ) : null}
 
+      {uncoveredSubGoalPrompt && onApplyUncoveredResolution ? (
+        <DaySessionFocusConflictBanner
+          theme={theme}
+          conflict={uncoveredSubGoalPrompt}
+          onApplyResolution={(res) => {
+            const full =
+              uncoveredSubGoalPrompt.resolutions.find((r) => r.id === res.id) ?? res;
+            onApplyUncoveredResolution(full);
+          }}
+        />
+      ) : null}
+
       {dayLabels.map((label, dayIdx) => {
         const bodyOptions = bodyOptionsPerDay?.[dayIdx] ?? [];
-        const selectedBody = selectedBodyIds?.[dayIdx];
+        const selectedBodies = selectedBodyIds?.[dayIdx] ?? [];
         const presets = presetOptionsPerDay[dayIdx] ?? [];
         const selected = selectedIds[dayIdx];
         const conflict = conflictsPerDay?.[dayIdx] ?? null;
+        const recommendation = recommendationSummaries?.[dayIdx];
         return (
           <View key={label} style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
             <Text style={[styles.dayTitle, { color: theme.text }]}>{label}</Text>
+            {recommendation ? (
+              <Text style={[styles.recommendLine, { color: theme.primary }]}>
+                Recommended: {recommendation}
+              </Text>
+            ) : null}
             {conflict &&
             onApplyDayResolution &&
             dayHasUnresolvedSessionFocusConflict(
@@ -266,7 +294,10 @@ export function WeekDayFocusPlanner({
                 theme={theme}
                 conflict={conflict}
                 resolvedId={resolvedConflictIdsByDay?.[dayIdx]}
-                onApplyResolution={(resolution) => onApplyDayResolution(dayIdx, resolution)}
+                onApplyResolution={(res) => {
+                  const full = conflict.resolutions.find((r) => r.id === res.id);
+                  if (full) onApplyDayResolution(dayIdx, full);
+                }}
               />
             ) : null}
             {bodyOptions.length > 0 && onSelectBody ? (
@@ -274,9 +305,12 @@ export function WeekDayFocusPlanner({
                 <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
                   Body focus this day
                 </Text>
+                <Text style={[styles.sectionHint, { color: theme.textMuted }]}>
+                  Pick one, or combine two compatible areas
+                </Text>
                 <View style={styles.options}>
                   {bodyOptions.map((p) => {
-                    const isSel = selectedBody === p.id;
+                    const isSel = selectedBodies.includes(p.id);
                     return (
                       <Pressable
                         key={p.id}
@@ -294,7 +328,12 @@ export function WeekDayFocusPlanner({
                           {isSel ? <View style={[styles.radioInner, { backgroundColor: theme.primarySolid }]} /> : null}
                         </View>
                         <View style={styles.optionText}>
-                          <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>
+                          <Text style={[styles.optionLabel, { color: theme.text }]}>
+                            {p.label}
+                            {p.recommended ? (
+                              <Text style={[styles.optionSub, { color: theme.primary }]}> · rec</Text>
+                            ) : null}
+                          </Text>
                           <Text style={[styles.optionSub, { color: theme.textMuted }]}>{p.subtitle}</Text>
                         </View>
                       </Pressable>
@@ -385,6 +424,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     marginBottom: 12,
+  },
+  recommendLine: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+    marginTop: -6,
+    marginBottom: 10,
   },
   section: {
     gap: 8,

@@ -57,6 +57,30 @@ export function formatExerciseDisplayCue(item: WorkoutItem): string | null {
   return null;
 }
 
+/** Last-resort setup copy so every exercise can show a Setup card. */
+export function fallbackExerciseSetupDescription(exerciseName: string): string {
+  const name = exerciseName.trim() || "this exercise";
+  return `Set up for ${name} with a stable base and the equipment this movement uses. Move through each phase with control and a braced core. Keep form strict and reduce load or range if balance or control breaks down.`;
+}
+
+/** True when text is the vague last-resort Setup modal template (not exercise-specific coaching). */
+export function isVagueExerciseSetupFallback(text: string | null | undefined): boolean {
+  const normalized = text?.trim();
+  if (!normalized) return false;
+  return (
+    /Set up for .+ with a stable base and the equipment this movement uses/i.test(normalized) &&
+    /Move through each phase with control and a braced core/i.test(normalized)
+  );
+}
+
+/**
+ * Setup modal text for any workout item. Prefers curated/catalog copy, never generic
+ * prescription cues, then a name-specific fallback so the Setup button can always show.
+ */
+export function resolveExerciseSetupText(item: WorkoutItem): string {
+  return formatExerciseDisplayCue(item) ?? fallbackExerciseSetupDescription(item.exercise_name);
+}
+
 /** Prefer item description, then curated slug copy (when loaded). */
 export function withResolvedExerciseDescription(
   item: WorkoutItem,

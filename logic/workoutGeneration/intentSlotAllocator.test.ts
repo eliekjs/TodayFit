@@ -166,6 +166,18 @@ describe("getMainWorkPatternSlugsForGoal", () => {
     expect(getMainWorkPatternSlugsForGoal("hypertrophy", ["core"])).toEqual(new Set(["rotate", "carry"]));
   });
 
+  it("restricts to squat/hinge on a lower-only strength day", () => {
+    expect(getMainWorkPatternSlugsForGoal("strength", ["lower"])).toEqual(
+      new Set(["squat", "hinge"])
+    );
+  });
+
+  it("restricts to push/pull on an upper-only strength day", () => {
+    expect(getMainWorkPatternSlugsForGoal("strength", ["upper_push", "upper_pull"])).toEqual(
+      new Set(["push", "pull"])
+    );
+  });
+
   it("does not restrict when focus is mixed or full body", () => {
     expect(getMainWorkPatternSlugsForGoal("strength", ["full_body"])).toEqual(
       new Set(["squat", "hinge", "push", "pull"])

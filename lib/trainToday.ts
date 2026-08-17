@@ -6,9 +6,10 @@ import type {
 } from "./defaultTrainTodayPreset";
 import { resolveDefaultTrainTodayPreset } from "./defaultTrainTodayPreset";
 import { GOAL_SLUG_TO_PRIMARY_FOCUS } from "./preferencesConstants";
+import { energyFromSportIntensity } from "./energyLevelMapping";
 import type { SportFormSnapshot, SportPreset } from "./sessionDraft";
 import type { ManualPreferences, PreferencePreset } from "./types";
-import { energyFromSportIntensity } from "./energyLevelMapping";
+import { formatItemList } from "./formatItemList";
 
 const EMPTY_MANUAL_PREFERENCES: ManualPreferences = {
   primaryFocus: [],
@@ -96,7 +97,12 @@ export function buildTrainTodayGenerationParams(
       primaryFocus,
       durationMinutes: sportForm.oneDayDuration ?? manualPreferences.durationMinutes ?? 45,
       energyLevel: energyFromSportIntensity(sportForm.intensityLevel),
+      // One-day sport body chips are Region-only. Don't let leftover Muscle/Pattern tags
+      // (Chest, Push, …) rewrite the session contract.
+      weeklyBodyFocusMode: "region",
       targetBody: bodyTargetFromBias(sportForm.oneDayBodyBias) ?? manualPreferences.targetBody,
+      targetModifier: [],
+      specificBodyFocus: undefined,
       injuries:
         sportForm.injuryTypes.length > 0
           ? sportForm.injuryTypes
@@ -145,8 +151,7 @@ export function resolveTrainTodayFromPreset(
 function goalPresetDetail(preset: PreferencePreset): string {
   const goals = preset.preferences.primaryFocus;
   if (goals.length === 0) return "No goals set";
-  if (goals.length === 1) return goals[0]!;
-  return `${goals[0]} +${goals.length - 1} more`;
+  return formatItemList(goals);
 }
 
 function sportPresetDetail(preset: SportPreset): string {

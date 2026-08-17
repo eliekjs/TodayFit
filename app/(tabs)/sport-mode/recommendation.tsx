@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, Pressable, Platform, ScrollView } from "react-native";
+import { View, Text, StyleSheet, Pressable, Platform, ScrollView, Alert } from "react-native";
 import { Redirect, useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,16 +11,24 @@ import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
 import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
+import { StartWorkoutPromptModal } from "../../../components/StartWorkoutPromptModal";
 import {
-  phaseLabelAfter,
   sportReviewBackLabel,
   sportReviewBackRoute,
   sportSetupRouteWhenNoPlan,
 } from "../../../lib/sessionFlowNav";
+import {
+  reviewAndAdjustHint,
+  saveAndExecuteHint,
+  saveAndExecuteLabel,
+} from "../../../lib/weekReviewCopy";
+import { ACTIVE_WEEK_ROUTE } from "../../../lib/weekProgress";
 import { GenerationLoadingScreen } from "../../../components/GenerationLoadingScreen";
 import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { getLocalDateString, getTodayLocalDateString, parseLocalDate } from "../../../lib/dateUtils";
+import { remapSportPrepWeekToStart } from "../../../lib/weekDesignation";
+import { WeekDesignationPicker } from "../../../components/WeekDesignationPicker";
 import {
   saveDayButtonLabel,
   saveWeekButtonLabel,
@@ -28,10 +36,13 @@ import {
   savedPlanDaysFromSportPrep,
   savedWeekFingerprint,
 } from "../../../lib/saveNamedPlan";
-import { useNamedPlanSave } from "../../../lib/useNamedPlanSave";
+import { useSaveAndExecute } from "../../../lib/useSaveAndExecute";
 import { DayFocusOverrideChips } from "../../../components/DayFocusOverrideChips";
 import { ChangeDayFocusModal } from "../../../components/ChangeDayFocusModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
+import { AddWorkoutBlockPanel } from "../../../components/AddWorkoutBlockPanel";
+import type { AddWorkoutBlockRequest } from "../../../components/AddWorkoutBlockPanel";
+import { generateAndAppendWorkoutBlock } from "../../../lib/appendGeneratedBlock";
 import type { GeneratedWorkout, DailyWorkoutPreferences, SpecificBodyFocusKey } from "../../../lib/types";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
@@ -74,6 +85,7 @@ import {
   sportGoalPrioritySectionNote,
   type DayBodyFocusChoiceId,
 } from "../../../lib/weekDaySessionFocus";
+import { matchingSubFocusNamesForBodyPicks } from "../../../lib/subGoalSplitCoverage";
 import { WeekDayFocusSummaryCard } from "../../../components/WeekDayFocusPlanner";
 
 function humanizeSportSlug(slug: string): string {
@@ -166,19 +178,26 @@ export default function AdaptiveWeekPlanScreen() {
     savedWorkouts,
   } = useAppState();
   const {
-    dialog: saveDialog,
-    busy: saveBusy,
-    isSaved,
-    requestSaveDay,
-    requestSaveWeek,
-    confirmSave,
-    cancelSave,
-  } = useNamedPlanSave();
+    save: {
+      dialog: saveDialog,
+      busy: saveBusy,
+      isSaved,
+      requestSaveDay,
+      requestSaveWeek,
+      confirmSave,
+      cancelSave,
+    },
+    startTarget,
+    requestSaveAndExecute,
+    confirmStart,
+    dismissStart,
+  } = useSaveAndExecute();
 
   const [selectedSession, setSelectedSession] = useState<PlannedDay | null>(null);
   const [selectedWorkout, setSelectedWorkout] = useState<GeneratedWorkout | null>(null);
   const [isLoadingWorkout, setIsLoadingWorkout] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isAddingBlock, setIsAddingBlock] = useState(false);
   const [isReplanning, setIsReplanning] = useState(false);
   const generationCancelledRef = useRef(false);
 
@@ -187,10 +206,12 @@ export default function AdaptiveWeekPlanScreen() {
       generationCancelledRef.current = false;
       setIsRegenerating(false);
       setIsReplanning(false);
+      setIsAddingBlock(false);
       return () => {
         generationCancelledRef.current = true;
         setIsRegenerating(false);
         setIsReplanning(false);
+        setIsAddingBlock(false);
       };
     }, [])
   );
@@ -547,7 +568,9 @@ export default function AdaptiveWeekPlanScreen() {
   }, [sportPrepWeekPlan]);
 
   useEffect(() => {
-    void ensureCuratedDescriptionsLoaded();
+    void ensureCuratedDescriptionsLoaded().catch(() => {
+      /* Loader resets on failure so the next mount retries. */
+    });
   }, []);
 
   useEffect(() => {
@@ -646,6 +669,19 @@ export default function AdaptiveWeekPlanScreen() {
       setSelectedSession(pickDefaultPlannedDay(sportPrepWeekPlan));
     }
   }, [sportPrepWeekPlan, selectedSession]);
+
+  const onChangeDesignatedWeek = useCallback(
+    (nextWeekStart: string) => {
+      if (!sportPrepWeekPlan) return;
+      const remapped = remapSportPrepWeekToStart(sportPrepWeekPlan, nextWeekStart);
+      setSportPrepWeekPlan(remapped);
+      setSelectedSession((prev) => {
+        if (!prev) return prev;
+        return remapped.days.find((d) => d.id === prev.id) ?? pickDefaultPlannedDay(remapped);
+      });
+    },
+    [sportPrepWeekPlan, setSportPrepWeekPlan]
+  );
 
   useEffect(() => {
     const loadWorkout = async () => {
@@ -953,6 +989,7 @@ export default function AdaptiveWeekPlanScreen() {
             targetBody,
             targetModifier,
             specificBodyFocus,
+            bodyChoiceIds: selectedBodyId ? [selectedBodyId] : undefined,
           })
         : [];
     const selectedPresetId =
@@ -972,6 +1009,9 @@ export default function AdaptiveWeekPlanScreen() {
           {
             displayTitle,
             workoutFocus: day.intentLabel ? [day.intentLabel] : undefined,
+            subFocusNames: selectedBodyId
+              ? matchingSubFocusNamesForBodyPicks(manualPreferences, [selectedBodyId], { max: 3 })
+              : matchingSubFocusNamesForBodyPicks(manualPreferences, [], { max: 3 }),
           }
         );
     const canChangeFocus =
@@ -1029,6 +1069,65 @@ export default function AdaptiveWeekPlanScreen() {
         sportPrepWeekPlan.today?.id === selectedDay.id ? norm : sportPrepWeekPlan.todayWorkout,
     });
     setSelectedWorkout(norm);
+  };
+
+  const onAddBlock = async (request: AddWorkoutBlockRequest) => {
+    if (!sportPrepWeekPlan || !selectedDay || !selectedWorkout || isAddingBlock) return;
+    setIsAddingBlock(true);
+    setError(null);
+    try {
+      const rankedSports =
+        sportPrepWeekPlan.rankedSportSlugs ??
+        (sportPrepWeekPlan.sportSlug ? [sportPrepWeekPlan.sportSlug] : undefined);
+      const updatedWorkout = await generateAndAppendWorkoutBlock({
+        workout: normalizeGeneratedWorkout(selectedWorkout),
+        basePreferences: selectedWorkout.generationPreferences ?? manualPreferences,
+        gymProfile: regenerateGeneratorContext.gymProfile,
+        blockType: request.blockType,
+        bodyChoiceId: request.bodyChoiceId,
+        sportGoalContext: {
+          sport_slugs: rankedSports,
+          sport_sub_focus: sportPrepWeekPlan.sportSubFocusSlugsBySport,
+          sport_weight:
+            sportPrepWeekPlan.sportVsGoalPct != null
+              ? sportPrepWeekPlan.sportVsGoalPct / 100
+              : undefined,
+          sport_focus_pct:
+            sportPrepWeekPlan.sportFocusPct?.length === 2
+              ? ([sportPrepWeekPlan.sportFocusPct[0], sportPrepWeekPlan.sportFocusPct[1]] as [
+                  number,
+                  number,
+                ])
+              : undefined,
+          regeneration_avoid_exercise_ids: collectWorkoutExerciseIds(selectedWorkout),
+        },
+        historySources: {
+          workoutHistory,
+          savedWorkouts,
+          regenerationAvoidExerciseIds: collectWorkoutExerciseIds(selectedWorkout),
+        },
+      });
+      if (generationCancelledRef.current) return;
+      const norm = normalizeGeneratedWorkout(updatedWorkout);
+      setSportPrepWeekPlan({
+        ...sportPrepWeekPlan,
+        guestWorkouts: {
+          ...(sportPrepWeekPlan.guestWorkouts ?? {}),
+          [selectedDay.id]: norm,
+          [selectedDay.date]: norm,
+        },
+        todayWorkout:
+          sportPrepWeekPlan.today?.id === selectedDay.id ? norm : sportPrepWeekPlan.todayWorkout,
+      });
+      setSelectedWorkout(norm);
+    } catch (e) {
+      if (generationCancelledRef.current) return;
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      Alert.alert("Couldn't add block", msg);
+    } finally {
+      setIsAddingBlock(false);
+    }
   };
 
   const onRegenerate = async () => {
@@ -1187,6 +1286,28 @@ export default function AdaptiveWeekPlanScreen() {
     });
   };
 
+  /** Save this plan to the library, then offer to train today's session right away. */
+  const onSaveAndExecute = () => {
+    if (!sportPrepWeekPlan) return;
+    const days = savedPlanDaysFromSportPrep(sportPrepWeekPlan);
+    if (days.length === 0) return;
+    requestSaveAndExecute({
+      kind: days.length === 1 ? "day" : "week",
+      weekStartDate: sportPrepWeekPlan.weekStartDate,
+      days,
+      source: "adaptive",
+      onStart: (day) => {
+        if (!day.workout) return;
+        setGeneratedWorkout(normalizeGeneratedWorkout(day.workout));
+        setResumeProgress(null);
+        setManualSessionProgress(null);
+        setManualExecutionStarted(true);
+        router.push("/manual/execute");
+      },
+      onDecline: () => router.replace(ACTIVE_WEEK_ROUTE as never),
+    });
+  };
+
   const sportSaveDays = savedPlanDaysFromSportPrep(sportPrepWeekPlan);
   const weekSaveFingerprint = savedWeekFingerprint(
     sportPrepWeekPlan.weekStartDate,
@@ -1276,18 +1397,25 @@ export default function AdaptiveWeekPlanScreen() {
 
   const mainContent = (
     <>
-      <Card
-        title={isSingleSessionPlan ? "Your session" : "Your Week Plan"}
-        subtitle={
-          isSingleSessionPlan && selectedDay
-            ? `${formatDayOfWeek(selectedDay.date)} • ${selectedDay.date}`
-            : `Week starting ${sportPrepWeekPlan.weekStartDate}`
-        }
-      >
-        <Text style={{ fontSize: 13, color: theme.textMuted }}>
+      <Card title={isSingleSessionPlan ? "Your session" : "Your Week Plan"}>
+        {!isSingleSessionPlan ? (
+          <WeekDesignationPicker
+            weekStartDate={sportPrepWeekPlan.weekStartDate}
+            onChangeWeekStart={onChangeDesignatedWeek}
+            label="Designated for"
+          />
+        ) : selectedDay ? (
+          <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 4 }}>
+            {`${formatDayOfWeek(selectedDay.date)} • ${selectedDay.date}`}
+          </Text>
+        ) : null}
+        <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: isSingleSessionPlan ? 0 : 10 }}>
+          {reviewAndAdjustHint({ multipleDays: !isSingleSessionPlan })}
+        </Text>
+        <Text style={{ fontSize: 13, color: theme.textMuted, marginTop: 6 }}>
           {isSingleSessionPlan
             ? "Tweak focus or regenerate below."
-            : "Tap a session to view it. Use Change focus to adjust body/priority, then regenerate."}
+            : "Use Change focus to adjust body or priority, then regenerate."}
         </Text>
         <PrimaryButton
           label={saveWeekButtonLabel({
@@ -1387,7 +1515,7 @@ export default function AdaptiveWeekPlanScreen() {
                   ),
               }}
               forward={{
-                label: phaseLabelAfter("review") ?? "Train",
+                label: "Train",
                 onPress: () => {},
                 disabled: true,
               }}
@@ -1431,6 +1559,12 @@ export default function AdaptiveWeekPlanScreen() {
               showEditPrescription
               onEditPrescription={onEditPrescription}
             />
+
+          <AddWorkoutBlockPanel
+            onAdd={onAddBlock}
+            adding={isAddingBlock}
+            disabled={isRegenerating || isUpdatingStatus}
+          />
 
           <View style={styles.footer}>
             {selectedDay.status === "planned" ? (
@@ -1507,21 +1641,23 @@ export default function AdaptiveWeekPlanScreen() {
                   ),
               }}
               forward={{
-                label: phaseLabelAfter("review") ?? "Train",
-                onPress: () => {
-                  if (!selectedWorkout) return;
-                  setGeneratedWorkout(normalizeGeneratedWorkout(selectedWorkout));
-                  setResumeProgress(null);
-                  setManualSessionProgress(null);
-                  setManualExecutionStarted(true);
-                  router.push("/manual/execute");
-                },
-                disabled: !selectedWorkout || selectedDay?.status !== "planned",
+                label: saveAndExecuteLabel({
+                  multipleDays: !isSingleSessionPlan,
+                  busy: saveBusy,
+                  alreadySaved: isSaved(weekSaveFingerprint),
+                }),
+                onPress: onSaveAndExecute,
+                disabled:
+                  !selectedWorkout ||
+                  selectedDay?.status !== "planned" ||
+                  saveBusy ||
+                  saveDialog != null,
+                loading: saveBusy,
               }}
               hint={
                 !selectedWorkout || selectedDay?.status !== "planned"
                   ? "Mark session as planned to start training."
-                  : null
+                  : saveAndExecuteHint({ multipleDays: !isSingleSessionPlan })
               }
             />
             <DiscardSessionLink style={{ marginTop: 16, marginBottom: 8 }} />
@@ -1578,6 +1714,11 @@ export default function AdaptiveWeekPlanScreen() {
         sections={focusSectionsForModal}
         onApply={handleAdjustFocusApply}
         title="Adjust focus areas and days"
+      />
+      <StartWorkoutPromptModal
+        target={startTarget}
+        onStart={confirmStart}
+        onDismiss={dismissStart}
       />
       {saveDialog ? (
         <SaveNamedPlanModal
