@@ -4,13 +4,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../lib/theme";
 
 type Props = {
-  name: React.ComponentProps<typeof Ionicons>["name"];
+  name?: React.ComponentProps<typeof Ionicons>["name"];
   size?: number;
   wellSize?: number;
+  children?: React.ReactNode;
 };
 
 /** Pale teal circle with a thin-stroke icon — Ethos icon well. */
-export function IconWell({ name, size = 20, wellSize = 40 }: Props) {
+export function IconWell({ name, size = 20, wellSize = 40, children }: Props) {
   const theme = useTheme();
   return (
     <View
@@ -24,7 +25,7 @@ export function IconWell({ name, size = 20, wellSize = 40 }: Props) {
         },
       ]}
     >
-      <Ionicons name={name} size={size} color={theme.primary} />
+      {children ?? (name ? <Ionicons name={name} size={size} color={theme.primary} /> : null)}
     </View>
   );
 }

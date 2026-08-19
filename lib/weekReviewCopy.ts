@@ -23,7 +23,7 @@ export function saveAndExecuteLabel(args: {
 }): string {
   if (args.busy) return "Saving…";
   if (args.alreadySaved) return args.multipleDays ? "Start this week" : "Start workout";
-  return "Save and execute";
+  return "Save and start";
 }
 
 export function saveAndExecuteHint(args: { multipleDays: boolean }): string {

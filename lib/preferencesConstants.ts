@@ -1,4 +1,4 @@
-import type { BodyPartFocusKey, TargetBody, WorkoutStyleKey } from "./types";
+import type { BodyPartFocusKey, EnergyLevel, TargetBody, WorkoutStyleKey } from "./types";
 import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus/goalSubFocusOptions";
 import { normalizeSubFocusPctRecord } from "./subFocusWeights";
 import {
@@ -103,6 +103,39 @@ export const CONSTRAINT_OPTIONS_LOWER: readonly string[] = [
   "Core",
   "No restrictions",
 ];
+
+export const ADVANCED_OPTIONS_LABEL = "Advanced options";
+export const HOW_HARD_TO_TRAIN_TITLE = "How hard to train";
+export const HOW_HARD_TO_TRAIN_SUBTITLE =
+  "Low, medium, or high affects how hard the session feels (sets and conditioning length).";
+export const VOLUME_PREFERENCE_TITLE = "Volume preference";
+export const GOAL_MATCH_PCT_TITLE = "Goal match %";
+export const GOAL_MATCH_PCT_SUBTITLE =
+  "What % of the workout should match each ranked goal. Sum = 100%.";
+export const SUB_GOAL_BLEND_TITLE = "Sub-goal percentage blend";
+export const SUB_GOAL_BLEND_SUBTITLE =
+  "Split each goal between its sub-goals (100% per goal).";
+export const AVOID_OR_PROTECT_TITLE = "Avoid or protect";
+export const AVOID_OR_PROTECT_SUBTITLE =
+  "We’ll skip exercises that bother these areas. “No restrictions” clears others.";
+
+export function constraintOptionsForTargetBody(
+  target: TargetBody | null | undefined
+): readonly string[] {
+  if (target === "Upper") return CONSTRAINT_OPTIONS_UPPER;
+  if (target === "Lower") return CONSTRAINT_OPTIONS_LOWER;
+  return CONSTRAINT_OPTIONS;
+}
+
+export function energyLevelSummary(energy: EnergyLevel | null | undefined): string {
+  if (energy == null) return "Default (medium)";
+  return energy.charAt(0).toUpperCase() + energy.slice(1);
+}
+
+export function injuriesSummary(injuries: readonly string[]): string {
+  if (injuries.includes("No restrictions") || injuries.length === 0) return "No restrictions";
+  return injuries.join(", ");
+}
 
 /**
  * Refinements – Style (optional single-select).

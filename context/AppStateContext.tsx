@@ -33,6 +33,7 @@ import { persistWithHandling } from "./persistWithHandling";
 import { createLatestSerializedPersistenceQueue } from "./latestSerializedPersistenceQueue";
 import type { AdaptiveSetup } from "./appStateModel";
 import { defaultManualPreferences } from "./appStateModel";
+import { blankFiltersForNewSession } from "../lib/newSessionFilters";
 import { loadRemoteAppState } from "./loadRemoteAppState";
 import type { LoadedRemoteAppState } from "./loadRemoteAppState";
 import type { ManualGoalPreferencesScope } from "../lib/manualGoalPreferencesHref";
@@ -164,9 +165,9 @@ type AppStateContextValue = {
   activeSessionDraft: SessionDraft | null;
   /** Begin or continue a flow; returns false if another flow's session is active (show conflict UI). */
   beginSessionFlow: (flow: SessionFlow) => boolean;
-  /** Discard current session artifacts and start the given flow with last-edited filters for that mode. */
+  /** Discard current session artifacts and start the given flow with blank filters. */
   replaceSessionFlow: (flow: SessionFlow) => void;
-  /** Clear in-progress session (workout/week/plan artifacts + draft). Keeps per-mode last-edited filters. */
+  /** Clear in-progress session (workout/week/plan artifacts + draft). */
   discardActiveSession: () => void;
   updateActiveSessionDraft: (
     patch: Partial<
@@ -177,7 +178,7 @@ type AppStateContextValue = {
   savedSportForm: SportFormSnapshot | null;
   /** Sport-mode: persist local form for last-edited + active session. */
   commitSportFormSnapshot: (form: SportFormSnapshot) => void;
-  /** One-shot hydration for sport-mode setup when resuming / starting with last-edited filters. */
+  /** One-shot hydration for sport-mode setup (new session blank form, preset apply, or resume). */
   pendingSportFormHydration: SportFormSnapshot | null;
   consumeSportFormHydration: () => SportFormSnapshot | null;
   /** Supabase-backed snapshot load for signed-in users (profiles, prefs, history, saved). */
@@ -481,25 +482,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const applyLastEditedFiltersForFlow = useCallback(
-    (flow: SessionFlow) => {
-      const snap = lastEditedFiltersByModeRef.current[flow];
-      if (snap?.manualPreferences) {
-        setManualPreferences(sanitizeManualPreferenceSubLayers(snap.manualPreferences));
-      }
-      if (snap?.adaptiveSetup !== undefined) {
-        setAdaptiveSetup(snap.adaptiveSetup ?? null);
-      }
-      if (snap?.sportForm) {
-        setPendingSportFormHydration(snap.sportForm);
-        lastSportFormSnapshotRef.current = snap.sportForm;
-        setSavedSportForm(snap.sportForm);
-      }
-      return snap ?? null;
-    },
-    []
-  );
-
   const clearSessionArtifacts = useCallback(() => {
     setManualWeekPlan(null);
     setGeneratedWorkout(null);
@@ -521,43 +503,33 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const startSessionForFlow = useCallback(
     (flow: SessionFlow) => {
-      const snap = applyLastEditedFiltersForFlow(flow);
-      const prefs = snap?.manualPreferences
-        ? sanitizeManualPreferenceSubLayers(snap.manualPreferences)
-        : manualPreferences;
-      if (snap?.manualPreferences) {
-        setManualPreferences(prefs);
-      }
+      const blank = blankFiltersForNewSession(flow);
+      const prefs = sanitizeManualPreferenceSubLayers(blank.preferences);
+      setManualPreferences(prefs);
+      setAdaptiveSetup(null);
+      lastSportFormSnapshotRef.current = blank.sportForm;
+      setSavedSportForm(blank.sportForm);
+      setPendingSportFormHydration(blank.sportForm);
+      persistLastEditedForFlow(flow, {
+        manualPreferences: prefs,
+        adaptiveSetup: null,
+        sportForm: blank.sportForm,
+        weekSetup: null,
+        updatedAt: Date.now(),
+      });
       setManualGoalPreferencesScope(flow === "goal_week" ? "week" : "day");
       const draft = createSessionDraft({
         flow,
         preferences: prefs,
         gymProfileId: activeGymProfileId,
         gymName: activeGymName,
-        adaptiveSetup: snap?.adaptiveSetup ?? null,
-        weekSetup: snap?.weekSetup ?? null,
-        phase: inferSessionPhase({
-          flow,
-          generatedWorkout,
-          manualWeekPlan,
-          sportPrepWeekPlan,
-          manualExecutionStarted,
-          weekSetup: snap?.weekSetup ?? null,
-          adaptiveSetup: snap?.adaptiveSetup ?? null,
-        }),
+        adaptiveSetup: null,
+        weekSetup: null,
+        phase: "setup",
       });
       setActiveSessionDraft(draft);
     },
-    [
-      applyLastEditedFiltersForFlow,
-      manualPreferences,
-      activeGymProfileId,
-      activeGymName,
-      generatedWorkout,
-      manualWeekPlan,
-      sportPrepWeekPlan,
-      manualExecutionStarted,
-    ]
+    [persistLastEditedForFlow, activeGymProfileId, activeGymName]
   );
 
   const beginSessionFlow = useCallback(

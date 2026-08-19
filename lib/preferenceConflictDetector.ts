@@ -56,7 +56,7 @@ export type ConflictContext = {
  * "Full" means no meaningful conflict; omitted sports are treated as "Full".
  * Sourced from structureBias fields and movement pattern ranks in sportDefinitions.ts.
  */
-const SPORT_DOMINANT_REGION: Record<string, TargetBody> = {
+export const SPORT_DOMINANT_REGION: Record<string, TargetBody> = {
   rock_climbing: "Upper",
   swimming_open_water: "Upper",
   boxing: "Upper",
@@ -82,6 +82,12 @@ const SPORT_DOMINANT_REGION: Record<string, TargetBody> = {
   kite_surfing: "Upper",
   wind_surfing: "Upper",
 };
+
+/** Dominant session region for a canonical sport slug. Unknown sports are Full. */
+export function dominantTargetBodyForSport(slug: string | null | undefined): TargetBody {
+  if (!slug) return "Full";
+  return SPORT_DOMINANT_REGION[slug] ?? "Full";
+}
 
 // ---------------------------------------------------------------------------
 // Recovery / mobility goals

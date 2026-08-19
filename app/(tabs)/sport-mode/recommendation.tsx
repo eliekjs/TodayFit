@@ -61,7 +61,7 @@ import {
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { isDbConfigured } from "../../../lib/db";
 import { collectWorkoutExerciseIds, replaceExerciseInWorkout, updateExercisePrescriptionInWorkout } from "../../../lib/workoutUtils";
-import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, resolveSwapExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   getSwapSuggestionsPage,
   blockTypeToSwapBlockRole,
@@ -82,6 +82,7 @@ import {
   buildDayBodyFocusChoicesForDay,
   buildDayFocusPresetsForDay,
   buildPriorityFocusSummary,
+  resolveWeeklyBodyFocusMode,
   sportGoalPrioritySectionNote,
   type DayBodyFocusChoiceId,
 } from "../../../lib/weekDaySessionFocus";
@@ -961,6 +962,7 @@ export default function AdaptiveWeekPlanScreen() {
             slotIndex: gymIndex,
             fallbackTargetBody: targetBody,
             fallbackTargetModifier: targetModifier,
+            mode: resolveWeeklyBodyFocusMode(manualPreferences.weeklyBodyFocusMode),
           })
         : [];
     const selectedBodyId: DayBodyFocusChoiceId | undefined =
@@ -1023,14 +1025,14 @@ export default function AdaptiveWeekPlanScreen() {
     return { bodyFocus, priorityFocus, canChangeFocus, selectedPresetId };
   };
 
-  const onSwapChoose = (optionId: string, optionName: string) => {
+  const onSwapChoose = async (optionId: string, optionName: string) => {
     if (!sportPrepWeekPlan || !selectedDay || !selectedWorkout || !swapModal) return;
     const updatedWorkout = replaceExerciseInWorkout(
       normalizeGeneratedWorkout(selectedWorkout),
       swapModal.exerciseId,
       optionId,
       optionName,
-      getCuratedExerciseDescription(optionId)
+      await resolveSwapExerciseDescription(optionId)
     );
     const norm = normalizeGeneratedWorkout(updatedWorkout);
     setSportPrepWeekPlan({

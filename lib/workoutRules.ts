@@ -3,15 +3,18 @@
  * No React or DB dependencies.
  */
 
-import { getSessionRedundancyFamilyId } from "./sessionExerciseRedundancy";
+import { getSessionRedundancyFamilyId, nearDuplicateSlugWasCollapsed } from "./sessionExerciseRedundancy";
 
 export {
   GLUTE_BRIDGE_HIP_THRUST_FAMILY,
   KETTLEBELL_SWING_FAMILY,
+  getNearDuplicateFamilyId,
   getSessionRedundancyFamilyId,
   isExerciseAvailableForSession,
   isGluteBridgeOrHipThrustSlug,
   isKettlebellSwingSlug,
+  isSameNearDuplicateFamily,
+  nearDuplicateSlugWasCollapsed,
   sessionRedundancyFamilyAlreadyUsed,
 } from "./sessionExerciseRedundancy";
 
@@ -24,7 +27,8 @@ export const WARMUP_ALLOWED_EQUIPMENT = new Set<string>([
 ]);
 
 export function isWarmupEligibleEquipment(equipment: string[]): boolean {
-  if (!equipment.length) return false;
+  // Empty required list means no implement — treat as bodyweight floor work.
+  if (!equipment.length) return true;
   const normalized = equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
   return normalized.every((eq) => WARMUP_ALLOWED_EQUIPMENT.has(eq));
 }
@@ -41,7 +45,7 @@ export const COOLDOWN_ALLOWED_EQUIPMENT = new Set<string>([
 ]);
 
 export function isCooldownEligibleEquipment(equipment: string[]): boolean {
-  if (!equipment.length) return false;
+  if (!equipment.length) return true;
   const normalized = equipment.map((eq) => eq.toLowerCase().replace(/\s/g, "_"));
   return normalized.every((eq) => COOLDOWN_ALLOWED_EQUIPMENT.has(eq));
 }
@@ -137,14 +141,17 @@ const BATTLE_ROPE_FAMILY_IDS = new Set([
  * Returns a cluster id for "extremely similar" exercises. Same cluster => avoid 3+ in a row.
  * Deadlift variants (including RDL, trap bar, deficit, snatch grip) share "deadlift_family";
  * battle rope variants share "battle_rope_family"; session max-one families (glute bridge/hip
- * thrust, kettlebell swings) share their redundancy ids; others use their own id.
+ * thrust and collapsed near-duplicates such as kettlebell swings) share their redundancy ids;
+ * others use their own id.
  */
 export function getSimilarExerciseClusterId(exercise: { id: string }): string {
   const id = exercise.id.toLowerCase().replace(/\s/g, "_");
   if (DEADLIFT_FAMILY_IDS.has(id)) return "deadlift_family";
   if (BATTLE_ROPE_FAMILY_IDS.has(id)) return "battle_rope_family";
   const redundancyFamily = getSessionRedundancyFamilyId(id);
-  if (redundancyFamily) return redundancyFamily;
+  if (redundancyFamily && (nearDuplicateSlugWasCollapsed(id) || redundancyFamily.endsWith("_family"))) {
+    return redundancyFamily;
+  }
   return exercise.id;
 }
 

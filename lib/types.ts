@@ -53,7 +53,7 @@ export type SpecificBodyFocusKey =
 /**
  * Weekly body-focus vocabulary on the “Focus for each day” screen.
  * - region: Upper / Lower / Full / Core
- * - pattern: Push / Pull / Legs (+ Core)
+ * - pattern: Push / Pull / Legs, or split Legs into Quads / Posterior (+ Core)
  * - muscle: Chest / Back / Shoulders / Arms / Legs / Glutes / Core
  */
 export type WeeklyBodyFocusMode = "region" | "pattern" | "muscle";
@@ -76,7 +76,9 @@ export type DailyWorkoutPreferences = {
     | "shoulders"
     | "arms"
     | "glutes"
-    | "legs";
+    | "legs"
+    | "quad"
+    | "posterior";
   /** Specific body-part emphasis for this day (e.g. glutes, shoulders). Only include when relevant to body region. */
   specificBodyFocus?: SpecificBodyFocusKey[];
   energyLevel?: EnergyLevel;

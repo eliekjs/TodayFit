@@ -96,25 +96,22 @@ export function canProceedWithDailyFocusDistribution(
   return { ok: true };
 }
 
-/** Weekly: always require an explicit blend vs dedicate_days choice on session-focus setup. */
+/**
+ * Weekly blend-vs-dedicate is no longer a week-level choice — blend is a per-day
+ * focus preset. Kept for call-site compatibility; always hide / always ok.
+ */
 export function shouldShowWeeklyGoalDistributionNote(
   _primaryFocusCount?: number,
   _opts?: { hasSportGoals?: boolean }
 ): boolean {
-  return true;
+  return false;
 }
 
 export function canProceedWithWeeklyGoalDistribution(
-  style: GoalDistributionStyle | null | undefined,
+  _style?: GoalDistributionStyle | null,
   _primaryFocusCount?: number,
   _opts?: { hasSportGoals?: boolean }
 ): { ok: boolean; reason?: string } {
-  if (style !== "blend" && style !== "dedicate_days") {
-    return {
-      ok: false,
-      reason: "Choose mixed goals in each workout, or focus each day on specific goals.",
-    };
-  }
   return { ok: true };
 }
 

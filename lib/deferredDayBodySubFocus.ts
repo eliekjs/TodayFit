@@ -1,36 +1,18 @@
 /**
- * Sub-goals that duplicate the week “body focus this day” step
- * (Region / Pattern / Muscle). Those picks belong on the next page, not
- * as first-page sub-focus chips — otherwise Chest vs Upper vs Legs fights
- * the day template the user is about to choose.
+ * Sub-goals that duplicate the week “body focus this day” region chips
+ * (Upper / Lower / Core / Full). Those stay off the first page so they
+ * don’t fight the day template. Muscle-day physique picks remain selectable
+ * as week sub-goals (up to MAX_TOTAL_SUB_GOALS).
  */
 
 import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus/goalSubFocusOptions";
 import { normalizeSubFocusPctRecord } from "./subFocusWeights";
 
-/** Muscle-day vocabulary used by Build Muscle / Body Recomp sub-goals. */
-const PHYSIQUE_BODY_DAY_SLUGS = new Set([
-  "chest",
-  "back",
-  "arms",
-  "shoulders",
-  "legs",
-  "glutes",
-  "core",
-  "balanced",
-]);
-
 /**
  * Region chips that also appear as day body focus (Upper / Lower / Core / Full).
- * Applied on mixed goals (Athletic, Strength Full-body, etc.).
+ * Muscle-day physique picks (Chest, Back, …) stay selectable as week sub-goals.
  */
 const REGION_BODY_DAY_SLUGS = new Set(["upper", "lower", "core", "full_body"]);
-
-const PHYSIQUE_PRIMARY_GOALS = new Set([
-  "Build Muscle (Hypertrophy)",
-  "Body Recomp (fat loss & muscle gain)",
-  "Body Recomposition",
-]);
 
 function slugForSubFocusDisplayName(goalLabel: string, displayName: string): string | null {
   return (
@@ -39,11 +21,10 @@ function slugForSubFocusDisplayName(goalLabel: string, displayName: string): str
   );
 }
 
-/** True when this sub-goal is a body-part / region pick the week planner will ask again. */
+/** True when this sub-goal duplicates Upper / Lower / Core / Full on the week planner. */
 export function isDeferredDayBodySubFocus(goalLabel: string, displayName: string): boolean {
   const slug = slugForSubFocusDisplayName(goalLabel, displayName);
   if (!slug) return false;
-  if (PHYSIQUE_PRIMARY_GOALS.has(goalLabel)) return PHYSIQUE_BODY_DAY_SLUGS.has(slug);
   return REGION_BODY_DAY_SLUGS.has(slug);
 }
 
@@ -52,6 +33,21 @@ export function filterDeferredDayBodySubFocusChoices(
   displayNames: readonly string[]
 ): string[] {
   return displayNames.filter((name) => !isDeferredDayBodySubFocus(goalLabel, name));
+}
+
+/** Visible sub-goal chips for selected goals (week hides region duplicates only). */
+export function countVisibleGoalSubFocusPicks(
+  subFocusByGoal: Record<string, string[]> | undefined | null,
+  goalLabels: readonly string[],
+  deferDayBody: boolean
+): number {
+  if (!subFocusByGoal) return 0;
+  let n = 0;
+  for (const goal of goalLabels) {
+    const labels = subFocusByGoal[goal] ?? [];
+    n += deferDayBody ? filterDeferredDayBodySubFocusChoices(goal, labels).length : labels.length;
+  }
+  return n;
 }
 
 export function goalHasDeferredDayBodySubFocuses(

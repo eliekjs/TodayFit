@@ -97,6 +97,15 @@ export function isLowerBodySubFocusSlug(slug: string): boolean {
   return getSubFocusBodyRegion(slug) === "lower";
 }
 
+/** Steady aerobic / Zone 2 belongs on lower, legs, or full days — not upper push/pull. */
+export function aerobicCardioFitsDayBody(bodyIds: readonly DayBodyFocusChoiceId[]): boolean {
+  if (bodyIds.length === 0) return true;
+  return bodyIds.every((id) => {
+    const region = dayBodyFocusToRegion(id);
+    return region === "full" || region === "lower" || region === "core";
+  });
+}
+
 export function dayBodyFocusToRegion(bodyId: DayBodyFocusChoiceId): DayBodyRegion {
   switch (bodyId) {
     case "upper":
@@ -109,6 +118,8 @@ export function dayBodyFocusToRegion(bodyId: DayBodyFocusChoiceId): DayBodyRegio
       return "upper";
     case "lower":
     case "legs":
+    case "quad":
+    case "posterior":
     case "glutes":
       return "lower";
     case "core":

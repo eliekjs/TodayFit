@@ -12,6 +12,8 @@ export type WeekSetupDraft = {
   selectedTrainingDays: number[];
   dayFocusChoiceIds: string[];
   dayBodyFocusChoiceIds?: string[];
+  /** Days the user edited — recommendations must not overwrite these picks. */
+  daySessionFocusLocked?: boolean[];
   /** Fingerprint of goals/sub-focuses used to seed per-day recommendations. */
   recommendationSeed?: string;
 };
@@ -40,6 +42,8 @@ export function weekSetupDraftEqual(
     a.dayFocusChoiceIds.every((id, i) => id === b.dayFocusChoiceIds[i]) &&
     (a.dayBodyFocusChoiceIds ?? []).length === (b.dayBodyFocusChoiceIds ?? []).length &&
     (a.dayBodyFocusChoiceIds ?? []).every((id, i) => id === (b.dayBodyFocusChoiceIds ?? [])[i]) &&
+    (a.daySessionFocusLocked ?? []).length === (b.daySessionFocusLocked ?? []).length &&
+    (a.daySessionFocusLocked ?? []).every((v, i) => v === (b.daySessionFocusLocked ?? [])[i]) &&
     (a.recommendationSeed ?? "") === (b.recommendationSeed ?? "")
   );
 }

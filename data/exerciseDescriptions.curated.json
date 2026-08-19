@@ -493,6 +493,94 @@
       ],
       "reviewed_at": "2026-05-28"
     },
+    "dumbbell_push_press": {
+      "description": "Hold dumbbells at the shoulders with elbows slightly in front and feet hip-width. Dip the knees a few inches, then drive the legs and press the bells overhead in one motion. Lock out stacked over the shoulders and avoid pressing the weights out in front.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/PushPress",
+        "https://www.crossfit.com/essentials/the-jerk"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "kettlebell_high_pull": {
+      "description": "Stand over a kettlebell with a flat back and the handle between the feet. Drive the hips like a swing, then pull the elbows high as the bell rises close to the body. Keep the wrists neutral and avoid muscling the lift with rounded shoulders.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBSwing",
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "kettlebell_dead_clean": {
+      "description": "Start with the kettlebell on the floor between the feet and grab the handle with a straight arm. Drive through the legs and hips to float the bell, then punch the hand through and catch it softly in the rack. Keep the bell close and avoid curling it with the biceps.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Kettlebell/KBClean",
+        "https://exrx.net/XLists/KettlebellExercises"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "dumbbell_hang_clean": {
+      "description": "Hold dumbbells at the sides and hinge until they hang just above the knees with a flat back. Extend the hips and knees hard, then pull the bells to the shoulders and catch with elbows high. Keep the weights close to the body and avoid lifting with the arms alone.",
+      "sources": [
+        "https://exrx.net/WeightExercises/OlympicLifts/HangClean",
+        "https://exrx.net/WeightExercises/OlympicLifts/DBClean"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "front_lever_tuck": {
+      "description": "Hang from a bar with a shoulder-width overhand grip and arms straight. Pull the shoulders down away from the ears, tuck the knees to the chest, and lift the hips until the back is near parallel to the floor. Hold without bending the elbows or shrugging.",
+      "sources": [
+        "https://gmb.io/front-lever/",
+        "https://calisthenics.com/exercise/tuck-front-lever/"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "front_lever_advanced_tuck": {
+      "description": "Hang from a bar with straight arms and set the shoulders down and back. Tuck the knees, then slide the thighs away from the chest so the hips open while the back stays near parallel. Keep the elbows locked and avoid letting the hips sag.",
+      "sources": [
+        "https://gmb.io/front-lever/",
+        "https://calisthenics.com/exercise/tuck-front-lever/"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "front_lever_negative": {
+      "description": "Start in an inverted hang or tucked lever with straight arms and shoulders packed. Lower toward a horizontal front-lever position as slowly as control allows, then exit before the shoulders shrug. Keep the ribs down and stop if the lower back arches hard.",
+      "sources": [
+        "https://gmb.io/front-lever/",
+        "https://www.caliverse.app/exercises/front-lever-tuck-719"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "box_pistol_squat": {
+      "description": "Stand on one leg in front of a box or bench with the other leg reaching forward. Sit back and down until the working hip lightly touches the box, then press through the mid-foot to stand. Keep the heel down and the knee tracking over the toes.",
+      "sources": [
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegBoxSquat",
+        "https://exrx.net/WeightExercises/Quadriceps/BWSingleLegSplitSquat"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "wall_ankle_mobilization": {
+      "description": "Face a wall and place one foot forward with the heel down and toes pointing straight. Drive the knee toward the wall over the toes until you feel a stretch in the ankle, then ease off. Keep the heel planted and stop if the arch collapses or the front of the ankle pinches.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/152/standing-dorsi-flexion-calf-stretch/",
+        "https://exrx.net/Stretching/Gastrocnemius"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "soleus_stretch_wall": {
+      "description": "Face a wall in a split stance with the back foot flat and toes pointing forward. Bend the back knee while pressing that heel into the floor until you feel a stretch low in the calf. Keep the heel down and avoid bouncing or letting the foot roll in.",
+      "sources": [
+        "https://www.acefitness.org/resources/everyone/exercise-library/152/standing-dorsi-flexion-calf-stretch/",
+        "https://exrx.net/Stretching/Gastrocnemius"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
+    "quadruped_sit_back": {
+      "description": "Start on hands and knees with the toes tucked under and the hands under the shoulders. Sit the hips back toward the heels while keeping the heels reaching down until you feel a stretch in the ankles. Move slowly and stop if the knees or the front of the ankles pinch.",
+      "sources": [
+        "https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/stretching/art-20047931",
+        "https://www.nhs.uk/live-well/exercise/strength-exercises/"
+      ],
+      "reviewed_at": "2026-08-19"
+    },
     "pause_squat": {
       "description": "Set up for a squat with feet rooted and chest tall. Lower to the bottom position, pause without relaxing, then drive up through the whole foot. Keep knees tracking with toes during the pause instead of bouncing out of the bottom.",
       "sources": [

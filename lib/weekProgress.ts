@@ -194,18 +194,6 @@ export function pickTodayOrNextDay(days: WeekProgressDay[]): WeekDayToStart | nu
   return { day: next, isToday: next.date === getTodayLocalDateString() };
 }
 
-/** True when the Workout tab has a week worth showing a badge for. */
-export function hasUnfinishedWeek(snapshot: WeekProgressSnapshot | null): boolean {
-  if (!snapshot || snapshot.days.length === 0) return false;
-  return !snapshot.isWeekComplete;
-}
-
-/** Remaining (not completed, not skipped) sessions — drives the Workout tab badge. */
-export function remainingSessionCount(snapshot: WeekProgressSnapshot | null): number {
-  if (!snapshot) return 0;
-  return snapshot.days.filter((d) => d.status === "planned").length;
-}
-
 export function markManualWeekDayByWorkoutId(
   plan: ManualWeekPlan,
   workoutId: string,

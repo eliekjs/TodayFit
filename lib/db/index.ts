@@ -13,6 +13,7 @@ export type { UpsertUserSportProfileParams, UpsertSportEventParams } from "./spo
 export {
   listExercises,
   getExercise,
+  getExerciseSetupDescription,
   listTags,
   listExercisesByTags,
   listExercisesForGenerator,

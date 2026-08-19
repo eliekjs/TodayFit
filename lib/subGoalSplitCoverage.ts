@@ -9,7 +9,11 @@
 import type { FocusBodyPart } from "../logic/workoutGeneration/types";
 import { formatItemList } from "./formatItemList";
 import { muscleSplitEmphasisFromFocusParts } from "./splitMuscleMatching";
-import { resolveSubFocusSlugFromDisplayName } from "./subFocusBodyRegion";
+import {
+  aerobicCardioFitsDayBody,
+  dayBodyFocusToRegion,
+  resolveSubFocusSlugFromDisplayName,
+} from "./subFocusBodyRegion";
 import type { ManualPreferences, WeeklyBodyFocusMode } from "./types";
 import type { DayBodyFocusChoiceId } from "./weekDaySessionFocus";
 
@@ -26,6 +30,8 @@ const CHOICE_LABEL: Record<DayBodyFocusChoiceId, string> = {
   push: "Push",
   pull: "Pull",
   legs: "Legs",
+  quad: "Quads",
+  posterior: "Posterior",
   chest: "Chest",
   back: "Back",
   shoulders: "Shoulders",
@@ -58,17 +64,17 @@ const UPPER_BROAD = {
 } satisfies SplitCoverageSpec;
 
 const LOWER_SQUAT = {
-  coveredBy: ["lower", "full", "legs"] as const,
+  coveredBy: ["lower", "full", "legs", "quad"] as const,
   recommend: { region: "lower", pattern: "legs", muscle: "legs" },
 } satisfies SplitCoverageSpec;
 
 const LOWER_HINGE = {
-  coveredBy: ["lower", "full", "legs", "glutes"] as const,
+  coveredBy: ["lower", "full", "legs", "glutes", "posterior"] as const,
   recommend: { region: "lower", pattern: "legs", muscle: "glutes" },
 } satisfies SplitCoverageSpec;
 
 const LOWER_BROAD = {
-  coveredBy: ["lower", "full", "legs", "glutes"] as const,
+  coveredBy: ["lower", "full", "legs", "glutes", "quad", "posterior"] as const,
   recommend: { region: "lower", pattern: "legs", muscle: "legs" },
 } satisfies SplitCoverageSpec;
 
@@ -226,7 +232,8 @@ export function recommendedBodyChoiceIdsFromSubFocusPrefs(
 
 /**
  * Display names for selected sub-goals that a day's body chips can host.
- * Non-split-sensitive subs (Zone 2, speed, etc.) always match when listed under `goalLabel`.
+ * Non-split-sensitive subs (Zone 2, speed, etc.) match when listed under `goalLabel`,
+ * except Zone 2 / aerobic base on dedicated upper push/pull days.
  */
 export function matchingSubFocusNamesForBodyPicks(
   prefs: ManualPreferences,
@@ -256,6 +263,11 @@ export function matchingSubFocusNamesForBodyPicks(
       } else if (!includeNonSplit) {
         continue;
       } else if (goalFilter && goalLabel !== goalFilter) {
+        continue;
+      } else if (
+        (slug.includes("zone2") || slug.includes("aerobic")) &&
+        !aerobicCardioFitsDayBody(bodyIds)
+      ) {
         continue;
       }
       if (!out.includes(name)) out.push(name);
@@ -421,6 +433,13 @@ export function subFocusSlugCoveredByFocusParts(
   if (coreOnly) return spec.coveredBy.includes("core");
 
   if (hasLower && !hasPush && !hasPull) {
+    const quadOnly = parts.includes("quad") && !parts.includes("posterior") && !parts.includes("legs");
+    const posteriorOnly =
+      parts.includes("posterior") && !parts.includes("quad") && !parts.includes("legs");
+    if (quadOnly) return spec.coveredBy.includes("quad");
+    if (posteriorOnly) {
+      return spec.coveredBy.includes("posterior") || spec.coveredBy.includes("glutes");
+    }
     return spec.coveredBy.includes("lower") || spec.coveredBy.includes("legs");
   }
   // Pattern Push/Pull are family gates, not the Region Upper chip.

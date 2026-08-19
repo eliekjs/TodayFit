@@ -35,9 +35,20 @@ import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { formatRemoteLoadError } from "../../../context/formatRemoteLoadError";
 import {
-  CONSTRAINT_OPTIONS,
-  CONSTRAINT_OPTIONS_UPPER,
-  CONSTRAINT_OPTIONS_LOWER,
+  ADVANCED_OPTIONS_LABEL,
+  AVOID_OR_PROTECT_SUBTITLE,
+  AVOID_OR_PROTECT_TITLE,
+  constraintOptionsForTargetBody,
+  energyLevelSummary,
+  ENERGY_LEVELS,
+  GOAL_MATCH_PCT_SUBTITLE,
+  GOAL_MATCH_PCT_TITLE,
+  HOW_HARD_TO_TRAIN_SUBTITLE,
+  HOW_HARD_TO_TRAIN_TITLE,
+  injuriesSummary,
+  SUB_GOAL_BLEND_SUBTITLE,
+  SUB_GOAL_BLEND_TITLE,
+  VOLUME_PREFERENCE_TITLE,
   DURATIONS,
   normalizeGoalMatchPct,
   ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY,
@@ -58,6 +69,7 @@ import {
 import { SubFocusWeightsEditor } from "../../../components/SubFocusWeightsEditor";
 import { BodyFocusDeferredNote } from "../../../components/BodyFocusDeferredNote";
 import {
+  countVisibleGoalSubFocusPicks,
   filterDeferredDayBodySubFocusChoices,
   goalHasDeferredDayBodySubFocuses,
   stripDeferredDayBodySubFocuses,
@@ -73,7 +85,6 @@ import type { DailyWorkoutPreferences, TargetBody } from "../../../lib/types";
 import {
   SPORT_INTENSITY_OPTIONS,
   energyFromSportIntensity,
-  sportIntensityDisplayLabel,
   sportIntensityFromEnergy,
   type SportIntensityLevel,
 } from "../../../lib/energyLevelMapping";
@@ -95,7 +106,7 @@ import {
 import {
   MAX_SUB_GOALS_PER_PARENT,
   MAX_TOTAL_SUB_GOALS,
-  countTotalSubGoalPicks,
+  countSubGoalPicksForParents,
 } from "../../../lib/selectionCaps";
 import { sessionFlowFromSportScope, weekSetupAtPickDays } from "../../../lib/sessionDraft";
 import { summarizeGymProfileEquipment } from "../../../lib/gymProfileDisplay";
@@ -131,15 +142,25 @@ const INJURY_STATUS_OPTIONS = [
   "Rebuilding",
 ] as const;
 
-/** Same body regions as Build “Avoid or protect”, minus “No restrictions” (sport uses status chips instead). */
-const withoutNoRestrictions = (opts: readonly string[]) =>
-  opts.filter((o) => o !== "No restrictions");
-
-const INJURY_TYPE_OPTIONS = withoutNoRestrictions(CONSTRAINT_OPTIONS);
-const INJURY_TYPE_OPTIONS_UPPER = withoutNoRestrictions(CONSTRAINT_OPTIONS_UPPER);
-const INJURY_TYPE_OPTIONS_LOWER = withoutNoRestrictions(CONSTRAINT_OPTIONS_LOWER);
-
 const MAX_SUB_GOALS_PER_GOAL = MAX_SUB_GOALS_PER_PARENT;
+
+function currentVisibleSubGoalPickCount(args: {
+  subFocusByGoal: Record<string, string[]>;
+  rankedGoals: (string | null)[];
+  subFocusBySport: Record<string, string[]>;
+  rankedSportSlugs: (string | null)[];
+  deferDayBody: boolean;
+}): number {
+  const goalLabels = args.rankedGoals
+    .filter((g): g is string => g != null)
+    .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+    .filter((l): l is string => Boolean(l));
+  const sportKeys = args.rankedSportSlugs.filter((s): s is string => s != null);
+  return (
+    countVisibleGoalSubFocusPicks(args.subFocusByGoal, goalLabels, args.deferDayBody) +
+    countSubGoalPicksForParents(args.subFocusBySport, sportKeys)
+  );
+}
 
 /** Screen-space point for anchoring the selection-limit tooltip (e.g. from press `nativeEvent`). */
 type LimitPopupAnchor = { pageX: number; pageY: number };
@@ -228,50 +249,6 @@ export default function AdaptiveModeScreen() {
   const toggleAdaptiveAdvNested = useCallback((key: AdaptiveAdvNestedKey) => {
     setAdaptiveAdvNestedOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   }, []);
-  const setIntensityAndSyncEnergy = useCallback(
-    (opt: SportIntensityLevel) => {
-      setIntensityLevel(opt);
-      updateManualPreferences({ energyLevel: energyFromSportIntensity(opt) });
-    },
-    [updateManualPreferences]
-  );
-
-  const syncInjuriesToManualPreferences = useCallback(
-    (status: (typeof INJURY_STATUS_OPTIONS)[number], types: string[]) => {
-      updateManualPreferences({
-        injuries:
-          status === "No Concerns" || types.length === 0 ? ["No restrictions"] : types,
-      });
-    },
-    [updateManualPreferences]
-  );
-
-  const setInjuryStatusAndSync = useCallback(
-    (opt: (typeof INJURY_STATUS_OPTIONS)[number]) => {
-      setInjuryStatus(opt);
-      if (opt === "No Concerns") {
-        setInjuryTypes([]);
-        syncInjuriesToManualPreferences(opt, []);
-      } else {
-        syncInjuriesToManualPreferences(opt, injuryTypes);
-      }
-    },
-    [injuryTypes, syncInjuriesToManualPreferences]
-  );
-
-  const toggleInjuryArea = useCallback(
-    (label: string) => {
-      const next = injuryTypes.includes(label)
-        ? injuryTypes.filter((x) => x !== label)
-        : [...injuryTypes, label];
-      const nextStatus =
-        next.length > 0 && injuryStatus === "No Concerns" ? "Managing" : injuryStatus;
-      if (nextStatus !== injuryStatus) setInjuryStatus(nextStatus);
-      setInjuryTypes(next);
-      syncInjuriesToManualPreferences(nextStatus, next);
-    },
-    [injuryTypes, injuryStatus, syncInjuriesToManualPreferences]
-  );
   const [editingGoalMatchRank, setEditingGoalMatchRank] = useState<1 | 2 | 3 | null>(null);
   const [editingGoalMatchValue, setEditingGoalMatchValue] = useState("");
   const [isGeneratingOneDay, setIsGeneratingOneDay] = useState(false);
@@ -424,6 +401,49 @@ export default function AdaptiveModeScreen() {
   ]);
 
   useEffect(() => {
+    const allowed = new Set(
+      rankedGoals
+        .filter((g): g is string => g != null)
+        .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+        .filter((l): l is string => Boolean(l))
+    );
+    if (allowed.size === 0) return;
+    const nextSub = { ...manualPreferences.subFocusByGoal };
+    const nextPct = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
+    let changed = false;
+    for (const key of Object.keys(nextSub)) {
+      if (!allowed.has(key)) {
+        delete nextSub[key];
+        delete nextPct[key];
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    updateManualPreferences({ subFocusByGoal: nextSub, subFocusPctByGoal: nextPct });
+  }, [
+    rankedGoals,
+    manualPreferences.subFocusByGoal,
+    manualPreferences.subFocusPctByGoal,
+    updateManualPreferences,
+  ]);
+
+  useEffect(() => {
+    const allowed = new Set(rankedSportSlugs.filter((s): s is string => s != null));
+    if (allowed.size === 0) return;
+    setSubFocusBySport((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        if (!allowed.has(key)) {
+          delete next[key];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [rankedSportSlugs]);
+
+  useEffect(() => {
     return () => {
       if (limitPopupTimerRef.current) clearTimeout(limitPopupTimerRef.current);
     };
@@ -504,8 +524,6 @@ export default function AdaptiveModeScreen() {
       : undefined;
     const current = subFocusBySport[sportSlug] ?? [];
     const has = current.includes(qualitySlug);
-    const totalGoalSubGoals = countTotalSubGoalPicks(manualPreferences.subFocusByGoal);
-    const totalSportSubGoals = countTotalSubGoalPicks(subFocusBySport);
     if (has) {
       setSubFocusBySport((prev) => ({
         ...prev,
@@ -513,9 +531,16 @@ export default function AdaptiveModeScreen() {
       }));
     } else {
       if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
-      if (totalGoalSubGoals + totalSportSubGoals >= totalSubGoalCap) {
+      const totalVisible = currentVisibleSubGoalPickCount({
+        subFocusByGoal: manualPreferences.subFocusByGoal,
+        rankedGoals,
+        subFocusBySport,
+        rankedSportSlugs,
+        deferDayBody: !isOneDay,
+      });
+      if (totalVisible >= MAX_TOTAL_SUB_GOALS) {
         showLimitPopup(
-          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports (same as Goal Mode).`,
+          `You can select up to ${MAX_TOTAL_SUB_GOALS} total sub-goals across goals and sports.`,
           anchor
         );
         return;
@@ -840,18 +865,16 @@ export default function AdaptiveModeScreen() {
       });
     } else {
       if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
-      const totalOthers = Object.entries(manualPreferences.subFocusByGoal).reduce<number>(
-        (n, [g, arr]) =>
-          g === manualPrimaryLabel ? n : n + (Array.isArray(arr) ? arr.length : 0),
-        0
-      );
-      const totalSportSubGoals = Object.values(subFocusBySport).reduce<number>(
-        (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
-        0
-      );
-      if (totalOthers + current.length + totalSportSubGoals >= totalSubGoalCap) {
+      const totalVisible = currentVisibleSubGoalPickCount({
+        subFocusByGoal: manualPreferences.subFocusByGoal,
+        rankedGoals,
+        subFocusBySport,
+        rankedSportSlugs,
+        deferDayBody: !isOneDay,
+      });
+      if (totalVisible >= MAX_TOTAL_SUB_GOALS) {
         showLimitPopup(
-          `You can select up to ${totalSubGoalCap} total sub-goals across goals and sports (same as Goal Mode).`,
+          `You can select up to ${MAX_TOTAL_SUB_GOALS} total sub-goals across goals and sports.`,
           anchor
         );
         return;
@@ -891,19 +914,41 @@ export default function AdaptiveModeScreen() {
       else if (target === "Lower") setOneDayBodyBias("lower");
       else setOneDayBodyBias("full");
 
-      const allowed =
-        target === "Upper"
-          ? INJURY_TYPE_OPTIONS_UPPER
-          : target === "Lower"
-            ? INJURY_TYPE_OPTIONS_LOWER
-            : INJURY_TYPE_OPTIONS;
-      const next = injuryTypes.filter((i) => allowed.includes(i));
-      if (next.length !== injuryTypes.length) {
-        setInjuryTypes(next);
-        syncInjuriesToManualPreferences(injuryStatus, next);
+      const allowed = new Set(constraintOptionsForTargetBody(target));
+      const current = manualPreferences.injuries;
+      const next = current.filter((i) => allowed.has(i));
+      if (next.length !== current.length) {
+        const normalized = next.length === 0 ? ["No restrictions"] : next;
+        updateManualPreferences({ injuries: normalized });
+        const areas = normalized.filter((i) => i !== "No restrictions");
+        setInjuryTypes(areas);
+        if (areas.length === 0) setInjuryStatus("No Concerns");
       }
     },
-    [injuryTypes, injuryStatus, syncInjuriesToManualPreferences]
+    [manualPreferences.injuries, updateManualPreferences]
+  );
+
+  const toggleConstraint = useCallback(
+    (opt: string) => {
+      const current = manualPreferences.injuries;
+      let next: string[];
+      if (opt === "No restrictions") {
+        next = ["No restrictions"];
+      } else {
+        const withoutNoRestrictions = current.filter((c) => c !== "No restrictions");
+        const exists = withoutNoRestrictions.includes(opt);
+        next = exists
+          ? withoutNoRestrictions.filter((v) => v !== opt)
+          : [...withoutNoRestrictions, opt];
+      }
+      updateManualPreferences({ injuries: next });
+      const areas = next.filter((i) => i !== "No restrictions");
+      setInjuryTypes(areas);
+      setInjuryStatus((prev) =>
+        areas.length === 0 ? "No Concerns" : prev === "No Concerns" ? "Managing" : prev
+      );
+    },
+    [manualPreferences.injuries, updateManualPreferences]
   );
 
   type OpenAdaptiveAdvancedScrollOptions = {
@@ -942,9 +987,9 @@ export default function AdaptiveModeScreen() {
 
   const oneDayGoalCount = rankedGoals.filter((g): g is string => g != null).length;
   const oneDaySportCount = selectedSportSlugs.length;
-  const totalSportSubGoalsSelected = Object.values(subFocusBySport).reduce<number>(
-    (n, arr) => n + (Array.isArray(arr) ? arr.length : 0),
-    0
+  const totalSportSubGoalsSelected = countSubGoalPicksForParents(
+    subFocusBySport,
+    selectedSportSlugs
   );
   const oneDayCombinationValid =
     !isOneDay ||
@@ -997,32 +1042,33 @@ export default function AdaptiveModeScreen() {
   const adaptiveGoalSubFocusLabels = filledAdaptiveGoals
     .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
     .filter((lab): lab is string => Boolean(lab));
-  const adaptiveSubGoalsTotalCount = adaptiveGoalSubFocusLabels.reduce(
-    (n, lab) => n + (manualPreferences.subFocusByGoal[lab]?.length ?? 0),
-    0
+  const adaptiveSubGoalsTotalCount = countVisibleGoalSubFocusPicks(
+    manualPreferences.subFocusByGoal,
+    adaptiveGoalSubFocusLabels,
+    !isOneDay
   );
   const adaptiveAdvGoalSubGoalsSummary =
     adaptiveSubGoalsTotalCount === 0 ? "None" : `${adaptiveSubGoalsTotalCount} selected`;
   const adaptiveAdvSportFocusSummary = `${sportFocusPct[0]}/${sportFocusPct[1]}%`;
-  const adaptiveAdvInjurySummary =
-    injuryStatus === "No Concerns" && injuryTypes.length === 0
-      ? "No concerns"
-      : [
-          injuryStatus !== "No Concerns" ? injuryStatus : null,
-          injuryTypes.length > 0 ? injuryTypes.join(", ") : null,
-        ]
-          .filter(Boolean)
-          .join(" · ") || "No concerns";
-  const injuryAreaOptions =
-    isOneDay && oneDayBodyBias === "upper"
-      ? INJURY_TYPE_OPTIONS_UPPER
-      : isOneDay && oneDayBodyBias === "lower"
-        ? INJURY_TYPE_OPTIONS_LOWER
-        : INJURY_TYPE_OPTIONS;
+  const adaptiveAdvInjurySummary = injuriesSummary(manualPreferences.injuries);
+  const injuryAreaOptions = constraintOptionsForTargetBody(
+    isOneDay
+      ? oneDayBodyBias === "upper"
+        ? "Upper"
+        : oneDayBodyBias === "lower"
+          ? "Lower"
+          : "Full"
+      : null
+  );
   const totalPriorityCap = isOneDay ? MAX_TOTAL_PRIORITY_PICKS_DAY : MAX_TOTAL_PRIORITY_PICKS_WEEK;
   const totalSubGoalCap = MAX_TOTAL_SUB_GOALS;
-  const totalGoalSubGoalsSelected = countTotalSubGoalPicks(manualPreferences.subFocusByGoal);
-  const totalSubGoalsSelected = totalGoalSubGoalsSelected + totalSportSubGoalsSelected;
+  const totalSubGoalsSelected = currentVisibleSubGoalPickCount({
+    subFocusByGoal: manualPreferences.subFocusByGoal,
+    rankedGoals,
+    subFocusBySport,
+    rankedSportSlugs,
+    deferDayBody: !isOneDay,
+  });
   const rankedGoalEntries = rankedGoals
     .filter((goalId): goalId is string => goalId != null)
     .map((goalId, idx) => {
@@ -1099,8 +1145,8 @@ export default function AdaptiveModeScreen() {
     ...(manualPreferences.includeCreativeVariations === true
       ? [{ id: "creative", label: "Style: Creative on" }]
       : []),
-    ...(intensityLevel !== "Moderate"
-      ? [{ id: "intensity", label: `Energy: ${sportIntensityDisplayLabel(intensityLevel)}` }]
+    ...(manualPreferences.energyLevel != null && manualPreferences.energyLevel !== "medium"
+      ? [{ id: "intensity", label: `Energy: ${energyLevelSummary(manualPreferences.energyLevel)}` }]
       : []),
     ...((manualPreferences.volumePreference ?? "standard") !== "standard"
       ? [
@@ -1115,11 +1161,10 @@ export default function AdaptiveModeScreen() {
           },
         ]
       : []),
-    ...(injuryStatus !== "No Concerns"
-      ? [{ id: "injury_status", label: `Injury status: ${injuryStatus}` }]
-      : []),
-    ...(injuryTypes.length > 0
-      ? injuryTypes.map((injury) => ({ id: `injury_${injury}`, label: `Protect: ${injury}` }))
+    ...(manualPreferences.injuries.filter((i) => i !== "No restrictions").length > 0
+      ? manualPreferences.injuries
+          .filter((i) => i !== "No restrictions")
+          .map((injury) => ({ id: `injury_${injury}`, label: `Protect: ${injury}` }))
       : []),
     ...(isOneDay ? [{ id: "duration", label: `Session: ${oneDayDuration} min` }] : []),
   ];
@@ -1127,7 +1172,7 @@ export default function AdaptiveModeScreen() {
   if (isGeneratingOneDay) {
     return (
       <GenerationLoadingScreen
-        message="Building your session…"
+        message="Putting the session together"
         subtitle="Turning your sports and goals into today’s workout."
       />
     );
@@ -1150,7 +1195,7 @@ export default function AdaptiveModeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View ref={adaptiveContentRef} collapsable={false}>
-        <Card title="Sport Mode">
+        <Card title="Sport">
           <Text style={{ fontSize: 13, color: theme.textMuted }}>
             Gym sessions that support your sport — strength, durability, and gaps your sport doesn’t cover. Not a replacement for practice or skill work.
             {isOneDay
@@ -1226,12 +1271,12 @@ export default function AdaptiveModeScreen() {
         <SectionLabel style={{ marginTop: 20 }}>Priorities</SectionLabel>
         <Card title="Workout priorities" style={{ marginTop: 8 }}>
           <Text style={{ fontSize: 13, color: theme.textMuted, marginBottom: 12 }}>
-            This ranked stack drives how Sport Mode builds your workout.
+            This order drives the workout.
           </Text>
           <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 12 }}>
             {isOneDay
-              ? `Limits: 2 sports, 1 sport + 1 goal, or 1 sport with sport sub-focus (daily); up to ${totalSubGoalCap} total sub-goals (same as Goal Mode).`
-              : `Limits: up to ${totalPriorityCap} total sports + goals, and up to ${totalSubGoalCap} total sub-goals (same as Goal Mode).`}
+              ? `Limits: 2 sports, 1 sport + 1 goal, or 1 sport with sport sub-focus (daily); up to ${totalSubGoalCap} total sub-goals.`
+              : `Limits: up to ${totalPriorityCap} total sports + goals, and up to ${totalSubGoalCap} total sub-goals.`}
           </Text>
 
           {topPriorityRows.length > 0 ? (
@@ -1534,7 +1579,10 @@ export default function AdaptiveModeScreen() {
           {selectedSportSlugs.length > 0 && (
             <View style={[styles.subFocusSectionWrap, { borderTopColor: theme.border }]}>
               <Text style={[styles.subFocusSectionLabel, { color: theme.textMuted }]}>
-                Sport sub-focus <Text style={{ fontWeight: "400" }}>(optional, ranked)</Text>
+                Sport sub-focus{" "}
+                <Text style={{ fontWeight: "400" }}>
+                  (optional, up to {totalSubGoalCap} total)
+                </Text>
               </Text>
               {selectedSportSlugs.map((slug) => {
                 const sport = resolveActiveSportForSlug(sports, slug);
@@ -1545,7 +1593,9 @@ export default function AdaptiveModeScreen() {
                   ? optionsFromSubFocus.map((sf) => ({ slug: sf.slug, name: sf.name }))
                   : optionsFromQualities.map((q) => ({ slug: q.slug, name: q.name }));
                 const selectedQualities = subFocusBySport[slug] ?? [];
-                const canAddSub = selectedQualities.length < 3;
+                const canAddSub =
+                  selectedQualities.length < MAX_SUB_GOALS_PER_GOAL &&
+                  totalSubGoalsSelected < totalSubGoalCap;
                 return (
                   <View key={slug} style={{ marginTop: selectedSportSlugs.length > 1 ? 8 : 0 }}>
                     {selectedSportSlugs.length > 1 && (
@@ -1712,6 +1762,126 @@ export default function AdaptiveModeScreen() {
               />
             ))}
           </View>
+          {filledAdaptiveGoals.length > 0 ? (
+            <View style={[styles.subFocusSectionWrap, { borderTopColor: theme.border }]}>
+              <Text style={[styles.subFocusSectionLabel, { color: theme.textMuted }]}>
+                Sub-goals{" "}
+                <Text style={{ fontWeight: "400" }}>
+                  (optional, up to {totalSubGoalCap} total)
+                </Text>
+              </Text>
+              {filledAdaptiveGoals.map((goalId, goalIdx) => {
+                const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
+                const goalMeta = ADAPTIVE_GOALS.find((g) => g.id === goalId);
+                const allSubOptions = manualLabel
+                  ? subFocusChoicesForManualPrimaryGoal(manualLabel)
+                  : [];
+                const subOptions =
+                  !isOneDay && manualLabel
+                    ? filterDeferredDayBodySubFocusChoices(manualLabel, allSubOptions)
+                    : allSubOptions;
+                const selectedSubs =
+                  manualLabel != null
+                    ? (manualPreferences.subFocusByGoal[manualLabel] ?? []).filter((sub) =>
+                        subOptions.includes(sub)
+                      )
+                    : [];
+                const canAddSub =
+                  selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
+                  totalSubGoalsSelected < totalSubGoalCap;
+                if (!manualLabel || subOptions.length === 0) {
+                  return (
+                    <Text
+                      key={goalId}
+                      style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}
+                    >
+                      {goalMeta?.label ?? goalId}: no sub-goal options.
+                    </Text>
+                  );
+                }
+                return (
+                  <View key={goalId} style={{ marginTop: filledAdaptiveGoals.length > 1 && goalIdx > 0 ? 10 : 0 }}>
+                    {filledAdaptiveGoals.length > 1 ? (
+                      <View style={[styles.goalRowHeader, { marginBottom: 6 }]}>
+                        <View
+                          style={[
+                            styles.rankBadgeSmall,
+                            {
+                              backgroundColor: theme.chipSelectedBackground,
+                              borderWidth: 1,
+                              borderColor: theme.chipSelectedBorder,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
+                            {goalIdx + 1}
+                          </Text>
+                        </View>
+                        <Text style={[styles.goalRowLabel, { color: theme.textMuted, fontSize: 12 }]}>
+                          {goalMeta?.label ?? goalId}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {selectedSubs.length > 0 ? (
+                      <View style={[styles.chipGroup, { marginBottom: 6 }]}>
+                        {selectedSubs.map((sub, subIdx) => (
+                          <Pressable
+                            key={sub}
+                            style={styles.rankedChipWrap}
+                            onPress={(e) => toggleAdaptiveGoalSubGoal(manualLabel, sub, e)}
+                          >
+                            <View
+                              style={[
+                                styles.rankBadgeSmall,
+                                {
+                                  backgroundColor: theme.chipSelectedBackground,
+                                  borderWidth: 1,
+                                  borderColor: theme.chipSelectedBorder,
+                                },
+                              ]}
+                            >
+                              <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
+                                {subIdx + 1}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.rankedChipInner,
+                                {
+                                  backgroundColor: theme.chipSelectedBackground,
+                                  borderWidth: 1,
+                                  borderColor: theme.chipSelectedBorder,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
+                              >
+                                {sub}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
+                    <View style={styles.chipGroup}>
+                      {subOptions
+                        .filter((opt) => !selectedSubs.includes(opt))
+                        .map((opt) => (
+                          <Chip
+                            key={opt}
+                            label={opt}
+                            selected={false}
+                            disabled={!canAddSub}
+                            onPress={(e) => toggleAdaptiveGoalSubGoal(manualLabel, opt, e)}
+                          />
+                        ))}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
           {!isOneDay &&
           filledAdaptiveGoals.some((goalId) => {
             const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
@@ -1793,6 +1963,7 @@ export default function AdaptiveModeScreen() {
         ) : null}
 
         <View ref={adaptiveAdvancedRef} collapsable={false}>
+        <SectionLabel style={{ marginTop: 8 }}>Optional</SectionLabel>
         <Pressable
           style={[
             styles.advancedFiltersHeader,
@@ -1800,7 +1971,6 @@ export default function AdaptiveModeScreen() {
               borderBottomColor: theme.borderStrong,
               backgroundColor: theme.cardOpaque,
               borderColor: theme.borderStrong,
-              marginTop: 20,
               ...(Platform.OS !== "web" ? { borderWidth: 1 } : {}),
             },
           ]}
@@ -1810,7 +1980,7 @@ export default function AdaptiveModeScreen() {
           }}
         >
           <Text style={[styles.advancedFiltersTitle, { color: theme.textMuted }]}>
-            Other filters
+            {ADVANCED_OPTIONS_LABEL}
           </Text>
           <Text style={[styles.advancedFiltersChevron, { color: theme.textMuted }]}>
             {advancedOpen ? "▼" : "▶"}
@@ -1829,6 +1999,62 @@ export default function AdaptiveModeScreen() {
               },
             ]}
           >
+            <CollapsiblePreferenceSection
+              nested
+              title={HOW_HARD_TO_TRAIN_TITLE}
+              subtitle={HOW_HARD_TO_TRAIN_SUBTITLE}
+              summary={energyLevelSummary(manualPreferences.energyLevel)}
+              expanded={adaptiveAdvNestedOpen.intensityLevel === true}
+              onToggle={() => toggleAdaptiveAdvNested("intensityLevel")}
+              marginTop={0}
+            >
+              <View style={styles.chipGroup}>
+                {ENERGY_LEVELS.map((level) => {
+                  const next = level.toLowerCase() as "low" | "medium" | "high";
+                  return (
+                    <Chip
+                      key={level}
+                      label={level}
+                      selected={manualPreferences.energyLevel === next}
+                      onPress={() => {
+                        const energy = manualPreferences.energyLevel === next ? null : next;
+                        updateManualPreferences({ energyLevel: energy });
+                        setIntensityLevel(sportIntensityFromEnergy(energy));
+                      }}
+                    />
+                  );
+                })}
+              </View>
+            </CollapsiblePreferenceSection>
+
+            <CollapsiblePreferenceSection
+              nested
+              title={VOLUME_PREFERENCE_TITLE}
+              subtitle={volumePreferenceSectionSubtitle({
+                goalSlugs: filledAdaptiveGoals,
+                primaryFocus: filledAdaptiveGoals
+                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+                  .filter((label): label is string => !!label),
+              })}
+              summary={volumePreferenceDisplayLabel(manualPreferences.volumePreference, {
+                goalSlugs: filledAdaptiveGoals,
+                primaryFocus: filledAdaptiveGoals
+                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+                  .filter((label): label is string => !!label),
+              })}
+              expanded={adaptiveAdvNestedOpen.volumePreference === true}
+              onToggle={() => toggleAdaptiveAdvNested("volumePreference")}
+            >
+              <VolumePreferencePicker
+                value={manualPreferences.volumePreference}
+                goalSlugs={filledAdaptiveGoals}
+                primaryFocus={filledAdaptiveGoals
+                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
+                  .filter((label): label is string => !!label)}
+                onChange={(next) => updateManualPreferences({ volumePreference: next })}
+              />
+            </CollapsiblePreferenceSection>
+
             {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS &&
             selectedSportSlugs.length > 0 &&
             rankedGoals.filter((g): g is string => g != null).length > 0 ? (
@@ -1894,9 +2120,9 @@ export default function AdaptiveModeScreen() {
             ) : null}
             {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && filledAdaptiveGoals.length > 0 ? (
             <CollapsiblePreferenceSection
-              nested
-              title="Goal match %"
-              subtitle="What % of the workout should match each ranked additional goal. Sum = 100%."
+            nested
+            title={GOAL_MATCH_PCT_TITLE}
+            subtitle={GOAL_MATCH_PCT_SUBTITLE}
               summary={adaptiveAdvGoalMatchSummary}
               expanded={adaptiveAdvNestedOpen.goalMatch === true}
               onToggle={() => toggleAdaptiveAdvNested("goalMatch")}
@@ -1994,161 +2220,58 @@ export default function AdaptiveModeScreen() {
             </CollapsiblePreferenceSection>
             ) : null}
 
-            {filledAdaptiveGoals.length > 0 ? (
+            {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS &&
+            filledAdaptiveGoals.length > 0 &&
+            adaptiveSubGoalsTotalCount > 0 ? (
               <View ref={adaptiveGoalSubFocusBlendRef} collapsable={false}>
               <CollapsiblePreferenceSection
                 nested
-                title="Goal sub-focus"
-                subtitle={`Up to ${totalSubGoalCap} total across goals + sports, ranked within each goal. Same options as Build workout.`}
+                title={SUB_GOAL_BLEND_TITLE}
+                subtitle={SUB_GOAL_BLEND_SUBTITLE}
                 summary={adaptiveAdvGoalSubGoalsSummary}
                 expanded={adaptiveAdvNestedOpen.goalSubGoals === true}
                 onToggle={() => toggleAdaptiveAdvNested("goalSubGoals")}
               >
-                {!isOneDay &&
-                filledAdaptiveGoals.some((goalId) => {
-                  const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
-                  if (!manualLabel) return false;
-                  return goalHasDeferredDayBodySubFocuses(
-                    manualLabel,
-                    subFocusChoicesForManualPrimaryGoal(manualLabel)
-                  );
-                }) ? (
-                  <BodyFocusDeferredNote />
-                ) : null}
-                {filledAdaptiveGoals.map((goalId, goalIdx) => {
-                  const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
-                  const goalMeta = ADAPTIVE_GOALS.find((g) => g.id === goalId);
-                  const allSubOptions = manualLabel
-                    ? subFocusChoicesForManualPrimaryGoal(manualLabel)
-                    : [];
-                  const subOptions =
-                    !isOneDay && manualLabel
-                      ? filterDeferredDayBodySubFocusChoices(manualLabel, allSubOptions)
-                      : allSubOptions;
-                  const selectedSubs =
-                    manualLabel != null
-                      ? (manualPreferences.subFocusByGoal[manualLabel] ?? []).filter((sub) =>
-                          subOptions.includes(sub)
-                        )
-                      : [];
-                  const canAddSub =
-                    selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
-                    totalSubGoalsSelected < totalSubGoalCap;
-                  return (
-                    <View
-                      key={goalId}
-                      style={[styles.goalRow, { borderColor: theme.border, marginTop: goalIdx === 0 ? 0 : 12 }]}
-                    >
-                      <View style={styles.goalRowHeader}>
-                        <View
-                          style={[
-                            styles.rankBadgeSmall,
-                            {
-                              backgroundColor: theme.chipSelectedBackground,
-                              borderWidth: 1,
-                              borderColor: theme.chipSelectedBorder,
-                            },
-                          ]}
-                        >
-                          <Text style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}>
-                            {goalIdx + 1}
+                {filledAdaptiveGoals
+                  .map((goalId) => {
+                    const manualLabel = ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[goalId];
+                    const selectedSubs =
+                      manualLabel != null
+                        ? (manualPreferences.subFocusByGoal[manualLabel] ?? [])
+                        : [];
+                    return { goalId, manualLabel, selectedSubs };
+                  })
+                  .filter((row) => row.manualLabel && row.selectedSubs.length > 0)
+                  .map((row, visIdx) => {
+                    const { manualLabel, selectedSubs } = row;
+                    if (!manualLabel) return null;
+                    return (
+                      <View key={`sub-pct-${manualLabel}`} style={{ marginTop: visIdx > 0 ? 14 : 0 }}>
+                        {filledAdaptiveGoals.length > 1 ? (
+                          <Text style={{ fontSize: 13, color: theme.textMuted }}>
+                            {ADAPTIVE_GOALS.find((g) => g.id === row.goalId)?.label ?? manualLabel}
                           </Text>
-                        </View>
-                        <Text style={[styles.goalRowLabel, { color: theme.text }]} numberOfLines={2}>
-                          {goalMeta?.label ?? goalId}
-                        </Text>
-                      </View>
-                      {manualLabel && subOptions.length > 0 ? (
-                        <View style={[styles.subGoalsBlock, { borderTopColor: theme.border }]}>
-                          {selectedSubs.length > 0 && (
-                            <View style={styles.chipGroup}>
-                              {selectedSubs.map((sub, subIdx) => (
-                                <Pressable
-                                  key={sub}
-                                  style={styles.rankedChipWrap}
-                                  onPress={(e) => toggleAdaptiveGoalSubGoal(manualLabel, sub, e)}
-                                >
-                                  <View
-                                    style={[
-                                      styles.rankBadgeSmall,
-                                      {
-                                        backgroundColor: theme.chipSelectedBackground,
-                                        borderWidth: 1,
-                                        borderColor: theme.chipSelectedBorder,
-                                      },
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[styles.rankBadgeTextSmall, { color: theme.chipSelectedText }]}
-                                    >
-                                      {subIdx + 1}
-                                    </Text>
-                                  </View>
-                                  <View
-                                    style={[
-                                      styles.rankedChipInner,
-                                      {
-                                        backgroundColor: theme.chipSelectedBackground,
-                                        borderWidth: 1,
-                                        borderColor: theme.chipSelectedBorder,
-                                      },
-                                    ]}
-                                  >
-                                    <Text
-                                      style={[styles.rankedChipLabelSmall, { color: theme.chipSelectedText }]}
-                                    >
-                                      {sub}
-                                    </Text>
-                                  </View>
-                                </Pressable>
-                              ))}
-                            </View>
+                        ) : null}
+                        <SubFocusWeightsEditor
+                          theme={theme}
+                          goalLabel={manualLabel}
+                          selectedSubsOrdered={selectedSubs}
+                          pctBySub={normalizeSubFocusPctRecord(
+                            selectedSubs,
+                            manualPreferences.subFocusPctByGoal?.[manualLabel]
                           )}
-                          <View style={styles.chipGroup}>
-                            {subOptions
-                              .filter((opt) => !selectedSubs.includes(opt))
-                              .map((opt) => (
-                                <Chip
-                                  key={opt}
-                                  label={opt}
-                                  selected={false}
-                                  disabled={!canAddSub}
-                                  onPress={(e) => toggleAdaptiveGoalSubGoal(manualLabel, opt, e)}
-                                />
-                              ))}
-                          </View>
-                          {selectedSubs.length > 0 && !PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS ? (
-                            <SubFocusWeightsEditor
-                              theme={theme}
-                              goalLabel={manualLabel}
-                              selectedSubsOrdered={selectedSubs}
-                              pctBySub={normalizeSubFocusPctRecord(
-                                selectedSubs,
-                                manualPreferences.subFocusPctByGoal?.[manualLabel]
-                              )}
-                              onCommit={(gl, next) =>
-                                updateManualPreferences({
-                                  subFocusPctByGoal: {
-                                    ...(manualPreferences.subFocusPctByGoal ?? {}),
-                                    [gl]: next,
-                                  },
-                                })
-                              }
-                            />
-                          ) : null}
-                        </View>
-                      ) : (
-                        <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
-                          {!isOneDay &&
-                          manualLabel &&
-                          goalHasDeferredDayBodySubFocuses(manualLabel, allSubOptions)
-                            ? "Body parts for this goal are chosen per day on the next page."
-                            : "No sub-focus options for this goal."}
-                        </Text>
-                      )}
-                    </View>
-                  );
-                })}
+                          onCommit={(gl, next) =>
+                            updateManualPreferences({
+                              subFocusPctByGoal: {
+                                ...(manualPreferences.subFocusPctByGoal ?? {}),
+                                [gl]: next,
+                              },
+                            })
+                          }
+                        />
+                      </View>
+                    );
+                  })}
               </CollapsiblePreferenceSection>
               </View>
             ) : null}
@@ -2215,101 +2338,22 @@ export default function AdaptiveModeScreen() {
 
             <CollapsiblePreferenceSection
               nested
-              title="Avoid or protect"
-              subtitle="We’ll skip exercises that bother these areas. Status is optional context."
+              title={AVOID_OR_PROTECT_TITLE}
+              subtitle={AVOID_OR_PROTECT_SUBTITLE}
               summary={adaptiveAdvInjurySummary}
               expanded={adaptiveAdvNestedOpen.injury === true}
               onToggle={() => toggleAdaptiveAdvNested("injury")}
             >
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: theme.textMuted,
-                  marginBottom: 8,
-                }}
-              >
-                Status
-              </Text>
-              <View style={styles.chipGroup}>
-                {INJURY_STATUS_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt}
-                    label={opt}
-                    selected={injuryStatus === opt}
-                    onPress={() => setInjuryStatusAndSync(opt)}
-                  />
-                ))}
-              </View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: theme.textMuted,
-                  marginTop: 14,
-                  marginBottom: 8,
-                }}
-              >
-                Body areas
-              </Text>
               <View style={styles.chipGroup}>
                 {injuryAreaOptions.map((label) => (
                   <Chip
                     key={label}
                     label={label}
-                    selected={injuryTypes.includes(label)}
-                    onPress={() => toggleInjuryArea(label)}
+                    selected={manualPreferences.injuries.includes(label)}
+                    onPress={() => toggleConstraint(label)}
                   />
                 ))}
               </View>
-            </CollapsiblePreferenceSection>
-
-            <CollapsiblePreferenceSection
-              nested
-              title="How hard to train"
-              subtitle="Low, medium, or high affects how hard the session feels (sets and conditioning length)."
-              summary={sportIntensityDisplayLabel(intensityLevel)}
-              expanded={adaptiveAdvNestedOpen.intensityLevel === true}
-              onToggle={() => toggleAdaptiveAdvNested("intensityLevel")}
-            >
-              <View style={styles.chipGroup}>
-                {SPORT_INTENSITY_OPTIONS.map((opt) => (
-                  <Chip
-                    key={opt}
-                    label={sportIntensityDisplayLabel(opt)}
-                    selected={intensityLevel === opt}
-                    onPress={() => setIntensityAndSyncEnergy(opt)}
-                  />
-                ))}
-              </View>
-            </CollapsiblePreferenceSection>
-
-            <CollapsiblePreferenceSection
-              nested
-              title="Volume preference"
-              subtitle={volumePreferenceSectionSubtitle({
-                goalSlugs: filledAdaptiveGoals,
-                primaryFocus: filledAdaptiveGoals
-                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
-                  .filter((label): label is string => !!label),
-              })}
-              summary={volumePreferenceDisplayLabel(manualPreferences.volumePreference, {
-                goalSlugs: filledAdaptiveGoals,
-                primaryFocus: filledAdaptiveGoals
-                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
-                  .filter((label): label is string => !!label),
-              })}
-              expanded={adaptiveAdvNestedOpen.volumePreference === true}
-              onToggle={() => toggleAdaptiveAdvNested("volumePreference")}
-            >
-              <VolumePreferencePicker
-                value={manualPreferences.volumePreference}
-                goalSlugs={filledAdaptiveGoals}
-                primaryFocus={filledAdaptiveGoals
-                  .map((id) => ADAPTIVE_GOAL_ID_TO_MANUAL_PRIMARY[id])
-                  .filter((label): label is string => !!label)}
-                onChange={(next) => updateManualPreferences({ volumePreference: next })}
-              />
             </CollapsiblePreferenceSection>
           </View>
         )}
@@ -2353,6 +2397,7 @@ export default function AdaptiveModeScreen() {
       </ScrollView>
       <FlowPhaseNavBar
         sticky
+        compact
         onLayout={setNavBarHeight}
         forward={{
           label: isOneDay
@@ -2374,17 +2419,6 @@ export default function AdaptiveModeScreen() {
             : null
         }
       >
-        <SectionLabel style={{ marginTop: 16 }}>Optional</SectionLabel>
-        <Pressable
-          onPress={() => openAdaptiveAdvancedAndScroll()}
-          style={styles.advancedLinkWrap}
-        >
-          <Text style={[styles.advancedLinkText, { color: theme.primary }]}>
-            {PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS
-              ? "Advanced options (intensity, injuries…)"
-              : "Advanced options (sport %, goal weights, intensity, injuries…)"}
-          </Text>
-        </Pressable>
         <Pressable onPress={onSaveSportPreset} style={styles.savePresetWrap}>
           <Text style={[styles.savePresetText, { color: theme.textMuted }]}>
             Save preset
@@ -2793,17 +2827,9 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     paddingHorizontal: 6,
   },
-  advancedLinkWrap: {
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  advancedLinkText: {
-    fontSize: 13,
-    fontWeight: "500",
-  },
   savePresetWrap: {
     alignItems: "center",
-    paddingBottom: 2,
+    paddingVertical: 2,
   },
   savePresetText: {
     fontSize: 13,

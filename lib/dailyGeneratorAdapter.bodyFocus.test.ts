@@ -291,6 +291,8 @@ describe("session body contract by week mode", () => {
         { mode: "pattern", specific: ["push"], expected: ["upper_push"] },
         { mode: "pattern", specific: ["pull"], expected: ["upper_pull"] },
         { mode: "pattern", specific: ["legs"], expected: ["lower", "legs"] },
+        { mode: "pattern", specific: ["quad"], expected: ["lower", "quad"] },
+        { mode: "pattern", specific: ["posterior"], expected: ["lower", "posterior"] },
         { mode: "region", specific: ["core"], expected: ["core"] },
       ];
     for (const row of cases) {

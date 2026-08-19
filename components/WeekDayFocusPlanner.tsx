@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import type { Theme } from "../lib/theme";
 import { themeRadius } from "../lib/theme";
-import type { GoalDistributionStyle, WeeklyBodyFocusMode } from "../lib/types";
+import type { WeeklyBodyFocusMode } from "../lib/types";
 import type { DayBodyFocusChoice, DayBodyFocusChoiceId, DayFocusPreset } from "../lib/weekDaySessionFocus";
 import type {
   DaySessionFocusConflict,
@@ -11,7 +11,6 @@ import type {
 import { dayHasUnresolvedSessionFocusConflict } from "../lib/daySessionFocusConflict";
 import type { UncoveredSubGoalPrompt, UncoveredSubGoalResolution } from "../lib/subGoalSplitCoverage";
 import { DaySessionFocusConflictBanner } from "./DaySessionFocusConflictBanner";
-import { FocusDistributionNote } from "./FocusDistributionNote";
 import { WeeklyBodyFocusModeNote } from "./WeeklyBodyFocusModeNote";
 
 type Props = {
@@ -25,17 +24,14 @@ type Props = {
   selectedIds: string[];
   /** Per-day recommendation line (from first-page goals / sub-goals). */
   recommendationSummaries?: string[];
+  /** Recommended focus preset id per day (shows · rec; usually preselected). */
+  recommendedFocusIds?: string[];
   /** Detected body vs sub-goal conflicts per day (parallel to dayLabels). */
   conflictsPerDay?: (DaySessionFocusConflict | null)[];
   /** Resolution id applied per day, keyed by day index. */
   resolvedConflictIdsByDay?: Record<number, string>;
   /** Shown once at top — explains sport/goal day options without repeating per day/option. */
   sportGoalPriorityNote?: string | null;
-  /** Mandatory weekly goal distribution: blend vs dedicate_days. */
-  goalDistributionStyle?: GoalDistributionStyle | null;
-  onChangeGoalDistributionStyle?: (value: GoalDistributionStyle) => void;
-  /** When true, show the weekly distribution note (default: when onChange is provided). */
-  showGoalDistributionNote?: boolean;
   /** When true, show Region | Pattern | Muscle control (sport + goal weeks). */
   showBodyFocusModeNote?: boolean;
   weeklyBodyFocusMode?: WeeklyBodyFocusMode | null;
@@ -207,12 +203,10 @@ export function WeekDayFocusPlanner({
   selectedBodyIds,
   selectedIds,
   recommendationSummaries,
+  recommendedFocusIds,
   conflictsPerDay,
   resolvedConflictIdsByDay,
   sportGoalPriorityNote,
-  goalDistributionStyle,
-  onChangeGoalDistributionStyle,
-  showGoalDistributionNote,
   showBodyFocusModeNote,
   weeklyBodyFocusMode,
   onChangeWeeklyBodyFocusMode,
@@ -223,31 +217,18 @@ export function WeekDayFocusPlanner({
   onApplyUncoveredResolution,
   onBack,
 }: Props) {
-  const showWeeklyDistribution =
-    showGoalDistributionNote === true ||
-    (showGoalDistributionNote !== false && onChangeGoalDistributionStyle != null);
-
   return (
     <View style={styles.scroll}>
       <Text style={[styles.screenTitle, { color: theme.text }]}>Focus for each day</Text>
       <Text style={[styles.screenSub, { color: theme.textMuted }]}>
-        We recommend a different body split for each day — as many unique days as your week
-        allows, with full body filling leftover days. You can still combine compatible areas
-        (like glutes + shoulders). Push and pull stay on separate days.
+        We recommend a different body split for each day. You can still combine
+        compatible areas (like glutes + shoulders). Push and pull stay on separate days.
+        Full body is a choice for that day — not a leftover when the week is longer.
       </Text>
       {sportGoalPriorityNote ? (
         <Text style={[styles.screenNote, { color: theme.textMuted }]}>
           {sportGoalPriorityNote}
         </Text>
-      ) : null}
-
-      {showWeeklyDistribution && onChangeGoalDistributionStyle ? (
-        <FocusDistributionNote
-          variant="weekly"
-          value={goalDistributionStyle}
-          required
-          onChange={onChangeGoalDistributionStyle}
-        />
       ) : null}
 
       {showBodyFocusModeNote && onChangeWeeklyBodyFocusMode ? (
@@ -276,6 +257,7 @@ export function WeekDayFocusPlanner({
         const selected = selectedIds[dayIdx];
         const conflict = conflictsPerDay?.[dayIdx] ?? null;
         const recommendation = recommendationSummaries?.[dayIdx];
+        const recommendedFocusId = recommendedFocusIds?.[dayIdx];
         return (
           <View key={label} style={[styles.card, { borderColor: theme.border, backgroundColor: theme.card }]}>
             <Text style={[styles.dayTitle, { color: theme.text }]}>{label}</Text>
@@ -306,7 +288,9 @@ export function WeekDayFocusPlanner({
                   Body focus this day
                 </Text>
                 <Text style={[styles.sectionHint, { color: theme.textMuted }]}>
-                  Pick one, or combine two compatible areas
+                  {weeklyBodyFocusMode === "pattern"
+                    ? "Pick one, or combine two compatible areas. Legs is the full lower day — use Quads or Posterior to split it."
+                    : "Pick one, or combine two compatible areas"}
                 </Text>
                 <View style={styles.options}>
                   {bodyOptions.map((p) => {
@@ -369,7 +353,12 @@ export function WeekDayFocusPlanner({
                       {isSel ? <View style={[styles.radioInner, { backgroundColor: theme.primarySolid }]} /> : null}
                     </View>
                     <View style={styles.optionText}>
-                      <Text style={[styles.optionLabel, { color: theme.text }]}>{p.label}</Text>
+                      <Text style={[styles.optionLabel, { color: theme.text }]}>
+                        {p.label}
+                        {recommendedFocusId === p.id ? (
+                          <Text style={[styles.optionSub, { color: theme.primary }]}> · rec</Text>
+                        ) : null}
+                      </Text>
                       {p.subtitle?.trim() ? (
                         <Text style={[styles.optionSub, { color: theme.textMuted }]}>{p.subtitle}</Text>
                       ) : null}

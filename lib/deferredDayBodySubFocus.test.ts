@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { subFocusChoicesForManualPrimaryGoal } from "./preferencesConstants";
 import {
+  countVisibleGoalSubFocusPicks,
   filterDeferredDayBodySubFocusChoices,
   goalHasDeferredDayBodySubFocuses,
   isDeferredDayBodySubFocus,
@@ -8,9 +9,9 @@ import {
 } from "./deferredDayBodySubFocus";
 
 describe("deferred day-body sub-focuses", () => {
-  it("defers physique body-part chips, keeps lift and quality intents", () => {
-    expect(isDeferredDayBodySubFocus("Build Muscle (Hypertrophy)", "Chest")).toBe(true);
-    expect(isDeferredDayBodySubFocus("Build Muscle (Hypertrophy)", "Legs")).toBe(true);
+  it("defers region chips, keeps physique muscle days and lift / quality intents", () => {
+    expect(isDeferredDayBodySubFocus("Build Muscle (Hypertrophy)", "Chest")).toBe(false);
+    expect(isDeferredDayBodySubFocus("Build Muscle (Hypertrophy)", "Legs")).toBe(false);
     expect(isDeferredDayBodySubFocus("Build Strength", "Squat")).toBe(false);
     expect(isDeferredDayBodySubFocus("Build Strength", "Full-body")).toBe(true);
     expect(isDeferredDayBodySubFocus("Athletic Performance", "Upper")).toBe(true);
@@ -19,11 +20,11 @@ describe("deferred day-body sub-focuses", () => {
     expect(isDeferredDayBodySubFocus("Calisthenics", "Pull-ups")).toBe(false);
   });
 
-  it("filters hypertrophy choices down to none", () => {
+  it("keeps hypertrophy muscle-day sub-goals on the first page", () => {
     const all = subFocusChoicesForManualPrimaryGoal("Build Muscle (Hypertrophy)");
     expect(all.length).toBeGreaterThan(0);
-    expect(goalHasDeferredDayBodySubFocuses("Build Muscle (Hypertrophy)", all)).toBe(true);
-    expect(filterDeferredDayBodySubFocusChoices("Build Muscle (Hypertrophy)", all)).toEqual([]);
+    expect(goalHasDeferredDayBodySubFocuses("Build Muscle (Hypertrophy)", all)).toBe(false);
+    expect(filterDeferredDayBodySubFocusChoices("Build Muscle (Hypertrophy)", all)).toEqual([...all]);
   });
 
   it("keeps athletic qualities after dropping region chips", () => {
@@ -35,7 +36,7 @@ describe("deferred day-body sub-focuses", () => {
     expect(kept).not.toContain("Full-body");
   });
 
-  it("strips persisted chest/legs picks and renormalizes remaining pct", () => {
+  it("strips persisted region picks and renormalizes remaining pct", () => {
     const result = stripDeferredDayBodySubFocuses(
       {
         "Build Muscle (Hypertrophy)": ["Chest", "Legs"],
@@ -47,10 +48,19 @@ describe("deferred day-body sub-focuses", () => {
       }
     );
     expect(result.changed).toBe(true);
-    expect(result.subFocusByGoal["Build Muscle (Hypertrophy)"]).toBeUndefined();
+    expect(result.subFocusByGoal["Build Muscle (Hypertrophy)"]).toEqual(["Chest", "Legs"]);
     expect(result.subFocusByGoal["Athletic Performance"]).toEqual(["Speed / Sprint"]);
     expect(result.subFocusPctByGoal["Athletic Performance"]).toEqual({
       "Speed / Sprint": 100,
     });
+  });
+
+  it("counts only selected goals and ignores leftover keys", () => {
+    const map = {
+      "Build Strength": ["Squat", "Deadlift / Hinge"],
+      "Build Muscle (Hypertrophy)": ["Chest", "Back", "Arms"],
+    };
+    expect(countVisibleGoalSubFocusPicks(map, ["Build Strength"], true)).toBe(2);
+    expect(countVisibleGoalSubFocusPicks(map, ["Build Muscle (Hypertrophy)"], true)).toBe(3);
   });
 });

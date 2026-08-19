@@ -144,9 +144,11 @@ describe("session body contract — no invented muscle days", () => {
     }
   });
 
-  it("infers Pattern from push/pull when mode is unset", () => {
+  it("infers Pattern from push/pull and split-leg chips when mode is unset", () => {
     expect(inferWeeklyBodyFocusMode({ specificBodyFocus: ["push"] })).toBe("pattern");
     expect(inferWeeklyBodyFocusMode({ specificBodyFocus: ["pull"] })).toBe("pattern");
+    expect(inferWeeklyBodyFocusMode({ specificBodyFocus: ["quad"] })).toBe("pattern");
+    expect(inferWeeklyBodyFocusMode({ specificBodyFocus: ["posterior"] })).toBe("pattern");
   });
 
   it("keeps Pattern Legs when weeklyBodyFocusMode is pattern", () => {
@@ -279,6 +281,28 @@ describe("hard eligibility for every muscle emphasis", () => {
     expect(c.allowed_muscle_emphasis).toBeNull();
     expect(matchesBodyPartFocus(row, c)).toBe(true);
     expect(matchesBodyPartFocus(bench, c)).toBe(false);
+  });
+
+  it("Pattern Quads: squat in, hip thrust out", () => {
+    const c = constraintsFor(["lower", "quad"]);
+    expect(c.allowed_lower_body_emphasis).toBe("quad");
+    expect(matchesBodyPartFocus(squat, c)).toBe(true);
+    expect(matchesBodyPartFocus(hipThrust, c)).toBe(false);
+  });
+
+  it("Pattern Posterior: hip thrust in, knee-dominant squat out", () => {
+    const c = constraintsFor(["lower", "posterior"]);
+    expect(c.allowed_lower_body_emphasis).toBe("posterior");
+    expect(matchesBodyPartFocus(hipThrust, c)).toBe(true);
+    const kneeSquat = makeEx({
+      id: "hack_squat",
+      movement_pattern: "squat",
+      muscle_groups: ["quads"],
+      primary_movement_family: "lower_body",
+      movement_patterns: ["squat"],
+      pairing_category: "quads",
+    });
+    expect(matchesBodyPartFocus(kneeSquat, c)).toBe(false);
   });
 
   it("Region Upper: push and pull both in, squat out", () => {

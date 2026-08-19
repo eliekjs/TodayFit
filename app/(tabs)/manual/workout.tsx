@@ -27,7 +27,7 @@ import { GenerationLoadingScreen } from "../../../components/GenerationLoadingSc
 import { generateAndAppendWorkoutBlock } from "../../../lib/appendGeneratedBlock";
 import { loadGeneratorModule } from "../../../lib/loadGeneratorModule";
 import { replaceExerciseInWorkout, updateExercisePrescriptionInWorkout, collectWorkoutExerciseIds } from "../../../lib/workoutUtils";
-import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, resolveSwapExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -268,14 +268,14 @@ export default function ManualWorkoutScreen() {
     router.replace("/");
   };
 
-  const onSwapChoose = (optionId: string, optionName: string) => {
+  const onSwapChoose = async (optionId: string, optionName: string) => {
     if (generatedWorkout == null || swapModal == null) return;
     const updated = replaceExerciseInWorkout(
       generatedWorkout,
       swapModal.exerciseId,
       optionId,
       optionName,
-      getCuratedExerciseDescription(optionId)
+      await resolveSwapExerciseDescription(optionId)
     );
     setGeneratedWorkout(updated);
     setSwapModal(null);

@@ -11,12 +11,18 @@ import type {
 } from "./types";
 import type { SportGoalContext } from "./dailyGeneratorAdapter";
 import { getCanonicalSportSlug } from "../data/sportSubFocus/canonicalSportSlug";
-import { getSportDefinition } from "../data/sportSubFocus";
+import { getSportDefinition, SPORTS_WITH_SUB_FOCUSES } from "../data/sportSubFocus";
 import {
   canonicalizePrimaryFocusLabels,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
 } from "./preferencesConstants";
-import { resolveSubFocusSlugFromDisplayName } from "./subFocusBodyRegion";
+import { dominantTargetBodyForSport } from "./preferenceConflictDetector";
+import {
+  aerobicCardioFitsDayBody,
+  dayBodyFocusToRegion,
+  resolveSubFocusSlugFromDisplayName,
+  type DayBodyRegion,
+} from "./subFocusBodyRegion";
 import {
   matchingSubFocusNamesForBodyPicks,
   recommendedBodyChoiceIdsFromSubFocusPrefs,
@@ -38,6 +44,8 @@ export type DayBodyFocusChoiceId =
   | "push"
   | "pull"
   | "legs"
+  | "quad"
+  | "posterior"
   | "chest"
   | "back"
   | "shoulders"
@@ -80,6 +88,22 @@ export function resolveWeeklyBodyFocusMode(
   return mode ?? "region";
 }
 
+/** Keep user day chips when switching Region/Pattern/Muscle; drop ids the new vocab cannot host. */
+export function remapDayBodyPicksToMode(
+  picks: readonly DayBodyFocusChoiceId[],
+  mode: WeeklyBodyFocusMode
+): DayBodyFocusChoiceId[] {
+  const allowed = new Set(dayBodyChoiceIdsForMode(mode));
+  const out: DayBodyFocusChoiceId[] = [];
+  for (const id of picks) {
+    const mapped = mapBodyChoiceToModeVocab(id, mode);
+    if (!allowed.has(mapped) || out.includes(mapped)) continue;
+    out.push(mapped);
+    if (out.length >= 2) break;
+  }
+  return out;
+}
+
 /** True when day prefs should inject hypertrophy muscle sub-focus for this choice. */
 export function shouldApplyHypertrophySubFocusForBodyChoice(
   primaryFocus: readonly string[] | null | undefined
@@ -90,7 +114,15 @@ export function shouldApplyHypertrophySubFocusForBodyChoice(
   );
 }
 
-const PATTERN_CHOICE_IDS: DayBodyFocusChoiceId[] = ["push", "pull", "legs", "full", "core"];
+const PATTERN_CHOICE_IDS: DayBodyFocusChoiceId[] = [
+  "push",
+  "pull",
+  "legs",
+  "quad",
+  "posterior",
+  "full",
+  "core",
+];
 const MUSCLE_CHOICE_IDS: DayBodyFocusChoiceId[] = [
   "chest",
   "back",
@@ -102,7 +134,7 @@ const MUSCLE_CHOICE_IDS: DayBodyFocusChoiceId[] = [
   "core",
 ];
 
-/** Dedicated split days for auto-recommendation (no core-only day; full is leftover filler). */
+/** Dedicated split days for auto-recommendation (no core-only day). */
 const REGION_SPLIT_IDS: DayBodyFocusChoiceId[] = ["upper", "lower"];
 const PATTERN_SPLIT_IDS: DayBodyFocusChoiceId[] = ["push", "pull", "legs"];
 const MUSCLE_SPLIT_IDS: DayBodyFocusChoiceId[] = [
@@ -120,10 +152,63 @@ export function dedicatedSplitIdsForMode(mode: WeeklyBodyFocusMode): DayBodyFocu
   return [...REGION_SPLIT_IDS];
 }
 
+function isMuscleGroupChoiceId(id: DayBodyFocusChoiceId): boolean {
+  return (
+    id === "chest" ||
+    id === "back" ||
+    id === "shoulders" ||
+    id === "arms" ||
+    id === "glutes"
+  );
+}
+
+function isLowerSplitChoiceId(id: DayBodyFocusChoiceId): boolean {
+  return id === "lower" || id === "legs" || id === "glutes" || id === "quad" || id === "posterior";
+}
+
+function isUpperSplitChoiceId(id: DayBodyFocusChoiceId): boolean {
+  return (
+    id === "upper" ||
+    id === "push" ||
+    id === "pull" ||
+    id === "chest" ||
+    id === "back" ||
+    id === "shoulders" ||
+    id === "arms"
+  );
+}
+
+/** Interleave upper/lower so short muscle weeks are not all-upper. */
+function interleaveUpperLowerSplit(
+  pool: readonly DayBodyFocusChoiceId[]
+): DayBodyFocusChoiceId[] {
+  const upper = pool.filter(isUpperSplitChoiceId);
+  const lower = pool.filter(isLowerSplitChoiceId);
+  if (upper.length === 0 || lower.length === 0) return [...pool];
+  const out: DayBodyFocusChoiceId[] = [];
+  let i = 0;
+  let j = 0;
+  let takeLower = false;
+  while (i < upper.length || j < lower.length) {
+    if (takeLower) {
+      if (j < lower.length) out.push(lower[j++]!);
+      else if (i < upper.length) out.push(upper[i++]!);
+    } else if (i < upper.length) {
+      out.push(upper[i++]!);
+    } else if (j < lower.length) {
+      out.push(lower[j++]!);
+    }
+    takeLower = !takeLower;
+  }
+  return out;
+}
+
 /**
  * Spread a split across gym days: use as many unique dedicated days as will fit,
- * complete extra full rotations when days divide evenly, and fill leftover days
- * with full body. Never assigns core as its own day. A single gym day is full body.
+ * then rotate the split for extra days. Never assigns core as its own day.
+ * A single gym day defaults to full body. Muscle-group pools are interleaved
+ * upper/lower so the week stays region-balanced. Full body is an explicit
+ * per-day chip, not leftover filler.
  */
 export function distributeBodySplitAcrossDays(
   split: readonly DayBodyFocusChoiceId[],
@@ -135,13 +220,8 @@ export function distributeBodySplitAcrossDays(
   if (pool.length === 0 || n === 1) {
     return Array.from({ length: n }, () => "full" as const);
   }
-  if (n <= pool.length) return pool.slice(0, n);
-  const rotations = Math.floor(n / pool.length);
-  const remainder = n % pool.length;
-  const out: DayBodyFocusChoiceId[] = [];
-  for (let r = 0; r < rotations; r++) out.push(...pool);
-  for (let i = 0; i < remainder; i++) out.push("full");
-  return out;
+  const ordered = pool.some(isMuscleGroupChoiceId) ? interleaveUpperLowerSplit(pool) : pool;
+  return Array.from({ length: n }, (_, i) => ordered[i % ordered.length]!);
 }
 
 /** Ids available in each week/day body-focus vocabulary. */
@@ -165,7 +245,7 @@ export const BODY_CHOICE_COPY: Record<DayBodyFocusChoiceId, { label: string; sub
   },
   full: {
     label: "Full body",
-    subtitle: "Balanced support without overcommitting to one region.",
+    subtitle: "Train the whole body in this session.",
   },
   upper: {
     label: "Upper body",
@@ -182,6 +262,14 @@ export const BODY_CHOICE_COPY: Record<DayBodyFocusChoiceId, { label: string; sub
   legs: {
     label: "Legs",
     subtitle: "Quads, glutes, hamstrings, and lower-body volume.",
+  },
+  quad: {
+    label: "Quads",
+    subtitle: "Knee-dominant squats and lunges — a split Legs day.",
+  },
+  posterior: {
+    label: "Posterior",
+    subtitle: "Hinge, glutes, and hamstrings — a split Legs day.",
   },
   chest: {
     label: "Chest",
@@ -220,6 +308,10 @@ export function muscleSubFocusSlugsForBodyChoice(
     case "arms":
       return ["arms"];
     case "glutes":
+      return ["glutes"];
+    case "quad":
+      return ["legs"];
+    case "posterior":
       return ["glutes"];
     case "legs":
     case "lower":
@@ -304,8 +396,8 @@ const GOAL_SUB_FOCUS_OPTIONS_LABELS: Record<string, { slug: string; name: string
 
 /**
  * Auto day sequence for Pattern mode (PPL-ish).
- * Include as many of Push/Pull/Legs as days allow; complete extra PPL rotations
- * when days divide evenly; leftover days are Full body (never Core).
+ * Include as many of Push/Pull/Legs as days allow; extra days rotate the split.
+ * Full body is an explicit chip, not leftover filler. Never Core.
  */
 export function getPatternBodyFocusDistribution(
   gymDaysPerWeek: number
@@ -316,8 +408,9 @@ export function getPatternBodyFocusDistribution(
 
 /**
  * Auto day sequence for Muscle mode (bro-ish rotation).
- * Include as many of Chest/Back/Shoulders/Arms/Legs/Glutes as days allow;
- * leftover days are Full body (never Core).
+ * Include as many of Chest/Back/Shoulders/Arms/Legs/Glutes as days allow,
+ * interleaved upper/lower so the week is not stacked with upper days.
+ * Extra days rotate the split. Full body is an explicit chip, not leftover filler.
  */
 export function getMuscleBodyFocusDistribution(
   gymDaysPerWeek: number
@@ -505,6 +598,22 @@ function sportPerformanceLabel(slug: string): string {
   return `${sportDisplayName(slug)} performance`;
 }
 
+function sportSubFocusSubtitle(
+  slug: string,
+  originalSlugs: readonly string[],
+  subFocusBySport: Record<string, string[]>
+): string {
+  const canon = getCanonicalSportSlug(slug);
+  const rawMatch = originalSlugs.find((x) => getCanonicalSportSlug(x) === canon) ?? slug;
+  const selected = subFocusBySport[canon] ?? subFocusBySport[rawMatch] ?? [];
+  if (selected.length === 0) return "";
+  const catalog = SPORTS_WITH_SUB_FOCUSES.find((s) => s.slug === canon);
+  return selected
+    .map((sub) => catalog?.sub_focuses.find((sf) => sf.slug === sub)?.name ?? sub.replace(/_/g, " "))
+    .slice(0, 3)
+    .join(" · ");
+}
+
 function subFocusForSports(
   sportSlugs: string[],
   originalSportSlugs: string[],
@@ -563,6 +672,8 @@ export function bodyFocusEmphasisLabel(bias: {
     choiceId === "push" ||
     choiceId === "pull" ||
     choiceId === "legs" ||
+    choiceId === "quad" ||
+    choiceId === "posterior" ||
     choiceId === "chest" ||
     choiceId === "back" ||
     choiceId === "shoulders" ||
@@ -582,6 +693,9 @@ export function bodyFocusEmphasisLabel(bias: {
 const INCOMPATIBLE_BODY_PAIRS: ReadonlyArray<readonly [DayBodyFocusChoiceId, DayBodyFocusChoiceId]> = [
   ["push", "pull"],
   ["upper", "lower"],
+  ["legs", "quad"],
+  ["legs", "posterior"],
+  ["quad", "posterior"],
 ];
 
 export function canCombineDayBodyFocus(
@@ -615,7 +729,8 @@ export function conflictBodyIdForPicks(
   if (picks.length === 1) return picks[0]!;
   const regions = new Set(
     picks.map((id) => {
-      if (id === "lower" || id === "legs" || id === "glutes") return "lower";
+      if (id === "lower" || id === "legs" || id === "glutes" || id === "quad" || id === "posterior")
+        return "lower";
       if (id === "core") return "core";
       if (id === "full") return "full";
       return "upper";
@@ -637,6 +752,8 @@ const ALL_DAY_BODY_IDS: ReadonlySet<string> = new Set<DayBodyFocusChoiceId>([
   "push",
   "pull",
   "legs",
+  "quad",
+  "posterior",
   "chest",
   "back",
   "shoulders",
@@ -718,6 +835,10 @@ export function dayBodyFocusChoiceToBias(
       return { targetBody: "Upper", targetModifier: ["Pull"], specificBodyFocus: ["pull"] };
     case "legs":
       return { targetBody: "Lower", targetModifier: [], specificBodyFocus: ["legs"] };
+    case "quad":
+      return { targetBody: "Lower", targetModifier: ["Quad"], specificBodyFocus: ["quad"] };
+    case "posterior":
+      return { targetBody: "Lower", targetModifier: ["Posterior"], specificBodyFocus: ["posterior"] };
     case "chest":
       return { targetBody: "Upper", targetModifier: ["Push"], specificBodyFocus: ["chest"] };
     case "back":
@@ -751,6 +872,8 @@ export function bodyChoiceIdForBias(
     "shoulders",
     "back",
     "glutes",
+    "quad",
+    "posterior",
     "legs",
     "push",
     "pull",
@@ -790,7 +913,7 @@ function recommendedBodyChoiceIds(opts: {
 }): DayBodyFocusChoiceId[] {
   const ids = new Set<DayBodyFocusChoiceId>();
   for (const id of bodyChoiceIdsFromSubFocusPrefs(opts.manualPreferences)) {
-    const region = id === "glutes" || id === "legs" ? "lower"
+    const region = id === "glutes" || id === "legs" || id === "quad" || id === "posterior" ? "lower"
       : id === "core" ? "core"
       : id === "full" ? "full"
       : "upper";
@@ -829,7 +952,7 @@ function recommendedBodyChoiceIds(opts: {
     const full = bias?.fullBodyBias ?? 0;
     if (lower >= 0.45 || lower >= upper + 0.2) ids.add("lower");
     if (upper >= 0.45 || upper >= lower + 0.2) ids.add("upper");
-    if (full >= 0.45 || (upper > 0.25 && lower > 0.25)) ids.add("full");
+    if (full >= 0.45) ids.add("full");
     if (lower >= 0.45 || full >= 0.45 || upper >= 0.45) ids.add("core");
   }
 
@@ -853,7 +976,6 @@ function recommendedBodyChoiceIds(opts: {
     ids.add(bodyChoiceIdForBias(opts.fallbackTargetBody));
   }
 
-  if (ids.has("upper") && ids.has("lower")) ids.add("full");
   return Array.from(ids);
 }
 
@@ -875,7 +997,7 @@ export function mapBodyChoiceToModeVocab(
     ) {
       return "upper";
     }
-    if (id === "legs" || id === "glutes") return "lower";
+    if (id === "legs" || id === "glutes" || id === "quad" || id === "posterior") return "lower";
     return id;
   }
   if (mode === "pattern") {
@@ -887,6 +1009,8 @@ export function mapBodyChoiceToModeVocab(
   }
   // Muscle: never invent Chest from Upper/Push or Back from Pull. Callers drop ids
   // that are not in the muscle vocabulary.
+  if (id === "quad") return "legs";
+  if (id === "posterior") return "glutes";
   return id;
 }
 
@@ -1025,7 +1149,7 @@ export function buildDayFocusPresetsForDay(opts: {
       out.push({
         id: `sport_emphasis_${idx}`,
         label: name,
-        subtitle: "",
+        subtitle: sportSubFocusSubtitle(slug, sports, adaptiveSetup?.subFocusBySport ?? {}),
       });
     });
 
@@ -1206,22 +1330,142 @@ export function defaultPresetIdForDay(presets: DayFocusPreset[]): string {
   return presets[0]?.id ?? "balanced_goals";
 }
 
+function dayRegionFromBodyIds(bodyIds: readonly DayBodyFocusChoiceId[]): DayBodyRegion {
+  if (bodyIds.length === 0) return "full";
+  const regions = new Set(bodyIds.map((id) => dayBodyFocusToRegion(id)));
+  if (regions.size !== 1) return "full";
+  return [...regions][0]!;
+}
+
+function sportRegionFitsDay(sportSlug: string, dayRegion: DayBodyRegion): boolean {
+  const sportBody = dominantTargetBodyForSport(getCanonicalSportSlug(sportSlug));
+  if (dayRegion === "full" || dayRegion === "core") return true;
+  if (sportBody === "Full") return dayRegion === "full";
+  if (dayRegion === "upper") return sportBody === "Upper";
+  if (dayRegion === "lower") return sportBody === "Lower";
+  return true;
+}
+
+function isAerobicOrEnduranceGoalLabel(label: string): boolean {
+  const s = label.toLowerCase();
+  return s.includes("endurance") || s.includes("conditioning") || s.includes("zone 2");
+}
+
+function isStrengthGoalLabel(label: string): boolean {
+  const s = label.toLowerCase();
+  return s.includes("strength") && !s.includes("joint");
+}
+
+function goalFitsDayBody(goalLabel: string, bodyIds: readonly DayBodyFocusChoiceId[]): boolean {
+  if (aerobicCardioFitsDayBody(bodyIds)) return true;
+  if (isAerobicOrEnduranceGoalLabel(goalLabel)) return false;
+  return true;
+}
+
 /**
- * Default when opening the planner:
- * - dedicate_days → that day’s assigned goal (exclusive)
- * - blend → balanced mix when available
+ * Featured sport/goal for a day: match the day's body region first (skiing on
+ * legs/lower, climbing on pull/upper). Sports beat goals when both exist.
+ * Strength stays available as a chip; it is preferred over Zone 2 / endurance
+ * on upper-push days.
+ */
+export function featuredPresetIdForWeekDay(
+  presets: DayFocusPreset[],
+  opts: {
+    bodyIds: readonly DayBodyFocusChoiceId[];
+    sportSlugs: readonly string[];
+    usedSportIndices: ReadonlySet<number>;
+    rankedGoals: readonly string[];
+    usedGoalIndices: ReadonlySet<number>;
+    weekGoalSlotIndex: number;
+    dedicateDays?: boolean;
+  }
+): string {
+  const dayRegion = dayRegionFromBodyIds(opts.bodyIds);
+  const sportCount = opts.sportSlugs.length;
+  const hasSportPresets = presets.some((p) => p.id.startsWith("sport_emphasis_"));
+
+  const takeSport = (preferUnused: boolean): string | null => {
+    if (!hasSportPresets || sportCount === 0) return null;
+    const order = opts.sportSlugs.map((_, i) => i);
+    const matching = order.filter((i) => sportRegionFitsDay(opts.sportSlugs[i]!, dayRegion));
+    const pool = (matching.length > 0 ? matching : order).filter((i) =>
+      preferUnused ? !opts.usedSportIndices.has(i) : true
+    );
+    for (const i of pool) {
+      const id = `sport_emphasis_${i}`;
+      if (presets.some((p) => p.id === id)) return id;
+    }
+    return null;
+  };
+
+  const unusedSport = takeSport(true);
+  if (unusedSport) return unusedSport;
+  const anyMatchingSport = takeSport(false);
+  if (anyMatchingSport && dayRegion !== "full") return anyMatchingSport;
+
+  const takeGoal = (predicate: (label: string) => boolean, unusedOnly: boolean): string | null => {
+    for (let i = 0; i < opts.rankedGoals.length; i++) {
+      if (unusedOnly && opts.usedGoalIndices.has(i)) continue;
+      const label = opts.rankedGoals[i]!;
+      if (!predicate(label) || !goalFitsDayBody(label, opts.bodyIds)) continue;
+      const id = `goal_emphasis_${i}`;
+      if (presets.some((p) => p.id === id)) return id;
+      if (i === 0 && presets.some((p) => p.id === "single_goal")) return "single_goal";
+    }
+    return null;
+  };
+
+  const unusedStrength = takeGoal(isStrengthGoalLabel, true);
+  if (unusedStrength) return unusedStrength;
+  const unusedFittingGoal = takeGoal(() => true, true);
+  if (unusedFittingGoal) return unusedFittingGoal;
+  const fittingGoal = takeGoal(() => true, false);
+  if (fittingGoal) return fittingGoal;
+
+  if (anyMatchingSport) return anyMatchingSport;
+  return defaultPresetIdForWeekDay(presets, {
+    dedicateDays: opts.dedicateDays,
+    weekGoalSlotIndex: opts.weekGoalSlotIndex,
+  });
+}
+
+/**
+ * Default when opening the planner: featured goal for the day (exclusive).
+ * Blend / balanced presets stay available for the user to pick per day.
  */
 export function defaultPresetIdForWeekDay(
   presets: DayFocusPreset[],
   opts: {
-    dedicateDays: boolean;
+    /** @deprecated Prefer featured goal; kept for callers. Default true. */
+    dedicateDays?: boolean;
     /** Which ranked goal (0..2) this training day is assigned to */
     weekGoalSlotIndex: number;
+    bodyIds?: readonly DayBodyFocusChoiceId[];
+    sportSlugs?: readonly string[];
+    rankedGoals?: readonly string[];
   }
 ): string {
-  if (opts.dedicateDays && opts.weekGoalSlotIndex >= 0) {
+  if (opts.bodyIds && (opts.sportSlugs?.length || opts.rankedGoals?.length)) {
+    return featuredPresetIdForWeekDay(presets, {
+      bodyIds: opts.bodyIds,
+      sportSlugs: opts.sportSlugs ?? [],
+      usedSportIndices: new Set(),
+      rankedGoals: opts.rankedGoals ?? [],
+      usedGoalIndices: new Set(),
+      weekGoalSlotIndex: opts.weekGoalSlotIndex,
+      dedicateDays: opts.dedicateDays,
+    });
+  }
+  const preferFeatured = opts.dedicateDays !== false;
+  if (preferFeatured && opts.weekGoalSlotIndex >= 0) {
+    const sportId = `sport_emphasis_${Math.min(Math.max(opts.weekGoalSlotIndex, 0), 2)}`;
+    if (presets.some((p) => p.id === sportId) && !presets.some((p) => p.id.startsWith("goal_emphasis_"))) {
+      return sportId;
+    }
     const id = `goal_emphasis_${opts.weekGoalSlotIndex}`;
     if (presets.some((p) => p.id === id)) return id;
+    if (presets.some((p) => p.id === "single_goal")) return "single_goal";
+    if (presets.some((p) => p.id === sportId)) return sportId;
   }
   const balanced =
     presets.find((p) => p.id === "balanced_goals") ??
@@ -1237,9 +1481,9 @@ export function primaryFocusLabelsFromGoalSlugs(goalSlugs: string[]): string[] {
 }
 
 /**
- * Goals for week day presets: Manual primaryFocus, adaptive ranked goals, and
- * any goal keys that still have sub-focus picks. Empty strings / informal labels
- * are canonicalized so hypertrophy + recovery always surface as day options.
+ * Goals for week day presets: Manual primaryFocus and adaptive ranked goals.
+ * Sub-focus leftover keys are not promoted into extra day-goal options
+ * (that was inventing Improve Endurance / Zone 2 when the user never ranked them).
  */
 export function resolveWeekFocusGoalLabels(
   manualPreferences: ManualPreferences,
@@ -1249,13 +1493,8 @@ export function resolveWeekFocusGoalLabels(
   const rankedSlugs =
     adaptiveSetup?.rankedGoals?.filter((g): g is string => g != null && g !== "") ?? [];
   const fromAdaptive = primaryFocusLabelsFromGoalSlugs(rankedSlugs);
-  const fromSubFocus = canonicalizePrimaryFocusLabels(
-    Object.entries(manualPreferences.subFocusByGoal ?? {})
-      .filter(([, names]) => (names?.length ?? 0) > 0)
-      .map(([label]) => label)
-  );
   const out: string[] = [];
-  for (const label of [...fromPrefs, ...fromAdaptive, ...fromSubFocus]) {
+  for (const label of [...fromPrefs, ...fromAdaptive]) {
     if (!out.includes(label)) out.push(label);
   }
   return out;
@@ -1394,13 +1633,13 @@ export function sportGoalPrioritySectionNote(
     adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
 
   if (sports.length > 0 && rankedGoals.length > 0) {
-    return "What you pick for a day is exclusive for that day — it replaces the goals from earlier pages. Balanced options mix sport and goals using your global settings.";
+    return "Each day’s pick is exclusive for that day. Choose a sport, a goal, or Balanced sport + goals to mix them.";
   }
   if (rankedGoals.length >= 2) {
-    return "What you pick for a day is exclusive for that day — it replaces the goals from earlier pages. Balanced options use your global goal match %.";
+    return "Each day’s pick is exclusive for that day. Or choose Blend all ranked goals to mix them in one session.";
   }
   if (sports.length > 1) {
-    return "What you pick for a day is exclusive for that day. Or choose blend to mix your selected sports.";
+    return "Each day’s pick is exclusive for that day. Or choose Blend selected sports to mix them.";
   }
   return null;
 }

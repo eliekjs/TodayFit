@@ -38,7 +38,14 @@ const EXPLICIT_FAMILIES: Record<WarmupActivationFamilyId, readonly string[]> = {
     "ff_miniband_fire_hydrant",
   ],
   worlds_greatest: ["worlds_greatest_stretch"],
-  frog_adductor: ["frog", "frog_stretch", "dynamic_frog", "groiners", "half_kneeling_groin_stretch"],
+  frog_adductor: [
+    "frog",
+    "frog_stretch",
+    "dynamic_frog",
+    "groiners",
+    "half_kneeling_groin_stretch",
+    "butterfly",
+  ],
   hip_flexor_stretch: [
     "hip_flexor_stretch",
     "banded_hip_flexor_stretch",
@@ -68,8 +75,64 @@ const EXPLICIT_FAMILIES: Record<WarmupActivationFamilyId, readonly string[]> = {
   ],
   wall_slide_scap: ["wall_slide", "wall_slides_with_lift_off", "scapular_slides", "wall_scap_mobility"],
   band_pull_apart: ["band_pullapart", "band_pull_apart", "banded_pull_aparts", "diagonal_band_pull_aparts"],
-  thoracic_rotation: ["thread_the_needle", "open_book", "cat_camel", "cat_cow", "t_spine_rotation"],
+  thoracic_rotation: [
+    "thread_the_needle",
+    "thread_needle",
+    "open_book",
+    "cat_camel",
+    "cat_cow",
+    "t_spine_rotation",
+    "prone_thoracic_rotation_with_dowel",
+    "wall_half_kneeling_thoracic_rotations",
+    "half_kneeling_thoracic_opener",
+    "quadruped_t_spine_pull_through",
+    "quadruped_extension_rotation",
+    "dowel_rotations",
+  ],
   arm_circles: ["arm_circles", "prone_arm_circles", "quadruped_arm_circles"],
+  lat_stretch: ["lat_stretch", "lat_stretch_door", "dowel_lat_stretch_rockers", "overhead_band_lat_stretch", "banded_lat_stretch"],
+  face_pull: [
+    "facepull",
+    "face_pull",
+    "inverted_facepulls",
+    "band_face_pull_external_rotation",
+    "half_kneeling_band_face_pull_to_y_press",
+  ],
+  cuff_activation: [
+    "band_ir_er",
+    "band_external_rotation",
+    "band_internal_rotation",
+    "prone_external_rotations",
+    "sleeper_stretch",
+    "cross_body_stretch",
+    "cuban_press",
+  ],
+  pec_opening: ["chest_stretch_doorway", "pec_stretch_wall", "banded_pec_stretch"],
+  serratus_activation: ["push_up_plus", "scapular_push_up"],
+  band_dislocate: [
+    "band_shoulder_dislocations",
+    "ff_resistance_band_shoulder_dislocates",
+    "ff_resistance_band_alternating_shoulder_dislocates",
+    "ff_resistance_band_prone_shoulder_dislocates",
+    "ff_superband_shoulder_dislocates",
+    "ff_superband_alternating_shoulder_dislocates",
+    "ff_superband_prone_shoulder_dislocates",
+  ],
+  wrist_forearm: [
+    "wrist_circles",
+    "wrist_extensor_stretch",
+    "wrist_flexor_stretch",
+    "tabletop_wrist_stretch",
+    "reverse_wrist_stretch",
+    "finger_extensions",
+    "forearm_pronation_supination",
+    "doorway_bicep_stretch",
+    "triceps_stretch_overhead",
+  ],
+  bird_dog: ["bird_dog", "dead_bug"],
+  childs_pose: ["childs_pose"],
+  sphinx_extension: ["sphinx_stretch", "mckenzie_press_up", "prone_extension"],
+  downward_dog: ["downward_dog"],
 };
 
 const ID_TO_FAMILY = new Map<string, WarmupActivationFamilyId>();
@@ -83,10 +146,10 @@ function inferFamilyFromSlug(slug: string): WarmupActivationFamilyId | null {
   if (slug.includes("cossack")) return "cossack_lateral_squat";
   if (slug.includes("tibialis")) return "tibialis_shin";
   if (slug.includes("90_90") || slug.includes("9090")) return "ninety_ninety_hip";
-  if (slug.includes("hip_circle")) return "hip_circles";
+  if (slug.includes("hip_circle") || slug.includes("hip_cars")) return "hip_circles";
   if (slug.includes("clamshell") || slug.includes("fire_hydrant")) return "clam_hydrant";
   if (slug.includes("worlds_greatest") || slug.includes("world_greatest")) return "worlds_greatest";
-  if (slug.includes("frog") || slug.includes("groiner")) return "frog_adductor";
+  if (slug.includes("frog") || slug.includes("groiner") || slug === "butterfly") return "frog_adductor";
   if (slug.includes("pigeon") || slug.includes("figure_four") || slug.includes("figure_4")) return "pigeon_glute";
   if (slug.includes("hip_flexor") || slug.includes("couch_stretch")) return "hip_flexor_stretch";
   if (slug.includes("ankle") || slug.includes("achilles")) return "ankle_mobility";
@@ -96,14 +159,32 @@ function inferFamilyFromSlug(slug: string): WarmupActivationFamilyId | null {
   if (slug.includes("glute_bridge")) return "glute_bridge_activation";
   if (slug.includes("wall_slide") || slug.includes("scapular_slide")) return "wall_slide_scap";
   if (slug.includes("pull_apart") || slug.includes("pullapart")) return "band_pull_apart";
+  if (slug.includes("face_pull") || slug.includes("facepull")) return "face_pull";
+  if (slug.includes("lat_stretch")) return "lat_stretch";
+  if (slug.includes("dislocat")) return "band_dislocate";
+  if (slug.includes("push_up_plus") || slug.includes("scapular_push_up")) return "serratus_activation";
+  if (slug.includes("pec_stretch") || slug.includes("chest_stretch")) return "pec_opening";
+  if (slug.includes("sleeper") || slug.includes("cross_body") || slug.includes("cuban_press") || slug.includes("external_rotation")) {
+    return "cuff_activation";
+  }
   if (
     slug.includes("thread_the_needle") ||
+    slug.includes("thread_needle") ||
     slug.includes("open_book") ||
     slug.includes("cat_camel") ||
-    slug.includes("cat_cow")
+    slug.includes("cat_cow") ||
+    slug.includes("thoracic") ||
+    slug.includes("t_spine")
   ) {
     return "thoracic_rotation";
   }
+  if (slug.includes("wrist") || slug.includes("forearm") || slug.includes("finger_extension") || slug.includes("bicep_stretch") || slug.includes("triceps_stretch")) {
+    return "wrist_forearm";
+  }
+  if (slug.includes("childs_pose") || slug.includes("child_pose")) return "childs_pose";
+  if (slug.includes("bird_dog") || slug.includes("dead_bug")) return "bird_dog";
+  if (slug.includes("sphinx") || slug.includes("mckenzie")) return "sphinx_extension";
+  if (slug.includes("downward_dog")) return "downward_dog";
   if (slug.includes("arm_circle")) return "arm_circles";
   return null;
 }
@@ -129,4 +210,29 @@ export function filterByUnusedWarmupActivationFamilies<T extends { id: string }>
     return !fam || !usedFamilies.has(fam);
   });
   return filtered.length > 0 ? filtered : candidates;
+}
+
+const MIN_RECENT_FAMILY_POOL = 6;
+
+/**
+ * Intra-session family cap, plus week/history variety:
+ * prefer not repeating exact IDs or warmup families from prior days in the week.
+ * Falls back if the remaining pool would be too thin.
+ */
+export function filterWarmupPoolForSessionAndHistory<T extends { id: string }>(
+  candidates: T[],
+  sessionUsedIds: Iterable<string>,
+  recentHistoryIds: Iterable<string>
+): T[] {
+  const sessionFiltered = filterByUnusedWarmupActivationFamilies(candidates, sessionUsedIds);
+  const base = sessionFiltered.length > 0 ? sessionFiltered : candidates;
+  const recent = [...recentHistoryIds];
+  if (recent.length === 0) return base;
+
+  const recentSet = new Set(recent);
+  const noExact = base.filter((c) => !recentSet.has(c.id));
+  const afterExact = noExact.length >= 4 ? noExact : base;
+  const noRecentFam = filterByUnusedWarmupActivationFamilies(afterExact, recent);
+  if (noRecentFam.length >= MIN_RECENT_FAMILY_POOL) return noRecentFam;
+  return afterExact.length > 0 ? afterExact : base;
 }

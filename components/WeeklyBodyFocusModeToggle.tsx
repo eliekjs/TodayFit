@@ -21,12 +21,12 @@ export const WEEKLY_BODY_FOCUS_MODE_OPTIONS: {
   {
     id: "pattern",
     label: "Pattern",
-    hint: "Push, pull, and legs — leftover days are full body.",
+    hint: "Push, pull, and legs. Extra days rotate the split — pick Full body if you want it.",
   },
   {
     id: "muscle",
     label: "Muscle",
-    hint: "Chest, back, shoulders, arms, legs, glutes — leftover days are full body.",
+    hint: "Chest, back, shoulders, arms, legs, glutes. Extra days rotate the split — pick Full body if you want it.",
   },
 ];
 

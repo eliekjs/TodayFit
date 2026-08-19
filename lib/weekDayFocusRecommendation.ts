@@ -16,11 +16,12 @@ import {
   bodyChoiceIdsFromSubFocusPrefs,
   buildDayFocusPresetsForDay,
   dedicatedSplitIdsForMode,
-  defaultPresetIdForWeekDay,
   distributeBodySplitAcrossDays,
+  featuredPresetIdForWeekDay,
   mapBodyChoiceToModeVocab,
   resolveWeekFocusGoalLabels,
   resolveWeeklyBodyFocusMode,
+  remapDayBodyPicksToMode,
   type DayBodyFocusChoiceId,
 } from "./weekDaySessionFocus";
 
@@ -60,7 +61,6 @@ export function weekFocusRecommendationSeed(opts: {
     goals: prefs.primaryFocus ?? [],
     subs: prefs.subFocusByGoal ?? {},
     subPct: prefs.subFocusPctByGoal ?? {},
-    dist: prefs.goalDistributionStyle ?? null,
     mode: prefs.weeklyBodyFocusMode ?? null,
     rankedGoals: adaptive?.rankedGoals ?? null,
     sports: adaptive?.rankedSportSlugs ?? null,
@@ -127,10 +127,9 @@ function bodyUnitsForMode(
 }
 
 /**
- * Preselect a different split on each day. Prefer the user's body units first,
- * then fill with the rest of the mode's split so the week includes as many
- * unique days as possible. Leftover days (when gym days don't divide evenly)
- * are Full body — never Core, and never a truncated extra rotation.
+ * Preselect a different split on each day. Prefer the user's body units first
+ * (within upper and lower), then fill with the rest of the mode's split.
+ * Muscle weeks interleave upper/lower. Leftover days are Full body — never Core.
  */
 export function assignBodyPicksAcrossDays(
   units: readonly DayBodyFocusChoiceId[],
@@ -192,9 +191,17 @@ function subFocusForDay(opts: {
         if (!covered) droppedSplitSensitive = true;
         return covered;
       }
-      // Non-body sub-goals (Zone 2, speed) stay on the featured goal's days.
+      // Non-body sub-goals (Zone 2, speed) stay on the featured goal's days
+      // unless the day's split is a dedicated upper pattern (push/pull).
       const isBodyLike = MUSCLE_SUB_SLUGS.has(slug) || PATTERN_SUB_SLUGS.has(slug);
-      return !isBodyLike && goal === opts.featuredGoal;
+      if (isBodyLike) return false;
+      if (goal !== opts.featuredGoal) return false;
+      if (slug.includes("zone2") || slug.includes("aerobic")) {
+        return opts.bodyIds.some(
+          (id) => id === "full" || id === "lower" || id === "legs" || id === "glutes" || id === "core"
+        );
+      }
+      return true;
     });
     const picked = matched.slice(0, 2);
     if (picked.length > 0) {
@@ -231,7 +238,11 @@ export function recommendWeekDayFocus(opts: {
   gymDays: number;
   manualPreferences: ManualPreferences;
   adaptiveSetup: AdaptiveSetup | null;
-  dedicateDays: boolean;
+  /**
+   * Spread ranked goals across days as featured (exclusive) presets.
+   * Defaults true — blend is opt-in per day via the day focus chip.
+   */
+  dedicateDays?: boolean;
 }): WeekDayFocusRecommendation {
   const mode = recommendWeeklyBodyFocusMode(opts.manualPreferences);
   const prefs = opts.manualPreferences;
@@ -242,7 +253,9 @@ export function recommendWeekDayFocus(opts: {
     prefs.goalMatchSecondaryPct ?? 30,
     prefs.goalMatchTertiaryPct ?? 20,
   ];
-  const goalIdx = goalIndicesForDays(goals.length, n, weights, opts.dedicateDays);
+  // Always feature one goal per day by default; users can switch a day to blend.
+  const dedicateDays = opts.dedicateDays !== false && goals.length > 0;
+  const goalIdx = goalIndicesForDays(goals.length, n, weights, dedicateDays);
   const units = bodyUnitsForMode(prefs, mode);
   const split = dedicatedSplitIdsForMode(mode);
   const bodies = assignBodyPicksAcrossDays(units, n, split);
@@ -254,21 +267,43 @@ export function recommendWeekDayFocus(opts: {
     targetBody: sampleBias.targetBody,
     targetModifier: sampleBias.targetModifier,
   });
+  const sports =
+    opts.adaptiveSetup?.rankedSportSlugs?.filter((s): s is string => s != null && s !== "") ?? [];
 
+  const usedSportIndices = new Set<number>();
+  const usedGoalIndices = new Set<number>();
   const days: WeekDayFocusRecommendationDay[] = [];
   for (let i = 0; i < n; i++) {
     const weekGoalSlotIndex = goalIdx[i] ?? 0;
-    const goalLabel = goals[weekGoalSlotIndex] ?? goals[0] ?? null;
-    const goalPresetId = defaultPresetIdForWeekDay(presets, {
-      dedicateDays: opts.dedicateDays && goals.length > 0,
-      weekGoalSlotIndex,
-    });
     const bodyIds = bodies[i]?.length ? bodies[i]! : ["full"];
+    const goalPresetId = featuredPresetIdForWeekDay(presets, {
+      bodyIds,
+      sportSlugs: sports,
+      usedSportIndices,
+      rankedGoals: goals,
+      usedGoalIndices,
+      weekGoalSlotIndex,
+      dedicateDays,
+    });
+    if (goalPresetId.startsWith("sport_emphasis_")) {
+      const sportIdx = parseInt(goalPresetId.replace("sport_emphasis_", ""), 10);
+      if (!Number.isNaN(sportIdx)) usedSportIndices.add(sportIdx);
+    }
+    if (goalPresetId.startsWith("goal_emphasis_")) {
+      const gIdx = parseInt(goalPresetId.replace("goal_emphasis_", ""), 10);
+      if (!Number.isNaN(gIdx)) usedGoalIndices.add(gIdx);
+    }
+    const presetMeta = presets.find((p) => p.id === goalPresetId);
+    const goalLabel =
+      presetMeta?.label ??
+      (goalPresetId.startsWith("sport_emphasis_")
+        ? null
+        : (goals[weekGoalSlotIndex] ?? goals[0] ?? null));
     const subFocusByGoal = subFocusForDay({
       prefs,
       bodyIds,
       featuredGoal: goalLabel,
-      dedicateDays: opts.dedicateDays,
+      dedicateDays,
     });
     days.push({
       bodyIds,
@@ -280,4 +315,55 @@ export function recommendWeekDayFocus(opts: {
   }
 
   return { mode, days };
+}
+
+/**
+ * Auto-fill only empty / unlocked days. User taps always win and are remapped
+ * across Region/Pattern/Muscle instead of being replaced by a new template.
+ */
+export function overlayUserDayFocusPicks(opts: {
+  gymDays: number;
+  recommendation: WeekDayFocusRecommendation;
+  existingBodyPicks: readonly DayBodyFocusChoiceId[][];
+  existingFocusIds: readonly string[];
+  lockedDays: readonly boolean[];
+  existingSubFocusOverrides?: Record<number, Record<string, string[]>>;
+}): {
+  bodyPicks: DayBodyFocusChoiceId[][];
+  focusIds: string[];
+  lockedDays: boolean[];
+  subFocusOverrides: Record<number, Record<string, string[]>>;
+} {
+  const n = Math.max(0, opts.gymDays);
+  const mode = opts.recommendation.mode;
+  const bodyPicks: DayBodyFocusChoiceId[][] = [];
+  const focusIds: string[] = [];
+  const lockedDays: boolean[] = [];
+  const subFocusOverrides: Record<number, Record<string, string[]>> = {};
+
+  for (let i = 0; i < n; i++) {
+    const rec = opts.recommendation.days[i];
+    const locked = opts.lockedDays[i] === true;
+    const existingBody = opts.existingBodyPicks[i] ?? [];
+    const remapped = remapDayBodyPicksToMode(existingBody, mode);
+    if (locked) {
+      bodyPicks.push(
+        remapped.length
+          ? remapped
+          : rec?.bodyIds?.length
+            ? rec.bodyIds
+            : ["full"]
+      );
+      focusIds.push(opts.existingFocusIds[i] || rec?.goalPresetId || "default");
+      lockedDays.push(true);
+      const keep = opts.existingSubFocusOverrides?.[i];
+      if (keep) subFocusOverrides[i] = keep;
+      continue;
+    }
+    bodyPicks.push(rec?.bodyIds?.length ? rec.bodyIds : remapped.length ? remapped : ["full"]);
+    focusIds.push(rec?.goalPresetId || opts.existingFocusIds[i] || "default");
+    lockedDays.push(false);
+    if (rec?.subFocusByGoal) subFocusOverrides[i] = rec.subFocusByGoal;
+  }
+  return { bodyPicks, focusIds, lockedDays, subFocusOverrides };
 }

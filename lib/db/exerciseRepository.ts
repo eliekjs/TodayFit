@@ -288,6 +288,20 @@ export async function getExercise(idOrSlug: string): Promise<ExerciseDefinition 
   return def;
 }
 
+/** Slim description lookup for swapped exercises (avoids bundling the curated JSON catalog). */
+export async function getExerciseSetupDescription(idOrSlug: string): Promise<string | undefined> {
+  const supabase = getSupabase();
+  if (!supabase) return undefined;
+  const isUuid = /^[0-9a-f-]{36}$/i.test(idOrSlug);
+  const query = isUuid
+    ? supabase.from("exercises").select("description").eq("id", idOrSlug)
+    : supabase.from("exercises").select("description").eq("slug", idOrSlug);
+  const { data, error } = await query.maybeSingle();
+  if (error || !data) return undefined;
+  const desc = (data as { description?: string | null }).description?.trim();
+  return desc || undefined;
+}
+
 /**
  * List all exercise tags (for filtering/display). Includes optional weight for ranking.
  */

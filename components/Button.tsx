@@ -6,7 +6,7 @@ import {
   type ViewStyle,
   type PressableProps,
 } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeRadius, useTheme } from "../lib/theme";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
 
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   base: {
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 999,
+    borderRadius: themeRadius.button,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",

@@ -17,7 +17,6 @@ import { useAuth } from "../context/AuthContext";
 import { AUTH_COPY } from "../lib/authCopy";
 import { themeRadius, useTheme } from "../lib/theme";
 import { PillTabs } from "../components/PillTabs";
-import { IconWell } from "../components/IconWell";
 
 export default function WelcomeScreen() {
   const theme = useTheme();
@@ -172,12 +171,11 @@ export default function WelcomeScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.hero}>
-              <IconWell name="barbell-outline" size={32} wellSize={72} />
               <Text style={[styles.brandName, { color: theme.text }]}>
                 SeshLogic
               </Text>
               <Text style={[styles.tagline, { color: theme.textMuted }]}>
-                Your intelligent training partner
+                Gym sessions for your sport and goals.
               </Text>
             </View>
 
@@ -193,8 +191,8 @@ export default function WelcomeScreen() {
             >
               <PillTabs
                 tabs={[
-                  { key: "login", label: "Login", icon: "log-in-outline" },
-                  { key: "signup", label: "Sign up", icon: "person-add-outline" },
+                  { key: "login", label: "Login" },
+                  { key: "signup", label: "Sign up" },
                 ]}
                 value={isLogin ? "login" : "signup"}
                 onChange={(key) => {
@@ -387,7 +385,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     paddingVertical: 16,
-    borderRadius: 999,
+    borderRadius: themeRadius.button,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 52,

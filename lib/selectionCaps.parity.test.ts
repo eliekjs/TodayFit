@@ -14,6 +14,7 @@ import {
   MAX_RANKED_GOALS,
   MAX_SUB_GOALS_PER_PARENT,
   MAX_TOTAL_SUB_GOALS,
+  countSubGoalPicksForParents,
   countTotalSubGoalPicks,
 } from "./selectionCaps";
 import {
@@ -80,6 +81,15 @@ describe("shared Goal↔Sport selection caps", () => {
         { volleyball: ["vertical_jump", "shoulder_stability"], surfing: ["paddle_endurance"] }
       )
     ).toBe(5);
+    expect(
+      countSubGoalPicksForParents(
+        {
+          "Build Strength": ["Squat", "Pull"],
+          "Build Muscle (Hypertrophy)": ["Chest", "Back", "Arms"],
+        },
+        ["Build Strength"]
+      )
+    ).toBe(2);
   });
 });
 

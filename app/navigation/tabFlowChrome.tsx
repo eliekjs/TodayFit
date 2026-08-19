@@ -58,6 +58,35 @@ export function FocusAwareTabHeader({ layout, options, route }: TabHeaderProps) 
   );
 }
 
+/**
+ * Opaque header fill with the bottom edge painted on top of the fill.
+ * RN-web `borderBottomWidth` leaves a transparent gap between fill and outline.
+ */
+export function OpaqueHeaderBackground({ style }: { style?: object }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={[
+        { flex: 1, backgroundColor: theme.cardOpaque },
+        style,
+        { borderBottomWidth: 0, borderBottomColor: "transparent" },
+      ]}
+    >
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 1,
+          backgroundColor: theme.border,
+        }}
+      />
+    </View>
+  );
+}
+
 export function FilteredTabBar(props: BottomTabBarProps) {
   const router = useRouter();
   const { generatedWorkout, manualExecutionStarted } = useAppState();

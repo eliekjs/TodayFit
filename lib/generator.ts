@@ -84,7 +84,9 @@ function exerciseConflictsWithInjuries(ex: Exercise, injurySlugs: string[]): boo
  * Exercise pool for generation:
  * - **Production (seeded Supabase):** when active row count ≥ policy threshold, use **only** the DB
  *   (no static merge) — Supabase is the source of truth; avoids loading ~1MB+ static chunks.
- * - **Dev / empty DB / errors:** merge DB rows (DB wins on id) with lazy-loaded static catalog.
+ * - **Native/web Metro:** static catalogs are stubbed empty (see `staticExerciseCatalog.native.ts` /
+ *   `.web.ts`) so Babel does not transform ~50k lines of catalog data during the JS bundle.
+ * - **Node tests / scripts / empty DB:** merge DB rows (DB wins on id) with lazy-loaded static catalog.
  */
 const mergedExercisePoolByInjuryKey = new Map<string, Exercise[]>();
 
@@ -668,11 +670,17 @@ export function generateWorkout(
   );
 
   // Activation: easy bodyweight or band prep only (no conditioning here — cardio uses the conditioning block)
-  const warmupPool = eligible.filter(
-    (e) =>
-      isWarmupEligibleEquipment(e.equipment) &&
-      (e.modalities.includes("mobility") || e.modalities.includes("recovery"))
-  );
+  const warmupEligible = (e: (typeof exercises)[number]) =>
+    isWarmupEligibleEquipment(e.equipment) &&
+    (e.modalities.includes("mobility") || e.modalities.includes("recovery"));
+  let warmupPool = eligible.filter(warmupEligible);
+  if (warmupPool.length === 0) {
+    // Body-part gates can wipe mobility on upper/lower days; Activation still needs a pool.
+    warmupPool = filterByUpcoming(
+      filterByInjuries(filterByGymProfile(exercises, gymProfile), injuryFilter),
+      preferences.upcoming
+    ).filter(warmupEligible);
+  }
   let mainPool = eligible.filter((e) =>
     e.modalities.some((m) => focusModalities.includes(m))
   );

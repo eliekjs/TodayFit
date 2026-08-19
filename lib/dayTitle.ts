@@ -74,7 +74,7 @@ export function formatDayTitle(
     isSpecificFocusRelevantForBody(k, bodyEmphasis)
   );
   const identities = relevant.filter((k) =>
-    ["chest", "back", "shoulders", "arms", "glutes", "legs", "push", "pull", "core"].includes(k)
+    ["chest", "back", "shoulders", "arms", "glutes", "legs", "quad", "posterior", "push", "pull", "core"].includes(k)
   );
   if (identities.length > 0) {
     const identityLabel = identities

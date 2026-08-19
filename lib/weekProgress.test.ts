@@ -3,11 +3,9 @@ import {
   ACTIVE_WEEK_ROUTE,
   buildManualWeekProgress,
   buildWeekProgressSnapshot,
-  hasUnfinishedWeek,
   markManualWeekDayByWorkoutId,
   pickNextUpcomingDay,
   pickTodayOrNextDay,
-  remainingSessionCount,
   type WeekProgressDay,
 } from "./weekProgress";
 import { getTodayLocalDateString } from "./dateUtils";
@@ -177,33 +175,7 @@ describe("pickTodayOrNextDay", () => {
   });
 });
 
-describe("Workout tab badge helpers", () => {
-  const activeSnapshot = buildManualWeekProgress({
-    weekStartDate: "2026-07-07",
-    days: [
-      { date: "2026-07-07", status: "completed", workout: makeWorkout("w1") },
-      { date: "2026-07-09", workout: makeWorkout("w2") },
-      { date: "2026-07-11", status: "skipped", workout: makeWorkout("w3") },
-    ],
-  });
-
-  const completeSnapshot = buildManualWeekProgress({
-    weekStartDate: "2026-07-07",
-    days: [{ date: "2026-07-07", status: "completed", workout: makeWorkout("w1") }],
-  });
-
-  it("counts only sessions still planned", () => {
-    expect(remainingSessionCount(activeSnapshot)).toBe(1);
-    expect(remainingSessionCount(completeSnapshot)).toBe(0);
-    expect(remainingSessionCount(null)).toBe(0);
-  });
-
-  it("treats a finished or absent week as nothing to badge", () => {
-    expect(hasUnfinishedWeek(activeSnapshot)).toBe(true);
-    expect(hasUnfinishedWeek(completeSnapshot)).toBe(false);
-    expect(hasUnfinishedWeek(null)).toBe(false);
-  });
-
+describe("Workout tab route", () => {
   it("routes the active week to the Workout tab", () => {
     expect(ACTIVE_WEEK_ROUTE).toBe("/workout");
   });

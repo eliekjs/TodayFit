@@ -361,13 +361,13 @@ describe("session focus distribution gates", () => {
     ).toBe(true);
   });
 
-  it("requires weekly blend-vs-dedicate when goals exist", async () => {
+  it("no longer requires a week-level blend-vs-dedicate choice", async () => {
     const {
       canProceedWithWeeklyGoalDistribution,
       shouldShowWeeklyGoalDistributionNote,
     } = await import("./sessionFocusDistribution");
-    expect(shouldShowWeeklyGoalDistributionNote()).toBe(true);
-    expect(canProceedWithWeeklyGoalDistribution(undefined).ok).toBe(false);
+    expect(shouldShowWeeklyGoalDistributionNote()).toBe(false);
+    expect(canProceedWithWeeklyGoalDistribution(undefined).ok).toBe(true);
     expect(canProceedWithWeeklyGoalDistribution("blend").ok).toBe(true);
   });
 });

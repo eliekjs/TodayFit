@@ -39,9 +39,19 @@ import {
   volumePreferenceDisplayLabel,
   volumePreferenceSectionSubtitle,
   MODIFIERS_BY_TARGET,
-  CONSTRAINT_OPTIONS,
-  CONSTRAINT_OPTIONS_UPPER,
-  CONSTRAINT_OPTIONS_LOWER,
+  ADVANCED_OPTIONS_LABEL,
+  AVOID_OR_PROTECT_SUBTITLE,
+  AVOID_OR_PROTECT_TITLE,
+  constraintOptionsForTargetBody,
+  energyLevelSummary,
+  GOAL_MATCH_PCT_SUBTITLE,
+  GOAL_MATCH_PCT_TITLE,
+  HOW_HARD_TO_TRAIN_SUBTITLE,
+  HOW_HARD_TO_TRAIN_TITLE,
+  injuriesSummary,
+  SUB_GOAL_BLEND_SUBTITLE,
+  SUB_GOAL_BLEND_TITLE,
+  VOLUME_PREFERENCE_TITLE,
   normalizeGoalMatchPct,
   PRIMARY_FOCUS_TO_GOAL_SLUG,
   collectInvalidConditioningSubFocusSelections,
@@ -69,6 +79,7 @@ import { FocusDistributionNote } from "../../../components/FocusDistributionNote
 import { WeeklyBodyFocusModeNote } from "../../../components/WeeklyBodyFocusModeNote";
 import { BodyFocusDeferredNote } from "../../../components/BodyFocusDeferredNote";
 import {
+  countVisibleGoalSubFocusPicks,
   filterDeferredDayBodySubFocusChoices,
   goalHasDeferredDayBodySubFocuses,
   stripDeferredDayBodySubFocuses,
@@ -443,12 +454,16 @@ export default function ManualPreferencesScreen() {
         subFocusPctByGoal: nextPctMap,
       });
     } else {
-      if (current.length >= MAX_SUB_GOALS_PER_GOAL) return;
-      const totalOthers = Object.entries(manualPreferences.subFocusByGoal).reduce(
-        (n, [g, arr]) => (g === goal ? n : n + arr.length),
-        0
+      const visibleCurrent = isWeek
+        ? filterDeferredDayBodySubFocusChoices(goal, current)
+        : current;
+      if (visibleCurrent.length >= MAX_SUB_GOALS_PER_GOAL) return;
+      const totalVisible = countVisibleGoalSubFocusPicks(
+        manualPreferences.subFocusByGoal,
+        rankedGoals,
+        isWeek
       );
-      if (totalOthers + current.length >= MAX_TOTAL_SUB_GOALS) return;
+      if (totalVisible >= MAX_TOTAL_SUB_GOALS) return;
       const nextSubs = [...current, subOpt];
       const nextPctMap = { ...(manualPreferences.subFocusPctByGoal ?? {}) };
       nextPctMap[goal] = equalIntegerPctsForLabels(nextSubs);
@@ -698,11 +713,7 @@ export default function ManualPreferencesScreen() {
     ? MODIFIERS_BY_TARGET[manualPreferences.targetBody]
     : [];
 
-  const manualAdvEnergySummary =
-    manualPreferences.energyLevel != null
-      ? manualPreferences.energyLevel.charAt(0).toUpperCase() +
-        manualPreferences.energyLevel.slice(1)
-      : "Default (medium)";
+  const manualAdvEnergySummary = energyLevelSummary(manualPreferences.energyLevel);
   const manualAdvVolumeSummary = volumePreferenceDisplayLabel(
     manualPreferences.volumePreference,
     { primaryFocus: manualPreferences.primaryFocus }
@@ -721,22 +732,19 @@ export default function ManualPreferencesScreen() {
         : rankedGoals.length === 2
           ? `${gw1}/${gw2}%`
           : `${gw1}/${gw2}/${gw3}%`;
-  const subGoalsTotalCount = Object.values(manualPreferences.subFocusByGoal).reduce(
-    (n, arr) => n + arr.length,
-    0
+  const subGoalsTotalCount = countVisibleGoalSubFocusPicks(
+    manualPreferences.subFocusByGoal,
+    rankedGoals,
+    isWeek
   );
   const manualAdvSubGoalsSummary =
     subGoalsTotalCount === 0 ? "None" : `${subGoalsTotalCount} selected`;
-  const manualAdvAvoidSummary = (() => {
-    const inj = manualPreferences.injuries;
-    if (inj.includes("No restrictions") || inj.length === 0) return "No restrictions";
-    return formatItemList(inj, ", ");
-  })();
+  const manualAdvAvoidSummary = injuriesSummary(manualPreferences.injuries);
 
   if (isGenerating) {
     return (
       <GenerationLoadingScreen
-        message="Building your session…"
+        message="Putting the session together"
         subtitle="Matching movements to your gym and goals."
       />
     );
@@ -1105,7 +1113,7 @@ export default function ManualPreferencesScreen() {
         {!isWeek ? (
           <CollapsiblePreferenceSection
             title="Body emphasis"
-            subtitle="Choose Region, Pattern (push/pull/legs), or Muscle days. Session main work follows your pick."
+            subtitle="Choose Region, Pattern (push/pull/legs, or split legs into quads/posterior), or Muscle days. Session main work follows your pick."
             summary={bodySummary}
             expanded={sectionBodyOpen}
             onToggle={() => {
@@ -1201,7 +1209,7 @@ export default function ManualPreferencesScreen() {
           <Text
             style={[styles.advancedFiltersTitle, { color: theme.textMuted }]}
           >
-            Advanced options
+            {ADVANCED_OPTIONS_LABEL}
           </Text>
           <Text
             style={[styles.advancedFiltersChevron, { color: theme.textMuted }]}
@@ -1222,8 +1230,8 @@ export default function ManualPreferencesScreen() {
           >
             <CollapsiblePreferenceSection
               nested
-              title="How hard to train"
-              subtitle="Low, medium, or high affects how hard the session feels (sets and conditioning length)."
+              title={HOW_HARD_TO_TRAIN_TITLE}
+              subtitle={HOW_HARD_TO_TRAIN_SUBTITLE}
               summary={manualAdvEnergySummary}
               expanded={manualAdvNestedOpen.energy === true}
               onToggle={() => toggleManualAdvNested("energy")}
@@ -1249,7 +1257,7 @@ export default function ManualPreferencesScreen() {
 
             <CollapsiblePreferenceSection
               nested
-              title="Volume preference"
+              title={VOLUME_PREFERENCE_TITLE}
               subtitle={manualAdvVolumeSubtitle}
               summary={manualAdvVolumeSummary}
               expanded={manualAdvNestedOpen.volume === true}
@@ -1263,10 +1271,10 @@ export default function ManualPreferencesScreen() {
             </CollapsiblePreferenceSection>
 
             {!PILOT_HIDE_MATCH_PCT_ADVANCED_OPTIONS && hasPrimaryFocus && (
-              <CollapsiblePreferenceSection
+                <CollapsiblePreferenceSection
                 nested
-                title="Goal match %"
-                subtitle="What % of the workout should match each ranked goal. Sum = 100%."
+                title={GOAL_MATCH_PCT_TITLE}
+                subtitle={GOAL_MATCH_PCT_SUBTITLE}
                 summary={manualAdvGoalWeightsSummary}
                 expanded={manualAdvNestedOpen.goalWeights === true}
                 onToggle={() => toggleManualAdvNested("goalWeights")}
@@ -1356,8 +1364,8 @@ export default function ManualPreferencesScreen() {
               <View ref={subFocusWeightsSectionRef} collapsable={false}>
                 <CollapsiblePreferenceSection
                   nested
-                  title="Sub-goal percentage blend"
-                  subtitle="Split each goal between its sub-goals (100% per goal)."
+                  title={SUB_GOAL_BLEND_TITLE}
+                  subtitle={SUB_GOAL_BLEND_SUBTITLE}
                   summary={manualAdvSubGoalsSummary}
                   expanded={manualAdvNestedOpen.subGoals === true}
                   onToggle={() => toggleManualAdvNested("subGoals")}
@@ -1428,19 +1436,14 @@ export default function ManualPreferencesScreen() {
 
             <CollapsiblePreferenceSection
               nested
-              title="Avoid or protect"
-              subtitle="We’ll skip exercises that bother these areas. “No restrictions” clears others."
+              title={AVOID_OR_PROTECT_TITLE}
+              subtitle={AVOID_OR_PROTECT_SUBTITLE}
               summary={manualAdvAvoidSummary}
               expanded={manualAdvNestedOpen.avoid === true}
               onToggle={() => toggleManualAdvNested("avoid")}
             >
               <View style={styles.chipGroup}>
-                {(manualPreferences.targetBody === "Upper"
-                  ? CONSTRAINT_OPTIONS_UPPER
-                  : manualPreferences.targetBody === "Lower"
-                    ? CONSTRAINT_OPTIONS_LOWER
-                    : [...CONSTRAINT_OPTIONS]
-                ).map((opt) => (
+                {constraintOptionsForTargetBody(manualPreferences.targetBody).map((opt) => (
                   <Chip
                     key={opt}
                     label={opt}

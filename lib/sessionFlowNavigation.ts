@@ -6,6 +6,7 @@ import {
   type SessionFlow,
 } from "./sessionDraft";
 import type { SessionFlowConflict } from "../components/SessionFlowConflictModal";
+import { shouldPromptSessionFlowConflict } from "./newSessionFilters";
 
 export function navigateToSessionFlow(
   router: Router,
@@ -22,18 +23,25 @@ export function navigateToSessionFlow(
   /**
    * When provided, conflicts open this UI instead of Alert.alert (required for reliable web UX).
    */
-  onConflict?: (conflict: SessionFlowConflict) => void
+  onConflict?: (conflict: SessionFlowConflict) => void,
+  /**
+   * Create-tab "new session": prompt even if the same flow is already in progress,
+   * so Start new can clear previous filters instead of silently resuming.
+   */
+  forceNewSession?: boolean
 ): void {
-  if (beginSessionFlow(flow)) {
-    onFlowStarted?.();
-    router.push(targetHref as never);
-    return;
-  }
-  if (!activeSessionDraft) {
-    replaceSessionFlow(flow);
-    onFlowStarted?.();
-    router.push(targetHref as never);
-    return;
+  if (!shouldPromptSessionFlowConflict(activeSessionDraft, flow, Boolean(forceNewSession))) {
+    if (beginSessionFlow(flow)) {
+      onFlowStarted?.();
+      router.push(targetHref as never);
+      return;
+    }
+    if (!activeSessionDraft) {
+      replaceSessionFlow(flow);
+      onFlowStarted?.();
+      router.push(targetHref as never);
+      return;
+    }
   }
 
   const conflict: SessionFlowConflict = {

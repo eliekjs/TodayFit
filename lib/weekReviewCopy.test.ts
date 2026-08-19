@@ -38,9 +38,9 @@ describe("reviewAndAdjustHint", () => {
 });
 
 describe("saveAndExecuteLabel", () => {
-  it("leads with save and execute", () => {
-    expect(saveAndExecuteLabel({ multipleDays: true })).toBe("Save and execute");
-    expect(saveAndExecuteLabel({ multipleDays: false })).toBe("Save and execute");
+  it("leads with save and start", () => {
+    expect(saveAndExecuteLabel({ multipleDays: true })).toBe("Save and start");
+    expect(saveAndExecuteLabel({ multipleDays: false })).toBe("Save and start");
   });
 
   it("reports progress while saving", () => {

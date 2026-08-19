@@ -9,11 +9,12 @@ type Props = {
   icon?: React.ComponentProps<typeof Ionicons>["name"];
   /** When false, the pill hugs its content instead of stretching. */
   fill?: boolean;
+  compact?: boolean;
   style?: ViewStyle;
 };
 
 /** Nested Ethos action row: outline icon, label, and a trailing arrow. */
-export function LinkPill({ label, onPress, icon, fill = true, style }: Props) {
+export function LinkPill({ label, onPress, icon, fill = true, compact = false, style }: Props) {
   const theme = useTheme();
   return (
     <Pressable
@@ -22,6 +23,7 @@ export function LinkPill({ label, onPress, icon, fill = true, style }: Props) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
+        compact ? styles.rowCompact : null,
         fill ? styles.rowFill : styles.rowHug,
         {
           borderColor: theme.border,
@@ -32,11 +34,13 @@ export function LinkPill({ label, onPress, icon, fill = true, style }: Props) {
       ]}
     >
       {icon ? (
-        <Ionicons name={icon} size={16} color={theme.text} />
+        <Ionicons name={icon} size={compact ? 13 : 16} color={theme.text} />
       ) : null}
-      <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-      <View style={styles.spacer} />
-      <Ionicons name="arrow-forward" size={14} color={theme.textMuted} />
+      <Text style={[styles.label, compact && styles.labelCompact, { color: theme.text }]}>
+        {label}
+      </Text>
+      {fill ? <View style={styles.spacer} /> : null}
+      <Ionicons name="arrow-forward" size={compact ? 12 : 14} color={theme.textMuted} />
     </Pressable>
   );
 }
@@ -51,6 +55,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
+  rowCompact: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
   rowFill: {
     alignSelf: "stretch",
   },
@@ -63,5 +72,8 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  labelCompact: {
+    fontSize: 12,
   },
 });

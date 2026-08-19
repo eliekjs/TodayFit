@@ -276,9 +276,9 @@ export function buildAdaptiveGoalsAndSportsLines(
   }
 
   if (snapshot.sessionFocusDistribution === "spread") {
-    lines.push("Session: spread focus areas across the workout");
+    lines.push("Session: mix regions");
   } else if (snapshot.sessionFocusDistribution === "resolve") {
-    lines.push("Session: focused after resolving conflicts");
+    lines.push("Session: one region");
   }
 
   if (snapshot.specificBodyPartEmphasis?.length) {

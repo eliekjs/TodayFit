@@ -11,6 +11,8 @@ import {
   canUseTrainToday,
   buildTrainTodayGenerationParams,
   resolveTrainTodayFromPreset,
+  trainTodayCtaLabelFromPreset,
+  trainTodaySessionFlow,
   trainTodaySubtitleFromPreset,
 } from "./trainToday";
 
@@ -187,5 +189,18 @@ describe("resolveTrainTodayFromPreset", () => {
     expect(trainTodaySubtitleFromPreset(resolved, "Home gym")).toContain("My strength");
     expect(trainTodaySubtitleFromPreset(resolved, "Home gym")).toContain("Home gym");
     expect(trainTodaySubtitleFromPreset(null, "Home gym")).toContain("No default preset");
+  });
+
+  it("CTA uses the preset name and week suffix", () => {
+    const resolved = resolveDefaultTrainTodayPreset(
+      { kind: "goal", id: "g1" },
+      [goalPreset("g1", "Lower strength", "2026-01-01T00:00:00.000Z")],
+      []
+    );
+    expect(trainTodayCtaLabelFromPreset(resolved, "day")).toBe("Build Lower strength");
+    expect(trainTodayCtaLabelFromPreset(resolved, "week")).toBe("Build Lower strength week");
+    expect(trainTodayCtaLabelFromPreset(null, "day")).toBe("Build today's workout");
+    expect(trainTodaySessionFlow(resolved!, "week")).toBe("goal_week");
+    expect(trainTodaySessionFlow(resolved!, "day")).toBe("goal_day");
   });
 });

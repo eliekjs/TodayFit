@@ -2,6 +2,22 @@ import type { AdaptiveSetup } from "../context/appStateModel";
 import type { SportFormSnapshot } from "./sessionDraft";
 import type { Dispatch, SetStateAction } from "react";
 
+/** Empty sport setup used when the user starts a new session (not resume / preset). */
+export function defaultSportFormSnapshot(): SportFormSnapshot {
+  return {
+    rankedGoals: [null, null, null],
+    intensityLevel: "Moderate",
+    injuryStatus: "No Concerns",
+    injuryTypes: [],
+    sportFocusPct: [60, 40],
+    sportVsGoalPct: 50,
+    rankedSportSlugs: [null, null],
+    subFocusBySport: {},
+    oneDayDuration: 45,
+    oneDayBodyBias: "full",
+  };
+}
+
 export function buildSportFormSnapshot(params: {
   rankedGoals: (string | null)[];
   intensityLevel: string;

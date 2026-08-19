@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,12 +15,14 @@ export type PillTabItem<K extends string = string> = {
   key: K;
   label: string;
   icon?: React.ComponentProps<typeof Ionicons>["name"];
+  renderIcon?: (color: string, size: number) => React.ReactNode;
 };
 
 type Props<K extends string> = {
   tabs: PillTabItem<K>[];
   value: K;
   onChange: (key: K) => void;
+  compact?: boolean;
   style?: ViewStyle;
 };
 
@@ -27,12 +30,27 @@ type Props<K extends string> = {
  * Ethos-style tab slider: pale track, inactive items are plain icon+label,
  * active item is a white pill with a hairline border.
  */
-export function PillTabs<K extends string>({ tabs, value, onChange, style }: Props<K>) {
+export function PillTabs<K extends string>({
+  tabs,
+  value,
+  onChange,
+  compact = false,
+  style,
+}: Props<K>) {
   const theme = useTheme();
   if (tabs.length === 0) return null;
 
   return (
-    <View style={[styles.track, { backgroundColor: theme.secondary }, style]}>
+    <View
+      style={[
+        styles.track,
+        compact && styles.trackCompact,
+        {
+          backgroundColor: theme.secondary,
+        },
+        style,
+      ]}
+    >
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -49,26 +67,36 @@ export function PillTabs<K extends string>({ tabs, value, onChange, style }: Pro
               accessibilityLabel={tab.label}
               style={({ pressed }) => [
                 styles.tab,
+                compact && styles.tabCompact,
                 active && [
                   styles.tabActive,
                   {
                     backgroundColor: theme.cardOpaque,
                     borderColor: theme.border,
+                    ...(Platform.OS === "web"
+                      ? {
+                          borderColor: "transparent",
+                          boxShadow: `inset 0 0 0 1px ${theme.border}`,
+                        }
+                      : null),
                   },
                 ],
                 { opacity: pressed ? 0.85 : 1 },
               ]}
             >
-              {tab.icon ? (
-                <Ionicons
-                  name={tab.icon}
-                  size={16}
-                  color={active ? theme.primary : theme.textMuted}
-                />
-              ) : null}
+              {tab.renderIcon
+                ? tab.renderIcon(active ? theme.primary : theme.textMuted, compact ? 13 : 16)
+                : tab.icon ? (
+                    <Ionicons
+                      name={tab.icon}
+                      size={compact ? 13 : 16}
+                      color={active ? theme.primary : theme.textMuted}
+                    />
+                  ) : null}
               <Text
                 style={[
                   styles.label,
+                  compact && styles.labelCompact,
                   { color: active ? theme.text : theme.textMuted },
                 ]}
               >
@@ -87,6 +115,11 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     borderRadius: 999,
     padding: 4,
+    overflow: "hidden",
+  },
+  trackCompact: {
+    alignSelf: "flex-start",
+    padding: 2,
   },
   row: {
     flexDirection: "row",
@@ -103,11 +136,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
   },
+  tabCompact: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 4,
+  },
   tabActive: {
     borderWidth: 1,
   },
   label: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  labelCompact: {
+    fontSize: 12,
   },
 });

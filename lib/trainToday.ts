@@ -7,7 +7,7 @@ import type {
 import { resolveDefaultTrainTodayPreset } from "./defaultTrainTodayPreset";
 import { GOAL_SLUG_TO_PRIMARY_FOCUS } from "./preferencesConstants";
 import { energyFromSportIntensity } from "./energyLevelMapping";
-import type { SportFormSnapshot, SportPreset } from "./sessionDraft";
+import type { SessionFlow, SportFormSnapshot, SportPreset } from "./sessionDraft";
 import type { ManualPreferences, PreferencePreset } from "./types";
 import { formatItemList } from "./formatItemList";
 
@@ -161,6 +161,28 @@ function sportPresetDetail(preset: SportPreset): string {
     .slice(0, 2)
     .map((s) => s.replace(/_/g, " "))
     .join(" · ");
+}
+
+export type TrainTodayScope = "day" | "week";
+
+/** Home CTA: "Build {preset name}" (week appends "week"). */
+export function trainTodayCtaLabelFromPreset(
+  resolved: ResolvedDefaultTrainTodayPreset | null,
+  scope: TrainTodayScope = "day"
+): string {
+  const name = resolved?.preset.name.trim();
+  if (!name) return scope === "week" ? "Build this week" : "Build today's workout";
+  return scope === "week" ? `Build ${name} week` : `Build ${name}`;
+}
+
+export function trainTodaySessionFlow(
+  resolved: ResolvedDefaultTrainTodayPreset,
+  scope: TrainTodayScope
+): SessionFlow {
+  if (resolved.kind === "goal") {
+    return scope === "week" ? "goal_week" : "goal_day";
+  }
+  return scope === "week" ? "sport_week" : "sport_day";
 }
 
 export function trainTodaySubtitleFromPreset(

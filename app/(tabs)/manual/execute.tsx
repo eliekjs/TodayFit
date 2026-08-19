@@ -32,7 +32,7 @@ import {
 } from "../../../lib/types";
 import { replaceExerciseInWorkout } from "../../../lib/workoutUtils";
 import { resolveExerciseSetupText, withResolvedExerciseDescription } from "../../../lib/exerciseDisplayCue";
-import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
+import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription, resolveSwapExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
   getSwapSuggestionsPage,
@@ -272,14 +272,14 @@ export default function ExecuteScreen() {
     swapSuggestionPage,
   ]);
 
-  const onSwapChoose = (optionId: string, optionName: string) => {
+  const onSwapChoose = async (optionId: string, optionName: string) => {
     if (!generatedWorkout || !swapModal) return;
     const updated = replaceExerciseInWorkout(
       generatedWorkout,
       swapModal.exerciseId,
       optionId,
       optionName,
-      getCuratedExerciseDescription(optionId)
+      await resolveSwapExerciseDescription(optionId)
     );
     setGeneratedWorkout(updated);
     setProgress((prev) => {

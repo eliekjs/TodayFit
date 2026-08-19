@@ -42,6 +42,22 @@ describe("exerciseDescriptions.curated.json", () => {
     expect(getCuratedExerciseDescription("plank_shoulder_tap")).toBe(
       getCuratedExerciseDescription("plank_shoulder_taps")
     );
+    for (const slug of [
+      "dumbbell_push_press",
+      "kettlebell_high_pull",
+      "dumbbell_hang_clean",
+      "kettlebell_dead_clean",
+      "front_lever_tuck",
+      "front_lever_advanced_tuck",
+      "front_lever_negative",
+      "box_pistol_squat",
+      "wall_ankle_mobilization",
+      "soleus_stretch_wall",
+      "quadruped_sit_back",
+    ] as const) {
+      expect(slugs.has(slug), slug).toBe(true);
+      expect(getCuratedExerciseDescription(slug), slug).toBeTruthy();
+    }
   });
 
   it("tries singular and plural last-token slug variants", () => {

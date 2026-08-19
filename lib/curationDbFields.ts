@@ -37,8 +37,9 @@ export function getUseCuratedExerciseColumnsInGenerator(): boolean {
 
 /**
  * When true, pruning gate eligibility prefers per-exercise `curation_*` fields from the DB row (attached on
- * `Exercise`) when set, and falls back to bundled `data/generator-eligibility-by-id.json` per id.
- * Defaults to **true** so a synced Supabase catalog drives the gate; disable to force JSON-only.
+ * `Exercise`) when set. Native/web do not bundle `data/generator-eligibility-by-id.json`; Node tests/scripts
+ * still load that file as a fallback for exercises missing DB eligibility.
+ * Defaults to **true** so a synced Supabase catalog drives the gate; disable to force JSON-only (Node only).
  */
 export function getUseCuratedEligibilityFromExercisePool(): boolean {
   return (

@@ -16,6 +16,8 @@ import { themeRadius, useTheme } from "../../lib/theme";
 import { SectionLabel } from "../../components/SectionLabel";
 import { PillTabs } from "../../components/PillTabs";
 import { IconWell } from "../../components/IconWell";
+import { GoalsIcon } from "../../components/GoalsIcon";
+import { SportFocusedIcon } from "../../components/SportFocusedIcon";
 import { LinkPill } from "../../components/LinkPill";
 import { ChecklistRow } from "../../components/ChecklistRow";
 import { useAuth } from "../../context/AuthContext";
@@ -31,47 +33,20 @@ import { preferredExerciseNamesForManualPreferences } from "../../lib/manualPref
 import { formatItemList } from "../../lib/formatItemList";
 import type { SessionFlow, SportPreset, WorkoutPresetKind } from "../../lib/sessionDraft";
 import { navigateToSessionFlow } from "../../lib/sessionFlowNavigation";
+import { setupRouteForFlow } from "../../lib/sessionFlowNav";
 import { resolveDefaultTrainTodayPreset } from "../../lib/defaultTrainTodayPreset";
 import type { PreferencePreset } from "../../lib/types";
 import {
   canUseTrainToday,
   resolveTrainTodayFromPreset,
   sportSlugsFromForm,
+  trainTodayCtaLabelFromPreset,
+  trainTodaySessionFlow,
   trainTodaySubtitleFromPreset,
+  type TrainTodayScope,
 } from "../../lib/trainToday";
 
 type BuilderMode = "goal" | "sport";
-
-function ReadyRing({
-  done,
-  total,
-  theme,
-}: {
-  done: number;
-  total: number;
-  theme: ReturnType<typeof useTheme>;
-}) {
-  const complete = total > 0 && done >= total;
-  return (
-    <View
-      style={[
-        styles.readyRing,
-        {
-          borderColor: complete ? theme.primary : theme.border,
-          backgroundColor: complete ? theme.primarySoft : "transparent",
-        },
-      ]}
-    >
-      {complete ? (
-        <Ionicons name="checkmark" size={26} color={theme.primary} />
-      ) : (
-        <Text style={[styles.readyRingText, { color: theme.primary }]}>
-          {done}/{total}
-        </Text>
-      )}
-    </View>
-  );
-}
 
 type PresetPickerRow = {
   kind: WorkoutPresetKind;
@@ -113,12 +88,16 @@ export default function HomeScreen() {
     sportPresets,
     defaultTrainTodayPreset,
     setDefaultTrainTodayPreset,
+    applyPreferencePreset,
+    applySportPreset,
   } = useAppState();
   const [isTrainTodayGenerating, setIsTrainTodayGenerating] = useState(false);
   const [flowConflict, setFlowConflict] = useState<SessionFlowConflict | null>(null);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [builderMode, setBuilderMode] = useState<BuilderMode>("goal");
+  const [trainTodayScope, setTrainTodayScope] = useState<TrainTodayScope>("day");
   const trainTodayCancelledRef = useRef(false);
+  const pendingPresetApplyRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     void prefetchWorkoutGenerationStack();
@@ -141,6 +120,16 @@ export default function HomeScreen() {
     resolvedDefault,
     activeProfile?.name ?? null
   );
+  const trainTodayCta = trainTodayCtaLabelFromPreset(resolvedDefault, trainTodayScope);
+
+  const applyResolvedTrainTodayPreset = () => {
+    if (!resolvedDefault) return;
+    if (resolvedDefault.kind === "goal") {
+      applyPreferencePreset(resolvedDefault.preset.id);
+    } else {
+      applySportPreset(resolvedDefault.preset.id);
+    }
+  };
 
   const pickerRows = useMemo((): PresetPickerRow[] => {
     const goals: PresetPickerRow[] = preferencePresets.map((p) => ({
@@ -167,7 +156,8 @@ export default function HomeScreen() {
       replaceSessionFlow,
       activeSessionDraft,
       undefined,
-      setFlowConflict
+      setFlowConflict,
+      true
     );
   };
 
@@ -216,6 +206,23 @@ export default function HomeScreen() {
 
   const onTrainToday = () => {
     if (!canTrainToday || !activeProfile || !resolvedDefault) return;
+    if (trainTodayScope === "week") {
+      const sessionFlow = trainTodaySessionFlow(resolvedDefault, "week");
+      navigateToSessionFlow(
+        router,
+        sessionFlow,
+        setupRouteForFlow(sessionFlow),
+        beginSessionFlow,
+        replaceSessionFlow,
+        activeSessionDraft,
+        applyResolvedTrainTodayPreset,
+        (conflict) => {
+          pendingPresetApplyRef.current = applyResolvedTrainTodayPreset;
+          setFlowConflict(conflict);
+        }
+      );
+      return;
+    }
     const { sessionFlow } = resolveTrainTodayFromPreset(resolvedDefault);
     if (beginSessionFlow(sessionFlow)) {
       void runTrainToday();
@@ -257,7 +264,7 @@ export default function HomeScreen() {
   if (isTrainTodayGenerating) {
     return (
       <GenerationLoadingScreen
-        message="Building your session…"
+        message="Putting the session together"
         subtitle="Using your default preset and gym."
         onGoBack={() => {
           trainTodayCancelledRef.current = true;
@@ -272,11 +279,15 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
       <SessionFlowConflictModal
         conflict={flowConflict}
-        onCancel={() => setFlowConflict(null)}
+        onCancel={() => {
+          setFlowConflict(null);
+          pendingPresetApplyRef.current = null;
+        }}
         onContinue={() => {
           if (!flowConflict) return;
           const resume = flowConflict.resumeRoute;
           setFlowConflict(null);
+          pendingPresetApplyRef.current = null;
           router.push(resume as never);
         }}
         onStartNew={() => {
@@ -284,6 +295,8 @@ export default function HomeScreen() {
           const { nextFlow, targetHref } = flowConflict;
           setFlowConflict(null);
           replaceSessionFlow(nextFlow);
+          pendingPresetApplyRef.current?.();
+          pendingPresetApplyRef.current = null;
           router.push(targetHref as never);
         }}
       />
@@ -345,10 +358,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.headline, { color: theme.text }]}>
-          How do you want to train?
-        </Text>
-
         <View
           style={[
             styles.trainTodayCard,
@@ -357,19 +366,27 @@ export default function HomeScreen() {
         >
           <View style={styles.trainTodayHero}>
             <View style={styles.trainTodayCopy}>
-              <SectionLabel>Today</SectionLabel>
               <Text style={[styles.trainTodayTitle, { color: theme.text }]}>
                 Train today
               </Text>
-              <Text style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}>
+              <Text
+                style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}
+                numberOfLines={2}
+              >
                 {trainTodayLabel}
               </Text>
             </View>
-            <ReadyRing
-              done={[activeProfile != null, hasPresets, resolvedDefault != null].filter(Boolean).length}
-              total={3}
-              theme={theme}
-            />
+            {canTrainToday ? (
+              <PillTabs
+                compact
+                tabs={[
+                  { key: "day", label: "Day" },
+                  { key: "week", label: "Week" },
+                ]}
+                value={trainTodayScope}
+                onChange={setTrainTodayScope}
+              />
+            ) : null}
           </View>
           {canTrainToday ? (
             <Pressable
@@ -382,15 +399,18 @@ export default function HomeScreen() {
                   { backgroundColor: theme.primary },
                 ]}
               >
-                <Text style={[styles.trainTodayButtonText, { color: theme.onPrimary }]}>
-                  Build today&apos;s workout
+                <Text
+                  style={[styles.trainTodayButtonText, { color: theme.onPrimary }]}
+                  numberOfLines={1}
+                >
+                  {trainTodayCta}
                 </Text>
               </View>
             </Pressable>
           ) : (
             <View style={styles.readyList}>
               <Text style={[styles.trainTodayHint, { color: theme.textMuted }]}>
-                Finish these to unlock one-tap Train today.
+                Needs a gym and a default preset.
               </Text>
               <ChecklistRow label="Gym profile" done={activeProfile != null} />
               <ChecklistRow label="Saved preset" done={hasPresets} />
@@ -400,25 +420,35 @@ export default function HomeScreen() {
               />
             </View>
           )}
-          {hasPresets ? (
+          <View style={styles.trainTodayActions}>
+            {hasPresets ? (
+              <LinkPill
+                compact
+                fill={false}
+                icon="swap-horizontal-outline"
+                label="Switch"
+                onPress={() => setSwitchOpen(true)}
+              />
+            ) : null}
             <LinkPill
-              icon="swap-horizontal-outline"
-              label="Switch preset"
-              onPress={() => setSwitchOpen(true)}
+              compact
+              fill={false}
+              icon="settings-outline"
+              label="Manage"
+              onPress={() => router.push("/presets")}
             />
-          ) : null}
-          <LinkPill
-            icon="settings-outline"
-            label="Manage presets"
-            onPress={() => router.push("/presets")}
-          />
+          </View>
         </View>
 
         <SectionLabel>Build a session</SectionLabel>
         <PillTabs
           tabs={[
-            { key: "goal", label: "Goal-Oriented", icon: "barbell-outline" },
-            { key: "sport", label: "Sport-Focused", icon: "sparkles-outline" },
+            { key: "goal", label: "Goals", renderIcon: (color, size) => (
+              <GoalsIcon color={color} size={size} />
+            ) },
+            { key: "sport", label: "Sport", renderIcon: (color, size) => (
+              <SportFocusedIcon color={color} size={size} />
+            ) },
           ]}
           value={builderMode}
           onChange={setBuilderMode}
@@ -430,9 +460,13 @@ export default function HomeScreen() {
           ]}
         >
           <View style={styles.builderHeader}>
-            <IconWell
-              name={builderMode === "goal" ? "barbell-outline" : "sparkles-outline"}
-            />
+            <IconWell>
+              {builderMode === "goal" ? (
+                <GoalsIcon size={20} />
+              ) : (
+                <SportFocusedIcon size={20} />
+              )}
+            </IconWell>
             <View style={{ flex: 1 }}>
               <Text style={[styles.builderTitle, { color: theme.text }]}>
                 {builderMode === "goal"
@@ -447,7 +481,6 @@ export default function HomeScreen() {
             </View>
           </View>
           <LinkPill
-            icon="today-outline"
             label="One day"
             onPress={() => {
               if (builderMode === "goal") {
@@ -458,7 +491,6 @@ export default function HomeScreen() {
             }}
           />
           <LinkPill
-            icon="calendar-outline"
             label="This week"
             onPress={() => {
               if (builderMode === "goal") {
@@ -481,65 +513,54 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 20,
   },
-  headline: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
   trainTodayCard: {
     borderRadius: themeRadius.card,
-    padding: 20,
+    padding: 14,
     borderWidth: 1,
-    gap: 12,
+    gap: 8,
   },
   trainTodayHero: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
   },
   trainTodayCopy: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   trainTodayTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "700",
   },
   trainTodaySubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 16,
   },
   trainTodayButtonWrap: {
-    marginTop: 4,
+    marginTop: 2,
   },
   trainTodayButton: {
-    borderRadius: themeRadius.control,
-    paddingVertical: 14,
+    borderRadius: themeRadius.button,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     alignItems: "center",
   },
   trainTodayButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700",
   },
   trainTodayHint: {
     fontSize: 12,
     lineHeight: 17,
   },
-  readyList: {
+  trainTodayActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
-  readyRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  readyRingText: {
-    fontSize: 13,
-    fontWeight: "700",
+  readyList: {
+    gap: 8,
   },
   builderCard: {
     borderRadius: themeRadius.card,

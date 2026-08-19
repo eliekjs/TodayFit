@@ -141,15 +141,13 @@ export const themeRadius = {
   card: ETHOS_VISUAL_LANGUAGE ? 22 : 16,
   modal: ETHOS_VISUAL_LANGUAGE ? 20 : 16,
   control: 999,
-  button: ETHOS_VISUAL_LANGUAGE ? 999 : 12,
+  button: 12,
 } as const;
 
 export const themeType = {
   label: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "600",
-    letterSpacing: 0.85,
-    textTransform: "uppercase",
   } satisfies TextStyle,
 };
 

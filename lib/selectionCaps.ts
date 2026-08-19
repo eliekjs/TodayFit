@@ -35,3 +35,17 @@ export function countTotalSubGoalPicks(
   }
   return n;
 }
+
+/** Count picks only under currently selected parents (ignore leftover keys from other modes). */
+export function countSubGoalPicksForParents(
+  map: Record<string, string[]> | undefined | null,
+  parentKeys: readonly string[]
+): number {
+  if (!map) return 0;
+  let n = 0;
+  for (const key of parentKeys) {
+    const arr = map[key];
+    if (Array.isArray(arr)) n += arr.length;
+  }
+  return n;
+}

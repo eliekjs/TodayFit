@@ -235,10 +235,9 @@ describe("weekDaySessionFocus", () => {
     expect(presets.find((p) => p.id === "balanced_split")?.subtitle).toMatch(/50\/30\/20/);
   });
 
-  it("sportGoalPrioritySectionNote explains exclusive day override vs balanced presets", () => {
+  it("sportGoalPrioritySectionNote explains exclusive day pick vs blend preset", () => {
     expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("exclusive");
-    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("earlier pages");
-    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("global goal match");
+    expect(sportGoalPrioritySectionNote(basePrefs, null)).toContain("Blend all ranked goals");
     const adaptive: AdaptiveSetup = {
       rankedGoals: ["physique", "strength"],
       rankedSportSlugs: ["surfing"],
@@ -332,5 +331,42 @@ describe("weekDaySessionFocus", () => {
     });
     expect(summary?.label).toBe("Upper body");
     expect(summary?.subtitle).toBe("Push");
+  });
+
+  it("does not promote leftover Improve Endurance / Zone 2 into day-goal chips", () => {
+    const prefs: ManualPreferences = {
+      ...basePrefs,
+      primaryFocus: ["Build Strength"],
+      subFocusByGoal: {
+        "Build Strength": ["Squat"],
+        "Improve Endurance": ["Zone 2 / Long steady"],
+      },
+    };
+    const adaptive: AdaptiveSetup = {
+      rankedGoals: ["strength"],
+      rankedSportSlugs: ["rock_climbing", "backcountry_skiing"],
+      subFocusBySport: {
+        rock_climbing: ["pull_strength", "endurance_stamina"],
+        backcountry_skiing: [],
+      },
+      sportFocusPct: [50, 50],
+      sportVsGoalPct: 70,
+      intensityLevel: "medium",
+      injuryStatus: "ok",
+      injuryTypes: [],
+    };
+    const presets = buildDayFocusPresetsForDay({
+      manualPreferences: prefs,
+      adaptiveSetup: adaptive,
+      targetBody: "Upper",
+      targetModifier: ["Push"],
+      bodyChoiceIds: ["push"],
+    });
+    expect(presets.some((p) => /endurance/i.test(p.label))).toBe(false);
+    expect(presets.some((p) => /zone 2/i.test(`${p.label} ${p.subtitle}`))).toBe(false);
+    const climbing = presets.find((p) => p.id === "sport_emphasis_0");
+    expect(climbing?.subtitle).toMatch(/pull strength/i);
+    expect(climbing?.subtitle).toMatch(/endurance/i);
+    expect(climbing?.subtitle).not.toMatch(/zone 2/i);
   });
 });

@@ -14,7 +14,7 @@ import { themeRadius, useTheme } from "../lib/theme";
 type Props = {
   message: string;
   subtitle?: string;
-  /** When provided, shows a "Adjust priorities" back button. */
+  /** When provided, shows a "Change filters" back button. */
   onGoBack?: () => void;
 };
 
@@ -66,7 +66,7 @@ export function GenerationLoadingScreen({
               ]}
             >
               <Text style={[styles.backButtonText, { color: theme.textMuted }]}>
-                Adjust priorities
+                Change filters
               </Text>
             </Pressable>
           ) : null}

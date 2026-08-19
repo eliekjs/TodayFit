@@ -1,3 +1,4 @@
+import { loadCuratedDescriptionsModule } from "./loadCuratedExerciseDescriptions";
 import {
   isGeneratedExerciseDescriptionStub,
   validateExerciseDescriptionCopy,
@@ -47,8 +48,9 @@ export function unwrapCuratedDescriptionsSource(
   throw new Error("Curated exercise descriptions module is not a valid catalog file.");
 }
 
-async function readCuratedDescriptionsFile(): Promise<CuratedExerciseDescriptionsFile> {
-  const mod: unknown = await import("../data/exerciseDescriptions.curated.json");
+async function readCuratedDescriptionsFile(): Promise<CuratedExerciseDescriptionsFile | null> {
+  const mod = await loadCuratedDescriptionsModule();
+  if (mod == null) return null;
   const unwrapped = unwrapCuratedDescriptionsSource(mod);
   if (typeof unwrapped === "string") {
     const res = await fetch(unwrapped);
@@ -64,12 +66,19 @@ async function readCuratedDescriptionsFile(): Promise<CuratedExerciseDescription
   return unwrapped;
 }
 
-/** Loads the curated JSON chunk on first use (separate Metro async bundle). */
+/**
+ * Loads curated setup copy when a Node catalog is available (tests / scripts).
+ * Native and web no-op: descriptions already arrive on each exercise from Supabase.
+ */
 export function ensureCuratedDescriptionsLoaded(): Promise<void> {
   if (bySlug) return Promise.resolve();
   if (!loadPromise) {
     loadPromise = readCuratedDescriptionsFile()
       .then((file) => {
+        if (file == null) {
+          bySlug = new Map();
+          return bySlug;
+        }
         const map = buildSlugMap(file);
         if (map.size === 0) {
           throw new Error("Curated exercise descriptions loaded empty.");
@@ -157,6 +166,18 @@ export function resolveExerciseDescription(
     return curatedDesc;
   }
   return catalogDesc || curatedDesc;
+}
+
+/** Swap UI: in-memory curated map when tests loaded it, otherwise the DB row. */
+export async function resolveSwapExerciseDescription(slug: string): Promise<string | undefined> {
+  const curated = getCuratedExerciseDescription(slug);
+  if (curated) return curated;
+  try {
+    const { getExerciseSetupDescription } = await import("./db/exerciseRepository");
+    return await getExerciseSetupDescription(slug);
+  } catch {
+    return undefined;
+  }
 }
 
 export function listCuratedExerciseDescriptionSlugs(): string[] {

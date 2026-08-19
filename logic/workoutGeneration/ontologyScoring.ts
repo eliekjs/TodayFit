@@ -407,6 +407,14 @@ export const FOCUS_TO_WARMUP_TARGETS: Record<string, string[]> = {
   /** Muscle-day / split slug — same lower activation targets as `lower`. */
   legs: ["hamstrings", "hip_flexors", "glutes", "calves", "quadriceps"],
   glutes: ["glutes", "hip_flexors", "hamstrings"],
+  posterior: ["hamstrings", "glutes", "hip_flexors"],
+  quad: ["quadriceps", "hip_flexors", "calves"],
+  push: ["shoulders", "thoracic_spine", "pecs"],
+  pull: ["lats", "shoulders", "thoracic_spine"],
+  chest: ["pecs", "shoulders", "thoracic_spine"],
+  back: ["lats", "thoracic_spine", "shoulders"],
+  shoulders: ["shoulders", "thoracic_spine"],
+  arms: ["shoulders", "wrists", "lats"],
   core: ["thoracic_spine", "low_back", "hip_flexors"],
   /** Full-body day: general activation for common areas used in compound work. */
   full_body: ["thoracic_spine", "shoulders", "hip_flexors", "glutes"],

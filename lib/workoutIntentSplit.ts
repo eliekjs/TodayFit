@@ -505,7 +505,7 @@ export function computeDeclaredIntentSplitFromPrefs(
  * Percentages are NOT shown — this is the title, not the pie chart breakdown.
  */
 export function buildWorkoutIntentTitle(split: IntentSplitEntry[]): string {
-  if (split.length === 0) return "Your Workout";
+  if (split.length === 0) return "Workout";
 
   // Sort: sub-focus entries first (most specific), then bare goals/sports
   const sorted = [...split].sort((a, b) => {

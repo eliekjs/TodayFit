@@ -1,3 +1,9 @@
+/**
+ * Node / tests / scripts: load the static TypeScript catalogs from disk.
+ * Metro native and web resolve the `.native.ts` / `.web.ts` stubs instead, so the
+ * ~1.3MB `exercisesFunctionalFitness` + `otaMovements` modules are not transformed
+ * into the iOS/web JavaScript bundle (production reads exercises from Supabase).
+ */
 import type { ExerciseDefinition } from "./types";
 import { EXERCISES_BUILTIN } from "../data/exercises";
 
@@ -6,8 +12,6 @@ let loadPromise: Promise<ExerciseDefinition[]> | null = null;
 
 /**
  * Loads the full static exercise list (builtin + functional fitness + OTA) once per session.
- * Functional fitness and OTA live in separate modules so Metro can split them from the initial chunk;
- * they load when generation first runs (or when this is first awaited).
  */
 export async function loadStaticExerciseDefinitions(): Promise<ExerciseDefinition[]> {
   if (cached) return cached;

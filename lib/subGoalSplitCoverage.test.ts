@@ -42,6 +42,10 @@ describe("sub-goal split coverage", () => {
     expect(dayBodyChoiceCoversSubFocus("chest", "bench_press")).toBe(true);
     expect(dayBodyChoiceCoversSubFocus("back", "pull")).toBe(true);
     expect(dayBodyChoiceCoversSubFocus("legs", "squat")).toBe(true);
+    expect(dayBodyChoiceCoversSubFocus("quad", "squat")).toBe(true);
+    expect(dayBodyChoiceCoversSubFocus("posterior", "squat")).toBe(false);
+    expect(dayBodyChoiceCoversSubFocus("posterior", "deadlift_hinge")).toBe(true);
+    expect(dayBodyChoiceCoversSubFocus("quad", "deadlift_hinge")).toBe(false);
   });
 
   it("keeps overhead press in generator focus on upper/push/shoulders contracts", () => {
@@ -54,6 +58,15 @@ describe("sub-goal split coverage", () => {
     ).toBe(true);
     expect(subFocusSlugCoveredByFocusParts("overhead_press", ["upper_pull"])).toBe(false);
     expect(subFocusSlugCoveredByFocusParts("overhead_press", ["lower"])).toBe(false);
+  });
+
+  it("covers squat on a Quads day and hinge on a Posterior day", () => {
+    expect(subFocusSlugCoveredByFocusParts("squat", ["lower", "quad"])).toBe(true);
+    expect(subFocusSlugCoveredByFocusParts("deadlift_hinge", ["lower", "quad"])).toBe(false);
+    expect(subFocusSlugCoveredByFocusParts("deadlift_hinge", ["lower", "posterior"])).toBe(true);
+    expect(subFocusSlugCoveredByFocusParts("squat", ["lower", "posterior"])).toBe(false);
+    expect(subFocusSlugCoveredByFocusParts("squat", ["lower", "legs"])).toBe(true);
+    expect(subFocusSlugCoveredByFocusParts("deadlift_hinge", ["lower", "legs"])).toBe(true);
   });
 
   it("recommends Shoulders from Overhead Press in muscle mode", () => {

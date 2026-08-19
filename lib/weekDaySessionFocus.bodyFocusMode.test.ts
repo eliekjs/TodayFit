@@ -56,9 +56,9 @@ describe("weekly body focus mode unlock", () => {
 });
 
 describe("pattern and muscle week templates", () => {
-  it("builds PPL-ish pattern weeks and fills leftover days with full body", () => {
+  it("builds PPL-ish pattern weeks and rotates leftover days instead of filling with full body", () => {
     expect(getPatternBodyFocusDistribution(3)).toEqual(["push", "pull", "legs"]);
-    expect(getPatternBodyFocusDistribution(4)).toEqual(["push", "pull", "legs", "full"]);
+    expect(getPatternBodyFocusDistribution(4)).toEqual(["push", "pull", "legs", "push"]);
     expect(getPatternBodyFocusDistribution(6)).toEqual([
       "push",
       "pull",
@@ -74,41 +74,44 @@ describe("pattern and muscle week templates", () => {
       "push",
       "pull",
       "legs",
-      "full",
+      "push",
     ]);
     expect(getPatternBodyFocusDistribution(7)).not.toContain("core");
+    expect(getPatternBodyFocusDistribution(7)).not.toContain("full");
   });
 
-  it("builds bro-ish muscle weeks without a core-only day", () => {
+  it("builds bro-ish muscle weeks with even upper/lower spread and no core-only day", () => {
+    expect(getMuscleBodyFocusDistribution(2)).toEqual(["chest", "legs"]);
+    expect(getMuscleBodyFocusDistribution(4)).toEqual(["chest", "legs", "back", "glutes"]);
     expect(getMuscleBodyFocusDistribution(5)).toEqual([
       "chest",
-      "back",
-      "shoulders",
-      "arms",
       "legs",
+      "back",
+      "glutes",
+      "shoulders",
     ]);
     expect(getMuscleBodyFocusDistribution(6)).toEqual([
       "chest",
+      "legs",
       "back",
+      "glutes",
       "shoulders",
       "arms",
-      "legs",
-      "glutes",
     ]);
     expect(getMuscleBodyFocusDistribution(7)).toEqual([
       "chest",
+      "legs",
       "back",
+      "glutes",
       "shoulders",
       "arms",
-      "legs",
-      "glutes",
-      "full",
+      "chest",
     ]);
   });
 
-  it("uses upper/lower rotations and fills leftover region days with full body", () => {
+  it("uses upper/lower rotations instead of leftover full body", () => {
     expect(getBodyFocusDistributionForMode("region", 1)).toEqual(["full"]);
-    expect(getBodyFocusDistributionForMode("region", 3)).toEqual(["upper", "lower", "full"]);
+    expect(getBodyFocusDistributionForMode("region", 3)).toEqual(["upper", "lower", "upper"]);
     expect(getBodyFocusDistributionForMode("region", 4)).toEqual([
       "upper",
       "lower",
@@ -145,6 +148,16 @@ describe("day body focus choice mapping", () => {
       targetModifier: [],
       specificBodyFocus: ["legs"],
     });
+    expect(dayBodyFocusChoiceToBias("quad")).toEqual({
+      targetBody: "Lower",
+      targetModifier: ["Quad"],
+      specificBodyFocus: ["quad"],
+    });
+    expect(dayBodyFocusChoiceToBias("posterior")).toEqual({
+      targetBody: "Lower",
+      targetModifier: ["Posterior"],
+      specificBodyFocus: ["posterior"],
+    });
   });
 
   it("maps choice ids to conflict regions", () => {
@@ -152,6 +165,8 @@ describe("day body focus choice mapping", () => {
     expect(dayBodyFocusToRegion("back")).toBe("upper");
     expect(dayBodyFocusToRegion("push")).toBe("upper");
     expect(dayBodyFocusToRegion("legs")).toBe("lower");
+    expect(dayBodyFocusToRegion("quad")).toBe("lower");
+    expect(dayBodyFocusToRegion("posterior")).toBe("lower");
     expect(dayBodyFocusToRegion("glutes")).toBe("lower");
     expect(dayBodyFocusToRegion("core")).toBe("core");
   });
@@ -163,8 +178,11 @@ describe("day body focus choice mapping", () => {
       formatDayTitle("Build Muscle (Hypertrophy)", "upper", ["chest"])
     ).toBe("Build Muscle (Hypertrophy) - Chest");
     expect(
-      formatDayTitle("Build Muscle (Hypertrophy)", "full", ["glutes", "shoulders"])
-    ).toBe("Build Muscle (Hypertrophy) - Glute + Shoulder");
+      formatDayTitle("Build Muscle (Hypertrophy)", "lower", ["quad"])
+    ).toBe("Build Muscle (Hypertrophy) - Quad");
+    expect(
+      formatDayTitle("Build Muscle (Hypertrophy)", "lower", ["posterior"])
+    ).toBe("Build Muscle (Hypertrophy) - Posterior");
   });
 
   it("does not invent Chest from Upper or Push when mapping into Muscle vocab", () => {
@@ -182,9 +200,37 @@ describe("day body focus choice mapping", () => {
     expect(mapBodyChoiceToModeVocab("glutes", "pattern")).toBe("legs");
   });
 
+  it("maps leftover quad/posterior into region and muscle vocab", () => {
+    expect(mapBodyChoiceToModeVocab("quad", "region")).toBe("lower");
+    expect(mapBodyChoiceToModeVocab("posterior", "muscle")).toBe("glutes");
+    expect(mapBodyChoiceToModeVocab("quad", "muscle")).toBe("legs");
+  });
+
   it("collapses leftover muscle picks to Region without inventing a side", () => {
     expect(mapBodyChoiceToModeVocab("chest", "region")).toBe("upper");
     expect(mapBodyChoiceToModeVocab("glutes", "region")).toBe("lower");
+  });
+
+  it("exposes optional Quads and Posterior next to Legs in pattern mode", () => {
+    const choices = buildDayBodyFocusChoicesForDay({
+      manualPreferences: basePrefs,
+      adaptiveSetup: null,
+      slotIndex: 0,
+      fallbackTargetBody: "Upper",
+      mode: "pattern",
+      templateChoiceId: "legs",
+    });
+    expect(choices.map((c) => c.id)).toEqual([
+      "push",
+      "pull",
+      "legs",
+      "quad",
+      "posterior",
+      "full",
+      "core",
+    ]);
+    expect(choices.find((c) => c.id === "legs")?.recommended).toBe(true);
+    expect(choices.find((c) => c.id === "quad")?.recommended).toBe(false);
   });
 
   it("exposes muscle options when mode is muscle", () => {

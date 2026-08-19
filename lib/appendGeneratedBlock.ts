@@ -61,6 +61,8 @@ export const ADDABLE_BODY_CHOICES: { id: DayBodyFocusChoiceId; label: string }[]
   { id: "shoulders", label: BODY_CHOICE_COPY.shoulders.label },
   { id: "arms", label: BODY_CHOICE_COPY.arms.label },
   { id: "legs", label: BODY_CHOICE_COPY.legs.label },
+  { id: "quad", label: BODY_CHOICE_COPY.quad.label },
+  { id: "posterior", label: BODY_CHOICE_COPY.posterior.label },
   { id: "glutes", label: BODY_CHOICE_COPY.glutes.label },
 ];
 

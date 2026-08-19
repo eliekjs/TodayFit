@@ -1,6 +1,6 @@
 /**
  * Sticky note + 3-segment control for weekly body-focus vocabulary:
- * Region (Upper/Lower) | Pattern (Push/Pull/Legs) | Muscle (Chest/Back/…).
+ * Region (Upper/Lower) | Pattern (Push/Pull/Legs, optional Quads/Posterior) | Muscle (Chest/Back/…).
  */
 
 import React from "react";

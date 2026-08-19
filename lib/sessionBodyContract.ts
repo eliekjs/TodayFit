@@ -2,7 +2,7 @@
  * Canonical session body contract for Region / Pattern / Muscle days.
  *
  * Region → hard movement-family gate (upper / lower / full / core).
- * Pattern → hard push / pull / legs / full / core family (not a single muscle).
+ * Pattern → hard push / pull / legs (or optional quad / posterior) / full / core family (not a single muscle).
  * Muscle → hard primary-muscle gate (Chest day must be chest work, Back day back, …).
  *
  * Spread may keep conflicting sub-goal slugs for scoring, but it must not
@@ -50,6 +50,8 @@ const CHOICE_TO_FOCUS: Record<DayBodyFocusChoiceId, FocusBodyPart[]> = {
   push: ["upper_push"],
   pull: ["upper_pull"],
   legs: ["lower", "legs"],
+  quad: ["lower", "quad"],
+  posterior: ["lower", "posterior"],
   chest: ["upper_push", "chest"],
   back: ["upper_pull", "back"],
   shoulders: ["upper_push", "upper_pull", "shoulders"],
@@ -73,6 +75,8 @@ export const SESSION_BODY_NATIVE_SPECS: SessionBodyChoiceSpec[] = [
   { mode: "pattern", choiceId: "push", focusBodyParts: ["upper_push"], muscleEmphasis: null },
   { mode: "pattern", choiceId: "pull", focusBodyParts: ["upper_pull"], muscleEmphasis: null },
   { mode: "pattern", choiceId: "legs", focusBodyParts: ["lower", "legs"], muscleEmphasis: null },
+  { mode: "pattern", choiceId: "quad", focusBodyParts: ["lower", "quad"], muscleEmphasis: null },
+  { mode: "pattern", choiceId: "posterior", focusBodyParts: ["lower", "posterior"], muscleEmphasis: null },
   { mode: "pattern", choiceId: "full", focusBodyParts: ["full_body"], muscleEmphasis: null },
   { mode: "pattern", choiceId: "core", focusBodyParts: ["core"], muscleEmphasis: "core" },
   { mode: "muscle", choiceId: "chest", focusBodyParts: ["upper_push", "chest"], muscleEmphasis: "chest" },
@@ -93,6 +97,8 @@ const DAILY_BODY_CHOICE_IDS: ReadonlySet<string> = new Set([
   "push",
   "pull",
   "legs",
+  "quad",
+  "posterior",
   "chest",
   "back",
   "shoulders",
@@ -172,7 +178,7 @@ export type SessionBodyPrefs = {
 };
 
 const MUSCLE_SPECIFIC_KEYS = new Set(["chest", "back", "shoulders", "arms", "glutes", "legs"]);
-const PATTERN_SPECIFIC_KEYS = new Set(["push", "pull"]);
+const PATTERN_SPECIFIC_KEYS = new Set(["push", "pull", "quad", "posterior"]);
 
 /**
  * Prefer the stored week mode. If it was never set, infer from specificBodyFocus so

@@ -119,7 +119,7 @@ import {
   deriveMobilityRegionalFamilies,
   mobilityRecoveryPassesBodyFocus,
 } from "./mobilityBodyFocusFamilies";
-import { filterByUnusedWarmupActivationFamilies } from "./warmupActivationFamilies";
+import { filterWarmupPoolForSessionAndHistory } from "./warmupActivationFamilies";
 import { buildHistoryContextFromLegacy, type TrainingHistoryContext } from "./historyTypes";
 import {
   computeHistoryScoreComponents,
@@ -2959,9 +2959,10 @@ function buildWarmup(
     sessionUsedIds: used,
   };
   for (let i = 0; i < warmupTargetCount; i++) {
-    const familyFiltered = filterByUnusedWarmupActivationFamilies(
+    const familyFiltered = filterWarmupPoolForSessionAndHistory(
       candidatePoolForWarmup.filter((e) => isExerciseAvailableForSession(e.id, used) && !chosen.some((c) => c.id === e.id)),
-      [...used, ...chosen.map((c) => c.id)]
+      [...used, ...chosen.map((c) => c.id)],
+      recentIds
     );
     const pickPool = familyFiltered.length > 0 ? familyFiltered : candidatePoolForWarmup;
     const { exercises: picked } = selectExercises(
@@ -2980,18 +2981,24 @@ function buildWarmup(
     used.add(next.id);
   }
 
-  // Last-resort: never ship an empty Activation when warmup-eligible mobility exists anywhere.
+  // Last-resort: never ship an empty Activation when any unused mobility/recovery candidate exists.
   if (chosen.length === 0) {
     const rescueSources = [finalPool, equipmentPool, basePool, collectWarmupBase(fallbackPool)];
-    for (const rescue of rescueSources) {
-      const eligible = rescue.filter(
-        (e) => isWarmupEligibleEquipment(e.equipment_required) && isExerciseAvailableForSession(e.id, used)
-      );
-      if (eligible.length === 0) continue;
-      const pick = eligible[Math.floor(rng() * eligible.length)]!;
+    const pickFrom = (predicate: (e: Exercise) => boolean): Exercise | undefined => {
+      for (const rescue of rescueSources) {
+        const eligible = rescue.filter(
+          (e) => isExerciseAvailableForSession(e.id, used) && predicate(e)
+        );
+        if (eligible.length > 0) return eligible[Math.floor(rng() * eligible.length)]!;
+      }
+      return undefined;
+    };
+    const pick =
+      pickFrom((e) => isWarmupEligibleEquipment(e.equipment_required)) ??
+      pickFrom(() => true);
+    if (pick) {
       chosen.push(pick);
       used.add(pick.id);
-      break;
     }
   }
 
@@ -8272,6 +8279,51 @@ function removeEmptyBlocks(blocks: WorkoutBlock[]): WorkoutBlock[] {
   return blocks.filter((b) => (b.items?.length ?? 0) > 0);
 }
 
+/** Recovery/mobility primary is a unified stretch session — no separate Activation block. */
+function sessionRequiresSeparateWarmup(primary: PrimaryGoal | undefined): boolean {
+  return !isRecoveryMobilityPrimaryGoal(primary);
+}
+
+function ensureSessionHasWarmupBlock(
+  blocks: WorkoutBlock[],
+  usedIds: Set<string>,
+  warmupArgs: {
+    filtered: Exercise[];
+    input: GenerateWorkoutInput;
+    rng: () => number;
+    fatigueState?: FatigueState;
+    historyContext?: TrainingHistoryContext;
+    strengthProfileForWarmup: SubFocusProfile | null;
+    warmupPreferredTargets: string[];
+    guaranteePool: Exercise[];
+  }
+): WorkoutBlock[] {
+  if (!sessionRequiresSeparateWarmup(warmupArgs.input.primary_goal)) return blocks;
+  const existing = blocks.find((b) => b.block_type === "warmup");
+  if (existing && (existing.items?.length ?? 0) > 0) return blocks;
+  const rebuilt = buildWarmup(
+    warmupArgs.filtered,
+    warmupArgs.input,
+    usedIds,
+    warmupArgs.rng,
+    warmupArgs.fatigueState,
+    warmupArgs.historyContext,
+    warmupArgs.strengthProfileForWarmup,
+    warmupArgs.warmupPreferredTargets,
+    warmupArgs.guaranteePool
+  );
+  if (rebuilt.items.length === 0) return blocks;
+  if (existing) {
+    existing.items = rebuilt.items;
+    existing.title = rebuilt.title;
+    existing.reasoning = rebuilt.reasoning;
+    existing.estimated_minutes = rebuilt.estimated_minutes;
+    existing.format = rebuilt.format;
+    return blocks;
+  }
+  return orderSessionBlocks([rebuilt, ...blocks]);
+}
+
 function ensureCooldownIsLastBlock(blocks: WorkoutBlock[]): WorkoutBlock[] {
   return orderSessionBlocks(blocks);
 }
@@ -12086,31 +12138,18 @@ export function generateWorkoutSession(
   mergedBlocks = removeEmptyBlocks(mergedBlocks);
   mergedBlocks = ensureCooldownIsLastBlock(mergedBlocks);
   // Always keep Activation for training sessions (empty warmups are stripped above).
-  if (!isRecoveryMobilityPrimaryGoal(primary) && primary !== "joint_health") {
-    const existingWarmup = mergedBlocks.find((b) => b.block_type === "warmup");
-    if (!existingWarmup || (existingWarmup.items?.length ?? 0) === 0) {
-      const rebuiltWarmup = buildWarmup(
-        filtered,
-        input,
-        used,
-        rng,
-        fatigueState,
-        historyContext,
-        strengthProfileForWarmup,
-        blockIntentProfile.warmupPreferredTargets,
-        guaranteePool
-      );
-      if (rebuiltWarmup.items.length > 0) {
-        if (existingWarmup) {
-          existingWarmup.items = rebuiltWarmup.items;
-          existingWarmup.title = rebuiltWarmup.title;
-          existingWarmup.reasoning = rebuiltWarmup.reasoning;
-          existingWarmup.estimated_minutes = rebuiltWarmup.estimated_minutes;
-        } else {
-          mergedBlocks.unshift(rebuiltWarmup);
-        }
-      }
-    }
+  // Joint-health builds its own activation-as-warmup; if that slot is empty, fill it here.
+  if (sessionRequiresSeparateWarmup(primary)) {
+    mergedBlocks = ensureSessionHasWarmupBlock(mergedBlocks, used, {
+      filtered,
+      input,
+      rng,
+      fatigueState,
+      historyContext,
+      strengthProfileForWarmup,
+      warmupPreferredTargets: blockIntentProfile.warmupPreferredTargets,
+      guaranteePool,
+    });
   }
   mergedBlocks = trimBlocksToDurationBudget(mergedBlocks, input.duration_minutes, {
     preserveConditioning: constraints.required_conditioning_block || isCardioPrimaryGoal(primary),
@@ -12692,6 +12731,18 @@ export function generateWorkoutSession(
   );
   enforceSessionDurationBudget(mergedBlocks, input.duration_minutes);
   mergedBlocks = removeEmptyBlocks(mergedBlocks);
+  if (sessionRequiresSeparateWarmup(primary)) {
+    mergedBlocks = ensureSessionHasWarmupBlock(mergedBlocks, used, {
+      filtered,
+      input,
+      rng,
+      fatigueState,
+      historyContext,
+      strengthProfileForWarmup,
+      warmupPreferredTargets: blockIntentProfile.warmupPreferredTargets,
+      guaranteePool,
+    });
+  }
 
   // 8. Post-assembly validation and repair (Phase 8)
   const sumBlockMinutes = mergedBlocks.reduce((sum, b) => sum + (b.estimated_minutes ?? 5), 0);
@@ -12934,8 +12985,25 @@ export function generateWorkoutSession(
       : {}),
   };
 
-  const withExerciseDescriptions = (s: WorkoutSession): WorkoutSession =>
-    attachExerciseDescriptionsToSession(s, exercisePool);
+  const withExerciseDescriptions = (s: WorkoutSession): WorkoutSession => {
+    const usedFromSession = new Set(s.blocks.flatMap((b) => b.items.map((it) => it.exercise_id)));
+    const blocks = sessionRequiresSeparateWarmup(primary)
+      ? ensureSessionHasWarmupBlock(s.blocks.map((b) => ({ ...b, items: [...b.items] })), usedFromSession, {
+          filtered,
+          input,
+          rng,
+          fatigueState,
+          historyContext,
+          strengthProfileForWarmup,
+          warmupPreferredTargets: blockIntentProfile.warmupPreferredTargets,
+          guaranteePool,
+        })
+      : s.blocks;
+    return attachExerciseDescriptionsToSession(
+      blocks === s.blocks ? s : { ...s, blocks: orderSessionBlocks(blocks) },
+      exercisePool
+    );
+  };
 
   const repairPool = deprioritizeWeekMainLiftsForRepair(filtered, input);
   const validation = validateWorkoutAgainstConstraints(session, constraints, repairPool);

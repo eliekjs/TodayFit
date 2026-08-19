@@ -148,6 +148,9 @@ export function mapBodyResolutionToMode(
       case "lower":
       case "glutes":
         return "legs";
+      case "quad":
+      case "posterior":
+        return bodyId;
       case "chest":
       case "shoulders":
       case "arms":
@@ -166,7 +169,10 @@ export function mapBodyResolutionToMode(
       return "back";
     case "lower":
     case "legs":
+    case "quad":
       return "legs";
+    case "posterior":
+      return "glutes";
     default:
       return bodyId;
   }

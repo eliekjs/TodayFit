@@ -24,7 +24,7 @@ export function BodyFocusDeferredNote() {
         <Text style={[styles.label, { color: theme.primary }]}>Note</Text>
         <Text style={[styles.title, { color: theme.text }]}>Body focus is on the next page</Text>
         <Text style={[styles.message, { color: theme.textMuted }]}>
-          You’ll choose body parts, patterns (push / pull / legs), or muscle days when you set
+          You’ll choose body parts, patterns (push / pull / legs, or split legs into quads / posterior), or muscle days when you set
           each training day — not as sub-goals here.
         </Text>
       </View>

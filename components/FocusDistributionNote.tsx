@@ -1,15 +1,15 @@
 /**
- * Sticky note + two-option toggle for focus distribution.
- * Daily: spread vs resolve (shown when multi-region tension exists).
- * Weekly: blend vs dedicate_days (mandatory when goals are selected).
+ * Sticky note + two-option toggle for daily focus distribution
+ * (spread vs resolve when multi-region tension exists).
+ * Blend vs dedicate for weeks is a per-day focus preset, not this control.
  */
 
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { themeRadius, useTheme } from "../lib/theme";
-import type { GoalDistributionStyle, SessionFocusDistributionStyle } from "../lib/types";
+import type { SessionFocusDistributionStyle } from "../lib/types";
 
-type DailyProps = {
+type Props = {
   variant: "daily";
   value: SessionFocusDistributionStyle | null | undefined;
   onChange: (value: SessionFocusDistributionStyle) => void;
@@ -17,54 +17,26 @@ type DailyProps = {
   needsResolution?: boolean;
 };
 
-type WeeklyProps = {
-  variant: "weekly";
-  value: GoalDistributionStyle | null | undefined;
-  onChange: (value: GoalDistributionStyle) => void;
-  required?: boolean;
-};
-
-type Props = DailyProps | WeeklyProps;
-
 const ACCENT = "#f59e0b";
+
+const OPTIONS: { id: SessionFocusDistributionStyle; label: string; hint: string }[] = [
+  {
+    id: "spread",
+    label: "Mix them",
+    hint: "Keep all goals and body parts in today’s mix",
+  },
+  {
+    id: "resolve",
+    label: "Pick one",
+    hint: "One region, matching sub-goals",
+  },
+];
 
 export function FocusDistributionNote(props: Props) {
   const theme = useTheme();
-  const isDaily = props.variant === "daily";
   const selected = props.value ?? null;
   const needsPick = selected == null;
-  const needsResolution = isDaily && props.needsResolution === true;
-
-  const title = isDaily ? "Mixed focus areas" : "How should goals show up?";
-  const message = isDaily
-    ? "Your picks cover more than one body region. Spread them through today’s workout, or focus the session and resolve the conflicts below."
-    : "Choose whether workouts mix your goals, or each day is exclusively what you select below — replacing the goals from earlier pages for that day.";
-
-  const options: { id: string; label: string; hint: string }[] = isDaily
-    ? [
-        {
-          id: "spread",
-          label: "Spread across session",
-          hint: "Keep all goals and body parts in today’s mix",
-        },
-        {
-          id: "resolve",
-          label: "Focus & resolve",
-          hint: "Align body focus and sub-goals for a tighter session",
-        },
-      ]
-    : [
-        {
-          id: "blend",
-          label: "Mix goals in each workout",
-          hint: "Goals can appear together; balanced day picks keep your global mix",
-        },
-        {
-          id: "dedicate_days",
-          label: "Focus each day",
-          hint: "Each day’s pick below fully replaces earlier goals for that day",
-        },
-      ];
+  const needsResolution = props.needsResolution === true;
 
   const borderColor = needsPick || needsResolution ? ACCENT : theme.primary;
   const labelColor = needsPick || needsResolution ? ACCENT : theme.primary;
@@ -83,32 +55,25 @@ export function FocusDistributionNote(props: Props) {
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text style={[styles.label, { color: labelColor }]}>
-            {needsPick ? (isDaily ? "Choose how to handle this" : "Required") : "Note"}
+            {needsPick ? "Choose how to handle this" : "Note"}
           </Text>
-          {!isDaily && props.required !== false ? (
-            <Text style={[styles.requiredBadge, { color: ACCENT }]}>Required</Text>
-          ) : null}
         </View>
-        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-        <Text style={[styles.message, { color: theme.textMuted }]}>{message}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>You picked more than one region</Text>
+        <Text style={[styles.message, { color: theme.textMuted }]}>
+          Mix them today, or pick one.
+        </Text>
         {needsResolution ? (
           <Text style={[styles.resolveHint, { color: ACCENT }]}>
-            Pick a resolution below, or switch to spread across session.
+            Pick a resolution below, or switch to mix them.
           </Text>
         ) : null}
         <View style={styles.options}>
-          {options.map((opt) => {
+          {OPTIONS.map((opt) => {
             const isSel = selected === opt.id;
             return (
               <Pressable
                 key={opt.id}
-                onPress={() => {
-                  if (isDaily) {
-                    props.onChange(opt.id as SessionFocusDistributionStyle);
-                  } else {
-                    props.onChange(opt.id as GoalDistributionStyle);
-                  }
-                }}
+                onPress={() => props.onChange(opt.id)}
                 style={({ pressed }) => [
                   styles.option,
                   {
@@ -169,12 +134,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-  },
-  requiredBadge: {
-    fontSize: 11,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
   },
   title: {
     fontSize: 15,

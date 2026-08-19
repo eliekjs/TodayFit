@@ -6,7 +6,7 @@ type Props = TextProps & {
   children: React.ReactNode;
 };
 
-/** All-caps tracked section label (Ethos “REQUIRED” / “PER HOUR” style). */
+/** Sentence-case section label. */
 export function SectionLabel({ children, style, ...rest }: Props) {
   const theme = useTheme();
   return (

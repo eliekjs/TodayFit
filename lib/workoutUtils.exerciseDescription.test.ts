@@ -244,6 +244,36 @@ describe("exercise descriptions on workout items", () => {
     expect(isVagueExerciseSetupFallback(resolveExerciseSetupText(item))).toBe(true);
   });
 
+  it("resolves leftover builtin setup gaps to specific copy, not the vague fallback", () => {
+    const gaps: Array<[string, string, RegExp]> = [
+      ["dumbbell_push_press", "Dumbbell Push Press", /dumbbell|dip|overhead/i],
+      ["kettlebell_high_pull", "Kettlebell High Pull", /hip|elbow|bell/i],
+      ["dumbbell_hang_clean", "Dumbbell Hang Clean", /hang|knee|shoulder/i],
+      ["kettlebell_dead_clean", "Kettlebell Dead Clean", /floor|rack|hip/i],
+      ["front_lever_tuck", "Front Lever Tuck Hold", /tuck|parallel|shoulder/i],
+      ["front_lever_advanced_tuck", "Front Lever Advanced Tuck", /thigh|parallel|hip/i],
+      ["front_lever_negative", "Front Lever Negative", /lower|horizontal|shoulder/i],
+      ["box_pistol_squat", "Box Pistol Squat", /box|one leg|heel/i],
+      ["wall_ankle_mobilization", "Wall Ankle Mobilization", /wall|heel|knee/i],
+      ["soleus_stretch_wall", "Wall Soleus Stretch", /knee|heel|calf/i],
+      ["quadruped_sit_back", "Quadruped Sit Back", /hands and knees|heels|ankle/i],
+    ];
+    for (const [id, name, re] of gaps) {
+      const item: WorkoutItem = {
+        exercise_id: id,
+        exercise_name: name,
+        sets: 3,
+        reps: 8,
+        rest_seconds: 60,
+        coaching_cues: "Moderate load. Controlled tempo.",
+      };
+      const resolved = withResolvedExerciseDescription(item, getCuratedExerciseDescription);
+      const setup = resolveExerciseSetupText(resolved);
+      expect(setup, id).toMatch(re);
+      expect(isVagueExerciseSetupFallback(setup), id).toBe(false);
+    }
+  });
+
   it("resolves JM Press and other DB-core lifts to specific setup copy, not the vague fallback", () => {
     for (const [id, name, re] of [
       ["jm_press", "JM Press", /close grip|elbows|chin|upper chest/i],

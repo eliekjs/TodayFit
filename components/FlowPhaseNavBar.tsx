@@ -240,13 +240,13 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 16,
     paddingVertical: 11,
-    borderRadius: themeRadius.control,
+    borderRadius: themeRadius.button,
     minHeight: 44,
   },
   forwardBtnCompact: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: themeRadius.control,
+    borderRadius: themeRadius.button,
     minHeight: 40,
   },
   forwardLabel: {

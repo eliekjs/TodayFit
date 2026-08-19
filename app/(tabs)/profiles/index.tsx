@@ -200,7 +200,7 @@ export default function GymProfilesScreen() {
         {from === "sport-mode" && (
           <View style={styles.backToWorkout}>
             <PrimaryButton
-              label="Continue Sport Mode setup"
+              label="Continue sport setup"
               variant="secondary"
               onPress={goBackToFlow}
             />

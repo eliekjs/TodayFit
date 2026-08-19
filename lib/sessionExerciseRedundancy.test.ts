@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   GLUTE_BRIDGE_HIP_THRUST_FAMILY,
   KETTLEBELL_SWING_FAMILY,
+  getNearDuplicateFamilyId,
   getSessionRedundancyFamilyId,
   isExerciseAvailableForSession,
   isGluteBridgeOrHipThrustSlug,
@@ -54,12 +55,14 @@ describe("sessionExerciseRedundancy", () => {
   });
 
   it("does not group club / bag swings or unrelated hinges with KB swings", () => {
-    expect(getSessionRedundancyFamilyId("ff_clubbell_hammer_swing")).toBeNull();
-    expect(getSessionRedundancyFamilyId("ff_bulgarian_bag_swing")).toBeNull();
-    expect(getSessionRedundancyFamilyId("ff_single_arm_indian_club_outer_heart_shaped_swing")).toBeNull();
-    expect(getSessionRedundancyFamilyId("barbell_rdl")).toBeNull();
-    expect(getSessionRedundancyFamilyId("back_extension")).toBeNull();
-    expect(getSessionRedundancyFamilyId("leg_curl")).toBeNull();
+    expect(getSessionRedundancyFamilyId("ff_clubbell_hammer_swing")).not.toBe(KETTLEBELL_SWING_FAMILY);
+    expect(getSessionRedundancyFamilyId("ff_bulgarian_bag_swing")).not.toBe(KETTLEBELL_SWING_FAMILY);
+    expect(
+      getSessionRedundancyFamilyId("ff_single_arm_indian_club_outer_heart_shaped_swing")
+    ).not.toBe(KETTLEBELL_SWING_FAMILY);
+    expect(getSessionRedundancyFamilyId("barbell_rdl")).not.toBe(KETTLEBELL_SWING_FAMILY);
+    expect(getSessionRedundancyFamilyId("back_extension")).not.toBe(KETTLEBELL_SWING_FAMILY);
+    expect(getSessionRedundancyFamilyId("leg_curl")).not.toBe(KETTLEBELL_SWING_FAMILY);
     expect(isKettlebellSwingSlug("kb_deadlift")).toBe(false);
   });
 
@@ -79,11 +82,48 @@ describe("sessionExerciseRedundancy", () => {
     expect(isExerciseAvailableForSession("barbell_rdl", used)).toBe(true);
   });
 
+  it("blocks laterality variants globally (rows, presses, split squats)", () => {
+    expect(isExerciseAvailableForSession("ff_single_arm_dumbbell_row", new Set(["db_row"]))).toBe(
+      false
+    );
+    expect(
+      isExerciseAvailableForSession("ff_single_arm_dumbbell_press", new Set(["dumbbell_press"]))
+    ).toBe(false);
+    expect(
+      isExerciseAvailableForSession("bulgarian_split_squat", new Set(["split_squat"]))
+    ).toBe(false);
+    expect(isExerciseAvailableForSession("db_bench", new Set(["bench_press_barbell"]))).toBe(true);
+    expect(isExerciseAvailableForSession("incline_db_press", new Set(["db_bench"]))).toBe(true);
+  });
+
   it("allows first pick from each family", () => {
     const used = new Set<string>();
     expect(isExerciseAvailableForSession("glute_bridge", used)).toBe(true);
     expect(isExerciseAvailableForSession("hip_thrust", used)).toBe(true);
     expect(isExerciseAvailableForSession("kb_swing", used)).toBe(true);
     expect(isExerciseAvailableForSession("ff_single_arm_kettlebell_swing", used)).toBe(true);
+  });
+});
+
+describe("nearDuplicateFamily", () => {
+  it("groups same-implement laterality and stance variants", () => {
+    expect(getNearDuplicateFamilyId("ff_single_arm_kettlebell_swing")).toBe(
+      getNearDuplicateFamilyId("kb_swing")
+    );
+    expect(getNearDuplicateFamilyId("single_arm_db_row")).toBe(getNearDuplicateFamilyId("db_row"));
+    expect(getNearDuplicateFamilyId("ff_seated_cable_row")).toBe(getNearDuplicateFamilyId("cable_row"));
+    expect(getNearDuplicateFamilyId("single_leg_rdl")).toBe(getNearDuplicateFamilyId("rdl"));
+  });
+
+  it("keeps distinct implements, angles, and patterns apart", () => {
+    expect(getNearDuplicateFamilyId("db_bench")).not.toBe(
+      getNearDuplicateFamilyId("bench_press_barbell")
+    );
+    expect(getNearDuplicateFamilyId("incline_db_press")).not.toBe(getNearDuplicateFamilyId("db_bench"));
+    expect(getNearDuplicateFamilyId("barbell_rdl")).not.toBe(getNearDuplicateFamilyId("barbell_deadlift"));
+    expect(getNearDuplicateFamilyId("leg_curl")).not.toBe(getNearDuplicateFamilyId("arm_curl"));
+    expect(getNearDuplicateFamilyId("ff_clubbell_hammer_swing")).not.toBe(
+      getNearDuplicateFamilyId("kb_swing")
+    );
   });
 });

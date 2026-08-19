@@ -1,8 +1,8 @@
 /**
  * When Supabase has at least this many active exercises, the runtime treats the DB as the
  * production source of truth and does not merge the large static TypeScript catalogs.
- * Below the threshold (or when Supabase is missing / errors), the app merges static data
- * so local dev and partially seeded projects still work.
+ * Below the threshold (or when Supabase is missing / errors), Node tests/scripts merge static data
+ * so local tooling still works. Native/web Metro stubs that catalog empty.
  *
  * Override: EXPO_PUBLIC_MIN_DB_EXERCISES_FOR_SOURCE_OF_TRUTH (integer >= 1).
  */

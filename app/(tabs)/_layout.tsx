@@ -5,12 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useTheme } from "../../lib/theme";
-import { useAppState } from "../../context/AppStateContext";
 import { ActiveSessionBanner } from "../../components/ActiveSessionCard";
-import {
-  buildWeekProgressSnapshot,
-  remainingSessionCount,
-} from "../../lib/weekProgress";
 import {
   AdaptiveRecommendationBackButton,
   EditWorkoutBackButton,
@@ -18,6 +13,7 @@ import {
   FlowHeaderRight,
   FlowHeaderTitle,
   FocusAwareTabHeader,
+  OpaqueHeaderBackground,
   HeaderBackButton,
   HeaderGymProfileButton,
   ManualExecuteBackButton,
@@ -31,12 +27,6 @@ import {
 export default function TabsLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { savedWorkouts, savedWeeks, manualWeekPlan, sportPrepWeekPlan } = useAppState();
-  const libraryBadgeCount = savedWorkouts.length + savedWeeks.length;
-  const workoutBadgeCount = remainingSessionCount(
-    buildWeekProgressSnapshot({ manualWeekPlan, sportPrepWeekPlan })
-  );
-
   return (
     <>
     <Tabs
@@ -79,6 +69,9 @@ export default function TabsLayout() {
           borderRadius: 999,
         },
         headerTitleAlign: "center",
+        headerShadowVisible: false,
+        headerBackground: (props) => <OpaqueHeaderBackground {...props} />,
+        headerBackgroundContainerStyle: { backgroundColor: theme.cardOpaque },
         ...(Platform.OS === "web"
           ? {
               header: (props) => <FocusAwareTabHeader {...props} />,
@@ -87,8 +80,6 @@ export default function TabsLayout() {
           : null),
         headerStyle: {
           backgroundColor: theme.cardOpaque,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.border,
         },
         headerTintColor: theme.text,
         headerTitleStyle: { color: theme.text, fontWeight: "600" },
@@ -123,7 +114,6 @@ export default function TabsLayout() {
               color={color}
             />
           ),
-          tabBarBadge: workoutBadgeCount > 0 ? workoutBadgeCount : undefined,
         }}
       />
       <Tabs.Screen
@@ -138,7 +128,6 @@ export default function TabsLayout() {
               color={color}
             />
           ),
-          tabBarBadge: libraryBadgeCount > 0 ? libraryBadgeCount : undefined,
         }}
       />
       <Tabs.Screen
@@ -177,7 +166,7 @@ export default function TabsLayout() {
         name="manual/workout"
         options={{
           href: null,
-          headerTitle: () => <FlowHeaderTitle title="Your Workout" />,
+          headerTitle: () => <FlowHeaderTitle title="Workout" />,
           headerLeft: () => <EditWorkoutBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -186,7 +175,7 @@ export default function TabsLayout() {
         name="manual/execute"
         options={{
           href: null,
-          headerTitle: () => <FlowHeaderTitle title="Execute" />,
+          headerTitle: () => <FlowHeaderTitle title="Train" />,
           headerLeft: () => <ManualExecuteBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -204,7 +193,7 @@ export default function TabsLayout() {
         name="sport-mode/index"
         options={{
           href: null,
-          headerTitle: () => <FlowHeaderTitle title="Sport Mode" />,
+          headerTitle: () => <FlowHeaderTitle title="Sport" />,
           headerLeft: () => <HeaderBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}
@@ -222,7 +211,7 @@ export default function TabsLayout() {
         name="sport-mode/recommendation"
         options={{
           href: null,
-          headerTitle: () => <FlowHeaderTitle title="Recommended Session" />,
+          headerTitle: () => <FlowHeaderTitle title="Today's session" />,
           headerLeft: () => <AdaptiveRecommendationBackButton />,
           headerRight: () => <FlowHeaderRight />,
         }}

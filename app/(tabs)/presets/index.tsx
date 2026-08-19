@@ -19,6 +19,8 @@ import { PrimaryButton } from "../../../components/Button";
 import { PillTabs } from "../../../components/PillTabs";
 import { LinkPill } from "../../../components/LinkPill";
 import { IconWell } from "../../../components/IconWell";
+import { SportFocusedIcon } from "../../../components/SportFocusedIcon";
+import { GoalsIcon } from "../../../components/GoalsIcon";
 import {
   SessionFlowConflictModal,
   type SessionFlowConflict,
@@ -221,12 +223,16 @@ export default function SavedPresetsScreen() {
               Saved presets
             </Text>
             <Text style={[styles.subheadline, { color: theme.textMuted }]}>
-              Goal-oriented or sport-focused setups you can reuse for a day or a week.
+              Goal or sport setups you can reuse for a day or a week.
             </Text>
             <PillTabs
               tabs={[
-                { key: "goal", label: "Goal-Oriented", icon: "barbell-outline" },
-                { key: "sport", label: "Sport-Focused", icon: "sparkles-outline" },
+                { key: "goal", label: "Goals", renderIcon: (color, size) => (
+                  <GoalsIcon color={color} size={size} />
+                ) },
+                { key: "sport", label: "Sport", renderIcon: (color, size) => (
+                  <SportFocusedIcon color={color} size={size} />
+                ) },
               ]}
               value={kind}
               onChange={(next) => {
@@ -238,7 +244,7 @@ export default function SavedPresetsScreen() {
               <View style={[styles.emptyCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                 <Text style={[styles.emptyText, { color: theme.textMuted }]}>
                   {kind === "goal"
-                    ? "No goal presets saved yet. Save one from Build workout (Goal-Oriented Training) using the \"Save preset\" link at the bottom."
+                    ? "No goal presets saved yet. Save one from Goal-Oriented Training using the \"Save preset\" link at the bottom."
                     : "No sport presets saved yet. Save one from Sport-Focused Training using the \"Save preset\" link at the bottom."}
                 </Text>
                 <PrimaryButton
@@ -259,10 +265,12 @@ export default function SavedPresetsScreen() {
                     ]}
                   >
                     <IconWell
-                      name={kind === "goal" ? "barbell-outline" : "sparkles-outline"}
+                      name={kind === "goal" ? "barbell-outline" : undefined}
                       size={18}
                       wellSize={36}
-                    />
+                    >
+                      {kind === "sport" ? <SportFocusedIcon size={18} /> : null}
+                    </IconWell>
                     <View style={styles.presetRowMain}>
                       <TextInput
                         value={s.name}

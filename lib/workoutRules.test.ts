@@ -19,7 +19,7 @@ function run() {
   assert.equal(isWarmupEligibleEquipment(["pullup_bar"]), false);
   assert.equal(isWarmupEligibleEquipment(["bodyweight", "pullup_bar"]), false);
   assert.equal(isWarmupEligibleEquipment(["treadmill"]), false);
-  assert.equal(isWarmupEligibleEquipment([]), false);
+  assert.equal(isWarmupEligibleEquipment([]), true);
 
   assert.equal(isBlockedExercise({ id: "non_cm_med_ball_toss", name: "Non CM Med Ball Toss" }), true);
   assert.equal(isBlockedExercise({ id: "non-cm-box-jump", name: "Non-CM Box Jump" }), true);

@@ -11,11 +11,12 @@ import type {
 } from "../exerciseLibraryCuration/generatorEligibilityTypes";
 import { DEFAULT_PRUNING_GATE_FLAGS } from "../exerciseLibraryCuration/generatorEligibilityTypes";
 import { exercisePassesPruningGate } from "../exerciseLibraryCuration/filterExercisesByEligibility";
-import eligibilityBundle from "../../data/generator-eligibility-by-id.json";
 import { getUseCuratedEligibilityFromExercisePool } from "../../lib/curationDbFields";
+import { getBundledEligibilityById } from "./loadBundledEligibility";
 import type { PruningGateMovementRoleBreakdown, PruningGateSessionDebug } from "./pruningGateDebugTypes";
 
 export type { PruningGateSessionDebug } from "./pruningGateDebugTypes";
+export { getBundledEligibilityById };
 
 const EMPTY_EXCLUDED = (): CountsByEligibilityState => ({
   eligible_core: 0,
@@ -27,14 +28,19 @@ const EMPTY_EXCLUDED = (): CountsByEligibilityState => ({
   excluded_unknown: 0,
 });
 
-let bundledMapCache: Map<string, ExerciseEligibilityEntry> | undefined;
-
-export function getBundledEligibilityById(): Map<string, ExerciseEligibilityEntry> {
-  if (!bundledMapCache) {
-    const raw = eligibilityBundle as unknown as { by_id?: Record<string, ExerciseEligibilityEntry> };
-    bundledMapCache = new Map(Object.entries(raw.by_id ?? {}));
-  }
-  return bundledMapCache;
+function eligibilityEntryFromPoolExercise(ex: Exercise): ExerciseEligibilityEntry | null {
+  const st = ex.curation_generator_eligibility_state;
+  if (!st) return null;
+  return {
+    exercise_id: ex.id,
+    exercise_name: ex.name,
+    eligibility_state: st as GeneratorEligibilityState,
+    pruning_recommendation: (ex.curation_pruning_recommendation ??
+      "unknown") as ExerciseEligibilityEntry["pruning_recommendation"],
+    merge_target_exercise_id: ex.curation_merge_target_exercise_id ?? null,
+    is_canonical_in_cluster: ex.curation_is_canonical ?? false,
+    cluster_id: ex.curation_cluster_id ?? null,
+  };
 }
 
 export function mergePruningGateFlags(input: GenerateWorkoutInput | undefined): PruningGateFeatureFlags {
@@ -166,8 +172,8 @@ export function applyPruningGateToExercisePool(
 }
 
 /**
- * Builds per-id eligibility: tests override → hybrid DB columns on pool exercises + bundled JSON fallback
- * → else bundled JSON only.
+ * Builds per-id eligibility: request override → DB columns on pool exercises → Node JSON fallback.
+ * Native/web do not ship the 1.5MB eligibility JSON; missing rows skip JSON fill.
  */
 export function resolveEligibilityMapForGeneration(
   input: GenerateWorkoutInput,
@@ -176,32 +182,25 @@ export function resolveEligibilityMapForGeneration(
   if (input.pruning_gate_eligibility_by_id && Object.keys(input.pruning_gate_eligibility_by_id).length > 0) {
     return new Map(Object.entries(input.pruning_gate_eligibility_by_id));
   }
-  const fallback = getBundledEligibilityById();
-  if (!getUseCuratedEligibilityFromExercisePool()) {
-    return fallback;
-  }
-  if (!exercisePool.some((e) => e.curation_generator_eligibility_state)) {
-    return fallback;
-  }
-  const merged = new Map<string, ExerciseEligibilityEntry>();
-  for (const ex of exercisePool) {
-    const st = ex.curation_generator_eligibility_state;
-    if (st) {
-      merged.set(ex.id, {
-        exercise_id: ex.id,
-        exercise_name: ex.name,
-        eligibility_state: st as GeneratorEligibilityState,
-        pruning_recommendation: (ex.curation_pruning_recommendation ?? "unknown") as ExerciseEligibilityEntry["pruning_recommendation"],
-        merge_target_exercise_id: ex.curation_merge_target_exercise_id ?? null,
-        is_canonical_in_cluster: ex.curation_is_canonical ?? false,
-        cluster_id: ex.curation_cluster_id ?? null,
-      });
-    } else {
-      const b = fallback.get(ex.id);
-      if (b) merged.set(ex.id, b);
+  if (getUseCuratedEligibilityFromExercisePool()) {
+    const fromPool = new Map<string, ExerciseEligibilityEntry>();
+    for (const ex of exercisePool) {
+      const entry = eligibilityEntryFromPoolExercise(ex);
+      if (entry) fromPool.set(ex.id, entry);
+    }
+    if (fromPool.size > 0) {
+      const missing = exercisePool.filter((ex) => !fromPool.has(ex.id));
+      if (missing.length === 0) return fromPool;
+      const fallback = getBundledEligibilityById();
+      if (fallback.size === 0) return fromPool;
+      for (const ex of missing) {
+        const bundled = fallback.get(ex.id);
+        if (bundled) fromPool.set(ex.id, bundled);
+      }
+      return fromPool;
     }
   }
-  return merged;
+  return getBundledEligibilityById();
 }
 
 /** Single entry point for `generateWorkoutSession` / regenerate: gate pool + build debug snapshot. */

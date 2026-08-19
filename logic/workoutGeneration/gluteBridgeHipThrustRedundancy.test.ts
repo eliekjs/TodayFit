@@ -1,5 +1,6 @@
 /**
- * Integration: hypertrophy lower sessions must not include both glute bridge and hip thrust.
+ * Integration: sessions must pick at most one exercise per redundancy family
+ * (glute bridge / hip thrust, plus derived near-duplicates such as KB swings and DB rows).
  * Run: npx vitest run logic/workoutGeneration/gluteBridgeHipThrustRedundancy.test.ts
  */
 
@@ -54,6 +55,57 @@ describe("gluteBridgeHipThrustRedundancy", () => {
       expect(familyIds.length, `seed ${seed}`).toBeLessThanOrEqual(1);
       if (familyIds.includes("glute_bridge")) {
         expect(familyIds).not.toContain("hip_thrust");
+      }
+    }
+  });
+});
+
+describe("sessionNearDuplicateRedundancy", () => {
+  it("never includes two members of the same near-duplicate family", () => {
+    const swing = STUB_EXERCISES.find((e) => e.id === "kb_swing");
+    const row = STUB_EXERCISES.find((e) => e.id === "db_row");
+    if (!swing || !row) throw new Error("stub pool missing kb_swing or db_row");
+    const pool = [
+      ...STUB_EXERCISES,
+      {
+        ...swing,
+        id: "ff_single_arm_kettlebell_swing",
+        name: "Single Arm Kettlebell Swing",
+        modality: "strength" as const,
+        exercise_role: "main_compound" as const,
+      },
+      { ...row, id: "ff_seated_dumbbell_row", name: "Seated Dumbbell Row" },
+    ];
+    const inputFor = (seed: number): GenerateWorkoutInput => ({
+      duration_minutes: 45,
+      primary_goal: "strength",
+      focus_body_parts: ["full_body"],
+      available_equipment: [
+        "barbell",
+        "dumbbells",
+        "kettlebells",
+        "bench",
+        "bodyweight",
+        "cable_machine",
+      ],
+      injuries_or_constraints: [],
+      energy_level: "medium",
+      seed,
+    });
+    for (const seed of [11001, 11002, 424242, 92008]) {
+      const session = generateWorkoutSession(inputFor(seed), pool);
+      const byFamily = new Map<string, string[]>();
+      for (const block of session.blocks) {
+        for (const item of block.items) {
+          const family = getSessionRedundancyFamilyId(item.exercise_id);
+          if (!family) continue;
+          const list = byFamily.get(family) ?? [];
+          list.push(item.exercise_id);
+          byFamily.set(family, list);
+        }
+      }
+      for (const [family, ids] of byFamily) {
+        expect(ids.length, `seed ${seed} family ${family}: ${ids.join(",")}`).toBeLessThanOrEqual(1);
       }
     }
   });

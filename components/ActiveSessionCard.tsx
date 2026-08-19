@@ -73,7 +73,7 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
         {
           top,
           height: SESSION_BANNER_HEIGHT,
-          backgroundColor: theme.primarySoft,
+          backgroundColor: theme.secondary,
           borderBottomColor: theme.primary,
         },
       ]}
