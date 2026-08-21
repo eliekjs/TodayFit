@@ -5,13 +5,13 @@ import {
   StyleSheet,
   Pressable,
   Platform,
-  ActivityIndicator,
   type ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { themeRadius, useTheme } from "../lib/theme";
 import type { FlowNavAction } from "../lib/sessionFlowNav";
+import { useBusyLabel } from "../lib/useAnimatedEllipsis";
 
 export type FlowPhaseNavBarProps = {
   /** Previous step or phase — omit on first step. */
@@ -44,7 +44,17 @@ export function FlowPhaseNavBar({
 }: FlowPhaseNavBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, compact ? 6 : 8);
+  /**
+   * Sticky bars sit above the tab bar (which already owns the home-indicator inset).
+   * Only apply safe-area padding when the bar is the true bottom chrome.
+   */
+  const bottomPad = sticky
+    ? compact
+      ? 6
+      : 8
+    : Math.max(insets.bottom, compact ? 6 : 8);
+  const backLabel = useBusyLabel(back?.label ?? "", Boolean(back?.loading));
+  const forwardLabel = useBusyLabel(forward.label, Boolean(forward.loading));
 
   const content = (
     <>
@@ -65,23 +75,17 @@ export function FlowPhaseNavBar({
               },
             ]}
           >
-            {back.loading ? (
-              <ActivityIndicator size="small" color={theme.textMuted} />
-            ) : (
-              <>
-                <Ionicons name="chevron-back" size={compact ? 16 : 17} color={theme.text} />
-                <Text
-                  style={[
-                    styles.backLabel,
-                    compact && styles.backLabelCompact,
-                    { color: theme.text },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {back.label}
-                </Text>
-              </>
-            )}
+            <Ionicons name="chevron-back" size={compact ? 16 : 17} color={theme.text} />
+            <Text
+              style={[
+                styles.backLabel,
+                compact && styles.backLabelCompact,
+                { color: theme.text },
+              ]}
+              numberOfLines={1}
+            >
+              {backLabel}
+            </Text>
           </Pressable>
         ) : (
           <View style={styles.backSpacer} />
@@ -101,27 +105,23 @@ export function FlowPhaseNavBar({
             },
           ]}
         >
-          {forward.loading ? (
-            <ActivityIndicator size="small" color={theme.onPrimary} />
-          ) : (
-            <>
-              <Text
-                style={[
-                  styles.forwardLabel,
-                  compact && styles.forwardLabelCompact,
-                  { color: theme.onPrimary },
-                ]}
-                numberOfLines={1}
-              >
-                {forward.label}
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={compact ? 16 : 18}
-                color={theme.onPrimary}
-              />
-            </>
-          )}
+          <Text
+            style={[
+              styles.forwardLabel,
+              compact && styles.forwardLabelCompact,
+              { color: theme.onPrimary },
+            ]}
+            numberOfLines={1}
+          >
+            {forwardLabel}
+          </Text>
+          {!forward.loading ? (
+            <Ionicons
+              name="chevron-forward"
+              size={compact ? 16 : 18}
+              color={theme.onPrimary}
+            />
+          ) : null}
         </Pressable>
       </View>
 
@@ -148,7 +148,7 @@ export function FlowPhaseNavBar({
           {
             backgroundColor: theme.cardOpaque,
             borderTopColor: theme.border,
-            paddingBottom: (compact ? 6 : 10) + bottomInset,
+            paddingBottom: bottomPad,
           },
           Platform.select({
             web: null,
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   stickyWrapCompact: {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 2,
     paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingVertical: 9,
     borderRadius: themeRadius.control,
     borderWidth: 1,
     minWidth: 96,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   backBtnCompact: {
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: themeRadius.control,
     minWidth: 88,
   },
@@ -239,15 +239,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
     paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingVertical: 9,
     borderRadius: themeRadius.button,
-    minHeight: 44,
+    minHeight: 40,
   },
   forwardBtnCompact: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: themeRadius.button,
-    minHeight: 40,
+    minHeight: 36,
   },
   forwardLabel: {
     fontSize: 15,
@@ -259,16 +259,16 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    lineHeight: 17,
-    marginTop: 8,
+    lineHeight: 16,
+    marginTop: 6,
     textAlign: "center",
   },
   hintCompact: {
-    marginTop: 6,
-    lineHeight: 16,
+    marginTop: 4,
+    lineHeight: 15,
   },
   children: {
-    marginTop: 8,
+    marginTop: 6,
   },
   childrenCompact: {
     marginTop: 4,

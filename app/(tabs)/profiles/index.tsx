@@ -14,7 +14,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { themeRadius, useTheme } from "../../../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../../../lib/theme";
 import { SectionLabel } from "../../../components/SectionLabel";
 import { PillTabs } from "../../../components/PillTabs";
 import { IconWell } from "../../../components/IconWell";
@@ -524,8 +524,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   profileName: {
+    fontFamily: themeFonts.displaySemi,
     fontSize: 16,
-    fontWeight: "700",
   },
   profileMeta: {
     fontSize: 12,

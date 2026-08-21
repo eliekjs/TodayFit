@@ -14,6 +14,7 @@ import {
   isExerciseEligibleByConstraints,
   isMobilityOrStretchExercise,
   satisfiesBlockRequirement,
+  canPairInSuperset,
 } from "./eligibilityHelpers";
 import type { ResolvedWorkoutConstraints } from "./constraintTypes";
 import type { ExerciseWithQualities } from "../types";
@@ -324,6 +325,44 @@ function testIsMobilityOrStretchAndSatisfiesBlockRequirement() {
   assert(result.satisfied, "cooldown block with 2 ontology mobility/stretch exercises satisfies requirement");
 }
 
+function testCanPairInSupersetAllowsComplementarySamePattern() {
+  const chest: ExerciseWithQualities = {
+    id: "bench",
+    name: "Bench Press",
+    movement_pattern: "push",
+    muscle_groups: ["chest"],
+    equipment_required: ["barbell", "bench"],
+    training_quality_weights: {},
+    pairing_category: "chest",
+    primary_movement_family: "upper_push",
+  };
+  const triceps: ExerciseWithQualities = {
+    id: "close_grip_bench",
+    name: "Close-Grip Bench Press",
+    movement_pattern: "push",
+    muscle_groups: ["triceps"],
+    equipment_required: ["barbell", "bench"],
+    training_quality_weights: {},
+    pairing_category: "chest",
+    primary_movement_family: "upper_push",
+  };
+  const chest2: ExerciseWithQualities = {
+    ...chest,
+    id: "incline_press",
+    name: "Incline Press",
+  };
+  const constraints = resolveWorkoutConstraints({
+    primary_goal: "hypertrophy",
+    body_region_focus: ["Upper", "Push"],
+    available_equipment: ["barbell", "bench", "dumbbells"],
+    duration_minutes: 45,
+    energy_level: "medium",
+  });
+  assert(constraints.superset_pairing?.forbidden_same_pattern === true, "upper push sets forbidden_same_pattern");
+  assert(canPairInSuperset(chest, triceps, constraints), "chest + close-grip allowed (complementary)");
+  assert(!canPairInSuperset(chest, chest2, constraints), "chest + chest still forbidden");
+}
+
 function main() {
   console.log("Phase 5 eligibility tests...");
   testUpperPushFocusReturnsOnlyUpperPush();
@@ -344,6 +383,8 @@ function main() {
   console.log("  OK: isExerciseEligibleByConstraints");
   testIsMobilityOrStretchAndSatisfiesBlockRequirement();
   console.log("  OK: isMobilityOrStretchExercise + satisfiesBlockRequirement (Phase 6)");
+  testCanPairInSupersetAllowsComplementarySamePattern();
+  console.log("  OK: canPairInSuperset complementary same-pattern");
   console.log("All Phase 5/6 eligibility tests passed.");
 }
 

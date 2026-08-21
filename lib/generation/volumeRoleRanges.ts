@@ -91,3 +91,19 @@ export function resolveRoleVolumePrescription(
     baseSets: pickFromRange(spec.sets, energy),
   };
 }
+
+/**
+ * Remap an existing rep-based item onto the volume table for a preference change.
+ * Returns null when the item should stay unchanged (time-based / no reps).
+ */
+export function remapItemPrescriptionForVolumePreference(
+  item: { reps?: number; time_seconds?: number },
+  role: StrengthVolumeRole,
+  preference: VolumePreference | null | undefined,
+  energy: EnergyLevel
+): { sets: number; reps: number } | null {
+  if (item.time_seconds != null && item.time_seconds > 0) return null;
+  if (item.reps == null) return null;
+  const picked = resolveRoleVolumePrescription(role, preference, energy);
+  return { sets: picked.baseSets, reps: picked.reps };
+}

@@ -27,6 +27,34 @@ export function savedWeekFingerprint(
   return `week:${weekStartDate}:${dayKeys}`;
 }
 
+function savedWeekDayDatesKey(
+  weekStartDate: string,
+  days: { date: string }[]
+): string {
+  return `${weekStartDate}:${[...days.map((day) => day.date)].sort().join(",")}`;
+}
+
+/** True when this library week is already the plan on the Workout tab. */
+export function isSavedWeekTheActivePlan(
+  saved: Pick<SavedWeek, "weekStartDate" | "days" | "source">,
+  active: {
+    manualWeekPlan: Pick<ManualWeekPlan, "weekStartDate" | "days"> | null;
+    sportPrepWeekPlan: PlanWeekResult | null;
+  }
+): boolean {
+  const savedKey = savedWeekDayDatesKey(saved.weekStartDate, saved.days);
+  if (saved.source === "manual") {
+    const plan = active.manualWeekPlan;
+    if (!plan?.days.length) return false;
+    return savedKey === savedWeekDayDatesKey(plan.weekStartDate, plan.days);
+  }
+  const plan = active.sportPrepWeekPlan;
+  if (!plan) return false;
+  const days = savedPlanDaysFromSportPrep(plan);
+  if (days.length === 0) return false;
+  return savedKey === savedWeekDayDatesKey(plan.weekStartDate, days);
+}
+
 export function isSavedDayPlan(plan: Pick<SavedWeek, "singleDay">): boolean {
   return plan.singleDay === true;
 }

@@ -22,6 +22,7 @@ import {
   resolveWeekFocusGoalLabels,
   resolveWeeklyBodyFocusMode,
   remapDayBodyPicksToMode,
+  resolveDayBodyFocusMode,
   type DayBodyFocusChoiceId,
 } from "./weekDaySessionFocus";
 
@@ -319,7 +320,7 @@ export function recommendWeekDayFocus(opts: {
 
 /**
  * Auto-fill only empty / unlocked days. User taps always win and are remapped
- * across Region/Pattern/Muscle instead of being replaced by a new template.
+ * in that day's Region/Pattern/Muscle vocabulary instead of a week-wide template.
  */
 export function overlayUserDayFocusPicks(opts: {
   gymDays: number;
@@ -328,24 +329,30 @@ export function overlayUserDayFocusPicks(opts: {
   existingFocusIds: readonly string[];
   lockedDays: readonly boolean[];
   existingSubFocusOverrides?: Record<number, Record<string, string[]>>;
+  existingModes?: readonly WeeklyBodyFocusMode[];
 }): {
   bodyPicks: DayBodyFocusChoiceId[][];
   focusIds: string[];
   lockedDays: boolean[];
   subFocusOverrides: Record<number, Record<string, string[]>>;
+  modes: WeeklyBodyFocusMode[];
 } {
   const n = Math.max(0, opts.gymDays);
-  const mode = opts.recommendation.mode;
+  const recMode = opts.recommendation.mode;
   const bodyPicks: DayBodyFocusChoiceId[][] = [];
   const focusIds: string[] = [];
   const lockedDays: boolean[] = [];
+  const modes: WeeklyBodyFocusMode[] = [];
   const subFocusOverrides: Record<number, Record<string, string[]>> = {};
 
   for (let i = 0; i < n; i++) {
     const rec = opts.recommendation.days[i];
     const locked = opts.lockedDays[i] === true;
     const existingBody = opts.existingBodyPicks[i] ?? [];
-    const remapped = remapDayBodyPicksToMode(existingBody, mode);
+    const dayMode = locked
+      ? resolveDayBodyFocusMode(existingBody, opts.existingModes?.[i], recMode)
+      : recMode;
+    const remapped = remapDayBodyPicksToMode(existingBody, dayMode);
     if (locked) {
       bodyPicks.push(
         remapped.length
@@ -356,6 +363,7 @@ export function overlayUserDayFocusPicks(opts: {
       );
       focusIds.push(opts.existingFocusIds[i] || rec?.goalPresetId || "default");
       lockedDays.push(true);
+      modes.push(dayMode);
       const keep = opts.existingSubFocusOverrides?.[i];
       if (keep) subFocusOverrides[i] = keep;
       continue;
@@ -363,7 +371,8 @@ export function overlayUserDayFocusPicks(opts: {
     bodyPicks.push(rec?.bodyIds?.length ? rec.bodyIds : remapped.length ? remapped : ["full"]);
     focusIds.push(rec?.goalPresetId || opts.existingFocusIds[i] || "default");
     lockedDays.push(false);
+    modes.push(recMode);
     if (rec?.subFocusByGoal) subFocusOverrides[i] = rec.subFocusByGoal;
   }
-  return { bodyPicks, focusIds, lockedDays, subFocusOverrides };
+  return { bodyPicks, focusIds, lockedDays, subFocusOverrides, modes };
 }

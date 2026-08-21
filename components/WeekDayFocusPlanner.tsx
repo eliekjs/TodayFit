@@ -11,7 +11,7 @@ import type {
 import { dayHasUnresolvedSessionFocusConflict } from "../lib/daySessionFocusConflict";
 import type { UncoveredSubGoalPrompt, UncoveredSubGoalResolution } from "../lib/subGoalSplitCoverage";
 import { DaySessionFocusConflictBanner } from "./DaySessionFocusConflictBanner";
-import { WeeklyBodyFocusModeNote } from "./WeeklyBodyFocusModeNote";
+import { WeeklyBodyFocusModeToggle } from "./WeeklyBodyFocusModeToggle";
 
 type Props = {
   theme: Theme;
@@ -32,10 +32,9 @@ type Props = {
   resolvedConflictIdsByDay?: Record<number, string>;
   /** Shown once at top — explains sport/goal day options without repeating per day/option. */
   sportGoalPriorityNote?: string | null;
-  /** When true, show Region | Pattern | Muscle control (sport + goal weeks). */
-  showBodyFocusModeNote?: boolean;
-  weeklyBodyFocusMode?: WeeklyBodyFocusMode | null;
-  onChangeWeeklyBodyFocusMode?: (value: WeeklyBodyFocusMode) => void;
+  /** Per-day Region | Pattern | Muscle vocabulary (parallel to dayLabels). */
+  bodyFocusModePerDay?: WeeklyBodyFocusMode[];
+  onChangeDayBodyFocusMode?: (dayIndex: number, value: WeeklyBodyFocusMode) => void;
   onSelectBody?: (dayIndex: number, bodyId: DayBodyFocusChoiceId) => void;
   onSelect: (dayIndex: number, presetId: string) => void;
   onApplyDayResolution?: (dayIndex: number, resolution: DaySessionFocusResolution) => void;
@@ -207,9 +206,8 @@ export function WeekDayFocusPlanner({
   conflictsPerDay,
   resolvedConflictIdsByDay,
   sportGoalPriorityNote,
-  showBodyFocusModeNote,
-  weeklyBodyFocusMode,
-  onChangeWeeklyBodyFocusMode,
+  bodyFocusModePerDay,
+  onChangeDayBodyFocusMode,
   onSelectBody,
   onSelect,
   onApplyDayResolution,
@@ -229,13 +227,6 @@ export function WeekDayFocusPlanner({
         <Text style={[styles.screenNote, { color: theme.textMuted }]}>
           {sportGoalPriorityNote}
         </Text>
-      ) : null}
-
-      {showBodyFocusModeNote && onChangeWeeklyBodyFocusMode ? (
-        <WeeklyBodyFocusModeNote
-          value={weeklyBodyFocusMode}
-          onChange={onChangeWeeklyBodyFocusMode}
-        />
       ) : null}
 
       {uncoveredSubGoalPrompt && onApplyUncoveredResolution ? (
@@ -287,8 +278,15 @@ export function WeekDayFocusPlanner({
                 <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>
                   Body focus this day
                 </Text>
+                {onChangeDayBodyFocusMode ? (
+                  <WeeklyBodyFocusModeToggle
+                    value={bodyFocusModePerDay?.[dayIdx] ?? "region"}
+                    onChange={(mode) => onChangeDayBodyFocusMode(dayIdx, mode)}
+                    showHint={false}
+                  />
+                ) : null}
                 <Text style={[styles.sectionHint, { color: theme.textMuted }]}>
-                  {weeklyBodyFocusMode === "pattern"
+                  {bodyFocusModePerDay?.[dayIdx] === "pattern"
                     ? "Pick one, or combine two compatible areas. Legs is the full lower day — use Quads or Posterior to split it."
                     : "Pick one, or combine two compatible areas"}
                 </Text>

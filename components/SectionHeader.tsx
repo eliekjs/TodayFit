@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, type ViewStyle } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeFonts, useTheme } from "../lib/theme";
 
 type Props = {
   title: string;
@@ -28,8 +28,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontFamily: themeFonts.displaySemi,
+    fontSize: 18,
   },
   subtitle: {
     fontSize: 13,

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Pressable, Platform, ScrollView, Alert } from "react-native";
-import { Redirect, useRouter, useFocusEffect } from "expo-router";
+import { Redirect, useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -13,6 +13,7 @@ import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
 import { StartWorkoutPromptModal } from "../../../components/StartWorkoutPromptModal";
 import {
+  isEditFromWorkoutTab,
   sportReviewBackLabel,
   sportReviewBackRoute,
   sportSetupRouteWhenNoPlan,
@@ -60,7 +61,7 @@ import {
 } from "../../../lib/preferencesConstants";
 import { getWorkout } from "../../../lib/db/workoutRepository";
 import { isDbConfigured } from "../../../lib/db";
-import { collectWorkoutExerciseIds, replaceExerciseInWorkout, updateExercisePrescriptionInWorkout } from "../../../lib/workoutUtils";
+import { collectWorkoutExerciseIds, replaceExerciseInWorkout, updateExercisePrescriptionInWorkout, applyVolumePreferenceToWorkout } from "../../../lib/workoutUtils";
 import { ensureCuratedDescriptionsLoaded, resolveSwapExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   getSwapSuggestionsPage,
@@ -161,6 +162,8 @@ const isWeb = Platform.OS === "web";
 export default function AdaptiveWeekPlanScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ from?: string }>();
+  const fromWorkoutTab = isEditFromWorkoutTab(params);
   const { userId } = useAuth();
   const {
     sportPrepWeekPlan,
@@ -228,6 +231,7 @@ export default function AdaptiveWeekPlanScreen() {
     exerciseName: string;
     blockType: BlockType;
     swapPoolExerciseIds?: string[];
+    goalSlug?: string;
   } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
@@ -447,7 +451,6 @@ export default function AdaptiveWeekPlanScreen() {
             goalMatchPrimaryPct: p1,
             goalMatchSecondaryPct: p2,
             goalMatchTertiaryPct: p3,
-            emphasis: snapshot.emphasis ?? undefined,
             workoutTier: snapshot.workoutTier ?? manualPreferences.workoutTier ?? "intermediate",
             includeCreativeVariations:
               (snapshot.includeCreativeVariations ?? manualPreferences.includeCreativeVariations) === true,
@@ -584,7 +587,8 @@ export default function AdaptiveWeekPlanScreen() {
     let cancelled = false;
     setSwapLoading(true);
     const energyLevel = manualPreferences.energyLevel ?? "medium";
-    const goal = assignedGoalForExercise(selectedWorkout, swapModal.exerciseId);
+    const goal =
+      swapModal.goalSlug ?? assignedGoalForExercise(selectedWorkout, swapModal.exerciseId);
     const preferredGoalTagSlugs = generatorGoalToSwapTagSlugs(goal);
     const workoutTier =
       sportPrepWeekPlan?.scheduleSnapshot?.workoutTier ??
@@ -617,6 +621,7 @@ export default function AdaptiveWeekPlanScreen() {
     swapModal?.exerciseId,
     swapModal?.blockType,
     swapModal?.swapPoolExerciseIds,
+    swapModal?.goalSlug,
     swapSuggestionPage,
     manualPreferences.energyLevel,
     manualPreferences.workoutTier,
@@ -903,7 +908,7 @@ export default function AdaptiveWeekPlanScreen() {
         subtitle="Rebuilding your week from your sport and goals."
         onGoBack={() =>
           router.replace(
-            sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+            sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup, fromWorkoutTab }) as never
           )}
       />
     );
@@ -916,7 +921,7 @@ export default function AdaptiveWeekPlanScreen() {
         subtitle="Refreshing this day’s session."
         onGoBack={() =>
           router.replace(
-            sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+            sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup, fromWorkoutTab }) as never
           )}
       />
     );
@@ -962,7 +967,10 @@ export default function AdaptiveWeekPlanScreen() {
             slotIndex: gymIndex,
             fallbackTargetBody: targetBody,
             fallbackTargetModifier: targetModifier,
-            mode: resolveWeeklyBodyFocusMode(manualPreferences.weeklyBodyFocusMode),
+            mode: resolveWeeklyBodyFocusMode(
+              selectedDay.preferences?.weeklyBodyFocusMode ??
+                manualPreferences.weeklyBodyFocusMode
+            ),
           })
         : [];
     const selectedBodyId: DayBodyFocusChoiceId | undefined =
@@ -1058,6 +1066,37 @@ export default function AdaptiveWeekPlanScreen() {
       normalizeGeneratedWorkout(selectedWorkout),
       exerciseId,
       edit
+    );
+    const norm = normalizeGeneratedWorkout(updatedWorkout);
+    setSportPrepWeekPlan({
+      ...sportPrepWeekPlan,
+      guestWorkouts: {
+        ...(sportPrepWeekPlan.guestWorkouts ?? {}),
+        [selectedDay.id]: norm,
+        [selectedDay.date]: norm,
+      },
+      todayWorkout:
+        sportPrepWeekPlan.today?.id === selectedDay.id ? norm : sportPrepWeekPlan.todayWorkout,
+    });
+    setSelectedWorkout(norm);
+  };
+
+  const onDayFocusOverrideChange = (update: Partial<DailyWorkoutPreferences>) => {
+    setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }));
+    if (!("volumePreference" in update) || !sportPrepWeekPlan || !selectedDay || !selectedWorkout) {
+      return;
+    }
+    const effectiveVolume =
+      update.volumePreference ?? manualPreferences.volumePreference ?? "standard";
+    const energy =
+      update.energyLevel ??
+      dailyPrefsOverride?.energyLevel ??
+      selectedWorkout.energyLevel ??
+      "medium";
+    const updatedWorkout = applyVolumePreferenceToWorkout(
+      normalizeGeneratedWorkout(selectedWorkout),
+      effectiveVolume,
+      energy
     );
     const norm = normalizeGeneratedWorkout(updatedWorkout);
     setSportPrepWeekPlan({
@@ -1510,10 +1549,10 @@ export default function AdaptiveWeekPlanScreen() {
             )}
             <FlowPhaseNavBar
               back={{
-                label: sportReviewBackLabel({ sportPrepWeekPlan, adaptiveSetup }),
+                label: sportReviewBackLabel({ sportPrepWeekPlan, adaptiveSetup, fromWorkoutTab }),
                 onPress: () =>
                   router.replace(
-                    sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+                    sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup, fromWorkoutTab }) as never
                   ),
               }}
               forward={{
@@ -1555,8 +1594,8 @@ export default function AdaptiveWeekPlanScreen() {
           <WorkoutBlockList
               workout={normalizeGeneratedWorkout(selectedWorkout)}
               showSwap
-              onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds) =>
-                setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds })
+              onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds, goalSlug) =>
+                setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds, goalSlug })
               }
               showEditPrescription
               onEditPrescription={onEditPrescription}
@@ -1595,9 +1634,7 @@ export default function AdaptiveWeekPlanScreen() {
             )}
             <DayFocusOverrideChips
               dailyPrefsOverride={dailyPrefsOverride}
-              onOverrideChange={(update) =>
-                setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
-              }
+              onOverrideChange={onDayFocusOverrideChange}
               onRegenerate={onRegenerate}
               isRegenerating={isRegenerating}
               dayFocusPresets={
@@ -1611,7 +1648,10 @@ export default function AdaptiveWeekPlanScreen() {
               onAdjustFocusPress={() => setShowAdjustFocusModal(true)}
               helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}
               regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
-              weeklyBodyFocusMode={manualPreferences.weeklyBodyFocusMode}
+              weeklyBodyFocusMode={
+                selectedDay.preferences?.weeklyBodyFocusMode ??
+                manualPreferences.weeklyBodyFocusMode
+              }
               showChips={!!(
                 selectedDay.generatedWorkoutId ||
                 guestWorkoutsById[selectedDay.id] ||
@@ -1636,10 +1676,10 @@ export default function AdaptiveWeekPlanScreen() {
             ) : null}
             <FlowPhaseNavBar
               back={{
-                label: sportReviewBackLabel({ sportPrepWeekPlan, adaptiveSetup }),
+                label: sportReviewBackLabel({ sportPrepWeekPlan, adaptiveSetup, fromWorkoutTab }),
                 onPress: () =>
                   router.replace(
-                    sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+                    sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup, fromWorkoutTab }) as never
                   ),
               }}
               forward={{
@@ -1677,9 +1717,7 @@ export default function AdaptiveWeekPlanScreen() {
             : "Adjust this day's focus, then regenerate only this session."
         }
         dailyPrefsOverride={dailyPrefsOverride}
-        onOverrideChange={(update) =>
-          setDailyPrefsOverride((p) => ({ ...(p ?? {}), ...update }))
-        }
+        onOverrideChange={onDayFocusOverrideChange}
         onRegenerate={onRegenerate}
         isRegenerating={isRegenerating}
         dayFocusPresets={
@@ -1696,7 +1734,10 @@ export default function AdaptiveWeekPlanScreen() {
         }}
         helperText={isSingleSessionPlan ? "Then tap Regenerate." : undefined}
         regenerateLabel={isSingleSessionPlan ? "Regenerate workout" : "Regenerate this day"}
-        weeklyBodyFocusMode={manualPreferences.weeklyBodyFocusMode}
+        weeklyBodyFocusMode={
+          selectedDay.preferences?.weeklyBodyFocusMode ??
+          manualPreferences.weeklyBodyFocusMode
+        }
       />
       <SwapExerciseModal
         visible={swapModal != null}

@@ -88,6 +88,42 @@ export function resolveWeeklyBodyFocusMode(
   return mode ?? "region";
 }
 
+/**
+ * Mode implied by a chip. Shared chips (Full, Core, Legs) return null so the
+ * day's stored vocabulary is kept.
+ */
+export function bodyFocusModeForChoiceId(
+  id: DayBodyFocusChoiceId
+): WeeklyBodyFocusMode | null {
+  if (id === "upper" || id === "lower") return "region";
+  if (id === "push" || id === "pull" || id === "quad" || id === "posterior") return "pattern";
+  if (
+    id === "chest" ||
+    id === "back" ||
+    id === "shoulders" ||
+    id === "arms" ||
+    id === "glutes"
+  ) {
+    return "muscle";
+  }
+  return null;
+}
+
+export function resolveDayBodyFocusMode(
+  picks: readonly DayBodyFocusChoiceId[] | undefined,
+  stored: WeeklyBodyFocusMode | null | undefined,
+  fallback: WeeklyBodyFocusMode = "region"
+): WeeklyBodyFocusMode {
+  // Exclusive chips (Upper/Lower, Push, Chest, …) win over a stale stored mode.
+  // Otherwise selecting Lower on a Muscle-templated day was remapped to Full.
+  for (const id of picks ?? []) {
+    const inferred = bodyFocusModeForChoiceId(id);
+    if (inferred) return inferred;
+  }
+  if (stored) return resolveWeeklyBodyFocusMode(stored);
+  return fallback;
+}
+
 /** Keep user day chips when switching Region/Pattern/Muscle; drop ids the new vocab cannot host. */
 export function remapDayBodyPicksToMode(
   picks: readonly DayBodyFocusChoiceId[],
@@ -1008,8 +1044,8 @@ export function mapBodyChoiceToModeVocab(
     return id;
   }
   // Muscle: never invent Chest from Upper/Push or Back from Pull. Callers drop ids
-  // that are not in the muscle vocabulary.
-  if (id === "quad") return "legs";
+  // that are not in the muscle vocabulary. Region Lower → Legs (the lower split), not Full.
+  if (id === "lower" || id === "quad") return "legs";
   if (id === "posterior") return "glutes";
   return id;
 }

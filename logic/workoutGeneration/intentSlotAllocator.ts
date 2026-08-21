@@ -37,6 +37,7 @@ import {
   sessionSuppressesAccessoryBlocks,
 } from "../../data/sportSubFocus/subFocusIntentRegistry";
 import { isAssessmentExercise } from "./blockSelectionEligibility";
+import { targetWorkingExerciseSlots } from "./sessionVolumeTargets";
 
 function tagToSlug(s: string): string {
   return s.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
@@ -62,15 +63,10 @@ export function primaryGoalToSubFocusKey(goal: PrimaryGoal): string {
 
 /**
  * Rough count of working-set exercises (main + accessory) for intent proportionality.
- * Aligned with common session lengths (60 min ≈ 10).
+ * Delegates to shared session volume targets (~6+ working movements at 45 min).
  */
 export function estimateIntentWorkingExerciseSlots(durationMinutes: number | undefined): number {
-  const d = durationMinutes ?? 60;
-  if (d <= 25) return 4;
-  if (d <= 37) return 6;
-  if (d <= 52) return 8;
-  if (d <= 67) return 10;
-  return 12;
+  return targetWorkingExerciseSlots(durationMinutes);
 }
 
 /**

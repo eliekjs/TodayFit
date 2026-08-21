@@ -14,7 +14,10 @@ import { useAppState } from "../../../context/AppStateContext";
 import { themeRadius, useTheme } from "../../../lib/theme";
 import { PrimaryButton } from "../../../components/Button";
 import { FlowPhaseNavBar } from "../../../components/FlowPhaseNavBar";
-import { backLabelForPhase } from "../../../lib/sessionFlowNav";
+import {
+  activeTrainingOverviewHref,
+  activeTrainingOverviewLabel,
+} from "../../../lib/sessionFlowNav";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { SwapExerciseModal } from "../../../components/SwapExerciseModal";
 import { ExerciseSetupModal } from "../../../components/ExerciseSetupModal";
@@ -35,6 +38,7 @@ import { resolveExerciseSetupText, withResolvedExerciseDescription } from "../..
 import { ensureCuratedDescriptionsLoaded, getCuratedExerciseDescription, resolveSwapExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
+  generatorGoalToSwapTagSlugs,
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
 import {
@@ -89,7 +93,6 @@ export default function ExecuteScreen() {
     manualGoalPreferencesScope,
     manualWeekPlan,
     sportPrepWeekPlan,
-    activeSessionDraft,
     setManualWeekPlan,
     setSportPrepWeekPlan,
     discardActiveSession,
@@ -97,10 +100,15 @@ export default function ExecuteScreen() {
   const router = useRouter();
   const manualPrefsHref = manualGoalPreferencesHref(manualGoalPreferencesScope);
   const theme = useTheme();
-  const reviewHref =
-    manualWeekPlan != null && manualWeekPlan.days.length > 0
-      ? "/manual/week"
-      : "/manual/workout";
+  /** Workout-tab overview for the active week or singular day — never Create editors. */
+  const hasActivePlan =
+    (manualWeekPlan != null && manualWeekPlan.days.length > 0) ||
+    (sportPrepWeekPlan != null && sportPrepWeekPlan.days.length > 0);
+  const reviewHref = activeTrainingOverviewHref();
+  const reviewBackLabel = activeTrainingOverviewLabel({
+    singleDay:
+      (manualWeekPlan?.days.length ?? sportPrepWeekPlan?.days.length ?? 0) === 1,
+  });
   const [navBarHeight, setNavBarHeight] = useState(72);
 
   const allExercises = useMemo(
@@ -110,6 +118,7 @@ export default function ExecuteScreen() {
             const pairs = getSupersetPairsForBlock(block);
             if (pairs && pairs.length > 0) {
               const swapPoolExerciseIds = block.goal_intent?.swap_pool_exercise_ids;
+              const goalSlug = block.goal_intent?.goal_slug;
             return pairs.flatMap((pair, idx) =>
                 pair.map((item) => ({
                   ...item,
@@ -119,10 +128,12 @@ export default function ExecuteScreen() {
                   sectionTitle: `${getBlockDisplayTitle(block)} • Pair ${idx + 1} (${formatSupersetPairLabel(pair)})`,
                   blockType: block.block_type,
                   swapPoolExerciseIds,
+                  goalSlug,
                 }))
               );
             }
             const swapPoolExerciseIds = block.goal_intent?.swap_pool_exercise_ids;
+            const goalSlug = block.goal_intent?.goal_slug;
             return block.items.map((item) => ({
               ...item,
               id: item.exercise_id,
@@ -131,6 +142,7 @@ export default function ExecuteScreen() {
               sectionTitle: getBlockDisplayTitle(block),
               blockType: block.block_type,
               swapPoolExerciseIds,
+              goalSlug,
             }));
           })
         : [],
@@ -184,6 +196,7 @@ export default function ExecuteScreen() {
     exerciseName: string;
     blockType: BlockType;
     swapPoolExerciseIds?: string[];
+    goalSlug?: string;
   } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
@@ -242,11 +255,13 @@ export default function ExecuteScreen() {
     let cancelled = false;
     setSwapLoading(true);
     const energyLevel = manualPreferences.energyLevel ?? undefined;
+    const preferredGoalTagSlugs = generatorGoalToSwapTagSlugs(swapModal.goalSlug);
     getSwapSuggestionsPage(
       swapModal.exerciseId,
       {
         energyLevel,
         swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+        preferredGoalTagSlugs,
         workoutTier: manualPreferences.workoutTier ?? "intermediate",
         includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
         swapPoolExerciseIds: swapModal.swapPoolExerciseIds,
@@ -266,6 +281,8 @@ export default function ExecuteScreen() {
   }, [
     swapModal?.exerciseId,
     swapModal?.blockType,
+    swapModal?.swapPoolExerciseIds,
+    swapModal?.goalSlug,
     manualPreferences.energyLevel,
     manualPreferences.workoutTier,
     manualPreferences.includeCreativeVariations,
@@ -300,8 +317,6 @@ export default function ExecuteScreen() {
       return;
     }
     const workoutId = generatedWorkout.id;
-    const isWeekFlow =
-      activeSessionDraft?.flow === "goal_week" || activeSessionDraft?.flow === "sport_week";
     lastPersistWorkoutIdRef.current = null;
     const exerciseNotes: Record<string, string> = {};
     const exercisePerformance: Record<string, { sets: SetLogRow[] }> = {};
@@ -322,7 +337,7 @@ export default function ExecuteScreen() {
     });
     removeSavedWorkoutByWorkoutId(generatedWorkout.id);
 
-    if (isWeekFlow) {
+    if (hasActivePlan) {
       if (manualWeekPlan) {
         setManualWeekPlan(markManualWeekDayByWorkoutId(manualWeekPlan, workoutId, "completed"));
       }
@@ -337,10 +352,10 @@ export default function ExecuteScreen() {
     setManualSessionProgress(null);
     setManualExecutionStarted(false);
     setResumeProgress(null);
-    if (!isWeekFlow) {
+    if (!hasActivePlan) {
       discardActiveSession();
     }
-    router.replace((isWeekFlow ? ACTIVE_WEEK_ROUTE : "/history/complete") as never);
+    router.replace((hasActivePlan ? ACTIVE_WEEK_ROUTE : "/history/complete") as never);
   };
 
   const onSaveForLater = () => {
@@ -457,6 +472,7 @@ export default function ExecuteScreen() {
                           exerciseName: exercise.exercise_name,
                           blockType: exercise.blockType,
                           swapPoolExerciseIds: exercise.swapPoolExerciseIds,
+                          goalSlug: exercise.goalSlug,
                         })
                       }
                       style={[styles.swapButton, { borderColor: theme.border }]}
@@ -509,8 +525,8 @@ export default function ExecuteScreen() {
         sticky
         onLayout={setNavBarHeight}
         back={{
-          label: backLabelForPhase("review"),
-          onPress: () => router.push(reviewHref as never),
+          label: reviewBackLabel,
+          onPress: () => router.replace(reviewHref as never),
         }}
         forward={{
           label: "Finish workout",

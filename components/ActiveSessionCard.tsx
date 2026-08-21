@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Platform } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../lib/theme";
+import { themeFonts, useTheme } from "../lib/theme";
 import { useAppState } from "../context/AppStateContext";
 import { DiscardConfirmModal } from "./DiscardConfirmModal";
 import {
@@ -11,16 +11,11 @@ import {
   discardTargetFromFlow,
 } from "../lib/discardConfirmCopy";
 import {
-  SESSION_PHASES,
   SESSION_BANNER_HEIGHT,
+  buildContinueEditingLabel,
   buildSessionBannerDetails,
   shouldShowSessionResumeBanner,
-  type SessionPhase,
 } from "../lib/sessionDraft";
-
-function phaseIndex(phase: SessionPhase): number {
-  return SESSION_PHASES.findIndex((p) => p.key === phase);
-}
 
 const NAV_BAR_HEIGHT = Platform.select({ ios: 44, android: 56, web: 52, default: 44 }) ?? 44;
 
@@ -36,8 +31,8 @@ type ActiveSessionBannerProps = {
 };
 
 /**
- * Full-width strip flush under the nav header when the user leaves an in-progress session.
- * Hidden while they are on flow screens (preferences, week, sport setup, etc.).
+ * Full-width strip flush under the nav header on the Create tab when the user
+ * left mid-build. Hidden on Workout / Library / Profile and while training.
  */
 export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
   const theme = useTheme();
@@ -56,14 +51,13 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
     router.replace("/");
   }, [discardActiveSession, router]);
 
-  if (!activeSessionDraft || !shouldShowSessionResumeBanner(pathname)) {
+  if (!activeSessionDraft || !shouldShowSessionResumeBanner(pathname, activeSessionDraft)) {
     return null;
   }
 
-  const { phase, resumeRoute } = activeSessionDraft;
-  const currentIdx = phaseIndex(phase);
+  const { resumeRoute } = activeSessionDraft;
+  const title = buildContinueEditingLabel(activeSessionDraft);
   const details = buildSessionBannerDetails(activeSessionDraft);
-  const currentPhaseLabel = SESSION_PHASES[currentIdx]?.label ?? phase;
 
   return (
     <View
@@ -73,7 +67,7 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
         {
           top,
           height: SESSION_BANNER_HEIGHT,
-          backgroundColor: theme.secondary,
+          backgroundColor: theme.cardOpaque,
           borderBottomColor: theme.primary,
         },
       ]}
@@ -83,19 +77,18 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
           style={({ pressed }) => [styles.mainTap, { opacity: pressed ? 0.88 : 1 }]}
           onPress={() => router.push(resumeRoute as never)}
           accessibilityRole="button"
-          accessibilityLabel={`Continue workout building, ${details}, ${currentPhaseLabel} phase`}
+          accessibilityLabel={title}
         >
-          <Ionicons name="play-circle" size={22} color={theme.primary} style={styles.leadIcon} />
+          <Ionicons name="create-outline" size={22} color={theme.primary} style={styles.leadIcon} />
           <View style={styles.textColumn}>
-            <Text style={[styles.titleLine, { color: theme.primary }]} numberOfLines={1}>
-              Continue workout building
+            <Text style={[styles.titleLine, { color: theme.text }]} numberOfLines={2}>
+              {title}
             </Text>
-            <Text style={[styles.detailLine, { color: theme.text }]} numberOfLines={1}>
+            <Text style={[styles.detailLine, { color: theme.textMuted }]} numberOfLines={1}>
               {details}
-              <Text style={{ color: theme.textMuted }}>{`  ·  ${currentPhaseLabel}`}</Text>
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={theme.primary} style={styles.chevron} />
+          <Ionicons name="chevron-forward" size={18} color={theme.primary} style={styles.chevron} />
         </Pressable>
         <Pressable
           onPress={() => setConfirmOpen(true)}
@@ -104,7 +97,7 @@ export function ActiveSessionBanner({ topOffset }: ActiveSessionBannerProps) {
           accessibilityLabel={discardActionLabel(discardTarget)}
           style={({ pressed }) => [styles.discardTap, { opacity: pressed ? 0.7 : 1 }]}
         >
-          <Text style={[styles.discardLabel, { color: theme.primary }]}>Discard</Text>
+          <Text style={[styles.discardLabel, { color: theme.danger }]}>Discard</Text>
         </Pressable>
       </View>
       <DiscardConfirmModal
@@ -125,7 +118,9 @@ export function ActiveSessionCard() {
 export function useSessionBannerInset(): number {
   const pathname = usePathname();
   const { activeSessionDraft } = useAppState();
-  if (!activeSessionDraft || !shouldShowSessionResumeBanner(pathname)) return 0;
+  if (!activeSessionDraft || !shouldShowSessionResumeBanner(pathname, activeSessionDraft)) {
+    return 0;
+  }
   return SESSION_BANNER_HEIGHT;
 }
 
@@ -135,7 +130,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 50,
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     overflow: "hidden",
     ...(Platform.OS === "web" ? ({ pointerEvents: "auto" } as const) : null),
   },
@@ -149,7 +144,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingLeft: 14,
-    paddingVertical: 8,
+    paddingVertical: 10,
     gap: 10,
     minWidth: 0,
   },
@@ -157,14 +152,14 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   discardTap: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     justifyContent: "center",
     flexShrink: 0,
   },
   discardLabel: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
   },
   textColumn: {
     flex: 1,
@@ -172,19 +167,19 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   titleLine: {
-    fontSize: 15,
+    fontFamily: themeFonts.displaySemi,
+    fontSize: 16,
     lineHeight: 20,
-    fontWeight: "700",
-    letterSpacing: -0.2,
+    letterSpacing: 0.15,
   },
   detailLine: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: "500",
   },
   chevron: {
     flexShrink: 0,
-    opacity: 0.85,
+    opacity: 0.9,
   },
 });
 

@@ -1789,15 +1789,20 @@ export default function AdaptiveModeScreen() {
                 const canAddSub =
                   selectedSubs.length < MAX_SUB_GOALS_PER_GOAL &&
                   totalSubGoalsSelected < totalSubGoalCap;
-                if (!manualLabel || subOptions.length === 0) {
-                  return (
-                    <Text
-                      key={goalId}
-                      style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}
-                    >
-                      {goalMeta?.label ?? goalId}: no sub-goal options.
-                    </Text>
-                  );
+                if (!manualLabel) return null;
+                // Empty after defer (e.g. Body Recomp) → body focus is on the next page.
+                if (subOptions.length === 0) {
+                  if (allSubOptions.length === 0) {
+                    return (
+                      <Text
+                        key={goalId}
+                        style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}
+                      >
+                        {goalMeta?.label ?? goalId}: no sub-goal options.
+                      </Text>
+                    );
+                  }
+                  return null;
                 }
                 return (
                   <View key={goalId} style={{ marginTop: filledAdaptiveGoals.length > 1 && goalIdx > 0 ? 10 : 0 }}>

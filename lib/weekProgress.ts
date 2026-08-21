@@ -30,6 +30,29 @@ export type WeekProgressSnapshot = {
 /** Workout tab — home for the week the user is currently training. */
 export const ACTIVE_WEEK_ROUTE = "/workout";
 
+/**
+ * Promote a single generated day into the Workout-tab plan shape so Train back
+ * lands on the singular-day overview instead of the Create editor.
+ */
+export function manualWeekPlanFromSingleDay(args: {
+  weekStartDate: string;
+  date: string;
+  workout: GeneratedWorkout;
+  displayTitle?: string;
+}): ManualWeekPlan {
+  return {
+    weekStartDate: args.weekStartDate,
+    days: [
+      {
+        date: args.date,
+        workout: args.workout,
+        displayTitle: args.displayTitle,
+        status: "planned",
+      },
+    ],
+  };
+}
+
 function addDays(date: Date, n: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + n);

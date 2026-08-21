@@ -48,7 +48,6 @@ function testDeadLegZone2PrimaryNeverSustained() {
     ...EXERCISES.filter((e) => e.id === "zone2_treadmill").map(exerciseDefinitionToGeneratorExercise),
   ];
 
-  let sawDeadLeg = false;
   for (let seed = 0; seed < 30; seed++) {
     const session = generateWorkoutSession(
       {
@@ -65,7 +64,7 @@ function testDeadLegZone2PrimaryNeverSustained() {
     for (const b of session.blocks) {
       for (const item of b.items) {
         if (item.exercise_id !== "dead_leg_run") continue;
-        sawDeadLeg = true;
+        // If a sprint/agility drill slips into the pool, it must never be long continuous Zone 2.
         assert.ok(
           (item.time_seconds ?? 0) <= 60,
           `dead leg run should use short interval bouts, got ${item.time_seconds}s`
@@ -75,8 +74,17 @@ function testDeadLegZone2PrimaryNeverSustained() {
         assert.ok(!label.includes("15 min"), `prescription should not show long blocks: ${label}`);
       }
     }
+    const cond = session.blocks.filter((b) => b.block_type === "conditioning");
+    assert.ok(cond.length > 0, `seed ${seed}: zone2 session should still produce conditioning`);
+    for (const b of cond) {
+      assert.ok(/zone 2/i.test(b.title ?? ""), `seed ${seed}: expected Zone 2 title, got ${b.title}`);
+      assert.equal(
+        b.items.some((i) => i.exercise_id === "dead_leg_run"),
+        false,
+        `seed ${seed}: zone2 sustained must not select dead_leg_run drill`
+      );
+    }
   }
-  assert.ok(sawDeadLeg, "expected dead_leg_run to appear in at least one generated session");
 }
 
 function testDeadLegRunNoZone2IntentTag() {

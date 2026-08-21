@@ -23,8 +23,17 @@ const LOWER_BIAS_POWER_SUB_FOCUS = new Set([
 /** Power goal sub-focus slugs that target upper-body explosive work. */
 const UPPER_BIAS_POWER_SUB_FOCUS = new Set(["upper_body_power"]);
 
-/** Athletic-performance subs that imply lower-body power on upper-only days. */
-const LOWER_BIAS_ATHLETIC_SUB_FOCUS = new Set(["vertical_jump", "power_explosive"]);
+/**
+ * Athletic-performance subs that require lower-body movement on upper-only days.
+ * General power_explosive is deliberately not here: push presses, throws, and
+ * other explosive upper-body work can satisfy it.
+ */
+const LOWER_BIAS_ATHLETIC_SUB_FOCUS = new Set([
+  "vertical_jump",
+  "speed_sprint",
+  "sprint",
+  "agility_cod",
+]);
 
 /** Hypertrophy / physique muscle slugs that must follow the day's body contract. */
 const HYPERTROPHY_MUSCLE_SLUGS = new Set([
@@ -226,14 +235,27 @@ function legacyMovementPattern(ex: Exercise): string {
  * Lower-body-dominant power picks (hinge/squat/plyo jump) that should not fill upper-only power blocks.
  */
 export function exerciseIsLowerBodyDominantPowerMovement(ex: Exercise): boolean {
-  if (ex.modality !== "power" && !(ex.tags?.goal_tags ?? []).includes("power")) return false;
-
   const pat = legacyMovementPattern(ex);
   const muscles = new Set((ex.muscle_groups ?? []).map(norm));
   const hasLowerMuscle = [...muscles].some((m) => LOWER_MUSCLE_MARKERS.has(m));
   const hasUpperMuscle = [...muscles].some((m) => UPPER_MUSCLE_MARKERS.has(m));
   const family = norm(ex.primary_movement_family ?? "");
   const lowerFamily = family.includes("lower") || family === "hinge" || family === "squat";
+  const attributes = new Set((ex.tags?.attribute_tags ?? []).map(norm));
+  const exerciseText = norm(`${ex.id} ${ex.name}`);
+  const lowerDynamicIntent =
+    attributes.has("agility") ||
+    attributes.has("agility_cod") ||
+    attributes.has("change_of_direction") ||
+    attributes.has("lateral_power") ||
+    attributes.has("speed_sprint") ||
+    /(cut|bound|sprint|high_knee|shuffle|agility|lateral_hop|lateral_jump)/.test(
+      exerciseText
+    );
+
+  // Some legacy COD records are mislabeled as pull because their source muscle
+  // field contains "pull". Dynamic intent is a stronger body-region signal.
+  if (lowerDynamicIntent) return true;
 
   if (pat === "squat" || pat === "locomotion") return true;
   if (pat === "hinge") {
@@ -249,6 +271,7 @@ export function exerciseIsLowerBodyDominantPowerMovement(ex: Exercise): boolean 
 
 /** True when exercise reads as upper-body power (push/pull/med-ball throw patterns). */
 export function exerciseIsUpperBodyPowerMovement(ex: Exercise): boolean {
+  if (exerciseIsLowerBodyDominantPowerMovement(ex)) return false;
   const pat = legacyMovementPattern(ex);
   if (pat === "push" || pat === "pull") return true;
   const family = norm(ex.primary_movement_family ?? "");

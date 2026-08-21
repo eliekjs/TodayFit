@@ -230,7 +230,8 @@ export const DayFocusOverrideChips = forwardRef<View, DayFocusOverrideChipsProps
         <Text style={[styles.sectionReasoning, { color: theme.textMuted }]}>
           {volumePreferenceSectionSubtitle({
             goalBias: dailyPrefsOverride?.goalBias ?? null,
-          })}
+          })}{" "}
+          Applies to the session above right away — no regenerate needed.
         </Text>
         <VolumePreferencePicker
           value={dailyPrefsOverride?.volumePreference}

@@ -7,8 +7,11 @@ import {
   type PressableProps,
 } from "react-native";
 import { themeRadius, useTheme } from "../lib/theme";
+import { useBusyLabel } from "../lib/useAnimatedEllipsis";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
+
+const ELLIPSIS_TAIL = /(?:\u2026|\.{2,3})\s*$/;
 
 type Props = PressableProps & {
   label: string;
@@ -27,6 +30,8 @@ export function PrimaryButton({
   ...rest
 }: Props) {
   const theme = useTheme();
+  // Busy copy like "Saving…" / "Generating…" gets cycling dots while shown.
+  const displayLabel = useBusyLabel(label, ELLIPSIS_TAIL.test(label));
 
   const backgroundByVariant: Record<ButtonVariant, string> = {
     primary: theme.primary,
@@ -66,7 +71,7 @@ export function PrimaryButton({
           },
         ]}
       >
-        {label}
+        {displayLabel}
       </Text>
     </Pressable>
   );

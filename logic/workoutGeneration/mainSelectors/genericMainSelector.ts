@@ -3,7 +3,10 @@
  * Preserves pre-split behavior: intent anchoring, complementary fills, hypertrophy sub-focus ratios.
  */
 
-import { exerciseHasStrengthSubFocusSlug } from "../../../data/goalSubFocus";
+import {
+  exerciseHasStrengthSubFocusSlug,
+  exerciseMatchesStrengthIntentStrong,
+} from "../../../data/goalSubFocus";
 import type { Exercise } from "../types";
 import type { GenericHypertrophySelectionArgs, GenericStrengthMainSelectionArgs } from "./types";
 
@@ -14,9 +17,14 @@ export function genericSelectStrengthMainLifts(args: GenericStrengthMainSelectio
   if (primaryIntent && intentSlugs.length > 0) {
     const directIntentMainMatches = mainPool.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)));
     const primaryMatches = directIntentMainMatches.filter((e) => exerciseHasStrengthSubFocusSlug(e, primaryIntent));
+    // Prefer attribute/name evidence so Build Strength → Squat/Bench/etc. lands a real lift, not a weak proxy.
+    const strongPrimaryMatches = primaryMatches.filter((e) =>
+      exerciseMatchesStrengthIntentStrong(e, primaryIntent)
+    );
+    const anchorPool = strongPrimaryMatches.length > 0 ? strongPrimaryMatches : primaryMatches;
 
-    if (primaryMatches.length > 0) {
-      const anchorChosen = pick(primaryMatches, 1, "main_strength_intent_anchor");
+    if (anchorPool.length > 0) {
+      const anchorChosen = pick(anchorPool, 1, "main_strength_intent_anchor");
       const anchor = anchorChosen[0];
       if (anchor) mainLifts.push(anchor);
 

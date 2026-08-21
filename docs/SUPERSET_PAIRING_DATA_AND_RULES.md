@@ -6,7 +6,7 @@ Superset pairing uses two layers:
 
 ### 1. Eligibility (hard restrictions) — `canPairInSuperset`
 
-- **`forbidden_same_pattern`** (when body focus is upper push/pull): pair is **disallowed** if `a.movement_pattern === b.movement_pattern` (e.g. both `"push"`).
+- **`forbidden_same_pattern`** (when body focus is upper push/pull): pair is **disallowed** if `a.movement_pattern === b.movement_pattern` **unless** the pair is complementary by pairing category (e.g. chest+triceps, both `"push"`).
 - **`forbid_double_grip`**: pair is **disallowed** if both exercises have high grip demand.
 - **`forbidden_pairs`**: pair is disallowed if their effective movement families match a forbidden pair.
 
@@ -71,26 +71,18 @@ So **the exercise data does match what we need for the restrictions and for the 
 
 ---
 
-## Why “Bench Press + Overhead Press” still fails validation
+## Why “Bench Press + Overhead Press” used to fail validation
 
-The validator can report a **superset_pairing** violation for pairs like Barbell Bench Press and Standing Overhead Press even though:
+The validator used to report a **superset_pairing** violation for pairs like Barbell Bench Press and Standing Overhead Press even though:
 
 - Both have **pairing_category** (chest vs shoulders) and the **scoring** treats them as complementary (good pair).
-- The **eligibility** rule does **not** use pairing_category for the same-pattern check. When body focus is upper push (or upper pull), the constraint sets **`forbidden_same_pattern: true`**, and `canPairInSuperset` does:
+- Eligibility used to disallow any same `movement_pattern` when `forbidden_same_pattern: true`, without a complementary exception.
 
-  - if `forbidden_same_pattern && a.movement_pattern === b.movement_pattern` → **false** (disallow).
-
-So both are `movement_pattern: "push"` → the pair is **disallowed by rule** even though the **data** (pairing_category) says they are a good pair. The rule is stricter than the score: it forbids any same movement_pattern under that focus, and does not yet allow “same pattern but complementary category.”
-
-So:
-
-- The **exercise data is sufficient** for the current rules and for scoring.
-- The **design choice** is whether to keep “forbid all same pattern” or to relax it to “forbid same pattern only when not complementary by pairing_category (or movement_patterns).” That would be a **rule/logic change**, not a data fix.
+**Current behavior:** `canPairInSuperset` allows same-pattern pairs when `isComplementarySupersetPair` is true, so chest+shoulders / chest+triceps pass both scoring and Phase 8 validation.
 
 ---
 
 ## Gaps to fix if you want stricter data–rule alignment
 
 1. **Stub:** Add `pairing_category` and `fatigue_regions` (and `grip_demand` where relevant) to any stub exercise used in superset tests, so tests don’t rely only on fallbacks.
-2. **Rule vs score:** If you want “chest + shoulders” to be **allowed** in supersets when body focus is upper push, the constraint has to be updated to use pairing (e.g. allow same `movement_pattern` when pairing categories are complementary), or to use `movement_patterns` (e.g. allow horizontal_push + vertical_push) instead of a single `movement_pattern`.
-3. **DB coverage:** Ensure all exercises that can appear in supersets have at least `pairing_category` (and preferably `fatigue_regions`, `grip_demand`) populated so behavior is consistent with the ontology design.
+2. **DB coverage:** Ensure all exercises that can appear in supersets have accurate `pairing_category` (and preferably `fatigue_regions`, `grip_demand`) so behavior is consistent with the ontology design. Runtime name cues are a safety net, not a substitute for curated ontology.

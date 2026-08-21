@@ -1,6 +1,6 @@
 import React from "react";
 import { Stack } from "expo-router";
-import { useTheme } from "../../lib/theme";
+import { themeFonts, useTheme } from "../../lib/theme";
 import { OpaqueHeaderBackground } from "../navigation/tabFlowChrome";
 
 export default function StackLayout() {
@@ -19,7 +19,7 @@ export default function StackLayout() {
         },
         headerTitleStyle: {
           color: theme.text,
-          fontWeight: "600",
+          fontFamily: themeFonts.displaySemi,
         },
         contentStyle: {
           backgroundColor: theme.background,

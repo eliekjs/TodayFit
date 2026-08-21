@@ -1,7 +1,17 @@
-import type { GeneratedWorkout, WorkoutItem, WorkoutBlock } from "./types";
+import type {
+  EnergyLevel,
+  GeneratedWorkout,
+  VolumePreference,
+  WorkoutItem,
+  WorkoutBlock,
+} from "./types";
 import type { WorkoutSession } from "../logic/workoutGeneration/types";
 import type { Exercise } from "../logic/workoutGeneration/types";
 import { resolveExerciseDescription } from "./exerciseDescriptionsCurated";
+import {
+  inferStrengthVolumeRole,
+  remapItemPrescriptionForVolumePreference,
+} from "./generation/volumeRoleRanges";
 
 function descriptionForExerciseId(
   exerciseId: string,
@@ -150,6 +160,67 @@ export function updateExercisePrescriptionInWorkout(
   };
 
   return mapWorkoutItems(workout, updateItem);
+}
+
+/**
+ * Retarget sets/reps on strength / hypertrophy / accessory work to match a volume
+ * preference table — used when the day editor volume picker changes (no full regen).
+ * Skips warmup, cooldown, power, conditioning, mobility, and time-based items.
+ */
+export function applyVolumePreferenceToWorkout(
+  workout: GeneratedWorkout,
+  preference: VolumePreference | null | undefined,
+  energy?: EnergyLevel | null
+): GeneratedWorkout {
+  const energyLevel: EnergyLevel = energy ?? workout.energyLevel ?? "medium";
+  const normalized = preference ?? "standard";
+
+  const updateBlock = (block: WorkoutBlock): WorkoutBlock => {
+    const role = inferStrengthVolumeRole({ blockType: block.block_type });
+    if (!role) return block;
+
+    const updateItem = (item: WorkoutItem): WorkoutItem => {
+      const remapped = remapItemPrescriptionForVolumePreference(
+        item,
+        role,
+        normalized,
+        energyLevel
+      );
+      if (!remapped) return item;
+      const next: WorkoutItem = {
+        ...item,
+        sets: Math.max(1, Math.min(12, remapped.sets)),
+        reps: Math.max(1, Math.min(50, remapped.reps)),
+      };
+      delete next.time_seconds;
+      return next;
+    };
+
+    if (block.supersetPairs && block.supersetPairs.length > 0) {
+      return {
+        ...block,
+        supersetPairs: block.supersetPairs.map((pair) =>
+          pair.map(updateItem) as [WorkoutItem, WorkoutItem]
+        ),
+        items: block.items.map(updateItem),
+      };
+    }
+    return {
+      ...block,
+      items: block.items.map(updateItem),
+    };
+  };
+
+  return {
+    ...workout,
+    blocks: workout.blocks.map(updateBlock),
+    generationPreferences: workout.generationPreferences
+      ? {
+          ...workout.generationPreferences,
+          volumePreference: preference ?? undefined,
+        }
+      : workout.generationPreferences,
+  };
 }
 
 function mapWorkoutItems(

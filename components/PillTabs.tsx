@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../lib/theme";
+import { themeFonts, useTheme } from "../lib/theme";
 
 export type PillTabItem<K extends string = string> = {
   key: K;
@@ -145,8 +145,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: {
+    fontFamily: themeFonts.displaySemi,
     fontSize: 14,
-    fontWeight: "600",
   },
   labelCompact: {
     fontSize: 12,

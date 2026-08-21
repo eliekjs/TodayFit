@@ -1354,7 +1354,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
               firstDay.workout,
               options
             );
-            setSavedWeeks((prev) => [...prev, { ...item, id: rowId }]);
+            setSavedWeeks((prev) => [{ ...item, id: rowId }, ...prev]);
             return;
           }
           const rowId = await WeekPlanRepo.saveManualWeek(
@@ -1363,7 +1363,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             item.days,
             options
           );
-          setSavedWeeks((prev) => [...prev, { ...item, id: rowId }]);
+          setSavedWeeks((prev) => [{ ...item, id: rowId }, ...prev]);
         },
         onFailure: notifySaveFailed,
       });
@@ -1371,7 +1371,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const localId = item.singleDay
       ? `saved_day_${Date.now()}`
       : `saved_week_${Date.now()}`;
-    setSavedWeeks((prev) => [...prev, { ...item, id: localId }]);
+    setSavedWeeks((prev) => [{ ...item, id: localId }, ...prev]);
     return true;
   }, [userId, persist, touchPersistedStateDuringRemoteLoad, notifySaveFailed]);
 

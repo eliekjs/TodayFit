@@ -13,7 +13,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppState } from "../../../context/AppStateContext";
-import { themeRadius, useTheme } from "../../../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../../../lib/theme";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
 import { PillTabs } from "../../../components/PillTabs";
@@ -319,12 +319,12 @@ export default function SavedPresetsScreen() {
             {defaultTrainTodayPreset?.kind === kind &&
             defaultTrainTodayPreset.id === selectedPresetId ? (
                 <Text style={[styles.defaultBadge, { color: theme.primary }]}>
-                  Default for Train today
+                  Default for Quick Create
                 </Text>
               ) : (
                 <LinkPill
                   icon="star-outline"
-                  label="Set as Train today default"
+                  label="Set as Quick Create default"
                   onPress={() =>
                     setDefaultTrainTodayPreset({ kind, id: selectedPresetId! })
                   }
@@ -395,9 +395,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   headline: {
-    fontSize: 20,
-    fontWeight: "700",
-    letterSpacing: -0.3,
+    fontFamily: themeFonts.displayBold,
+    fontSize: 22,
+    letterSpacing: 0.2,
   },
   subheadline: {
     fontSize: 14,

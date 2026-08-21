@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getSwapSuggestionsPage } from "./exerciseProgressions";
+import {
+  getSwapSuggestionsPage,
+  interleavePurposeAndSimilaritySwapOptions,
+  orderSwapCandidatesByBlockPurpose,
+} from "./exerciseProgressions";
 import type { ExerciseDefinition } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -59,6 +63,46 @@ function makeDef(id: string, opts: Partial<ExerciseDefinition> = {}): ExerciseDe
     ...opts,
   };
 }
+
+describe("interleavePurposeAndSimilaritySwapOptions", () => {
+  it("emits 2 purpose + 1 similarity per page of 3", () => {
+    const purpose = [
+      { id: "a", name: "A" },
+      { id: "b", name: "B" },
+      { id: "c", name: "C" },
+      { id: "d", name: "D" },
+    ];
+    const similarity = [
+      { id: "s1", name: "S1" },
+      { id: "s2", name: "S2" },
+      { id: "a", name: "A" },
+    ];
+    const out = interleavePurposeAndSimilaritySwapOptions(purpose, similarity);
+    expect(out.slice(0, 3).map((x) => x.id)).toEqual(["a", "b", "s1"]);
+    expect(out.slice(3, 6).map((x) => x.id)).toEqual(["c", "d", "s2"]);
+  });
+});
+
+describe("orderSwapCandidatesByBlockPurpose", () => {
+  it("prefers different movement patterns over near-clones", () => {
+    const target = makeDef("squat", {
+      movement_pattern: "squat",
+      primary_movement_family: "squat",
+    });
+    const byId = new Map([
+      ["front_squat", makeDef("front_squat", { movement_pattern: "squat", primary_movement_family: "squat" })],
+      ["deadlift", makeDef("deadlift", { movement_pattern: "hinge", primary_movement_family: "hinge" })],
+    ]);
+    const ordered = orderSwapCandidatesByBlockPurpose(
+      [
+        { id: "front_squat", name: "Front Squat" },
+        { id: "deadlift", name: "Deadlift" },
+      ],
+      { targetDef: target, byId }
+    );
+    expect(ordered[0]?.id).toBe("deadlift");
+  });
+});
 
 const ALL_EXERCISES: ExerciseDefinition[] = [
   makeDef("squat", {
@@ -143,7 +187,7 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     expect(suggestions.length).toBe(3);
   });
 
-  it("ranks curated swap_candidates and same-pattern pool members ahead of dissimilar ones", async () => {
+  it("leads with block-purpose variety and keeps one similar-exercise slot on page 0", async () => {
     const pool = ["deadlift", "front_squat", "bench_press", "goblet_squat", "lunge"];
     const { suggestions } = await getSwapSuggestionsPage(
       "squat",
@@ -152,13 +196,14 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     );
 
     const ids = suggestions.map((s) => s.id);
-    // Curated: front_squat + goblet_squat should land in the first page before bench/deadlift
-    expect(ids[0]).toBe("front_squat");
-    expect(ids).toContain("goblet_squat");
-    expect(ids.indexOf("front_squat")).toBeLessThan(ids.indexOf("bench_press") === -1 ? 99 : ids.indexOf("bench_press"));
+    expect(ids).toHaveLength(3);
+    // Purpose slots prefer different patterns within the intent pool (deadlift hinge, bench push).
+    expect(ids.slice(0, 2)).toEqual(expect.arrayContaining(["deadlift", "bench_press"]));
+    // Similarity slot still surfaces a curated/same-pattern squat variant.
+    expect(ids[2]).toBe("front_squat");
   });
 
-  it("places progressions/regressions that are in the pool first when no curated list", async () => {
+  it("still surfaces a regression in the similarity slot when purpose options fill first", async () => {
     mockGetExercise.mockResolvedValue(
       makeDef("squat", {
         movement_pattern: "squat",
@@ -179,9 +224,9 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
       0
     );
 
-    expect(suggestions[0]?.id).toBe("goblet_squat");
     const ids = suggestions.map((s) => s.id);
-    expect(ids).toContain("deadlift");
+    expect(ids.slice(0, 2)).toEqual(expect.arrayContaining(["deadlift", "bench_press"]));
+    expect(ids[2]).toBe("goblet_squat");
   });
 
   it("does not include out-of-pool exercises even when they are progressions/regressions", async () => {
@@ -298,7 +343,7 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     expect(new Set(all).size).toBe(all.length);
   });
 
-  it("different target exercises in the same pool surface different top suggestions", async () => {
+  it("different target exercises in the same pool surface different similarity slots", async () => {
     const pool = ["front_squat", "goblet_squat", "deadlift", "bench_press", "row", "lunge"];
 
     const squatPage = await getSwapSuggestionsPage(
@@ -324,11 +369,12 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
       0
     );
 
-    expect(squatPage.suggestions[0]?.id).not.toBe(pressPage.suggestions[0]?.id);
-    expect(["front_squat", "goblet_squat", "lunge"]).toContain(squatPage.suggestions[0]?.id);
+    // Similarity slot (3rd) should differ by target; purpose slots may overlap in a shared pool.
+    expect(squatPage.suggestions[2]?.id).not.toBe(pressPage.suggestions[2]?.id);
+    expect(["front_squat", "goblet_squat", "lunge"]).toContain(squatPage.suggestions[2]?.id);
   });
 
-  it("keeps a treadmill walk regression and distinct machines ahead of treadmill pacing variants", async () => {
+  it("prefers distinct cardio machines for purpose slots and keeps a treadmill option in the similarity slot", async () => {
     const cardio = [
       makeDef("treadmill_run", {
         name: "Treadmill Run",
@@ -393,10 +439,11 @@ describe("getSwapSuggestionsPage — swapPoolExerciseIds restriction", () => {
     );
 
     const ids = suggestions.map((s) => s.id);
-    expect(ids[0]).toBe("treadmill_incline_walk");
+    expect(ids).toEqual(expect.arrayContaining(["elliptical", "rower"]));
     expect(ids).not.toContain("treadmill_intervals");
     expect(ids).not.toContain("zone2_treadmill");
-    expect(ids).toEqual(expect.arrayContaining(["elliptical", "rower"]));
+    // Similarity / diversified stream still offers the incline-walk regression.
+    expect(ids).toContain("treadmill_incline_walk");
   });
 
   it("does not lead bike swaps with other bike pacing variants when distinct machines exist", async () => {

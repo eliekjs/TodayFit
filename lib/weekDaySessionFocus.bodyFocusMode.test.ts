@@ -8,6 +8,8 @@ import {
   buildDayBodyFocusChoicesForDay,
   dayBodyFocusChoiceToBias,
   mapBodyChoiceToModeVocab,
+  bodyFocusModeForChoiceId,
+  resolveDayBodyFocusMode,
   getBodyFocusDistributionForMode,
   getMuscleBodyFocusDistribution,
   getPatternBodyFocusDistribution,
@@ -45,6 +47,17 @@ describe("weekly body focus mode unlock", () => {
       "pattern"
     );
     expect(resolveWeeklyBodyFocusMode(undefined, [])).toBe("region");
+  });
+
+  it("infers day vocabulary from exclusive chips and keeps stored mode for Legs/Full", () => {
+    expect(bodyFocusModeForChoiceId("chest")).toBe("muscle");
+    expect(bodyFocusModeForChoiceId("push")).toBe("pattern");
+    expect(bodyFocusModeForChoiceId("upper")).toBe("region");
+    expect(bodyFocusModeForChoiceId("legs")).toBeNull();
+    expect(resolveDayBodyFocusMode(["legs"], "pattern")).toBe("pattern");
+    expect(resolveDayBodyFocusMode(["chest"], undefined, "region")).toBe("muscle");
+    expect(resolveDayBodyFocusMode(["lower"], "muscle")).toBe("region");
+    expect(mapBodyChoiceToModeVocab("lower", "muscle")).toBe("legs");
   });
 
   it("applies hypertrophy sub-focus only for physique goals", () => {

@@ -1,18 +1,37 @@
 /**
- * Sub-goals that duplicate the week “body focus this day” region chips
- * (Upper / Lower / Core / Full). Those stay off the first page so they
- * don’t fight the day template. Muscle-day physique picks remain selectable
- * as week sub-goals (up to MAX_TOTAL_SUB_GOALS).
+ * Sub-goals that duplicate the week “body focus this day” chips.
+ * Region overlays (Upper / Lower / Core / Full) are always deferred on the
+ * first week page. For Build Muscle / Body Recomp, muscle-day body parts
+ * (Chest, Back, …) are deferred too — those are chosen per training day.
+ * Non–body-part intents (e.g. Hypertrophy “Balanced”, lift qualities) stay selectable.
+ * Body Recomp has no Balanced sub-goal; body focus on the next page covers distribution.
  */
 
 import { GOAL_SUB_FOCUS_OPTIONS } from "../data/goalSubFocus/goalSubFocusOptions";
 import { normalizeSubFocusPctRecord } from "./subFocusWeights";
+import { WEEKLY_BODY_FOCUS_MODE_UNLOCK_GOALS } from "./weekDaySessionFocus";
 
 /**
  * Region chips that also appear as day body focus (Upper / Lower / Core / Full).
- * Muscle-day physique picks (Chest, Back, …) stay selectable as week sub-goals.
  */
 const REGION_BODY_DAY_SLUGS = new Set(["upper", "lower", "core", "full_body"]);
+
+/**
+ * Muscle-day physique picks chosen on the week planner for Build Muscle /
+ * Body Recomp. Hypertrophy still offers “Balanced” as a week-level intent
+ * (not deferred). Body Recomp no longer lists Balanced in the catalog.
+ */
+const MUSCLE_DAY_BODY_SLUGS = new Set([
+  "glutes",
+  "back",
+  "chest",
+  "arms",
+  "shoulders",
+  "legs",
+  "core",
+]);
+
+const PHYSIQUE_MUSCLE_DAY_GOALS = new Set<string>(WEEKLY_BODY_FOCUS_MODE_UNLOCK_GOALS);
 
 function slugForSubFocusDisplayName(goalLabel: string, displayName: string): string | null {
   return (
@@ -21,11 +40,13 @@ function slugForSubFocusDisplayName(goalLabel: string, displayName: string): str
   );
 }
 
-/** True when this sub-goal duplicates Upper / Lower / Core / Full on the week planner. */
+/** True when this sub-goal duplicates a body focus chip on the week planner. */
 export function isDeferredDayBodySubFocus(goalLabel: string, displayName: string): boolean {
   const slug = slugForSubFocusDisplayName(goalLabel, displayName);
   if (!slug) return false;
-  return REGION_BODY_DAY_SLUGS.has(slug);
+  if (REGION_BODY_DAY_SLUGS.has(slug)) return true;
+  if (PHYSIQUE_MUSCLE_DAY_GOALS.has(goalLabel) && MUSCLE_DAY_BODY_SLUGS.has(slug)) return true;
+  return false;
 }
 
 export function filterDeferredDayBodySubFocusChoices(
@@ -35,7 +56,7 @@ export function filterDeferredDayBodySubFocusChoices(
   return displayNames.filter((name) => !isDeferredDayBodySubFocus(goalLabel, name));
 }
 
-/** Visible sub-goal chips for selected goals (week hides region duplicates only). */
+/** Visible sub-goal chips for selected goals (week hides day-body duplicates). */
 export function countVisibleGoalSubFocusPicks(
   subFocusByGoal: Record<string, string[]> | undefined | null,
   goalLabels: readonly string[],
@@ -75,7 +96,13 @@ export function stripDeferredDayBodySubFocuses(
   let changed = false;
   for (const [goalLabel, labels] of Object.entries(subFocusByGoal)) {
     if (!labels?.length) continue;
-    const kept = filterDeferredDayBodySubFocusChoices(goalLabel, labels);
+    const catalogNames = new Set(
+      (GOAL_SUB_FOCUS_OPTIONS[goalLabel]?.subFocuses ?? []).map((f) => f.name)
+    );
+    // Also drop removed catalog labels (e.g. legacy Body Recomp “Balanced”).
+    const kept = filterDeferredDayBodySubFocusChoices(goalLabel, labels).filter((name) =>
+      catalogNames.size === 0 ? true : catalogNames.has(name)
+    );
     if (kept.length !== labels.length) changed = true;
     if (kept.length > 0) {
       nextSub[goalLabel] = kept;

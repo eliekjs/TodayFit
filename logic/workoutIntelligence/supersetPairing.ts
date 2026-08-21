@@ -17,6 +17,8 @@ function pairViolatesSessionRedundancy(a: PairingInput, b: PairingInput): boolea
 /** Minimal shape for pairing logic (satisfied by Exercise and ExerciseWithQualities). */
 export interface PairingInput {
   id: string;
+  /** Display name; used for pairing-category name cues when present. */
+  name?: string;
   movement_pattern: string;
   muscle_groups?: string[];
   equipment_required?: string[];
@@ -111,34 +113,100 @@ function normalizeSlug(s: string | undefined): string {
 }
 
 /**
- * Effective pairing category: ontology pairing_category when present, else derived from movement_pattern + muscles.
+ * Strong name/id cues that correct coarse ontology defaults (e.g. OTA rows tagged
+ * pairing_category "chest" for every upper push, including close-grip and head bangers).
+ * Prefer these over a generic ontology chest/back tag when the name is unambiguous.
  */
-export function getEffectivePairingCategory(ex: PairingInput): string {
-  const fromOntology = ex.pairing_category;
-  if (fromOntology && PAIRING_CATEGORIES.has(normalizeSlug(fromOntology))) return normalizeSlug(fromOntology);
-
-  const pattern = (ex.movement_pattern ?? "").toLowerCase();
-  const muscles = new Set((ex.muscle_groups ?? []).map((m) => m.toLowerCase()));
-
-  if (pattern === "push") {
-    if (muscles.has("chest") || muscles.has("pecs")) return "chest";
-    if (muscles.has("shoulders") || muscles.has("delts")) return "shoulders";
-    if (muscles.has("triceps")) return "triceps";
+function refinePairingCategoryFromName(ex: PairingInput, current: string): string {
+  const blob = `${ex.id} ${ex.id.replace(/_/g, " ")} ${ex.name ?? ""}`
+    .toLowerCase()
+    .replace(/-/g, " ");
+  if (
+    /\b(close[ _]?grip).*\b(bench|press|push)/.test(blob) ||
+    /\b(skull( crusher)?|head[ _]?bang)/.test(blob) ||
+    /\b(triceps?[ _]?(extension|pushdown|kickback)|triceps?[ _]?pushdown)\b/.test(blob)
+  ) {
+    return "triceps";
+  }
+  if (
+    /\b(overhead|military|pin[ _]?press|shoulder[ _]?press|ohp)\b/.test(blob) &&
+    !/\b(bench|incline|decline|floor[ _]?press)\b/.test(blob)
+  ) {
+    return "shoulders";
+  }
+  if (/\b(flye?s?|pec[ _]?deck|cable[ _]?crossover)\b/.test(blob)) {
     return "chest";
   }
-  if (pattern === "pull") {
-    if (muscles.has("back") || muscles.has("lats")) return "back";
-    if (muscles.has("biceps")) return "biceps";
-    return "back";
+  if (/\b(lateral[ _]?raise|front[ _]?raise|rear[ _]?delt)\b/.test(blob)) {
+    return "shoulders";
   }
-  if (pattern === "squat" || pattern === "hinge" || pattern === "lunge") {
-    if (muscles.has("quads") || muscles.has("quad")) return "quads";
-    if (muscles.has("hamstrings") || muscles.has("glutes")) return "posterior_chain";
-    return "quads";
+  if (/\b(curl|preacher)\b/.test(blob) && !/\b(leg[ _]?curl)\b/.test(blob)) {
+    return "biceps";
   }
-  if (pattern === "carry") return "grip";
-  if (pattern === "rotate" || muscles.has("core") || muscles.has("abs")) return "core";
-  return "";
+  return current;
+}
+
+/**
+ * Effective pairing category: ontology pairing_category when present, else derived from movement_pattern + muscles.
+ * Name/id cues refine coarse defaults so complementary upper-push pairs (chest+triceps, chest+shoulders) score correctly.
+ */
+export function getEffectivePairingCategory(ex: PairingInput): string {
+  let category = "";
+  const fromOntology = ex.pairing_category;
+  if (fromOntology && PAIRING_CATEGORIES.has(normalizeSlug(fromOntology))) {
+    category = normalizeSlug(fromOntology);
+  } else {
+    const pattern = (ex.movement_pattern ?? "").toLowerCase();
+    const muscles = new Set((ex.muscle_groups ?? []).map((m) => m.toLowerCase()));
+
+    if (pattern === "push") {
+      if (muscles.has("chest") || muscles.has("pecs")) category = "chest";
+      else if (muscles.has("shoulders") || muscles.has("delts")) category = "shoulders";
+      else if (muscles.has("triceps")) category = "triceps";
+      else category = "chest";
+    } else if (pattern === "pull") {
+      if (muscles.has("back") || muscles.has("lats")) category = "back";
+      else if (muscles.has("biceps")) category = "biceps";
+      else category = "back";
+    } else if (pattern === "squat" || pattern === "hinge" || pattern === "lunge") {
+      if (muscles.has("quads") || muscles.has("quad")) category = "quads";
+      else if (muscles.has("hamstrings") || muscles.has("glutes")) category = "posterior_chain";
+      else category = "quads";
+    } else if (pattern === "carry") {
+      category = "grip";
+    } else if (pattern === "rotate" || muscles.has("core") || muscles.has("abs")) {
+      category = "core";
+    }
+  }
+
+  return refinePairingCategoryFromName(ex, category);
+}
+
+/** True when A/B are complementary within the same movement family (e.g. chest+triceps). */
+export function isComplementarySupersetPair(a: PairingInput, b: PairingInput): boolean {
+  const catA = getEffectivePairingCategory(a);
+  const catB = getEffectivePairingCategory(b);
+  const famA = getEffectivePairingFamilies(a);
+  const famB = getEffectivePairingFamilies(b);
+  const sameFamily = famA.some((f) => famB.includes(f));
+  if (!catA || !catB || catA === catB || !sameFamily) return false;
+
+  const upperPush = famA.includes("upper_push") || famB.includes("upper_push");
+  const upperPull = famA.includes("upper_pull") || famB.includes("upper_pull");
+  const lower = famA.includes("lower_body") || famB.includes("lower_body");
+
+  return (
+    (upperPush &&
+      UPPER_PUSH_COMPLEMENTARY.some(
+        ([x, y]) => (catA === x && catB === y) || (catA === y && catB === x)
+      )) ||
+    (upperPull &&
+      UPPER_PULL_COMPLEMENTARY.some(
+        ([x, y]) => (catA === x && catB === y) || (catA === y && catB === x)
+      )) ||
+    (lower &&
+      LOWER_COMPLEMENTARY.some(([x, y]) => (catA === x && catB === y) || (catA === y && catB === x)))
+  );
 }
 
 /**
@@ -208,18 +276,7 @@ export function getSupersetPairingScore(a: PairingInput, b: PairingInput): numbe
   const famA = getEffectivePairingFamilies(a);
   const famB = getEffectivePairingFamilies(b);
   const sameFamily = famA.some((f) => famB.includes(f));
-
-  const upperPush = famA.includes("upper_push") || famB.includes("upper_push");
-  const upperPull = famA.includes("upper_pull") || famB.includes("upper_pull");
-  const lower = famA.includes("lower_body") || famB.includes("lower_body");
-  const isComplementary =
-    catA &&
-    catB &&
-    catA !== catB &&
-    sameFamily &&
-    ((upperPush && UPPER_PUSH_COMPLEMENTARY.some(([x, y]) => (catA === x && catB === y) || (catA === y && catB === x))) ||
-      (upperPull && UPPER_PULL_COMPLEMENTARY.some(([x, y]) => (catA === x && catB === y) || (catA === y && catB === x))) ||
-      (lower && LOWER_COMPLEMENTARY.some(([x, y]) => (catA === x && catB === y) || (catA === y && catB === x))));
+  const isComplementary = isComplementarySupersetPair(a, b);
 
   // Same movement pattern: penalize only when NOT complementary (e.g. chest+triceps both "push" is OK)
   if (a.movement_pattern === b.movement_pattern && !isComplementary) score += PAIRING_SCORE_SAME_PATTERN_PENALTY;
@@ -325,6 +382,8 @@ export function pickBestSupersetPairs(
         const b = remaining[i2];
         if (!a || !b) continue;
         if (pairViolatesSessionRedundancy(a, b)) continue;
+        // Prefer unboosted compatibility so tag preference cannot promote "bad" pairs into supersets.
+        if (supersetCompatibility(a, b) === "bad") continue;
         let score = getSupersetPairingScore(a, b);
         if (exercisePreferenceScores?.size) {
           const prefA = exercisePreferenceScores.get(a.id) ?? 0;

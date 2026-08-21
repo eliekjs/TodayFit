@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-import { themeRadius, useTheme } from "../../../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { AppScreenWrapper } from "../../../components/AppScreenWrapper";
 import { PrimaryButton } from "../../../components/Button";
@@ -12,7 +12,6 @@ import { SectionLabel } from "../../../components/SectionLabel";
 import { SaveNamedPlanModal } from "../../../components/SaveNamedPlanModal";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
 import { WeekDesignationPicker } from "../../../components/WeekDesignationPicker";
-import { DiscardSessionLink } from "../../navigation/tabFlowChrome";
 import { getTodayLocalDateString } from "../../../lib/dateUtils";
 import { normalizeGeneratedWorkout } from "../../../lib/types";
 import {
@@ -22,6 +21,7 @@ import {
   markSportWeekDayByPlannedDayId,
   type WeekProgressDay,
 } from "../../../lib/weekProgress";
+import { editActivePlanHref } from "../../../lib/sessionFlowNav";
 import {
   saveDayButtonLabel,
   saveWeekButtonLabel,
@@ -383,7 +383,7 @@ export default function WorkoutTabScreen() {
               : "Move sessions between days, swap exercises, or regenerate a day."
           }
           primaryActionLabel={isSingleDay ? "Edit this workout" : "Edit this week"}
-          onPrimaryAction={() => router.push(snapshot.fullWeekRoute as never)}
+          onPrimaryAction={() => router.push(editActivePlanHref(snapshot.fullWeekRoute) as never)}
         >
           <View style={styles.secondaryActions}>
             <PrimaryButton
@@ -423,8 +423,6 @@ export default function WorkoutTabScreen() {
             style={{ marginTop: 4 }}
           />
         ) : null}
-
-        <DiscardSessionLink style={styles.discardLink} />
       </ScrollView>
       {saveDialog ? (
         <SaveNamedPlanModal
@@ -447,9 +445,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   heading: {
-    fontSize: 20,
-    fontWeight: "700",
-    letterSpacing: -0.3,
+    fontFamily: themeFonts.displayBold,
+    fontSize: 22,
+    letterSpacing: 0.2,
   },
   progressSummary: {
     fontSize: 14,
@@ -520,8 +518,5 @@ const styles = StyleSheet.create({
   secondaryActions: {
     gap: 10,
     marginTop: 12,
-  },
-  discardLink: {
-    marginTop: 16,
   },
 });

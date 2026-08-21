@@ -91,9 +91,31 @@ export function exerciseHasStrengthSubFocusSlug(exercise: ExerciseForStrengthSub
     return movementPattern === "hinge" || pairing === "posterior_chain" || muscles.has("hamstrings");
   }
 
-  // Intent: bench / horizontal press
+  // Intent: bench / horizontal press (do not treat all upper_push — OHP is vertical)
   if (norm === "bench_press") {
-    return movementPattern === "push" && (family === "upper_push" || finePatterns.includes("horizontal_push") || pairing === "chest" || muscles.has("chest"));
+    const id = toSlug(exercise.id ?? "");
+    if (
+      id.includes("overhead_press") ||
+      id.includes("ohp") ||
+      id.includes("military_press") ||
+      id.includes("push_press") ||
+      id.includes("shoulder_press") ||
+      id.includes("z_press") ||
+      (id.includes("landmine") && id.includes("press") && !id.includes("bench"))
+    ) {
+      return false;
+    }
+    return (
+      movementPattern === "push" &&
+      (finePatterns.includes("horizontal_push") ||
+        pairing === "chest" ||
+        muscles.has("chest") ||
+        id.includes("bench") ||
+        id.includes("floor_press") ||
+        id.includes("push_up") ||
+        id.includes("pushup") ||
+        id.includes("dip"))
+    );
   }
 
   // Intent: overhead press / vertical press
@@ -122,19 +144,30 @@ export function exerciseHasStrengthSubFocusSlug(exercise: ExerciseForStrengthSub
     );
   }
 
-  // Intent: pull-up / horizontal or vertical pull
+  // Intent: pull-up / horizontal or vertical pull (curls / biceps isolation ≠ pull intent)
   if (norm === "pull") {
     if (movementPattern === "hinge" || movementPattern === "squat") return false;
     const id = toSlug(exercise.id ?? "");
     if (id.includes("deadlift") || id.includes("rdl") || id.includes("good_morning")) return false;
+    if (id.includes("curl") && !id.includes("row")) return false;
+    if (muscles.has("biceps") && !muscles.has("lats") && !muscles.has("back") && !muscles.has("pull")) {
+      // Isolation arm flexors without a back/pull signal
+      if (!finePatterns.includes("vertical_pull") && !finePatterns.includes("horizontal_pull") && family !== "upper_pull") {
+        return false;
+      }
+    }
     return (
       movementPattern === "pull" ||
       family === "upper_pull" ||
       finePatterns.includes("vertical_pull") ||
       finePatterns.includes("horizontal_pull") ||
       muscles.has("lats") ||
-      (muscles.has("back") && movementPattern === "pull") ||
-      muscles.has("biceps")
+      (muscles.has("back") && (movementPattern === "pull" || family === "upper_pull")) ||
+      id.includes("row") ||
+      id.includes("pull_up") ||
+      id.includes("pullup") ||
+      id.includes("chin_up") ||
+      id.includes("chinup")
     );
   }
 
@@ -276,6 +309,70 @@ function exerciseMatchesCalisthenicsStyleStrengthSlug(
 
 export function getStrengthIntentSlugs(profile: SubFocusProfile): string[] {
   return profile.effectiveSubFocusSlugs.filter((s) => STRENGTH_INTENT_SET.has(s));
+}
+
+/**
+ * Strong match for a strength lift intent: attribute tag and/or name/id evidence.
+ * Used to anchor the primary main lift when the user picks Build Strength → Squat / Bench / etc.
+ */
+export function exerciseMatchesStrengthIntentStrong(
+  exercise: ExerciseForStrengthSubFocus & { name?: string },
+  slug: string
+): boolean {
+  const norm = toSlug(slug);
+  if (!STRENGTH_INTENT_SET.has(norm as (typeof STRENGTH_INTENT_SLUGS)[number])) {
+    return exerciseHasStrengthSubFocusSlug(exercise, slug);
+  }
+  const attrs = (exercise.tags?.attribute_tags ?? []).map(toSlug);
+  if (attrs.includes(norm)) return true;
+  const id = toSlug(exercise.id ?? "");
+  const name = toSlug(exercise.name ?? "");
+  if (norm === "squat") return name.includes("squat") || id.includes("squat");
+  if (norm === "deadlift_hinge") {
+    return (
+      name.includes("deadlift") ||
+      name.includes("hinge") ||
+      name.includes("good_morning") ||
+      id.includes("deadlift") ||
+      id.includes("hinge") ||
+      id.includes("rdl") ||
+      id.includes("good_morning")
+    );
+  }
+  if (norm === "bench_press") {
+    return (
+      name.includes("bench") ||
+      name.includes("floor_press") ||
+      id.includes("bench_press") ||
+      id.includes("floor_press")
+    );
+  }
+  if (norm === "overhead_press") {
+    return (
+      name.includes("overhead") ||
+      name.includes("shoulder_press") ||
+      name.includes("push_press") ||
+      name.includes("arnold_press") ||
+      id.includes("overhead_press") ||
+      id.includes("push_press") ||
+      id.includes("shoulder_press")
+    );
+  }
+  if (norm === "pull") {
+    return (
+      name.includes("row") ||
+      name.includes("pull_up") ||
+      name.includes("pullup") ||
+      name.includes("chin_up") ||
+      name.includes("chinup") ||
+      id.includes("row") ||
+      id.includes("pull_up") ||
+      id.includes("pullup") ||
+      id.includes("chin_up") ||
+      id.includes("chinup")
+    );
+  }
+  return false;
 }
 
 export function getStrengthOverlayFilter(profile: SubFocusProfile): string | undefined {

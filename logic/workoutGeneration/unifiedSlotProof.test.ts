@@ -508,7 +508,7 @@ describe("Unified slot plan end-to-end proof: direct sub-goal → block → exer
   });
 
   it("total working exercises stay within 150% of the slot budget (guards against over-prescription)", () => {
-    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 8
+    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 11
     const totalExercises = workingBlocks.reduce((s, b) => s + b.items.length, 0);
     // Allow some overage for accessories added by the normal accessory pass
     expect(totalExercises).toBeLessThanOrEqual(Math.round(totalSlots * 2));

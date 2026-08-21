@@ -15,6 +15,7 @@ import {
   savedWeekToSportPrepWeekPlan,
 } from "../../../../lib/savedWeekUtils";
 import { isSavedDayPlan } from "../../../../lib/saveNamedPlan";
+import { ACTIVE_WEEK_ROUTE } from "../../../../lib/weekProgress";
 import type { SavedWeek } from "../../../../lib/types";
 
 export default function SavedWeekDetailScreen() {
@@ -110,11 +111,11 @@ export default function SavedWeekDetailScreen() {
       }
       if (week.source === "manual") {
         setManualWeekPlan(savedWeekToManualWeekPlan(week));
-        router.replace("/manual/week");
+        router.replace(ACTIVE_WEEK_ROUTE as never);
         return;
       }
       setSportPrepWeekPlan(savedWeekToSportPrepWeekPlan(week));
-      router.replace("/sport-mode/recommendation");
+      router.replace(ACTIVE_WEEK_ROUTE as never);
     }
   }, [id, userId, savedWeeks, setSportPrepWeekPlan, setManualWeekPlan, setGeneratedWorkout, setResumeProgress, setManualExecutionStarted, router]);
 

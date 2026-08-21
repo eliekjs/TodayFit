@@ -2,7 +2,10 @@
  * Rock climbing: sport-owned handlers for main strength, accessory coverage, hypertrophy volume.
  */
 
-import { exerciseHasStrengthSubFocusSlug } from "../../../data/goalSubFocus";
+import {
+  exerciseHasStrengthSubFocusSlug,
+  exerciseMatchesStrengthIntentStrong,
+} from "../../../data/goalSubFocus";
 import {
   applyRockUpstreamAccessoryPairsCoverage,
   applyRockUpstreamMainLiftsCoverage,
@@ -42,10 +45,14 @@ export function createRockClimbingSportMainHandles(deps: SportMainSelectorDeps):
       if (primaryIntent && intentSlugs.length > 0) {
         const directIntentMainMatches = mainPool.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)));
         const primaryMatches = directIntentMainMatches.filter((e) => exerciseHasStrengthSubFocusSlug(e, primaryIntent));
+        const strongPrimaryMatches = primaryMatches.filter((e) =>
+          exerciseMatchesStrengthIntentStrong(e, primaryIntent)
+        );
+        const anchorPool = strongPrimaryMatches.length > 0 ? strongPrimaryMatches : primaryMatches;
 
-        if (primaryMatches.length > 0) {
+        if (anchorPool.length > 0) {
           const anchorChosen = climbingOwnedPickMany(
-            primaryMatches,
+            anchorPool,
             1,
             ctx.input,
             ctx.recentIds,

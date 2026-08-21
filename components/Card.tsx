@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform, type ViewStyle } from "react-native";
-import { themeRadius, useTheme } from "../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../lib/theme";
 import { PrimaryButton } from "./Button";
 
 type Props = {
@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: themeFonts.displaySemi,
+    fontSize: 16,
   },
   subtitle: {
     fontSize: 13,

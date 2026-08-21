@@ -21,14 +21,21 @@ import {
   dayBodyFocusChoicesToBias,
   decodeDayBodyFocusPicks,
   encodeDayBodyFocusPicks,
-  resolveWeeklyBodyFocusMode,
+  remapDayBodyPicksToMode,
+  resolveDayBodyFocusMode,
+  bodyFocusModeForChoiceId,
   sportGoalPrioritySectionNote,
   toggleDayBodyFocusPick,
   type DayBodyFocusChoice,
   type DayBodyFocusChoiceId,
   type DayFocusPreset,
 } from "../../../lib/weekDaySessionFocus";
-import { overlayUserDayFocusPicks, recommendWeekDayFocus, weekFocusRecommendationSeed } from "../../../lib/weekDayFocusRecommendation";
+import {
+  overlayUserDayFocusPicks,
+  recommendWeekDayFocus,
+  recommendWeeklyBodyFocusMode,
+  weekFocusRecommendationSeed,
+} from "../../../lib/weekDayFocusRecommendation";
 import {
   buildSubFocusOverrideAligningToBody,
   mapBodyResolutionToMode,
@@ -51,7 +58,7 @@ import { useAppState } from "../../../context/AppStateContext";
 import { useAuth } from "../../../context/AuthContext";
 import { isDbConfigured } from "../../../lib/db";
 import { loadSportPrepPlannerModule } from "../../../lib/loadSportPrepPlannerModule";
-import type { BodyEmphasisKey, WeeklyBodyFocusMode } from "../../../lib/types";
+import type { WeeklyBodyFocusMode } from "../../../lib/types";
 import { energyFromSportIntensity } from "../../../lib/energyLevelMapping";
 import { listSportsForPrep, resolveActiveSportForSlug } from "../../../lib/db/sportRepository";
 import type { Sport } from "../../../lib/db/types";
@@ -62,16 +69,6 @@ import {
 } from "../../../lib/preferencesConstants";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const EMPHASIS_OPTIONS: { id: BodyEmphasisKey; label: string }[] = [
-  { id: "none", label: "None" },
-  { id: "upper_body", label: "Upper Body" },
-  { id: "lower_body", label: "Lower Body" },
-  { id: "pull", label: "Pull" },
-  { id: "push", label: "Push" },
-  { id: "glutes", label: "Glutes" },
-  { id: "core", label: "Core" },
-];
 
 /** preferredTrainingDays uses week index: 0=Mon..6=Sun (matches planner weekDates). */
 function toPreferredTrainingDays(selectedDows: number[]): number[] {
@@ -88,7 +85,6 @@ export default function AdaptiveScheduleScreen() {
     activeGymProfileId,
     gymProfiles,
     manualPreferences,
-    updateManualPreferences,
     beginSessionFlow,
     updateActiveSessionDraft,
     activeSessionDraft,
@@ -98,7 +94,6 @@ export default function AdaptiveScheduleScreen() {
   const [gymTrainingDays, setGymTrainingDays] = useState<number[]>([0, 2, 4]);
   const [sportDaysBySlug, setSportDaysBySlug] = useState<Record<string, number[]>>({});
   const [defaultDuration, setDefaultDuration] = useState<number>(45);
-  const [weeklyEmphasis, setWeeklyEmphasis] = useState<BodyEmphasisKey | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [navBarHeight, setNavBarHeight] = useState(72);
   const generationCancelledRef = useRef(false);
@@ -130,11 +125,11 @@ export default function AdaptiveScheduleScreen() {
   const [sports, setSports] = useState<Sport[]>([]);
   const [sectionGymOpen, setSectionGymOpen] = useState(false);
   const [sectionSportOpen, setSectionSportOpen] = useState(false);
-  const [sectionEmphasisOpen, setSectionEmphasisOpen] = useState(false);
   const [sectionDurationOpen, setSectionDurationOpen] = useState(false);
   const [weekSetupStep, setWeekSetupStep] = useState<"pickDays" | "sessionFocus">("pickDays");
   const [dayFocusChoiceIds, setDayFocusChoiceIds] = useState<string[]>([]);
   const [dayBodyFocusPicks, setDayBodyFocusPicks] = useState<DayBodyFocusChoiceId[][]>([]);
+  const [dayBodyFocusModes, setDayBodyFocusModes] = useState<WeeklyBodyFocusMode[]>([]);
   const [daySessionFocusLocked, setDaySessionFocusLocked] = useState<boolean[]>([]);
   const [daySubFocusOverrides, setDaySubFocusOverrides] = useState<
     Record<number, Record<string, string[]>>
@@ -168,6 +163,9 @@ export default function AdaptiveScheduleScreen() {
     if (ws.dayBodyFocusChoiceIds?.length) {
       setDayBodyFocusPicks(ws.dayBodyFocusChoiceIds.map((raw) => decodeDayBodyFocusPicks(raw)));
     }
+    if (ws.dayBodyFocusModes?.length) {
+      setDayBodyFocusModes(ws.dayBodyFocusModes);
+    }
     if (ws.daySessionFocusLocked?.length) {
       setDaySessionFocusLocked(ws.daySessionFocusLocked);
     }
@@ -183,6 +181,7 @@ export default function AdaptiveScheduleScreen() {
       selectedTrainingDays: gymTrainingDays,
       dayFocusChoiceIds,
       dayBodyFocusChoiceIds: dayBodyFocusPicks.map(encodeDayBodyFocusPicks),
+      dayBodyFocusModes,
       daySessionFocusLocked,
       recommendationSeed,
     };
@@ -196,6 +195,7 @@ export default function AdaptiveScheduleScreen() {
     gymTrainingDays,
     dayFocusChoiceIds,
     dayBodyFocusPicks,
+    dayBodyFocusModes,
     daySessionFocusLocked,
     recommendationSeed,
     updateActiveSessionDraft,
@@ -218,9 +218,6 @@ export default function AdaptiveScheduleScreen() {
     }
     if (snap.defaultSessionDuration != null) {
       setDefaultDuration(snap.defaultSessionDuration);
-    }
-    if (snap.emphasis !== undefined) {
-      setWeeklyEmphasis(snap.emphasis ?? null);
     }
   }, [sportPrepWeekPlan?.scheduleSnapshot?.weekStartDate]);
 
@@ -252,8 +249,6 @@ export default function AdaptiveScheduleScreen() {
     });
   }, []);
 
-  const bodyFocusMode = resolveWeeklyBodyFocusMode(manualPreferences.weeklyBodyFocusMode);
-
   const sessionFocusMeta = useMemo(() => {
     if (gymTrainingDays.length === 0) {
       return {
@@ -275,6 +270,7 @@ export default function AdaptiveScheduleScreen() {
       existingBodyPicks: dayBodyFocusPicks,
       existingFocusIds: dayFocusChoiceIds,
       lockedDays: daySessionFocusLocked,
+      existingModes: dayBodyFocusModes,
     });
     const labels = gymTrainingDays.map((dow, i) => {
       const picks = merged.bodyPicks[i]?.length
@@ -292,13 +288,18 @@ export default function AdaptiveScheduleScreen() {
     });
     const bodyOptions = gymTrainingDays.map((_, i) => {
       const recBias = dayBodyFocusChoicesToBias(recommendations.days[i]?.bodyIds ?? ["full"]);
+      const dayMode = resolveDayBodyFocusMode(
+        merged.bodyPicks[i],
+        dayBodyFocusModes[i],
+        recommendations.mode
+      );
       return buildDayBodyFocusChoicesForDay({
         manualPreferences,
         adaptiveSetup,
         slotIndex: i,
         fallbackTargetBody: recBias.targetBody,
         fallbackTargetModifier: recBias.targetModifier,
-        mode: bodyFocusMode,
+        mode: dayMode,
         templateChoiceId: recommendations.days[i]?.bodyIds[0],
       });
     });
@@ -323,7 +324,7 @@ export default function AdaptiveScheduleScreen() {
       recommendationSummaries: recommendations.days.map((d) => d.summary),
       recommendedFocusIds: recommendations.days.map((d) => d.goalPresetId),
     };
-  }, [gymTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusPicks, dayFocusChoiceIds, daySessionFocusLocked, bodyFocusMode]);
+  }, [gymTrainingDays, manualPreferences, adaptiveSetup, dayBodyFocusPicks, dayBodyFocusModes, dayFocusChoiceIds, daySessionFocusLocked]);
 
   const daySessionFocusConflicts = useMemo(() => {
     if (gymTrainingDays.length === 0) return [];
@@ -401,9 +402,9 @@ export default function AdaptiveScheduleScreen() {
       detectUncoveredSubGoalsForWeek({
         manualPreferences,
         dayBodyPicks: dayBodyFocusPicks,
-        mode: bodyFocusMode,
+        mode: recommendWeeklyBodyFocusMode(manualPreferences),
       }),
-    [manualPreferences, dayBodyFocusPicks, bodyFocusMode]
+    [manualPreferences, dayBodyFocusPicks]
   );
 
   const hasUnresolvedUncoveredSubGoals =
@@ -445,7 +446,14 @@ export default function AdaptiveScheduleScreen() {
       const mapped: DaySessionFocusResolution = resolution.bodyFocusId
         ? {
             ...resolution,
-            bodyFocusId: mapBodyResolutionToMode(resolution.bodyFocusId, bodyFocusMode),
+            bodyFocusId: mapBodyResolutionToMode(
+              resolution.bodyFocusId,
+              resolveDayBodyFocusMode(
+                dayBodyFocusPicks[dayIdx],
+                dayBodyFocusModes[dayIdx],
+                recommendWeeklyBodyFocusMode(manualPreferences)
+              )
+            ),
           }
         : resolution;
       applyDaySessionFocusResolution({
@@ -480,46 +488,38 @@ export default function AdaptiveScheduleScreen() {
         },
       });
     },
-    [daySessionFocusConflictsToSurface, manualPreferences.subFocusByGoal, bodyFocusMode]
+    [daySessionFocusConflictsToSurface, manualPreferences.subFocusByGoal, dayBodyFocusPicks, dayBodyFocusModes]
   );
 
-  const handleChangeWeeklyBodyFocusMode = useCallback(
-    (mode: WeeklyBodyFocusMode) => {
-      if (mode === bodyFocusMode) return;
-      const n = gymTrainingDays.length;
-      const rec = recommendWeekDayFocus({
-        gymDays: n,
-        manualPreferences: { ...manualPreferences, weeklyBodyFocusMode: mode },
-        adaptiveSetup,
-      });
-      const merged = overlayUserDayFocusPicks({
-        gymDays: n,
-        recommendation: rec,
-        existingBodyPicks: dayBodyFocusPicks,
-        existingFocusIds: dayFocusChoiceIds,
-        lockedDays: daySessionFocusLocked,
-        existingSubFocusOverrides: daySubFocusOverrides,
-      });
+  const handleChangeDayBodyFocusMode = useCallback(
+    (dayIdx: number, mode: WeeklyBodyFocusMode) => {
+      const current = resolveDayBodyFocusMode(
+        dayBodyFocusPicks[dayIdx],
+        dayBodyFocusModes[dayIdx],
+        "region"
+      );
+      if (mode === current) return;
       setRevealDayFocusConflicts(false);
       setAcknowledgedUncoveredSubGoalId(undefined);
-      updateManualPreferences({ weeklyBodyFocusMode: mode });
-      setDayBodyFocusPicks(merged.bodyPicks);
-      setDayFocusChoiceIds(merged.focusIds);
-      setDaySubFocusOverrides(merged.subFocusOverrides);
-      setDaySessionFocusLocked(merged.lockedDays);
-      setResolvedConflictIdsByDay({});
+      setDayBodyFocusModes((prev) => {
+        const next = [...prev];
+        next[dayIdx] = mode;
+        return next;
+      });
+      setDayBodyFocusPicks((prev) => {
+        const next = [...prev];
+        const remapped = remapDayBodyPicksToMode(next[dayIdx] ?? [], mode);
+        next[dayIdx] = remapped.length ? remapped : ["full"];
+        return next;
+      });
+      setDaySessionFocusLocked((prev) => {
+        const next = [...prev];
+        next[dayIdx] = true;
+        return next;
+      });
+      clearDayConflictState(dayIdx);
     },
-    [
-      bodyFocusMode,
-      gymTrainingDays.length,
-      manualPreferences,
-      adaptiveSetup,
-      dayBodyFocusPicks,
-      dayFocusChoiceIds,
-      daySessionFocusLocked,
-      daySubFocusOverrides,
-      updateManualPreferences,
-    ]
+    [dayBodyFocusPicks, dayBodyFocusModes, clearDayConflictState]
   );
 
   const applyDayBodySelect = useCallback(
@@ -535,6 +535,14 @@ export default function AdaptiveScheduleScreen() {
         next[dayIdx] = toggleDayBodyFocusPick(next[dayIdx] ?? [], id);
         return next;
       });
+      const impliedMode = bodyFocusModeForChoiceId(id);
+      if (impliedMode) {
+        setDayBodyFocusModes((prev) => {
+          const next = [...prev];
+          next[dayIdx] = impliedMode;
+          return next;
+        });
+      }
       setDaySessionFocusLocked((prev) => {
         const next = [...prev];
         next[dayIdx] = true;
@@ -599,9 +607,6 @@ export default function AdaptiveScheduleScreen() {
       manualPreferences,
       adaptiveSetup,
     });
-    if (!manualPreferences.weeklyBodyFocusMode && rec.mode) {
-      updateManualPreferences({ weeklyBodyFocusMode: rec.mode });
-    }
     const merged = overlayUserDayFocusPicks({
       gymDays: n,
       recommendation: rec,
@@ -609,8 +614,10 @@ export default function AdaptiveScheduleScreen() {
       existingFocusIds: dayFocusChoiceIds,
       lockedDays: daySessionFocusLocked,
       existingSubFocusOverrides: daySubFocusOverrides,
+      existingModes: dayBodyFocusModes,
     });
     setDayBodyFocusPicks(merged.bodyPicks);
+    setDayBodyFocusModes(merged.modes);
     setDayFocusChoiceIds(merged.focusIds);
     setDaySubFocusOverrides(merged.subFocusOverrides);
     setDaySessionFocusLocked(merged.lockedDays);
@@ -622,8 +629,8 @@ export default function AdaptiveScheduleScreen() {
     gymTrainingDays,
     manualPreferences,
     adaptiveSetup,
-    updateManualPreferences,
     dayBodyFocusPicks,
+    dayBodyFocusModes,
     dayFocusChoiceIds,
     daySessionFocusLocked,
     daySubFocusOverrides,
@@ -736,6 +743,7 @@ export default function AdaptiveScheduleScreen() {
           (_, i) => (dayBodyFocusPicks[i]?.length ?? 0) > 0 || Boolean(dayFocusChoiceIds[i])
         ),
         existingSubFocusOverrides: daySubFocusOverrides,
+        existingModes: dayBodyFocusModes,
       });
       const plan = await planWeek({
         userId: userId ?? undefined,
@@ -780,7 +788,6 @@ export default function AdaptiveScheduleScreen() {
         goalMatchPrimaryPct: manualPreferences.goalMatchPrimaryPct ?? 50,
         goalMatchSecondaryPct: manualPreferences.goalMatchSecondaryPct ?? 30,
         goalMatchTertiaryPct: manualPreferences.goalMatchTertiaryPct ?? 20,
-        emphasis: weeklyEmphasis ?? undefined,
         workoutTier: manualPreferences.workoutTier ?? "intermediate",
         includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
         goalDistributionStyle: "dedicate_days",
@@ -792,9 +799,10 @@ export default function AdaptiveScheduleScreen() {
             : {}),
         },
         gymDayFocusPresetIds: dayFocusMerged.focusIds,
-        gymDayBodyFocuses: dayFocusMerged.bodyPicks.map((picks) =>
-          dayBodyFocusChoicesToBias(picks)
-        ),
+        gymDayBodyFocuses: dayFocusMerged.bodyPicks.map((picks, i) => ({
+          ...dayBodyFocusChoicesToBias(picks),
+          weeklyBodyFocusMode: dayFocusMerged.modes[i],
+        })),
         gymDaySubFocusByGoalOverrides:
           gymTrainingDays.length > 0
             ? gymTrainingDays.map((_, i) => daySubFocusOverrides[i] ?? null)
@@ -817,7 +825,6 @@ export default function AdaptiveScheduleScreen() {
     gymTrainingDays,
     sportDaysBySlug,
     defaultDuration,
-    weeklyEmphasis,
     setSportPrepWeekPlan,
     activeGymProfileId,
     gymProfiles,
@@ -826,6 +833,7 @@ export default function AdaptiveScheduleScreen() {
     router,
     dayFocusChoiceIds,
     dayBodyFocusPicks,
+    dayBodyFocusModes,
     daySubFocusOverrides,
     hasUnresolvedDayConflicts,
     hasUnresolvedUncoveredSubGoals,
@@ -868,11 +876,6 @@ export default function AdaptiveScheduleScreen() {
     () => selectedSportSlugs.some((slug) => (sportDaysBySlug[slug] ?? []).length > 0),
     [selectedSportSlugs, sportDaysBySlug]
   );
-
-  const emphasisSummary = useMemo(() => {
-    if (weeklyEmphasis == null) return "None";
-    return EMPHASIS_OPTIONS.find((o) => o.id === weeklyEmphasis)?.label ?? "Custom";
-  }, [weeklyEmphasis]);
 
   const durationSummary = `${defaultDuration} min`;
 
@@ -921,9 +924,14 @@ export default function AdaptiveScheduleScreen() {
               }
               resolvedConflictIdsByDay={resolvedConflictIdsByDay}
               sportGoalPriorityNote={sportGoalPrioritySectionNote(manualPreferences, adaptiveSetup)}
-              showBodyFocusModeNote
-              weeklyBodyFocusMode={bodyFocusMode}
-              onChangeWeeklyBodyFocusMode={handleChangeWeeklyBodyFocusMode}
+              bodyFocusModePerDay={gymTrainingDays.map((_, i) =>
+                resolveDayBodyFocusMode(
+                  dayBodyFocusPicks[i],
+                  dayBodyFocusModes[i],
+                  recommendWeeklyBodyFocusMode(manualPreferences)
+                )
+              )}
+              onChangeDayBodyFocusMode={handleChangeDayBodyFocusMode}
               onSelectBody={handleSelectDayBody}
               onSelect={(dayIdx, id) => {
                 clearDayConflictState(dayIdx);
@@ -1064,28 +1072,6 @@ export default function AdaptiveScheduleScreen() {
           </CollapsiblePreferenceSection>
           </>
         ) : null}
-
-        <CollapsiblePreferenceSection
-          title="Weekly body emphasis"
-          subtitle="Optional bias toward one region on top of rotating upper, lower, and occasional full gym days."
-          summary={emphasisSummary}
-          expanded={sectionEmphasisOpen}
-          onToggle={() => {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            setSectionEmphasisOpen((v) => !v);
-          }}
-        >
-          <View style={styles.chipGroup}>
-            {EMPHASIS_OPTIONS.map((opt) => (
-              <Chip
-                key={opt.id}
-                label={opt.label}
-                selected={weeklyEmphasis === opt.id || (opt.id === "none" && weeklyEmphasis == null)}
-                onPress={() => setWeeklyEmphasis(opt.id === "none" ? null : opt.id)}
-              />
-            ))}
-          </View>
-        </CollapsiblePreferenceSection>
 
         <CollapsiblePreferenceSection
           title="Session length"

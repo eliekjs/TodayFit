@@ -440,8 +440,11 @@ describe("isEnduranceConditioningSportIntentEntry", () => {
 });
 
 describe("estimateIntentWorkingExerciseSlots", () => {
-  it("returns ~10 for 60 minutes", () => {
-    expect(estimateIntentWorkingExerciseSlots(60)).toBe(10);
+  it("returns shared volume targets by duration tier", () => {
+    expect(estimateIntentWorkingExerciseSlots(30)).toBe(6);
+    expect(estimateIntentWorkingExerciseSlots(45)).toBe(9);
+    expect(estimateIntentWorkingExerciseSlots(60)).toBe(11);
+    expect(estimateIntentWorkingExerciseSlots(75)).toBe(13);
   });
 });
 
@@ -458,8 +461,8 @@ describe("buildUnifiedIntentSlotPlan (slot budget proof)", () => {
    * Marathon Pace    → conditioning
    * Ankle Stability  → prehab
    *
-   * Total slots for 53 min = 8
-   * Proportional: arms_shoulders ~40% → 3, marathon_pace ~30% → 2, ankle_stability ~30% → 3
+   * Total slots for 53 min = 11 (60-min band)
+   * Proportional: arms_shoulders ~40% → largest share; marathon_pace / ankle_stability share remainder
    */
   const leaves: IntentEntry[] = [
     {
@@ -511,7 +514,7 @@ describe("buildUnifiedIntentSlotPlan (slot budget proof)", () => {
   });
 
   it("conditioning + prehab slots total the non-main portion of budget", () => {
-    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 8
+    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 11
     const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
     const mainSlots = plan.find((p) => p.entry.slug === "arms_and_shoulders")?.slots ?? 0;
     const condSlots = plan.find((p) => p.entry.slug === "marathon_pace")?.slots ?? 0;
@@ -527,8 +530,8 @@ describe("buildUnifiedIntentSlotPlan (slot budget proof)", () => {
   });
 
   it("proportional allocation never gives zero slots to a leaf with meaningful weight", () => {
-    // Even a leaf with 30% weight on an 8-slot budget should get ≥ 1 slot
-    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 8
+    // Even a leaf with 30% weight on an 11-slot budget should get ≥ 1 slot
+    const totalSlots = estimateIntentWorkingExerciseSlots(53); // 11
     const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
     for (const entry of plan) {
       expect(entry.slots).toBeGreaterThan(0);
@@ -536,7 +539,7 @@ describe("buildUnifiedIntentSlotPlan (slot budget proof)", () => {
   });
 
   it("shorter workouts still allocate proportionally", () => {
-    const totalSlots = estimateIntentWorkingExerciseSlots(25); // 4
+    const totalSlots = estimateIntentWorkingExerciseSlots(25); // 6
     const plan = buildUnifiedIntentSlotPlan(leaves, totalSlots);
     const planTotal = plan.reduce((s, e) => s + e.slots, 0);
     expect(planTotal).toBe(totalSlots);

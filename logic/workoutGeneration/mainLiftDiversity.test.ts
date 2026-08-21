@@ -47,6 +47,40 @@ function testHingeStillMatchesWithoutGlutesAloneFallback() {
   assert.equal(exerciseHasStrengthSubFocusSlug(hinge, "deadlift_hinge"), true);
 }
 
+function testBenchPressDoesNotMatchOverheadPressFamily() {
+  const ohp: Exercise = {
+    id: "test_oh_press",
+    name: "Overhead Press",
+    movement_pattern: "push",
+    primary_movement_family: "upper_push",
+    movement_patterns: ["vertical_push"],
+    muscle_groups: ["shoulders"],
+    pairing_category: "shoulders",
+    modality: "strength",
+    equipment_required: ["barbell"],
+    difficulty: 3,
+    time_cost: "medium",
+    tags: { goal_tags: ["strength"], attribute_tags: ["overhead_press"] },
+  } as Exercise;
+  assert.equal(exerciseHasStrengthSubFocusSlug(ohp, "bench_press"), false);
+  assert.equal(exerciseHasStrengthSubFocusSlug(ohp, "overhead_press"), true);
+}
+
+function testPullIntentRejectsArmCurls() {
+  const curl: Exercise = {
+    id: "reverse_curl",
+    name: "Reverse Curl",
+    movement_pattern: "pull",
+    muscle_groups: ["biceps", "forearms"],
+    modality: "strength",
+    equipment_required: ["dumbbells"],
+    difficulty: 2,
+    time_cost: "low",
+    tags: { goal_tags: ["strength"] },
+  } as Exercise;
+  assert.equal(exerciseHasStrengthSubFocusSlug(curl, "pull"), false);
+}
+
 function testRackPullSharesDeadliftCluster() {
   assert.equal(getSimilarExerciseClusterId({ id: "rack_pull" }), "deadlift_family");
 }
@@ -103,6 +137,8 @@ function testWeeklyExclusionRotatesMainLiftWhenPoolAllows() {
 function run() {
   testSquatDoesNotMatchHingeViaSharedGlutes();
   testHingeStillMatchesWithoutGlutesAloneFallback();
+  testBenchPressDoesNotMatchOverheadPressFamily();
+  testPullIntentRejectsArmCurls();
   testRackPullSharesDeadliftCluster();
   testCollectWeekMainLiftIds();
   testWeeklyExclusionRotatesMainLiftWhenPoolAllows();

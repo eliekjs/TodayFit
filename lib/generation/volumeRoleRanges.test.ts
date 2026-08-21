@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getVolumeRoleSpec,
   inferStrengthVolumeRole,
+  remapItemPrescriptionForVolumePreference,
   resolveRoleVolumePrescription,
 } from "./volumeRoleRanges";
 
@@ -26,6 +27,27 @@ describe("volumeRoleRanges", () => {
     const mid = resolveRoleVolumePrescription("accessory", "high_volume", "medium");
     expect(mid.baseSets).toBe(4);
     expect(mid.reps).toBe(14);
+  });
+
+  it("remaps rep-based items onto the preference table", () => {
+    const remapped = remapItemPrescriptionForVolumePreference(
+      { sets: 3, reps: 8 },
+      "primary",
+      "high_volume",
+      "medium"
+    );
+    expect(remapped).toEqual({ sets: 4, reps: 8 });
+  });
+
+  it("skips time-based items when remapping volume", () => {
+    expect(
+      remapItemPrescriptionForVolumePreference(
+        { sets: 3, time_seconds: 45 },
+        "accessory",
+        "high_volume",
+        "medium"
+      )
+    ).toBeNull();
   });
 
   it("secondary Balanced is ~3 × 8–10, distinct from primary", () => {

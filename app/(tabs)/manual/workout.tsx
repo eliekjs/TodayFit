@@ -17,7 +17,7 @@ import {
   saveAndExecuteHint,
   saveAndExecuteLabel,
 } from "../../../lib/weekReviewCopy";
-import { ACTIVE_WEEK_ROUTE } from "../../../lib/weekProgress";
+import { ACTIVE_WEEK_ROUTE, manualWeekPlanFromSingleDay } from "../../../lib/weekProgress";
 import { savedDayFingerprint } from "../../../lib/saveNamedPlan";
 import { getDesignatedWeekStartMonday, getTodayLocalDateString } from "../../../lib/dateUtils";
 import { WorkoutBlockList } from "../../../components/WorkoutBlockList";
@@ -30,6 +30,7 @@ import { replaceExerciseInWorkout, updateExercisePrescriptionInWorkout, collectW
 import { ensureCuratedDescriptionsLoaded, resolveSwapExerciseDescription } from "../../../lib/exerciseDescriptionsCurated";
 import {
   blockTypeToSwapBlockRole,
+  generatorGoalToSwapTagSlugs,
   getSwapSuggestionsPage,
 } from "../../../lib/exerciseProgressions";
 import type { BlockType } from "../../../lib/types";
@@ -46,6 +47,7 @@ export default function ManualWorkoutScreen() {
     activeGymProfileId,
     gymProfiles,
     setGeneratedWorkout,
+    setManualWeekPlan,
     setManualExecutionStarted,
     addSavedWorkout,
     savedWorkouts,
@@ -64,10 +66,26 @@ export default function ManualWorkoutScreen() {
     dismissStart,
   } = useSaveAndExecute();
 
+  const activateDayOnWorkoutTab = useCallback(() => {
+    if (!generatedWorkout) return;
+    const title = generatedWorkout.intentSplit
+      ? buildWorkoutIntentTitle(generatedWorkout.intentSplit)
+      : undefined;
+    setManualWeekPlan(
+      manualWeekPlanFromSingleDay({
+        weekStartDate: getDesignatedWeekStartMonday(),
+        date: getTodayLocalDateString(),
+        workout: generatedWorkout,
+        displayTitle: title ?? undefined,
+      })
+    );
+  }, [generatedWorkout, setManualWeekPlan]);
+
   const startWorkout = useCallback(() => {
+    activateDayOnWorkoutTab();
     setManualExecutionStarted(true);
     router.push("/manual/execute");
-  }, [setManualExecutionStarted, router]);
+  }, [activateDayOnWorkoutTab, setManualExecutionStarted, router]);
 
   /** Save this session to the library, then offer to train it now. */
   const onSaveAndExecute = useCallback(() => {
@@ -86,16 +104,27 @@ export default function ManualWorkoutScreen() {
         },
       ],
       source: "manual",
+      onSaved: activateDayOnWorkoutTab,
       onStart: startWorkout,
-      onDecline: () => router.replace(ACTIVE_WEEK_ROUTE as never),
+      onDecline: () => {
+        activateDayOnWorkoutTab();
+        router.replace(ACTIVE_WEEK_ROUTE as never);
+      },
     });
-  }, [generatedWorkout, requestSaveAndExecute, startWorkout, router]);
+  }, [
+    generatedWorkout,
+    requestSaveAndExecute,
+    activateDayOnWorkoutTab,
+    startWorkout,
+    router,
+  ]);
 
   const [swapModal, setSwapModal] = useState<{
     exerciseId: string;
     exerciseName: string;
     blockType: BlockType;
     swapPoolExerciseIds?: string[];
+    goalSlug?: string;
   } | null>(null);
   const [swapSuggested, setSwapSuggested] = useState<{ id: string; name: string }[]>([]);
   const [swapLoading, setSwapLoading] = useState(false);
@@ -135,11 +164,13 @@ export default function ManualWorkoutScreen() {
     let cancelled = false;
     setSwapLoading(true);
     const energyLevel = manualPreferences.energyLevel ?? undefined;
+    const preferredGoalTagSlugs = generatorGoalToSwapTagSlugs(swapModal.goalSlug);
     getSwapSuggestionsPage(
       swapModal.exerciseId,
       {
         energyLevel,
         swapBlockRole: blockTypeToSwapBlockRole(swapModal.blockType),
+        preferredGoalTagSlugs,
         swapPoolExerciseIds: swapModal.swapPoolExerciseIds,
         workoutTier: manualPreferences.workoutTier ?? "intermediate",
         includeCreativeVariations: manualPreferences.includeCreativeVariations === true,
@@ -160,6 +191,7 @@ export default function ManualWorkoutScreen() {
     swapModal?.exerciseId,
     swapModal?.blockType,
     swapModal?.swapPoolExerciseIds,
+    swapModal?.goalSlug,
     manualPreferences.energyLevel,
     manualPreferences.workoutTier,
     manualPreferences.includeCreativeVariations,
@@ -350,8 +382,8 @@ export default function ManualWorkoutScreen() {
         <WorkoutBlockList
           workout={generatedWorkout}
           showSwap
-          onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds) =>
-            setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds })
+          onSwap={(exerciseId, exerciseName, blockType, swapPoolExerciseIds, goalSlug) =>
+            setSwapModal({ exerciseId, exerciseName, blockType, swapPoolExerciseIds, goalSlug })
           }
           showEditPrescription
           onEditPrescription={onEditPrescription}

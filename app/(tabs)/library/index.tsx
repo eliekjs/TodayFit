@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { themeRadius, useTheme } from "../../../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../../../lib/theme";
 import { useAppState } from "../../../context/AppStateContext";
 import { Card } from "../../../components/Card";
 import { PrimaryButton } from "../../../components/Button";
@@ -17,15 +17,24 @@ import type { DiscardTarget } from "../../../lib/discardConfirmCopy";
 import { workoutLibraryDedupKey } from "../../../lib/workoutLibraryLabel";
 import {
   cloneWorkoutForRedo,
+  completedSessionsToSavedWeek,
   savedWeekToManualWeekPlan,
   savedWeekToSportPrepWeekPlan,
 } from "../../../lib/savedWeekUtils";
 import {
+  defaultSavedWeekName,
   isSavedDayPlan,
+  isSavedWeekTheActivePlan,
   savedPlanDaysFromSportPrep,
   savedPlanLibraryTitle,
   savedPlanSourceLabel,
 } from "../../../lib/saveNamedPlan";
+import {
+  groupCompletedHistoryByWeek,
+  historyWeekCanRedo,
+  sortBySavedAtNewestFirst,
+} from "../../../lib/libraryCollections";
+import { ACTIVE_WEEK_ROUTE } from "../../../lib/weekProgress";
 import { useNamedPlanSave } from "../../../lib/useNamedPlanSave";
 import type { SavedWeek } from "../../../lib/types";
 import { summarizeWorkoutLog } from "../../../lib/workoutCompletionLog";
@@ -77,17 +86,26 @@ export default function LibraryScreen() {
     router.push("/manual/execute");
   };
 
-  const onRedoSavedWeek = (week: SavedWeek) => {
-    if (week.source === "manual") {
-      setManualWeekPlan(savedWeekToManualWeekPlan(week));
-      router.push("/manual/week");
+  const onStartSavedWeek = (week: SavedWeek) => {
+    const alreadyActive = isSavedWeekTheActivePlan(week, {
+      manualWeekPlan,
+      sportPrepWeekPlan,
+    });
+    if (alreadyActive) {
+      router.push(ACTIVE_WEEK_ROUTE as never);
       return;
     }
-    setSportPrepWeekPlan(savedWeekToSportPrepWeekPlan(week));
-    router.push("/sport-mode/recommendation");
+    if (week.source === "manual") {
+      setSportPrepWeekPlan(null);
+      setManualWeekPlan(savedWeekToManualWeekPlan(week));
+    } else {
+      setManualWeekPlan(null);
+      setSportPrepWeekPlan(savedWeekToSportPrepWeekPlan(week));
+    }
+    router.push(ACTIVE_WEEK_ROUTE as never);
   };
 
-  const onRedoSavedDay = (dayPlan: SavedWeek) => {
+  const onStartSavedDay = (dayPlan: SavedWeek) => {
     const day = dayPlan.days[0];
     if (!day) return;
     setGeneratedWorkout(cloneWorkoutForRedo(day.workout));
@@ -96,8 +114,14 @@ export default function LibraryScreen() {
     router.push("/manual/execute");
   };
 
-  const items = [...workoutHistory].sort((a, b) =>
-    a.date.localeCompare(b.date)
+  const onRedoHistoryWeek = (weekStartDate: string, weekItems: typeof workoutHistory) => {
+    const week = completedSessionsToSavedWeek(weekStartDate, weekItems);
+    if (!week) return;
+    onStartSavedWeek(week);
+  };
+
+  const items = [...workoutHistory].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)
   );
   const getItemKey = (item: (typeof items)[0]) =>
     workoutLibraryDedupKey(item.date, item.focus);
@@ -115,8 +139,12 @@ export default function LibraryScreen() {
     return `(${which})`;
   };
 
-  const savedDayPlans = savedWeeks.filter(isSavedDayPlan);
-  const savedWeekPlans = savedWeeks.filter((week) => !isSavedDayPlan(week));
+  const savedDayPlans = sortBySavedAtNewestFirst(savedWeeks.filter(isSavedDayPlan));
+  const savedWeekPlans = sortBySavedAtNewestFirst(
+    savedWeeks.filter((week) => !isSavedDayPlan(week))
+  );
+  const savedForLater = sortBySavedAtNewestFirst(savedWorkouts);
+  const historyWeeks = groupCompletedHistoryByWeek(items);
   const hasAny =
     savedWorkouts.length > 0 || savedWeeks.length > 0 || items.length > 0;
 
@@ -193,8 +221,9 @@ export default function LibraryScreen() {
               Nothing in your library yet
             </Text>
             <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
-              Save a day or week while reviewing your plan, or finish a session
-              — named saves show up here so you can redo them.
+              Save a day or week from review, then start it from here or the
+              Workout tab. Finished sessions land in History, where you can redo
+              a week after you complete it.
             </Text>
           </View>
         )}
@@ -227,7 +256,7 @@ export default function LibraryScreen() {
                 <View style={styles.savedActions}>
                   <PrimaryButton
                     label="Open"
-                    onPress={() => router.push("/manual/week")}
+                    onPress={() => router.push(ACTIVE_WEEK_ROUTE as never)}
                     style={{ flex: 1 }}
                   />
                   <PrimaryButton
@@ -248,7 +277,7 @@ export default function LibraryScreen() {
                 <View style={styles.savedActions}>
                   <PrimaryButton
                     label="Open"
-                    onPress={() => router.push("/sport-mode/recommendation")}
+                    onPress={() => router.push(ACTIVE_WEEK_ROUTE as never)}
                     style={{ flex: 1 }}
                   />
                   <PrimaryButton
@@ -264,7 +293,7 @@ export default function LibraryScreen() {
           </View>
         )}
 
-        {activeLibraryTab === "saved" && savedWorkouts.length > 0 && (
+        {activeLibraryTab === "saved" && savedForLater.length > 0 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Saved for later
@@ -272,7 +301,7 @@ export default function LibraryScreen() {
             <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
               Resume or discard workouts you did not finish.
             </Text>
-            {savedWorkouts.map((saved) => {
+            {savedForLater.map((saved) => {
               const logSummary = summarizeWorkoutLog(
                 saved.workout,
                 undefined,
@@ -330,7 +359,7 @@ export default function LibraryScreen() {
               Saved days
             </Text>
             <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-              Redo a saved session or discard it when you are done.
+              Start a saved session, or discard it when you no longer need it.
             </Text>
             {savedDayPlans.map((dayPlan) => {
               const day = dayPlan.days[0];
@@ -350,8 +379,8 @@ export default function LibraryScreen() {
                   </Text>
                   <View style={styles.savedActions}>
                     <PrimaryButton
-                      label="Redo day"
-                      onPress={() => onRedoSavedDay(dayPlan)}
+                      label="Start day"
+                      onPress={() => onStartSavedDay(dayPlan)}
                       style={{ flex: 1 }}
                     />
                     <PrimaryButton
@@ -375,9 +404,14 @@ export default function LibraryScreen() {
               Saved weeks
             </Text>
             <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-              Redo a saved week plan or discard it when you are done.
+              Start a saved week from the Workout tab. Redo is for finished
+              weeks in History.
             </Text>
             {savedWeekPlans.map((week) => {
+              const alreadyActive = isSavedWeekTheActivePlan(week, {
+                manualWeekPlan,
+                sportPrepWeekPlan,
+              });
               return (
                 <View
                   key={week.id}
@@ -392,8 +426,8 @@ export default function LibraryScreen() {
                   </Text>
                   <View style={styles.savedActions}>
                     <PrimaryButton
-                      label="Redo week"
-                      onPress={() => onRedoSavedWeek(week)}
+                      label={alreadyActive ? "Open week" : "Start week"}
+                      onPress={() => onStartSavedWeek(week)}
                       style={{ flex: 1 }}
                     />
                     <PrimaryButton
@@ -416,65 +450,99 @@ export default function LibraryScreen() {
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
               Completed
             </Text>
-            {items.map((item, index) => {
-              const canViewOrRepeat = item.workout != null;
-              const logSummary =
-                item.workout != null
-                  ? summarizeWorkoutLog(
-                      item.workout,
-                      item.exerciseNotes,
-                      item.exercisePerformance
-                    )
-                  : null;
-              const subtitleParts = [
-                item.durationMinutes != null ? `${item.durationMinutes} min` : null,
-                item.workout
-                  ? `${item.workout.blocks.length} block${item.workout.blocks.length !== 1 ? "s" : ""}`
-                  : null,
-                logSummary,
-              ].filter(Boolean);
+            <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
+              Newest first. After you finish a multi-session week, redo it here.
+            </Text>
+            {historyWeeks.map((group) => {
+              const canRedoWeek = historyWeekCanRedo(group);
               return (
-                <View key={item.id} style={{ marginBottom: 12 }}>
-                  <Card
-                    titleNode={
-                      <WorkoutLibraryTitle
-                        date={item.date}
-                        focusAreas={item.focus}
-                        primaryLabel={item.name}
-                        suffix={getDuplicateSuffix(item, index)}
-                      />
-                    }
-                    subtitle={subtitleParts.length > 0 ? subtitleParts.join(" · ") : undefined}
-                  />
-                  {canViewOrRepeat && (
-                    <View style={styles.completedActions}>
+                <View key={group.weekStartDate} style={styles.historyWeek}>
+                  <View style={styles.historyWeekHeader}>
+                    <Text style={[styles.historyWeekTitle, { color: theme.text }]}>
+                      {defaultSavedWeekName(group.weekStartDate)}
+                    </Text>
+                    {canRedoWeek ? (
                       <PrimaryButton
-                        label="View details"
-                        variant="secondary"
-                        onPress={() => router.push(`/history/${item.id}`)}
-                        style={{ flex: 1 }}
+                        label="Redo week"
+                        compact
+                        onPress={() => onRedoHistoryWeek(group.weekStartDate, group.items)}
+                        style={styles.redoWeekBtn}
                       />
-                      <PrimaryButton
-                        label="Repeat session"
-                        onPress={() => {
-                          if (!item.workout) return;
-                          setGeneratedWorkout({
-                            ...item.workout,
-                            id: `workout_${Date.now()}`,
-                          });
-                          setResumeProgress(null);
-                          router.push("/manual/execute");
-                        }}
-                        style={{ flex: 1 }}
-                      />
-                      <PrimaryButton
-                        label="Edit + re-run"
-                        variant="ghost"
-                        onPress={() => router.push("/manual/preferences")}
-                        style={{ flex: 1 }}
-                      />
-                    </View>
-                  )}
+                    ) : null}
+                  </View>
+                  {group.items.map((item) => {
+                    const index = items.findIndex((entry) => entry.id === item.id);
+                    const canViewOrRepeat = item.workout != null;
+                    const logSummary =
+                      item.workout != null
+                        ? summarizeWorkoutLog(
+                            item.workout,
+                            item.exerciseNotes,
+                            item.exercisePerformance
+                          )
+                        : null;
+                    const subtitleParts = [
+                      item.durationMinutes != null ? `${item.durationMinutes} min` : null,
+                      item.workout
+                        ? `${item.workout.blocks.length} block${item.workout.blocks.length !== 1 ? "s" : ""}`
+                        : null,
+                      logSummary,
+                    ].filter(Boolean);
+                    return (
+                      <View key={item.id} style={styles.historyItem}>
+                        <Card
+                          style={styles.historyCard}
+                          titleNode={
+                            <WorkoutLibraryTitle
+                              date={item.date}
+                              focusAreas={item.focus}
+                              primaryLabel={item.name}
+                              suffix={getDuplicateSuffix(item, index)}
+                              dense
+                            />
+                          }
+                          subtitle={
+                            subtitleParts.length > 0
+                              ? subtitleParts.join(" · ")
+                              : undefined
+                          }
+                        >
+                          {canViewOrRepeat ? (
+                            <View style={styles.completedActions}>
+                              <PrimaryButton
+                                label="Details"
+                                variant="secondary"
+                                compact
+                                onPress={() => router.push(`/history/${item.id}`)}
+                                style={styles.historyActionBtn}
+                              />
+                              <PrimaryButton
+                                label="Repeat"
+                                compact
+                                onPress={() => {
+                                  if (!item.workout) return;
+                                  setGeneratedWorkout({
+                                    ...item.workout,
+                                    id: `workout_${Date.now()}`,
+                                  });
+                                  setResumeProgress(null);
+                                  router.push("/manual/execute");
+                                }}
+                                style={styles.historyActionBtn}
+                              />
+                              <PrimaryButton
+                                label="Edit"
+                                variant="ghost"
+                                compact
+                                onPress={() => router.push("/manual/preferences")}
+                                style={styles.historyActionBtn}
+                              />
+                            </View>
+                          ) : null}
+                        </Card>
+                      </View>
+                    );
+                  })}
                 </View>
               );
             })}
@@ -514,8 +582,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
+    fontFamily: themeFonts.displayBold,
     fontSize: 18,
-    fontWeight: "700",
     marginBottom: 4,
   },
   sectionSubtitle: {
@@ -546,6 +614,34 @@ const styles = StyleSheet.create({
   discardBtn: {
     minWidth: 80,
   },
+  historyWeek: {
+    marginBottom: 16,
+  },
+  historyWeekHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 8,
+  },
+  historyWeekTitle: {
+    fontFamily: themeFonts.displayBold,
+    fontSize: 14,
+    flex: 1,
+  },
+  redoWeekBtn: {
+    paddingHorizontal: 12,
+  },
+  historyItem: {
+    marginBottom: 10,
+  },
+  historyCard: {
+    padding: 14,
+  },
+  historyActionBtn: {
+    flex: 1,
+    minWidth: 0,
+  },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
@@ -553,8 +649,8 @@ const styles = StyleSheet.create({
     paddingTop: 48,
   },
   emptyTitle: {
+    fontFamily: themeFonts.displayBold,
     fontSize: 18,
-    fontWeight: "700",
     textAlign: "center",
   },
   emptySubtitle: {
@@ -564,8 +660,7 @@ const styles = StyleSheet.create({
   },
   completedActions: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    marginTop: 8,
-    gap: 8,
+    alignItems: "center",
+    gap: 6,
   },
 });

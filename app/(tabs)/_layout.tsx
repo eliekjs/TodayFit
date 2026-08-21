@@ -4,7 +4,7 @@ import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { useTheme } from "../../lib/theme";
+import { themeFonts, useTheme } from "../../lib/theme";
 import { ActiveSessionBanner } from "../../components/ActiveSessionCard";
 import {
   AdaptiveRecommendationBackButton,
@@ -48,9 +48,10 @@ export default function TabsLayout() {
           borderTopColor: theme.border,
           borderTopWidth: 1,
           backgroundColor: theme.cardOpaque,
-          height: 88 + insets.bottom,
-          paddingBottom: insets.bottom,
-          paddingTop: 12,
+          // Keep the bar flush to the screen bottom; only reserve home-indicator inset.
+          height: 56 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 2),
+          paddingTop: 4,
           ...(Platform.OS === "android" && { elevation: 8 }),
           // Avoid always-on blurry box-shadow on web — hairline border is enough.
           ...(Platform.OS === "web"
@@ -58,14 +59,18 @@ export default function TabsLayout() {
             : { boxShadow: "0 -8px 24px rgba(44,38,32,0.08)" }),
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "500",
-          marginTop: 2,
-          marginBottom: 2,
+          fontFamily: themeFonts.displayMedium,
+          fontSize: 11,
+          // Oswald descenders (e.g. Library “y”) need extra line box height.
+          lineHeight: 14,
+          letterSpacing: 0.4,
+          marginTop: 0,
+          marginBottom: 0,
         },
         tabBarShowLabel: true,
         tabBarItemStyle: {
-          paddingVertical: 6,
+          paddingTop: 2,
+          paddingBottom: 2,
           borderRadius: 999,
         },
         headerTitleAlign: "center",
@@ -82,7 +87,7 @@ export default function TabsLayout() {
           backgroundColor: theme.cardOpaque,
         },
         headerTintColor: theme.text,
-        headerTitleStyle: { color: theme.text, fontWeight: "600" },
+        headerTitleStyle: { color: theme.text, fontFamily: themeFonts.displaySemi },
       }}
       initialRouteName="index"
     >

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import { themeRadius, useTheme } from "../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../lib/theme";
 import type { BlockType, GeneratedWorkout, SetLogRow, WorkoutBlock, WorkoutItem } from "../lib/types";
 import { formatPrescription, formatSupersetPairLabel, getSupersetPairsForBlock } from "../lib/types";
 import {
@@ -73,7 +73,9 @@ export type WorkoutBlockListProps = {
     exerciseId: string,
     exerciseName: string,
     blockType: BlockType,
-    swapPoolExerciseIds?: string[]
+    swapPoolExerciseIds?: string[],
+    /** Block goal_intent.goal_slug — used so ~2/3 swap options prefer block purpose. */
+    goalSlug?: string
   ) => void;
   /** When true, show an Edit sets/reps button per exercise. */
   showEditPrescription?: boolean;
@@ -206,7 +208,8 @@ function renderBlockContent(
         exerciseId: string,
         exerciseName: string,
         blockType: BlockType,
-        swapPoolExerciseIds?: string[]
+        swapPoolExerciseIds?: string[],
+        goalSlug?: string
       ) => void)
     | undefined,
   showEditPrescription: boolean,
@@ -283,7 +286,8 @@ function renderBlockContent(
               item.exercise_id,
               item.exercise_name,
               blockType,
-              block.goal_intent?.swap_pool_exercise_ids
+              block.goal_intent?.swap_pool_exercise_ids,
+              block.goal_intent?.goal_slug
             )
           }
           style={[styles.swapBtn, { borderColor: theme.border }]}
@@ -402,8 +406,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
+    fontFamily: themeFonts.displaySemi,
     fontSize: 17,
-    fontWeight: "600",
     marginBottom: 8,
   },
   supersetBlock: {

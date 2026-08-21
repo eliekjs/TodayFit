@@ -246,17 +246,17 @@ describe("exercise descriptions on workout items", () => {
 
   it("resolves leftover builtin setup gaps to specific copy, not the vague fallback", () => {
     const gaps: Array<[string, string, RegExp]> = [
-      ["dumbbell_push_press", "Dumbbell Push Press", /dumbbell|dip|overhead/i],
-      ["kettlebell_high_pull", "Kettlebell High Pull", /hip|elbow|bell/i],
-      ["dumbbell_hang_clean", "Dumbbell Hang Clean", /hang|knee|shoulder/i],
-      ["kettlebell_dead_clean", "Kettlebell Dead Clean", /floor|rack|hip/i],
-      ["front_lever_tuck", "Front Lever Tuck Hold", /tuck|parallel|shoulder/i],
-      ["front_lever_advanced_tuck", "Front Lever Advanced Tuck", /thigh|parallel|hip/i],
-      ["front_lever_negative", "Front Lever Negative", /lower|horizontal|shoulder/i],
-      ["box_pistol_squat", "Box Pistol Squat", /box|one leg|heel/i],
-      ["wall_ankle_mobilization", "Wall Ankle Mobilization", /wall|heel|knee/i],
-      ["soleus_stretch_wall", "Wall Soleus Stretch", /knee|heel|calf/i],
-      ["quadruped_sit_back", "Quadruped Sit Back", /hands and knees|heels|ankle/i],
+      ["dumbbell_push_press", "Dumbbell Push Press", /elbows under|mid-foot|soft rack/i],
+      ["kettlebell_high_pull", "Kettlebell High Pull", /mid-feet|sternum|dead stop/i],
+      ["dumbbell_hang_clean", "Dumbbell Hang Clean", /above the knees|fronts of the shoulders|cast/i],
+      ["kettlebell_dead_clean", "Kettlebell Dead Clean", /outer forearm|tall rack|crash/i],
+      ["front_lever_tuck", "Front Lever Tuck Hold", /hollow|near horizontal|kipping/i],
+      ["front_lever_advanced_tuck", "Front Lever Advanced Tuck", /lengthen the lever|scapulae|thigh angle/i],
+      ["front_lever_negative", "Front Lever Negative", /eccentric|packed shoulders|inverted hang/i],
+      ["box_pistol_squat", "Box Pistol Squat", /lightly touches|middle toes|raise the box/i],
+      ["wall_ankle_mobilization", "Wall Ankle Mobilization", /second and third toes|heel glued|pinching/i],
+      ["soleus_stretch_wall", "Wall Soleus Stretch", /lower calf|heel peel|bounce/i],
+      ["quadruped_sit_back", "Quadruped Sit Back", /toes tucked|heels reach|dumping the low back/i],
     ];
     for (const [id, name, re] of gaps) {
       const item: WorkoutItem = {

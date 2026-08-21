@@ -550,5 +550,52 @@ describe("recommendWeekDayFocus", () => {
     expect(merged.bodyPicks[1]).toEqual(["full"]);
     expect(merged.lockedDays[0]).toBe(true);
     expect(merged.lockedDays[1]).toBe(false);
+    expect(merged.modes[0]).toBe("pattern");
+  });
+
+  it("keeps a locked day's Pattern vocabulary when the week recommendation is Muscle", () => {
+    const rec = recommendWeekDayFocus({
+      gymDays: 3,
+      manualPreferences: {
+        ...basePrefs,
+        weeklyBodyFocusMode: "muscle",
+        primaryFocus: ["Build Strength"],
+      },
+      adaptiveSetup: null,
+    });
+    const merged = overlayUserDayFocusPicks({
+      gymDays: 3,
+      recommendation: rec,
+      existingBodyPicks: [["push"], [], []],
+      existingFocusIds: ["goal_emphasis_0", "", ""],
+      lockedDays: [true, false, false],
+      existingModes: ["pattern"],
+    });
+    expect(merged.bodyPicks[0]).toEqual(["push"]);
+    expect(merged.modes[0]).toBe("pattern");
+    expect(merged.modes[1]).toBe("muscle");
+  });
+
+  it("keeps a locked Lower pick instead of filling Full from a Muscle 1-day template", () => {
+    const rec = recommendWeekDayFocus({
+      gymDays: 1,
+      manualPreferences: {
+        ...basePrefs,
+        weeklyBodyFocusMode: "muscle",
+        primaryFocus: ["Build Muscle (Hypertrophy)"],
+      },
+      adaptiveSetup: null,
+    });
+    expect(rec.days[0]?.bodyIds).toEqual(["full"]);
+    const merged = overlayUserDayFocusPicks({
+      gymDays: 1,
+      recommendation: rec,
+      existingBodyPicks: [["lower"]],
+      existingFocusIds: ["goal_emphasis_0"],
+      lockedDays: [true],
+      existingModes: ["muscle"],
+    });
+    expect(merged.bodyPicks[0]).toEqual(["lower"]);
+    expect(merged.modes[0]).toBe("region");
   });
 });

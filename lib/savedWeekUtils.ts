@@ -4,7 +4,7 @@ import {
   getTodayLocalDateString,
 } from "./dateUtils";
 import { defaultInitiatedWeekStartMonday } from "./weekDesignation";
-import type { GeneratedWorkout, ManualWeekPlan, SavedWeek } from "./types";
+import type { GeneratedWorkout, ManualWeekPlan, SavedWeek, WorkoutHistoryItem } from "./types";
 import type { PlanWeekResult, PlannedDay } from "../services/sportPrepPlanner";
 
 export function cloneWorkoutForRedo(workout: GeneratedWorkout): GeneratedWorkout {
@@ -30,6 +30,30 @@ export function remapSavedWeekToCurrentWeek(saved: SavedWeek): ManualWeekPlan {
 
 export function savedWeekToManualWeekPlan(saved: SavedWeek): ManualWeekPlan {
   return remapSavedWeekToCurrentWeek(saved);
+}
+
+/** Rebuild a week template from completed History sessions so it can be started again. */
+export function completedSessionsToSavedWeek(
+  weekStartDate: string,
+  items: Pick<WorkoutHistoryItem, "date" | "name" | "workout">[]
+): SavedWeek | null {
+  const days = items
+    .filter((item): item is typeof item & { workout: GeneratedWorkout } => item.workout != null)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((item) => ({
+      date: item.date.slice(0, 10),
+      workout: item.workout,
+      displayTitle: item.name,
+    }));
+  if (days.length === 0) return null;
+  return {
+    id: `history_week_${weekStartDate}`,
+    savedAt: new Date().toISOString(),
+    weekStartDate,
+    days,
+    source: "manual",
+  };
 }
 
 export function savedWeekToSportPrepWeekPlan(saved: SavedWeek): PlanWeekResult {

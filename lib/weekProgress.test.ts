@@ -4,6 +4,7 @@ import {
   buildManualWeekProgress,
   buildWeekProgressSnapshot,
   markManualWeekDayByWorkoutId,
+  manualWeekPlanFromSingleDay,
   pickNextUpcomingDay,
   pickTodayOrNextDay,
   type WeekProgressDay,
@@ -178,5 +179,28 @@ describe("pickTodayOrNextDay", () => {
 describe("Workout tab route", () => {
   it("routes the active week to the Workout tab", () => {
     expect(ACTIVE_WEEK_ROUTE).toBe("/workout");
+  });
+});
+
+describe("manualWeekPlanFromSingleDay", () => {
+  it("wraps a day workout so the Workout tab can show a singular-day overview", () => {
+    const workout = makeWorkout("day-1", ["Hypertrophy"]);
+    const plan = manualWeekPlanFromSingleDay({
+      weekStartDate: "2026-08-17",
+      date: "2026-08-19",
+      workout,
+      displayTitle: "Push day",
+    });
+    expect(plan.weekStartDate).toBe("2026-08-17");
+    expect(plan.days).toHaveLength(1);
+    expect(plan.days[0]).toMatchObject({
+      date: "2026-08-19",
+      displayTitle: "Push day",
+      status: "planned",
+      workout,
+    });
+    const snapshot = buildManualWeekProgress(plan);
+    expect(snapshot.days).toHaveLength(1);
+    expect(snapshot.fullWeekRoute).toBe("/manual/week");
   });
 });

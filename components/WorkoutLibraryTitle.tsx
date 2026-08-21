@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { useTheme } from "../lib/theme";
+import { themeFonts, useTheme } from "../lib/theme";
 import {
   formatWorkoutLibraryDate,
   formatWorkoutFocusLabel,
@@ -14,6 +14,8 @@ type Props = {
   /** Appended when multiple workouts share the same date + focus. */
   suffix?: string;
   fallbackFocus?: string;
+  /** Smaller type for dense lists (e.g. History). */
+  dense?: boolean;
 };
 
 export function WorkoutLibraryTitle({
@@ -22,6 +24,7 @@ export function WorkoutLibraryTitle({
   primaryLabel,
   suffix,
   fallbackFocus = "General training",
+  dense = false,
 }: Props) {
   const theme = useTheme();
   const focusLabel = formatWorkoutFocusLabel(focusAreas, fallbackFocus);
@@ -30,14 +33,29 @@ export function WorkoutLibraryTitle({
     Boolean(primaryLabel?.trim()) && focusLabel !== fallbackFocus;
 
   return (
-    <View style={styles.container}>
-      <Text style={[styles.date, { color: theme.textMuted }]}>
+    <View style={[styles.container, dense && styles.containerDense]}>
+      <Text
+        style={[styles.date, dense && styles.dateDense, { color: theme.textMuted }]}
+      >
         {formatWorkoutLibraryDate(date)}
       </Text>
-      <Text style={[styles.headline, { color: theme.text }]} numberOfLines={3}>
+      <Text
+        style={[
+          styles.headline,
+          dense && styles.headlineDense,
+          { color: theme.text },
+        ]}
+        numberOfLines={dense ? 2 : 3}
+      >
         {headline}
         {suffix ? (
-          <Text style={[styles.suffix, { color: theme.textMuted }]}>
+          <Text
+            style={[
+              styles.suffix,
+              dense && styles.suffixDense,
+              { color: theme.textMuted },
+            ]}
+          >
             {" "}
             {suffix}
           </Text>
@@ -45,7 +63,11 @@ export function WorkoutLibraryTitle({
       </Text>
       {showFocusSubtitle ? (
         <Text
-          style={[styles.focusSubtitle, { color: theme.textMuted }]}
+          style={[
+            styles.focusSubtitle,
+            dense && styles.focusSubtitleDense,
+            { color: theme.textMuted },
+          ]}
           numberOfLines={2}
         >
           {focusLabel}
@@ -59,25 +81,44 @@ const styles = StyleSheet.create({
   container: {
     gap: 4,
   },
+  containerDense: {
+    gap: 2,
+  },
   date: {
+    fontFamily: themeFonts.displayMedium,
     fontSize: 11,
-    fontWeight: "600",
+    letterSpacing: 0.8,
     textTransform: "uppercase",
+  },
+  dateDense: {
+    fontSize: 10,
     letterSpacing: 0.6,
   },
   headline: {
+    fontFamily: themeFonts.displayBold,
     fontSize: 18,
-    fontWeight: "700",
-    letterSpacing: -0.3,
+    letterSpacing: 0.2,
     lineHeight: 24,
+  },
+  headlineDense: {
+    fontSize: 15,
+    letterSpacing: 0.1,
+    lineHeight: 20,
   },
   suffix: {
     fontSize: 14,
     fontWeight: "500",
   },
+  suffixDense: {
+    fontSize: 13,
+  },
   focusSubtitle: {
     fontSize: 14,
     fontWeight: "500",
     lineHeight: 20,
+  },
+  focusSubtitleDense: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

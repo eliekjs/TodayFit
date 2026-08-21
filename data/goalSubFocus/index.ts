@@ -47,6 +47,7 @@ export {
   STRENGTH_INTENT_SLUGS,
   STRENGTH_OVERLAY_SLUGS,
   exerciseHasStrengthSubFocusSlug,
+  exerciseMatchesStrengthIntentStrong,
   getStrengthIntentSlugs,
   getStrengthOverlayFilter,
   filterPoolByDirectStrengthSubFocus,

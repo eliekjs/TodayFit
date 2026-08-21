@@ -31,6 +31,7 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "core", name: "Core" },
     { slug: "balanced", name: "Balanced" },
   ]),
+  // Body parts only — Balanced removed; week/day body focus covers distribution.
   "Body Recomp (fat loss & muscle gain)": entry("physique", [
     { slug: "glutes", name: "Glutes" },
     { slug: "back", name: "Back" },
@@ -39,7 +40,6 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "shoulders", name: "Shoulders" },
     { slug: "legs", name: "Legs" },
     { slug: "core", name: "Core" },
-    { slug: "balanced", name: "Balanced" },
   ]),
   // Backward-compat for persisted presets using legacy label.
   "Body Recomposition": entry("physique", [
@@ -50,7 +50,6 @@ export const GOAL_SUB_FOCUS_OPTIONS: Record<string, GoalSubFocusOptionsEntry> = 
     { slug: "shoulders", name: "Shoulders" },
     { slug: "legs", name: "Legs" },
     { slug: "core", name: "Core" },
-    { slug: "balanced", name: "Balanced" },
   ]),
   /** @deprecated persisted presets — subs migrated to Athletic Performance */
   "Sport Conditioning": entry("conditioning", [

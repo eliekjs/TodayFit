@@ -188,6 +188,18 @@ describe("session body contract — no invented muscle days", () => {
     expect(matchesBodyPartFocus(squat, c)).toBe(false);
   });
 
+  it("never widens an explicit Region Lower pick to full body from stale specific picks", () => {
+    const contract = resolveSessionBodyContract({
+      weeklyBodyFocusMode: "region",
+      targetBody: "Lower",
+      specificBodyFocus: ["glutes", "shoulders"],
+    });
+    expect(contract.choiceId).toBe("lower");
+    expect(contract.focusBodyParts).toEqual(["lower", "posterior"]);
+    expect(contract.focusBodyParts).not.toContain("full_body");
+    expect(contract.focusBodyParts).not.toContain("shoulders");
+  });
+
   it("hard-gates Region Lower + specific quad without a Quad modifier", () => {
     const contract = resolveSessionBodyContract({
       weeklyBodyFocusMode: "region",

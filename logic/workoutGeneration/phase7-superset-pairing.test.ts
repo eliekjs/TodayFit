@@ -120,6 +120,74 @@ function testUpperPushComplementaryVsSameCategory() {
   console.log("  OK: upper_push complementary vs same-category pairing score");
 }
 
+// --- Name cues: coarse ontology "chest" refined for close-grip / overhead / flyes ---
+function testNameCuePairingCategoryRefinement() {
+  const flyes: Exercise = {
+    id: "incline_flyes",
+    name: "Incline Flyes",
+    movement_pattern: "push",
+    muscle_groups: ["push"],
+    modality: "strength",
+    equipment_required: [],
+    difficulty: 1,
+    time_cost: "low",
+    tags: {},
+    pairing_category: "chest",
+    primary_movement_family: "upper_push",
+    fatigue_regions: ["pecs", "triceps"],
+  };
+  const closeGrip: Exercise = {
+    id: "close_grip_bench",
+    name: "Close-Grip Bench Press",
+    movement_pattern: "push",
+    muscle_groups: ["push"],
+    modality: "strength",
+    equipment_required: ["barbell", "bench"],
+    difficulty: 2,
+    time_cost: "medium",
+    tags: {},
+    pairing_category: "chest", // coarse ontology default
+    primary_movement_family: "upper_push",
+    fatigue_regions: ["pecs", "triceps"],
+  };
+  const overhead: Exercise = {
+    id: "overhead_pin_press",
+    name: "Overhead Pin Press",
+    movement_pattern: "push",
+    muscle_groups: ["push"],
+    modality: "strength",
+    equipment_required: [],
+    difficulty: 2,
+    time_cost: "medium",
+    tags: {},
+    pairing_category: "chest",
+    primary_movement_family: "upper_push",
+    fatigue_regions: ["pecs", "triceps"],
+  };
+  const incline: Exercise = {
+    id: "incline_barbell_bench",
+    name: "Incline Barbell Bench",
+    movement_pattern: "push",
+    muscle_groups: ["push"],
+    modality: "strength",
+    equipment_required: ["barbell", "bench"],
+    difficulty: 2,
+    time_cost: "medium",
+    tags: {},
+    pairing_category: "chest",
+    primary_movement_family: "upper_push",
+    fatigue_regions: ["pecs", "triceps"],
+  };
+
+  assert(getEffectivePairingCategory(closeGrip) === "triceps", "close-grip → triceps");
+  assert(getEffectivePairingCategory(overhead) === "shoulders", "overhead pin → shoulders");
+  assert(getEffectivePairingCategory(flyes) === "chest", "flyes stay chest");
+  assert(getSupersetPairingScore(flyes, closeGrip) > 0, "flyes + close-grip complementary score");
+  assert(getSupersetPairingScore(incline, overhead) > 0, "incline + overhead complementary score");
+  assert(supersetCompatibility(flyes, closeGrip) !== "bad", "flyes + close-grip not bad");
+  console.log("  OK: name-cue pairing category refinement");
+}
+
 // --- Lower body: avoid excessive overlap ---
 function testLowerBodyPairing() {
   const quads: Exercise = {
@@ -342,6 +410,7 @@ function main() {
   testFatigueRegions();
   console.log("  OK: getEffectiveFatigueRegions");
   testUpperPushComplementaryVsSameCategory();
+  testNameCuePairingCategoryRefinement();
   testLowerBodyPairing();
   testFatigueRegionsOverlapPenalty();
   testHybridEffectiveFamilies();

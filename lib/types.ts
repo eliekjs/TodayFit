@@ -399,7 +399,7 @@ export type WorkoutItem = {
   };
 };
 
-/** When set, this block was built for a specific session goal / sub-focus; swaps should prefer `swap_pool_exercise_ids`. */
+/** When set, this block was built for a specific session goal / sub-focus; swaps prefer purpose matches from `swap_pool_exercise_ids` (~2/3) plus similar substitutes (~1/3). */
 export type WorkoutBlockGoalIntent = {
   /** Which ranked intent leaf created this block. */
   intent_kind?: "goal" | "goal_sub_focus" | "sport" | "sport_sub_focus";
@@ -679,7 +679,7 @@ export type SavedWorkout = {
   progress?: ExecutionProgress;
 };
 
-/** Saved week plan for redoing a full training week from the library. */
+/** Named day or week plan saved to the library so it can be started later. */
 export type SavedWeek = {
   id: string;
   savedAt: string;

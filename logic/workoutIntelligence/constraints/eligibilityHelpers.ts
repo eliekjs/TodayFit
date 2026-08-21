@@ -8,6 +8,7 @@ import type { ResolvedWorkoutConstraints, MovementFamily } from "./constraintTyp
 import {
   getEffectivePairingFamilies,
   hasGripDemand as hasGripDemandPairing,
+  isComplementarySupersetPair,
   useDifferentBarbellStations,
 } from "../supersetPairing";
 import { normalizedMuscleSlugSet } from "../../../lib/ontology/muscleSlugs";
@@ -310,7 +311,15 @@ export function canPairInSuperset(
   if (useDifferentBarbellStations(a, b)) return false;
   const pairing = constraints.superset_pairing;
   if (pairing) {
-    if (pairing.forbidden_same_pattern && (a.movement_pattern === b.movement_pattern)) return false;
+    // Same movement_pattern is forbidden unless complementary by pairing category
+    // (e.g. chest+triceps both "push" — preferred for upper_push focus; see preferred_pairs).
+    if (
+      pairing.forbidden_same_pattern &&
+      a.movement_pattern === b.movement_pattern &&
+      !isComplementarySupersetPair(a, b)
+    ) {
+      return false;
+    }
     if (pairing.forbid_double_grip) {
       if (hasGripDemandPairing(a) && hasGripDemandPairing(b)) return false;
     }

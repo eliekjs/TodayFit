@@ -48,6 +48,7 @@ export {
   getEffectivePairingCategory,
   getEffectiveFatigueRegions,
   getEffectivePairingFamilies,
+  isComplementarySupersetPair,
   pickBestSupersetPairs,
   hasGripDemand,
 } from "./supersetPairing";

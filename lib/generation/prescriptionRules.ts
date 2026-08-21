@@ -740,7 +740,12 @@ export function getConditioningStructureByIntent(
   goal: string
 ): ConditioningIntervalStructure {
   const intent = conditioningIntent?.toLowerCase().replace(/\s/g, "_") ?? "";
-  if (intent === "zone2_aerobic_base" || intent === "zone2_block") {
+  if (
+    intent === "zone2_aerobic_base" ||
+    intent === "zone2_long_steady" ||
+    intent === "zone2_block" ||
+    intent === "long_steady"
+  ) {
     return {
       sets: 1,
       time_seconds: Math.min(totalMinutes * 60, 45 * 60),

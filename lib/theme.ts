@@ -110,9 +110,15 @@ export const cleanFlowGoldPalette: Theme = {
   onPrimary: "#fffdf8",
 };
 
+/**
+ * Login / app canvas — same warm cream on welcome and every in-app screen
+ * (`GeometricPatternBackground`, `AppScreenWrapper`, boot cover).
+ */
+export const APP_CANVAS_BACKGROUND = "#F9F7F0";
+
 /** Ethos-inspired cream + muted petrol teal. */
 export const cleanFlowEthosPalette: Theme = {
-  background: "#F7F5F1",
+  background: APP_CANVAS_BACKGROUND,
   card: "#FFFEFA",
   cardOpaque: "#FFFEFA",
   sectionSurface: "#FFFEFA",
@@ -144,10 +150,21 @@ export const themeRadius = {
   button: 12,
 } as const;
 
+/** Oswald — same condensed face as the login “TRAIN WITH PURPOSE” headline. */
+export const themeFonts = {
+  displayBold: "Oswald_700Bold",
+  displaySemi: "Oswald_600SemiBold",
+  displayMedium: "Oswald_500Medium",
+} as const;
+
 export const themeType = {
   label: {
+    fontFamily: themeFonts.displayMedium,
     fontSize: 13,
-    fontWeight: "600",
+    letterSpacing: 0.6,
+  } satisfies TextStyle,
+  display: {
+    fontFamily: themeFonts.displayBold,
   } satisfies TextStyle,
 };
 

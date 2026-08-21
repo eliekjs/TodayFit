@@ -13,6 +13,7 @@ import {
   savedPlanLibraryTitle,
   savedPlanSourceLabel,
   savedWeekFingerprint,
+  isSavedWeekTheActivePlan,
   wasPlanSavedThisSession,
 } from "./saveNamedPlan";
 
@@ -46,6 +47,47 @@ describe("saveNamedPlan fingerprints", () => {
       { date: "2026-04-22", workout: { id: "b-new" } },
     ]);
     expect(regenerated).not.toBe(original);
+  });
+
+  it("treats a saved week as active when the Workout tab still has the same days", () => {
+    const days = [
+      { date: "2026-08-17", workout: workout("a") },
+      { date: "2026-08-19", workout: workout("b") },
+    ];
+    const saved: SavedWeek = {
+      id: "w1",
+      savedAt: "2026-08-17T00:00:00.000Z",
+      weekStartDate: "2026-08-17",
+      source: "manual",
+      days,
+    };
+    expect(
+      isSavedWeekTheActivePlan(saved, {
+        manualWeekPlan: { weekStartDate: "2026-08-17", days },
+        sportPrepWeekPlan: null,
+      })
+    ).toBe(true);
+    expect(
+      isSavedWeekTheActivePlan(saved, {
+        manualWeekPlan: {
+          weekStartDate: "2026-08-17",
+          days: [
+            { date: "2026-08-17", workout: workout("copied-a") },
+            { date: "2026-08-19", workout: workout("copied-b") },
+          ],
+        },
+        sportPrepWeekPlan: null,
+      })
+    ).toBe(true);
+    expect(
+      isSavedWeekTheActivePlan(saved, {
+        manualWeekPlan: {
+          weekStartDate: "2026-08-17",
+          days: [{ date: "2026-08-18", workout: workout("a-new") }],
+        },
+        sportPrepWeekPlan: null,
+      })
+    ).toBe(false);
   });
 
   it("remembers a fingerprint for the rest of the session", () => {

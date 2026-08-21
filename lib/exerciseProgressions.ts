@@ -1,7 +1,7 @@
 import type { BlockType, ExerciseDefinition, WorkoutTierPreference } from "./types";
 import { getSubstitutes } from "./generation/exerciseSubstitution";
 import type { ExerciseLike } from "./generation/exerciseSubstitution";
-import { diversifySwapSuggestionOrder } from "./generation/swapVariantDiversity";
+import { diversifySwapSuggestionOrder, cardioSwapFamilyId } from "./generation/swapVariantDiversity";
 import { isCooldownEligibleEquipment, isWarmupEligibleEquipment } from "./workoutRules";
 import { isDbConfigured } from "./db";
 import { getExercise, getProgressionsRegressions, listExercises } from "./db/exerciseRepository";
@@ -63,8 +63,8 @@ export type ProgressionsRegressionsOptions = {
   /** Block context for swap UI: warmup = bodyweight/band activation only; cooldown = stretching only. */
   swapBlockRole?: SwapBlockRole;
   /**
-   * When provided, candidates that carry at least one of these tag or modality slugs sort first
-   * (e.g. hypertrophy-aligned swaps for a hypertrophy-labelled exercise).
+   * When provided, candidates that carry at least one of these tag or modality slugs
+   * rank higher in the **purpose** stream (~2 of 3 suggestions per page).
    */
   preferredGoalTagSlugs?: string[];
   /**
@@ -289,6 +289,12 @@ function buildSlugToDefMap(pool: ExerciseDefinition[], target: ExerciseDefinitio
 const SWAP_PAGE_SIZE = 3;
 /** Pad candidate list so users can cycle through several sets of 3 without repeats until the pool wraps. */
 const MIN_EXPANDED_CANDIDATES = 12;
+/**
+ * Per page of 3: lead with block-purpose options, keep one similar-exercise slot.
+ * Purpose = same intent pool / goal tags (even when movement pattern differs).
+ */
+const PURPOSE_SLOTS_PER_PAGE = 2;
+const SIMILARITY_SLOTS_PER_PAGE = 1;
 
 function dedupeById(items: ProgressionsRegressionsOption[]): ProgressionsRegressionsOption[] {
   const seen = new Set<string>();
@@ -297,6 +303,127 @@ function dedupeById(items: ProgressionsRegressionsOption[]): ProgressionsRegress
     if (seen.has(x.id)) continue;
     seen.add(x.id);
     out.push(x);
+  }
+  return out;
+}
+
+/**
+ * Rank candidates for the *purpose* stream: prefer same block intent (goal tags)
+ * and intentional variety within that intent over near-clone substitutes.
+ * `similarityRankById` is 0 = most similar; higher = less similar.
+ */
+export function orderSwapCandidatesByBlockPurpose(
+  items: ProgressionsRegressionsOption[],
+  opts: {
+    targetDef?: ExerciseDefinition | null;
+    byId?: Map<string, ExerciseDefinition>;
+    preferredGoalTagSlugs?: string[];
+    /** Lower rank = more similar to the exercise being swapped. */
+    similarityRankById?: Map<string, number>;
+  }
+): ProgressionsRegressionsOption[] {
+  if (items.length <= 1) return items;
+  const want = (opts.preferredGoalTagSlugs ?? []).map((s) => s.toLowerCase());
+  const target = opts.targetDef;
+  const byId = opts.byId;
+  const simRank = opts.similarityRankById;
+  const targetCardioFamily = cardioSwapFamilyId(
+    target?.id ?? items[0]?.id ?? ""
+  );
+
+  const scored = items.map((o, index) => {
+    const def = byId?.get(o.id);
+    let score = 0;
+    if (want.length && def && exerciseDefMatchesGoalTags(def, want)) score += 100;
+    if (target && def) {
+      const samePattern =
+        Boolean(target.movement_pattern) &&
+        target.movement_pattern === def.movement_pattern;
+      const sameFamily =
+        Boolean(target.primary_movement_family) &&
+        target.primary_movement_family === def.primary_movement_family;
+      // Within an intent pool, a different pattern still serves the block purpose
+      // and is a better "purpose" pick than another squat-for-squat clone.
+      if (!samePattern) score += 50;
+      else if (!sameFamily) score += 20;
+    }
+    const candCardioFamily = cardioSwapFamilyId(o.id);
+    if (targetCardioFamily && candCardioFamily) {
+      if (candCardioFamily !== targetCardioFamily) score += 60;
+      else score -= 40; // same-machine pacing variants are poor purpose leads
+    }
+    const rank = simRank?.get(o.id);
+    if (rank != null) {
+      // Prefer less-similar pool mates for the purpose slots.
+      score += Math.min(40, rank * 2);
+    } else {
+      score += index * 0.01;
+    }
+    return { o, score, index };
+  });
+  scored.sort((a, b) => b.score - a.score || a.index - b.index);
+  return scored.map((x) => x.o);
+}
+
+/**
+ * Interleave purpose-primary and similarity-primary streams into one list so each
+ * page of 3 is typically 2 purpose + 1 similar (skipping ids already taken).
+ */
+export function interleavePurposeAndSimilaritySwapOptions(
+  purposeOrdered: ProgressionsRegressionsOption[],
+  similarityOrdered: ProgressionsRegressionsOption[],
+  purposePerPage = PURPOSE_SLOTS_PER_PAGE,
+  similarityPerPage = SIMILARITY_SLOTS_PER_PAGE
+): ProgressionsRegressionsOption[] {
+  const used = new Set<string>();
+  const out: ProgressionsRegressionsOption[] = [];
+  let p = 0;
+  let s = 0;
+
+  const take = (
+    source: ProgressionsRegressionsOption[],
+    cursor: number,
+    n: number
+  ): { taken: ProgressionsRegressionsOption[]; next: number } => {
+    const taken: ProgressionsRegressionsOption[] = [];
+    let i = cursor;
+    while (i < source.length && taken.length < n) {
+      const item = source[i++]!;
+      if (used.has(item.id)) continue;
+      used.add(item.id);
+      taken.push(item);
+    }
+    return { taken, next: i };
+  };
+
+  for (;;) {
+    const fromPurpose = take(purposeOrdered, p, purposePerPage);
+    p = fromPurpose.next;
+    out.push(...fromPurpose.taken);
+    const fromSim = take(similarityOrdered, s, similarityPerPage);
+    s = fromSim.next;
+    out.push(...fromSim.taken);
+    if (fromPurpose.taken.length === 0 && fromSim.taken.length === 0) break;
+    // Top up the page if one stream ran dry early.
+    const pageLen = fromPurpose.taken.length + fromSim.taken.length;
+    if (pageLen > 0 && pageLen < SWAP_PAGE_SIZE) {
+      const need = SWAP_PAGE_SIZE - pageLen;
+      const fillP = take(purposeOrdered, p, need);
+      p = fillP.next;
+      out.push(...fillP.taken);
+      const still = need - fillP.taken.length;
+      if (still > 0) {
+        const fillS = take(similarityOrdered, s, still);
+        s = fillS.next;
+        out.push(...fillS.taken);
+      }
+    }
+  }
+
+  for (const item of [...purposeOrdered, ...similarityOrdered]) {
+    if (used.has(item.id)) continue;
+    used.add(item.id);
+    out.push(item);
   }
   return out;
 }
@@ -367,6 +494,8 @@ async function expandSwapCandidatesList(
  * Candidates are ranked by similarity to the exercise being swapped (curated swap_candidates,
  * progressions/regressions, movement pattern/family, muscles, equipment). Unscored pool
  * members append after ranked ones so pagination can still cycle the full pool.
+ * `getSwapSuggestionsPage` then interleaves purpose-primary picks from this pool with
+ * similarity-primary ones (typically 2 purpose + 1 similar per page of 3).
  * Returns an empty array when the DB is not configured or no pool IDs resolve to known exercises.
  */
 async function buildSwapCandidatesFromPool(
@@ -424,48 +553,57 @@ async function buildSwapCandidatesFromPool(
  * filtered candidate pool), candidates are **restricted** to that set so swaps honor the same
  * tier/equipment/injury/goal constraints that were applied during workout generation.
  * Falls back to tag-similarity expansion when no pool is recorded (older workouts, warmup/cooldown).
+ *
+ * Ranking mix: each page prefers **block purpose** (intent pool / goal tags / pattern variety
+ * within the pool) for ~2 slots and **similar exercise** for ~1 slot.
  */
 export async function getSwapSuggestionsPage(
   exerciseId: string,
   options: ProgressionsRegressionsOptions | undefined,
   page: number
 ): Promise<{ suggestions: ProgressionsRegressionsOption[]; numPages: number }> {
-  let expanded: ProgressionsRegressionsOption[];
+  let similarityOrdered: ProgressionsRegressionsOption[];
 
   if (options?.swapPoolExerciseIds?.length) {
     // Use the generation-time slot pool directly.
-    expanded = await buildSwapCandidatesFromPool(exerciseId, options);
-    if (expanded.length === 0) {
+    similarityOrdered = await buildSwapCandidatesFromPool(exerciseId, options);
+    if (similarityOrdered.length === 0) {
       // Pool IDs couldn't be resolved (DB not configured or empty intersection) — fall back to
       // tag-similarity so the swap modal still shows options on older workouts.
       const res = await getProgressionsRegressionsForExercise(exerciseId, options);
-      expanded = await expandSwapCandidatesList(exerciseId, options, res);
+      similarityOrdered = await expandSwapCandidatesList(exerciseId, options, res);
     }
   } else {
     const res = await getProgressionsRegressionsForExercise(exerciseId, options);
-    expanded = await expandSwapCandidatesList(exerciseId, options, res);
+    similarityOrdered = await expandSwapCandidatesList(exerciseId, options, res);
   }
 
-  if (options?.preferredGoalTagSlugs?.length && isDbConfigured()) {
+  // Soft goal-tag boost still applied inside purpose ordering; keep similarity stream as-is.
+  similarityOrdered = await applyTierFilterToCombined(exerciseId, options, similarityOrdered);
+  // Keep regressions / distinct cardio stimuli available; same-machine pacing
+  // variants (Zone 2 vs intervals of the same piece) stay available on later pages.
+  similarityOrdered = diversifySwapSuggestionOrder(exerciseId, similarityOrdered);
+
+  let expanded = similarityOrdered;
+  if (similarityOrdered.length > 1 && isDbConfigured()) {
     try {
-      const poolDefs = await listExercises();
-      const byId = new Map(poolDefs.map((d) => [d.id, d]));
-      const want = options.preferredGoalTagSlugs.map((s) => s.toLowerCase());
-      const scored = expanded.map((o) => {
-        const d = byId.get(o.id);
-        return { o, match: d != null && exerciseDefMatchesGoalTags(d, want) };
+      const [targetDef, poolDefs] = await Promise.all([getExercise(exerciseId), listExercises()]);
+      const byId = buildSlugToDefMap(poolDefs ?? [], targetDef);
+      const similarityRankById = new Map<string, number>();
+      similarityOrdered.forEach((o, i) => similarityRankById.set(o.id, i));
+      const purposeOrdered = orderSwapCandidatesByBlockPurpose(similarityOrdered, {
+        targetDef,
+        byId,
+        preferredGoalTagSlugs: options?.preferredGoalTagSlugs,
+        similarityRankById,
       });
-      scored.sort((a, b) => (a.match === b.match ? 0 : a.match ? -1 : 1));
-      expanded = scored.map((x) => x.o);
+      expanded = interleavePurposeAndSimilaritySwapOptions(purposeOrdered, similarityOrdered);
+      // Re-apply so purpose slots don't reintroduce same-machine pacing variants early.
+      expanded = diversifySwapSuggestionOrder(exerciseId, expanded);
     } catch {
-      /* keep order */
+      expanded = similarityOrdered;
     }
   }
-
-  expanded = await applyTierFilterToCombined(exerciseId, options, expanded);
-  // Keep regressions / distinct cardio stimuli on page 1; same-machine pacing
-  // variants (Zone 2 vs intervals of the same piece) stay available on later pages.
-  expanded = diversifySwapSuggestionOrder(exerciseId, expanded);
 
   const numPages = Math.max(1, Math.ceil(expanded.length / SWAP_PAGE_SIZE));
   const safePage = ((page % numPages) + numPages) % numPages;

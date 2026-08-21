@@ -12,7 +12,7 @@ import { useRouter, Redirect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppState } from "../../context/AppStateContext";
-import { themeRadius, useTheme } from "../../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../../lib/theme";
 import { SectionLabel } from "../../components/SectionLabel";
 import { PillTabs } from "../../components/PillTabs";
 import { IconWell } from "../../components/IconWell";
@@ -235,7 +235,7 @@ export default function HomeScreen() {
     }
     Alert.alert(
       "Session in progress",
-      `You're already building a session. Continue that or replace it with a quick Train today workout?`,
+      `You're already building a session. Continue that or replace it with a Quick Create workout?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -243,7 +243,7 @@ export default function HomeScreen() {
           onPress: () => router.push(activeSessionDraft.resumeRoute as never),
         },
         {
-          text: "Train today",
+          text: "Quick Create",
           style: "destructive",
           onPress: () => {
             replaceSessionFlow(sessionFlow);
@@ -311,7 +311,7 @@ export default function HomeScreen() {
             style={[styles.modalSheet, { backgroundColor: theme.cardOpaque, borderColor: theme.border }]}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>Default for Train today</Text>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Default for Quick Create</Text>
             <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
               {pickerRows.map((row) => {
                 const selected =
@@ -367,7 +367,7 @@ export default function HomeScreen() {
           <View style={styles.trainTodayHero}>
             <View style={styles.trainTodayCopy}>
               <Text style={[styles.trainTodayTitle, { color: theme.text }]}>
-                Train today
+                Quick Create
               </Text>
               <Text
                 style={[styles.trainTodaySubtitle, { color: theme.textMuted }]}
@@ -415,7 +415,7 @@ export default function HomeScreen() {
               <ChecklistRow label="Gym profile" done={activeProfile != null} />
               <ChecklistRow label="Saved preset" done={hasPresets} />
               <ChecklistRow
-                label="Default for Train today"
+                label="Default for Quick Create"
                 done={resolvedDefault != null}
               />
             </View>
@@ -530,8 +530,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   trainTodayTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontFamily: themeFonts.displayBold,
+    fontSize: 18,
   },
   trainTodaySubtitle: {
     fontSize: 12,
@@ -574,8 +574,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   builderTitle: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontFamily: themeFonts.displayBold,
+    fontSize: 20,
   },
   builderSubtitle: {
     fontSize: 14,
@@ -599,8 +599,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modalTitle: {
+    fontFamily: themeFonts.displayBold,
     fontSize: 17,
-    fontWeight: "700",
     textAlign: "center",
   },
   modalList: {

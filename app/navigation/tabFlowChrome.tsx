@@ -1,18 +1,22 @@
 import React, { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter, usePathname, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabBar } from "@react-navigation/bottom-tabs";
 import type { BottomTabBarProps, BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 import { useIsFocused } from "@react-navigation/native";
 import { Header, getHeaderTitle, PlatformPressable } from "@react-navigation/elements";
 import type { HeaderOptions } from "@react-navigation/elements";
-import { useTheme } from "../../lib/theme";
+import { themeFonts, useTheme } from "../../lib/theme";
 import {
   navigateToManualGoalPreferences,
 } from "../../lib/manualGoalPreferencesHref";
-import { weekSetupAtPickDays } from "../../lib/sessionDraft";
-import { sportReviewBackRoute } from "../../lib/sessionFlowNav";
+import { isCreateEditingFlowScreen, weekSetupAtPickDays } from "../../lib/sessionDraft";
+import {
+  activeTrainingOverviewHref,
+  isEditFromWorkoutTab,
+  sportReviewBackRoute,
+} from "../../lib/sessionFlowNav";
 import {
   isAlreadyAtTabTarget,
   tabBarHomeHref,
@@ -25,6 +29,7 @@ import {
 } from "../../lib/discardConfirmCopy";
 import { useAppState } from "../../context/AppStateContext";
 import { DiscardConfirmModal } from "../../components/DiscardConfirmModal";
+import { SaveCreateProgressModal } from "../../components/SaveCreateProgressModal";
 
 /** Which route groups get a tab button; bar order follows the Tabs.Screen order in _layout. */
 const VISIBLE_TAB_NAMES = ["index", "workout", "library", "profiles"];
@@ -89,8 +94,14 @@ export function OpaqueHeaderBackground({ style }: { style?: object }) {
 
 export function FilteredTabBar(props: BottomTabBarProps) {
   const router = useRouter();
-  const { generatedWorkout, manualExecutionStarted } = useAppState();
+  const {
+    generatedWorkout,
+    manualExecutionStarted,
+    activeSessionDraft,
+    discardActiveSession,
+  } = useAppState();
   const hasActiveExecution = manualExecutionStarted && generatedWorkout != null;
+  const [leavePromptTarget, setLeavePromptTarget] = useState<string | null>(null);
   const { state, descriptors } = props;
   const filteredRoutes = state.routes.filter((r) => isTabVisible(String(r.name)));
   const currentRoute = state.routes[state.index];
@@ -112,6 +123,18 @@ export function FilteredTabBar(props: BottomTabBarProps) {
     index: activeIndex,
   };
 
+  const shouldPromptLeaveCreate =
+    activeSessionDraft != null &&
+    activeSessionDraft.phase !== "train" &&
+    isCreateEditingFlowScreen(currentName);
+
+  const navigateToTarget = useCallback(
+    (target: string) => {
+      router.replace(target as never);
+    },
+    [router]
+  );
+
   const patchedDescriptors = { ...descriptors };
   for (const route of filteredRoutes) {
     const desc = patchedDescriptors[route.key];
@@ -131,7 +154,11 @@ export function FilteredTabBar(props: BottomTabBarProps) {
           const goToTab = (e?: { preventDefault?: () => void }) => {
             e?.preventDefault?.();
             if (isAlreadyAtTabTarget(currentName, target)) return;
-            router.replace(target as never);
+            if (shouldPromptLeaveCreate) {
+              setLeavePromptTarget(target);
+              return;
+            }
+            navigateToTarget(target);
           };
           const nextProps = {
             ...buttonProps,
@@ -145,7 +172,26 @@ export function FilteredTabBar(props: BottomTabBarProps) {
     };
   }
 
-  return <BottomTabBar {...props} state={filteredState} descriptors={patchedDescriptors} />;
+  return (
+    <>
+      <BottomTabBar {...props} state={filteredState} descriptors={patchedDescriptors} />
+      <SaveCreateProgressModal
+        visible={leavePromptTarget != null}
+        onCancel={() => setLeavePromptTarget(null)}
+        onSaveProgress={() => {
+          const target = leavePromptTarget;
+          setLeavePromptTarget(null);
+          if (target) navigateToTarget(target);
+        }}
+        onDiscard={() => {
+          const target = leavePromptTarget;
+          setLeavePromptTarget(null);
+          discardActiveSession();
+          if (target) navigateToTarget(target);
+        }}
+      />
+    </>
+  );
 }
 
 export const TAB_ICON_SIZE = 24;
@@ -165,12 +211,18 @@ export function HeaderBackButton() {
 export function AdaptiveRecommendationBackButton() {
   const router = useRouter();
   const theme = useTheme();
+  const params = useLocalSearchParams<{ from?: string }>();
   const { sportPrepWeekPlan, adaptiveSetup } = useAppState();
+  const fromWorkoutTab = isEditFromWorkoutTab(params);
   return (
     <Pressable
       onPress={() => {
         router.replace(
-          sportReviewBackRoute({ sportPrepWeekPlan, adaptiveSetup }) as never
+          sportReviewBackRoute({
+            sportPrepWeekPlan,
+            adaptiveSetup,
+            fromWorkoutTab,
+          }) as never
         );
       }}
       style={{ paddingLeft: 16 }}
@@ -180,14 +232,27 @@ export function AdaptiveRecommendationBackButton() {
   );
 }
 
-/** Back from week plan to filters — never rely on router.back() (tab routes are not a reliable stack). */
+/**
+ * Back from week plan: Workout overview when opened via Edit on the Workout tab;
+ * otherwise filters (Create setup). Never rely on router.back().
+ */
 export function ManualWeekBackButton() {
   const router = useRouter();
   const theme = useTheme();
-  const { manualGoalPreferencesScope, activeSessionDraft, updateActiveSessionDraft } = useAppState();
+  const params = useLocalSearchParams<{ from?: string }>();
+  const {
+    manualGoalPreferencesScope,
+    activeSessionDraft,
+    updateActiveSessionDraft,
+  } = useAppState();
+  const fromWorkoutTab = isEditFromWorkoutTab(params);
   return (
     <Pressable
       onPress={() => {
+        if (fromWorkoutTab) {
+          router.replace(activeTrainingOverviewHref() as never);
+          return;
+        }
         const next = weekSetupAtPickDays(activeSessionDraft?.weekSetup);
         if (next && next !== activeSessionDraft?.weekSetup) {
           updateActiveSessionDraft({ weekSetup: next });
@@ -233,18 +298,14 @@ export function ManualPreferencesBackButton() {
   );
 }
 
-/** Back from execute: the active plan's overview if there is one, else the workout editor. */
+/** Back from Train: always the Workout-tab overview — never Create editors. */
 export function ManualExecuteBackButton() {
   const router = useRouter();
   const theme = useTheme();
-  const { manualWeekPlan, sportPrepWeekPlan } = useAppState();
-  const hasActivePlan = manualWeekPlan != null || sportPrepWeekPlan != null;
   return (
     <Pressable
       onPress={() => {
-        router.replace(
-          (hasActivePlan ? TAB_BAR_HOME_HREF.workout : "/manual/workout") as never
-        );
+        router.replace(activeTrainingOverviewHref() as never);
       }}
       style={{ paddingLeft: 16 }}
     >
@@ -253,14 +314,26 @@ export function ManualExecuteBackButton() {
   );
 }
 
-/** Back from workout review to filters (setup). Never use dismissTo — tab routes are not a dismiss stack. */
+/**
+ * Back from day review: Workout overview when opened from the Workout tab or after
+ * the day was promoted onto that tab; otherwise filters (first-time Create).
+ */
 export function EditWorkoutBackButton() {
   const router = useRouter();
   const theme = useTheme();
-  const { manualGoalPreferencesScope } = useAppState();
+  const params = useLocalSearchParams<{ from?: string }>();
+  const { manualGoalPreferencesScope, manualWeekPlan } = useAppState();
+  const fromWorkoutTab = isEditFromWorkoutTab(params);
+  const hasActivePlan = (manualWeekPlan?.days.length ?? 0) > 0;
   return (
     <Pressable
-      onPress={() => navigateToManualGoalPreferences(router, manualGoalPreferencesScope)}
+      onPress={() => {
+        if (fromWorkoutTab || hasActivePlan) {
+          router.replace(activeTrainingOverviewHref() as never);
+          return;
+        }
+        navigateToManualGoalPreferences(router, manualGoalPreferencesScope);
+      }}
       style={{ paddingLeft: 16 }}
     >
       <Ionicons name="chevron-back" size={24} color={theme.text} />
@@ -353,8 +426,8 @@ const flowHeaderTitleStyles = StyleSheet.create({
     maxWidth: "100%",
   },
   title: {
+    fontFamily: themeFonts.displaySemi,
     fontSize: 17,
-    fontWeight: "600",
   },
   mode: {
     fontSize: 11,

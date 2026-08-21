@@ -9,7 +9,7 @@ import {
   UIManager,
   type ViewStyle,
 } from "react-native";
-import { themeRadius, useTheme } from "../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../lib/theme";
 
 if (
   Platform.OS === "android" &&
@@ -166,13 +166,15 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
+    fontFamily: themeFonts.displayMedium,
     fontSize: 12,
-    fontWeight: "500",
+    letterSpacing: 0.6,
     marginTop: 2,
   },
   titleNested: {
+    fontFamily: themeFonts.displayMedium,
     fontSize: 11,
-    fontWeight: "500",
+    letterSpacing: 0.5,
     marginTop: 2,
   },
   selectedValue: {

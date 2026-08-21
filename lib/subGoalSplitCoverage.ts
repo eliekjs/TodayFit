@@ -148,6 +148,8 @@ export const SUB_GOAL_SPLIT_COVERAGE: Record<string, SplitCoverageSpec> = {
   vertical_jump: LOWER_BROAD,
   speed_sprint: LOWER_BROAD,
   sprint: LOWER_BROAD,
+  agility_cod: LOWER_BROAD,
+  change_of_direction: LOWER_BROAD,
   olympic_triple_extension: FULL_SPEC,
   power_explosive: FULL_SPEC,
   core: CORE_SPEC,
@@ -289,6 +291,7 @@ export type UncoveredSubGoalResolution = {
   label: string;
   bodyFocusId?: DayBodyFocusChoiceId;
   acknowledge?: boolean;
+  editPreferences?: boolean;
 };
 
 export type UncoveredSubGoalPrompt = {
@@ -359,6 +362,11 @@ function buildPrompt(
     label: `Use ${bodyChoiceLabelForSplit(id)}`,
     bodyFocusId: id,
   }));
+  resolutions.push({
+    id: "edit_goals",
+    label: "Go back and edit goals",
+    editPreferences: true,
+  });
   resolutions.push({
     id: "continue_anyway",
     label: names.length === 1 ? "Continue without this sub-goal" : "Continue without these sub-goals",
@@ -432,20 +440,27 @@ export function subFocusSlugCoveredByFocusParts(
   const coreOnly = parts.includes("core") && !hasPush && !hasPull && !hasLower;
   if (coreOnly) return spec.coveredBy.includes("core");
 
-  if (hasLower && !hasPush && !hasPull) {
+  if (hasLower) {
     const quadOnly = parts.includes("quad") && !parts.includes("posterior") && !parts.includes("legs");
     const posteriorOnly =
       parts.includes("posterior") && !parts.includes("quad") && !parts.includes("legs");
-    if (quadOnly) return spec.coveredBy.includes("quad");
-    if (posteriorOnly) {
-      return spec.coveredBy.includes("posterior") || spec.coveredBy.includes("glutes");
+    let lowerCovered: boolean;
+    if (quadOnly) lowerCovered = spec.coveredBy.includes("quad");
+    else if (posteriorOnly) {
+      lowerCovered =
+        spec.coveredBy.includes("posterior") || spec.coveredBy.includes("glutes");
+    } else {
+      lowerCovered = spec.coveredBy.includes("lower") || spec.coveredBy.includes("legs");
     }
-    return spec.coveredBy.includes("lower") || spec.coveredBy.includes("legs");
+    if (!hasPush && !hasPull) return lowerCovered;
+    if (lowerCovered) return true;
   }
   // Pattern Push/Pull are family gates, not the Region Upper chip.
   if (hasPush && !hasPull) return spec.coveredBy.includes("push");
   if (hasPull && !hasPush) return spec.coveredBy.includes("pull");
-  if (hasPush && hasPull) return spec.coveredBy.includes("upper") || spec.coveredBy.includes("full");
+  // Push + Pull is the Region "Upper" contract, not Full body. A sub-goal
+  // compatible only with Full body must not leak into an upper-only session.
+  if (hasPush && hasPull) return spec.coveredBy.includes("upper");
   return true;
 }
 

@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { AppScreenWrapper } from "./AppScreenWrapper";
-import { themeRadius, useTheme } from "../lib/theme";
+import { themeFonts, themeRadius, useTheme } from "../lib/theme";
+import { useBusyLabel } from "../lib/useAnimatedEllipsis";
 
 type Props = {
   message: string;
@@ -24,6 +25,7 @@ export function GenerationLoadingScreen({
   onGoBack,
 }: Props) {
   const theme = useTheme();
+  const displayMessage = useBusyLabel(message, true);
   const breathe = useRef(new Animated.Value(0.65)).current;
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export function GenerationLoadingScreen({
             <ActivityIndicator size="large" color={theme.primary} />
           </Animated.View>
 
-          <Text style={[styles.title, { color: theme.text }]}>{message}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{displayMessage}</Text>
 
           {subtitle != null && subtitle.length > 0 ? (
             <Text style={[styles.subtitle, { color: theme.textMuted }]}>{subtitle}</Text>
@@ -96,10 +98,10 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontFamily: themeFonts.displayBold,
+    fontSize: 22,
     textAlign: "center",
-    letterSpacing: -0.3,
+    letterSpacing: 0.2,
   },
   subtitle: {
     fontSize: 14,

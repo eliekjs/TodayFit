@@ -7,6 +7,9 @@ import {
   isLowerOnlyFocusBodyParts,
   regionalStrengthOverlayForFocus,
 } from "./bodyFocusSubFocusFilter";
+import { filterByConstraintsForPool } from "./dailyGenerator";
+import { resolveWorkoutConstraints } from "../workoutIntelligence/constraints/resolveWorkoutConstraints";
+import { GOAL_INTENT_ENRICHMENT } from "../../data/goalIntentEnrichment";
 import type { Exercise } from "./types";
 
 describe("filterSubFocusSlugsForBodyFocus", () => {
@@ -20,6 +23,15 @@ describe("filterSubFocusSlugsForBodyFocus", () => {
     const slugs = ["lower_body_power_plyos", "upper_body_power"];
     const filtered = filterSubFocusSlugsForBodyFocus(slugs, ["lower"]);
     expect(filtered).toEqual(["lower_body_power_plyos"]);
+  });
+
+  it("keeps general explosive power but drops agility/COD on upper-only focus", () => {
+    expect(
+      filterSubFocusSlugsForBodyFocus(
+        ["power_explosive", "agility_cod"],
+        ["upper_push", "upper_pull"]
+      )
+    ).toEqual(["power_explosive"]);
   });
 
   it("leaves slugs unchanged for full body", () => {
@@ -182,5 +194,83 @@ describe("exerciseIsLowerBodyDominantPowerMovement", () => {
       tags: { goal_tags: ["power"], stimulus: ["plyometric"] },
     };
     expect(exerciseIsLowerBodyDominantPowerMovement(ex)).toBe(false);
+  });
+
+  it("flags legacy COD drills even when bad source metadata labels them pull", () => {
+    const crossoverBounds: Exercise = {
+      id: "crossover_bounds",
+      name: "Crossover Bounds",
+      movement_pattern: "pull",
+      muscle_groups: ["pull"],
+      modality: "conditioning",
+      equipment_required: [],
+      difficulty: 2,
+      time_cost: "low",
+      tags: { goal_tags: ["power"], attribute_tags: ["agility", "change_of_direction"] },
+      primary_movement_family: "upper_pull",
+    };
+    expect(exerciseIsLowerBodyDominantPowerMovement(crossoverBounds)).toBe(true);
+  });
+});
+
+describe("body-priority pool filtering", () => {
+  const upperPower: Exercise = {
+    id: "dumbbell_push_press",
+    name: "Dumbbell Push Press",
+    movement_pattern: "push",
+    muscle_groups: ["shoulders", "triceps"],
+    modality: "power",
+    equipment_required: ["dumbbells"],
+    difficulty: 2,
+    time_cost: "medium",
+    tags: { goal_tags: ["power"], attribute_tags: ["explosive_power"] },
+    primary_movement_family: "upper_push",
+  };
+  const mislabeledCod: Exercise = {
+    id: "jump_cut_drill",
+    name: "Jump Cut Drill",
+    movement_pattern: "pull",
+    muscle_groups: ["pull"],
+    modality: "conditioning",
+    equipment_required: [],
+    difficulty: 2,
+    time_cost: "low",
+    tags: { goal_tags: ["power"], attribute_tags: ["agility", "change_of_direction"] },
+    primary_movement_family: "upper_pull",
+  };
+
+  it("keeps upper explosive work and rejects lower COD drills on an upper day", () => {
+    const constraints = resolveWorkoutConstraints({
+      primary_goal: "athletic_performance",
+      body_region_focus: ["upper_push", "upper_pull"],
+      available_equipment: ["dumbbells"],
+      duration_minutes: 45,
+      energy_level: "medium",
+    });
+    expect(filterByConstraintsForPool([mislabeledCod, upperPower], constraints).map((e) => e.id)).toEqual([
+      "dumbbell_push_press",
+    ]);
+  });
+
+  it("keeps the COD drill on a lower day", () => {
+    const constraints = resolveWorkoutConstraints({
+      primary_goal: "athletic_performance",
+      body_region_focus: ["lower"],
+      available_equipment: ["dumbbells"],
+      duration_minutes: 45,
+      energy_level: "medium",
+    });
+    expect(filterByConstraintsForPool([mislabeledCod, upperPower], constraints).map((e) => e.id)).toEqual([
+      "jump_cut_drill",
+    ]);
+  });
+
+  it("does not enrich lower-body COD drills as upper-body power", () => {
+    expect(GOAL_INTENT_ENRICHMENT.crossover_bounds?.attribute_tags_append ?? []).not.toContain(
+      "upper_body_power"
+    );
+    expect(GOAL_INTENT_ENRICHMENT.jump_cut_drill?.attribute_tags_append ?? []).not.toContain(
+      "upper_body_power"
+    );
   });
 });

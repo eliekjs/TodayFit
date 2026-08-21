@@ -295,8 +295,6 @@ const UPPER_BODY_POWER_GOAL_IDS: readonly string[] = [
   "kneeling_side_slam",
   "side_slam",
   "lateral_plyo_push_up",
-  "crossover_bounds",
-  "jump_cut_drill",
   "dumbbell_push_press",
 ];
 

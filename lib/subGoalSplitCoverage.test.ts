@@ -22,6 +22,12 @@ const strengthPrefs = (subs: string[]): ManualPreferences => ({
   workoutStyle: [],
 });
 
+const athleticPrefs = (subs: string[]): ManualPreferences => ({
+  ...strengthPrefs([]),
+  primaryFocus: ["Athletic Performance"],
+  subFocusByGoal: { "Athletic Performance": subs },
+});
+
 describe("sub-goal split coverage", () => {
   it("maps overhead press to Upper / Push / Shoulders by split type", () => {
     expect(recommendedBodyChoiceForSubFocus("overhead_press", "region")).toBe("upper");
@@ -169,5 +175,48 @@ describe("sub-goal split coverage", () => {
     expect(dayBodyChoiceCoversSubFocus("upper", "shoulder_health")).toBe(true);
     expect(dayBodyChoiceCoversSubFocus("core", "back_spine_health")).toBe(true);
     expect(recommendedBodyChoiceForSubFocus("hip_health", "region")).toBe("lower");
+  });
+
+  it("warns that agility/COD is lost from an upper-only week but keeps general power", () => {
+    const prompt = detectUncoveredSubGoalsForWeek({
+      manualPreferences: athleticPrefs([
+        "Power / Explosive",
+        "Agility / Change of direction",
+      ]),
+      dayBodyPicks: [["upper"]],
+      mode: "region",
+    });
+
+    expect(prompt).not.toBeNull();
+    expect(prompt!.uncovered.map((item) => item.slug)).toEqual(["agility_cod"]);
+    expect(prompt!.message).toMatch(/Agility \/ Change of direction will get lost/);
+    expect(prompt!.recommendedChoiceIds).toEqual(["lower"]);
+    expect(prompt!.resolutions).toContainEqual(
+      expect.objectContaining({ label: "Go back and edit goals", editPreferences: true })
+    );
+    expect(
+      subFocusSlugCoveredByFocusParts("agility_cod", ["upper_push", "upper_pull"])
+    ).toBe(false);
+    expect(
+      subFocusSlugCoveredByFocusParts("power_explosive", ["upper_push", "upper_pull"])
+    ).toBe(true);
+  });
+
+  it("does not warn when a lower or full-body day can host agility/COD", () => {
+    const prefs = athleticPrefs(["Power / Explosive", "Agility / Change of direction"]);
+    expect(
+      detectUncoveredSubGoalsForWeek({
+        manualPreferences: prefs,
+        dayBodyPicks: [["upper"], ["lower"]],
+        mode: "region",
+      })
+    ).toBeNull();
+    expect(
+      detectUncoveredSubGoalsForWeek({
+        manualPreferences: prefs,
+        dayBodyPicks: [["full"]],
+        mode: "region",
+      })
+    ).toBeNull();
   });
 });

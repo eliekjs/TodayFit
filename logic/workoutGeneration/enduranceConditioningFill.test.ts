@@ -127,4 +127,86 @@ describe("endurance / conditioning primary duration fill", () => {
     );
     expect(hasTimeBased).toBe(true);
   });
+
+  it("45 min zone2_long_steady uses sustained Zone 2 blocks, not short 20–45s intervals", () => {
+    const seeds = [0, 1, 7, 42, 55, 100, 501];
+    for (const seed of seeds) {
+      const session = generateWorkoutSession(
+        {
+          duration_minutes: 45,
+          primary_goal: "endurance",
+          energy_level: "medium",
+          available_equipment: [...CARDIO_EQUIPMENT],
+          injuries_or_constraints: [],
+          goal_sub_focus: { endurance: ["zone2_long_steady"] },
+          seed,
+        },
+        STUB_EXERCISES
+      );
+      const cond = conditioningBlocks(session);
+      expect(cond.length, `seed ${seed}: expected conditioning`).toBeGreaterThanOrEqual(1);
+      for (const b of cond) {
+        expect(b.title ?? "", `seed ${seed}: ${b.title}`).toMatch(/zone 2/i);
+        expect(b.format, `seed ${seed}`).toBe("straight_sets");
+        for (const item of b.items) {
+          expect(item.reps, `seed ${seed}: ${item.exercise_id}`).toBeUndefined();
+          expect(item.time_seconds ?? 0, `seed ${seed}: sustained bout`).toBeGreaterThanOrEqual(8 * 60);
+          expect(item.sets ?? 1).toBeLessThanOrEqual(2);
+        }
+      }
+      const longest = Math.max(
+        ...cond.map((b) =>
+          b.items.reduce((m, i) => Math.max(m, (i.sets ?? 1) * (i.time_seconds ?? 0)), 0)
+        )
+      );
+      expect(longest, `seed ${seed}: at least one ~15 min sustained piece`).toBeGreaterThanOrEqual(14 * 60);
+
+      const condMins = cond.reduce((s, b) => s + (b.estimated_minutes ?? 0), 0);
+      expect(condMins, `seed ${seed}: aerobic volume should fill most of 45 min`).toBeGreaterThanOrEqual(
+        28
+      );
+      const total = sessionTotalMinutes(session);
+      expect(total, `seed ${seed}: session near selected duration`).toBeGreaterThanOrEqual(38);
+      expect(total).toBeLessThanOrEqual(55);
+    }
+  });
+
+  it(
+    "catalog dual-tagged zone2 ergs stay sustained on 45 min long-steady days",
+    { timeout: 60_000 },
+    async () => {
+      const { EXERCISES } = await import("../../data/exercisesMerged");
+      const { exerciseDefinitionToGeneratorExercise } = await import("../../lib/dailyGeneratorAdapter");
+      const pool = EXERCISES.map(exerciseDefinitionToGeneratorExercise);
+      for (const seed of [0, 1, 7, 42]) {
+        const session = generateWorkoutSession(
+          {
+            duration_minutes: 45,
+            primary_goal: "endurance",
+            energy_level: "medium",
+            available_equipment: [...CARDIO_EQUIPMENT, "bike"],
+            injuries_or_constraints: [],
+            goal_sub_focus: { endurance: ["zone2_long_steady"] },
+            seed,
+          },
+          pool
+        );
+        const cond = conditioningBlocks(session);
+        expect(cond.length, `seed ${seed}`).toBeGreaterThanOrEqual(1);
+        for (const b of cond) {
+          expect(b.title ?? "", `seed ${seed}: ${b.title}`).toMatch(/zone 2/i);
+          expect(/interval/i.test(b.title ?? "")).toBe(false);
+          for (const item of b.items) {
+            expect(item.time_seconds ?? 0, `seed ${seed}: ${item.exercise_id}`).toBeGreaterThanOrEqual(
+              8 * 60
+            );
+          }
+        }
+        const longest = Math.max(
+          ...cond.flatMap((b) => b.items.map((i) => (i.sets ?? 1) * (i.time_seconds ?? 0)))
+        );
+        expect(longest, `seed ${seed}`).toBeGreaterThanOrEqual(14 * 60);
+      }
+    }
+  );
 });

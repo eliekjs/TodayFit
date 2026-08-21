@@ -240,7 +240,7 @@ export async function listWeeklyPlanInstances(userId: string): Promise<SavedWeek
     .from("weekly_plan_instances")
     .select("id, week_start_date, created_at, goals_snapshot")
     .eq("user_id", userId)
-    .order("week_start_date", { ascending: false });
+    .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({
     id: r.id,

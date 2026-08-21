@@ -1,16 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildContinueEditingLabel,
   buildSessionBannerDetails,
   buildSessionSummary,
   createSessionDraft,
   getSessionResumeRoute,
   inferSessionPhase,
+  isCreateEditingFlowScreen,
+  isCreateTabHome,
   isSessionFlowScreen,
   shouldShowSessionResumeBanner,
   sessionFlowFromManualScope,
   weekSetupAtPickDays,
 } from "./sessionDraft";
-import { sportReviewBackLabel, sportReviewBackRoute } from "./sessionFlowNav";
+import {
+  activeTrainingOverviewLabel,
+  editActivePlanHref,
+  isEditFromWorkoutTab,
+  sportReviewBackLabel,
+  sportReviewBackRoute,
+} from "./sessionFlowNav";
 import { defaultManualPreferences } from "../context/appStateModel";
 
 describe("sessionDraft", () => {
@@ -46,6 +55,35 @@ describe("sessionDraft", () => {
         },
       })
     ).toBe("Rock Climbing · Week");
+  });
+
+  it("builds continue-editing labels for create resume", () => {
+    expect(
+      buildContinueEditingLabel({
+        flow: "goal_day",
+        preferences: {
+          ...defaultManualPreferences,
+          primaryFocus: ["Build strength"],
+        },
+        adaptiveSetup: null,
+      })
+    ).toBe("Continue editing Build strength workout");
+
+    expect(
+      buildContinueEditingLabel({
+        flow: "sport_week",
+        preferences: defaultManualPreferences,
+        adaptiveSetup: {
+          rankedGoals: [null, null, null],
+          intensityLevel: "Moderate",
+          injuryStatus: "No Concerns",
+          injuryTypes: [],
+          rankedSportSlugs: ["rock_climbing", null, null],
+          subFocusBySport: {},
+          sportFocusPct: [60, 40],
+        },
+      })
+    ).toBe("Continue editing Rock Climbing week");
   });
 
   it("builds human-readable summary from preferences", () => {
@@ -138,11 +176,21 @@ describe("sessionDraft", () => {
     expect(getSessionResumeRoute(draft, null)).toBe("/sport-mode?scope=day");
   });
 
-  it("shows resume banner only outside flow screens", () => {
-    expect(shouldShowSessionResumeBanner("/")).toBe(true);
-    expect(shouldShowSessionResumeBanner("/library")).toBe(true);
-    expect(shouldShowSessionResumeBanner("/manual/preferences")).toBe(false);
+  it("shows resume banner only on Create tab home while building", () => {
+    expect(shouldShowSessionResumeBanner("/", { phase: "setup" })).toBe(true);
+    expect(shouldShowSessionResumeBanner("/", { phase: "review" })).toBe(true);
+    expect(shouldShowSessionResumeBanner("/", { phase: "train" })).toBe(false);
+    expect(shouldShowSessionResumeBanner("/library", { phase: "setup" })).toBe(false);
+    expect(shouldShowSessionResumeBanner("/workout", { phase: "review" })).toBe(false);
+    expect(shouldShowSessionResumeBanner("/profiles", { phase: "setup" })).toBe(false);
+    expect(shouldShowSessionResumeBanner("/manual/preferences", { phase: "setup" })).toBe(false);
+    expect(isCreateTabHome("/")).toBe(true);
+    expect(isCreateTabHome("/workout")).toBe(false);
     expect(isSessionFlowScreen("/sport-mode/schedule")).toBe(true);
+    expect(isCreateEditingFlowScreen("manual/preferences")).toBe(true);
+    expect(isCreateEditingFlowScreen("manual/week")).toBe(true);
+    expect(isCreateEditingFlowScreen("sport-mode/schedule")).toBe(true);
+    expect(isCreateEditingFlowScreen("manual/execute")).toBe(false);
   });
 
   it("routes sport review back to schedule for week flow", () => {
@@ -199,5 +247,47 @@ describe("sessionDraft", () => {
         adaptiveSetup: null,
       })
     ).toBe("/sport-mode?scope=day");
+  });
+
+  it("routes sport review back to Workout overview when editing from the Workout tab", () => {
+    expect(
+      sportReviewBackRoute({
+        sportPrepWeekPlan: { scheduleSnapshot: { gymDaysPerWeek: 3 } },
+        adaptiveSetup: null,
+        fromWorkoutTab: true,
+      })
+    ).toBe("/workout");
+    expect(
+      sportReviewBackLabel({
+        sportPrepWeekPlan: { scheduleSnapshot: { gymDaysPerWeek: 3 } },
+        adaptiveSetup: null,
+        fromWorkoutTab: true,
+      })
+    ).toBe("Your week");
+    expect(
+      sportReviewBackLabel({
+        sportPrepWeekPlan: { scheduleSnapshot: { gymDaysPerWeek: 1 } },
+        adaptiveSetup: null,
+        fromWorkoutTab: true,
+      })
+    ).toBe("Your workout");
+  });
+});
+
+describe("edit from Workout tab", () => {
+  it("tags editor hrefs and detects the from=workout flag", () => {
+    expect(editActivePlanHref("/manual/week")).toBe("/manual/week?from=workout");
+    expect(editActivePlanHref("/sport-mode/recommendation?x=1")).toBe(
+      "/sport-mode/recommendation?x=1&from=workout"
+    );
+    expect(isEditFromWorkoutTab({ from: "workout" })).toBe(true);
+    expect(isEditFromWorkoutTab({ from: ["workout"] })).toBe(true);
+    expect(isEditFromWorkoutTab({ from: "create" })).toBe(false);
+    expect(isEditFromWorkoutTab({})).toBe(false);
+  });
+
+  it("labels the active training overview for week vs day", () => {
+    expect(activeTrainingOverviewLabel({ singleDay: false })).toBe("Your week");
+    expect(activeTrainingOverviewLabel({ singleDay: true })).toBe("Your workout");
   });
 });

@@ -2,7 +2,10 @@
  * Alpine skiing: full sport-owned handlers for main strength, accessory coverage, and hypertrophy volume.
  */
 
-import { exerciseHasStrengthSubFocusSlug } from "../../../data/goalSubFocus";
+import {
+  exerciseHasStrengthSubFocusSlug,
+  exerciseMatchesStrengthIntentStrong,
+} from "../../../data/goalSubFocus";
 import {
   applyAlpineUpstreamAccessoryPairsCoverage,
   applyAlpineUpstreamMainLiftsCoverage,
@@ -49,10 +52,14 @@ export function createAlpineSportMainHandles(deps: SportMainSelectorDeps): Sport
       if (primaryIntent && intentSlugs.length > 0) {
         const directIntentMainMatches = mainPool.filter((e) => intentSlugs.some((slug) => exerciseHasStrengthSubFocusSlug(e, slug)));
         const primaryMatches = directIntentMainMatches.filter((e) => exerciseHasStrengthSubFocusSlug(e, primaryIntent));
+        const strongPrimaryMatches = primaryMatches.filter((e) =>
+          exerciseMatchesStrengthIntentStrong(e, primaryIntent)
+        );
+        const anchorPool = strongPrimaryMatches.length > 0 ? strongPrimaryMatches : primaryMatches;
 
-        if (primaryMatches.length > 0) {
+        if (anchorPool.length > 0) {
           const anchorChosen = alpineOwnedPickMany(
-            primaryMatches,
+            anchorPool,
             1,
             ctx.input,
             ctx.recentIds,

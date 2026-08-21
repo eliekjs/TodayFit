@@ -138,6 +138,7 @@ export type PlanWeekInput = {
     targetBody: import("../../lib/types").TargetBody;
     targetModifier: string[];
     specificBodyFocus?: import("../../lib/types").SpecificBodyFocusKey[];
+    weeklyBodyFocusMode?: import("../../lib/types").WeeklyBodyFocusMode;
   }[];
   /** Per gym slot sub-focus overrides after conflict resolution (merged into goalSubFocusByGoal). */
   gymDaySubFocusByGoalOverrides?: Array<Record<string, string[]> | null | undefined>;
@@ -214,6 +215,7 @@ export type ScheduleSnapshot = {
     targetBody: import("../../lib/types").TargetBody;
     targetModifier: string[];
     specificBodyFocus?: import("../../lib/types").SpecificBodyFocusKey[];
+    weeklyBodyFocusMode?: import("../../lib/types").WeeklyBodyFocusMode;
   }[];
 };
 
@@ -1272,7 +1274,12 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
             ? { sessionFocusDistribution: input.manualPreferences.sessionFocusDistribution }
             : {}),
         ...weeklyBodyFocusModeForBuild({
-          dailyPreferences: input.dailyPreferences,
+          dailyPreferences: {
+            ...input.dailyPreferences,
+            weeklyBodyFocusMode:
+              input.gymDayBodyFocuses?.[slotIdx]?.weeklyBodyFocusMode ??
+              input.dailyPreferences?.weeklyBodyFocusMode,
+          },
           manualPreferences: input.manualPreferences,
         }),
       }
@@ -1297,9 +1304,16 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
       daySpecificBodyFocuses: slot.specificBodyFocus ?? null,
       displayTitle,
     };
-    const dayPreferences: import("../../lib/types").DailyWorkoutPreferences | null = presetId
-      ? { dayFocusPresetId: presetId }
-      : null;
+    const dayMode =
+      input.gymDayBodyFocuses?.[slotIdx]?.weeklyBodyFocusMode ??
+      input.dailyPreferences?.weeklyBodyFocusMode;
+    const dayPreferences: import("../../lib/types").DailyWorkoutPreferences | null =
+      presetId || dayMode
+        ? {
+            ...(presetId ? { dayFocusPresetId: presetId } : {}),
+            ...(dayMode ? { weeklyBodyFocusMode: dayMode } : {}),
+          }
+        : null;
     return {
       intent: { ...intent, label: displayTitle },
       workout,
@@ -1486,6 +1500,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
             targetModifier: [...b.targetModifier],
             ...(b.specificBodyFocus?.length
               ? { specificBodyFocus: [...b.specificBodyFocus] }
+              : {}),
+            ...(b.weeklyBodyFocusMode
+              ? { weeklyBodyFocusMode: b.weeklyBodyFocusMode }
               : {}),
           }))
         : undefined,
@@ -1819,6 +1836,9 @@ export async function planWeek(input: PlanWeekInput): Promise<PlanWeekResult> {
           targetModifier: [...b.targetModifier],
           ...(b.specificBodyFocus?.length
             ? { specificBodyFocus: [...b.specificBodyFocus] }
+            : {}),
+          ...(b.weeklyBodyFocusMode
+            ? { weeklyBodyFocusMode: b.weeklyBodyFocusMode }
             : {}),
         }))
       : undefined,

@@ -1,5 +1,5 @@
 import type { AdaptiveSetup } from "../context/appStateModel";
-import type { ManualPreferences } from "./types";
+import type { ManualPreferences, WeeklyBodyFocusMode } from "./types";
 import { sportSetupRouteWhenNoPlan } from "./sessionFlowRoutes";
 import type { SessionFlow, SessionPhase } from "./sessionFlowTypes";
 export type { SessionFlow, SessionPhase } from "./sessionFlowTypes";
@@ -12,6 +12,8 @@ export type WeekSetupDraft = {
   selectedTrainingDays: number[];
   dayFocusChoiceIds: string[];
   dayBodyFocusChoiceIds?: string[];
+  /** Per-day Region | Pattern | Muscle vocabulary (not a week-wide lock). */
+  dayBodyFocusModes?: WeeklyBodyFocusMode[];
   /** Days the user edited — recommendations must not overwrite these picks. */
   daySessionFocusLocked?: boolean[];
   /** Fingerprint of goals/sub-focuses used to seed per-day recommendations. */
@@ -42,6 +44,8 @@ export function weekSetupDraftEqual(
     a.dayFocusChoiceIds.every((id, i) => id === b.dayFocusChoiceIds[i]) &&
     (a.dayBodyFocusChoiceIds ?? []).length === (b.dayBodyFocusChoiceIds ?? []).length &&
     (a.dayBodyFocusChoiceIds ?? []).every((id, i) => id === (b.dayBodyFocusChoiceIds ?? [])[i]) &&
+    (a.dayBodyFocusModes ?? []).length === (b.dayBodyFocusModes ?? []).length &&
+    (a.dayBodyFocusModes ?? []).every((id, i) => id === (b.dayBodyFocusModes ?? [])[i]) &&
     (a.daySessionFocusLocked ?? []).length === (b.daySessionFocusLocked ?? []).length &&
     (a.daySessionFocusLocked ?? []).every((v, i) => v === (b.daySessionFocusLocked ?? [])[i]) &&
     (a.recommendationSeed ?? "") === (b.recommendationSeed ?? "")
@@ -115,19 +119,35 @@ function humanizeSportSlug(slug: string): string {
   return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Focus label for continue-editing copy: primary goal or sport name. */
+export function buildSessionFocusLabel(
+  draft: Pick<SessionDraft, "flow" | "preferences" | "adaptiveSetup">
+): string {
+  if (draft.flow.startsWith("sport")) {
+    const slug = draft.adaptiveSetup?.rankedSportSlugs?.find((s): s is string => s != null);
+    return slug ? humanizeSportSlug(slug) : "Sport";
+  }
+  return draft.preferences.primaryFocus[0] ?? "Goal";
+}
+
+/** "workout" for one-day flows, "week" for week plans. */
+export function buildSessionScopeNoun(flow: SessionFlow): "workout" | "week" {
+  return flow.endsWith("_week") ? "week" : "workout";
+}
+
 /** Short banner subtitle: primary goal or sport, plus day vs week scope. */
 export function buildSessionBannerDetails(
   draft: Pick<SessionDraft, "flow" | "preferences" | "adaptiveSetup">
 ): string {
   const scopeLabel = draft.flow.endsWith("_week") ? "Week" : "Day";
-  let focusLabel: string;
-  if (draft.flow.startsWith("sport")) {
-    const slug = draft.adaptiveSetup?.rankedSportSlugs?.find((s): s is string => s != null);
-    focusLabel = slug ? humanizeSportSlug(slug) : "Sport";
-  } else {
-    focusLabel = draft.preferences.primaryFocus[0] ?? "Goal";
-  }
-  return `${focusLabel} · ${scopeLabel}`;
+  return `${buildSessionFocusLabel(draft)} · ${scopeLabel}`;
+}
+
+/** Create-tab resume title, e.g. "Continue editing Hypertrophy week". */
+export function buildContinueEditingLabel(
+  draft: Pick<SessionDraft, "flow" | "preferences" | "adaptiveSetup">
+): string {
+  return `Continue editing ${buildSessionFocusLabel(draft)} ${buildSessionScopeNoun(draft.flow)}`;
 }
 
 export function buildSessionSummary(
@@ -219,14 +239,46 @@ export function isSessionFlowScreen(pathname: string): boolean {
   );
 }
 
-/** Floating resume banner — only when a session exists and user left the flow. */
-export function shouldShowSessionResumeBanner(pathname: string): boolean {
-  return !isSessionFlowScreen(pathname);
+/**
+ * Create-flow editing screens (preferences, week builder, sport setup/review).
+ * Excludes execute — that belongs to the Workout tab, not "continue creating".
+ */
+export function isCreateEditingFlowScreen(routeOrPath: string): boolean {
+  const normalized = routeOrPath.replace(/^\//, "").replace(/\(tabs\)\//, "");
+  if (normalized === "manual/execute" || normalized.startsWith("manual/execute?")) {
+    return false;
+  }
+  return (
+    normalized.startsWith("manual/") ||
+    normalized.startsWith("sport-mode") ||
+    normalized.includes("/manual/") ||
+    normalized.includes("/sport-mode")
+  );
 }
 
-/** Height of the floating session banner (for content inset). */
-/** Flush strip under nav header: continue title + details. */
-export const SESSION_BANNER_HEIGHT = 58;
+/** Create tab home only — continue-editing never appears on Workout / Library / Profile. */
+export function isCreateTabHome(pathname: string): boolean {
+  const trimmed = pathname.replace(/\/+$/, "") || "/";
+  if (trimmed === "/" || trimmed === "/index") return true;
+  if (trimmed.endsWith("/(tabs)") || trimmed.endsWith("/(tabs)/index")) return true;
+  return false;
+}
+
+/**
+ * Floating resume banner — Create tab home only, and only while still building
+ * (setup/review). Hidden during train and on every other tab.
+ */
+export function shouldShowSessionResumeBanner(
+  pathname: string,
+  draft?: Pick<SessionDraft, "phase"> | null
+): boolean {
+  if (!isCreateTabHome(pathname)) return false;
+  if (draft != null && draft.phase === "train") return false;
+  return true;
+}
+
+/** Flush strip under nav header: continue-editing title. */
+export const SESSION_BANNER_HEIGHT = 64;
 
 export function createSessionDraft(params: {
   flow: SessionFlow;

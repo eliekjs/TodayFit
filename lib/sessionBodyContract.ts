@@ -194,7 +194,21 @@ export function inferWeeklyBodyFocusMode(prefs: SessionBodyPrefs): WeeklyBodyFoc
 
 export function resolveSessionBodyContract(prefs: SessionBodyPrefs): SessionBodyContract {
   const mode = inferWeeklyBodyFocusMode(prefs);
-  const comboIds = (prefs.specificBodyFocus ?? []).filter((k) =>
+  const targetRegion =
+    prefs.weeklyBodyFocusMode && prefs.targetBody === "Upper"
+      ? "upper"
+      : prefs.weeklyBodyFocusMode && prefs.targetBody === "Lower"
+        ? "lower"
+        : null;
+  // An explicit Region pick is authoritative. Stale specific picks from another day/flow
+  // must never widen Lower or Upper into a full-body combo. Intentional cross-region
+  // combinations arrive with targetBody=Full from dayBodyFocusChoicesToBias.
+  const effectiveSpecificBodyFocus = (prefs.specificBodyFocus ?? []).filter((key) => {
+    if (!targetRegion) return true;
+    if (!(DAILY_BODY_CHOICE_IDS as ReadonlySet<string>).has(key)) return true;
+    return dayBodyFocusToRegion(key as DayBodyFocusChoiceId) === targetRegion;
+  });
+  const comboIds = effectiveSpecificBodyFocus.filter((k) =>
     (DAILY_BODY_CHOICE_IDS as ReadonlySet<string>).has(k)
   ) as DayBodyFocusChoiceId[];
   if (comboIds.length >= 2) {
@@ -214,7 +228,7 @@ export function resolveSessionBodyContract(prefs: SessionBodyPrefs): SessionBody
 
   const rawChoice = bodyChoiceIdForBias(
     prefs.targetBody ?? "Full",
-    prefs.specificBodyFocus ?? undefined,
+    effectiveSpecificBodyFocus,
     prefs.targetModifier ?? undefined
   );
   const allowed = dayBodyChoiceIdsForMode(mode);
@@ -228,7 +242,7 @@ export function resolveSessionBodyContract(prefs: SessionBodyPrefs): SessionBody
       deriveBodyPartFocus(prefs.targetBody ?? null, [...(prefs.targetModifier ?? [])])
     );
     if (fromModifiers.length > 0) focusBodyParts = fromModifiers;
-    const fromSpecific = specificBodyFocusToGeneratorFocus(prefs.specificBodyFocus);
+    const fromSpecific = specificBodyFocusToGeneratorFocus(effectiveSpecificBodyFocus);
     // Quad/Posterior stored only as specificBodyFocus must still tighten the hard gate.
     for (const part of fromSpecific) {
       if ((part === "quad" || part === "posterior") && !focusBodyParts.includes(part)) {

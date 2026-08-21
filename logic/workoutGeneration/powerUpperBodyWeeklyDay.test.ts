@@ -118,6 +118,35 @@ describe("power upper body weekly day 1", () => {
     expect(input.goal_sub_focus?.power).toEqual(["upper_body_power"]);
   });
 
+  it("keeps general explosive power and drops lower-body agility/COD on an upper day", () => {
+    const input = manualPreferencesToGenerateWorkoutInput(
+      basePrefs({
+        primaryFocus: ["Athletic Performance"],
+        subFocusByGoal: {
+          "Athletic Performance": [
+            "Power / Explosive",
+            "Agility / Change of direction",
+          ],
+        },
+      }),
+      TEST_GYM,
+      "upper-general-power-cod"
+    );
+
+    expect(input.focus_body_parts).toEqual(["upper_push", "upper_pull"]);
+    expect(input.goal_sub_focus?.athletic_performance).toEqual(["power_explosive"]);
+    expect(input.goal_sub_focus?.athletic_performance).not.toContain("agility_cod");
+
+    const session = generateWorkoutSession(input, pool);
+    const powerNames = session.blocks
+      .filter((block) => block.block_type === "power")
+      .flatMap((block) => block.items.map((item) => item.exercise_name.toLowerCase()));
+    expect(powerNames.some((name) => name.includes("slam") || name.includes("push press"))).toBe(
+      true
+    );
+    expect(powerNames.some((name) => name.includes("cut") || name.includes("bound"))).toBe(false);
+  });
+
   it("session title reflects primary power upper focus, not all weekly goals", () => {
     const input = manualPreferencesToGenerateWorkoutInput(basePrefs(), TEST_GYM, "power-upper-title");
     const session = generateWorkoutSession(input, pool);

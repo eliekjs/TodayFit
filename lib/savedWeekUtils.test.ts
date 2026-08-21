@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { remapSavedWeekToCurrentWeek } from "./savedWeekUtils";
+import { completedSessionsToSavedWeek, remapSavedWeekToCurrentWeek } from "./savedWeekUtils";
 import type { SavedWeek } from "./types";
 
 describe("remapSavedWeekToCurrentWeek", () => {
@@ -46,5 +46,38 @@ describe("remapSavedWeekToCurrentWeek", () => {
       (second.getTime() - first.getTime()) / (24 * 60 * 60 * 1000)
     );
     expect(dayGap).toBe(2);
+  });
+});
+
+describe("completedSessionsToSavedWeek", () => {
+  it("builds a goal-week template from finished sessions in date order", () => {
+    const week = completedSessionsToSavedWeek("2026-08-10", [
+      {
+        date: "2026-08-12",
+        name: "Lower",
+        workout: {
+          id: "b",
+          focus: ["Lower"],
+          durationMinutes: 40,
+          energyLevel: "medium",
+          blocks: [],
+        },
+      },
+      {
+        date: "2026-08-10",
+        name: "Upper",
+        workout: {
+          id: "a",
+          focus: ["Upper"],
+          durationMinutes: 40,
+          energyLevel: "medium",
+          blocks: [],
+        },
+      },
+      { date: "2026-08-11", name: "Skipped log" },
+    ]);
+    expect(week?.days.map((day) => day.workout.id)).toEqual(["a", "b"]);
+    expect(week?.source).toBe("manual");
+    expect(week?.weekStartDate).toBe("2026-08-10");
   });
 });
